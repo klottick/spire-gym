@@ -1,0 +1,27 @@
+{
+  "schema": "spire-lab/reference-build/1",
+  "status": "pending",
+  "verified": false,
+  "game": {
+    "expected": "Slay the Spire 1, pinned build (Ironclad, Ascension 0 content era)",
+    "version": null,
+    "sha256": null,
+    "evidence_required": "actual SHA-256 of the user-provided pinned game jar, supplied at build time as -PgameJar and kept outside this repository"
+  },
+  "loader": {
+    "expected": "compatible pinned loader (Mod The Spire generation)",
+    "version": null,
+    "sha256": null,
+    "evidence_required": "actual SHA-256 of the user-provided pinned loader jar, supplied at build time as -PmodTheSpireJar and kept outside this repository"
+  },
+  "game_sha256": null,
+  "loader_sha256": null,
+  "runtime_target": null,
+  "compiler_target": null,
+  "capture_evidence": {
+    "reference_rng_vectors_exported": false,
+    "short_supported_combat_trace_captured": false,
+    "capture_enabled_vs_disabled_noninterference_verified": false
+  },
+  "notes": "PENDING user evidence: the actual pinned game/loader pair, their hashes, and compatible runtime/compiler targets. Until status is 'verified' with real hashes, validation/windows-mod:mod:jar is fail-closed (see docs/validation/capture-guide.md). The portable :protocol build (JVM 17) and the Rust reader are protocol tooling only; they are NOT a verified game/runtime pair."
+}

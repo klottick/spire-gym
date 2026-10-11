@@ -1,0 +1,611 @@
+//! `trace-v1` reference trace protocol — read side.
+//!
+//! A trace is a UTF-8 JSON Lines document with a strict record order
+//! (`header`, `initial`, `step`*, `end`), 16-digit lowercase canonical
+//! hexadecimal 64-bit RNG words, a SHA-256 fingerprint chain, and
+//! reference-build provenance. The schema, units, and field vocabulary are
+//! documented in `docs/validation/trace-v1.md`; the writer is the Java
+//! `:protocol` project under `validation/windows-mod`.
+//!
+//! `read_trace` is fail-closed: a malformed, truncated, oversized, or
+//! schema-nonconforming trace is a `TraceError`. The parser never repairs,
+//! drops, or guesses.
+
+use std::path::Path;
+
+/// The only wire version accepted by this parser.
+pub const TRACE_VERSION: &str = "1";
+
+/// Default reported read limit (64 MiB); callers pass an explicit limit.
+pub const DEFAULT_MAX_TRACE_BYTES: u64 = 64 * 1024 * 1024;
+
+/// Pinned game identity (trace-local, not machine-specific).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct GameIdentity {
+    pub id: String,
+    pub character: String,
+    pub ascension: u32,
+}
+
+/// Where a trace came from. Never a machine path.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct Provenance {
+    pub tool: String,
+    pub tool_version: String,
+    pub captured_at_utc: Option<String>,
+}
+
+/// Hashes of the pinned game and loader binaries the trace was captured in.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct ReferenceBuild {
+    pub game_sha256: String,
+    pub loader_sha256: String,
+}
+
+/// Typed header record of a `trace-v1` document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraceHeader {
+    pub game: GameIdentity,
+    /// 64-bit RNG seed words, each already validated as 16-digit hex.
+    pub seed_words: Vec<String>,
+    pub provenance: Provenance,
+    pub reference_build: ReferenceBuild,
+}
+
+/// Typed initial record: the canonical state before the first action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InitialRecord {
+    pub state: serde_json::Value,
+}
+
+/// Observed semantic action at a step boundary, with trace-local identities.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SemanticAction {
+    PlayCard { card: String, target: String },
+    EndTurn,
+}
+
+/// One indexed step: the action taken and the canonical expected state after
+/// it. `expected` is kept as JSON per the approved interface and validated
+/// against the `trace-v1` state field vocabulary.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraceStep {
+    pub index: u64,
+    pub action: SemanticAction,
+    pub expected: serde_json::Value,
+}
+
+/// Combat outcome recorded by the typed end record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Outcome {
+    Victory,
+    Defeat,
+}
+
+/// Typed end record of a `trace-v1` document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TraceEnd {
+    pub outcome: Outcome,
+}
+
+/// A fully parsed, schema-validated `trace-v1` document.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraceDocument {
+    pub header: TraceHeader,
+    pub initial: InitialRecord,
+    pub steps: Vec<TraceStep>,
+    pub end: TraceEnd,
+}
+
+/// Fail-closed parser errors. Every variant is an explicit rejection.
+#[derive(Debug)]
+pub enum TraceError {
+    Io(std::io::Error),
+    /// File larger than the configured read limit.
+    Oversized { max_bytes: u64, size: u64 },
+    /// Not valid UTF-8.
+    Utf8 { bytes: usize },
+    /// File is empty.
+    Empty,
+    /// Final line is not terminated by a newline.
+    Truncated { line: usize },
+    /// Blank line in the middle of the document.
+    BlankLine { line: usize },
+    /// Record is not the expected JSON document shape.
+    Json { line: usize, message: String },
+    /// Document is missing a required record.
+    MissingRecord { expected: &'static str },
+    /// A record appears where a different record was required.
+    UnexpectedRecord { line: usize, found: String, expected: &'static str },
+    /// Wire version other than `TRACE_VERSION`.
+    UnknownVersion { version: String },
+    /// An RNG word that is not exactly 16 lowercase hexadecimal digits.
+    BadRngWord { word: String },
+    /// Missing or well-formedness- failed reference-build metadata.
+    MissingReferenceBuild { field: &'static str },
+    /// Fingerprint does not equal the SHA-256 of the previous record line.
+    BadFingerprint { line: usize },
+    /// Step index does not follow the strict 0-based sequence.
+    StepIndexOutOfOrder { line: usize, expected: u64, found: u64 },
+    /// A step index repeated.
+    DuplicateStep { index: u64 },
+    /// A non-finite quantity (NaN/Infinity) in a state quantity.
+    NonFiniteQuantity { line: usize },
+    /// A state field outside the `trace-v1` supported vocabulary.
+    UnsupportedStateField { line: usize, field: String },
+    /// A player field outside the `trace-v1` supported vocabulary.
+    UnsupportedPlayerField { line: usize, field: String },
+    /// An action kind outside the `trace-v1` supported set.
+    UnsupportedAction { line: usize, kind: String },
+    /// An outcome outside the `trace-v1` supported set.
+    BadOutcome { line: usize, value: String },
+    /// A field that must be a JSON object is not one.
+    NotAnObject { line: usize, what: &'static str },
+}
+
+impl std::fmt::Display for TraceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use TraceError as E;
+        match self {
+            E::Io(e) => write!(f, "trace I/O error: {e}"),
+            E::Oversized { max_bytes, size } => {
+                write!(f, "trace file is {size} bytes, exceeding the {max_bytes} byte read limit")
+            }
+            E::Utf8 { bytes } => write!(f, "trace file of {bytes} bytes is not valid UTF-8"),
+            E::Empty => write!(f, "trace file is empty"),
+            E::Truncated { line } => {
+                write!(f, "trace file is truncated: line {line} has no terminating newline")
+            }
+            E::BlankLine { line } => write!(f, "blank line {line} in trace document"),
+            E::Json { line, message } => write!(f, "line {line}: malformed record: {message}"),
+            E::MissingRecord { expected } => write!(f, "trace document is missing its {expected} record"),
+            E::UnexpectedRecord { line, found, expected } => {
+                write!(f, "line {line}: found a '{found}' record where a '{expected}' record was required")
+            }
+            E::UnknownVersion { version } => {
+                write!(f, "unsupported trace version '{version}' (this parser accepts trace-v1 only)")
+            }
+            E::BadRngWord { word } => {
+                write!(f, "RNG word '{word}' is not exactly 16 lowercase hexadecimal digits")
+            }
+            E::MissingReferenceBuild { field } => {
+                write!(f, "reference-build metadata field '{field}' is missing or malformed")
+            }
+            E::BadFingerprint { line } => {
+                write!(f, "line {line}: fingerprint is not the SHA-256 of the preceding record line")
+            }
+            E::StepIndexOutOfOrder { line, expected, found } => {
+                write!(f, "line {line}: step index {found} breaks the strict 0-based sequence (expected {expected})")
+            }
+            E::DuplicateStep { index } => write!(f, "step index {index} appears more than once"),
+            E::NonFiniteQuantity { line } => write!(f, "line {line}: non-finite quantity (NaN/Infinity) is not allowed"),
+            E::UnsupportedStateField { line, field } => {
+                write!(f, "line {line}: state field '{field}' is not part of the trace-v1 supported vocabulary")
+            }
+            E::UnsupportedPlayerField { line, field } => {
+                write!(f, "line {line}: player field '{field}' is not part of the trace-v1 supported vocabulary")
+            }
+            E::UnsupportedAction { line, kind } => {
+                write!(f, "line {line}: action kind '{kind}' is not supported by trace-v1")
+            }
+            E::BadOutcome { line, value } => {
+                write!(f, "line {line}: outcome '{value}' is not one of the trace-v1 supported outcomes")
+            }
+            E::NotAnObject { line, what } => write!(f, "line {line}: {what} must be a JSON object"),
+        }
+    }
+}
+
+impl std::error::Error for TraceError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            TraceError::Io(e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+/// Top-level state fields allowed by the `trace-v1` vocabulary. These names
+/// are the agreed interface with the Task 4 state model; anything else (for
+/// example unsupported-mechanic fields such as `potions`) is rejected, never
+/// silently dropped.
+const SUPPORTED_STATE_FIELDS: &[&str] = &[
+    "player", "enemies", "cards", "hand", "draw", "discard", "exhaust", "in_play", "rng", "queue",
+    "pending", "phase", "turn", "outcome", "public_knowledge", "ruleset",
+];
+
+/// Player object fields allowed by the `trace-v1` vocabulary (quantities of
+/// integer units, plus the trace-local relics/status lists).
+const SUPPORTED_PLAYER_FIELDS: &[&str] = &[
+    "hp",
+    "max_hp",
+    "block",
+    "energy",
+    "energy_per_turn",
+    "base_draw",
+    "relics",
+    "statuses",
+];
+
+/// The wire tag of every record.
+const RECORD_TAG: &str = "record";
+
+/// Read and validate a `trace-v1` trace file of at most `max_bytes` bytes.
+///
+/// The check is fail-closed and order-sensitive: size limit, UTF-8 framing,
+/// record order (`header`, `initial`, `step`*, `end`), strict 0-based step
+/// indexing, RNG word and reference-build well-formedness, state field
+/// vocabulary, and the SHA-256 fingerprint chain.
+pub fn read_trace(path: &Path, max_bytes: u64) -> Result<TraceDocument, TraceError> {
+    let meta = std::fs::metadata(path).map_err(TraceError::Io)?;
+    let size = meta.len();
+    if size > max_bytes {
+        return Err(TraceError::Oversized { max_bytes, size });
+    }
+    let bytes = std::fs::read(path).map_err(TraceError::Io)?;
+    // Re-check against the byte count actually delivered (TOCTOU-safe path).
+    if bytes.len() as u64 > max_bytes {
+        return Err(TraceError::Oversized {
+            max_bytes,
+            size: bytes.len() as u64,
+        });
+    }
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|_| TraceError::Utf8 { bytes: bytes.len() as usize })?;
+    if text.is_empty() {
+        return Err(TraceError::Empty);
+    }
+    let mut lines: Vec<&str> = text.split('\n').collect();
+    if !text.ends_with('\n') {
+        return Err(TraceError::Truncated {
+            line: text.lines().count() + 1,
+        });
+    }
+    lines.pop(); // the empty piece after the final newline
+    if lines.iter().any(|l| l.is_empty()) {
+        let line = lines.iter().position(|l| l.is_empty()).unwrap() + 1;
+        return Err(TraceError::BlankLine { line });
+    }
+    if lines.len() < 3 {
+        return Err(TraceError::MissingRecord { expected: "end" });
+    }
+
+    // Strict record order: header, initial, step*, end — parsed in sequence.
+    let end_line = lines.len();
+    let header = parse_header(1, lines[0])?;
+    let initial = parse_initial(2, lines[1], lines[0])?;
+
+    let mut steps = Vec::with_capacity(end_line - 3);
+    let mut next_index: u64 = 0;
+    for at in 2..end_line - 1 {
+        let line = at + 1; // 1-based
+        let step = parse_step(line, lines[at], lines[at - 1])?;
+        if step.index != next_index {
+            if step.index < next_index {
+                return Err(TraceError::DuplicateStep { index: step.index });
+            }
+            return Err(TraceError::StepIndexOutOfOrder {
+                line,
+                expected: next_index,
+                found: step.index,
+            });
+        }
+        next_index += 1;
+        steps.push(step);
+    }
+
+    let end = parse_end(end_line, lines[end_line - 1], lines[end_line - 2])?;
+
+    Ok(TraceDocument {
+        header,
+        initial,
+        steps,
+        end,
+    })
+}
+
+/// Decode one record line of the expected kind after a generic JSON check.
+fn parse_record<T: serde::de::DeserializeOwned>(
+    line: usize,
+    raw: &str,
+    expected_kind: &'static str,
+) -> Result<T, TraceError> {
+    let kind = record_kind(line, raw)?;
+    if kind != expected_kind {
+        return Err(TraceError::UnexpectedRecord {
+            line,
+            found: kind,
+            expected: expected_kind,
+        });
+    }
+    let value: Result<T, _> = serde_json::from_str(raw);
+    value.map_err(|e| json_error(line, raw, e))
+}
+
+fn record_kind(line: usize, raw: &str) -> Result<String, TraceError> {
+    let value: serde_json::Value = record_value(line, raw, "record tag")?;
+    value
+        .get(RECORD_TAG)
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| TraceError::Json {
+            line,
+            message: "missing or non-string 'record' tag".to_string(),
+        })
+}
+
+fn record_value(line: usize, raw: &str, what: &str) -> Result<serde_json::Value, TraceError> {
+    serde_json::from_str::<serde_json::Value>(raw).map_err(|e| {
+        if raw.contains("NaN") || raw.contains("Infinity") {
+            TraceError::NonFiniteQuantity { line }
+        } else {
+            TraceError::Json {
+                line,
+                message: format!("{what}: {e}"),
+            }
+        }
+    })
+}
+
+fn json_error(line: usize, raw: &str, e: serde_json::Error) -> TraceError {
+    if raw.contains("NaN") || raw.contains("Infinity") {
+        TraceError::NonFiniteQuantity { line }
+    } else {
+        TraceError::Json {
+            line,
+            message: e.to_string(),
+        }
+    }
+}
+
+/// Wire shapes (private). `deny_unknown_fields` keeps the parser from
+/// silently deleting mismatching fields: any field outside `trace-v1` is a
+/// hard error.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireHeader {
+    #[allow(dead_code)]
+    record: String,
+    version: String,
+    game: GameIdentity,
+    rng: RngHeader,
+    provenance: Provenance,
+    reference_build: Option<ReferenceBuild>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RngHeader {
+    seed_words: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireInitial {
+    #[allow(dead_code)]
+    record: String,
+    fingerprint: String,
+    state: serde_json::Value,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireStep {
+    #[allow(dead_code)]
+    record: String,
+    fingerprint: String,
+    index: u64,
+    action: serde_json::Value,
+    expected: serde_json::Value,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WireEnd {
+    #[allow(dead_code)]
+    record: String,
+    fingerprint: String,
+    outcome: String,
+}
+
+fn parse_header(line: usize, raw: &str) -> Result<TraceHeader, TraceError> {
+    let wire: WireHeader = parse_record(line, raw, "header")?;
+    if wire.version != TRACE_VERSION {
+        return Err(TraceError::UnknownVersion {
+            version: wire.version,
+        });
+    }
+    if wire.game.id.is_empty() || wire.game.character.is_empty() {
+        return Err(TraceError::Json {
+            line,
+            message: "game identity (id and character) must be non-empty".to_string(),
+        });
+    }
+    if wire.provenance.tool.is_empty() || wire.provenance.tool_version.is_empty() {
+        return Err(TraceError::Json {
+            line,
+            message: "provenance must name the capture tool and its version".to_string(),
+        });
+    }
+    if wire.rng.seed_words.is_empty() {
+        return Err(TraceError::BadRngWord {
+            word: "(missing rng.seed_words)".to_string(),
+        });
+    }
+    for word in &wire.rng.seed_words {
+        if !is_hex16(word) {
+            return Err(TraceError::BadRngWord { word: word.clone() });
+        }
+    }
+    let reference_build = match wire.reference_build {
+        Some(rb) => rb,
+        None => {
+            return Err(TraceError::MissingReferenceBuild {
+                field: "reference_build",
+            })
+        }
+    };
+    if !is_hex64(&reference_build.game_sha256) {
+        return Err(TraceError::MissingReferenceBuild {
+            field: "reference_build.game_sha256",
+        });
+    }
+    if !is_hex64(&reference_build.loader_sha256) {
+        return Err(TraceError::MissingReferenceBuild {
+            field: "reference_build.loader_sha256",
+        });
+    }
+    Ok(TraceHeader {
+        game: wire.game,
+        seed_words: wire.rng.seed_words,
+        provenance: wire.provenance,
+        reference_build,
+    })
+}
+
+fn parse_initial(line: usize, raw: &str, prev: &str) -> Result<InitialRecord, TraceError> {
+    let wire: WireInitial = parse_record(line, raw, "initial")?;
+    validate_state(line, &wire.state)?;
+    verify_fingerprint(line, &wire.fingerprint, prev)?;
+    Ok(InitialRecord {
+        state: wire.state,
+    })
+}
+
+fn parse_step(line: usize, raw: &str, prev: &str) -> Result<TraceStep, TraceError> {
+    let wire: WireStep = parse_record(line, raw, "step")?;
+    let action = semantic_action(line, &wire.action)?;
+    validate_state(line, &wire.expected)?;
+    verify_fingerprint(line, &wire.fingerprint, prev)?;
+    Ok(TraceStep {
+        index: wire.index,
+        action,
+        expected: wire.expected,
+    })
+}
+
+fn parse_end(line: usize, raw: &str, prev: &str) -> Result<TraceEnd, TraceError> {
+    let wire: WireEnd = parse_record(line, raw, "end")?;
+    let outcome = match wire.outcome.as_str() {
+        "victory" => Outcome::Victory,
+        "defeat" => Outcome::Defeat,
+        other => {
+            return Err(TraceError::BadOutcome {
+                line,
+                value: other.to_string(),
+            })
+        }
+    };
+    verify_fingerprint(line, &wire.fingerprint, prev)?;
+    Ok(TraceEnd { outcome })
+}
+
+fn semantic_action(line: usize, value: &serde_json::Value) -> Result<SemanticAction, TraceError> {
+    let obj = value
+        .as_object()
+        .ok_or(TraceError::NotAnObject { line, what: "action" })?;
+    let kind = obj.get(RECORD_ACTION_KIND).and_then(|v| v.as_str()).unwrap_or("");
+    match kind {
+        "play_card" => {
+            if obj.len() != 3 {
+                return Err(TraceError::UnsupportedAction {
+                    line,
+                    kind: "play_card".to_string(),
+                });
+            }
+            let card = non_empty(obj, "card", line)?;
+            let target = non_empty(obj, "target", line)?;
+            Ok(SemanticAction::PlayCard { card, target })
+        }
+        "end_turn" => {
+            if obj.len() != 1 {
+                return Err(TraceError::UnsupportedAction {
+                    line,
+                    kind: "end_turn".to_string(),
+                });
+            }
+            Ok(SemanticAction::EndTurn)
+        }
+        _ => Err(TraceError::UnsupportedAction {
+            line,
+            kind: kind.to_string(),
+        }),
+    }
+}
+
+const RECORD_ACTION_KIND: &str = "type";
+
+fn non_empty(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    line: usize,
+) -> Result<String, TraceError> {
+    obj.get(key)
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .ok_or(TraceError::UnsupportedAction {
+            line,
+            kind: key.to_string(),
+        })
+}
+
+fn validate_state(line: usize, state: &serde_json::Value) -> Result<(), TraceError> {
+    let obj = state
+        .as_object()
+        .ok_or(TraceError::NotAnObject { line, what: "state" })?;
+    for key in obj.keys() {
+        if !SUPPORTED_STATE_FIELDS.contains(&key.as_str()) {
+            return Err(TraceError::UnsupportedStateField {
+                line,
+                field: key.clone(),
+            });
+        }
+    }
+    if let Some(player) = obj.get("player") {
+        let player = match player.as_object() {
+            Some(p) => p,
+            None => {
+                return Err(TraceError::NotAnObject {
+                    line,
+                    what: "state.player",
+                })
+            }
+        };
+        for key in player.keys() {
+            if !SUPPORTED_PLAYER_FIELDS.contains(&key.as_str()) {
+                return Err(TraceError::UnsupportedPlayerField {
+                    line,
+                    field: key.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+fn verify_fingerprint(line: usize, claimed: &str, prev_line: &str) -> Result<(), TraceError> {
+    if is_hex64(claimed) && claimed == sha256_hex(prev_line.as_bytes()) {
+        Ok(())
+    } else {
+        Err(TraceError::BadFingerprint { line })
+    }
+}
+
+fn sha256_hex(data: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(data);
+    let mut out = String::with_capacity(64);
+    for byte in digest {
+        out.push_str(&format!("{byte:02x}"));
+    }
+    out
+}
+
+fn is_hex16(word: &str) -> bool {
+    word.len() == 16 && word.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn is_hex64(word: &str) -> bool {
+    word.len() == 64 && word.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}

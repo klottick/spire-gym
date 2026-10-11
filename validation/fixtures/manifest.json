@@ -1,0 +1,58 @@
+{
+  "schema": "spire-lab/validation-fixtures/1",
+  "label": "protocol-test",
+  "description": "Manually authored parser tests for the trace-v1 wire format (validation/fixtures/protocol/). They exercise the protocol reader/validator: schema, ordering, losslessness, integrity, and fail-closed rejections. They are not game behavior and not reference-runtime oracles.",
+  "reference_runtime_oracle": false,
+  "provenance_rules": [
+    "Every sample is synthetic and explicitly a protocol-test; any game/loader hashes appearing in them are well-formed placeholders, never actual metadata.",
+    "These samples must never be used to validate game correctness or as RNG oracles.",
+    "Reference fixtures may be added only after a real pinned-game capture is reviewed and verified (see docs/validation/capture-guide.md).",
+    "Protocol samples may contain well-formed synthetic metadata only with this explicit protocol-test provenance."
+  ],
+  "samples": {
+    "protocol/valid.jsonl": {
+      "expect": "accept",
+      "notes": "header + initial + two steps (play_card strike-1 -> cultist-1, then end_turn) + end(victory); full fingerprint chain; the reference reader must report exactly 2 steps."
+    },
+    "protocol/rng_numeric_instead_of_hex.jsonl": {
+      "expect": "reject",
+      "notes": "header rng.seed_words entry is a JSON number instead of a 16-digit hex string."
+    },
+    "protocol/unknown_version.jsonl": {
+      "expect": "reject",
+      "notes": "header version is 99 instead of 1."
+    },
+    "protocol/missing_header.jsonl": {
+      "expect": "reject",
+      "notes": "document starts at the initial record."
+    },
+    "protocol/missing_end.jsonl": {
+      "expect": "reject",
+      "notes": "header + initial + one step, then EOF: no end record."
+    },
+    "protocol/duplicate_step.jsonl": {
+      "expect": "reject",
+      "notes": "two step records both use index 0."
+    },
+    "protocol/nonfinite_quantity.jsonl": {
+      "expect": "reject",
+      "notes": "a step expected state contains the NaN literal."
+    },
+    "protocol/truncated.jsonl": {
+      "expect": "reject",
+      "notes": "final line is cut mid-string and lacks its terminating newline."
+    },
+    "protocol/missing_reference_build.jsonl": {
+      "expect": "reject",
+      "notes": "header has no reference_build metadata."
+    },
+    "protocol/unsupported_state_field.jsonl": {
+      "expect": "reject",
+      "notes": "initial state carries a potions field (unsupported mechanic) which must be rejected, never dropped."
+    },
+    "protocol/tampered_fingerprint.jsonl": {
+      "expect": "reject",
+      "notes": "step 0 carries a fingerprint that is not the SHA-256 of the preceding line."
+    }
+  }
+}

@@ -13,3 +13,21 @@ python/*/*.so
 # Rust build output.
 target/
 
+# Worktree-local Java toolchain (JDK 17, Gradle, Gradle user home) resolved
+# per dispatch and checksum-verified; never committed. See
+# docs/validation/capture-guide.md.
+/tools/
+
+# Gradle build outputs and project caches (root + subprojects).
+validation/windows-mod/.gradle/
+validation/windows-mod/build/
+validation/windows-mod/*/build/
+
+# External game/loader jars: user-provided paths, always outside the repo.
+validation/windows-mod/external/
+
+# Unreviewed reference captures and isolated RNG exports (promoted only
+# after review on the pinned game).
+validation/captures/
+validation/reference_rng/
+
