@@ -63,9 +63,34 @@ capture is pending.
    - real `game_sha256` / `loader_sha256` (from the actual pinned jars),
    - real `runtime_target` / `compiler_target`.
 
-## 4. Fail-closed evidence (already demonstrated on Linux)
+## 4. Fail-closed readiness (the `:mod` build gate)
 
-`gradlew :mod:jar` (no user jars, `reference-build.json` status `pending`):
+`capture mod readiness` is a **honest fail-closed predicate** — it does not just
+check "the file exists and the hash looks 64-hex". It fails the build unless
+*every* requirement is genuinely met, and it **cannot be bypassed** by flipping
+a flag: this subproject currently ships **no capture source at all**, so even a
+fully-populated, internally-consistent, `status:"verified"`
+`reference-build.json` with correctly-hashed jars still blocks `:mod` until a
+real capture implementation is present. Filling in hash fields is **not**
+sufficient.
+
+The gate lists each unmet requirement (each prefixed `[MOD-READINESS]`) and
+fails:
+
+- the pinned game / loader jars must be present (-PgameJar / -PmodTheSpireJar),
+  and the **actual digest of each supplied file is compared to the claimed
+  SHA-256** (a hash-shaped string that does not match the real file is a
+  failure);
+- `reference-build.json` must have `status:"verified"`, and its nested and
+  flat hashes must **agree** (a `game.sha256` vs `game_sha256` contradiction is
+  a failure, never silently ignored);
+- `runtime_target` and `compiler_target` must be present — the pending portable
+  release-17 toolchain is **not** a verified game target and is not inherited
+  into `:mod`;
+- an **actual capture source** must exist in this subproject.
+
+On the current pending reference (no user jars, `status:"pending"`, no capture
+source), `gradle :mod:referenceReadiness` (exit code 1, no `mod/build/libs`):
 
 ```
 > Task :mod:referenceReadiness FAILED
@@ -75,21 +100,20 @@ FAILURE: Build failed with an exception.
 * What went wrong:
 Execution failed for task ':mod:referenceReadiness'.
 > capture mod readiness FAILED (fail-closed):
-    - user-provided -PgameJar is not set
-    - user-provided -PmodTheSpireJar is not set
-    - reference-build.json status is "pending" (need "verified")
-    - reference-build.json game_sha256 is missing or not 64 lowercase hex
-    - reference-build.json loader_sha256 is missing or not 64 lowercase hex
-  Provide the pinned game/loader jars and a verified reference-build.json. See docs/validation/capture-guide.md.
+    [MOD-READINESS] game jar is not provided (-PgameJar not set)
+    [MOD-READINESS] loader jar is not provided (-PmodTheSpireJar not set)
+    [MOD-READINESS] reference-build.json status is "pending" (need "verified")
+    [MOD-READINESS] game_sha256 is not a 64-char lowercase hex SHA-256
+    [MOD-READINESS] loader_sha256 is not a 64-char lowercase hex SHA-256
+    [MOD-READINESS] capture source (implemented capture mod) is not present; a source-less mod artifact is not produced …
+  Provide the pinned game/loader jars, a verified and internally consistent reference-build.json with real digests and real runtime/compiler targets, AND an actual capture implementation in this subproject before a :mod jar may be produced. See docs/validation/capture-guide.md.
 
-BUILD FAILED in 2s
+BUILD FAILED
 ```
 
-(Exit code 1; no artifact — `mod/build/libs` does not exist afterwards.)
-
 No `:mod` artifact is produced. This is the required behavior: a successful
-`:mod:jar` is impossible without the pinned reference data and the user's
-external dependencies.
+`:mod` jar is impossible without real digests, a verified and consistent
+reference, real targets, **and** a real capture implementation.
 
 ## 5. What stays OUT of the repo
 
@@ -97,6 +121,46 @@ external dependencies.
 - External game/loader jars — referenced by path, never stored here.
 - Unreviewed raw capture outputs — kept outside and only committed as reviewed
   fixtures after verification.
+
+## 5a. Reproducible Java builds: strict dependency locking + SHA-256 verification
+
+`:protocol` (and, transitively, the subprojects) build with **build-enforced**
+dependency integrity, not a "call a BOM a lock":
+
+- **Resolved-graph lock**: every configuration is locked and enforced in
+  `LockMode.STRICT` (see `validation/windows-mod/build.gradle.kts`). The
+  committed `validation/windows-mod/protocol/gradle.lockfile` pins the exact
+  resolved coordinates (JUnit 5.13.4 BOM tree, opentest4j, apiguardian,
+  junit-platform). A build whose graph does not match the committed lock
+  **fails** — it does not silently re-resolve or upgrade.
+- **Artifact SHA-256 verification**: the committed
+  `validation/windows-mod/gradle/verification-metadata.xml` pins the SHA-256 of
+  every resolved artifact. A build whose downloaded artifact does not match the
+  recorded digest **fails** (SHA-256, not SHA-1/MD5).
+
+**Normal locked use** is just running the build normally; the lock and the
+verification metadata are always enforced — there is no lenient/off mode and no
+silent rewrite. For example, with a toolchain JDK and an isolated user home:
+
+```
+gradle :protocol:test                       # enforces lock + SHA-256 verification
+```
+
+**Intentional lock/checksum update** is a deliberate, reviewed change — never a
+default. To refresh the lock after a *reviewed* dependency change (e.g. a JUnit
+upgrade approved separately), run:
+
+```
+gradle --write-locks --write-verification-metadata sha256 :protocol:test
+```
+
+…and then **diff** `protocol/gradle.lockfile` and
+`gradle/verification-metadata.xml` against the committed files; only the reviewed
+coordinate/checksums change. Do not run `--write-locks` casually — it will
+re-record whatever the current repositories resolve and silently drift the
+reviewed graph. The focused
+`validation/windows-mod/tests/test_dependency_locking.py` demonstrates that a
+deliberate graph change and a deliberate checksum change each **fail** the build.
 
 ## 6. Portable evidence already produced (Task 2 portable stage)
 

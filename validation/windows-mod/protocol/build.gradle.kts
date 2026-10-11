@@ -7,9 +7,12 @@ repositories {
 }
 
 dependencies {
-    // Pinned exactly (lock): BOM pins every org.junit.* coordinate; exact
-    // transitive checksums are verified against Maven Central metadata
-    // (see the task-2 report) using a local worktree Gradle user home.
+    // The BOM pins the org.junit.* versions; the *exact* resolved graph is
+    // further enforced by dependency locking (see the committed
+    // protocol/gradle.lockfile, generated with --write-locks) and the exact
+    // artifact digests by gradle/verification-metadata.xml (SHA-256, generated
+    // with --write-verification-metadata sha256). Both are build-enforced and
+    // reconciled against Maven Central. See docs/validation/capture-guide.md (§5a).
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
