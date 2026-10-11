@@ -17,6 +17,17 @@ Covers (one requirement at a time, with its *specific* diagnostic):
      name matching its class, and a *mutant* proof that removing only the
      compileJava gate is what lets the harmless scaffold compile.
 
+  Follow-up 3 (test-only) refinements:
+  - N1: SUCCESS branches (inspection, mutant) also assert the case's
+    expected_tag — the inspection must show options.release=11 AND pinned
+    compiler 17; the mutant must show the compile-execution sentinel AND the
+    compiled class;
+  - the blocked compile/artifact paths assert the disposable-only compile
+    execution SENTINEL is ABSENT (the action never ran — not merely that no
+    class exists); the mutant positive control asserts the sentinel PRESENT;
+  - the result checker is extracted into _assert_case_result and covered by
+    the std-lib-only regression test_readiness_assertion.py (no Gradle).
+
 All inputs are clearly-synthetic text diagnostics (never game assets) with
 matching real digests for the otherwise-valid baseline. The committed
 docs/validation/reference-build.json is NEVER mutated.
@@ -59,6 +70,14 @@ DUMMY_SRC_REL = Path("mod/src/main/java/spirelab/DummyCaptureScaffold.java")
 INTEGRATION_TAG = "reference-dependent capture integration is pending"
 TAG_PREFIX = "MOD-READINESS"
 
+# F3: disposable-copy-only COMPILE-EXECUTION sentinel. It is injected into the
+# throwaway project's `:mod:compileJava` doFirst from this test only; the
+# production build script never contains it. Sentinel PRESENT proves the
+# compile action executed (mutant positive control); sentinel ABSENT in the
+# blocked compileJar/assemble/build evidence proves the gate prevented EXECUTION
+# (a task-graph listing alone does not prove an action never ran).
+COMPILE_SENTINEL = "MOD-COMPILE-EXECUTED spire-lab test-only disposable instrumentation"
+
 
 def _tools_present() -> bool:
     return TOOL_JDK.is_dir() and TOOL_GRADLE.is_file()
@@ -100,8 +119,11 @@ class Case:
     check_no_class: bool = False
     add_dummy_source: bool = False
     omit_jars: bool = False
-    expect_success: bool = False     # only the mutant case
+    expect_success: bool = False     # success cases: inspection (release assertion) + mutant (sentinel + class)
     remove_gate: str | None = None   # R4 mutant: gate line to strip
+    # F3: sentinel handling — blocked paths assert it ABSENT; the mutant asserts
+    # it PRESENT (positive control proving the sentinel would detect execution).
+    inject_compile_sentinel: bool = False
 
 
 CASES: list[Case] = [
@@ -120,14 +142,26 @@ CASES: list[Case] = [
     Case("loader_object_wrong_type", {**_base(), "loader": "not-an-object"}, "loader must be a JSON object"),
     Case("game_version_missing", {**_base(), "game": {**_base()["game"], "version": None}}, "game.version"),
     Case("loader_version_missing", {**_base(), "loader": {**_base()["loader"], "version": ""}}, "loader.version"),
-    # --- R3 nested SHA missing / wrong type / malformed (both sides) ---
-    Case("game_nested_sha256_missing", {**_base(), "game": {**_base()["game"], "sha256": None}},
+    # --- R3 nested SHA: FOUR DISTINCT shapes on EACH side (names = actual values) ---
+    # 1 = key removed (missing), 2 = explicit null, 3 = wrong type (non-string),
+    # 4 = malformed string. The flat hash stays = the diagnostic file digest.
+    Case("game_nested_sha256_key_absent",
+         {**_base(), "game": {k: v for k, v in _base()["game"].items() if k != "sha256"}},
+         "game.sha256 is not a 64-char lowercase hex SHA-256"),
+    Case("game_nested_sha256_null", {**_base(), "game": {**_base()["game"], "sha256": None}},
          "game.sha256 is not a 64-char lowercase hex SHA-256"),
     Case("game_nested_sha256_wrong_type", {**_base(), "game": {**_base()["game"], "sha256": 12345}},
          "game.sha256 is not a 64-char lowercase hex SHA-256"),
-    Case("loader_nested_sha256_missing", {**_base(), "loader": {**_base()["loader"], "sha256": None}},
+    Case("game_nested_sha256_malformed_string", {**_base(), "game": {**_base()["game"], "sha256": "xy"}},
+         "game.sha256 is not a 64-char lowercase hex SHA-256"),
+    Case("loader_nested_sha256_key_absent",
+         {**_base(), "loader": {k: v for k, v in _base()["loader"].items() if k != "sha256"}},
          "loader.sha256 is not a 64-char lowercase hex SHA-256"),
-    Case("loader_nested_sha256_wrong_type", {**_base(), "loader": {**_base()["loader"], "sha256": "xy"}},
+    Case("loader_nested_sha256_null", {**_base(), "loader": {**_base()["loader"], "sha256": None}},
+         "loader.sha256 is not a 64-char lowercase hex SHA-256"),
+    Case("loader_nested_sha256_wrong_type", {**_base(), "loader": {**_base()["loader"], "sha256": 12345}},
+         "loader.sha256 is not a 64-char lowercase hex SHA-256"),
+    Case("loader_nested_sha256_malformed_string", {**_base(), "loader": {**_base()["loader"], "sha256": "xy"}},
          "loader.sha256 is not a 64-char lowercase hex SHA-256"),
     Case("game_flat_sha256_malformed", {**_base(), "game_sha256": "nothex"},
          "game_sha256 is not a 64-char lowercase hex SHA-256"),
@@ -169,6 +203,8 @@ CASES: list[Case] = [
          "not a valid positive integer (overflow?)"),
     Case("compiler_target_missing", {k: v for k, v in _base().items() if k != "compiler_target"},
          "compiler_target must be a positive decimal integer string"),
+    Case("compiler_target_null", {**_base(), "compiler_target": None},
+         "compiler_target must be a positive decimal integer string (got null)"),
     Case("compiler_target_wrong_type", {**_base(), "compiler_target": ["7"]},
          "compiler_target must be a positive decimal integer string"),
     Case("compiler_release_4_unsupported", {**_base(), "compiler_target": "4", "runtime_target": "17"},
@@ -188,23 +224,40 @@ CASES: list[Case] = [
     Case("valid_baseline_integration_only", _base(), INTEGRATION_TAG,
          assert_only_integration=True),
     # --- R2 valid target binding inspected while gate stays blocked ---
+    # N1: the success branch asserts expected_tag ("options.release=11") AND
+    # the pinned-compiler extra substring — a release=null/incorrect release is rejected.
     Case("valid_target_inspect_compile",
          {**_base(), "compiler_target": "11", "runtime_target": "17"},
          "options.release=11",
          extra_substrings=("toolchain.languageVersion=17",),
          run_task="inspectCompileTarget", expect_success=True),
-    # --- R3/R4 valid source-bearing scaffold through artifact/compile paths ---
+    # --- N1: that same otherwise-valid compiler11/runtime17 metadata is STILL
+    # BLOCKED at the readiness level (only the integration-pending diagnostic):
+    # a successful inspection task is a diagnostic, NOT a successful mod/capture build.
+    Case("valid_target_11_17_blocked_at_readiness",
+         {**_base(), "compiler_target": "11", "runtime_target": "17"},
+         INTEGRATION_TAG, assert_only_integration=True),
+    # --- R3/R4/F3 valid source-bearing scaffold through artifact/compile paths.
+    # Each path asserts the named blocker + no class + no jar AND the disposable
+    # compile-execution sentinel ABSENT (the action never ran).
     Case("valid_dummy_compileJava_gated", _base(), INTEGRATION_TAG,
-         run_task="compileJava", add_dummy_source=True, check_no_class=True, check_no_artifact=True),
+         run_task="compileJava", add_dummy_source=True, inject_compile_sentinel=True,
+         check_no_class=True, check_no_artifact=True),
     Case("valid_dummy_jar_gated", _base(), INTEGRATION_TAG,
-         run_task="jar", add_dummy_source=True, check_no_class=True, check_no_artifact=True),
+         run_task="jar", add_dummy_source=True, inject_compile_sentinel=True,
+         check_no_class=True, check_no_artifact=True),
     Case("valid_dummy_assemble_gated", _base(), INTEGRATION_TAG,
-         run_task="assemble", add_dummy_source=True, check_no_class=True, check_no_artifact=True),
+         run_task="assemble", add_dummy_source=True, inject_compile_sentinel=True,
+         check_no_class=True, check_no_artifact=True),
     Case("valid_dummy_build_gated", _base(), INTEGRATION_TAG,
-         run_task="build", add_dummy_source=True, check_no_class=True, check_no_artifact=True),
-    # --- R4 mutant: removing only the compileJava gate lets the scaffold compile ---
-    Case("mutant_gate_removed_scaffold_compiles", _base(), "build/classes",
-         run_task="compileJava", add_dummy_source=True, expect_success=True,
+         run_task="build", add_dummy_source=True, inject_compile_sentinel=True,
+         check_no_class=True, check_no_artifact=True),
+    # --- R4/F3 mutant: SAME sentinel + same valid source; removing only the
+    # compileJava gate lets the scaffold actually EXECUTE — sentinel PRESENT and
+    # DummyCaptureScaffold.class produced (positive control for the sentinel).
+    Case("mutant_gate_removed_scaffold_compiles", _base(), COMPILE_SENTINEL,
+         run_task="compileJava", add_dummy_source=True,
+         inject_compile_sentinel=True, expect_success=True,
          remove_gate='tasks.named("compileJava") { dependsOn(referenceReadiness) }\n'),
     # --- jar path with invalid metadata (gate still applies) ---
     Case("jar_path_invalid_metadata", {**_base(), "verified": False},
@@ -244,6 +297,24 @@ def _remove_gate(project: Path, line: str) -> None:
     text = script.read_text()
     assert line in text, f"gate line to remove not found in disposable copy: {line!r}"
     script.write_text(text.replace(line, "", 1))
+
+
+def _inject_compile_sentinel(project: Path) -> str:
+    """F3 (disposable-copy-only): add a doFirst to the throwaway project's
+    :mod:compileJava that logs COMPILE_SENTINEL when the action executes.
+    Test-only instrumentation; the production build script is never touched.
+    Must run BEFORE any gate removal (it anchors on the gate line)."""
+    script = project / "mod" / "build.gradle.kts"
+    text = script.read_text()
+    anchor = 'tasks.named("compileJava") { dependsOn(referenceReadiness) }\n'
+    assert anchor in text, "compileJava readiness-gate line not found in disposable copy"
+    sentinel_block = (
+        'tasks.named("compileJava") {\n'
+        '    doFirst { logger.lifecycle("' + COMPILE_SENTINEL + '") }\n'
+        '}\n'
+    )
+    script.write_text(text.replace(anchor, anchor + sentinel_block, 1))
+    return COMPILE_SENTINEL
 
 
 def _run(project: Path, task: str, game_jar, mod_jar, reference_build, tmp_path):
@@ -286,22 +357,37 @@ def test_mod_readiness_case(case: Case, tmp_path: Path, _require_tools: None) ->
                             project / "synthetic-loader.diagnostic")
     if case.add_dummy_source:
         _add_dummy_source(project)
+    if case.inject_compile_sentinel:
+        _inject_compile_sentinel(project)
     if case.remove_gate:
         _remove_gate(project, case.remove_gate)
 
     proc = _run(project, case.run_task, game_jar, mod_jar, reference_build, tmp_path)
+    _assert_case_result(case, proc, project)
+
+
+def _assert_case_result(case: Case, proc: "subprocess.CompletedProcess", project: Path) -> None:
+    """All result assertions for one Case — a pure function of the case definition,
+    the captured execution, and the project dir. Extracted (follow-up 3 / N1) so
+    the assertion logic itself is covered by test_readiness_assertion.py against
+    CONTROLLED subprocess outputs without Gradle or project materialization."""
     combined = (proc.stdout or "") + (proc.stderr or "")
 
     if case.expect_success:
         assert proc.returncode == 0, (
             f"{case.name}: expected SUCCESS (exit 0)\n{proc.stdout}\n{proc.stderr}")
+        # N1: the declared expectation is asserted on the SUCCESS path too —
+        # e.g. options.release=11 for the inspection, the compile sentinel for the mutant.
+        assert case.expected_tag in combined, (
+            f"{case.name}: success output missing required expectation "
+            f"{case.expected_tag!r}\n{combined}")
+        for sub in case.extra_substrings:
+            assert sub in combined, f"{case.name}: missing {sub!r}\n{combined}"
         if case.run_task == "compileJava":
             assert _classes(project), (
                 f"{case.name}: the harmless scaffold should compile (class produced) once the "
                 f"gate is removed — proves the gate is what blocked it\n{proc.stdout}"
             )
-        for sub in case.extra_substrings:
-            assert sub in combined, f"{case.name}: missing {sub!r}\n{combined}"
         return
 
     # Blocked expectation.
@@ -312,6 +398,13 @@ def test_mod_readiness_case(case: Case, tmp_path: Path, _require_tools: None) ->
         f"{case.name}: expected diagnostic tag {case.expected_tag!r} missing\n{combined}")
     for sub in case.extra_substrings:
         assert sub in combined, f"{case.name}: missing substring {sub!r}\n{combined}"
+
+    # F3: no-compile-EXECUTION evidence (not merely absent classes): the
+    # disposable sentinel must be absent, i.e. the compile action never ran.
+    if case.inject_compile_sentinel:
+        assert COMPILE_SENTINEL not in combined, (
+            f"{case.name}: the gated :mod:compileJava action must never have "
+            f"EXECUTED — the disposable sentinel appeared in the output\n{combined}")
 
     if case.assert_only_integration:
         relevant = [m for m in re.findall(r"\[MOD-READINESS\][^\n]*", combined)
