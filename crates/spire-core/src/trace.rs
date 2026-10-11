@@ -811,21 +811,27 @@ mod bounded_read_tests {
         assert_eq!(*counter.borrow(), 1, "consumed exactly 1 byte from a 10-byte source");
     }
 
-    /// /dev/zero (Linux): metadata reports size 0, actual stream is infinite.
-    /// The bounded-read path must reject with Oversized and consume only cap+1.
-    /// This is the production "misleading initial size" scenario: the early
-    /// metadata check (0 < cap) passes, then bounded read detects overflow.
+    /// /dev/zero (Linux): metadata reports size 0 (misleading initial size),
+    /// actual stream is infinite.  The early metadata check in `read_trace`
+    /// (0 < 4) passes, then the bounded read path triggers and rejects.
+    /// This exercises the full public `read_trace` path, not just the seam.
     #[cfg(target_os = "linux")]
     #[test]
-    fn dev_zero_bounded_read_returns_oversized_with_sentinel() {
+    fn dev_zero_misleading_size_exercises_read_trace_public_path() {
         let cap: u64 = 4;
-        let result = bounded_read_check(std::fs::File::open("/dev/zero").unwrap(), cap);
+        // Assert the "misleading initial size" precondition: metadata < cap
+        let meta = std::fs::metadata("/dev/zero").unwrap();
+        assert!(meta.len() < cap,
+            "precondition: /dev/zero metadata size {} must be < cap {} to bypass early check",
+            meta.len(), cap);
+        // Call the public read_trace, not bounded_read_check directly
+        let result = read_trace(std::path::Path::new("/dev/zero"), cap);
         match result {
             Err(TraceError::Oversized { max_bytes, size }) => {
                 assert_eq!(max_bytes, 4, "Oversized.max_bytes = 4 (configured cap)");
                 assert_eq!(size, 5, "Oversized.size = cap+1 = 5, got {size}");
             }
-            other => panic!("expected Oversized from /dev/zero with cap=4, got: {other:?}"),
+            other => panic!("expected Oversized from read_trace(/dev/zero, 4), got: {other:?}"),
         }
     }
 
