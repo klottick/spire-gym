@@ -9,9 +9,10 @@
 //! the repository changes, without `cargo clean`: build scripts run from the
 //! crate directory, so this watches the *resolved* git dir (worktree-aware),
 //! its `HEAD` (branch switches and detachment change it), and, when a branch
-//! is checked out, the branch's loose ref, the directory holding it (so
-//! packed-only ref state that a later commit creates or replaces is caught
-//! too), and `packed-refs` in the common git dir (commits change one of them).
+//! is checked out, the branch's loose ref (if present), the closest existing
+//! ref ancestor (so ref and directory *creation* after `git pack-refs
+//! --all --prune` invalidates too), and `packed-refs` in the common git dir
+//! (commits change one of them).
 
 use std::path::Path;
 use std::process::Command;
@@ -45,18 +46,24 @@ fn main() {
             git_output(&["symbolic-ref", "-q", "HEAD"]),
         ) {
             let ref_path = common_dir.join(refname);
-            let ref_parent = ref_path.parent().map(Path::to_path_buf);
+            let first_ancestor = ref_path.parent().map(Path::to_path_buf);
             if ref_path.exists() {
                 watched.push(ref_path);
             }
-            // Also watch the directory holding the loose ref: a commit after
-            // `git pack-refs` *creates* this file (or replaces it on repack),
-            // which a missing-file watch would never see. cargo watches the
-            // directory contents, so creation and replacement both invalidate.
-            if let Some(parent) = ref_parent
-                && parent.is_dir()
-            {
-                watched.push(parent);
+            // After `git pack-refs --all --prune` neither the loose ref nor
+            // any of its ref directories may exist; a later commit recreates
+            // them. Watch the closest *existing* ancestor of the ref path
+            // (bounded at the common git dir): cargo watches directory
+            // contents recursively, so creating the ref or any intermediate
+            // directory under it invalidates the build. This stays within the
+            // repository's refs area and never widens to the object database.
+            let mut ancestor = first_ancestor;
+            while let Some(candidate) = ancestor {
+                if candidate.is_dir() {
+                    watched.push(candidate);
+                    break;
+                }
+                ancestor = candidate.parent().map(Path::to_path_buf);
             }
             watched.push(common_dir.join("packed-refs"));
         }

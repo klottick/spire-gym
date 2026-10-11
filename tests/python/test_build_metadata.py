@@ -131,6 +131,80 @@ def test_packed_only_initial_ref_refreshes_on_subsequent_commit(tmp_path):
     assert _revision(crate) == head_after
 
 
+@pytest.mark.parametrize(
+    "branch",
+    ["feat/phase-1a", "feat/deep/sub/phase-1a"],
+    ids=["nested-two", "nested-four"],
+)
+def test_packed_only_slash_branch_with_pruned_parent_refreshes(tmp_path, branch):
+    """Packed-only slash branch: the commit re-creates the loose ref *and*
+    any pruned ref directories, which the first build must still catch."""
+    crate = _setup(tmp_path)
+    _git(tmp_path, "branch", "-m", branch)
+    _git(tmp_path, "pack-refs", "--all", "--prune")
+
+    loose_ref = tmp_path / ".git" / "refs" / "heads" / Path(*branch.split("/"))
+    assert not loose_ref.exists()
+    assert not loose_ref.parent.is_dir()  # immediate ref parent was pruned
+
+    head_before = _git(tmp_path, "rev-parse", "HEAD")
+    _build(crate)
+    assert _revision(crate) == head_before
+
+    (tmp_path / "outside" / "a.txt").write_text("two\n")
+    _git(tmp_path, "commit", "-am", "commit after pruned-parent pack")
+    head_after = _git(tmp_path, "rev-parse", "HEAD")
+    assert head_after != head_before
+    assert loose_ref.exists()  # the commit recreated ref and parent dirs
+
+    _build(crate)  # incremental: no cargo clean
+    assert _revision(crate) == head_after
+
+
+def test_packed_only_refs_in_linked_worktree_refresh(tmp_path):
+    """A linked worktree sharing packed refs must also refresh provenance."""
+    main_repo = tmp_path / "main-repo"
+    (main_repo / "shared" / "notes").mkdir(parents=True)
+    _git(main_repo, "init", "-b", "trunk")
+    (main_repo / "shared" / "notes" / "a.txt").write_text("one\n")
+    _git(main_repo, "add", "-A")
+    _git(main_repo, "commit", "-m", "c1")
+    (main_repo / "shared" / "notes" / "a.txt").write_text("two\n")
+    _git(main_repo, "commit", "-am", "c2")
+
+    worktree = tmp_path / "worktree"
+    _git(main_repo, "worktree", "add", "-b", "wt/feature", str(worktree))
+    _git(worktree, "pack-refs", "--all", "--prune")
+
+    loose_ref = main_repo / ".git" / "refs" / "heads" / "wt" / "feature"
+    assert not loose_ref.exists()
+    assert not loose_ref.parent.is_dir()  # shared common-dir ref dirs pruned
+
+    # Disposable crate inside the worktree; the tracked file lives outside it.
+    (worktree / "crate" / "src").mkdir(parents=True)
+    crate = worktree / "crate"
+    (crate / "Cargo.toml").write_text(_MANIFEST)
+    (crate / "build.rs").write_text(BUILD_RS.read_text())
+    (crate / "src" / "lib.rs").write_text(_LIB)
+    (crate / "src" / "main.rs").write_text(_BIN)
+    (worktree / "shared" / "notes" / "b.txt").write_text("w\n")
+    _git(worktree, "add", "crate", "shared")
+    # NOTE: this add does not alter the ref; it only stages the crate dir.
+
+    head_before = _git(worktree, "rev-parse", "HEAD")
+    _build(crate)
+    assert _revision(crate) == head_before
+
+    (worktree / "shared" / "notes" / "a.txt").write_text("three\n")
+    _git(worktree, "commit", "-am", "worktree commit")
+    head_after = _git(worktree, "rev-parse", "HEAD")
+    assert head_after != head_before
+    assert loose_ref.exists()  # the commit recreated the shared loose ref
+
+    _build(crate)  # incremental: no cargo clean
+    assert _revision(crate) == head_after
+
+
 def test_revision_follows_distinct_commits_across_checkouts(tmp_path):
     """The compiled revision must follow genuinely different SHAs.
 
