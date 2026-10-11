@@ -92,16 +92,33 @@ Each unmet requirement is reported as its own `[MOD-READINESS]` diagnostic:
   valid lower-case 64-hex SHA-256s; the flat `game_sha256` / `loader_sha256`
   must also be valid and **agree with the nested hashes** (a contradiction is
   an independent failure, not a silently-skipped agreement test);
-- optional flat version aliases, when supplied, must be correctly typed and
-  match their nested `game.version` / `loader.version`;
+- optional flat version aliases are checked by **key presence**, not by
+  value-non-null: an absent `game_version`/`loader_version` is allowed, but a
+  supplied value (an explicit `null`, a non-string, a blank string, or a value
+  that disagrees with the nested `game.version` / `loader.version`) is rejected
+  with its own specific alias diagnostic;
 - `runtime_target` and `compiler_target` must both be a **canonical** Java
-  feature version — a strict positive decimal integer string (no letters, no
-  fraction, no sign, no leading zero) — and `compiler_target` must be
-  ≤ `runtime_target` (bytecode cannot target a newer JVM than the game runs)
-  **and** ≤ the local JDK in the build environment (a local toolchain cannot
-  target a version it does not know). A valid synthetic target does **not**
-  establish game compatibility; it only establishes a *formally valid*
-  reference target;
+  feature version — a strict positive decimal integer **string of ASCII digits**
+  (no letters, no fraction, no sign, no leading zero, no Unicode digits, no
+  overflow) — missing, null, or wrong-typed targets are their own blockers;
+- `compiler_target` must be inside the pinned local build compiler's actually
+  supported `--release` set — `tools/jdk17`'s `javac` supports releases
+  **7–17**; e.g. `compiler_target: "4"` or `"19"` is a named unsupported-release
+  diagnostic, not a silently-accepted target;
+- `runtime_target` must be at least the current `:protocol` bytecode release
+  (**release 17**): the protocol is compiled to release 17, so a lower runtime
+  is a named protocol-compatibility blocker requiring a later, evidence-backed
+  protocol retarget — not a claimed compatibility;
+- `compiler_target` must be ≤ `runtime_target` (bytecode cannot target a newer
+  JVM than the game runs). A valid synthetic target does **not** establish game
+  compatibility; it only establishes a *formally valid* reference target;
+- the build honors the `--release` / build-JDK distinction: `JavaCompile`'s
+  toolchain is pinned to the **build** JDK 17, while a structurally valid
+  declared `compiler_target` binds `options.release` (the bytecode/API level)
+  before any compile is permitted; invalid or missing metadata never silently
+  defaults to ambient bytecode — the readiness gate fails first. The resulting
+  binding can be inspected with `:mod:inspectCompileTarget` (reports
+  `options.release` and the pinned toolchain) without weakening any gate;
 - the **unconditional** gate: `reference-dependent capture integration is
   pending` — this subproject has no real, reviewed, reference-dependent capture
   implementation, so no `:mod` jar/assemble/build is produced. Removing this
@@ -134,8 +151,8 @@ Execution failed for task ':mod:referenceReadiness'.
     [MOD-READINESS] loader.sha256 is not a 64-char lowercase hex SHA-256
     [MOD-READINESS] game_sha256 is not a 64-char lowercase hex SHA-256
     [MOD-READINESS] loader_sha256 is not a 64-char lowercase hex SHA-256
-    [MOD-READINESS] runtime_target must be a positive integer feature version (a string) — got null
-    [MOD-READINESS] compiler_target must be a positive integer feature version (a string) — got null
+    [MOD-READINESS] runtime_target must be a positive decimal integer string (got null)
+    [MOD-READINESS] compiler_target must be a positive decimal integer string (got null)
     [MOD-READINESS] reference-dependent capture integration is pending — …
   Provide the pinned game/loader jars, a verified and internally consistent
   reference-build.json with real digests and real runtime/compiler targets, AND
@@ -147,10 +164,20 @@ BUILD FAILED
 
 The focused suite under
 `validation/windows-mod/tests/test_mod_readiness.py` drives the real Gradle
-predicate against a disposable project copy and asserts the *specific*
-diagnostic for each requirement, in every case above, plus the three
-artifact-task paths (`:mod:jar`, `:mod:assemble`, `:mod:build`) and a dummy-`.java`
-addition that must NOT unblock the build.
+predicate in disposable project copies and asserts the *specific* diagnostic
+for each requirement above, independently. It also:
+
+- drives the actual `:mod:compileJava` / `:mod:jar` / `:mod:assemble` /
+  `:mod:build` artifact paths with a **valid source-bearing** scaffold
+  (`DummyCaptureScaffold.java`, filename matching its public class) and asserts
+  the named integration blocker, **no compile execution / class output, and no
+  jar** — compile gating is certified with a real source file, never with a
+  NO-SOURCE fixture;
+- proves compile-gate **regression sensitivity** in a disposable *mutant* copy
+  where only `compileJava`'s `dependsOn(referenceReadiness)` edge is removed:
+  the same harmless scaffold then compiles and produces its class, demonstrating
+  that the gate — and nothing else — is what blocks the compile. The mutant
+  lives only in the throwaway copy; the production blocker is never removed.
 
 ## 5. What stays OUT of the repo
 

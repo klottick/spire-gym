@@ -1,30 +1,21 @@
 import groovy.json.JsonSlurper
 import java.io.File
 import java.security.MessageDigest
+import org.gradle.api.plugins.JavaPluginExtension
 
 // The real in-game capture mod is BLOCKED on user-provided evidence AND a real,
-// reviewed, reference-dependent capture integration:
-//   * a pinned Slay the Spire 1 game jar (-PgameJar, outside this repo),
-//   * a pinned loader jar (-PmodTheSpireJar, outside this repo),
-//   * a verified, internally consistent docs/validation/reference-build.json
-//     (supported schema, status "verified", boolean verified:true, nonblank
-//     game/loader version IDs, matching nested/flat SHA-256s, and compatible,
-//     toolchain-selectable runtime/compiler targets),
-//   * and an actual reference-dependent capture implementation in this
-//     subproject.
+// reviewed, reference-dependent capture integration. Everything here is
+// fail-closed and, until such an integration exists, BLOCKED UNCONDITIONALLY.
+// A dummy/empty/unrelated .java file does NOT unblock anything (S3); the
+// "reference-dependent capture integration is pending" gate is removed only as
+// part of a future audited real-adapter implementation carrying actual reference
+// evidence — never via a boolean, filename match, or source-count trick.
 //
-// Everything here is deliberately fail-closed and, until a real capture
-// integration exists, it is BLOCKED UNCONDITIONALLY. Adding a dummy/empty/unrelated
-// .java file does NOT unblock it, and there is NO boolean, filename match, or
-// source-count trick to bypass it: the "reference-dependent capture integration
-// is pending" gate is the sole remaining gate and it is removed/replaced only
-// inside a future audited real-adapter implementation carrying actual reference
-// evidence. That is honest incomplete tooling, not a successful mod stub.
-//
-// :mod does NOT inherit the portable release-17 toolchain. If and when the
-// integration gate is legitimately removed, its compiler target must be
-// selected from the verified `compiler_target` in reference-build.json (not
-// silently inherited from protocol). No portable release is applied here.
+// R2: the mod build compiles with an EXPLICITly pinned build compiler (the
+// local JDK 17) and a declared --release (bytecode/API level, NOT the build JDK).
+// The current :protocol targets release 17; a runtime below 17 is a named
+// protocol-compatibility blocker (it would require a later, evidence-backed
+// protocol retarget). A valid synthetic target is NOT game evidence.
 plugins {
     `java-library`
 }
@@ -33,9 +24,16 @@ repositories {
     mavenCentral()
 }
 
-// NOTE: no toolchain/options.release is configured for :mod. Only :protocol
-// carries the portable release-17 choice. The :mod game-runtime/compiler target
-// (and the integration that would honour it) is pending.
+// --- R2: pinned build facts (not game evidence) ---
+val PROTOCOL_RELEASE = 17            // current :protocol bytecode target
+val BUILD_JDK_MAJOR = 17             // installed local build toolchain (tools/jdk17)
+val SUPPORTED_RELEASES = 7..17       // tools/jdk17 `javac --help`: supported --release
+
+// Bind the build compiler EXPLICITLY to the local JDK 17 (NOT the game runtime
+// target, NOT a portable default inherited from protocol).
+java {
+    toolchain { languageVersion.set(JavaLanguageVersion.of(BUILD_JDK_MAJOR)) }
+}
 
 val referenceBuildFile: File =
     providers.gradleProperty("referenceBuild").orNull
@@ -50,35 +48,79 @@ fun fileSha256(path: String): String {
     return md.digest().joinToString("") { "%02x".format(it) }
 }
 
+// Parse a canonical target (ASCII positive integer, no leading zero) from the
+// reference; null on absent/non-string/non-numeric/leading-zero/overflow.
+fun referenceInt(key: String): Int? {
+    val ref = runCatching { JsonSlurper().parse(referenceBuildFile) }.getOrNull()
+    if (ref !is Map<*, *>) return null
+    val v = ref[key]
+    if (v !is String) return null
+    if (v.isEmpty() || v.any { it !in '0'..'9' }) return null
+    if (v.length > 1 && v[0] == '0') return null
+    val n = v.toIntOrNull()
+    if (n == null || n <= 0) return null
+    return n
+}
+
+// R2: bind JavaCompile.options.release to the declared compiler target when it
+// is structurally valid. Unknown/invalid metadata is never silently defaulted to
+// ambient bytecode: if it is invalid the readiness gate fails before any compile.
+val declaredCompilerRelease = referenceInt("compiler_target")
+if (declaredCompilerRelease != null) {
+    tasks.withType<JavaCompile>().configureEach {
+        options.release.set(declaredCompilerRelease)
+    }
+}
+
+// R2: diagnostic (disposable) inspection of the target configuration. Runs
+// WITHOUT removing the integration blocker and WITHOUT pretending a capture
+// implementation exists; it only inspects the declared binding.
+tasks.register("inspectCompileTarget") {
+    doLast {
+        val compile = tasks.named("compileJava").get() as JavaCompile
+        val rel = compile.options.release.orNull
+        val toolchainVer = runCatching {
+            project.extensions.getByType<JavaPluginExtension>().toolchain.languageVersion.get().toString()
+        }.getOrNull() ?: "unspecified"
+        logger.lifecycle("inspectCompileTarget: options.release=$rel (declared=$declaredCompilerRelease)")
+        logger.lifecycle("inspectCompileTarget: toolchain.languageVersion=$toolchainVer (pinned build JDK 17)")
+    }
+}
+
 val referenceReadiness = tasks.register("referenceReadiness") {
     group = "verification"
     description =
-        "Fail-closed check that a real capture mod can honestly be built. " +
-        "Every unmet requirement is reported independently, and the build is " +
+        "Fail-closed check that a real capture mod can honestly be built. Every " +
+        "unmet requirement is reported independently, and the build is " +
         "additionally blocked unconditionally while reference-dependent capture " +
         "integration is pending."
     doLast {
         val missing = mutableListOf<String>()
         fun fail(reason: String) { missing += "[MOD-READINESS] $reason" }
 
-        // Canonical target shape: a strict positive decimal integer (Java
-        // feature version) — no letters, no fraction, no sign, no leading zero.
+        // Canonical target shape: ASCII positive integer, no leading zero.
         fun targetInt(value: Any?, name: String): Int? {
             if (value !is String) {
-                fail("$name must be a positive integer feature version (a string) — got ${value?.let { it.javaClass.simpleName } ?: "null"}")
+                fail("$name must be a positive decimal integer string " +
+                     "(got ${value?.let { it.javaClass.simpleName } ?: "null"})")
                 return null
             }
-            if (value.isEmpty() || value.any { !it.isDigit() }) {
-                fail("$name must be a positive integer feature version (digits only, no fraction/sign) — got \"$value\"")
+            if (value.isEmpty() || value.any { it !in '0'..'9' }) {
+                fail("$name = \"$value\" must be a positive decimal integer feature version " +
+                     "(ASCII digits only, no fraction/sign/letters)")
                 return null
             }
             if (value.length > 1 && value[0] == '0') {
-                fail("$name has a leading zero (ambiguous Java feature version) — got \"$value\"")
+                fail("$name = \"$value\" has a leading zero (ambiguous Java feature version)")
                 return null
             }
             val v = value.toIntOrNull()
-            if (v == null || v <= 0) {
-                fail("$name is zero or negative — got \"$value\"")
+            if (v == null) {
+                fail("$name = \"$value\" is not a valid positive integer (overflow?)")
+                return null
+            }
+            if (v <= 0) {
+                fail("$name = \"$value\" is zero or negative")
                 return null
             }
             return v
@@ -121,29 +163,30 @@ val referenceReadiness = tasks.register("referenceReadiness") {
                 fail("verified must be boolean true (got ${ref["verified"]})")
             }
 
-            // S1 — required game/loader objects with nonblank version IDs and
-            // valid nested SHA-256s (each an independent blocker).
-            val game = ref["game"]
-            if (game !is Map<*, *>) {
-                fail("game object is required (game.version, game.sha256)")
+            // S1 — required game/loader objects (presence + shape).
+            if (!("game" in ref) || ref["game"] == null) {
+                fail("game object is required (a JSON object with version and sha256)")
+            } else if (ref["game"] !is Map<*, *>) {
+                fail("game must be a JSON object (got ${(ref["game"] as Any).javaClass.simpleName})")
             } else {
-                val gv = game["version"]
+                val gv = (ref["game"] as Map<*, *>)["version"]
                 if (gv !is String || gv.isBlank()) {
                     fail("game.version is required (a nonblank version ID)")
                 }
-                if (!isHex64(game["sha256"])) {
+                if (!isHex64((ref["game"] as Map<*, *>)["sha256"])) {
                     fail("game.sha256 is not a 64-char lowercase hex SHA-256")
                 }
             }
-            val loader = ref["loader"]
-            if (loader !is Map<*, *>) {
-                fail("loader object is required (loader.version, loader.sha256)")
+            if (!("loader" in ref) || ref["loader"] == null) {
+                fail("loader object is required (a JSON object with version and sha256)")
+            } else if (ref["loader"] !is Map<*, *>) {
+                fail("loader must be a JSON object (got ${(ref["loader"] as Any).javaClass.simpleName})")
             } else {
-                val lv = loader["version"]
+                val lv = (ref["loader"] as Map<*, *>)["version"]
                 if (lv !is String || lv.isBlank()) {
                     fail("loader.version is required (a nonblank version ID)")
                 }
-                if (!isHex64(loader["sha256"])) {
+                if (!isHex64((ref["loader"] as Map<*, *>)["sha256"])) {
                     fail("loader.sha256 is not a 64-char lowercase hex SHA-256")
                 }
             }
@@ -155,49 +198,69 @@ val referenceReadiness = tasks.register("referenceReadiness") {
             if (!isHex64(ref["loader_sha256"])) {
                 fail("loader_sha256 is not a 64-char lowercase hex SHA-256")
             }
-            val gNest = (ref["game"] as? Map<*, *>)?.get("sha256")
-            val lNest = (ref["loader"] as? Map<*, *>)?.get("sha256")
-            if (isHex64(gNest) && isHex64(ref["game_sha256"]) && gNest != ref["game_sha256"]) {
+            if (isHex64((ref["game"] as? Map<*, *>)?.get("sha256")) &&
+                isHex64(ref["game_sha256"]) &&
+                (ref["game"] as? Map<*, *>)?.get("sha256") != ref["game_sha256"]
+            ) {
                 fail("game.sha256 and game_sha256 disagree (nested/flat metadata contradiction)")
             }
-            if (isHex64(lNest) && isHex64(ref["loader_sha256"]) && lNest != ref["loader_sha256"]) {
+            if (isHex64((ref["loader"] as? Map<*, *>)?.get("sha256")) &&
+                isHex64(ref["loader_sha256"]) &&
+                (ref["loader"] as? Map<*, *>)?.get("sha256") != ref["loader_sha256"]
+            ) {
                 fail("loader.sha256 and loader_sha256 disagree (nested/flat metadata contradiction)")
             }
 
-            // S1 — optional flat version aliases: if supplied, typed and matching.
-            val gameVerAlias = ref["game_version"]
-            if (gameVerAlias != null) {
-                val gv = (ref["game"] as? Map<*, *>)?.get("version")
-                if (gameVerAlias !is String) {
-                    fail("game_version if supplied must be a string")
-                } else if (gv != gameVerAlias) {
-                    fail("game_version differs from game.version (optional alias must match the nested version)")
+            // R1 — optional flat version aliases: KEY-PRESENCE based (absent is
+            // allowed); a supplied value (including null, wrong type, blank, or a
+            // mismatch) is rejected with its own diagnostic.
+            if ("game_version" in ref) {
+                val alias = ref["game_version"]
+                if (alias == null) {
+                    fail("game_version is supplied as null (omit it, or supply a string matching game.version)")
+                } else if (alias !is String) {
+                    fail("game_version if supplied must be a string (got ${alias.javaClass.simpleName})")
+                } else if (alias.isBlank()) {
+                    fail("game_version if supplied must be a nonblank string")
+                } else {
+                    val gv = (ref["game"] as? Map<*, *>)?.get("version")
+                    if (alias != gv) {
+                        fail("game_version differs from game.version (optional alias must match the nested version)")
+                    }
                 }
             }
-            val loaderVerAlias = ref["loader_version"]
-            if (loaderVerAlias != null) {
-                val lv = (ref["loader"] as? Map<*, *>)?.get("version")
-                if (loaderVerAlias !is String) {
-                    fail("loader_version if supplied must be a string")
-                } else if (lv != loaderVerAlias) {
-                    fail("loader_version differs from loader.version (optional alias must match the nested version)")
+            if ("loader_version" in ref) {
+                val alias = ref["loader_version"]
+                if (alias == null) {
+                    fail("loader_version is supplied as null (omit it, or supply a string matching loader.version)")
+                } else if (alias !is String) {
+                    fail("loader_version if supplied must be a string (got ${alias.javaClass.simpleName})")
+                } else if (alias.isBlank()) {
+                    fail("loader_version if supplied must be a nonblank string")
+                } else {
+                    val lv = (ref["loader"] as? Map<*, *>)?.get("version")
+                    if (alias != lv) {
+                        fail("loader_version differs from loader.version (optional alias must match the nested version)")
+                    }
                 }
             }
 
-            // S2 — strict compatible target representation.
+            // S2 — canonical target representation + constraints.
             val runtimeV = targetInt(ref["runtime_target"], "runtime_target")
             val compilerV = targetInt(ref["compiler_target"], "compiler_target")
-            if (runtimeV != null && compilerV != null && compilerV > runtimeV) {
-                fail("compiler_target is incompatible with runtime_target " +
-                     "(compiler=$compilerV > runtime=$runtimeV: bytecode cannot target a newer JVM than the game runs)")
+            if (runtimeV != null && runtimeV < PROTOCOL_RELEASE) {
+                fail("runtime_target ($runtimeV) is below the current protocol bytecode " +
+                     "release ($PROTOCOL_RELEASE): the protocol is compiled to release $PROTOCOL_RELEASE, so a " +
+                     "lower runtime requires a later evidence-backed protocol retarget, not a claim")
             }
-            // S2 — target must be honouable by the selected local build toolchain.
-            val localMajor = org.gradle.api.JavaVersion.current().majorVersion.toIntOrNull()
-            if (compilerV != null && localMajor != null && compilerV > localMajor) {
-                fail("compiler_target is higher than the local JDK " +
-                     "(target=$compilerV > local=$localMajor): the selected local build " +
-                     "toolchain cannot target it — a real game target requires a matching " +
-                     "JDK/toolchain during integration")
+            if (compilerV != null && compilerV !in SUPPORTED_RELEASES) {
+                fail("compiler_target ($compilerV) is not a release supported by the pinned " +
+                     "local build compiler (tools/jdk17 supports --release ${SUPPORTED_RELEASES.first()}-" +
+                     "${SUPPORTED_RELEASES.last()})")
+            }
+            if (runtimeV != null && compilerV != null && compilerV > runtimeV) {
+                fail("compiler_target ($compilerV) is incompatible with runtime_target ($runtimeV): " +
+                     "bytecode cannot target a newer JVM than the game runs")
             }
 
             // S1 — retain actual-file digest comparisons.
@@ -220,9 +283,8 @@ val referenceReadiness = tasks.register("referenceReadiness") {
         }
 
         // S3 — UNCONDITIONAL integration-pending gate. Not a filename heuristic,
-        // not a source-count check, not a flag. Removing this gate is part of a
-        // future audited real-adapter implementation with actual reference
-        // evidence only.
+        // not a source-count check, not a flag. Removed only inside a future
+        // audited real-adapter implementation with actual reference evidence.
         fail("reference-dependent capture integration is pending — this subproject " +
              "has NO real, reviewed, reference-dependent capture implementation, so " +
              "no :mod artifact (jar/assemble/build) is produced. A real adapter " +
@@ -234,17 +296,17 @@ val referenceReadiness = tasks.register("referenceReadiness") {
         throw org.gradle.api.GradleException(
             "capture mod readiness FAILED (fail-closed):\n  $detail\n" +
                 "Provide the pinned game/loader jars, a verified and internally " +
-                "consistent reference-build.json, compatible toolchain-selectable " +
-                "targets, AND a real reference-dependent capture implementation in " +
-                "this subproject before any :mod artifact may be produced. " +
-                "See docs/validation/capture-guide.md."
+                "consistent reference-build.json with real digests and compatible " +
+                "toolchain-selectable targets, AND a real reference-dependent " +
+                "capture implementation in this subproject before any :mod artifact " +
+                "may be produced. See docs/validation/capture-guide.md."
         )
     }
 }
 
-// S2/S3 — gate the artifact AND the compile path before compilation: a
-// reference-dependent integration must exist (and, later, verified targets
-// selected) before any :mod compile/jar/assemble/build can run.
+// S2/S3 — gate the artifact AND the compile path. A reference-dependent
+// integration must exist (and verified targets, later selected) before any :mod
+// compile/jar/assemble/build can run. Valid synthetic metadata is not enough.
 tasks.named("compileJava") { dependsOn(referenceReadiness) }
 tasks.named("jar") { dependsOn(referenceReadiness) }
 tasks.named("assemble") { dependsOn(referenceReadiness) }
