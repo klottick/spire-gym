@@ -83,13 +83,17 @@ uv run --no-sync pytest tests/python -q
 ## Dependency updates (intentional lock regeneration)
 
 Only when the set of dependencies itself changes, as a deliberate, recorded
-step:
+step. These commands intentionally change the lockfiles, so they run without
+`--locked` (which would merely refuse the change that is the point of the
+step); the locked forms below verify the result.
 
 ```sh
-uv add --locked --dev <pkg>==<ver>   # or: uv remove <pkg>
-uv lock                              # regenerates uv.lock from the manifest
-cargo update -p <crate>              # or: cargo add/update, then verify --locked
+uv add --dev <pkg>==<ver>       # or: uv remove <pkg>   (updates uv.lock on purpose)
+uv lock                         # or: regenerate uv.lock from the manifest
+cargo update -p <crate>         # or: cargo add, then verify --locked
 cargo check --workspace --locked
+uv sync --locked --dev          # re-verify the venv against the new lock
+uv run --no-sync maturin develop --release --locked
 ```
 
 After such a change, rebuild the extension and rerun the full suites and the

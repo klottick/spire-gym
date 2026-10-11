@@ -110,23 +110,63 @@ def test_revision_refreshes_after_commit_outside_crate_without_clean(tmp_path):
     assert _revision(crate) == head_after
 
 
-def test_revision_survives_checkout_and_detached_head(tmp_path):
+def test_packed_only_initial_ref_refreshes_on_subsequent_commit(tmp_path):
+    """A branch stored only in packed-refs must still track later commits."""
     crate = _setup(tmp_path)
-    head = _git(tmp_path, "rev-parse", "HEAD")
-    _build(crate)
-    assert _revision(crate) == head
+    _git(tmp_path, "pack-refs", "--all", "--prune")
+    loose_ref = tmp_path / ".git" / "refs" / "heads" / "main"
+    assert not loose_ref.exists()
 
-    _git(tmp_path, "checkout", "-b", "side")
+    head_before = _git(tmp_path, "rev-parse", "HEAD")
     _build(crate)
-    assert _revision(crate) == head
+    assert _revision(crate) == head_before
 
-    _git(tmp_path, "checkout", "--detach")
+    (tmp_path / "outside" / "a.txt").write_text("two\n")
+    _git(tmp_path, "commit", "-am", "commit after packed-only start")
+    head_after = _git(tmp_path, "rev-parse", "HEAD")
+    assert head_after != head_before
+    assert loose_ref.exists()  # the commit created the loose ref
+
+    _build(crate)  # incremental: no cargo clean
+    assert _revision(crate) == head_after
+
+
+def test_revision_follows_distinct_commits_across_checkouts(tmp_path):
+    """The compiled revision must follow genuinely different SHAs.
+
+    Every checkout/checkout-back/detach hop lands on a *different* commit,
+    so an implementation that fails to refresh at checkout would be caught
+    by the first assertion mismatch (unlike a single-SHA sequence).
+    """
+    crate = _setup(tmp_path)
+    c1 = _git(tmp_path, "rev-parse", "HEAD")
+
+    (tmp_path / "outside" / "a.txt").write_text("two\n")
+    _git(tmp_path, "commit", "-am", "second commit on main")
+    c2 = _git(tmp_path, "rev-parse", "HEAD")
+    assert c2 != c1
+
+    # `side` is created at c1 and receives its own distinct commit c3.
+    _git(tmp_path, "checkout", "-b", "side", c1)
+    (tmp_path / "outside" / "a.txt").write_text("side\n")
+    _git(tmp_path, "commit", "-am", "side commit")
+    c3 = _git(tmp_path, "rev-parse", "HEAD")
+    assert c3 not in (c1, c2)
+
     _build(crate)
-    assert _revision(crate) == head
+    assert _revision(crate) == c3
 
     _git(tmp_path, "checkout", "main")
     _build(crate)
-    assert _revision(crate) == head
+    assert _revision(crate) == c2
+
+    _git(tmp_path, "checkout", "--detach", c1)
+    _build(crate)
+    assert _revision(crate) == c1
+
+    _git(tmp_path, "checkout", "side")
+    _build(crate)
+    assert _revision(crate) == c3
 
 
 def test_revision_env_override_and_restore(tmp_path):

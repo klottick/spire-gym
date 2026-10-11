@@ -49,6 +49,21 @@ def test_check_fails_closed_when_cpu_optimizer_step_is_noop(monkeypatch, capsys)
     assert '"status": "failed"' in captured.out
 
 
+def test_check_normalizes_cpu_probe_exception(monkeypatch, capsys):
+    # A CPU probe failure must surface as the documented RuntimeError/JSON
+    # failure contract, not as an unnormalized traceback. No computation is
+    # simulated; the probe simply raises before producing a report.
+    def raise_cpu_failure(_device):
+        raise ValueError("focused CPU probe failure")
+    monkeypatch.setattr(readiness, "probe", raise_cpu_failure)
+    with pytest.raises(RuntimeError, match="CPU readiness probe failed"):
+        check(require_cuda=False)
+    exit_code = readiness.main([])
+    captured = capsys.readouterr()
+    assert exit_code != 0
+    assert '"status": "failed"' in captured.out
+
+
 def test_check_fails_closed_when_required_cuda_report_is_unsuccessful(monkeypatch):
     # Validates result checking for a required CUDA probe. The CPU probe
     # stays real; only the CUDA report is faked with failure flags (this
@@ -66,4 +81,20 @@ def test_check_fails_closed_when_required_cuda_report_is_unsuccessful(monkeypatc
         return real_probe(device) if device == "cpu" else dict(failed)
     monkeypatch.setattr(readiness, "probe", fake_probe)
     with pytest.raises(RuntimeError, match="readiness check for cuda failed"):
+        check(require_cuda=True)
+
+
+def test_check_normalizes_cuda_probe_exception(monkeypatch):
+    # CPU probe stays real; a required-CUDA probe failure normalizes to the
+    # same RuntimeError/JSON contract (no GPU success is simulated).
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    real_probe = readiness.probe
+
+    def cuda_fails(device):
+        if device == "cuda":
+            raise ValueError("focused CUDA probe failure")
+        return real_probe(device)
+
+    monkeypatch.setattr(readiness, "probe", cuda_fails)
+    with pytest.raises(RuntimeError, match="CUDA readiness probe failed"):
         check(require_cuda=True)

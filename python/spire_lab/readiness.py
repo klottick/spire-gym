@@ -149,8 +149,12 @@ def check(require_cuda: bool) -> dict:
         "wheel": {"torch": torch.__version__, "numpy": np.__version__},
     }
 
-    report["cpu"] = probe("cpu")
-    _validate_probe(report["cpu"], "cpu")
+    try:
+        cpu_report = probe("cpu")
+    except Exception as exc:  # noqa: BLE001 - readiness must fail closed
+        raise RuntimeError(f"CPU readiness probe failed: {exc}") from exc
+    _validate_probe(cpu_report, "cpu")
+    report["cpu"] = cpu_report
     if require_cuda:
         try:
             cuda_report = probe("cuda")

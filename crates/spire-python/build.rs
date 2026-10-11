@@ -9,8 +9,9 @@
 //! the repository changes, without `cargo clean`: build scripts run from the
 //! crate directory, so this watches the *resolved* git dir (worktree-aware),
 //! its `HEAD` (branch switches and detachment change it), and, when a branch
-//! is checked out, the branch's loose ref plus `packed-refs` in the common
-//! git dir (commits change one of them).
+//! is checked out, the branch's loose ref, the directory holding it (so
+//! packed-only ref state that a later commit creates or replaces is caught
+//! too), and `packed-refs` in the common git dir (commits change one of them).
 
 use std::path::Path;
 use std::process::Command;
@@ -43,7 +44,20 @@ fn main() {
             common_dir,
             git_output(&["symbolic-ref", "-q", "HEAD"]),
         ) {
-            watched.push(common_dir.join(refname));
+            let ref_path = common_dir.join(refname);
+            let ref_parent = ref_path.parent().map(Path::to_path_buf);
+            if ref_path.exists() {
+                watched.push(ref_path);
+            }
+            // Also watch the directory holding the loose ref: a commit after
+            // `git pack-refs` *creates* this file (or replaces it on repack),
+            // which a missing-file watch would never see. cargo watches the
+            // directory contents, so creation and replacement both invalidate.
+            if let Some(parent) = ref_parent
+                && parent.is_dir()
+            {
+                watched.push(parent);
+            }
             watched.push(common_dir.join("packed-refs"));
         }
     }
