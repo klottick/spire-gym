@@ -41,7 +41,8 @@ repository has been created.
 - [x] Self-review the spec for scope, ambiguity, contradictions, and placeholders.
 - [x] Obtain user review and approval of the written spec.
 - [x] Write and self-review the 1a implementation plan.
-- [ ] Obtain user review of the plan and the user's execution choice.
+- [x] Obtain user review of the plan and the user's execution choice: local
+      Qwen 3.8 workers, a fresh reviewer per task, and controller arbitration.
 
 ## Constraints and scope boundaries
 
@@ -425,11 +426,13 @@ Plan: [Spire Lab 1a](superpowers/plans/2026-10-11-spire-lab-1a.md).
 - [x] Clarify prerequisite type ownership, game-independent mod protocol tests,
       optional native scenario sampling, non-mutating resume observations,
       restore-token expiry, and semantic-versus-capacity schema fingerprints.
-- [ ] Obtain user plan review and selection of subagent-driven or native execution.
+- [x] Obtain user plan review and selection of subagent-driven execution with
+      `ollama/qwen3.8:27b` workers and a fresh task reviewer.
 
-No implementation tasks have been executed, dependencies installed, or worktree
-created. Windows fixture handoffs and per-seed training budgets are explicit
-parts of the plan, not assumed available results.
+Execution setup has established branch `feat/phase-1a` in `.worktrees/phase-1a`.
+Task progress, review evidence and rulings are recorded in the plan-scoped
+`.superpowers/sdd/2026-10-11-spire-lab-1a/progress.md` ledger. No task is complete
+yet. Windows fixture handoffs and training budgets remain explicit gates.
 
 ## Real-game validation setup
 
