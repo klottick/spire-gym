@@ -3,9 +3,9 @@
 //! Phase 1a scaffolding: the only supported command reports versions.
 
 fn print_version() {
+    // The initial core/env crates are documentation-only; the CLI reports
+    // its own package metadata only.
     println!("spire {}", env!("CARGO_PKG_VERSION"));
-    println!("spire-core {}", spire_core::VERSION);
-    println!("spire-env {}", spire_env::VERSION);
 }
 
 fn main() -> std::process::ExitCode {

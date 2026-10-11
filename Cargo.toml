@@ -16,3 +16,6 @@ rust-version = "1.89"
 spire-core = { path = "crates/spire-core" }
 spire-env = { path = "crates/spire-env" }
 pyo3 = "0.29.3"
+# rust-numpy: resolved for the approved pyo3 0.29 / NumPy 2.x baseline;
+# consumed by a later task (batched numeric outputs), not used yet.
+rust-numpy = { package = "numpy", version = "0.29.0" }

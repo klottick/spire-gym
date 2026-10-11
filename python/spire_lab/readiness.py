@@ -26,7 +26,23 @@ _LEARNING_RATE = 3e-4
 _SEED = 7
 _SHAPE = (16, 16)
 
+# A readiness report counts as success only when every success flag is True.
+_SUCCESS_FLAGS = ("finite_gradient", "weights_changed", "synchronized")
+
 _CLI_FLAGS = ("--require-cuda",)
+
+
+def _validate_probe(report: dict, device: str) -> None:
+    """Fail closed unless every success flag in the probe report is True."""
+    failed = [
+        f"{name}={report.get(name)!r}"
+        for name in _SUCCESS_FLAGS
+        if report.get(name) is not True
+    ]
+    if failed:
+        raise RuntimeError(
+            f"readiness check for {device} failed: " + ", ".join(failed)
+        )
 
 
 def _driver_version() -> str | None:
@@ -116,8 +132,10 @@ def check(require_cuda: bool) -> dict:
     """Check device readiness, never inferring a pass from enumeration.
 
     With ``require_cuda=True``, an unavailable CUDA device raises
-    ``RuntimeError`` instead of producing a report; a probe failure also
-    fails closed.
+    ``RuntimeError``. Every probe report must show
+    ``finite_gradient``, ``weights_changed``, and ``synchronized`` as
+    ``True``; false or missing flags and probe exceptions fail closed with
+    ``RuntimeError`` (and a nonzero CLI exit).
     """
     if require_cuda and not torch.cuda.is_available():
         raise RuntimeError(
@@ -132,11 +150,14 @@ def check(require_cuda: bool) -> dict:
     }
 
     report["cpu"] = probe("cpu")
+    _validate_probe(report["cpu"], "cpu")
     if require_cuda:
         try:
-            report["cuda"] = probe("cuda")
+            cuda_report = probe("cuda")
         except Exception as exc:  # noqa: BLE001 - readiness must fail closed
             raise RuntimeError(f"CUDA readiness probe failed: {exc}") from exc
+        _validate_probe(cuda_report, "cuda")
+        report["cuda"] = cuda_report
     else:
         report["cuda_available"] = bool(torch.cuda.is_available())
 

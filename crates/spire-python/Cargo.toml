@@ -12,12 +12,15 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = []
-# Enabled by maturin for extension builds. Keeping PyO3 out of the default
-# feature set lets `cargo test --workspace` compile and link with only the
-# Rust toolchain, without a Python interpreter available.
-extension = ["dep:pyo3", "pyo3/extension-module"]
+# Enabled by maturin for extension builds. Keeping PyO3 (and, with it,
+# rust-numpy) out of the default feature set lets `cargo test --workspace`
+# compile and link with only the Rust toolchain, without a Python
+# interpreter available. rust-numpy 0.29.0 is resolved for this baseline as
+# prepared for later batched numeric outputs.
+extension = ["dep:pyo3", "pyo3/extension-module", "dep:rust-numpy"]
 
 [dependencies]
 spire-core.workspace = true
 spire-env.workspace = true
 pyo3 = { workspace = true, optional = true }
+rust-numpy = { workspace = true, optional = true }

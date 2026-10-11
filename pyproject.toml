@@ -2,7 +2,7 @@
 name = "spire-lab"
 version = "0.1.0"
 description = "Slay the Spire 1 simulation and machine-learning development (Spire Lab)."
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.12,<3.13"
 # Python runtime dependencies.
 dependencies = [
     "numpy==2.5.4",
