@@ -2,7 +2,8 @@
 
 Date: 2026-10-11
 
-Status: Written design for user review; not implementation authorization.
+Status: Approved by the user on 2026-10-11 for implementation planning;
+implementation still requires plan review and an execution choice.
 
 ## 1. Purpose and priorities
 
@@ -552,8 +553,8 @@ demonstrated. Full phase 1 additionally requires its complete approved manifest
 and tiered completion corpus.
 
 No throughput or win-rate result has been measured. Numerical pilot defaults,
-array layouts, and evaluation procedures above are explicit proposals for this
-written review; they do not imply the user previously approved those exact values.
+array layouts, and evaluation procedures above were proposed in this written
+design and approved with it; they remain starting points, not measured optimums.
 
 After written-spec approval, produce a test-driven 1a implementation plan with
 small tasks, corresponding Windows captures, toolchain/readiness checks,

@@ -8,7 +8,11 @@ simulator and Python training code in one repository.
 Design phase. No simulator or training implementation exists yet.
 
 The [written design](docs/superpowers/specs/2026-10-11-spire-lab-ml-first-design.md)
-is ready for review; it is not yet approved for implementation planning.
+is approved. The first implementation plan targets 1a and requires separate
+review and an execution choice before implementation.
+
+Review the [1a implementation plan](docs/superpowers/plans/2026-10-11-spire-lab-1a.md)
+for tasks, tests, Windows capture handoffs, and experiment gates.
 
 ## Confirmed goals
 
@@ -47,8 +51,7 @@ Ironclad combat through the Heart is not a prerequisite for phase 2.
 - Keep game fidelity, deterministic replay, and measurable training throughput
   central to the design.
 
-These are architectural principles, not an approved complete spec or
-implementation plan. Concrete contracts, pilot defaults, and acceptance procedures
-are proposed in the written design for review.
+The written design, including concrete contracts, pilot defaults, and acceptance
+procedures, is approved. The implementation-plan gate remains open.
 
 See [the design checklist](docs/design-process.md) for progress and decisions.

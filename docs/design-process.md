@@ -37,11 +37,11 @@ repository has been created.
       and a repository tree; no browser session was requested or opened.
 - [x] Obtain conversational design approval, including Heart victory as the
       ultimate goal and Act 4 as part of full-game scope.
-- [x] Write the design spec under `docs/superpowers/specs/` for the documentation
-      commit; written-spec approval remains pending.
+- [x] Write and commit the design spec under `docs/superpowers/specs/`.
 - [x] Self-review the spec for scope, ambiguity, contradictions, and placeholders.
-- [ ] Obtain user review and approval of the written spec.
-- [ ] Write a staged implementation plan and obtain the user's execution choice.
+- [x] Obtain user review and approval of the written spec.
+- [x] Write and self-review the 1a implementation plan.
+- [ ] Obtain user review of the plan and the user's execution choice.
 
 ## Constraints and scope boundaries
 
@@ -55,8 +55,7 @@ repository has been created.
   content expands with later phases rather than requiring all Ironclad cards,
   relics, potions, and encounters through the Heart before phase 2. Exact
   supported content is recorded in the approved phase 1 manifest; "Act 1-ready"
-  does not claim
-  unrestricted coverage of every combination obtainable in Act 1.
+  does not claim unrestricted coverage of every combination obtainable in Act 1.
 - No implementation scaffolding, dependency installation, or application code
   until the design and implementation-plan review gates are complete.
 - Planning is allowed to cover the long-term roadmap, but the initial detailed
@@ -66,9 +65,8 @@ repository has been created.
 
 ## Open decisions
 
-- Review the written spec's concrete schemas, pilot defaults, validation
-  requirements, and statistical procedures; their exact values are proposals,
-  not previous conversational approvals.
+- Review the 1a implementation plan; the written spec, including its concrete
+  schemas, pilot defaults, and acceptance procedures, is now approved.
 - Select the execution method and degree of user implementation after review of
   the written implementation plan; no implementation method is assumed yet.
 
@@ -118,6 +116,10 @@ state fields and scheduler behavior will receive written-spec review.
   systems or speculative framework hooks in the first combat slice.
 
 ## Approved ML-first architectural direction
+
+The following section reviews preserve the decisions as they were made.
+Their then-open numerical/interface details are now resolved in the approved
+written spec; plan review and execution choice remain separate gates.
 
 The user approved the review as the basis for detailed design. Individual
 interface contracts, content gates, rewards, and validation details still need
@@ -399,11 +401,11 @@ content coverage.
 
 Spec: [ML-first design](superpowers/specs/2026-10-11-spire-lab-ml-first-design.md).
 
-The spec consolidates approved direction and proposes exact observation layouts,
-owned-copy binding outputs, pilot budgets, scenario splits, and learning gates.
-It does not imply previous approval of those numerical/interface details.
-Only the 1a slice receives the first detailed implementation plan, after written
-approval. No application code or product dependencies have been added.
+The user approved the written spec on 2026-10-11, including exact observation
+layouts, owned-copy binding outputs, pilot budgets, scenario splits, and learning
+gates. Only the 1a slice receives the first detailed implementation plan.
+No execution method has been selected; no application code or product
+dependencies have been added.
 
 Self-review checks:
 
@@ -412,6 +414,22 @@ Self-review checks:
 - [x] First implementation scope is explicitly 1a, not the full roadmap.
 - [x] Clarified original RNG stream sharing, non-hand choice observations,
       capacity behavior, budget stopping rule, and evaluation-corpus retirement.
+
+## Implementation-plan review
+
+Plan: [Spire Lab 1a](superpowers/plans/2026-10-11-spire-lab-1a.md).
+
+- [x] Write 16 test-driven tasks scoped to the approved first slice.
+- [x] Self-review spec coverage, task steps, interface/type consistency, five
+      review-focus failure classes, and document proportion.
+- [x] Clarify prerequisite type ownership, game-independent mod protocol tests,
+      optional native scenario sampling, non-mutating resume observations,
+      restore-token expiry, and semantic-versus-capacity schema fingerprints.
+- [ ] Obtain user plan review and selection of subagent-driven or native execution.
+
+No implementation tasks have been executed, dependencies installed, or worktree
+created. Windows fixture handoffs and per-seed training budgets are explicit
+parts of the plan, not assumed available results.
 
 ## Real-game validation setup
 
