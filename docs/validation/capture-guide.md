@@ -20,6 +20,14 @@ environment and the actual pinned Slay the Spire 1 build + compatible loader.
 The portable, game-independent work is done (see §6 evidence); the reference
 capture is pending.
 
+> **Independent of the user evidence above**, the `:mod` build is also
+> **unconditionally** blocked while a real reference-dependent capture
+> integration is not implemented in this subproject (see §4). Filling a valid
+> `reference-build.json` and supplying correctly-hashed jars does **not**
+> produce a `:mod` artifact; neither does adding a dummy `.java` file. Only a
+> future audited real adapter implementation, carrying actual reference
+> evidence, removes that gate.
+
 ## 2. Prerequisites (user-provided, kept OUTSIDE this repo)
 
 - A **pinned Slay the Spire 1** installation (Ironclad, Ascension 0).
@@ -65,55 +73,84 @@ capture is pending.
 
 ## 4. Fail-closed readiness (the `:mod` build gate)
 
-`capture mod readiness` is a **honest fail-closed predicate** — it does not just
-check "the file exists and the hash looks 64-hex". It fails the build unless
-*every* requirement is genuinely met, and it **cannot be bypassed** by flipping
-a flag: this subproject currently ships **no capture source at all**, so even a
-fully-populated, internally-consistent, `status:"verified"`
-`reference-build.json` with correctly-hashed jars still blocks `:mod` until a
-real capture implementation is present. Filling in hash fields is **not**
-sufficient.
+`capture mod readiness` is a **honest fail-closed predicate** that reports every
+unmet requirement independently and **cannot be bypassed**. It does not rely on
+a file-name, filename-count, source-presence, or boolean trick. In particular,
+adding a dummy/empty/unrelated `.java` file does **not** unblock it (that was an
+explicit defect, S3). Instead the gate is **unconditionally** blocked while
+reference-dependent capture integration is pending.
 
-The gate lists each unmet requirement (each prefixed `[MOD-READINESS]`) and
-fails:
+Each unmet requirement is reported as its own `[MOD-READINESS]` diagnostic:
 
-- the pinned game / loader jars must be present (-PgameJar / -PmodTheSpireJar),
-  and the **actual digest of each supplied file is compared to the claimed
-  SHA-256** (a hash-shaped string that does not match the real file is a
-  failure);
-- `reference-build.json` must have `status:"verified"`, and its nested and
-  flat hashes must **agree** (a `game.sha256` vs `game_sha256` contradiction is
-  a failure, never silently ignored);
-- `runtime_target` and `compiler_target` must be present — the pending portable
-  release-17 toolchain is **not** a verified game target and is not inherited
-  into `:mod`;
-- an **actual capture source** must exist in this subproject.
+- the pinned game / loader jars must be present
+  (-PgameJar / -PmodTheSpireJar), and the **actual digest of each supplied file
+  is compared to the claimed SHA-256** (a hash-shaped string that does not match
+  the real file is a failure);
+- the supported `schema` must be present (e.g. `spire-lab/reference-build/1`);
+- `status` must be `"verified"` **and** `verified` must be boolean `true`;
+- `game` and `loader` objects must be present with nonblank version IDs and
+  valid lower-case 64-hex SHA-256s; the flat `game_sha256` / `loader_sha256`
+  must also be valid and **agree with the nested hashes** (a contradiction is
+  an independent failure, not a silently-skipped agreement test);
+- optional flat version aliases, when supplied, must be correctly typed and
+  match their nested `game.version` / `loader.version`;
+- `runtime_target` and `compiler_target` must both be a **canonical** Java
+  feature version — a strict positive decimal integer string (no letters, no
+  fraction, no sign, no leading zero) — and `compiler_target` must be
+  ≤ `runtime_target` (bytecode cannot target a newer JVM than the game runs)
+  **and** ≤ the local JDK in the build environment (a local toolchain cannot
+  target a version it does not know). A valid synthetic target does **not**
+  establish game compatibility; it only establishes a *formally valid*
+  reference target;
+- the **unconditional** gate: `reference-dependent capture integration is
+  pending` — this subproject has no real, reviewed, reference-dependent capture
+  implementation, so no `:mod` jar/assemble/build is produced. Removing this
+  gate is part of a future audited real-adapter implementation with actual
+  reference evidence, not a filename match, a boolean, or a source-count trick.
 
-On the current pending reference (no user jars, `status:"pending"`, no capture
-source), `gradle :mod:referenceReadiness` (exit code 1, no `mod/build/libs`):
+Because that last gate is unconditional today, `:mod:jar` / `:mod:assemble` /
+`:mod:build` (and the compile step that would feed them) all fail; a source-less
+or source-`Dummy` `:mod` build cannot emit an empty artifact. `compileJava` is
+gated on readiness so no ambient-default compile happens while the gate is
+open.
+
+On the current pending reference (no user jars, `status:"pending"`,
+`verified:false`, no capture integration), `gradle :mod:referenceReadiness`
+fails with the specific diagnostics (exit code 1, no `mod/build/libs`):
 
 ```
 > Task :mod:referenceReadiness FAILED
-
-FAILURE: Build failed with an exception.
 
 * What went wrong:
 Execution failed for task ':mod:referenceReadiness'.
 > capture mod readiness FAILED (fail-closed):
     [MOD-READINESS] game jar is not provided (-PgameJar not set)
     [MOD-READINESS] loader jar is not provided (-PmodTheSpireJar not set)
-    [MOD-READINESS] reference-build.json status is "pending" (need "verified")
+    [MOD-READINESS] status is "pending" (need "verified")
+    [MOD-READINESS] verified must be boolean true (got false)
+    [MOD-READINESS] game.version is required (a nonblank version ID)
+    [MOD-READINESS] loader.version is required (a nonblank version ID)
+    [MOD-READINESS] game.sha256 is not a 64-char lowercase hex SHA-256
+    [MOD-READINESS] loader.sha256 is not a 64-char lowercase hex SHA-256
     [MOD-READINESS] game_sha256 is not a 64-char lowercase hex SHA-256
     [MOD-READINESS] loader_sha256 is not a 64-char lowercase hex SHA-256
-    [MOD-READINESS] capture source (implemented capture mod) is not present; a source-less mod artifact is not produced …
-  Provide the pinned game/loader jars, a verified and internally consistent reference-build.json with real digests and real runtime/compiler targets, AND an actual capture implementation in this subproject before a :mod jar may be produced. See docs/validation/capture-guide.md.
+    [MOD-READINESS] runtime_target must be a positive integer feature version (a string) — got null
+    [MOD-READINESS] compiler_target must be a positive integer feature version (a string) — got null
+    [MOD-READINESS] reference-dependent capture integration is pending — …
+  Provide the pinned game/loader jars, a verified and internally consistent
+  reference-build.json with real digests and real runtime/compiler targets, AND
+  a real reference-dependent capture implementation in this subproject before
+  any :mod artifact may be produced. See docs/validation/capture-guide.md.
 
 BUILD FAILED
 ```
 
-No `:mod` artifact is produced. This is the required behavior: a successful
-`:mod` jar is impossible without real digests, a verified and consistent
-reference, real targets, **and** a real capture implementation.
+The focused suite under
+`validation/windows-mod/tests/test_mod_readiness.py` drives the real Gradle
+predicate against a disposable project copy and asserts the *specific*
+diagnostic for each requirement, in every case above, plus the three
+artifact-task paths (`:mod:jar`, `:mod:assemble`, `:mod:build`) and a dummy-`.java`
+addition that must NOT unblock the build.
 
 ## 5. What stays OUT of the repo
 
