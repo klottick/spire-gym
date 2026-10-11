@@ -1,0 +1,9 @@
+[package]
+name = "spire-core"
+description = "Game-specific simulation core for Spire Lab."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+# The core keeps no Python, tensor-library, renderer, or training dependency.
+[dependencies]

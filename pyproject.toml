@@ -1,0 +1,35 @@
+[project]
+name = "spire-lab"
+version = "0.1.0"
+description = "Slay the Spire 1 simulation and machine-learning development (Spire Lab)."
+requires-python = ">=3.13,<3.14"
+# Python runtime dependencies.
+dependencies = [
+    "numpy==2.5.4",
+    "torch==2.14.1",
+]
+
+[dependency-groups]
+dev = [
+    "maturin==1.15.0",
+    "pytest==9.1.1",
+]
+
+[build-system]
+requires = ["maturin>=1.15,<2"]
+build-backend = "maturin"
+
+[tool.uv]
+# The package is installed editable with `maturin develop`; uv keeps
+# dependencies in sync and runs the toolchain without rebuilding.
+package = false
+
+[tool.maturin]
+python-source = "python"
+module-name = "spire_lab._native"
+manifest-path = "crates/spire-python/Cargo.toml"
+features = ["extension"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+pythonpath = ["python"]

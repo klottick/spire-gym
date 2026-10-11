@@ -1,0 +1,14 @@
+[package]
+name = "spire-cli"
+description = "Developer CLI for Spire Lab."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "spire"
+path = "src/main.rs"
+
+[dependencies]
+spire-core.workspace = true
+spire-env.workspace = true

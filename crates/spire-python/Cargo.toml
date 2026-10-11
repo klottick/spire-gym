@@ -1,0 +1,23 @@
+[package]
+name = "spire-python"
+description = "PyO3 native bindings for Spire Lab, exposed as `spire_lab._native`."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "spire_python"
+# `cdylib` for the extension module; `rlib` so the workspace stays testable.
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = []
+# Enabled by maturin for extension builds. Keeping PyO3 out of the default
+# feature set lets `cargo test --workspace` compile and link with only the
+# Rust toolchain, without a Python interpreter available.
+extension = ["dep:pyo3", "pyo3/extension-module"]
+
+[dependencies]
+spire-core.workspace = true
+spire-env.workspace = true
+pyo3 = { workspace = true, optional = true }

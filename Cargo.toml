@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/spire-core",
+    "crates/spire-env",
+    "crates/spire-python",
+    "crates/spire-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+
+[workspace.dependencies]
+spire-core = { path = "crates/spire-core" }
+spire-env = { path = "crates/spire-env" }
+pyo3 = "0.29.3"

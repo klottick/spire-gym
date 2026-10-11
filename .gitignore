@@ -1,2 +1,15 @@
 # Isolated implementation checkouts.
 .worktrees/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Compiled extension artifacts (build in place with `maturin develop`).
+python/*/*.so
+
+# Rust build output.
+target/
+
