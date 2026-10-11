@@ -54,7 +54,7 @@ public final class TraceWriter implements AutoCloseable {
             }
             String line = header.toJsonLine(null);
             out.write(line);
-            out.newLine();
+            out.write('\n');
             out.flush();
             headerWritten = true;
             previousLine = line;
@@ -99,7 +99,7 @@ public final class TraceWriter implements AutoCloseable {
 
     private void writeWithFingerprint(String line) throws IOException {
         out.write(line);
-        out.newLine();
+        out.write('\n');
         out.flush();
         previousLine = line;
     }

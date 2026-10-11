@@ -11,6 +11,7 @@
 //! schema-nonconforming trace is a `TraceError`. The parser never repairs,
 //! drops, or guesses.
 
+use std::io::Read;
 use std::path::Path;
 
 /// The only wire version accepted by this parser.
@@ -230,6 +231,22 @@ const SUPPORTED_PLAYER_FIELDS: &[&str] = &[
 /// The wire tag of every record.
 const RECORD_TAG: &str = "record";
 
+/// Read at most `limit` bytes (plus one sentinel byte) from `reader` into
+/// `buf` (appending).  Returns the number of bytes actually read.
+///
+/// Uses `Read::take` to bound I/O: a growing, replaced, or special file can
+/// never force an allocation beyond `limit + 1` bytes.  `limit.saturating_add(1)`
+/// prevents a u64 overflow when `limit == u64::MAX`.
+fn read_at_most<R: Read>(
+    reader: R,
+    limit: u64,
+    buf: &mut Vec<u8>,
+) -> std::io::Result<u64> {
+    let mut bounded = reader.take(limit.saturating_add(1));
+    let count = std::io::copy(&mut bounded, buf)?;
+    Ok(count)
+}
+
 /// Read and validate a `trace-v1` trace file of at most `max_bytes` bytes.
 ///
 /// The check is fail-closed and order-sensitive: size limit, UTF-8 framing,
@@ -237,19 +254,19 @@ const RECORD_TAG: &str = "record";
 /// indexing, RNG word and reference-build well-formedness, state field
 /// vocabulary, and the SHA-256 fingerprint chain.
 pub fn read_trace(path: &Path, max_bytes: u64) -> Result<TraceDocument, TraceError> {
+    // Early size check via metadata (optimization; NOT the authoritative check).
     let meta = std::fs::metadata(path).map_err(TraceError::Io)?;
-    let size = meta.len();
-    if size > max_bytes {
-        return Err(TraceError::Oversized { max_bytes, size });
+    if meta.len() > max_bytes {
+        return Err(TraceError::Oversized { max_bytes, size: meta.len() });
     }
-    let bytes = std::fs::read(path).map_err(TraceError::Io)?;
-    // Re-check against the byte count actually delivered (TOCTOU-safe path).
-    if bytes.len() as u64 > max_bytes {
-        return Err(TraceError::Oversized {
-            max_bytes,
-            size: bytes.len() as u64,
-        });
+    // Open once and read at most max_bytes + 1 bytes (bounded read).
+    let file = std::fs::File::open(path).map_err(TraceError::Io)?;
+    let mut buf = Vec::new();
+    let count = read_at_most(file, max_bytes, &mut buf).map_err(TraceError::Io)?;
+    if count > max_bytes {
+        return Err(TraceError::Oversized { max_bytes, size: count });
     }
+    let bytes = buf;
     let text = std::str::from_utf8(&bytes)
         .map_err(|_| TraceError::Utf8 { bytes: bytes.len() as usize })?;
     if text.is_empty() {
@@ -608,4 +625,96 @@ fn is_hex16(word: &str) -> bool {
 
 fn is_hex64(word: &str) -> bool {
     word.len() == 64 && word.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+// ---------------------------------------------------------------------------
+// bounded read helper (private — not part of public API)
+// ---------------------------------------------------------------------------
+
+// Tests for `read_at_most` — the bounded-read primitive used by `read_trace`.
+// These unit tests prove that a source delivering more bytes than the
+// configured limit is bounded to `limit + 1` bytes (one sentinel), and that
+// common limit edges (zero, tiny, u64::MAX) do not overflow or hang.
+#[cfg(test)]
+mod bounded_read_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    /// A 20-byte source with limit=5 reads exactly 6 bytes (limit+1 sentinel).
+    #[test]
+    fn oversized_source_is_capped_at_limit_plus_one() {
+        let data = vec![0u8; 20];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 5, &mut buf).unwrap();
+        assert_eq!(count, 6, "bounded to limit+1 (sentinel), got {count}");
+        assert_eq!(buf.len(), 6);
+        assert!(count > 5, "count > limit signals oversized");
+    }
+
+    /// A 10-byte source with limit=0 reads exactly 1 sentinel byte.
+    #[test]
+    fn zero_limit_reads_one_sentinel() {
+        let data = vec![1u8; 10];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 0, &mut buf).unwrap();
+        assert_eq!(count, 1, "zero limit reads 1 sentinel byte, got {count}");
+        assert_eq!(buf.len(), 1);
+    }
+
+    /// Exactly `limit` bytes available → reads all, count = limit (not oversized).
+    #[test]
+    fn exact_limit_passes_through() {
+        let data = vec![7u8; 5];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 5, &mut buf).unwrap();
+        assert_eq!(count, 5, "exact limit passes through, got {count}");
+        assert_eq!(buf.len(), 5);
+        assert!(!count > 5, "count == limit → not oversized");
+    }
+
+    /// Fewer bytes available than limit → reads all, count < limit.
+    #[test]
+    fn undersized_source_reads_all_available() {
+        let data = vec![0u8; 3];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 10, &mut buf).unwrap();
+        assert_eq!(count, 3, "short source reads all 3 bytes, got {count}");
+        assert_eq!(buf.len(), 3);
+    }
+
+    /// u64::MAX limit must not cause a u64 overflow panic.
+    #[test]
+    fn u64_max_limit_no_overflow() {
+        let data = vec![0u8; 10];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, u64::MAX, &mut buf).unwrap();
+        assert_eq!(count, 10, "u64::MAX limit reads all 10 bytes without panic, got {count}");
+    }
+
+    /// Limit=2 with 7-byte source: reads at most 3 (limit+1), not 7.
+    #[test]
+    fn tiny_limit_caps_at_plus_one() {
+        let data = vec![0u8; 7];
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 2, &mut buf).unwrap();
+        assert_eq!(count, 3, "tiny limit=2 caps at 3 (limit+1), got {count}");
+        assert!(count > 2, "count > limit signals oversized");
+    }
+
+    /// Empty source with any limit → 0 bytes read.
+    #[test]
+    fn empty_source_reads_zero() {
+        let data: Vec<u8> = Vec::new();
+        let cursor = Cursor::new(data.as_slice());
+        let mut buf = Vec::new();
+        let count = read_at_most(cursor, 100, &mut buf).unwrap();
+        assert_eq!(count, 0, "empty source reads 0 bytes");
+        assert!(buf.is_empty());
+    }
 }

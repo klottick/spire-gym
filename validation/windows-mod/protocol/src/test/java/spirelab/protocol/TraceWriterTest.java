@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -148,6 +149,61 @@ class TraceWriterTest {
         // NaN/Infinity never cross the wire
         assertThrows(ProtocolException.class, () -> Json.parse("{\"x\":NaN}"));
         assertThrows(ProtocolException.class, () -> Json.parse("{\"x\":Infinity}"));
+    }
+
+    /**
+     * Windows CRLF framing regression.
+     *
+     * <p>TraceWriter must emit only the literal LF byte (0x0a) as line
+     * terminator regardless of the platform line separator.  The old code
+     * called {@code BufferedWriter.newLine()} (OS-dependent): on Windows
+     * that emits CRLF (0x0d 0x0a).  Rust's reader splits on {@code \n}
+     * only, so a stray 0x0d stays inside the hashed string and the SHA-256
+     * fingerprint chain rejects at the first record.
+     *
+     * <p>This test launches {@link InteropSampleWriter} in a child JVM with
+     * {@code line.separator} forced to CRLF and asserts the output file
+     * contains no 0x0d bytes.  It is portable Linux proof of Windows correct
+     * framing, not a Windows execution.
+     */
+    @Test
+    void windowsCRLF_lineSeparator_produces_lf_only(@TempDir Path dir) throws Exception {
+        String javaHome = System.getProperty("java.home");
+        Path javaExe = Path.of(javaHome, "bin", "java");
+        String classpath = System.getProperty("java.class.path");
+        Path outFile = dir.resolve("crlf_regression.jsonl");
+
+        ProcessBuilder pb = new ProcessBuilder(
+            javaExe.toString(),
+            "-Dline.separator=\r\n",
+            "-cp", classpath,
+            "spirelab.protocol.InteropSampleWriter",
+            outFile.toString());
+        pb.redirectErrorStream(true);
+
+        Process proc = pb.start();
+        byte[] log;
+        try (java.io.InputStream is = proc.getInputStream()) {
+            log = is.readAllBytes();
+        }
+        int exit = proc.waitFor();
+        assertEquals(0, exit,
+            "child JVM should exit 0; log: " + new String(log, StandardCharsets.UTF_8));
+
+        byte[] raw = Files.readAllBytes(outFile);
+        assertTrue(raw.length > 0, "output file must not be empty");
+
+        // No CR (0x0d) bytes anywhere: only LF (0x0a) line terminators.
+        for (int i = 0; i < raw.length; i++) {
+            assertFalse((int) raw[i] == 0x0d,
+                "byte " + i + " is CR (0x0d); writer is emitting OS line separator");
+        }
+
+        // InteropSampleWriter writes 5 records → exactly 5 LF-terminated lines
+        int lf = 0;
+        for (byte b : raw) if (b == (byte) 0x0a) lf++;
+        assertEquals(5, lf,
+            "expected 5 LF-terminated lines (header+initial+2 steps+end), got " + lf);
     }
 
     private static String sha256Hex(String line) {
