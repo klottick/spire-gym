@@ -5,7 +5,8 @@ simulator and Python training code in one repository.
 
 ## Status
 
-Design phase. No simulator or training implementation exists yet.
+Implementation phase: native-package and CPU/CUDA readiness tooling are tested.
+No simulator or training implementation exists yet.
 
 The [written design](docs/superpowers/specs/2026-10-11-spire-lab-ml-first-design.md)
 is approved. The 1a plan is authorized for subagent-driven execution with local
