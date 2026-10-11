@@ -231,12 +231,14 @@ const SUPPORTED_PLAYER_FIELDS: &[&str] = &[
 /// The wire tag of every record.
 const RECORD_TAG: &str = "record";
 
-/// Read at most `limit` bytes (plus one sentinel byte) from `reader` into
-/// `buf` (appending).  Returns the number of bytes actually read.
+/// Read at most `limit + 1` bytes from `reader` into `buf` (appending).
+/// Returns the number of bytes actually delivered by the source.
 ///
-/// Uses `Read::take` to bound I/O: a growing, replaced, or special file can
-/// never force an allocation beyond `limit + 1` bytes.  `limit.saturating_add(1)`
-/// prevents a u64 overflow when `limit == u64::MAX`.
+/// `Read::take` caps the number of **bytes delivered to `buf`** at
+/// `limit + 1`, regardless of the source's actual size.  This bounds the
+/// delivered byte count, not Vec capacity or all process allocations.
+/// `limit.saturating_add(1)` prevents u64 overflow; when `limit == u64::MAX`
+/// the cap saturates at `u64::MAX` bytes (no representable sentinel beyond).
 fn read_at_most<R: Read>(
     reader: R,
     limit: u64,
@@ -245,6 +247,28 @@ fn read_at_most<R: Read>(
     let mut bounded = reader.take(limit.saturating_add(1));
     let count = std::io::copy(&mut bounded, buf)?;
     Ok(count)
+}
+
+/// Bounded read + authoritative error mapping used by `read_trace`.
+///
+/// Reads at most `max_bytes + 1` bytes from `source` into a fresh buffer.
+/// Returns the bytes on success; returns `TraceError::Oversized` with the
+/// actual delivered count when the source delivered more than `max_bytes`.
+///
+/// This is the private production seam: it is called by `read_trace` on a
+/// `File` handle and is also called directly by the test suite on finite
+/// counting sources to verify the `Oversized` mapping and consumption bound
+/// without a real file.
+fn bounded_read_check<R: Read>(
+    source: R,
+    max_bytes: u64,
+) -> Result<Vec<u8>, TraceError> {
+    let mut buf = Vec::new();
+    let count = read_at_most(source, max_bytes, &mut buf).map_err(TraceError::Io)?;
+    if count > max_bytes {
+        return Err(TraceError::Oversized { max_bytes, size: count });
+    }
+    Ok(buf)
 }
 
 /// Read and validate a `trace-v1` trace file of at most `max_bytes` bytes.
@@ -259,14 +283,10 @@ pub fn read_trace(path: &Path, max_bytes: u64) -> Result<TraceDocument, TraceErr
     if meta.len() > max_bytes {
         return Err(TraceError::Oversized { max_bytes, size: meta.len() });
     }
-    // Open once and read at most max_bytes + 1 bytes (bounded read).
+    // Open once, bounded read + authoritative Oversized check via the same
+    // production seam used by tests.
     let file = std::fs::File::open(path).map_err(TraceError::Io)?;
-    let mut buf = Vec::new();
-    let count = read_at_most(file, max_bytes, &mut buf).map_err(TraceError::Io)?;
-    if count > max_bytes {
-        return Err(TraceError::Oversized { max_bytes, size: count });
-    }
-    let bytes = buf;
+    let bytes = bounded_read_check(file, max_bytes)?;
     let text = std::str::from_utf8(&bytes)
         .map_err(|_| TraceError::Utf8 { bytes: bytes.len() as usize })?;
     if text.is_empty() {
@@ -672,7 +692,6 @@ mod bounded_read_tests {
         let count = read_at_most(cursor, 5, &mut buf).unwrap();
         assert_eq!(count, 5, "exact limit passes through, got {count}");
         assert_eq!(buf.len(), 5);
-        assert!(!count > 5, "count == limit → not oversized");
     }
 
     /// Fewer bytes available than limit → reads all, count < limit.
@@ -716,5 +735,109 @@ mod bounded_read_tests {
         let count = read_at_most(cursor, 100, &mut buf).unwrap();
         assert_eq!(count, 0, "empty source reads 0 bytes");
         assert!(buf.is_empty());
+    }
+
+    // -----------------------------------------------------------------------
+    // S2: post-metadata authoritative bounded-read / Oversized regression
+    // -----------------------------------------------------------------------
+
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    /// Counting `Read` wrapper: tracks the exact number of bytes delivered
+    /// to the parser by the source.  Used to prove that a finite oversized
+    /// source is consumed at most `cap + 1` bytes, not the full source size.
+    struct CountingRead<R: Read> {
+        source: R,
+        counter: Rc<RefCell<usize>>,
+    }
+
+    impl<R: Read> CountingRead<R> {
+        /// Create a new `CountingRead` and a cloned counter handle.
+        fn new(source: R) -> (Self, Rc<RefCell<usize>>) {
+            let counter = Rc::new(RefCell::new(0usize));
+            (Self { source, counter: Rc::clone(&counter) }, counter)
+        }
+    }
+
+    impl<R: Read> Read for CountingRead<R> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let n = self.source.read(buf)?;
+            *self.counter.borrow_mut() += n;
+            Ok(n)
+        }
+    }
+
+    /// A 20-byte finite source with `max_bytes=5`:
+    ///  - `bounded_read_check` returns `TraceError::Oversized { max_bytes: 5, size: 6 }`
+    ///  - The `CountingRead` counter confirms at most 6 bytes were consumed
+    ///    (the source actually has 20 bytes available).
+    #[test]
+    fn bounded_read_check_oversized_asserts_error_and_consumes_at_most_cap_plus_one() {
+        let data = vec![0u8; 20];
+        let (counting, counter) = CountingRead::new(Cursor::new(data.as_slice()));
+
+        let result = bounded_read_check(counting, 5);
+        let consumed = *counter.borrow();
+
+        match result {
+            Err(TraceError::Oversized { max_bytes, size }) => {
+                assert_eq!(max_bytes, 5, "Oversized.max_bytes must be the configured cap");
+                assert_eq!(size, 6, "Oversized.size = cap+1 sentinel: got {size}");
+                assert!(size > 5, "size > max_bytes confirms rejection path");
+            }
+            other => panic!("expected TraceError::Oversized, got: {other:?}"),
+        }
+
+        assert!(consumed <= 6,
+            "CountingRead consumed {consumed} bytes from a 20-byte source; must be <= cap+1=6");
+        assert_eq!(consumed, 6,
+            "exactly cap+1 bytes delivered by source: got {consumed}");
+    }
+
+    /// `max_bytes=0` with a 10-byte source: reads 1 sentinel byte, not 10.
+    #[test]
+    fn bounded_read_check_zero_limit_returns_oversized_at_one_sentinel() {
+        let data = vec![0u8; 10];
+        let (counting, counter) = CountingRead::new(Cursor::new(data.as_slice()));
+
+        match bounded_read_check(counting, 0) {
+            Err(TraceError::Oversized { max_bytes, size }) => {
+                assert_eq!(max_bytes, 0);
+                assert_eq!(size, 1, "zero-limit: exactly 1 sentinel byte read, got {size}");
+            }
+            other => panic!("expected Oversized, got: {other:?}"),
+        }
+        assert_eq!(*counter.borrow(), 1, "consumed exactly 1 byte from a 10-byte source");
+    }
+
+    /// /dev/zero (Linux): metadata reports size 0, actual stream is infinite.
+    /// The bounded-read path must reject with Oversized and consume only cap+1.
+    /// This is the production "misleading initial size" scenario: the early
+    /// metadata check (0 < cap) passes, then bounded read detects overflow.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn dev_zero_bounded_read_returns_oversized_with_sentinel() {
+        let cap: u64 = 4;
+        let result = bounded_read_check(std::fs::File::open("/dev/zero").unwrap(), cap);
+        match result {
+            Err(TraceError::Oversized { max_bytes, size }) => {
+                assert_eq!(max_bytes, 4, "Oversized.max_bytes = 4 (configured cap)");
+                assert_eq!(size, 5, "Oversized.size = cap+1 = 5, got {size}");
+            }
+            other => panic!("expected Oversized from /dev/zero with cap=4, got: {other:?}"),
+        }
+    }
+
+    /// /dev/null: always delivers 0 bytes → `Vec` is empty → `read_trace`
+    /// maps to `Empty`.  This is a control test, not a consumption test.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn dev_null_bounded_read_returns_empty_ok() {
+        let result = bounded_read_check(std::fs::File::open("/dev/null").unwrap(), 100);
+        match result {
+            Ok(buf) => assert!(buf.is_empty(), "/dev/null delivers 0 bytes; buf must be empty"),
+            Err(e) => panic!("expected Ok(empty buf) for /dev/null, got: {e:?}"),
+        }
     }
 }
