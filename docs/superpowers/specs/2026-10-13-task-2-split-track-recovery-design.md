@@ -1,20 +1,23 @@
 # Task 2 split-track recovery design (portable closure vs original-runtime evidence)
 
 Date: 2026-10-13
-Status: DRAFT FOR USER REVIEW
+Status: APPROVED BY USER 2026-10-13 (recovery-plan drafting and review only)
 
 ## 1. Scope, status, and authorization
 
-The user approved the recovery direction and the act of writing this architectural
-design, but has NOT yet approved this written spec. Approval of this document
-permits writing a NEW Task 2 recovery implementation plan only. It does not rewrite
-or re-authorize the existing approved design spec or 16-task plan, both of which
-stay unchanged. An approved plan plus an explicit execution choice remain separate
-later gates.
+The user approved the recovery direction, the act of writing this architectural
+design, and on 2026-10-13 approved this written spec. That approval authorizes
+drafting, reviewing, and committing a NEW Task 2 recovery implementation plan
+(recovery-plan drafting and review only). It does not authorize execution of any
+recovery task, contract amendment, selection, ratification, budget, or
+source/runtime access; none of those is inferred from this spec. It does not
+rewrite or re-authorize the existing approved design spec or 16-task plan, both of
+which stay unchanged. An approved plan plus an explicit execution choice remain
+separate later gates.
 
 This is a recovery workflow design, not a replacement contract, not an amendment
 approval, and not correctness evidence. The only authorization in force now is to
-draft, review, and commit this one document.
+draft, review, and commit the recovery plan document named in Section 11.
 
 Separately scoped amendment selections and ratification, and source/runtime access
 authorization, all remain explicit decisions. None of them is inferred from this
@@ -235,8 +238,15 @@ No portable or full Task 2 completion is asserted; each track reports its own ga
 
 ## 10. Not authorized (explicit)
 
-- No implementation, decompilation, or contract repair right now.
-- No commit except the new design document, and only after review.
+The current planning step (recovery-plan drafting and review) authorizes committing
+only the new recovery plan document,
+`docs/superpowers/plans/2026-10-13-task-2-split-track-recovery.md`, and this spec's
+status/approval bookkeeping, and only after review. Every prohibition below remains
+fully in force during that planning step.
+
+- No implementation, decompilation, or contract repair.
+- No commit except the new recovery plan document and this bookkeeping, and only
+  after review.
 - No installs, test/build/probe execution, or game search/access.
 - No nested agents, no generator execution, no model changes.
 - No continuation of the F1-F5 exhausted rounds or a sixth repair. F6 is an
@@ -244,9 +254,12 @@ No portable or full Task 2 completion is asserted; each track reports its own ga
 
 ## 11. Deferred decisions and the next gate
 
-User spec approval is the next gate; after it, a NEW Task 2 recovery plan may be
-written. The following are deferred, to be selected only when their track proceeds,
-and are not blockers to this spec's approval:
+User spec approval was granted 2026-10-13 for recovery-plan drafting and review
+only. The next gate is user review of the NEW Task 2 recovery implementation plan,
+`docs/superpowers/plans/2026-10-13-task-2-split-track-recovery.md`; approval of that
+plan then becomes the first follow-on gate in this document's Section 9 sequencing.
+The following are deferred, to be selected only when their track proceeds, and are
+not blockers to that plan's review/approval:
 
 - Evidence-track sibling storage location and scope, when/if authorized.
 - The F1-versus-C2 intra-cluster boundary, before candidate briefs are cut.
