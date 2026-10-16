@@ -1,5 +1,15 @@
 # Spire Lab: ML-first simulator design
 
+> **Approved RNG policy amendment (2026-10-16):**
+> [RNG-001](../../intentional-deviations.md#rng-001--decorrelated-reproducible-project-randomness)
+> supersedes exact original PRNG/seed/stream-sharing requirements below. Use
+> reproducible project randomness decorrelated across unrelated mechanics while
+> preserving intended probabilities and gameplay dependencies. The replacement
+> [algorithm/API design](2026-10-16-project-randomness-design.md) was separately
+> approved on 2026-10-16 and its standalone Python foundation implemented under
+> the separately approved plan. Combat integration is pending. Other correctness
+> requirements remain.
+
 Date: 2026-10-11
 
 Status: Approved by the user on 2026-10-11 for implementation planning;

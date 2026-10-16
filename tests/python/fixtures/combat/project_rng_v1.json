@@ -1,0 +1,321 @@
+{
+  "schema": "spire-lab-project-rng-fixtures-v1",
+  "contract_id": "spire-lab-rng-hmac-sha256-v1",
+  "provenance": {
+    "kind": "public-standard-and-project-owned",
+    "primitive_reference": "https://www.rfc-editor.org/rfc/rfc4231#section-4",
+    "cross_check": "hmac.digest and explicit RFC2104 ipad/opad composition; both use hashlib SHA256; framing checked as independently assembled hex",
+    "purpose": "fixed before product implementation; not original-game correctness evidence"
+  },
+  "root_seed_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "primitive_cases": [
+    {
+      "id": "rfc4231-1",
+      "key_hex": "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+      "message_hex": "4869205468657265",
+      "digest_hex": "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
+    },
+    {
+      "id": "rfc4231-2",
+      "key_hex": "4a656665",
+      "message_hex": "7768617420646f2079612077616e7420666f72206e6f7468696e673f",
+      "digest_hex": "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+    }
+  ],
+  "streams": [
+    {
+      "id": "shuffle-train",
+      "partition": "train",
+      "episode_id": "episode-1",
+      "domain": "combat.shuffle",
+      "scope": [
+        "combat-1"
+      ],
+      "frame_hex": "0000000400000005747261696e00000009657069736f64652d310000000e636f6d6261742e73687566666c6500000008636f6d6261742d31",
+      "key_hex": "077869c4726f9cd17b54ce22bb7f5091218d031f3d59bfefaf5abf3b75c1111d",
+      "blocks": {
+        "0": "183250e9434f8a2b2b2dc008290382de4ad827c8a5ed199fc5083742d48fb0b8",
+        "1": "c4411d26f4cb5651aebbf16777a079679be671c1bf546ddfb600225e950a7455",
+        "4611686018427387903": "2963fbd1a4f9a1dadf9322b440e290c08448c44773e084f354b3651d3935d7ac"
+      },
+      "words": [
+        {
+          "index": "0",
+          "hex": "183250e9434f8a2b"
+        },
+        {
+          "index": "1",
+          "hex": "2b2dc008290382de"
+        },
+        {
+          "index": "2",
+          "hex": "4ad827c8a5ed199f"
+        },
+        {
+          "index": "3",
+          "hex": "c5083742d48fb0b8"
+        },
+        {
+          "index": "4",
+          "hex": "c4411d26f4cb5651"
+        },
+        {
+          "index": "5",
+          "hex": "aebbf16777a07967"
+        },
+        {
+          "index": "6",
+          "hex": "9be671c1bf546ddf"
+        },
+        {
+          "index": "7",
+          "hex": "b600225e950a7455"
+        },
+        {
+          "index": "18446744073709551615",
+          "hex": "54b3651d3935d7ac"
+        }
+      ]
+    },
+    {
+      "id": "hp-train",
+      "partition": "train",
+      "episode_id": "episode-1",
+      "domain": "combat.enemy.hp",
+      "scope": [
+        "combat-1",
+        "enemy-1"
+      ],
+      "frame_hex": "0000000500000005747261696e00000009657069736f64652d310000000f636f6d6261742e656e656d792e687000000008636f6d6261742d3100000007656e656d792d31",
+      "key_hex": "aaebc2231703c7a88dc2b2d9b510dc7db74620696f54065564696f1e747a380d",
+      "blocks": {
+        "0": "2728b3a687d7b79fd0fa4b0f2edb06d8739d4a09b79ae64e19a4465265e468ef",
+        "1": "836408849b5812b277eec04e9db5e990aeb98ee8b91806e2e5dd10783a9343b8",
+        "4611686018427387903": "0513eb0c0b8fdb72c177876db43036f5d3bf443673710c151f4cf0d17a984efd"
+      },
+      "words": [
+        {
+          "index": "0",
+          "hex": "2728b3a687d7b79f"
+        },
+        {
+          "index": "1",
+          "hex": "d0fa4b0f2edb06d8"
+        },
+        {
+          "index": "2",
+          "hex": "739d4a09b79ae64e"
+        },
+        {
+          "index": "3",
+          "hex": "19a4465265e468ef"
+        },
+        {
+          "index": "4",
+          "hex": "836408849b5812b2"
+        },
+        {
+          "index": "5",
+          "hex": "77eec04e9db5e990"
+        },
+        {
+          "index": "6",
+          "hex": "aeb98ee8b91806e2"
+        },
+        {
+          "index": "7",
+          "hex": "e5dd10783a9343b8"
+        },
+        {
+          "index": "18446744073709551615",
+          "hex": "1f4cf0d17a984efd"
+        }
+      ]
+    },
+    {
+      "id": "ai-train",
+      "partition": "train",
+      "episode_id": "episode-1",
+      "domain": "combat.enemy.ai",
+      "scope": [
+        "combat-1",
+        "enemy-1"
+      ],
+      "frame_hex": "0000000500000005747261696e00000009657069736f64652d310000000f636f6d6261742e656e656d792e616900000008636f6d6261742d3100000007656e656d792d31",
+      "key_hex": "8f2a409f3e1494e43767a7f10e2e3e36288ac9c2eadad79546bb33c68ea8ec5d",
+      "blocks": {
+        "0": "3716ab0cd3bc40ccc8ece4ae8446406509802866e70e229ff11fb03297aaa163",
+        "1": "645fd75ea0cceaa07de9f9a4a6880df0a9609bdba47f795443ac515633375c99",
+        "4611686018427387903": "97c61e61e54c70b77b5533409107ac4d49b88926fae596a956316c5ae3f602ac"
+      },
+      "words": [
+        {
+          "index": "0",
+          "hex": "3716ab0cd3bc40cc"
+        },
+        {
+          "index": "1",
+          "hex": "c8ece4ae84464065"
+        },
+        {
+          "index": "2",
+          "hex": "09802866e70e229f"
+        },
+        {
+          "index": "3",
+          "hex": "f11fb03297aaa163"
+        },
+        {
+          "index": "4",
+          "hex": "645fd75ea0cceaa0"
+        },
+        {
+          "index": "5",
+          "hex": "7de9f9a4a6880df0"
+        },
+        {
+          "index": "6",
+          "hex": "a9609bdba47f7954"
+        },
+        {
+          "index": "7",
+          "hex": "43ac515633375c99"
+        },
+        {
+          "index": "18446744073709551615",
+          "hex": "56316c5ae3f602ac"
+        }
+      ]
+    },
+    {
+      "id": "ai-enemy2",
+      "partition": "train",
+      "episode_id": "episode-1",
+      "domain": "combat.enemy.ai",
+      "scope": [
+        "combat-1",
+        "enemy-2"
+      ],
+      "frame_hex": "0000000500000005747261696e00000009657069736f64652d310000000f636f6d6261742e656e656d792e616900000008636f6d6261742d3100000007656e656d792d32",
+      "key_hex": "3db2096a5c1d752967cb5629c6631cc2f48a27c05213cd0921ea88e5e68d2f4a",
+      "blocks": {
+        "0": "e4299c0e8173894f32a8635648cf267f8e795e660a2a5d51593a1c831a0aceb5",
+        "1": "4a7fb5de419f6c5f60001e2a401fac9fca5ee3629c4d47262d4a85b5465959ed",
+        "4611686018427387903": "75625a9f6664606bf946f9ffc54fafb8e352e542d0da31be456d0e62f7911bf6"
+      },
+      "words": [
+        {
+          "index": "0",
+          "hex": "e4299c0e8173894f"
+        },
+        {
+          "index": "1",
+          "hex": "32a8635648cf267f"
+        },
+        {
+          "index": "2",
+          "hex": "8e795e660a2a5d51"
+        },
+        {
+          "index": "3",
+          "hex": "593a1c831a0aceb5"
+        },
+        {
+          "index": "4",
+          "hex": "4a7fb5de419f6c5f"
+        },
+        {
+          "index": "5",
+          "hex": "60001e2a401fac9f"
+        },
+        {
+          "index": "6",
+          "hex": "ca5ee3629c4d4726"
+        },
+        {
+          "index": "7",
+          "hex": "2d4a85b5465959ed"
+        },
+        {
+          "index": "18446744073709551615",
+          "hex": "456d0e62f7911bf6"
+        }
+      ]
+    },
+    {
+      "id": "ai-final",
+      "partition": "final",
+      "episode_id": "episode-1",
+      "domain": "combat.enemy.ai",
+      "scope": [
+        "combat-1",
+        "enemy-1"
+      ],
+      "frame_hex": "000000050000000566696e616c00000009657069736f64652d310000000f636f6d6261742e656e656d792e616900000008636f6d6261742d3100000007656e656d792d31",
+      "key_hex": "8248d9fea8d0f0e6d42763b673fc68b5ae0a00fdd43391e71712f66f8e777da1",
+      "blocks": {
+        "0": "f228d79fbae77260bf143f129ef186b34e94785975faacd0e36637de289ca727",
+        "1": "63a1fd04a1006df623324c6a2d1a3608a0f2ec0d0cbf606af4df5360ed71acdd",
+        "4611686018427387903": "b7133ef8fcc2d98ab765c8339a8429f7c3e4b9e5be16a60739b44adbc1aedc81"
+      },
+      "words": [
+        {
+          "index": "0",
+          "hex": "f228d79fbae77260"
+        },
+        {
+          "index": "1",
+          "hex": "bf143f129ef186b3"
+        },
+        {
+          "index": "2",
+          "hex": "4e94785975faacd0"
+        },
+        {
+          "index": "3",
+          "hex": "e36637de289ca727"
+        },
+        {
+          "index": "4",
+          "hex": "63a1fd04a1006df6"
+        },
+        {
+          "index": "5",
+          "hex": "23324c6a2d1a3608"
+        },
+        {
+          "index": "6",
+          "hex": "a0f2ec0d0cbf606a"
+        },
+        {
+          "index": "7",
+          "hex": "f4df5360ed71acdd"
+        },
+        {
+          "index": "18446744073709551615",
+          "hex": "39b44adbc1aedc81"
+        }
+      ]
+    }
+  ],
+  "integration": {
+    "stream_id": "shuffle-train",
+    "operations": [
+      "uniform_below(10)",
+      "bernoulli(2,5)",
+      "weighted_index((0,2,0,3))",
+      "shuffle(('a','b','c'))"
+    ],
+    "values": [
+      9,
+      false,
+      1,
+      [
+        "c",
+        "b",
+        "a"
+      ]
+    ],
+    "next_word_index": "5"
+  }
+}
