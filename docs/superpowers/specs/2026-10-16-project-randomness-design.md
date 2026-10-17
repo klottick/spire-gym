@@ -3,8 +3,11 @@
 Date: 2026-10-16
 
 **Status: standalone Python randomness foundation implemented and verified on
-2026-10-16; combat integration remains pending.** The user approved this design and
-its implementation plan separately. It
+2026-10-16.** Its subsequent narrow Python combat integration is also implemented
+and reviewed; original-runtime validation and Rust parity remain incomplete. See
+[repository scope](../../scope.md) for the optimized Rust/learning goals this
+foundation supports. The user approved this design and its implementation plan
+separately. It
 replaces the unapproved exact-original-RNG draft, not the accepted evidence history.
 No staging, commits, dependencies, original-game access or simulator edits are
 authorized by writing this document.

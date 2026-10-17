@@ -1,36 +1,43 @@
 import pytest
 
-from spire_lab.combat.content import SUPPORTED_CONTENT_ID
 from spire_lab.combat.model import (
     CardInstance,
-    CombatState,
-    EnemyState,
+    EnemySetup,
     PlayerState,
     Piles,
-    PublicKnowledge,
     RngState,
+    Scenario,
 )
+from spire_lab.combat.engine import initial_combat
+from spire_lab.combat.rng import RNG_CONTRACT_ID, StreamId, make_stream
 
 
 @pytest.fixture
-def minimal_state():
-    """Structural fixture only; it makes no claim about game initialization."""
-    return CombatState(
-        content_id=SUPPORTED_CONTENT_ID,
-        phase="decision",
-        turn=0,
-        player=PlayerState(17, 20, 0, 3, 3, {}),
-        enemies=[EnemyState("enemy-1", "cultist", 12, 12, 0, {}, None, ())],
-        piles=Piles(
-            hand=[CardInstance(1, "strike", False), CardInstance(2, "defend", False), CardInstance(3, "bash", False)],
-            draw=[], discard=[], exhaust=[],
-        ),
-        card_ids_issued={1, 2, 3},
-        rng=RngState(()),
-        pending=[],
-        public=PublicKnowledge(()),
-        outcome=None,
-        fault=None,
-        hp_before_healing=None,
-        hp_after_cleanup=None,
-    )
+def scenario_factory():
+    def factory(**overrides):
+        scenario = Scenario(
+            encounter_id="cultist",
+            player=PlayerState(40, 50, 0, 3, 3, 5, {}),
+            enemies=(EnemySetup("enemy-1", "cultist", 48, 48, 0, {}, "incantation", ("incantation",)),),
+            piles=Piles(
+                hand=[CardInstance(1, "strike", False), CardInstance(2, "defend", False), CardInstance(3, "bash", False)],
+                draw=[], discard=[], exhaust=[],
+            ),
+            rng=RngState(
+                RNG_CONTRACT_ID,
+                make_stream(bytes(32), "test", "combat-behavior-plan", StreamId("combat.shuffle", ("combat-plan-1",))),
+                make_stream(bytes(32), "test", "combat-behavior-plan", StreamId("combat.enemy.ai", ("combat-plan-1", "enemy-scope-1"))),
+                "enemy-1",
+            ),
+        )
+        for name, value in overrides.items():
+            if name not in Scenario.__dataclass_fields__:
+                raise TypeError(f"unknown Scenario field: {name}")
+            setattr(scenario, name, value)
+        return scenario
+    return factory
+
+
+@pytest.fixture
+def minimal_state(scenario_factory):
+    return initial_combat(scenario_factory())

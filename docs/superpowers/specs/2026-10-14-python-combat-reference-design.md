@@ -1,5 +1,20 @@
 # Python combat reference architecture for Phase1a
 
+> **Approved sequencing amendment (2026-10-16):**
+> [Source-first Rust development](../../scope.md#approved-source-first-sequencing-amendment-2026-10-16)
+> supersedes original-capture prerequisites for Rust handoff below. Original-runtime
+> comparisons remain required for later fidelity promotion, not for starting Rust.
+> No historical evidence is upgraded, and Rust design/plan/start review still applies.
+
+> **Current scope/status (2026-10-16):** This is the historical reference-architecture
+> document. The subsequent [combat behavior specification](2026-10-16-python-combat-behavior-design.md)
+> and plan delivered the narrow Python reference; it remains not original-runtime
+> validated. Per [repository scope](../../scope.md), Python is a readable correctness
+> aid for the optimized headless Rust simulator and Python learning system, not a
+> competing production engine or a human-playable game. Original dated status and
+> approval boundaries below describe this earlier document, not current execution
+> authorization. No evidence gate is waived by this status note.
+
 > **Approved RNG policy amendment (2026-10-16):**
 > [RNG-001](../../intentional-deviations.md#rng-001--decorrelated-reproducible-project-randomness)
 > intentionally replaces exact original RNG/seed/stream parity with reproducible

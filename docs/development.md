@@ -1,9 +1,27 @@
 # Development setup
 
-Phase 1a state: a reproducible Rust/Python package foundation and a device
-readiness probe. No simulator, pool, model, or learning code exists yet; the
-optimizer probe is a tiny smoke computation and must not be presented as a
-validated learning result.
+See [repository scope](scope.md) for the goals and current delivery path: an AI
+that learns to play StS, enabled by an optimized, game-correct **headless Rust
+simulator**, native batching and Python learning. No playable client or rendering
+is part of this repository's product.
+
+Current state: the Rust/Python package foundation, device-readiness probe and narrow
+supplied-entry Python combat reference are implemented. The reference is a readable
+correctness aid, not the production simulator or a Python optimization target;
+it is not original-runtime validated. Its final recorded implementation run passed
+735 Python tests. The narrow Rust combat engine and differential harness are also
+implemented and reviewed; the final recorded verification passed 124 native tests
+in each workspace/release run and 830 Python tests. Native batching, Gymnasium
+interfaces, models and learners are not implemented. The optimizer probe is only a
+tiny smoke computation, not a validated learning result or training pipeline.
+
+Validation/capture tools stay outside simulation and training execution. Neither
+requires a running original game or an active Windows connection. The approved
+[source-first amendment](scope.md#approved-source-first-sequencing-amendment-2026-10-16)
+allows Rust development before original captures; design/plan/start review still
+applies. Linux capture work is deferred, and original execution needs its own scope.
+Original-runtime validation remains a later fidelity-promotion gate, not a label
+granted by Python/Rust agreement.
 
 ## Environment
 
@@ -115,9 +133,10 @@ real CUDA readiness probe before committing, and update
   time, and watches the resolved git `HEAD` plus the branch ref inputs so
   incremental rebuilds refresh the revision after commit/checkout without
   `cargo clean`; `_native.build_info()` exposes the values.
-- Crates: `spire-core` (dependency-free simulation core) <- `spire-env`
+- Crates: `spire-core` (Python-independent simulation core) <- `spire-env`
   (environment abstractions) <- `spire-python` (bindings) / `spire-cli`
-  (developer CLI). Core and env are documentation-only in phase 1a, and no
-  game state enters the readiness probe.
+  (developer CLI). The core contains trace-reader tooling and the narrow combat
+  simulator; the environment crate remains scaffolding. No game state enters the
+  device-readiness probe.
 
 See [toolchain.md](toolchain.md) for the exact resolved version matrix.

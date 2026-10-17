@@ -1,1 +1,1 @@
-"""Independent structural reference types for combat state."""
+"""Static-evidence-grounded supplied-entry combat reference, not original-runtime validated."""

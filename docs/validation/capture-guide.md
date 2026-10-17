@@ -1,5 +1,14 @@
 # Windows reference capture — handoff guide (BLOCKED on user evidence)
 
+> **Current scope context (2026-10-16):** See [repository scope](../scope.md).
+> Validation is offline supporting work for the headless Rust simulator and
+> measurable AI improvement, not a playable client or capture-platform product.
+> This guide records the earlier Windows portable-stage handoff; its real adapter
+> and platform gates remain incomplete. The separate Linux readiness specification
+> is approved for planning only and does not unblock this build or authorize new
+> original execution. Exact-original-RNG references in this historical handoff are
+> subject to [RNG-001](../intentional-deviations.md); other evidence gates remain.
+
 This is the **concrete Windows/mod/runtime handoff** for Task 2. The
 game-independent portable stage (protocol, writer, coordinator, Rust reader,
 and the fail-closed mod build) is implemented and tested on Linux. What remains

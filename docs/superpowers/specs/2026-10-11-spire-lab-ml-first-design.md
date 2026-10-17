@@ -1,5 +1,26 @@
 # Spire Lab: ML-first simulator design
 
+> **Approved learning-direction amendment (2026-10-17):** Start with separate
+> combat and run-level policies/models, keeping interfaces modular. One authoritative
+> Rust simulator serves both: run-level training delegates fights to the combat
+> policy executing the same detailed engine, not a second approximate simulation.
+> Python is for ML and offline reference validation, not production gameplay rules.
+> Train combat first, then strategic decisions against a frozen combat checkpoint
+> as run content is supported; later alternate improvements and evaluate combined
+> held-out runs toward Heart success. Shared representations/unified networks are
+> later experiments. See the [approved direction](../../scope.md#approved-two-level-learning-direction-2026-10-17)
+> for resource-aware objectives, scope and remaining design gates. The combat-only
+> learner defaults below are bootstrap choices, not a mandated full-game policy or
+> reward. The dated body is preserved; this amendment grants no new implementation,
+> training, dependency, Git-write or original-access authorization.
+
+> **Approved sequencing amendment (2026-10-16):** The user approved
+> [source-first Rust development](../../scope.md#approved-source-first-sequencing-amendment-2026-10-16).
+> Original captures are a later fidelity-promotion gate, not a prerequisite for
+> Rust implementation. Conflicting sequencing below is superseded; mechanics,
+> privacy and original-evidence requirements for fidelity claims remain. This is
+> not approval of an unwritten Rust design/plan or permission to begin coding.
+
 > **Approved RNG policy amendment (2026-10-16):**
 > [RNG-001](../../intentional-deviations.md#rng-001--decorrelated-reproducible-project-randomness)
 > supersedes exact original PRNG/seed/stream-sharing requirements below. Use
@@ -7,8 +28,18 @@
 > preserving intended probabilities and gameplay dependencies. The replacement
 > [algorithm/API design](2026-10-16-project-randomness-design.md) was separately
 > approved on 2026-10-16 and its standalone Python foundation implemented under
-> the separately approved plan. Combat integration is pending. Other correctness
-> requirements remain.
+> the separately approved plan. The subsequent narrow Python combat integration
+> is implemented/reviewed; original-runtime validation and Rust parity remain
+> incomplete. Other correctness requirements remain.
+
+> **Scope reaffirmed (2026-10-16):** The end goal is an AI that plays StS and
+> improves, enabled by an optimized, game-correct **headless Rust simulator** and
+> Python learning. The Python reference and validation are supporting work, not
+> separate production/platform goals; no playable client or rendering is planned.
+> See [current repository scope](../../scope.md) for present status, the bounded
+> validation-to-Rust-to-learning path and stopping rules. Original dated contracts
+> below remain historical unless explicitly superseded; this note grants no new
+> execution, waives no evidence gate and reports no performance/learning result.
 
 Date: 2026-10-11
 

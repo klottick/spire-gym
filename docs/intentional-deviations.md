@@ -7,8 +7,10 @@ equivalence. Preserve this distinction in designs, tests and evaluation reports.
 
 **Decision date:** 2026-10-16
 
-**Status:** User-approved policy; standalone Python randomness foundation
-implemented and verified on 2026-10-16. Combat integration remains pending.
+**Status:** User-approved policy; Python randomness foundation and integration into
+the narrow headless combat reference are implemented/reviewed on 2026-10-16.
+Original-runtime combat validation and Rust parity remain incomplete. See
+[repository scope](scope.md) for the Rust/learning goals this policy serves.
 
 ### Decision and rationale
 
@@ -22,6 +24,14 @@ Preserve the supported game's intended probabilities and conditional rules,
 including intentional dependencies such as drawing without replacement and enemy
 move-history restrictions. This is not permission to make every outcome IID,
 change encounter rules or replace shuffling with independent replacement draws.
+
+The user explicitly reaffirmed conditional enemy-intention chance fidelity on
+2026-10-16. Match each supported next-move law given relevant gameplay state and
+selected-move history, not just overall move frequencies. Where finite sampler
+semantics determine the branch mass, preserve that mass with exact rational
+sampling rather than rounding the displayed decimal or choosing cleaner weights.
+This does not require the original PRNG calculation or restore incidental seed/
+stream coupling. The combat design records the exact supported chance tables.
 
 Keep seeds and internal RNG state out of policy observations. Retain deterministic
 replay and snapshot restoration under the project's own randomness contract.
@@ -63,6 +73,10 @@ The user separately approved its design and
 [implementation plan](superpowers/plans/2026-10-16-project-randomness.md) on
 2026-10-16. The standalone module `python/spire_lab/combat/rng.py` is implemented
 with fixed project/public vectors and reviewed reproducibility, sampling, shuffle
-and exhaustion tests. Final verification: 395 Python tests passed. Combat stream
-ownership, policy observation boundaries, snapshot integration and Rust parity
-remain future work; the existing opaque combat RNG slot is unchanged.
+and exhaustion tests. Its standalone milestone recorded 395 passing Python tests.
+The subsequent [combat integration](superpowers/specs/2026-10-16-python-combat-behavior-design.md)
+implemented typed stream ownership, public-information boundaries and schema-2
+snapshots, with 735 tests passing in its final implementation verification. The
+opaque schema-1 RNG slot is rejected rather than retained. These historical test
+results establish authored behavior/replay, not original-runtime validation or
+learned playing strength; independently authored Rust parity remains future work.

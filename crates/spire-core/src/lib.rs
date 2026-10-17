@@ -9,4 +9,5 @@
 //! trace protocol (read side). The matching writer lives in the Java
 //! `:protocol` project under `validation/windows-mod`, which must produce
 //! files this module accepts.
+pub mod combat;
 pub mod trace;

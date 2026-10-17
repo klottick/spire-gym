@@ -1,5 +1,45 @@
 # Design process
 
+## Current scope and status (2026-10-17)
+
+The [repository scope](scope.md) is the current concise overview. The user reaffirmed
+the goal order: **AI playing StS and improving → optimized, game-correct headless
+Rust simulator → only the reference/validation tools necessary to support it**.
+Measure held-out strength gained per wall-clock hour; throughput is a supporting
+metric. No human-playable client, graphics, audio or interactive game UI.
+
+The narrow Python combat reference is implemented/reviewed, but not original-runtime
+validated. The narrow source-first Rust core is implemented; native batching and
+learning remain future work. User approval of the Rust plan/start and named HMAC
+dependency was received and executed. All task/correction reviews and whole-slice
+review are done. The final minor-fix wave passes 124 native tests in each workspace/
+release run, 95 differential tests and 830 full Python tests. Final scoped re-review
+and fresh controller verification passed; the core-only handoff is complete. The user
+approved [source-first sequencing](scope.md#approved-source-first-sequencing-amendment-2026-10-16):
+original captures no longer block Rust development; they remain a later fidelity-
+promotion gate. Historical Task-7 TDD limitations and failed comparisons remain retained.
+The [Linux capture-readiness specification](superpowers/specs/2026-10-16-linux-validation-readiness-design.md)
+is retained but capture-helper/feasibility work is deferred. It requires a concrete
+next StS capture consumer before helper implementation is planned and stops at the necessary
+controls/handoff; it is not a general capture-platform project. Original/Windows
+validation gates remain incomplete. Current execution preference is Sol workers
+with fresh independent reviews; the original Qwen choice below is historical.
+
+On 2026-10-17 the user approved the
+[two-level learning direction](scope.md#approved-two-level-learning-direction-2026-10-17):
+separate initial combat/run models, modular policy boundaries and one authoritative
+Rust simulator. Run-level transitions execute real fights using the combat policy
+and the same detailed engine. Train combat first, then strategic choices against
+a frozen combat checkpoint as run content becomes supported, then alternate
+improvements and evaluate combined held-out run success. Shared representations
+or a unified model remain experiments; Python ML is distinct from the offline
+Python combat reference. This is a recorded direction, not ML implementation/start
+approval or a claim that a learner/full-run simulator already exists.
+
+The original checklist and section-review discussions below are retained as
+history, not a claim that old worker selections remain current. The Open decisions
+section records the current planning gates separately.
+
 ## Brief
 
 The user wants a new local repository under `~/repos/`, containing a Rust
@@ -66,10 +106,18 @@ repository has been created.
 
 ## Open decisions
 
-- Review the 1a implementation plan; the written spec, including its concrete
-  schemas, pilot defaults, and acceptance procedures, is now approved.
-- Select the execution method and degree of user implementation after review of
-  the written implementation plan; no implementation method is assumed yet.
+- The narrow source-first Rust combat written design and
+  [implementation plan](superpowers/plans/2026-10-16-source-first-rust-combat.md)
+  and named HMAC dependency were approved and executed. Final correction review
+  and controller verification passed; the core-only handoff is complete.
+- Keep batching/bindings, release benchmarks and learning as subsequent milestones;
+  preserve the already selected Sol implementation/fresh-reviewer method.
+- The two-level policy direction is approved, not an open architectural choice.
+  Concrete model/observation/action/value/reward contracts and training schedules
+  still require their own design and plan review before implementation.
+- Defer capture work. Original comparisons remain required for later fidelity
+  promotion, not a prerequisite for Rust. If capture work resumes, establish a
+  concrete consumer before planning helper code and separately approve access.
 
 ## Selected architectural approach
 

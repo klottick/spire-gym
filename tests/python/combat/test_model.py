@@ -3,9 +3,11 @@ from spire_lab.combat.content import (
     SUPPORTED_RELIC_IDS,
 )
 import pytest
+from dataclasses import replace
+from spire_lab.combat.rng import StreamId
 from spire_lab.combat.model import (
     CardInstance, EndTurn, FaultKind, FaultRecord, InvariantError,
-    PendingEffect, Piles, PlayCard, RngState, TerminalOutcome, validate_state,
+    PendingEffect, Piles, PlayCard, TerminalOutcome, validate_state,
 )
 
 
@@ -40,7 +42,7 @@ def test_action_union_is_semantic():
 
 
 def test_content_manifest_is_exact_scope():
-    assert SUPPORTED_CONTENT_ID == "spire-lab-combat-reference-v1"
+    assert SUPPORTED_CONTENT_ID == "spire-lab-combat-reference-v2"
     assert SUPPORTED_CARD_IDS == {"strike", "defend", "bash"}
     assert SUPPORTED_ENCOUNTER_IDS == {"cultist", "jaw_worm"}
     assert SUPPORTED_RELIC_IDS == {"burning_blood"}
@@ -52,9 +54,22 @@ def test_model_rejects_foreign_mutable_objects(minimal_state):
         validate_state(minimal_state)
 
 
-def test_rng_slot_is_opaque_provisional_value():
-    value = RngState((1, "x", True))
-    assert value.slots == (1, "x", True)
+@pytest.mark.parametrize("change", ["contract", "domain", "scope", "owner", "foreign"])
+def test_rng_bundle_rejects_wrong_domains_scopes_and_owner(minimal_state, change):
+    rng = minimal_state.rng
+    if change == "contract":
+        rng = replace(rng, contract_id="other")
+    elif change == "domain":
+        rng = replace(rng, enemy_ai=replace(rng.enemy_ai, stream_id=StreamId("combat.enemy.hp", ("combat-plan-1", "private"))))
+    elif change == "scope":
+        rng = replace(rng, enemy_ai=replace(rng.enemy_ai, stream_id=StreamId("combat.enemy.ai", ("other", "private"))))
+    elif change == "owner":
+        rng = replace(rng, enemy_instance_id="other")
+    else:
+        rng = replace(rng, shuffle=object())
+    minimal_state.rng = rng
+    with pytest.raises(InvariantError):
+        validate_state(minimal_state)
 
 
 def test_model_rejects_bool_for_integer_state_field(minimal_state):

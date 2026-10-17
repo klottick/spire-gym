@@ -1,0 +1,11 @@
+mod rng_contract;
+mod support;
+mod entry_replay;
+mod rules_ai;
+mod resolution;
+mod actions_views;
+mod piles;
+mod turns;
+mod whole_combat;
+mod differential;
+mod differential_decode;
