@@ -15,7 +15,7 @@ This is a concrete ownership/interface proposal for integration into the one com
 | `spire-python` | Checked numeric transport, owned delivery, facade packaging/error conversion | Effect orchestration, gameplay legality, retries or repairs |
 | Policy/future learner | Choice among published legal candidate rows | Hidden state, simulator RNG, Python gameplay callbacks |
 
-Run and standalone combat use the same detailed combat engine with explicit resource context. A run does not maintain a separately writable combat copy of persistent HP, deck, gold, relics, potion slots, keys, or counters to reconcile later. Existing combat-v1 identities and semantics remain unchanged: `spire-lab-rng-hmac-sha256-v1`, snapshot2, `spire-lab-combat-observation-v1`, `spire-lab-env-seed-sha256-v1`, fingerprint `8fd66d212259d2bdd27139988a772e1a6c223f8d65524f38c74174a0d0843357`. Run observations, descriptors, and replay records require separate versioned identities; do not widen or repurpose combat-v1.
+Run and standalone combat use the same detailed combat engine with explicit resource context. A run does not maintain a separately writable combat copy of persistent HP, deck, gold, relics, potion slots, keys, or counters to reconcile later. Existing combat-v1 identities and semantics remain unchanged: `spire-lab-rng-hmac-sha256-v1`, snapshot2, `spire-lab-combat-reference-v2`, `spire-lab-combat-observation-v1`, `spire-lab-env-seed-sha256-v1`, fingerprint `8fd66d212259d2bdd27139988a772e1a6c223f8d65524f38c74174a0d0843357`. Run observations, descriptors, and replay records require separate versioned identities; do not widen or repurpose combat-v1.
 
 Basis: the approved Act 1 architecture and preserved phase-1a drafts on run architecture, packed interface, generation context, profile, coverage, map/random, execution, acquisition, and project randomness, plus read-only inspection of the old worktree's native combat/env/binding interfaces. That worktree contains dirty and untracked work; it was context only and none was copied. Evidence is static/source-grounded, not original-runtime validation. No original game class, initializer, or runtime was executed. Owned-JAR SHA-256: `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`; upstream build/channel and historical host-JRE applicability remain unestablished.
 
@@ -85,14 +85,13 @@ Candidate *families* for a future registry:
 
 | Candidate family | Semantic scope proposal | Unresolved boundary |
 |---|---|---|
-| `run.map.topology` | Run identity, construction stage/walk ordinal | Ordered repair/construction calls and exact domain still need review. |
-| `run.map.rooms` | Run identity, assignment stage | Shuffle, fallback, zero-elite handling and input measure are open. |
+| `run.map.generation` | Run identity, map-generation identity | Topology/room-stage cursor sharing, shuffle, fallback, zero-elite handling and input measure are open. |
 | `run.encounter.select` | Run identity, room/family, selection ordinal | Composition/history laws and stream split unresolved. |
 | `run.encounter.hp` | Run identity, room, enemy semantic ordinal | Exact call sites/domain split unresolved. |
-| `run.reward.cards` | Run identity, reward site, offer ordinal | Source policy, history, retries unresolved per site. |
-| `run.reward.relics` | Run identity, reward site, offer ordinal | Tier/list depletion and retries unresolved. |
-| `run.reward.potions` | Run identity, reward site, offer ordinal | Flat versus rarity-first source distinctions required. |
-| `run.shop.stock` | Run identity, shop visit, slot/restock ordinal | Proposal rejection/history laws required. |
+| `run.reward.card-offer` | Run identity, reward-event identity | Source policy, history, retries unresolved per site. |
+| `run.reward.relic-offer` | Run identity, reward-event identity | Tier/list depletion and retries unresolved. |
+| `run.reward.potion-offer` | Run identity, reward-event identity | Flat versus rarity-first source distinctions required. |
+| `run.shop.stock` | Run identity, shop visit identity | Proposal rejection/history laws required. |
 | `run.event.outcome` | Run identity, event visit, effect site, attempt ordinal | Do not merge with event selection absent evidence. |
 | `run.combat.<mechanic>` | Run and combat semantic identities plus mechanic scope | Only after reviewed assignment; do not silently widen current combat streams. |
 
@@ -103,6 +102,91 @@ completion order, pointer, generated address or policy token. Stream isolation m
 not erase within-offer, cross-room, history or without-replacement dependencies.
 RNG exhaustion is an administrative fault with cursor provenance, never loss,
 retry, or rollback.
+
+### 3.3 Proposed effect-site policy record (draft, not approved)
+
+Every producer inventory entry should use one record per **effect site**, not one
+row per card/relic/potion name. This documentation schema is deliberately explicit
+about evidence state: an open fact cannot be filled by a runtime default. Its type
+and field names are proposals for the whole-goal review, not Rust declarations.
+
+| Record field | Proposed type / requiredness | Semantics |
+|---|---|---|
+| `site_id` | `EffectSiteId`, required | Stable authored identifier, e.g. `reward.ordinary_card_slot`; not an object address, slot, or dynamic counter. |
+| `producer` | `ProducerRef`, required | Tagged content/effect owner and local effect-site label; nested producers identify the inner producer. |
+| `route` | `ProductionRoute`, required | One of `TemporaryGeneration`, `PermanentReward`, `ShopProposal`, `Transform`, `FixedCreation`, `Copy`, `PotionOffer`, `Acquisition`, `MovementOrSelection`, or a separately reviewed route. |
+| `result_kind` | `ResultKind`, required | Card/potion/relic offer, fixed instance, copy, transformed instance, resource mutation, or selection/movement. Prevents offers and acquisitions from being conflated. |
+| `context_basis` | `ContextBasis`, required | Tagged `CurrentCharacter`, `Colorless`, `FixedContent`, `ExistingInstance`, `RouteSpecific`, or `Unresolved`; states how run character/current instance participates. `Unresolved` is documentation-only and not runnable. |
+| `eligibility` | `EvidenceField<EligibilityLaw>`, required | Exact support, filters/exclusions, source character/route modifiers; a count alone is not an eligible-ID set. |
+| `selection_law` | `EvidenceField<SelectionLaw>`, required | Tagged flat support, rarity/category then identity, weighted proposal, fixed result, source-specific law, or open. Carries weights/order and conditional dependencies when established. |
+| `duplicate_policy` | `EvidenceField<DuplicatePolicy>`, required | Distinguishes no duplicates, retry identity retaining category/rarity, retry complete proposal, allow duplicate, source-defined alternative, and open. “No duplicate rule” is not represented by a missing field. |
+| `history_reads` | `EvidenceField<List<HistoryRead>>`, required | Named authoritative counters/pools read, scope, and selection-time snapshot. An evidenced empty list differs from unknown history dependencies. |
+| `history_writes` | `EvidenceField<List<HistoryWrite>>`, required | Counter/pool mutation and exact semantic boundary (proposal, offer, claim, effect, or later transition), ordering, and once-only key. |
+| `rng_use` | `EvidenceField<RngUse>`, required | `NoRandomness`, or candidate domain/scope, draw boundary, cursor relationship, rejection/consumption behavior, and intentional dependency references. It is not inferred from the route name. |
+| `construction` | `EvidenceField<ConstructionLaw>`, required | Output identity, upgrades/cost/scaling, copy provenance, instance creation and any hook ordering. Explicit `NotApplicable` must be evidenced. |
+| `destination` | `EvidenceField<DestinationLaw>`, required | Offer, temporary pile, permanent deck, belt/slot, resource, or source-defined destination; includes full/blocked handling. |
+| `commit_boundary` | `EvidenceField<CommitBoundary>`, required | When durable mutation becomes authoritative; distinguish generation, selection, confirmation, acquisition, and later transition. |
+| `continuation` | `EvidenceField<ContinuationContract>`, required | Typed resume target/captured parameters/choice progress, or evidenced no-continuation. |
+| `blocked_behavior` | `EvidenceField<BlockedBehavior>`, required | Exact source-defined skip/refusal/fallback if established; otherwise explicitly open. No invented retry or dropped effect. |
+| `evidence` | Nonempty `List<EvidenceLocator>`, required | Independently worded locator, evidence grade, claim coverage, and limitations; never a raw source excerpt. |
+| `readiness` | `PolicyReadiness`, required | `DraftIncomplete`, `ReviewRequired`, or `ReviewClosed`; only the designated whole-spec review can close a record for implementation. |
+| `notes` | `List<String>`, optional | Rationale that does not replace any required field or fact status. |
+
+Proposed fact wrapper: `EvidenceField<T>` is exactly one of `Established(value,
+grade, locators)`, `Partial(known_values, open_subfields, locators)`, or
+`Open(question, locators)`. `Established` may also state `NotApplicable` only with
+supporting evidence. `Partial` cannot be consumed as if its open fields had defaults.
+Evidence grade is one of `StaticSource`, `BytecodeConfirmed`, `ModelChecked`,
+`OriginalClassExecuted`, or `OriginalRuntime`; this task supplies no new
+`OriginalClassExecuted`/`OriginalRuntime` evidence. A candidate RNG assignment is a
+design proposal and must be labeled separately from a source-evidenced RNG fact.
+
+**Fail-closed authoring/consumption rule:** the inventory may contain
+`DraftIncomplete` rows, but the finalized content catalog cannot silently consume
+them as a policy. Whole-spec catalog preflight rejects any missing required site,
+unresolved required law, or site with readiness other than `ReviewClosed` as a
+content/specification error before run initialization. If a supposedly closed
+policy lookup is absent or malformed after initialization, raise an administrative
+content fault with the site and provenance; never fall back at runtime to another
+character, pool, stream, fixed card, skip, reroll, or defeat. This is a proposed
+fail-closed contract, not a product implementation.
+
+### 3.4 Illustrative site records and domain relationships
+
+The following rows demonstrate how to fill the proposed record without pretending
+all source laws are known. Proposed domain/scope values are **candidate design
+assignments only**. A shared candidate cursor is not a claim about original RNG
+correlation; domain assignments require review against RNG-001 and the final source
+law table.
+
+| `site_id` | Evidence-established fields | Candidate domain / scope and draw boundary | History/correlation; explicit open fields |
+|---|---|---|---|
+| `reward.ordinary_card_slot` | Ordinary permanent-card support is 72 Ironclad identities without the combat-generator HEALING exclusion. A qualifying Shard reward uses rarity-only support 320 including ordinary colorless identities; reward history changes once per generated slot before fixed-rarity identity retry. These are source-grounded, bounded acquisition findings, not every reward helper's law. | Candidate `run.reward.card-offer`, scope `(run_identity, reward_event_identity)`; one cursor is proposed across slots generated by that reward event, with slot order as draw history rather than a scope key. Identity rejection occurs inside the already-selected rarity. Whether rarity and identity share this cursor is **unresolved**; different reward events with different scope identities have distinct derived cursors under this proposal. | Reward-slot history and intentional sequential offer dependencies are not replaced by independent per-slot sampling. Exact complete eligibility IDs/conditional masses for each distinct reward source, all modifiers, exact stream/cursor relation and nonordinary helper routing remain **open**; do not generalize this row to Neow, Dream Catcher, Orrery, or Tiny House. |
+| `shop.card_stock_proposal` | Static acquisition findings distinguish merchant rejection of a second Attack/Skill as whole-proposal retry (category/rarity and identity are proposed again), and common Power proposal fall-through to uncommon. This is not reward fixed-rarity identity retry. | Candidate `run.shop.stock`, scope `(run_identity, shop_visit_identity, stock_generation_phase)`; one ordered cursor is proposed within a phase across proposals/retries, not per slot. Whether initial stock and restock use the same phase/cursor is **unresolved**. | Ordered stock proposals and retry consumption are candidate intentional within-visit correlation. Whether restocks, relic modifications, and other merchant random choices share the cursor/domain is **unresolved**. Exact prices, every slot/rejection law and complete source callbacks remain outside this example. |
+| `combat.hello_world.common_offer` | Reviewed generation findings identify the current character's Common pool as the basis for Hello World; on Ironclad it is not Shard's expanded reward pool and is not inferred from a card's printed color. This establishes pool basis only, not the complete selection law. | Candidate `run.combat.card-generation`, scope `(run_identity, combat_identity)`; draw boundary is when the turn-start offer is generated, before it is inserted into the hand. Per-turn/per-site substreams are **not** silently introduced. | Candidate shared cursor with other random combat card-generation sites in that combat is an explicit proposal to preserve ordered consumption, **not established source correlation**. Exact eligible IDs/masses, repeat/copy and turn history, exclusions, cursor sharing with Distraction/Infernal Blade/other producers, and all output/commit hooks remain **open**. Each site retains its own policy even if a future review selects a shared cursor. |
+| `map.room_bucket_assignment` | Reviewed map findings identify a retained shuffled room bucket and row-major assignment/fallback path; a separate reviewed supplied-choice witness reaches an empty elite set. This does not prove initialized-root-seed realizability or establish an input measure. | Candidate `run.map.generation`, scope `(run_identity, map_generation_identity)`; candidate draw boundary is bucket shuffle before deterministic assignment/fallback, not a fresh draw per cell. A shared map-generation cursor is proposed but not source-established. | Bucket order and assignment/fallback are history-dependent; do not replace with independent per-row draws or assert a uniform permutation. Whether topology and room assignment share this cursor, semantic input measure, zero-elite behavior, root-seed realizability, and general/larger shuffle laws remain **open**. No repair/retry/fallback is selected here. |
+
+Evidence locators for the established portions of these examples:
+
+* `2026-10-18-ironclad-a0-act1-acquisition-followup-findings.md` — ordinary and
+  Shard rewards; merchant retry.
+* `2026-10-18-ironclad-a0-act1-generation-context-design.md` — Hello World
+  current-character basis.
+* `2026-10-18-ironclad-a0-act1-map-java-findings.md` — map bucket assignment.
+* `2026-10-18-ironclad-a0-act1-map-random-followup-findings.md` — supplied-choice
+  zero-elite witness and measure boundary.
+
+These locators support only the stated fields, not the proposed domain assignments
+or unresolved claims.
+
+The candidate scope intentionally uses one semantic visit/phase identity for ordered
+site activity where shared consumption is being considered; it does **not** create
+one stream per card/source/slot by default. Conversely, similarly named routes are
+not thereby assigned one universal law: the source-policy record remains distinct
+per effect site. Until main reviews domain granularity and evidence coverage, the
+candidate assignments above are documentation examples only and cannot be used as
+runtime defaults. In particular, no uniform shuffle measure, universal stream
+independence, or exact source callback closure is asserted.
 
 ## 4. Choice/payment/history and suspended continuations
 
