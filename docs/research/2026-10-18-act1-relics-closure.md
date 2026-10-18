@@ -14,7 +14,7 @@ Some candidate/display labels are not the internal constructor ID: Frozen Egg us
 
 `RelicLibrary` registers 120 shared non-special candidates, 11 Ironclad-red candidates, and 10 shared `SPECIAL` candidates. The Ironclad-red set is Burning Blood, Red Skull, Paper Frog, Self Forming Clay, Black Blood, Champion Belt, Charon's Ashes, Magic Flower, Mark of Pain, Runic Cube, and Brimstone. The remaining 120 ordinary-tier candidates are shared. No other-character-exclusive relic appears in this 141-row Act 1 set. The initialized Ironclad pool is the shared plus red registration, subject to unlock filtering; Shard changes card reward eligibility, and Note can retrieve cards, but neither grants another character's starting/exclusive relics.
 
-The 10 special-tier rows are source-bound, not ordinary random relic tiers: Neow's Lament comes from Neow; Golden Idol from the Golden Idol event; Odd Mushroom from Hypnotizing Colored Mushrooms; Warped Tongs from Ominous Forge; Spirit Poop from Bonfire Spirits; Face of Cleric, Cultist Headpiece, Gremlin Visage, and N'loth's Hungry Face from Face Trader; Ssserpent Head from The Ssssserpent. Their legal event/choice routes remain content obligations even if a run skips them.
+The 10 special-tier rows are source-bound, not ordinary random relic tiers: Neow's Lament comes from Neow; Golden Idol from the Golden Idol event; Odd Mushroom from Hypnotizing Colored Mushrooms; Warped Tongs from Ominous Forge; Spirit Poop from Bonfire Spirits; Face of Cleric, Cultist Headpiece, Gremlin Visage, N'loth's Hungry Face, and Ssserpent Head are the five possible Face Trader faces. The Ssssserpent instead offers Doubt and gold on its accepted branch; it does not grant Ssserpent Head. Their legal event/choice routes remain content obligations even if a run skips them.
 
 Ordinary pool membership is not equivalent to eligibility at every source. The finite direct override audit found exactly 32 candidate `canSpawn` overrides (not 38; the earlier 38 constant-pool hits were discovery leads, not verified override definitions):
 
@@ -177,7 +177,7 @@ The methods listed are direct subclass overrides other than presentation/copy pl
 | Cultist Headpiece | `CultistMask` | `CultistMask` | `SPECIAL` | shared-special; Face Trader event | `atBattleStart` |
 | Gremlin Visage | `GremlinMask` | `GremlinMask` | `SPECIAL` | shared-special; Face Trader event | `atBattleStart` |
 | N'loth's Hungry Face | `NlothsMask` | `NlothsMask` | `SPECIAL` | shared-special; Face Trader event | `onChestOpenAfter`, `setCounter` |
-| Ssserpent Head | `SsserpentHead` | `SsserpentHead` | `SPECIAL` | shared-special; The Ssssserpent event | `onEnterRoom` |
+| Ssserpent Head | `SsserpentHead` | `SsserpentHead` | `SPECIAL` | shared-special; Face Trader event (one of five possible faces) | `onEnterRoom` |
 
 ## Primary mechanics and interaction obligations
 
