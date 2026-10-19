@@ -99,7 +99,7 @@ capacity. Without Shard or another legal capacity effect, Ironclad capacity is z
 | Auto-Shields, `AutoShields` (ID `Auto Shields`) | S; self | 1/1 | -/- | At use, only if current Block equals zero, request 11/15 calculated Block. |
 | Blizzard, `Blizzard` | A; all | 1/1 | -/- | At use count successful Frost channels this combat; set base damage to count × 2/3, recalculate per-enemy damage, then request damage-all. |
 | Boot Sequence, `BootSequence` | S; self | 0/0 | IE/IE | Gain 10/13 Block. |
-| Bullseye, `LockOn` (ID `Lockon`) | A; enemy | 1/1 | -/- | Deal 8/11; request 2/3 Lock-On. |
+| Bullseye, `LockOn` (ID `Lockon`) | A; enemy | 1/1 | -/- | Deal 8/11; request 2/3 Lock-On duration, not multiplier strength; local stacking/expiry are specified below. |
 | Capacitor, `Capacitor` | P; self | 1/1 | -/- | Request 2/3 slot increases, each as a single-slot operation capped at ten. No occupied orbs are granted. |
 | Chaos, `Chaos` | S; self | 1/1 | -/- | Sample and enqueue 1/2 random orbs at use, separately and with replacement from Dark/Frost/Lightning/Plasma, probability 1/4 each. |
 | Chill, `Chill` | S; self | 0/0 | E/IE | At use count enemies for which isDeadOrEscaped is false; enqueue that many Frost channels. |
@@ -192,6 +192,16 @@ values). Lightning's single-target action reads Lock-On after target selection;
 Electro uses the orb-damage matrix's per-enemy Lock-On path. Dark reads Lock-On at
 its action's initial update, after target capture. Downstream defenses/death still
 use damage processing; an orb amount is not guaranteed HP lost.
+
+Lock-On is a turn-based debuff: its amount is duration, not multiplier strength.
+Successful ordinary reapplications add durations; the inherited branch for an
+existing amount=-1 does not stack. At end of round, amount zero requests removal;
+otherwise request reduction by one. When that reduction resolves against current amount one, it
+requests removal instead of leaving zero for another round. A reduction smaller
+than the current amount subtracts it; one at least as large requests removal.
+Its multiplier remains ×1.5 regardless of duration. No local duration cap is
+evidenced; source signed-int overflow and native fidelity remain §6.3/§9.
+These local hooks do not close global dispatch, ordering or terminal interruption.
 
 Lightning passive/evoke and each Rip and Tear/Thunder Strike action use
 cardRandomRng and the same alive-only no-exception selector: return null if the
@@ -316,10 +326,10 @@ Concrete scoped caps/floors: Capacitor's one-slot route stops at ten; Consume
 stops at zero. Focus stacking/reduction clamps to [-999,999] and removes zero;
 its constructor itself merely accepts the supplied amount. Strength/Dexterity
 stack/reduction have the same signed clamps. EnergizedBlue constructor/stack cap
-at 999. EnergyPanel.addEnergy caps the resulting total at 999; removeEnergy floors
-at zero, while setEnergy assigns its argument without that add cap. Thus doubling
-ordinary energy 600 produces 999, not 1200. Card-calculated damage/Block have
-nonnegative calculation floors; source raw state remains separate.
+at 999. EnergyPanel.addEnergy caps the resulting total at 999; EnergyPanel.useEnergy
+floors consumption at zero, while setEnergy assigns directly without that add cap.
+Thus doubling ordinary energy 600 produces 999, not 1200. Card-calculated
+damage/Block have nonnegative calculation floors; source raw state remains separate.
 
 No general cap is evidenced for all other power intensities: Bias/Heatsink/Hello
 override stacking with integer addition; other inherited stack behavior must not
@@ -444,7 +454,9 @@ Non-sensitive source locators for every public record:
   player pool selection, HelloPower/CreativeAIPower, WhiteNoise.use, temporary-card
   creation and Status methods. Random damage: MonsterGroup.getRandomMonster,
   AttackDamageRandomEnemyAction, LightningOrbPassive/EvokeAction, DarkOrbEvokeAction,
-  DamageInfo's orb-damage matrix.
+  DamageInfo's orb-damage matrix. LockOnPower's end-round hook, inherited
+  AbstractPower.stackPower/reducePower and ReducePowerAction.update establish the
+  local duration lifecycle, not global hook dispatch.
 
 Actual checks are private static/document checks: failure-first helper import
 test, duplicate/missing ZIP entry and output-containment negative controls,
@@ -466,6 +478,7 @@ retained, not relabeled gameplay outcomes. None executes these future cases:
 | DF-N09 callbacks/ending | Buffer prevents positive incoming amount at its change hook; Static Discharge must use its callback-time positive amount, not final HP lost. Lethal/retaliation/escape cases remain blocked on precise §9 fields, not guessed totals. |
 | DF-N10 choices and transport | Seek full-hand outputs go to discard; Hologram full-hand retrieval remains there; neither triggers Void draw loss. Resume choices once, without duplicate payment/output or hidden-pile-order leakage; API mapping remains integrated work. |
 | DF-N11 FTL/random | Draw condition uses history size minus one at follow-up and top-inserted draw precedes appended damage; random hits reselect/recalculate each time. Test singleton RNG consumption, target death, and terminal interruption separately. |
+| DF-N12 Lock-On lifetime | UNEXECUTED: with no other mutation/interruption and each requested local action resolved, duration 2→1→removed over two end-round hooks, not 2→1→0 for another round. Successful base-plus-upgraded applications give stacked 2+3=5 duration, still ×1.5 orb damage rather than a stronger multiplier. Global dispatch/terminal ordering remains §9. |
 
 This document does not approve the whole specification, an implementation plan,
 implementation start, or main merge. Independent exact-head review and controller
