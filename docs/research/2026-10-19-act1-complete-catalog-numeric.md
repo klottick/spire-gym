@@ -6,7 +6,7 @@
 
 A source identity is the exact owner-qualified source key, not localized display text, a Java enum ordinal, an allocation identity, nor a wire number. A native canonical key is stable, nonlocalized ASCII `snake_case` within its namespace. Source aliases are byte-sensitive and case-sensitive; no normalization, trimming, case-folding, punctuation rewrite, or “first matching alias” is permitted. Duplicate display labels in distinct namespaces/owners remain distinct identities. Dynamic per-instance handles and numeric wire allocation remain the native owner’s responsibility.
 
-A catalog row has these normative columns: `(namespace, canonical_key, exact_source_identity, exact_aliases, lifecycle_owner, public_eligibility, evidence_grade)`. Each source identity and each `(namespace, owner, alias)` must resolve to exactly one canonical key. Unsupported or unproven identities fail closed. Catalog order is native canonical UTF-8 byte order, not historical host/JRE enumeration order. This is a selected native policy, not a source-order claim.
+Canonical keys are lowercase ASCII `snake_case`. General form is `<namespace>.<token>`; the only owner-qualified form in this supplement is `move.<monster_key>.<token>`, where each segment is nonempty snake_case and the monster segment binds the local discriminator to its owning monster. Nested class paths are mapped to underscores. Exact source IDs and aliases remain separately stored byte-for-byte and are never normalized. A catalog row has these normative columns: `(namespace, canonical_key, exact_source_identity, exact_aliases, lifecycle_owner, public_eligibility, evidence_grade)`. Each source identity and each `(namespace, owner, alias)` must resolve to exactly one canonical key. Unsupported or unproven identities fail closed. **Normative canonical iteration/serialization order is ascending unsigned UTF-8 byte order of the complete canonical key.** Markdown table order is presentation only and may preserve source/evidence grouping; consumers must sort by the canonical key rather than relying on table, registry, or host/JRE order.
 
 The finite namespace families required by this Act 1 envelope are cards, relics, potions, enemies, encounters, powers, events, rooms, rewards, choices/source-options, properties, intents, orbs, room objects, and public facts. Their reachability includes Ironclad A0, legally Note-reachable other-character cards, Prismatic Shard reward cards and dependent generated/control cards, transformed/generated cards, Act 1 routes and required Act 2 initialization. It does not include other-character starts/runs or Act 2 decisions. A generator must not widen this universe to every ID returned by an arbitrary runtime lookup.
 
@@ -683,7 +683,304 @@ This 25-row local enemy-kind catalog binds exact case-sensitive static class `ID
 
 The two Louse class aliases intentionally differ from their IDs: `LouseNormal`→`FuzzyLouseNormal` and `LouseDefensive`→`FuzzyLouseDefensive`. Monster move bytes remain local to each class and are not part of this kind catalog.
 
-### 2.7 Property-code proposal vocabulary (native-only; not source identities)
+### 2.8 Exact registrations outside the accepted 141-relic candidate set
+
+The keys below use `relic.` plus lowercase ASCII snake_case class token; exact constructor IDs and Java class aliases remain separate. Registry identity is static source; color registrations are excluded from this Ironclad shared/red candidate set, and named Act 2/3 routes are scoped exclusions, not universal unreachability claims. Tier is the constructor `RelicTier` constant from the pinned class.
+
+| Native key | Exact source ID | Exact class alias | Registration owner | Tier | Scope classification |
+|---|---|---|---|---|---|
+| `relic.bloody_idol` | `Bloody Idol` | `BloodyIdol` | `add` | `SPECIAL` | Act 2 `The Moai Head` route; not in the Act 1 event/candidate pool. |
+| `relic.cloak_clasp` | `CloakClasp` | `CloakClasp` | `addPurple` | `RARE` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.cracked_core` | `Cracked Core` | `CrackedCore` | `addBlue` | `STARTER` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.damaru` | `Damaru` | `Damaru` | `addPurple` | `COMMON` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.data_disk` | `DataDisk` | `DataDisk` | `addBlue` | `COMMON` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.duality` | `Yang` | `Duality` | `addPurple` | `UNCOMMON` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.emotion_chip` | `Emotion Chip` | `EmotionChip` | `addBlue` | `RARE` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.enchiridion` | `Enchiridion` | `Enchiridion` | `add` | `SPECIAL` | Act 2 `Cursed Tome` book selection; outside the Act 1 source route set. |
+| `relic.frozen_core` | `FrozenCore` | `FrozenCore` | `addBlue` | `BOSS` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.gold_plated_cables` | `Cables` | `GoldPlatedCables` | `addBlue` | `UNCOMMON` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.golden_eye` | `GoldenEye` | `GoldenEye` | `addPurple` | `RARE` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.holy_water` | `HolyWater` | `HolyWater` | `addPurple` | `BOSS` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.hovering_kite` | `HoveringKite` | `HoveringKite` | `addGreen` | `BOSS` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.inserter` | `Inserter` | `Inserter` | `addBlue` | `BOSS` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.mark_of_the_bloom` | `Mark of the Bloom` | `MarkOfTheBloom` | `add` | `SPECIAL` | Act 3 `MindBloom` reward route; outside the Act 1 boundary. |
+| `relic.melange` | `Melange` | `Melange` | `addPurple` | `SHOP` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.mutagenic_strength` | `MutagenicStrength` | `MutagenicStrength` | `add` | `SPECIAL` | Act 2 `Drug Dealer` reward route; outside the Act 1 event set. |
+| `relic.necronomicon` | `Necronomicon` | `Necronomicon` | `add` | `SPECIAL` | Act 2 `Cursed Tome` book selection; outside the Act 1 source route set. |
+| `relic.nilrys_codex` | `Nilry's Codex` | `NilrysCodex` | `add` | `SPECIAL` | Act 2 `Cursed Tome` book selection; outside the Act 1 source route set. |
+| `relic.ninja_scroll` | `Ninja Scroll` | `NinjaScroll` | `addGreen` | `UNCOMMON` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.nloths_gift` | `Nloth's Gift` | `NlothsGift` | `add` | `SPECIAL` | Act 2 `N’loth` event route; outside the Act 1 event set. |
+| `relic.nuclear_battery` | `Nuclear Battery` | `NuclearBattery` | `addBlue` | `BOSS` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.paper_crane` | `Paper Crane` | `PaperCrane` | `addGreen` | `UNCOMMON` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.pure_water` | `PureWater` | `PureWater` | `addPurple` | `STARTER` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.red_mask` | `Red Mask` | `RedMask` | `add` | `SPECIAL` | Act 2 `Masked Bandits` reward route; outside the Act 1 event set. |
+| `relic.ring_of_the_serpent` | `Ring of the Serpent` | `RingOfTheSerpent` | `addGreen` | `BOSS` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.runic_capacitor` | `Runic Capacitor` | `RunicCapacitor` | `addBlue` | `SHOP` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.snake_ring` | `Ring of the Snake` | `SnakeRing` | `addGreen` | `STARTER` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.snecko_skull` | `Snake Skull` | `SneckoSkull` | `addGreen` | `COMMON` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.symbiotic_virus` | `Symbiotic Virus` | `SymbioticVirus` | `addBlue` | `UNCOMMON` | Defect-specific (`RelicLibrary.addBlue` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.teardrop_locket` | `TeardropLocket` | `TeardropLocket` | `addPurple` | `UNCOMMON` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.the_specimen` | `The Specimen` | `TheSpecimen` | `addGreen` | `RARE` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.tingsha` | `Tingsha` | `Tingsha` | `addGreen` | `RARE` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.tough_bandages` | `Tough Bandages` | `ToughBandages` | `addGreen` | `RARE` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.twisted_funnel` | `TwistedFunnel` | `TwistedFunnel` | `addGreen` | `SHOP` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.violet_lotus` | `VioletLotus` | `VioletLotus` | `addPurple` | `BOSS` | Watcher-specific (`RelicLibrary.addPurple` registration); outside the Ironclad shared/red candidate pool. |
+| `relic.wrist_blade` | `WristBlade` | `WristBlade` | `addGreen` | `BOSS` | Silent-specific (`RelicLibrary.addGreen` registration); outside the Ironclad shared/red candidate pool. |
+
+### 2.9 Power IDs, source aliases, and direct owner-class use
+
+Rows are pinned-JAR power classes with a compile-time `POWER_ID`/`ID`, statically referenced by constructor instruction or exact source-ID string in enumerated Act 1/card/relic/potion/enemy classes. Keys are `power.` + snake_case nested-or-top-level class path; owner list is the direct source use evidence, not a reachability/offer promise. Public emission still requires an accepted producer and actual visible power instance.
+
+| Native key | Exact power ID | Exact class alias | Direct owner families/classes |
+|---|---|---|---|
+| `power.accuracy_power` | `Accuracy` | `AccuracyPower` | card; Accuracy, Shiv |
+| `power.after_image_power` | `After Image` | `AfterImagePower` | card; AfterImage |
+| `power.amplify_power` | `Amplify` | `AmplifyPower` | card; Amplify |
+| `power.anger_power` | `Anger` | `AngerPower` | card, enemy; Anger, GremlinNob |
+| `power.angry_power` | `Angry` | `AngryPower` | enemy; GremlinWarrior |
+| `power.artifact_power` | `Artifact` | `ArtifactPower` | card, enemy, potion, relic; AncientPotion, ClockworkSouvenir, CoreSurge, DarkShackles, Panacea, PiercingWail, Sentry |
+| `power.barricade_power` | `Barricade` | `BarricadePower` | card; Barricade |
+| `power.berserk_power` | `Berserk` | `BerserkPower` | card; Berserk |
+| `power.bias_power` | `Bias` | `BiasPower` | card; BiasedCognition |
+| `power.blur_power` | `Blur` | `BlurPower` | card; Blur |
+| `power.brutality_power` | `Brutality` | `BrutalityPower` | card; Brutality |
+| `power.buffer_power` | `Buffer` | `BufferPower` | card, relic; Buffer, FossilizedHelix |
+| `power.burst_power` | `Burst` | `BurstPower` | card; Burst |
+| `power.choke_power` | `Choked` | `ChokePower` | card; Choke |
+| `power.combust_power` | `Combust` | `CombustPower` | card; Combust |
+| `power.confusion_power` | `Confusion` | `ConfusionPower` | relic; SneckoEye |
+| `power.corpse_explosion_power` | `CorpseExplosionPower` | `CorpseExplosionPower` | card; CorpseExplosion |
+| `power.corruption_power` | `Corruption` | `CorruptionPower` | card; Corruption |
+| `power.creative_ai_power` | `Creative AI` | `CreativeAIPower` | card; CreativeAI |
+| `power.curl_up_power` | `Curl Up` | `CurlUpPower` | enemy; LouseDefensive, LouseNormal |
+| `power.dark_embrace_power` | `Dark Embrace` | `DarkEmbracePower` | card; DarkEmbrace |
+| `power.demon_form_power` | `Demon Form` | `DemonFormPower` | card; DemonForm |
+| `power.dexterity_power` | `Dexterity` | `DexterityPower` | card, enemy, potion, relic; DexterityPotion, Duality, Fasting, Footwork, Kunai, Lagavulin, OddlySmoothStone, Reprogram, SpeedPotion |
+| `power.double_tap_power` | `Double Tap` | `DoubleTapPower` | card; DoubleTap |
+| `power.draw_card_next_turn_power` | `Draw Card` | `DrawCardNextTurnPower` | card; Predator, SimmeringFury |
+| `power.draw_power` | `Draw` | `DrawPower` | card; MachineLearning |
+| `power.duplication_power` | `DuplicationPower` | `DuplicationPower` | potion; DuplicationPotion |
+| `power.echo_power` | `Echo Form` | `EchoPower` | card; EchoForm |
+| `power.electro_power` | `Electro` | `ElectroPower` | card; Electrodynamics |
+| `power.energized_blue_power` | `EnergizedBlue` | `EnergizedBluePower` | card; ConserveBattery |
+| `power.energized_power` | `Energized` | `EnergizedPower` | card; FlyingKnee, Outmaneuver |
+| `power.entangle_power` | `Entangled` | `EntanglePower` | enemy; SlaverRed |
+| `power.envenom_power` | `Envenom` | `EnvenomPower` | card; Envenom |
+| `power.equilibrium_power` | `Equilibrium` | `EquilibriumPower` | card; Equilibrium |
+| `power.evolve_power` | `Evolve` | `EvolvePower` | card; Evolve |
+| `power.feel_no_pain_power` | `Feel No Pain` | `FeelNoPainPower` | card; FeelNoPain |
+| `power.fire_breathing_power` | `Fire Breathing` | `FireBreathingPower` | card; FireBreathing |
+| `power.flame_barrier_power` | `Flame Barrier` | `FlameBarrierPower` | card; FlameBarrier |
+| `power.focus_power` | `Focus` | `FocusPower` | card, relic; BiasedCognition, Consume, DataDisk, Defragment, Hyperbeam, Reprogram |
+| `power.frail_power` | `Frail` | `FrailPower` | card, enemy; GremlinFat, Shame, SpikeSlime_L, SpikeSlime_M |
+| `power.gain_strength_power` | `Shackled` | `GainStrengthPower` | card; DarkShackles, PiercingWail |
+| `power.heatsink_power` | `Heatsink` | `HeatsinkPower` | card; Heatsinks |
+| `power.hello_power` | `Hello` | `HelloPower` | card; HelloWorld |
+| `power.infinite_blades_power` | `Infinite Blades` | `InfiniteBladesPower` | card; InfiniteBlades |
+| `power.intangible_player_power` | `IntangiblePlayer` | `IntangiblePlayerPower` | card, relic; Apparition, IncenseBurner, WraithForm |
+| `power.juggernaut_power` | `Juggernaut` | `JuggernautPower` | card; Juggernaut |
+| `power.lock_on_power` | `Lockon` | `LockOnPower` | card; LockOn |
+| `power.loop_power` | `Loop` | `LoopPower` | card; Loop |
+| `power.lose_dexterity_power` | `DexLoss` | `LoseDexterityPower` | potion, relic; Duality, SpeedPotion |
+| `power.lose_strength_power` | `Flex` | `LoseStrengthPower` | card, potion, relic; Flex, MutagenicStrength, SteroidPotion |
+| `power.magnetism_power` | `Magnetism` | `MagnetismPower` | card; Magnetism |
+| `power.mayhem_power` | `Mayhem` | `MayhemPower` | card; Mayhem |
+| `power.metallicize_power` | `Metallicize` | `MetallicizePower` | card, enemy, potion; HeartOfIron, Lagavulin, Metallicize |
+| `power.mode_shift_power` | `Mode Shift` | `ModeShiftPower` | enemy; TheGuardian |
+| `power.next_turn_block_power` | `Next Turn Block` | `NextTurnBlockPower` | card, relic; DodgeAndRoll, SelfFormingClay |
+| `power.no_block_power` | `NoBlockPower` | `NoBlockPower` | card; PanicButton |
+| `power.no_draw_power` | `No Draw` | `NoDrawPower` | card, relic; BattleTrance, BulletTime, UnceasingTop |
+| `power.noxious_fumes_power` | `Noxious Fumes` | `NoxiousFumesPower` | card; NoxiousFumes |
+| `power.panache_power` | `Panache` | `PanachePower` | card; Panache |
+| `power.pen_nib_power` | `Pen Nib` | `PenNibPower` | relic; PenNib |
+| `power.phantasmal_power` | `Phantasmal` | `PhantasmalPower` | card; PhantasmalKiller |
+| `power.plated_armor_power` | `Plated Armor` | `PlatedArmorPower` | card, potion, relic; EssenceOfSteel, LiveForever, ThreadAndNeedle |
+| `power.poison_power` | `Poison` | `PoisonPower` | card, enemy, relic; AcidSlime_L, AcidSlime_M, AcidSlime_S, CorpseExplosion, CripplingPoison, DeadlyPoison, PoisonedStab, SpikeSlime_L, SpikeSlime_M, SpikeSlime_S, TheSpecimen, TwistedFunnel |
+| `power.rage_power` | `Rage` | `RagePower` | card; Rage |
+| `power.rebound_power` | `Rebound` | `ReboundPower` | card; Rebound |
+| `power.regen_power` | `Regeneration` | `RegenPower` | potion; RegenPotion |
+| `power.repair_power` | `Repair` | `RepairPower` | card; SelfRepair |
+| `power.retain_card_power` | `Retain Cards` | `RetainCardPower` | card; WellLaidPlans |
+| `power.ritual_power` | `Ritual` | `RitualPower` | enemy, potion; Cultist, CultistPotion |
+| `power.rupture_power` | `Rupture` | `RupturePower` | card; Rupture |
+| `power.sadistic_power` | `Sadistic` | `SadisticPower` | card; SadisticNature |
+| `power.sharp_hide_power` | `Sharp Hide` | `SharpHidePower` | enemy; TheGuardian |
+| `power.split_power` | `Split` | `SplitPower` | enemy; AcidSlime_L, SlimeBoss, SpikeSlime_L |
+| `power.spore_cloud_power` | `Spore Cloud` | `SporeCloudPower` | enemy; FungiBeast |
+| `power.static_discharge_power` | `StaticDischarge` | `StaticDischargePower` | card; StaticDischarge |
+| `power.storm_power` | `Storm` | `StormPower` | card; Storm |
+| `power.strength_power` | `Strength` | `StrengthPower` | card, enemy, potion, relic; BecomeAlmighty, Brimstone, DarkShackles, Disarm, DuVuDoll, Fasting, Flex, FungiBeast, Girya, HeavyBlade, Hexaghost, Inflame, JAX, JawWorm, Lagavulin, LouseNormal, MutagenicStrength, PhilosopherStone, PiercingWail, RedSkull, Reprogram, Shuriken, Sling, SteroidPotion, StrengthPotion, Vajra |
+| `power.the_bomb_power` | `TheBomb` | `TheBombPower` | card; TheBomb |
+| `power.thievery_power` | `Thievery` | `ThieveryPower` | enemy; Looter |
+| `power.thorns_power` | `Thorns` | `ThornsPower` | card, potion, relic; BronzeScales, Caltrops, LiquidBronze |
+| `power.thousand_cuts_power` | `Thousand Cuts` | `ThousandCutsPower` | card; AThousandCuts |
+| `power.tools_of_the_trade_power` | `Tools Of The Trade` | `ToolsOfTheTradePower` | card; ToolsOfTheTrade |
+| `power.vulnerable_power` | `Vulnerable` | `VulnerablePower` | card, enemy, potion, relic; BagOfMarbles, Bash, BeamCell, Berserk, Dropkick, FearPotion, GremlinNob, HandDrill, Shockwave, SlaverRed, Terror, TheGuardian, ThunderClap, Trip, Uppercut |
+| `power.watcher_battle_hymn_power` | `BattleHymn` | `watcher.BattleHymnPower` | card; BattleHymn |
+| `power.watcher_block_return_power` | `BlockReturnPower` | `watcher.BlockReturnPower` | card; TalkToTheHand |
+| `power.watcher_deva_power` | `DevaForm` | `watcher.DevaPower` | card; DevaForm |
+| `power.watcher_devotion_power` | `DevotionPower` | `watcher.DevotionPower` | card; Devotion |
+| `power.watcher_end_turn_death_power` | `EndTurnDeath` | `watcher.EndTurnDeathPower` | card; Blasphemy |
+| `power.watcher_energy_down_power` | `EnergyDownPower` | `watcher.EnergyDownPower` | card; Fasting |
+| `power.watcher_establishment_power` | `EstablishmentPower` | `watcher.EstablishmentPower` | card; Establishment |
+| `power.watcher_foresight_power` | `WireheadingPower` | `watcher.ForesightPower` | card; Foresight |
+| `power.watcher_free_attack_power` | `FreeAttackPower` | `watcher.FreeAttackPower` | card; Swivel |
+| `power.watcher_like_water_power` | `LikeWaterPower` | `watcher.LikeWaterPower` | card; LikeWater |
+| `power.watcher_mantra_power` | `Mantra` | `watcher.MantraPower` | card, relic; Damaru, Pray, Prostrate, Worship |
+| `power.watcher_mark_power` | `PathToVictoryPower` | `watcher.MarkPower` | card; PressurePoints |
+| `power.watcher_master_reality_power` | `MasterRealityPower` | `watcher.MasterRealityPower` | card; MasterReality |
+| `power.watcher_mental_fortress_power` | `Controlled` | `watcher.MentalFortressPower` | card; MentalFortress |
+| `power.watcher_nirvana_power` | `Nirvana` | `watcher.NirvanaPower` | card; Nirvana |
+| `power.watcher_omega_power` | `OmegaPower` | `watcher.OmegaPower` | card; Omega |
+| `power.watcher_rushdown_power` | `Adaptation` | `watcher.RushdownPower` | card; Rushdown |
+| `power.watcher_study_power` | `Study` | `watcher.StudyPower` | card; Study |
+| `power.watcher_vigor_power` | `Vigor` | `watcher.VigorPower` | card, relic; Akabeko, WreathOfFlame |
+| `power.watcher_wave_of_the_hand_power` | `WaveOfTheHandPower` | `watcher.WaveOfTheHandPower` | card; WaveOfTheHand |
+| `power.watcher_wrath_next_turn_power` | `WrathNextTurnPower` | `watcher.WrathNextTurnPower` | card; SimmeringFury |
+| `power.weak_power` | `Weakened` | `WeakPower` | card, enemy, potion, relic; AcidSlime_L, AcidSlime_M, AcidSlime_S, Blind, ChampionsBelt, Clothesline, CripplingPoison, Doubt, GremlinFat, GremlinMask, HeelHook, Intimidate, LegSweep, LouseDefensive, Neutralize, RedMask, Shockwave, SlaverBlue, SuckerPunch, TheGuardian, Uppercut, WeakenPotion |
+| `power.wraith_form_power` | `Wraith Form v2` | `WraithFormPower` | card; WraithForm |
+
+### 2.10 Orb source identities
+
+IDs/classes are from exact pinned orb class records. `EmptyOrbSlot` is a slot sentinel, never an occupied/channelable orb row. An orb is emitted only for an actually occupied, publicly observable slot.
+
+| Native key | Exact ID | Exact class alias | Source role |
+|---|---|---|---|
+| `orb.dark` | `Dark` | `Dark` | channelable orb |
+| `orb.empty_orb_slot` | `Empty` | `EmptyOrbSlot` | slot sentinel; not channelable orb |
+| `orb.frost` | `Frost` | `Frost` | channelable orb |
+| `orb.lightning` | `Lightning` | `Lightning` | channelable orb |
+| `orb.plasma` | `Plasma` | `Plasma` | channelable orb |
+
+### 2.11 Room, room-phase, reward, and global intent domains
+
+These are literal source enum names, not Java ordinals. Global `Intent` names are semantic type tags only; each monster’s signed-byte move discriminator remains independently qualified by that monster owner in §2.12. Room/reward keys do not themselves authorize visibility or reward generation.
+
+| Native key | Exact source enum owner | Exact source constant |
+|---|---|---|
+| `intent.attack` | `AbstractMonster.Intent` | `ATTACK` |
+| `intent.attack_buff` | `AbstractMonster.Intent` | `ATTACK_BUFF` |
+| `intent.attack_debuff` | `AbstractMonster.Intent` | `ATTACK_DEBUFF` |
+| `intent.attack_defend` | `AbstractMonster.Intent` | `ATTACK_DEFEND` |
+| `intent.buff` | `AbstractMonster.Intent` | `BUFF` |
+| `intent.debuff` | `AbstractMonster.Intent` | `DEBUFF` |
+| `intent.debug` | `AbstractMonster.Intent` | `DEBUG` |
+| `intent.defend` | `AbstractMonster.Intent` | `DEFEND` |
+| `intent.defend_buff` | `AbstractMonster.Intent` | `DEFEND_BUFF` |
+| `intent.defend_debuff` | `AbstractMonster.Intent` | `DEFEND_DEBUFF` |
+| `intent.escape` | `AbstractMonster.Intent` | `ESCAPE` |
+| `intent.magic` | `AbstractMonster.Intent` | `MAGIC` |
+| `intent.none` | `AbstractMonster.Intent` | `NONE` |
+| `intent.sleep` | `AbstractMonster.Intent` | `SLEEP` |
+| `intent.strong_debuff` | `AbstractMonster.Intent` | `STRONG_DEBUFF` |
+| `intent.stun` | `AbstractMonster.Intent` | `STUN` |
+| `intent.unknown` | `AbstractMonster.Intent` | `UNKNOWN` |
+| `reward.card` | `RewardItem.RewardType` | `CARD` |
+| `reward.emerald_key` | `RewardItem.RewardType` | `EMERALD_KEY` |
+| `reward.gold` | `RewardItem.RewardType` | `GOLD` |
+| `reward.potion` | `RewardItem.RewardType` | `POTION` |
+| `reward.relic` | `RewardItem.RewardType` | `RELIC` |
+| `reward.sapphire_key` | `RewardItem.RewardType` | `SAPPHIRE_KEY` |
+| `reward.stolen_gold` | `RewardItem.RewardType` | `STOLEN_GOLD` |
+| `room.boss` | `AbstractRoom.RoomType` | `BOSS` |
+| `room.event` | `AbstractRoom.RoomType` | `EVENT` |
+| `room.monster` | `AbstractRoom.RoomType` | `MONSTER` |
+| `room.shop` | `AbstractRoom.RoomType` | `SHOP` |
+| `room.shrine` | `AbstractRoom.RoomType` | `SHRINE` |
+| `room.treasure` | `AbstractRoom.RoomType` | `TREASURE` |
+| `room_phase.combat` | `AbstractRoom.RoomPhase` | `COMBAT` |
+| `room_phase.complete` | `AbstractRoom.RoomPhase` | `COMPLETE` |
+| `room_phase.event` | `AbstractRoom.RoomPhase` | `EVENT` |
+| `room_phase.incomplete` | `AbstractRoom.RoomPhase` | `INCOMPLETE` |
+
+### 2.12 Act 1 monster-local move discriminators
+
+Each signed-byte value is meaningful only under the stated monster owner; equal byte values across owners are distinct. The constant name is an exact class-local source alias, not a global `Intent`. Rows are statically read from pinned class constants.
+
+| Native key | Monster owner key/class | Source byte field | Signed byte value |
+|---|---|---|---:|
+| `move.acid_slime_l.normal_tackle` | `monster.acid_slime_l` / `AcidSlime_L` | `NORMAL_TACKLE` | 2 |
+| `move.acid_slime_l.slime_tackle` | `monster.acid_slime_l` / `AcidSlime_L` | `SLIME_TACKLE` | 1 |
+| `move.acid_slime_l.split` | `monster.acid_slime_l` / `AcidSlime_L` | `SPLIT` | 3 |
+| `move.acid_slime_l.weak_lick` | `monster.acid_slime_l` / `AcidSlime_L` | `WEAK_LICK` | 4 |
+| `move.acid_slime_m.normal_tackle` | `monster.acid_slime_m` / `AcidSlime_M` | `NORMAL_TACKLE` | 2 |
+| `move.acid_slime_m.weak_lick` | `monster.acid_slime_m` / `AcidSlime_M` | `WEAK_LICK` | 4 |
+| `move.acid_slime_m.wound_tackle` | `monster.acid_slime_m` / `AcidSlime_M` | `WOUND_TACKLE` | 1 |
+| `move.acid_slime_s.debuff` | `monster.acid_slime_s` / `AcidSlime_S` | `DEBUFF` | 2 |
+| `move.acid_slime_s.tackle` | `monster.acid_slime_s` / `AcidSlime_S` | `TACKLE` | 1 |
+| `move.blue_slaver.rake` | `monster.blue_slaver` / `SlaverBlue` | `RAKE` | 4 |
+| `move.blue_slaver.stab` | `monster.blue_slaver` / `SlaverBlue` | `STAB` | 1 |
+| `move.cultist.dark_strike` | `monster.cultist` / `Cultist` | `DARK_STRIKE` | 1 |
+| `move.cultist.incantation` | `monster.cultist` / `Cultist` | `INCANTATION` | 3 |
+| `move.fat_gremlin.blunt` | `monster.fat_gremlin` / `GremlinFat` | `BLUNT` | 2 |
+| `move.fungi_beast.bite` | `monster.fungi_beast` / `FungiBeast` | `BITE` | 1 |
+| `move.fungi_beast.grow` | `monster.fungi_beast` / `FungiBeast` | `GROW` | 2 |
+| `move.green_louse.bite` | `monster.green_louse` / `LouseDefensive` | `BITE` | 3 |
+| `move.green_louse.weaken` | `monster.green_louse` / `LouseDefensive` | `WEAKEN` | 4 |
+| `move.gremlin_nob.bellow` | `monster.gremlin_nob` / `GremlinNob` | `BELLOW` | 3 |
+| `move.gremlin_nob.bull_rush` | `monster.gremlin_nob` / `GremlinNob` | `BULL_RUSH` | 1 |
+| `move.gremlin_nob.skull_bash` | `monster.gremlin_nob` / `GremlinNob` | `SKULL_BASH` | 2 |
+| `move.gremlin_wizard.charge` | `monster.gremlin_wizard` / `GremlinWizard` | `CHARGE` | 2 |
+| `move.gremlin_wizard.dope_magic` | `monster.gremlin_wizard` / `GremlinWizard` | `DOPE_MAGIC` | 1 |
+| `move.hexaghost.activate` | `monster.hexaghost` / `Hexaghost` | `ACTIVATE` | 5 |
+| `move.hexaghost.divider` | `monster.hexaghost` / `Hexaghost` | `DIVIDER` | 1 |
+| `move.hexaghost.inferno` | `monster.hexaghost` / `Hexaghost` | `INFERNO` | 6 |
+| `move.hexaghost.inflame` | `monster.hexaghost` / `Hexaghost` | `INFLAME` | 3 |
+| `move.hexaghost.sear` | `monster.hexaghost` / `Hexaghost` | `SEAR` | 4 |
+| `move.hexaghost.tackle` | `monster.hexaghost` / `Hexaghost` | `TACKLE` | 2 |
+| `move.jaw_worm.bellow` | `monster.jaw_worm` / `JawWorm` | `BELLOW` | 2 |
+| `move.jaw_worm.chomp` | `monster.jaw_worm` / `JawWorm` | `CHOMP` | 1 |
+| `move.jaw_worm.thrash` | `monster.jaw_worm` / `JawWorm` | `THRASH` | 3 |
+| `move.lagavulin.debuff` | `monster.lagavulin` / `Lagavulin` | `DEBUFF` | 1 |
+| `move.lagavulin.idle` | `monster.lagavulin` / `Lagavulin` | `IDLE` | 5 |
+| `move.lagavulin.open` | `monster.lagavulin` / `Lagavulin` | `OPEN` | 4 |
+| `move.lagavulin.open_natural` | `monster.lagavulin` / `Lagavulin` | `OPEN_NATURAL` | 6 |
+| `move.lagavulin.strong_atk` | `monster.lagavulin` / `Lagavulin` | `STRONG_ATK` | 3 |
+| `move.looter.escape` | `monster.looter` / `Looter` | `ESCAPE` | 3 |
+| `move.looter.lunge` | `monster.looter` / `Looter` | `LUNGE` | 4 |
+| `move.looter.mug` | `monster.looter` / `Looter` | `MUG` | 1 |
+| `move.looter.smoke_bomb` | `monster.looter` / `Looter` | `SMOKE_BOMB` | 2 |
+| `move.mad_gremlin.scratch` | `monster.mad_gremlin` / `GremlinWarrior` | `SCRATCH` | 1 |
+| `move.red_louse.bite` | `monster.red_louse` / `LouseNormal` | `BITE` | 3 |
+| `move.red_louse.strengthen` | `monster.red_louse` / `LouseNormal` | `STRENGTHEN` | 4 |
+| `move.red_slaver.entangle` | `monster.red_slaver` / `SlaverRed` | `ENTANGLE` | 2 |
+| `move.red_slaver.scrape` | `monster.red_slaver` / `SlaverRed` | `SCRAPE` | 3 |
+| `move.red_slaver.stab` | `monster.red_slaver` / `SlaverRed` | `STAB` | 1 |
+| `move.sentry.beam` | `monster.sentry` / `Sentry` | `BEAM` | 4 |
+| `move.sentry.bolt` | `monster.sentry` / `Sentry` | `BOLT` | 3 |
+| `move.shield_gremlin.bash` | `monster.shield_gremlin` / `GremlinTsundere` | `BASH` | 2 |
+| `move.shield_gremlin.protect` | `monster.shield_gremlin` / `GremlinTsundere` | `PROTECT` | 1 |
+| `move.slime_boss.prep_slam` | `monster.slime_boss` / `SlimeBoss` | `PREP_SLAM` | 2 |
+| `move.slime_boss.slam` | `monster.slime_boss` / `SlimeBoss` | `SLAM` | 1 |
+| `move.slime_boss.split` | `monster.slime_boss` / `SlimeBoss` | `SPLIT` | 3 |
+| `move.slime_boss.sticky` | `monster.slime_boss` / `SlimeBoss` | `STICKY` | 4 |
+| `move.sneaky_gremlin.puncture` | `monster.sneaky_gremlin` / `GremlinThief` | `PUNCTURE` | 1 |
+| `move.spike_slime_l.flame_tackle` | `monster.spike_slime_l` / `SpikeSlime_L` | `FLAME_TACKLE` | 1 |
+| `move.spike_slime_l.frail_lick` | `monster.spike_slime_l` / `SpikeSlime_L` | `FRAIL_LICK` | 4 |
+| `move.spike_slime_l.split` | `monster.spike_slime_l` / `SpikeSlime_L` | `SPLIT` | 3 |
+| `move.spike_slime_m.flame_tackle` | `monster.spike_slime_m` / `SpikeSlime_M` | `FLAME_TACKLE` | 1 |
+| `move.spike_slime_m.frail_lick` | `monster.spike_slime_m` / `SpikeSlime_M` | `FRAIL_LICK` | 4 |
+| `move.spike_slime_s.tackle` | `monster.spike_slime_s` / `SpikeSlime_S` | `TACKLE` | 1 |
+| `move.the_guardian.charge_up` | `monster.the_guardian` / `TheGuardian` | `CHARGE_UP` | 6 |
+| `move.the_guardian.close_up` | `monster.the_guardian` / `TheGuardian` | `CLOSE_UP` | 1 |
+| `move.the_guardian.fierce_bash` | `monster.the_guardian` / `TheGuardian` | `FIERCE_BASH` | 2 |
+| `move.the_guardian.roll_attack` | `monster.the_guardian` / `TheGuardian` | `ROLL_ATTACK` | 3 |
+| `move.the_guardian.twin_slam` | `monster.the_guardian` / `TheGuardian` | `TWIN_SLAM` | 4 |
+| `move.the_guardian.vent_steam` | `monster.the_guardian` / `TheGuardian` | `VENT_STEAM` | 7 |
+| `move.the_guardian.whirlwind` | `monster.the_guardian` / `TheGuardian` | `WHIRLWIND` | 5 |
+
+### 2.13 Source-backed room-object families
+
+This deliberately bounded vocabulary names selected state-bearing source owners, not every UI/render object. `campfire_option` and `reward_item` are typed by their concrete owner/subtype; no implicit inventory of hidden offers or face-down content is exposed. `GremlinMatchGame` board positions must not reveal unrevealed face-down contents.
+
+| Native key | Exact source owner alias | Identity/visibility boundary |
+|---|---|---|
+| `room_object.board_position` | `GremlinMatchGame` | Act 1 shrine memory-board position; content is not exposed while face down |
+| `room_object.campfire_option` | `AbstractCampfireOption` | current campfire action option; concrete option/adding relic aliases remain a separate source-option join |
+| `room_object.chest` | `AbstractChest; SmallChest; MediumChest; LargeChest; BossChest` | treasure chest family; concrete class alias is retained, chest contents remain hidden until source reveal |
+| `room_object.reward_item` | `RewardItem` | current reward-list item; exact RewardType qualifies subtype |
+
+### 2.14 Property-code proposal vocabulary (native-only; not source identities)
 
 The following labels and numbers are the finite **native proposal** in accepted E29, not Java/source property IDs and not independently proven source-owner bindings. Codes are version-local proposal values, not wire numbers assigned here. The source-owner/member and reveal predicate must still be supplied before emission. Code 41 has no source owner proof and is excluded/unemittable; code 40 is usable only for separately registered owner/subkey pairs and is not an escape hatch.
 
@@ -791,11 +1088,11 @@ Accepted E29 reports a 146-cell candidate crosswalk and a 131-card bounded alias
 For that reason this document does **not** claim full catalog or numeric closure. The identity-catalog work remains incomplete; these concrete joins are still open:
 
 1. **Cards:** the 370-row list is the static `CardLibrary` registration universe, not yet the exact legal producer set. Every reachable producer/selector route (ordinary rewards, Note/Shard/off-color, generated/dependent, transformed/copied/event/potion and Status/Curse/control identities) still needs explicit owner-qualified inclusion/exclusion and emission checkpoints; current per-row route/pool text is not a substitute for those joins.
-2. **Powers:** complete literal source IDs/classes and the actual player/monster/event/relic/card/action creation, application, visibility and removal owners are not catalogued or reconciled.
-3. **Events and choices:** the event-kind IDs/classes are joined, but the finite actual source option keys/indexes and owner-specific eligible/current-choice emission rows are not. Rooms, reward identities/origins, room objects and reward/choice transitions also lack complete source-key catalogs.
-4. **Other source namespaces:** complete orb IDs, intent keys/payload ownership, public-fact/history keys and source effect-site identities/use-set equality are absent. Source-local move bytes remain subordinate to monster kind; they are not global intent codes.
+2. **Powers:** this supplement now lists 106 power class/ID rows directly constructed or referenced by exact ID strings in the enumerated card/relic/potion/enemy owner classes. It is a bounded static owner-use inventory, not the complete application/creation universe: mediated actions, dynamic/reflective IDs, event/reward-option sites, player/monster application lifecycles, visibility and removal owners remain to be joined.
+3. **Events and choices:** the event-kind IDs/classes are joined, but finite event source-option keys/indexes and owner-specific eligible/current-choice emission rows remain open. Room type/phase and reward enum constants are now literal-keyed; source reward origins/producer routes and complete reward/choice transition identities remain open. The four room-object rows name only bounded state-bearing source-owner families; concrete event/campfire choice sets and source-specific emission joins are not closed.
+4. **Orbs/intents/public facts/effect sites:** five orb class/ID rows are listed, including `EmptyOrbSlot` explicitly as a non-channelable slot sentinel. The global `AbstractMonster.Intent` enum has 17 literal values; 69 compile-time byte move constants are catalogued owner-locally for the 25 Act 1 enemy classes. These declarations do not prove complete use/producer sets, legal visibility, or payload ownership. Public-fact/history keys and source effect-site identities/use-set equality remain absent.
 5. **Properties:** accepted codes 1–45 are a native proposal vocabulary, not source IDs. Code 41 is excluded and unemittable pending owner proof; code 40 is not an open bag. The mapping from every other property/subkey to exact source owner/member, source option/producer, and public reveal checkpoint is not complete.
-6. **Ownership/emission equality:** the bounded row checks do not establish all producer/read/write/use sites, route eligibility, hidden-state predicates or full namespace source-set equality. The current card row selector language and broad live-offer disclosure conditions are intentionally qualified, not asserted as proven source law.
+6. **Ownership/emission equality:** identity-v2 independently compares expected static key/payload rows with delivered tables for its bounded 37 relic exclusions, 106 power rows, 5 orb rows, 6 room types, 4 room phases, 7 reward types, 17 global intents, 69 monster-local move constants and 4 room-object families. Mutations of key, owner, alias, classification, omission and duplication are rejected in that bounded reconciliation. This does not establish all producer/read/write/use sites, route eligibility, hidden-state predicates or full namespace source-set equality. The current card row selector language and broad live-offer disclosure conditions are intentionally qualified, not asserted as proven source law.
 7. **Numeric/member joins:** this continuation does not expand those joins. Per-member domain/read-write/default/reset/rounding/overflow/visibility completion has been split to the disjoint `.46` numeric-members author; the qualified facts above remain as originally evidenced. This document still does not close the full source-field inventory or whole observation-set equality.
 
 The `.44` task is therefore **not complete**. Do not treat this document as an API/codec, final source registry, native implementation input without these gaps, or a statement that prior accepted evidence proves them. Native owner may consume only the concrete facts above as qualified source inputs; native numeric wire IDs/instance IDs remain its responsibility.
