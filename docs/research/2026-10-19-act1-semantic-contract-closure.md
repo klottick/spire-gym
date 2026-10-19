@@ -11,7 +11,7 @@ This document closes a specific native-contract gap: it defines a checkable fiel
 - **Human option (H)** is a tagged alternative whose selection remains open. No option below silently supplies a default.
 - **Unresolved source interface (U-S)** means the native contract accepts a symbolic named input from the RNG/maps or execution work; this document does not invent that answer.
 
-No original game class, initializer, or runtime was executed. The owned archive identity was retained from the authorized source-identity manifest; this lane performed no new archive extraction/decompilation because the needed operation-specific replay framing, packed widths, source-site families, and profile/time trace already exist in reviewed public records. Their assertions are attributed to those records, not upgraded to fresh source verification here.
+No original game initializer or runtime was executed. The authorized archive identity was checked against its retained pin before and after a narrowly scoped static pass: only 11 named shared class entries were extracted to private evidence and inspected with the pinned `javap` (`-p -s`); no dependencies were resolved and no class was initialized. Their declarations support the direct-member rows below, not behavior of every method or every subclass. Other claims remain attributed to the linked reviewed public records and are not upgraded to runtime evidence.
 
 Reviewed normative interfaces (all standalone public records): [enemy numeric and callback records](2026-10-19-act1-content-enemies.md), [Ironclad/colorless/Status/Curse and shared card rules](2026-10-19-act1-content-red-colorless.md), [Silent paired records](2026-10-19-act1-content-silent.md), [Neow/events](2026-10-19-act1-content-event-neow.md), [Watcher paired records](2026-10-19-act1-content-watcher.md), [economy/rewards/chests/potions](2026-10-19-act1-content-economy-potions.md), and [Defect paired records](2026-10-19-act1-content-defect.md). These link to primary-record scope; they do not imply transitive closure or an approved unified content catalog.
 
@@ -54,7 +54,7 @@ A transport cell's signed-64 range is established only by the proposed carrier, 
 
 | Domain | Status and required mapping |
 |---|---|
-| Signed integer / count | For a field whose retained source record identifies a Java `int`, the candidate scalar domain is exactly `[-2^31, 2^31-1]` and its `int64` cell is the exact sign-extension of that 32-bit value; a wider input is an encoding error, never wrap/clamp. For fields not evidenced as Java `int`, `int64` is carrier-only until their source type is established. The paired records specify actual card/enemy/economy values, costs, counters and selected helper rules, but not every field's primitive source type or narrower legal domain. Each literal field still needs `(source identity/field, source method boundary, primitive type, legal domain/cap if any, rounding, overflow consequence)` before final freeze. Unknown fields remain `U-S`, not silently signed64 gameplay. |
+| Signed integer / count | A direct Java `int` field has representable source domain exactly `[-2^31, 2^31-1]`; its `int64` cell is the exact sign-extension and wider input is an encoding error, never narrowing. §2.6 identifies a source member or exact derived producer for every candidate field, and states the broad primitive domain. This is not a claim that every bit pattern is reachable: owner-specific transition predicates, sentinels, helper caps and narrower reachable ranges remain source-law obligations named per row where unproved. Collection ordinals/counts derive from source `int` size/index; they do not establish game-content maxima. |
 | `binary32` | Preserve raw IEEE-754 binary32 bits when a source field/price/quota is a float; do not round-trip through decimal or binary64. Apply the source operation's rounding at its exact boundary. The normative records identify float-based costs/rounding where applicable; this proposal does not claim all float members or all input values have been audited. |
 | boolean | Encode exactly `0` or `1`; reject other values. Source's boolean truth is not encoded as numeric truthiness. |
 | counts and widths | Table row counts and offsets use `0..U` only as encoding limits. Candidate parameter count and selection count are additionally constrained by the exact currently offered source menu, not a constant cap. |
@@ -62,7 +62,7 @@ A transport cell's signed-64 range is established only by the proposed carrier, 
 | helper-specific cap | The source `addEnergy`/`addBlock` helper caps at 999 at those call sites. It does not clip external inputs or establish 999 as a general cap for incoming Block, enemy Block, relic counters, gold, HP, energy grants outside that helper, or any packed value. |
 | overflow / nonfinite | Source arithmetic behavior is a source-specific rule and may not be replaced by carrier wrapping. If a legal source value cannot fit or be represented exactly by selected encoding, raise an administrative numeric/encoding fault before presenting a misleading observation. Do not reject/truncate a legal game row as a gameplay rule. |
 
-The schema is not numeric-domain-complete for every live mutable source field until the source-field map is independently reconciled against the full normative records and source-method evidence. That is a specific B09 residual, not a blanket “all fields fit int64” claim.
+The schema now has a candidate mapping row for every exposed field; it is **not** a proof that every live mutable source member is exposed, every owner-specific legal/reachable subset is known, or every call boundary is joined. Reconcile the source-member inventory against the full normative records, properties, and source methods before asserting B09 closure. That is a specific residual, not a blanket “all fields fit int64” claim.
 
 ### 2.3 Value kinds, references, and binary32
 
@@ -97,6 +97,26 @@ The following signature is positionally aligned with the ordered columns in §2.
 
 The validator tags above close carrier interpretation and point to each field's semantic domain family. They intentionally do **not** claim guessed source maxima. The residual is now field-qualified: exact source primitive, signedness, legal minimum/maximum, special sentinel set, float operation/rounding, overflow behavior, and source locator remain to be attached per source field for (a) map coordinates; (b) each card's upgrade/misc/base-cost/turn-cost fields; (c) each relic counter and potion potency; (d) actor HP/maxHP/Block and each intent payload; (e) each power/orb amount; (f) each offer amount/price and room-object attempt counter; (g) selected/knowledge/property/history/candidate parameter counts and tagged payloads. A source helper cap remains attached only to its call boundary. A later source-field map must have a row per live source field and explicit source-field → packed-field/property/excluded-field mapping; this signature is not offered as that missing row inventory.
 
+The crosswalk replaces the missing *candidate-cell* inventory but not the missing complete source-to-schema equality. Exact open joins are: (1) each numeric field's set of methods writing/reading it and any owner-specific sentinel/range beyond the Java descriptor; (2) each source member absent from fixed/table columns, mapped to one exact property `(namespace,source key,property code,ordinal)` or a named private exclusion; (3) each conditional-visibility source predicate and its observation checkpoint; (4) every property-code owner/content tuple and its exact primitive/ref/domain; (5) current menu/action tuple producer and callback equality for tables 10–12, 16–18. A candidate source class family name is not a substitute for these joins.
+
+### 2.8 Exact residual source joins by carrier
+
+| Candidate carrier | Concrete joined facts in this revision | Exact remaining source equality/refinement |
+|---|---|---|
+| context[12] | `actNum`, `floorNum`, `turn` are source `int`; current map node is converted to a local typed ref; selection counts are source-list derived. | Decision/phase/parent/outcome are adapter states and need execution-lane dispatch predicates; current map-node availability, selection owner/min/max/ordered callback and legal menu membership require their exact source owner/method inventory. |
+| player[16] | `chosenClass`, creature `currentHealth/maxHealth/gold/currentBlock`, energy `energy/energyMaster`, `gameHandSize`, `potionSlots`, `maxOrbs`, key booleans, stance object, and owner-filtered power amount are identified. | Reconcile start-turn draw caller; all field writers and operation-local clamps; exact Mantra power identity/callback; static settings-to-key lifecycle; legal/reachable ranges must not be inferred from descriptor width. |
+| table 1 nodes | `x/y:I`, `room`, `taken:Z`; emerald marker kept separate from burning marker. | Burning-elite marker owner/member, boss preview identity and current reachability/menu predicate. `hasEmeraldKey` is not a burning-marker source. |
+| table 2 edges | `getEdges()` endpoints converted to local node refs. | Source traversal predicate and exact menu-selection callback. |
+| tables 3–4 cards | `cardID`, `timesUpgraded`, `misc`, `cost`, `costForTurn`, flags and source card predicates; 131 exact card ID/class pairs have literal dictionary rows. | Full four-character + colorless/Status/Curse/Note-reachable identity equality; all source operations mutating `misc`, upgrade/cost overflow and sentinels per owner; single `exhaust_on_use` field’s exact stage predicate; bottle identity UUID and visibility; source zone/order visibility; per-kind property vs exclusion mapping. |
+| table 5 relics | `relicId`, `counter`, `usedUp`, actual owner-list order. | Full 141 primary relic ID aliases, all counter constructors/writers/sentinels/caps, per-relic properties and lifecycle hooks. No 999/global counter bound. |
+| table 6 potions | `ID`, `slot`, potency accessor and actual list occupancy; 33 eligible source records are documented elsewhere. | Exact 33 source ID literal rows and alias collisions in this document; potency accessor inputs/overflow per potion; actual list/slot lifecycle and each potion property's visibility. |
+| table 7 actors | `id`, HP/maxHP/block, intent/byte move and private `intentDmg/intentMultiAmt`; formation list index. | Full source enemy identity equality; per-owner move byte → semantic intent and legal payload/visibility; intent construction/update method bindings and all resource writers. |
+| tables 8–9 powers/orbs | shared ID/amount/owner and `ID/passiveAmount/evokeAmount` members; list order; no common orb counter invented. | Full namespace identity and owner-qualified power amounts; subclass-only orb state; per-owner descriptor property and visibility relations. |
+| table 10 offers | Offer record tagged to source object identity, current payload and list ordinal. | Exact source menu constructor → offer tuple → claim/pay callback per owner; price primitive is independently selected per offer and the generic row is not proof of any specific price mapping. |
+| tables 11–12 objects/selections | Exact candidate tags/ref shape; no projection mutates source attempts/selection. | Room/event/campfire/chest source object/member inventories; every selector owner, ordered list, eligibility predicate, min/max and resume/cancel callback. |
+| tables 13–15 knowledge/properties/history | Public/private separation and finite 9/45/7 codebooks. | Complete public owner-to-property/value map; actual knowledge reveal predicates; history fact production and visible floor; private-excluded field inventory. A closed code count does not prove owner/value equality. |
+| tables 16–18 actions/parameters/relations | 21 action tags, typed refs, ordered parameter segments and six relation tags. | Exact current core candidate set equality; owner-qualified source action tuple/option code/parameter primitive and commit callback; every relation kind’s closed endpoint pair and multiplicity law. |
+
 ### 2.5 Fixed codebooks and typed-reference closure
 
 These are closed candidate wire enums, not Java enum ordinals. Codes are literal and version-local:
@@ -125,6 +145,173 @@ These are closed candidate wire enums, not Java enum ordinals. Codes are literal
 
 Typed reference pairs and permitted target tables (all row numbers are local to the same slot) are: table 2 endpoints→table 1; table 4 `public_owner_ref`→table 3; table 8 owner→player `(0,0)` or table 7; table 10 target→`{3,4,5,6,7,11}` or absent; table 12 source→`{3,4,6,10,11}`; table 13 subject→`{1,3,4,7,10,11}` or aggregate absence; table 14/17 kind-5 values→tables `1..13`; table 16 source→`{3,4,6,10,11,12}` or absent, target→player `(0,0)` or `{1,2,3,4,6,7,10,11}` or absent; table 18 endpoints→tables `1..13` with relation-qualified restrictions. Table 8's `(owner_table,owner_ref)` pair is valid only for `(0,0)` player or `(7,local_actor_row)` actor. A reference sentinel is exactly `(0,-1)`, never a bare `-1` with ambiguous type. Action-specific and relation-specific subsets are further constrained by their closed tuple dictionary and current source menu. This freezes candidate carrier allowlists; it does not establish source-private core membership. Exact content/owner-qualified option and intent codebooks remain source-catalog inputs, not numeric ordinals.
 
+
+### 2.6 Source-field and numeric-domain crosswalk
+
+This is the explicit 146-key projection join: 118 packed-table columns plus 12 context and 16 player cells. `Field key` is the independent candidate schema key, not a source name. Each row names either the actual source member/accessor or the exact adapter-derived producer and labels the primitive/domain and visibility. `F` rows use retained static/member evidence; `P-E` rows are representation rules; `U-S` rows name the precise caller/owner join still missing. A source object pointer is never serialized: source identities map through the literal dictionary and object relations map to slot-local row refs. The crosswalk does not claim that every `U-S` row is source-closed merely because its carrier/type is specified.
+
+| Field key | Source identity/member or exact derived producer | Primitive/tag | Source domain and numeric/overflow contract | Public visibility | Evidence grade / exact remaining join |
+|---|---|---|---|---|---|
+| context.phase | adapter-owned decision/episode state; no corresponding game member | enum | fixed closed codebook in §2.5; reject all other codes | conditional | P-E: contract state emitted by the environment; source dispatch mapping remains in §4.2/§8 |
+| context.decision_kind | adapter-owned decision/episode state; no corresponding game member | enum | fixed closed codebook in §2.5; reject all other codes | conditional | P-E: contract state emitted by the environment; source dispatch mapping remains in §4.2/§8 |
+| context.act | AbstractDungeon.actNum:I | i32 | source Java int; sign-extend; no clip | conditional | F: static member declaration; candidate field is active act, not a new counter |
+| context.global_floor | AbstractDungeon.floorNum:I | i32 | source Java int; sign-extend; no clip | conditional | F: static member declaration; valid range/reentry transitions are separate source rules |
+| context.current_node_ref | AbstractDungeon.getCurrMapNode() → slot-local nodes row | typed-ref | typed local table-1 row or absent pair (0,-1) | conditional | P-E derived reference; never expose a JVM pointer |
+| context.turn | GameActionManager.turn:I | i32 | source Java int; sign-extend; preserve source transitions | conditional | F: retained static member declaration |
+| context.terminal_outcome | adapter-owned decision/episode state; no corresponding game member | enum | fixed closed codebook in §2.5; reject all other codes | conditional | P-E: contract state emitted by the environment; source dispatch mapping remains in §4.2/§8 |
+| context.parent_context_kind | adapter-owned decision/episode state; no corresponding game member | enum | fixed closed codebook in §2.5; reject all other codes | conditional | P-E: contract state emitted by the environment; source dispatch mapping remains in §4.2/§8 |
+| context.selected_count | current selection owner’s selected list and selector min/max | derived-i64 | source list size/min/max are i32; preserve exact values, reject malformed adapter value | conditional | U-S: bind each selector class/field/callback to the execution-lane menu inventory |
+| context.min_select | current selection owner’s selected list and selector min/max | derived-i64 | source list size/min/max are i32; preserve exact values, reject malformed adapter value | conditional | U-S: bind each selector class/field/callback to the execution-lane menu inventory |
+| context.max_select | current selection owner’s selected list and selector min/max | derived-i64 | source list size/min/max are i32; preserve exact values, reject malformed adapter value | conditional | U-S: bind each selector class/field/callback to the execution-lane menu inventory |
+| context.ordered | adapter-owned selection descriptor | derived-bool | exactly 0 or 1 | conditional | P-E: orderedness is selection-owner metadata, not Java truthiness |
+| player.character | AbstractPlayer.chosenClass | source-object | finite PlayerClass→character code map; standard creation permits IRONCLAD only | always | F: chosenClass is the actual run character; off-color cards do not replace it |
+| player.ascension | AbstractDungeon.ascensionLevel:I | i32 | exactly source A0 value 0 in this profile | always | F: source run setting; not an agent-selected knob |
+| player.hp | AbstractCreature.currentHealth:I | i32 | full signed i32 source field; no observation clamp; source damage/heal transitions apply | always | F: retained AbstractCreature field declaration; local heal/damage limits do not define all HP bounds |
+| player.max_hp | AbstractCreature.maxHealth:I | i32 | full signed i32 source field; no universal cap | always | F: retained AbstractCreature field declaration; increaseMaxHp and source death paths remain operation-specific |
+| player.gold | AbstractCreature.gold:I | i32 | full signed i32 field; no invented cap; gain/loss hooks own transitions | always | F: retained AbstractCreature field declaration; payment and loss are source operations |
+| player.block | AbstractCreature.currentBlock:I | i32 | full signed i32 field; AbstractCreature.addBlock’s source result cap 999 applies only at that method; other assignment paths remain distinct | always | F: retained field and reviewed addBlock method record; not a general carrier cap |
+| player.energy | EnergyManager.energy:I | i32 | full signed i32 field; source helper effects/caps remain call-site specific | always | F: targeted javap field descriptor; no universal 999 mapping |
+| player.max_energy | EnergyManager.energyMaster:I | i32 | full signed i32 field; source transition-specific | always | F: targeted javap field descriptor |
+| player.draw_per_turn | AbstractPlayer.gameHandSize:I | i32 | source Java int; adapter labels the source hand-draw request only where the setup path confirms this field is the request | conditional | U-S: cross-check all start-turn draw callers before treating gameHandSize as a universal draw count |
+| player.potion_capacity | AbstractPlayer.potionSlots:I | i32 | source Java int; source-defined slot count, no padding to a guessed maximum | always | F: targeted javap field descriptor; capacity and actual list shape are distinct |
+| player.ruby | Settings.hasRubyKey:Z | bool | 0/1 | always | F: retained AbstractDungeon static bytecode reads this source flag |
+| player.sapphire | Settings.hasSapphireKey:Z | bool | 0/1 | always | F: retained AbstractDungeon static bytecode reads this source flag |
+| player.emerald | Settings.hasEmeraldKey:Z | bool | 0/1 | always | F: retained AbstractDungeon static bytecode reads this source flag |
+| player.stance | AbstractPlayer.stance:Lcom/megacrit/cardcrawl/stances/AbstractStance; (identity read from stance.ID) | source-object | finite owner-qualified stance code; no enum ordinal or display-name encoding | always | F: retained AbstractPlayer declaration and source stance ID read; candidate codebook is an explicit encoding proposal |
+| player.orb_capacity | AbstractPlayer.maxOrbs:I | i32 | source Java int; no padding or carrier-derived cap | always | F: targeted AbstractPlayer declaration |
+| player.mantra | AbstractPower.amount:I filtered by exact MantraPower source ID | i32 | power-specific signed i32; omit/mask when MantraPower is absent | conditional | F: AbstractPower.amount is source int; player-owned MantraPower is one owner-qualified power, not a global player scalar |
+| table.1.x | MapRoomNode.x:I | i32 | full signed i32; sign-extend; no coordinate clipping | always | F: targeted javap field descriptor |
+| table.1.y | MapRoomNode.y:I | i32 | full signed i32; sign-extend; no coordinate clipping | always | F: targeted javap field descriptor |
+| table.1.room_kind | MapRoomNode.room:AbstractRoom | source-object | derive code from exact room subclass identity; 0 only for actual null/unknown per mask policy | always | F/P-E: room is an object reference, not an enum member |
+| table.1.visited | MapRoomNode.taken:Z | bool | 0/1 | always | F: targeted javap field descriptor |
+| table.1.reachable | current node + MapRoomNode edges + traversal guard | derived-bool | exact source legal-traversal predicate 0/1 | always | U-S: exact traversal callback/menu join belongs execution lane |
+| table.1.burning_marker | no proven direct member in MapRoomNode; candidate must derive from exact burning-elite room construction/marker owner | derived-bool | 0/1 only when the exact source burning-elite predicate is established; otherwise mask=0, never substitute emerald-key presence | conditional | U-S: `MapRoomNode.hasEmeraldKey` is a distinct emerald-key marker and is not evidence for the burning-elite flag; exact owner/member mapping remains open |
+| table.1.boss_code | MapRoomNode.room plus Act1 boss selection/room construction identity | source-object | kind-qualified boss key or absent; do not infer a hidden future boss from visible boss-room kind | unknown-mask-zero | U-S: map-preview boss identity source owner/member is not bound in retained map record |
+| table.2.from_node_ref | MapRoomNode.getEdges()/source edge list | typed-ref | required slot-local table-1 row | always | F/P-E: edge endpoint is a derived local ref |
+| table.2.to_node_ref | MapRoomNode.getEdges()/source edge list | typed-ref | required slot-local table-1 row | always | F/P-E: edge endpoint is a derived local ref |
+| table.2.currently_selectable | active source node + reachable edge predicate | derived-bool | exact current menu membership 0/1; no stale-edge acceptance | always | U-S: exact current-choice callback mapping belongs execution lane |
+| table.3.card_code | AbstractCard.cardID:Ljava/lang/String; | source-key | exact byte-sensitive source ID alias → frozen card key; reject unknown ID | always | F: all per-kind exact aliases are in the literal dictionary rows; shared field is the source cardID |
+| table.3.upgrades | AbstractCard.timesUpgraded:I | i32 | exact signed i32; Searing Blow increments at each source upgrade operation; do not infer a saturating count cap | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.3.misc | AbstractCard.misc:I | i32 | exact signed i32 including source sentinels/state; preserve source int wrap at source arithmetic operations | conditional | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.3.bottle_kind | player relic bottle relation to card UUID | enum | 0 absent; 1 Attack Bottle; 2 Skill Bottle; 3 Power Bottle; derive from live bottle relic and card instance UUID, not card kind | conditional | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.3.removable | current source purge/transform selector predicate | derived-bool | exact current predicate result 0/1; source selector exceptions remain per owner | conditional | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.3.upgradeable | AbstractCard.canUpgrade():Z | bool | exact live predicate result 0/1 | conditional | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.3.base_cost_kind | AbstractCard.cost:I | enum | -1=X; -2=unplayable; >=0 ordinary; no other negative reclassification without a source guard | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.3.base_cost | AbstractCard.cost:I | i32 | signed i32; -1 X and -2 unplayable are distinct; other negative values retained only where source accepts them | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.3.public_position | CardGroup.group list index (permitted public group) | derived-i64 | nonnegative actual public sequence ordinal; count/offset arithmetic checked, no guessed maximum | always | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.4.card_code | AbstractCard.cardID:Ljava/lang/String; | source-key | exact byte-sensitive source ID alias → frozen card key; reject unknown ID | always | F: all per-kind exact aliases are in the literal dictionary rows; shared field is the source cardID |
+| table.4.upgrades | AbstractCard.timesUpgraded:I | i32 | exact signed i32; Searing Blow increments at each source upgrade operation; do not infer a saturating count cap | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.misc | AbstractCard.misc:I | i32 | exact signed i32 including source sentinels/state; preserve source int wrap at source arithmetic operations | conditional | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.zone | CardGroup type membership | enum | closed candidate combat-zone mapping; group membership is unique at snapshot checkpoint | always | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.4.position | CardGroup.group list index | derived-i64 | nonnegative actual zone ordinal; masked for hidden-order zones unless source visibility grants order | conditional | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.4.cost_kind | AbstractCard.cost:I | enum | classifies `base_cost` only: 1 ordinary (`base_cost>=0`), 2 X (`base_cost==-1`), 3 unplayable (`base_cost==-2`); other negative base values reject absent an owner-specific source fact; `turn_cost` retains its own signed source value and sentinel | always | F/P-E: field mapping and codebook; source setter/cost guards remain origin-specific |
+| table.4.base_cost | AbstractCard.cost:I | i32 | signed i32; -1 X and -2 unplayable are distinct; other negative values retained only where source accepts them | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.turn_cost | AbstractCard.costForTurn:I | i32 | signed i32; preserve -1/-2 and `freeToPlayOnce` separately; source setter guard controls mutation; do not derive `cost_kind` from this field | always | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.public_owner_ref | no inherited owner member on AbstractCard | typed-ref | optional slot-local provenance relation; absent pair unless a source-owned public owner is proven | conditional | P-E/U-S: projection rule as stated; source caller-specific predicates remain separately bound |
+| table.4.retained | AbstractCard.retain:Z OR selfRetain:Z | bool | source predicate is explicitly retain \|\| selfRetain; 0/1 | conditional | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.exhaust_on_use | AbstractCard.exhaust:Z, exhaustOnUseOnce:Z, exhaustOnFire:Z | bool | U-S: define whether this column is a union or which stage’s flag it means; never collapse these source flags silently | conditional | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.4.ethereal | AbstractCard.isEthereal:Z | bool | 0/1 | conditional | F: javap descriptors and paired card records; source arithmetic wraps only where a source Java-int operation does |
+| table.5.relic_code | AbstractRelic.relicId:Ljava/lang/String; | source-key | exact case-sensitive source ID alias → relic key | always | F: targeted javap field descriptor |
+| table.5.public_position | AbstractPlayer.relics list index | derived-i64 | nonnegative actual inventory ordinal | always | P-E: order is container order, not catalog order |
+| table.5.counter | AbstractRelic.counter:I | i32 | full signed i32 including owner-specific sentinels; no universal clamp | conditional | F: targeted javap field descriptor; individual relic laws remain source-owner-qualified |
+| table.5.used | AbstractRelic.usedUp:Z | bool | 0/1 | always | F: targeted javap field descriptor |
+| table.6.belt_slot | AbstractPotion.slot:I | i32 | actual signed source slot index; empty real slots retain their slot ordinal | always | F: targeted javap field descriptor |
+| table.6.occupied | AbstractPlayer.potions list entry presence | derived-bool | 0/1; no padding beyond source potionSlots | always | P-E: container occupancy is derived from list entries |
+| table.6.potion_code | AbstractPotion.ID:Ljava/lang/String; | source-key | exact source factory ID → potion key; absent only for empty actual slot | conditional | F: targeted javap field descriptor; 33 eligible records are enumerated in the linked economy/potion source record; literal ID-to-key equality is not yet imported into this candidate |
+| table.6.potency | AbstractPotion.potency:I then getPotency():I | i32 | accessor result as source int; Sacred Bark multiplication/overflow follows accessor; no universal positive bound | conditional | F: targeted javap descriptor + potion source record; no effect when potion absent |
+| table.7.enemy_code | AbstractCreature.id:Ljava/lang/String; | source-key | exact source enemy identity alias → enemy key | always | F: retained shared creature declaration and 25-key source table |
+| table.7.formation_position | MonsterGroup.monsters list index | derived-i64 | nonnegative actual living/dead actor position; do not compact actors and lose formation order | always | P-E: source container index |
+| table.7.hp | AbstractCreature.currentHealth:I | i32 | full signed i32; source damage/death/rescue transitions govern, no display clamp | always | F: retained AbstractCreature field descriptor |
+| table.7.max_hp | AbstractCreature.maxHealth:I | i32 | full signed i32; increaseMaxHp and special setters are distinct | always | F: retained AbstractCreature field descriptor |
+| table.7.block | AbstractCreature.currentBlock:I | i32 | full signed i32; addBlock caps result at 999 only at that method; other paths are not clipped by this row contract | always | F: retained field and reviewed method-specific cap |
+| table.7.intent_code | AbstractMonster.intent:Lcom/megacrit/cardcrawl/monsters/AbstractMonster$Intent; plus AbstractMonster.nextMove:B and owner ID | enum | owner-qualified exact move key, not byte ordinal/display text | conditional | F: targeted javap declarations; movement→semantic dictionary requires each owner's move record |
+| table.7.intent_damage | AbstractMonster.intentDmg:I | i32 | source calculated payload; full signed i32; binary32 calculation/conversion occurs at source method boundaries | conditional | F: targeted javap descriptor; hidden/suppressed intent mask=0 |
+| table.7.intent_hits | AbstractMonster.intentMultiAmt:I | i32 | source count/payload i32; not a generic nonnegative clamp | conditional | F: targeted javap descriptor; hidden/suppressed intent mask=0 |
+| table.8.owner_table | AbstractPower.owner:AbstractCreature | source-object | owner tag 0 player / 7 actor; owner ref is typed and slot-local | always | F: power owner is an object reference; wire tag is a proposal |
+| table.8.owner_ref | AbstractPower.owner:AbstractCreature | typed-ref | (0,0) player or table-7 actor row; no global pointer | always | F/P-E: owner pair is explicit |
+| table.8.power_code | AbstractPower.ID:Ljava/lang/String; | source-key | exact case-sensitive power ID alias → power key | always | F: targeted javap field descriptor |
+| table.8.amount | AbstractPower.amount:I | i32 | full signed i32; source power-specific mutation/expiry applies; no generic saturation | conditional | F: targeted javap field descriptor; source setter effects are owner-specific |
+| table.8.public_position | AbstractCreature.powers list index | derived-i64 | nonnegative actual power order | always | P-E: source list position |
+| table.9.position | AbstractPlayer.orbs list index | derived-i64 | nonnegative actual occupied slot index | always | P-E: actual slots only |
+| table.9.orb_code | AbstractOrb.ID:Ljava/lang/String; | source-key | exact source orb ID alias → orb key | always | F: targeted javap field descriptor |
+| table.9.passive_amount | AbstractOrb.passiveAmount:I | i32 | full signed i32 after source focus/lock-on hooks | conditional | F: targeted javap field descriptor; source calculation stages retain binary32 then narrowing semantics |
+| table.9.evoke_amount | AbstractOrb.evokeAmount:I | i32 | full signed i32 after source hooks | conditional | F: targeted javap field descriptor |
+| table.9.counter | no common AbstractOrb counter member in AbstractOrb declaration | not-applicable | mask=0 for source orb classes with no separately defined public counter; do not alias amount/evokeAmount | unknown-mask-zero | F/U-S: each supported subclass must be checked before any subclass-only counter is added |
+| table.10.offer_kind | typed adapter sum of live CardRewardScreen/ShopScreen/EventRoom/Campfire/Chest/CombatRewardScreen branches | enum | closed §2.5 codebook, one current source offer type | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.content_code | current offered object's exact cardID/relicId/AbstractPotion.ID or explicit non-content offer tag | source-key | key is namespace-qualified; no display-name normalization | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.target_table | source continuation's target type (player/actor/card/object) or absent tag | enum | closed typed table tag or absent sentinel | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.target_ref | source continuation's exact selected target object mapped to its slot-local row | typed-ref | (0,-1) absent or current exact typed local row | conditional | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.amount | owner-specific offer constructor/payload (Offer source owner in the active menu) | i32 | signed source int32 where payload is integral; no universal cap | conditional | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.price_kind | owner-specific current payment branch (gold/HP/HP-loss/damage/maxHP/composite) | enum | closed §2.5 codebook | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.price_amount | source price/request integer (card.price, relic cost/getPrice, potion/getPrice, or option payload) | i32 | signed source int32; never encode source integer price as float bits | conditional | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.status | adapter offer lifecycle state tied to current source continuation | enum | closed lifecycle code; generated/claimed/skipped remain distinct | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.10.public_position | current owner menu/reward list ordinal | derived-i64 | exact actual list ordinal; never sort offered order | always | F: economy/event records establish local owner-specific payload; U-S: complete owner→field→callback union and menu membership remain execution/content joins |
+| table.11.object_kind | source room/event/campfire/chest owner → object_kind adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.public_position | source room/event/campfire/chest owner → public_position adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.face_state | source room/event/campfire/chest owner → face_state adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.content_kind | source room/event/campfire/chest owner → content_kind adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.content_code | source room/event/campfire/chest owner → content_code adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.object_state | source room/event/campfire/chest owner → object_state adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.11.remaining_attempts | source room/event/campfire/chest owner → remaining_attempts adapter tag | adapter-value | closed §2.5 codebook or exact source field value for this owner; no source field is decremented by projection | conditional | P-E/U-S: current object-specific member/callback join is required; source object identity and continuation ownership are not a generic class |
+| table.12.source_table | current source selector and ordered selection instance list → source_table | enum | selector-specific min/max/ordering and predicate; local row references only; count/ordinal source int32 | conditional | U-S: selector owner, actual predicate, and commit/cancel callback IDs must be joined to execution inventory |
+| table.12.source_ref | current source selector and ordered selection instance list → source_ref | typed-ref | selector-specific min/max/ordering and predicate; local row references only; count/ordinal source int32 | conditional | U-S: selector owner, actual predicate, and commit/cancel callback IDs must be joined to execution inventory |
+| table.12.selected_ordinal | current source selector and ordered selection instance list → selected_ordinal | derived-i64 | selector-specific min/max/ordering and predicate; local row references only; count/ordinal source int32 | conditional | U-S: selector owner, actual predicate, and commit/cancel callback IDs must be joined to execution inventory |
+| table.12.selected | current source selector and ordered selection instance list → selected | derived-bool | selector-specific min/max/ordering and predicate; local row references only; count/ordinal source int32 | always | U-S: selector owner, actual predicate, and commit/cancel callback IDs must be joined to execution inventory |
+| table.12.eligible | current source selector and ordered selection instance list → eligible | derived-bool | selector-specific min/max/ordering and predicate; local row references only; count/ordinal source int32 | always | U-S: selector owner, actual predicate, and commit/cancel callback IDs must be joined to execution inventory |
+| table.13.fact_kind | environment-maintained legitimate-knowledge ledger → fact_kind | enum | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | conditional | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.13.subject_table | environment-maintained legitimate-knowledge ledger → subject_table | enum | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | conditional | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.13.subject_ref | environment-maintained legitimate-knowledge ledger → subject_ref | typed-ref | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | conditional | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.13.position | environment-maintained legitimate-knowledge ledger → position | adapter-value | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | conditional | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.13.value_kind | environment-maintained legitimate-knowledge ledger → value_kind | enum | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | conditional | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.13.value | environment-maintained legitimate-knowledge ledger → value | adapter-value | fact-specific scalar tag and source exposure checkpoint; hidden underlying state is not copied into this public table | unknown-mask-zero | P-E: this is a simulator knowledge record, not asserted as an original-game member |
+| table.14.owner_table | owner-qualified source property code 1..45 → owner_table | enum | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.owner_ref | owner-qualified source property code 1..45 → owner_ref | typed-ref | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.property_code | owner-qualified source property code 1..45 → property_code | enum | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.ordinal | owner-qualified source property code 1..45 → ordinal | adapter-value | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.value_kind | owner-qualified source property code 1..45 → value_kind | enum | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.value | owner-qualified source property code 1..45 → value | adapter-value | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.ref_table | owner-qualified source property code 1..45 → ref_table | enum | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.14.ref_row | owner-qualified source property code 1..45 → ref_row | typed-ref | closed tagged scalar/reference union; exact domain is property-code × owner-key specific; unused branches reject | conditional | U-S: complete public property-code→content-owner/member mapping is required; §3.3 only defines the code vocabulary |
+| table.15.fact_kind | environment-maintained public-history ledger → fact_kind | enum | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.ordinal | environment-maintained public-history ledger → ordinal | derived-i64 | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.subject_kind | environment-maintained public-history ledger → subject_kind | enum | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.subject_code | environment-maintained public-history ledger → subject_code | source-key | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.value_kind | environment-maintained public-history ledger → value_kind | enum | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.value | environment-maintained public-history ledger → value | derived-i64 | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.15.visible_floor | environment-maintained public-history ledger → visible_floor | derived-i64 | public-only source checkpoint history; int32 source values sign-extend; sequence ordinals are carrier ordinals | conditional | P-E: no private source RNG/history counters are projected |
+| table.16.action_kind | exact current source menu choice → typed action action_kind | enum | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.source_table | exact current source menu choice → typed action source_table | enum | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.source_ref | exact current source menu choice → typed action source_ref | typed-ref | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.target_table | exact current source menu choice → typed action target_table | enum | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.target_ref | exact current source menu choice → typed action target_ref | typed-ref | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.option_code | exact current source menu choice → typed action option_code | source-key | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.parameter_start | exact current source menu choice → typed action parameter_start | derived-i64 | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.16.parameter_count | exact current source menu choice → typed action parameter_count | derived-i64 | exact action tuple in §3.2 plus live menu membership; index/start/count are slot-local checked i64 spans | always | U-S: source action-class/callback membership and owner-qualified option IDs are execution/source-registry joins |
+| table.17.parameter_kind | action-owner parameter tuple in current source menu → parameter_kind | enum | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.17.ordinal | action-owner parameter tuple in current source menu → ordinal | derived-i64 | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.17.value_kind | action-owner parameter tuple in current source menu → value_kind | enum | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.17.value | action-owner parameter tuple in current source menu → value | adapter-value | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.17.ref_table | action-owner parameter tuple in current source menu → ref_table | enum | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.17.ref_row | action-owner parameter tuple in current source menu → ref_row | typed-ref | option-qualified scalar/reference tagged union; ordinal/count are nonnegative checked spans | conditional | U-S: parameter-owner/domain restrictions must join each source action and exact current choice |
+| table.18.relation_kind | public ownership/selection/known-order relation registry → relation_kind | enum | closed relation tag plus exact endpoint-table allowlist; slot-local row refs | conditional | P-E/U-S: §3.3 names relation kinds but endpoint equality requires the owner-specific relation registry |
+| table.18.from_table | public ownership/selection/known-order relation registry → from_table | enum | closed relation tag plus exact endpoint-table allowlist; slot-local row refs | conditional | P-E/U-S: §3.3 names relation kinds but endpoint equality requires the owner-specific relation registry |
+| table.18.from_ref | public ownership/selection/known-order relation registry → from_ref | typed-ref | closed relation tag plus exact endpoint-table allowlist; slot-local row refs | conditional | P-E/U-S: §3.3 names relation kinds but endpoint equality requires the owner-specific relation registry |
+| table.18.to_table | public ownership/selection/known-order relation registry → to_table | enum | closed relation tag plus exact endpoint-table allowlist; slot-local row refs | conditional | P-E/U-S: §3.3 names relation kinds but endpoint equality requires the owner-specific relation registry |
+| table.18.to_ref | public ownership/selection/known-order relation registry → to_ref | typed-ref | closed relation tag plus exact endpoint-table allowlist; slot-local row refs | conditional | P-E/U-S: §3.3 names relation kinds but endpoint equality requires the owner-specific relation registry |
+
+### 2.7 Numeric operation and overflow law
+
+For every source member whose descriptor is Java `int` (`I`), legal source field input/output values are exactly signed 32-bit `[-2^31,2^31−1]`; the candidate `int64` value is the sign extension of that exact source value. Do not accept an out-of-range caller value and narrow it. Where the source method executes Java integer add/subtract/multiply, the source operation wraps modulo 2^32 at that operation boundary; this is **source behavior**, not an administrative transport failure and not a gameplay cap. Where source code clamps, it clamps only in that method. In particular, `AbstractCreature.addBlock` and the documented energy helper caps do not generalize to other resources. The environment does not emulate overflow as a legal action rejection, and transport/allocation exhaustion does not imitate source integer overflow.
+
+The cost sentinels are separate: source card base `cost == -1` means X and `cost == -2` means unplayable in the reviewed card records; `costForTurn` is a distinct mutable field and may be changed by guarded setters. A free-to-play-once flag, autoplay/ignore-total flags, X capture, printed cost, base cost, and turn cost are independent source fields/predicates. Source setters preserve negative costs where their guard says so; this candidate does not infer generic payment from a cost code. Every source action that reads these values still needs the exact source-owner tuple/callback join listed in §3.2/§8.
+
+The packed observation contains no persistent source `float` cell in the 18 tables. Card damage/Block, potion percentage, event chance and price-generation float calculations are method-local binary32 operations: preserve their exact source operation sequence, rounding/narrowing point, and threshold comparison where those results feed an observed integer/boolean. Do not recast them as a persistent binary32 source member or as a binary64/exact-rational accumulator. The detached time attachment remains the separately tagged raw-binary32 case. Integer gold/card/relic/potion price fields are `int`, not raw float bits; a property code cannot relabel them as float.
+
+Boolean source members have JVM descriptor `Z` and encode `0/1`. Enum/object references are not Java ordinals: code them through the explicit owner-qualified source-key map or fail closed. Java byte move IDs are source `byte` (`B`, signed `[-128,127]`) and are promoted only after owner-qualified intent decoding; they are not accepted as arbitrary i32 enum codes. Counts read from Java collection sizes/indices are source `int` ordinals, but those are container representation bounds, not game-content maxima. A count beyond source collection/host/allocation representation faults administratively; no legal menu is shortened.
+
+Known direct field joins now include MapRoomNode `x/y/room/taken/hasEmeraldKey`, AbstractCard `cardID/cost/costForTurn/timesUpgraded/misc/baseDamage/baseBlock/baseMagicNumber/retain/selfRetain/exhaust/exhaustOnUseOnce/exhaustOnFire/isEthereal/freeToPlayOnce/isInAutoplay/ignoreEnergyOnUse`, AbstractCreature `currentHealth/maxHealth/currentBlock/gold`, AbstractRelic `relicId/counter/usedUp`, AbstractPotion `ID/slot/potency` plus `getPotency`, AbstractPower `ID/amount/owner`, AbstractOrb `ID/passiveAmount/evokeAmount`, AbstractMonster `intent/nextMove/intentDmg/intentMultiAmt`, EnergyManager `energy/energyMaster`, AbstractPlayer `chosenClass/potionSlots/maxOrbs/gameHandSize`, AbstractDungeon `actNum/floorNum/ascensionLevel`, and GameActionManager `turn`. The rows label field-specific method/predicate joins where the underlying cell is not a direct member.
+
+
 ## 3. Finite dictionaries, aliases, actions, and references
 
 ### 3.1 Dictionary identity and source aliases
@@ -136,6 +323,145 @@ Each dictionary record is exactly `(namespace, canonical_key, source_identity_se
 Finite source-owned dictionary families are: every card instance kind in the paired Ironclad, Silent, Defect, Watcher and colorless/Status/Curse/SPECIAL records; every relic kind in the economy/relic records; all 33 eligible potion kinds; the 25 enemy kinds; event identities and their options in Neow/event records; encounters and formation/member roles in enemy records; power, intent, orb, source-option, room-object and public-fact keys present in those same records. The sources distinguish character-specific basics as distinct kinds, every Note-reachable off-color basic, generated Status/Curses and event-stored special cards. A color/rarity/title alias does not merge kinds. The closed set is not “all IDs returned by a runtime card lookup”: unsupported/unreachable identities are absent, not silently accepted.
 
 Candidate alias rules (proposal): exact source enum/library spelling aliases only; aliases are normalized nowhere. For names that differ by spaces/punctuation, author the canonical snake-case key explicitly and record the original exact spellings as separate aliases. Duplicate display names across owner/namespace remain distinct by canonical key. Unknown external strings reject creation input; source fallback to Iron Wave for malformed stored ID is not adopted as native validation behavior.
+
+
+#### Literal source-key inventory
+
+The following rows are concrete source-identity proposals for the retained Ironclad/colorless/Status/Curse card ledger only. `source_id` is the exact `AbstractCard.cardID` value; the class alias is retained independently, and the semantic key is a proposed stable nonlocalized key. This is **not** a complete 13-namespace dictionary: Silent/Defect/Watcher, all relics, potions, enemies/encounters, events/options, powers/intents/orbs/room objects/public facts/effect sites still require their own literal identity joins. Exact alias collisions below are checked by namespace and byte-sensitive alias, not normalized display name.
+
+| Namespace | Exact source ID | Canonical semantic key (proposal) | Additional exact alias | Evidence row |
+|---|---|---|---|---|
+| card | `Bash` | `bash` | `—` | R01 |
+| card | `Defend_R` | `defend_red` | `Defend_Red` | R02 |
+| card | `Strike_R` | `strike_red` | `Strike_Red` | R03 |
+| card | `Anger` | `anger` | `—` | R04 |
+| card | `Armaments` | `armaments` | `—` | R05 |
+| card | `Body Slam` | `bodyslam` | `BodySlam` | R06 |
+| card | `Clash` | `clash` | `—` | R07 |
+| card | `Cleave` | `cleave` | `—` | R08 |
+| card | `Clothesline` | `clothesline` | `—` | R09 |
+| card | `Flex` | `flex` | `—` | R10 |
+| card | `Havoc` | `havoc` | `—` | R11 |
+| card | `Headbutt` | `headbutt` | `—` | R12 |
+| card | `Heavy Blade` | `heavyblade` | `HeavyBlade` | R13 |
+| card | `Perfected Strike` | `perfectedstrike` | `PerfectedStrike` | R14 |
+| card | `Pommel Strike` | `pommelstrike` | `PommelStrike` | R15 |
+| card | `Shrug It Off` | `shrugitoff` | `ShrugItOff` | R16 |
+| card | `Sword Boomerang` | `swordboomerang` | `SwordBoomerang` | R17 |
+| card | `Thunderclap` | `thunderclap` | `ThunderClap` | R18 |
+| card | `True Grit` | `truegrit` | `TrueGrit` | R19 |
+| card | `Twin Strike` | `twinstrike` | `TwinStrike` | R20 |
+| card | `Warcry` | `warcry` | `—` | R21 |
+| card | `Wild Strike` | `wildstrike` | `WildStrike` | R22 |
+| card | `Iron Wave` | `ironwave` | `IronWave` | R24 |
+| card | `Battle Trance` | `battletrance` | `BattleTrance` | R25 |
+| card | `Blood for Blood` | `bloodforblood` | `BloodForBlood` | R26 |
+| card | `Bloodletting` | `bloodletting` | `—` | R27 |
+| card | `Burning Pact` | `burningpact` | `BurningPact` | R28 |
+| card | `Carnage` | `carnage` | `—` | R29 |
+| card | `Combust` | `combust` | `—` | R30 |
+| card | `Dark Embrace` | `darkembrace` | `DarkEmbrace` | R31 |
+| card | `Disarm` | `disarm` | `—` | R32 |
+| card | `Dropkick` | `dropkick` | `—` | R33 |
+| card | `Dual Wield` | `dualwield` | `DualWield` | R34 |
+| card | `Entrench` | `entrench` | `—` | R35 |
+| card | `Evolve` | `evolve` | `—` | R36 |
+| card | `Feel No Pain` | `feelnopain` | `FeelNoPain` | R37 |
+| card | `Fire Breathing` | `firebreathing` | `FireBreathing` | R38 |
+| card | `Flame Barrier` | `flamebarrier` | `FlameBarrier` | R39 |
+| card | `Ghostly Armor` | `ghostlyarmor` | `GhostlyArmor` | R40 |
+| card | `Hemokinesis` | `hemokinesis` | `—` | R41 |
+| card | `Infernal Blade` | `infernalblade` | `InfernalBlade` | R42 |
+| card | `Inflame` | `inflame` | `—` | R43 |
+| card | `Intimidate` | `intimidate` | `—` | R44 |
+| card | `Metallicize` | `metallicize` | `—` | R45 |
+| card | `Power Through` | `powerthrough` | `PowerThrough` | R46 |
+| card | `Pummel` | `pummel` | `—` | R47 |
+| card | `Rage` | `rage` | `—` | R48 |
+| card | `Rampage` | `rampage` | `—` | R49 |
+| card | `Reckless Charge` | `recklesscharge` | `RecklessCharge` | R50 |
+| card | `Rupture` | `rupture` | `—` | R51 |
+| card | `Searing Blow` | `searingblow` | `SearingBlow` | R52 |
+| card | `Second Wind` | `secondwind` | `SecondWind` | R53 |
+| card | `Seeing Red` | `seeingred` | `SeeingRed` | R54 |
+| card | `Sentinel` | `sentinel` | `—` | R55 |
+| card | `Sever Soul` | `seversoul` | `SeverSoul` | R56 |
+| card | `Shockwave` | `shockwave` | `—` | R57 |
+| card | `Spot Weakness` | `spotweakness` | `SpotWeakness` | R58 |
+| card | `Uppercut` | `uppercut` | `—` | R59 |
+| card | `Whirlwind` | `whirlwind` | `—` | R60 |
+| card | `Barricade` | `barricade` | `—` | R61 |
+| card | `Berserk` | `berserk` | `—` | R62 |
+| card | `Bludgeon` | `bludgeon` | `—` | R63 |
+| card | `Brutality` | `brutality` | `—` | R64 |
+| card | `Corruption` | `corruption` | `—` | R65 |
+| card | `Demon Form` | `demonform` | `DemonForm` | R66 |
+| card | `Double Tap` | `doubletap` | `DoubleTap` | R67 |
+| card | `Exhume` | `exhume` | `—` | R68 |
+| card | `Feed` | `feed` | `—` | R69 |
+| card | `Fiend Fire` | `fiendfire` | `FiendFire` | R70 |
+| card | `Immolate` | `immolate` | `—` | R71 |
+| card | `Impervious` | `impervious` | `—` | R72 |
+| card | `Juggernaut` | `juggernaut` | `—` | R73 |
+| card | `Limit Break` | `limitbreak` | `LimitBreak` | R74 |
+| card | `Offering` | `offering` | `—` | R75 |
+| card | `Reaper` | `reaper` | `—` | R76 |
+| card | `Bandage Up` | `bandageup` | `BandageUp` | C01 |
+| card | `Blind` | `blind` | `—` | C02 |
+| card | `Dark Shackles` | `darkshackles` | `DarkShackles` | C03 |
+| card | `Deep Breath` | `deepbreath` | `DeepBreath` | C04 |
+| card | `Discovery` | `discovery` | `—` | C05 |
+| card | `Dramatic Entrance` | `dramaticentrance` | `DramaticEntrance` | C06 |
+| card | `Enlightenment` | `enlightenment` | `—` | C07 |
+| card | `Finesse` | `finesse` | `—` | C08 |
+| card | `Flash of Steel` | `flashofsteel` | `FlashOfSteel` | C09 |
+| card | `Forethought` | `forethought` | `—` | C10 |
+| card | `Good Instincts` | `goodinstincts` | `GoodInstincts` | C11 |
+| card | `Impatience` | `impatience` | `—` | C12 |
+| card | `Jack Of All Trades` | `jackofalltrades` | `JackOfAllTrades` | C13 |
+| card | `Madness` | `madness` | `—` | C14 |
+| card | `Mind Blast` | `mindblast` | `MindBlast` | C15 |
+| card | `Panacea` | `panacea` | `—` | C16 |
+| card | `PanicButton` | `panicbutton` | `—` | C17 |
+| card | `Purity` | `purity` | `—` | C18 |
+| card | `Swift Strike` | `swiftstrike` | `SwiftStrike` | C19 |
+| card | `Trip` | `trip` | `—` | C20 |
+| card | `Apotheosis` | `apotheosis` | `—` | C21 |
+| card | `Chrysalis` | `chrysalis` | `—` | C22 |
+| card | `HandOfGreed` | `handofgreed` | `—` | C23 |
+| card | `Magnetism` | `magnetism` | `—` | C24 |
+| card | `Master of Strategy` | `masterofstrategy` | `MasterOfStrategy` | C25 |
+| card | `Mayhem` | `mayhem` | `—` | C26 |
+| card | `Metamorphosis` | `metamorphosis` | `—` | C27 |
+| card | `Panache` | `panache` | `—` | C28 |
+| card | `Sadistic Nature` | `sadisticnature` | `SadisticNature` | C29 |
+| card | `Secret Technique` | `secrettechnique` | `SecretTechnique` | C30 |
+| card | `Secret Weapon` | `secretweapon` | `SecretWeapon` | C31 |
+| card | `The Bomb` | `thebomb` | `TheBomb` | C32 |
+| card | `Thinking Ahead` | `thinkingahead` | `ThinkingAhead` | C33 |
+| card | `Transmutation` | `transmutation` | `—` | C34 |
+| card | `Violence` | `violence` | `—` | C35 |
+| card | `Burn` | `burn` | `—` | S01 |
+| card | `Dazed` | `dazed` | `—` | S02 |
+| card | `Slimed` | `slimed` | `—` | S03 |
+| card | `Void` | `voidcard` | `VoidCard` | S04 |
+| card | `Wound` | `wound` | `—` | S05 |
+| card | `Ghostly` | `apparition` | `Apparition` | N01 |
+| card | `Bite` | `bite` | `—` | N02 |
+| card | `J.A.X.` | `jax` | `JAX` | N03 |
+| card | `RitualDagger` | `ritualdagger` | `—` | N04 |
+| card | `Shiv` | `shiv` | `—` | N05 |
+| card | `Safety` | `safety` | `—` | N06 |
+| card | `Smite` | `smite` | `—` | N07 |
+| card | `Insight` | `insight` | `—` | N08 |
+| card | `ThroughViolence` | `throughviolence` | `—` | N09 |
+| card | `Miracle` | `miracle` | `—` | N10 |
+| card | `Beta` | `beta` | `—` | N11 |
+| card | `Omega` | `omega` | `—` | N12 |
+| card | `Expunger` | `expunger` | `—` | N13 |
+| card | `BecomeAlmighty` | `becomealmighty` | `—` | N14 |
+| card | `LiveForever` | `liveforever` | `—` | N15 |
+| card | `FameAndFortune` | `fameandfortune` | `—` | N16 |
 
 #### Concrete owner-to-site slice (39 inventoried direct-card producers)
 
@@ -261,18 +587,49 @@ All choices must retain the exact source transition checkpoint, and +1 is emitte
 
 Preserve operation-specific predicates: `step` requires live slot, current decision token, current candidate index and exact core menu membership; `reset` does not require a step token or live menu and may initialize an uninitialized slot, explicitly reset terminal slot, or abandon a live slot after all-row validation; `read` returns detached state for initialized live/terminal slots without gameplay/RNG/token advancement. Every invalid addressed row rejects the entire batch before state/RNG/reward/profile/time/identity/ordinal changes. After dispatch, runtime/encoding/allocation/binding/facade failure faults and quiesces the whole pool, retains already reached mutations and fault provenance, returns no success batch, never rolls back, retries, resets, truncates, fabricates defeat, or drops a row. This is administrative representation failure, not a game rule/cap.
 
-Replay framing remains exactly the reviewed 2026-10-19 candidate's grammar and six structural goldens: `A1RP`, versioned header, eight schema pairs, composed descriptor hash, explicit source/rules revisions, seed/partition/stream/episode, ordered optional creation/profile/time/core attachments, length-framed accepted decision records, exact end status/optional diagnostic, strict canonical JSON and exact EOF. Public digest order remains descriptor hash; fixed context values then masks; player values then masks; tables 1–18 in order, each row count then row-major values then same-order masks. G01–G06 are byte/framing goldens only, not gameplay-replay fixtures. Existing replay framing, goldens, seed/HMAC/RNG/snapshot/combat-observation pins are not changed. Private core encoding and full content/site descriptor bytes remain unresolved; no final hash/fingerprint is claimed until NC11/12 and the unresolved bindings close.
+Replay framing remains exactly the reviewed 2026-10-19 candidate's grammar and six structural goldens: `A1RP`, versioned header, eight schema pairs, composed descriptor hash, explicit source/rules revisions, seed/partition/stream/episode, ordered optional creation/profile/time/core attachments, length-framed accepted decision records, exact end status/optional diagnostic, strict canonical JSON and exact EOF. Public digest order remains descriptor hash; fixed context values then masks; player values then masks; tables 1–18 in order, each row count then row-major values then same-order masks. G01–G06 are byte/framing goldens only, not gameplay-replay fixtures. Existing replay framing, goldens, seed/HMAC/RNG/snapshot/combat-observation pins are not changed. The private-core bytes in §5.5 are a concrete candidate, but complete hidden source-state ownership/field equality and integration with the replay attachment remain unresolved; full content/site descriptor bytes remain unresolved; no final hash/fingerprint is claimed until NC11/12 and the unresolved bindings close.
 
 Successful reset/read/step/replay deliveries contain detached, schema-qualified attachment bytes and identity; same-step vector reset snapshots the retired episode's final observation/resources/outcome/identity before installing replacement. Final slots index returned-row order. No action is applied to replacement. Manual terminal slots persist until explicit reset. Replay is from-start only, checks canonical semantic choices/current menus, records accepted time input where selected, and reports first mismatch without repair or imported-state substitution.
+
+
+### 5.5 Canonical private-core encoding candidate
+
+**P-E; not source-parity evidence and not an implementation approval.** The hidden core is a canonical tagged binary record, never opaque JSON, object serialization, pointer dump, hash-map iteration, or display text. All integers are big-endian two’s-complement at the stated width; lengths are unsigned big-endian; strings are strict UTF-8 with no normalization and a `u32` byte length. Reject malformed UTF-8, duplicate singleton tags, duplicate map keys, unknown mandatory tags, invalid lengths, trailing bytes, out-of-range source-width values, or noncanonical ordering before accepting a decoded core.
+
+Envelope bytes are ASCII `A1CORE` (6 bytes), `u16` format version `1`, `u32` record count, followed by records sorted by ascending `(u16 tag, u32 owner ordinal, u32 instance ordinal)`. Each record is `u16 tag`, `u32 owner ordinal`, `u32 instance ordinal`, `u64 payload length`, payload bytes. No padding; the payload length must consume exactly the record payload. Owner and instance ordinals are canonical within the containing run/owner list and are not RNG/site IDs. Singleton records use ordinal zero. Tags are fixed in this candidate: `0x0001 PlayerState`, `0x0002 MapState`, `0x0003 CardInstance`, `0x0004 RelicInstance`, `0x0005 PotionInstance`, `0x0006 ActorState`, `0x0007 PowerState`, `0x0008 OrbState`, `0x0009 PendingContinuation`, `0x000A SourceRngState`, `0x000B HistoryState`, `0x000C RoomState`, `0x000D EconomyState`, `0x000E ProfileStage`, `0x000F TimeState`, `0x0010 HandoffCheckpoint`. Unknown tags reject; no extension is silently ignored.
+
+Each payload begins with `u16 payload-schema-version=1`; then fields occur in the order below. Primitive payloads are `i32` signed big-endian for source Java `int`, `i64` signed big-endian only for candidate-owned counters/ordinals, `u8` boolean exactly 0 or 1, `u32` length + strict UTF-8 for exact source IDs, `u32` length + bytes for nested canonical records, and tagged unions as `u8 kind` followed by exactly that arm’s bytes. Optional values use `u8 present` 0/1 followed by the value only if present. No implicit zero/default is permitted.
+
+| Tag | Payload field order and exact typed contents |
+|---|---|
+| PlayerState | `u16 version`; character source ID; HP/maxHP/gold/block as `i32`; energy/max-energy as `i32`; potion-slot count `u32`; three key booleans; stance source ID; orb capacity `i32`; ordered child-list refs for deck/relics/potions. |
+| MapState | `u16 version`; current map source key; ordered node records `(i32 x,i32 y,room-source-ID,taken:u8,emerald-marker:u8,ordered edge-index list:u32 count + u32 indices)`; current node optional `u32` index; never include an RNG-derived field not owned by the map interface. |
+| CardInstance | `u16 version`; exact card source ID; source UUID as exact 16 bytes; `i32 timesUpgraded,misc,cost,costForTurn,baseDamage,baseBlock,baseMagicNumber`; source flags (`retain,selfRetain,exhaust,exhaustOnUseOnce,exhaustOnFire,isEthereal,freeToPlayOnce,isInAutoplay,ignoreEnergyOnUse`) as ordered `u8`; zone tag `u8`; zone ordinal `u32`. |
+| RelicInstance | `u16 version`; exact `relicId`; `i32 counter`; `u8 usedUp`; owner-list ordinal `u32`. |
+| PotionInstance | `u16 version`; exact potion `ID`; `i32 potency,slot`; `u8 obtained,discarded`; source owner-list ordinal `u32`. |
+| ActorState | `u16 version`; exact actor ID; `i32 currentHealth,maxHealth,currentBlock`; owner-qualified intent source ID and signed `i8 nextMove`; `i32 intentDmg,intentMultiAmt`; `u8 dead,dying,escaped,halfDead`; formation ordinal `u32`. Hidden intent remains private core state but is not copied to public observation absent its visibility predicate. |
+| PowerState | `u16 version`; exact power ID; owner tag `u8` plus owner ordinal `u32`; `i32 amount,priority`; exact power-type source ID as length-prefixed source identity, not enum ordinal. |
+| OrbState | `u16 version`; exact orb ID; `i32 passiveAmount,evokeAmount,basePassiveAmount,baseEvokeAmount`; orb-list ordinal `u32`. No invented common counter is encoded. |
+| PendingContinuation | `u16 version`; owner source class ID; exact method/callback source key; continuation kind `u16`; stage `u16`; opaque-to-policy canonical typed payload record; ordered pending action descriptors; parent continuation optional stable owner ordinal; resume/cancel availability booleans. This preserves continuation identity without authorizing arbitrary callback execution. |
+| SourceRngState | `u16 version`; algorithm source ID; root seed bytes as fixed `u64`; each source RNG owner’s exact source ID, source-owned seed/state words and cursor/count at source width, in the source lane’s canonical domain order; no derived independent stream or scope reassignment. |
+| HistoryState | `u16 version`; ordered source-owned history entries with owner-qualified tag, exact subject source ID, source-width value, visible checkpoint; private counters remain private. |
+| RoomState | `u16 version`; exact room source class ID; phase source ID; current room object/reward records in exact source order; each option’s owner class and stage. |
+| EconomyState | `u16 version`; source-owned pool identities and exact ordered pool entries/cursors, prices and chance state at source primitive width; no replacement with sorted catalog sets. |
+| ProfileStage | `u16 version`; prior committed Note/profile revision; optional staged Note identity and bytes; transaction status tag; commit checkpoint. Staged and committed payloads are distinct. |
+| TimeState | `u16 version`; chosen `TimePolicy` tag; exact policy payload (including raw `u32` binary32 bits only for the source-float variant), stop-clock/checkpoint data. Human choice remains open. |
+| HandoffCheckpoint | `u16 version`; exact source transition checkpoint ID; Act2 boundary variant tag; detached successor payload bytes only after its required source transition steps. Human choice and RNG/map inputs remain open. |
+
+This format is a concrete candidate, not a proof that each listed field is authoritative for all supported histories. Field ownership, source widths for RNG/history and continuation payload schema require exact source-lane reconciliation before adoption. In particular `SourceRngState` is a tagged preservation boundary, not a new RNG binding; `PendingContinuation` cannot be decoded into executable product callbacks by this prose; and field reachability/visibility is not inferred from the private encoding.
+
 
 ## 6. Closure matrix, failures-first checks, and residuals
 
 | Obligation | Before | New contract delta | Status after this document |
 |---|---|---|---|
-| NC11 semantic dictionary | Namespace/count and enumeration idea, not exact alias collision/equality rule | Closed 13 namespace IDs; canonical key/alias record and two-way equality failure classes; finite content families linked to all seven normative records | **Partial.** Literal generated catalog and every source alias/site still require inventory equality. |
-| NC12 public fields/private core | 18 widths and 45 property codes, but no per-field domain/visibility association | Every packed table/column has explicit carrier/domain/visibility/cross-reference semantics; value tags and private-core boundary explicit | **Partial.** Full source field-to-domain and content visibility equality; private hidden/RNG core encoding remain. |
+| NC11 semantic dictionary | Namespace/count and enumeration idea, not exact alias collision/equality rule | Closed 13 namespace IDs; 131 exact card ID/class aliases for the retained Ironclad/colorless/Status/Curse ledger independently joined; canonical key/alias collision checks and two-way equality failure classes | **Partial.** Other character, relic, potion, enemy/encounter, event/option, power/intent/orb/room/public-fact IDs and every source alias/site still require independent inventory equality. |
+| NC12 public fields/private core | 18 widths and 45 property codes, but no per-field domain/visibility association | All 146 fixed/table cells have a source member or named derived producer, primitive/domain candidate, visibility and evidence/open-join label; private core has a versioned tagged binary encoding candidate | **Partial.** Source-member inventory vs schema/property/exclusion equality, owner-specific numeric transition/visibility predicates, the 45 property-owner value map and complete hidden-state equality remain open. The encoding proposal is not source closure. |
 | Action tuples | 21 action labels but generic field interpretation incomplete | Every code has exact source/target/parameter shape and validation ownership | **Candidate complete**, pending exact current core-choice membership/callback binding from execution lane and cross-document review. |
-| Effect sites | Key syntax/families, no full public/private exact identity binding | Stable tuple, required site record, finite inventory families and bidirectional equality test | **Partial.** Literal site set and site-to-core/private code equality require exact reconciliation. |
+| Effect sites | Key syntax/families, no full public/private exact identity binding | Stable tuple, required site record, finite inventory families and bidirectional equality test | **Partial.** Literal site set and site-to-core/private code equality require exact reconciliation. The 39 direct-card owners remain a named slice, not completeness. |
 | NC04 RNG | Candidate names might be misread as independent stream selection | `RngBinding` tagged symbolic interface requires measure, conditioning, cursor, correlated sites and exact checkpoint; unresolved fails closed | **Open**, correctly delegated; no factual answer invented. |
 | NC10 Note/profile | Detached candidate idea and source lifecycle findings | Exact attachment members/statuses, commit/revision/staging/death/fault/reset/delivery behavior and no implicit inheritance | **Candidate complete**, but profile catalog, diagnostics transport, human selection and independent review remain. |
 | NC10 time | Candidate clock law exists, not approval | Four exact policy tags with payload contracts and gating; no host/always-on/zero default | **Human choice open**; settlement/timer registry is execution interface. |
@@ -303,7 +660,7 @@ These are exact future contract tests, **not executed here**. The private lane's
 | Enemy, Neow/event, economy/reward/chest/potion numeric and branch records | Retained normative records | Local facts, not joint initialized RNG laws, all legal history witnesses, or complete callback closure. |
 | Energy/Block 999 helper cap | Retained source-grounded record | Applies at named helpers only; no universal field/input cap. |
 | Profile/Note/time facts | Retained profile-time source inspection/report | Fresh author reading is not re-proving source; original runtime remains unexecuted. Human profile/time variants remain unselected. |
-| Effect-site equality and full private core | No full equality evidence supplied | Required before final schema hash; RNG/maps and execution own source bindings. |
+| Effect-site equality and full private-core equality | No full equality evidence supplied; §5.5 is a candidate encoding only | Exact source site equality and hidden-state field/owner equality required before final schema hash; RNG/maps and execution own source bindings. |
 
 Required future acceptance rows, all **UNEXECUTED gameplay cases**: all18 widths/typed references/empty shapes and large legal growing sequences; every property/content alias positive and collision negative; both-way source-owner/site and action-to-core membership equality; every source integer/binary32/boolean/count field's domain vs carrier boundary; helper-cap non-clipping controls; detached Note before/after commit and death/fault/reset/same-step output isolation; each profile/time/handoff variant round-trip from-start replay; invalid final-row reset/step atomicity; whole-pool quiescence/fault without rollback; all six framing goldens plus malformed byte controls; exact compatibility regressions; exact map/relic/event/combat RNG source-scope/cursor joints after their owning lane resolves them.
 
