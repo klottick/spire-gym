@@ -2,14 +2,15 @@
 
 Date: 2026-10-19. Author task: `spire-gli.2.3.8`.
 
-**Initial whole-scope draft — BLOCKED, not approved or implementation-ready.**
+**Whole-scope integration draft — BLOCKED, not approved or implementation-ready.**
 This is the single review surface for standard Ironclad A0 Act 1. It preserves
 the approved architecture, states candidate detailed contracts, and accounts for
 required content even where a law is unresolved. It is not an implementation plan,
 an implementation claim, or permission to install, build, benchmark, or train.
 Main owns integration of independently reviewed follow-ups and the eventual human
-presentation. This bounded update records only the main-routed Note/Silent review
-disposition and corrections below; no parallel author-lane result is assumed.
+presentation. This revision integrates only four main-authorized, independently
+cleared and merged follow-ups, plus the earlier Note/Silent corrections. Technical
+clearance of a proposal is not human approval of its behavior.
 
 ## 1. Reading this specification
 
@@ -80,10 +81,26 @@ revision. Corrected author documents still need exact-head independent recheck
 and main's integration disposition (B04/B07/B14). Note's bounded clearance does
 not approve the proposed detached output/default/death/fault contracts (B11).
 
-Main reports all eight initial author PRs open with technical review beginning.
-Their existence is pending-review context only: no new author semantics, proposed
-API, closure status or unpublished file is incorporated by that report. A later
-main-directed update must identify the exact reviewed revisions it integrates.
+#### Reviewed integration inputs
+
+Main authorized the following exact revisions after independent clearance and
+normal two-parent merges. Their bytes match canonical main
+`56669aa42f6dfaae808e633840b721f14c40fc48`. Immutable public links intentionally
+avoid requiring new files in this author's older-base worktree.
+
+| ID | Cleared public input / exact author head | Integrated contribution and limit |
+|---|---|---|
+| E13 | [Initialized map/empty marker](https://github.com/klottick/spire-gym/blob/db15eb93eeb788b7683151b4bc5ebd10ac37c268/docs/research/2026-10-19-act1-map-seed.md) | Initialized underfill model, zero-Elite rank criterion and exact conditional counter/state failure branch; no initialized zero-Elite existence or native policy approval. |
+| E14 | [Finite shuffle laws](https://github.com/klottick/spire-gym/blob/815a372a88447d38bbb5e9efcf0abb5530c279e0/docs/research/2026-10-19-act1-shuffle-laws.md) | Complete conditional finite mapper, weighted posterior and linked-pool composition; input measure, independence boundaries and catalog order remain choices, actual full ensemble unevaluated. |
+| E15 | [Profile/time decision contract](https://github.com/klottick/spire-gym/blob/55f07f7382d9857c6fe3930cb5c6c200afd6ebe9/docs/research/2026-10-19-act1-profile-time.md) | Source history/Note/timer facts and concrete staged/committed, preset and 60-Hz/exact-elapsed/wait recommendations; all new native choices remain P. |
+| E16 | [Source-specific continuations](https://github.com/klottick/spire-gym/blob/2cbcd2d325f0e4d4f2294612cbfff131919e2288/docs/research/2026-10-19-act1-continuations.md) | Closed local parent/child, desktop prevention, Bowl, Match, empty-selection and transition contracts; not global terminal arbitration, exceptional reachability or final handoff-schema approval. |
+
+The independent whole-draft review at prior head
+`fb7e9f8ff3d9665e3120f0b772623d5125146576` found zero findings **as an accurate
+BLOCKED draft**, explicitly not a complete human-approval-ready mechanics/API
+specification. It does not clear this revised head. Other execution/native/relic
+revisions and seven normative-content author lanes remain pending main's exact
+reviewed integration directions; neither their existence nor rosters close B07/B08.
 
 All owned-source findings use archive SHA256
 `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`.
@@ -101,10 +118,10 @@ Every recommendation below is **P**, including a recommendation to retain a bloc
 |---|---|---|---|
 | A1C-D01 | Target the pinned owned bytes and disclose static-only evidence. | Claiming a named retail build/runtime equivalence has no current evidence. Requiring that evidence delays promotion; documentation cannot manufacture it. | Accept the bounded target/evidence statement or require additional authorized evidence; A1C-B01. |
 | A1C-D02 | Preserve the empty-elite failure boundary; do not repair maps. Keep initialized-seed realizability open until reviewed proof. | Forced elite insertion or regeneration changes the law. Conditioning away failing maps also changes it. A content/setup administrative error is preferable to fake defeat, but its exact approved applicability still needs resolution. | Resolve original-root image versus project semantic-choice support and initialization failure classification; A1C-B02. |
-| A1C-D03 | Preserve exact finite seeded-shuffle pushforwards under an explicitly chosen semantic input measure, retaining each mechanic's history. | Ideal uniform permutations lose evidenced bias. Exact original-root/history coupling costs more and can preserve incidental coupling RNG-001 intentionally removes. Independent uniform64 inputs are only a candidate, not a proven five-pool joint law. | Approve measure and which invocations are jointly conditioned; A1C-B03. |
-| A1C-D04 | Use explicit deterministic headless checkpoints and caller-supplied logical elapsed time, not CPU/wall time. Keep Reaper outcome unselected until checkpoint rules are written. | Animation/delta emulation is more faithful in principle but lacks a justified mapping. Always-on Portal, time zero, or arbitrary lost-heal/success defaults change behavior. | Reaper timer contract, wait/time advancement and replay semantics; A1C-B12. |
-| A1C-D05 | Require explicit detached prior-boss-reach, boss-seen and stored-Note facts in the native creation request. Offer an explicitly named experienced-profile convenience preset only after approval. | A convenience preset could use previous reach=true, all bosses seen, Iron Wave unupgraded; those are not consequences of fully unlocked. Mandatory explicit fields are less convenient but avoid silent history assumptions. | Validate domain and any convenience defaults; A1C-B11. |
-| A1C-D06 | Distinguish staged Note exchange from transition-committed profile output; never propagate it automatically to another reset. | Committed-only output is simpler but hides useful pending status. Selection-only output risks falsely implying persistence. Two statuses cost metadata but preserve the source distinction. | Death/fault/reset/output ownership and live-reference capture boundary; A1C-B11. |
+| A1C-D03 | Preserve §10.1's exact finite mapper and posterior. Recommend an initialized semantic block for five relic pools and linked draws; U64 only at explicitly isolated event/upgrade boundaries. Separately recommend ascending UTF-8 constructor-ID input order as a disclosed deviation from unresolved source-host hash-map order. | Independent U64 seeds discard source correlation; full nonzero-state blocks change initialized support; actual-root/history measure needs a declared prior and earlier calls; ideal uniform permutations change mapper bias/support. Sorted input is not neutral under that mapper. | Choose measure, each joint/independence boundary and ordered catalog separately; no choice is approved. A1C-B03. |
+| A1C-D04 | Recommend §9.2's fixed normal-mode 60-Hz source-order scheduler, separate exact elapsed units, explicit decision dwell and finite WaitTo800Seconds candidate. No special Reaper success/loss rule. | Recorded frame deltas retain supplied-trace timing but cost records and prove no natural distribution. Semantic checkpoints require an explicit timing deviation. Recommended exact elapsed differs from binary32 playtime; canonical frames are a surrogate, not original FPS. | Approve or replace the concrete time/wait abstraction and close settlement/timer registry; Reaper native outcomes still require exact scheduling cases. A1C-B12. |
+| A1C-D05 | Require complete detached history/Note fields in raw creation profiles, with no omitted-field defaults. Recommend a versioned ExperiencedA0 convenience preset resolving prior Neow eligibility=true, all nine ordinary bosses seen and Iron Wave/0 before initialization. | Explicit raw fields avoid hidden history. A novice-history preset (false/empty/Iron Wave0) is optional. Experienced is a proposed convenience default, not a consequence of fully unlocked or source first-use preferences; explicit partial/empty histories stay supported. | Approve preset/default and malformed-input rejection deviation; validate kind-specific stored-card domain. A1C-B11. |
+| A1C-D06 | Recommend §9.1's separate staged snapshot and committed Note revision in a detached partial-run ProfileCandidate, with source-qualified departure commit and no automatic cross-reset inheritance. | Committed-only is a smaller alternative if progress remains explicit. Selection-only hides live-reference changes and risks false persistence. Recommended death/fault behavior preserves actual commits without manufacturing a completed account or successful fault output. | Approve lifecycle/output choice and integrate exact schema/diagnostics; technical review is not policy approval. A1C-B11. |
 | A1C-D07 | Keep native packed transport primary; offer a candidate-aware Sequence facade with a stable int64 index carrier. | Small fixed Discrete loses legal choices; moving spaces complicate clients; machine-range Discrete is incompatible with dense action heads/masks and many generic learners. | Exact descriptor, carrier, wrapper contract and metadata; A1C-B09/A1C-B10. |
 | A1C-D08 | Define success as a fully resolved successor-ready run, including applicable transition hooks/heal, but stop before any Act 2 policy action. | Merely killing the boss is too early. Generating the next act before versus after the boundary changes available state/RNG work and needs one explicit cutoff. | Exact successor construction/checkpoint and observation boundary; A1C-B05/A1C-B10. |
 
@@ -204,6 +221,9 @@ This finite matrix specifies required distinctions, not a universal bypass:
 X is not fixed-cost zero or unplayable. Turn-zero setters do not erase negative X
 cost semantics. Chemical X is source-sensitive; Transmutation's capture/payment
 and Conjure Blade's child payload must not be inferred from Whirlwind alone.
+Descriptions of generated-card discounts do not declare every generated X card
+numeric-zero or free. The pending execution revision must supply its reviewed
+per-source X/copy receiver matrix; none is silently imported in this pass.
 Corruption, Confusion/Snecko Oil, until-played discounts, base/combat cost changes,
 upgrades and free plays need an explicit precedence matrix. A missing matrix is
 not permission to apply effects in the order convenient for an implementation.
@@ -447,6 +467,52 @@ family in list order. Max-HP preparation precedes Preserved Insect's current-HP
 reduction on the inspected route; marker-placement emerald testing is not a new
 later buff-time emerald test. The future buff is not pre-revealed by the map.
 
+### 7.1 Initialized-map evidence and conditional failure (E13)
+
+**F/model, not runtime:** numeric run seed 5988 gives map seed 5989 on the inspected
+Act-1 `run seed + 1` initialization. The source-corresponding independent models
+give N=41, ordinary capacity U=37 and initial bucket Shop2/Rest5/Elite3/Event9/
+Monster18. Only `(3,5)` and `(6,12)` receive Elites; `(5,13)` and `(6,13)` fail
+ordinary assignment, leaving one Rest and one Elite. Deferred fill makes both holes
+Monsters. The marker selects `(6,12)`. This refutes quota-equals-assigned even on
+initialized sampling; it is not a played original run, zero-Elite witness or proof
+of a universal two-Elite minimum. Search of map seeds 1–200,000 found no zero case;
+that finite miss is not exclusion or a probability law.
+
+**F/proof:** for a positive Elite quota, label bucket tokens by their actual
+shuffled positions, and let e be the first Elite token's position. Run the ordinary
+scan with all Elite tokens suppressed, retaining order, other rules and delayed
+fill. At each ordinary Elite-eligible node v let r(v) be its chosen token's original
+position, or infinity for failure. Zero Elites occurs **iff every r(v)<e**. Before
+the first Elite the two scans agree, and no earlier Elite parent/sibling can block
+one; the first violation would assign an Elite. With bucket size U and quota q>0,
+zero requires at least q holes in rows1–4 and none later, but early holes alone are
+not sufficient. Initialized closure still needs a root witness or exclusion proof
+where topology G(s) and bucket B(s) come from the **same** initialized seed/cursor,
+not separately legal choices. No native map measure is selected by this proof.
+
+The wrapper's call counter is not its underlying XS state cursor. Fresh map RNG
+replacement occurs immediately before generation; earlier scene/relic activity
+does not consume it. Initialization uses a 64-bit seed image, with zero aliasing
+signed minimum, not arbitrary uniform128 state. Six walks use 90 ordinary calls
+plus conditional retry/repair calls. Bucket shuffle uses XS directly and does not
+increment the wrapper counter; ordinary assignment/fill uses neither. In the
+5989 model, topology ends at counter/raw98/98, bucket at98/134, marker at99/135.
+These are model counts, not original runtime measurements or new RNG-001 parity
+requirements. Visual jitter uses a different RNG object.
+
+| Marker condition | Source-local F contract |
+|---|---|
+| Act4 unavailable, or emerald already held | No marker selection call, regardless of candidate count. |
+| Enabled, positive candidates | Scan Elite-room instances in grid row/column order; uniform bounded index, including an actual draw for a singleton. Nonactive cells do not acquire Elite rooms on this ordinary path. |
+| Enabled, no candidates | Increment wrapper counter once, then invalid bound throws before **any** raw XS step, list access or marker change. Map assignment, first-room reset and fade request have already occurred. No local repair/regeneration/rollback/death conversion was found through the immediate factory. |
+
+This establishes the empty branch conditionally, not initialized-root existence or
+an observed crash. **P/D02:** represent it as an administrative initialization fault,
+never −1, forced Elite, reroll or successful markerless map. Applicability and the
+native map law still need explicit disposition. Outer launcher presentation is not
+certified by this local trace.
+
 **A1C-REQ-018 (F/O):** Generate real encounter queues, ordered compositions, HP,
 initial move/history and opening shuffle/draw/hooks. Act 1 initial normal queue
 has three weak plus one first-strong plus twelve further strong entries (**16**),
@@ -499,7 +565,7 @@ under A1C-B07/A1C-B08; no absent value in this draft licenses a guessed law.
 
 ## 8. Neow, rooms, events and acquisition
 
-**A1C-REQ-020 (A/F/O):** Support prior-run-boss-reached four-option Neow and the
+**A1C-REQ-020 (A/F/O):** Support prior-run Neow-eligible four-option Neow and the
 shortlist variant. Shortlist offers +8 max HP or Neow's Lament for the normal
 Ironclad baseline. Full menu retains six first-category and five second-category
 possibilities, conditional third-option drawback/reward exclusions, and boss swap.
@@ -507,8 +573,9 @@ Category selection differs from category-local candidate selection. Drawback
 activation precedes reward activation. Boss swap removes the starter before spawn
 predicates, so Black Blood cannot replace Burning Blood there, although it can be
 eligible at a later boss reward. Every child card/relic/transform/potion selection
-must resolve and resume Neow once. Exact option weights/exclusion matrix and every
-child-return boundary remain A1C-B05/A1C-B08, not random generic blessings.
+must resolve and resume Neow once. E16 closes the local return/transform distinctions
+in §8.2; global arbitration remains B05 and exact option weights/exclusion/quantities
+remain B08, not random generic blessings. Eligibility history is detailed in §9.
 
 **A1C-REQ-021 (A/F/O):** All 25 Act 1 event families in appendix C are required,
 including actual choices that cannot initially Leave, repeated risks, legal deaths,
@@ -547,9 +614,9 @@ identity retries. Initial ordinary rare/uncommon/common is 0/35/65%, elite 5/40/
 these are not universal source probabilities. Automatically generated then removed
 rewards can already have changed pity. Dream Catcher/Prayer Wheel/Orrery/Tiny House/
 Neow retain source count, room and history distinctions. Skip does not reverse
-offer history. Singing Bowl is a separate +2 max-HP-helper action on enabled card
-reward screens, not all choose-one screens; downstream helper/odd-record cases
-remain A1C-B05.
+offer history. Singing Bowl is the separate +2 maxHP then heal2 action in §8.4,
+not all choose-one screens. E16 closes its downstream helper/row behavior; natural
+reachability of abnormal records and global completion arbitration remain B05.
 
 Colored transforms use flat actual-character ordinary 72, ordinary colorless 35,
 excluding input ID when in support; Shard and input off-color identity do not widen
@@ -588,9 +655,9 @@ replacement. Sozu prevents new obtains, not retention/use of held potions.
 
 Fairy is not manually drinkable. Smoke Bomb has source/encounter restrictions and
 escape is not victory. Bark needs per-potion rules, not universal multiplication.
-Use/discard phases, Elixir/Gambler/Liquid Memories selections, Distilled Chaos
-play origins and full-belt/reward-shop differences remain explicit A1C-B04/
-A1C-B05/A1C-B08 obligations.
+Use/discard phases, Elixir/Gambler/Liquid Memories selections and Distilled Chaos
+play origins remain explicit B04/B05/B08 obligations. E16 closes local full-belt/
+Sozu reward-versus-Shop distinctions in §8.4, not all33 potency/Bark/phase records.
 
 **A1C-REQ-026 (F/O):** Campfire construction order is **initial options → held-relic
 filter → eligible Recall append → final usability scan**. Filter Rest/Smith and
@@ -598,8 +665,10 @@ relic-added options, stopping at first rejection per option. Coffee Dripper reje
 Rest, Fusion Hammer rejects Smith, not the whole final menu. Recall remains
 possible when eligible. Rest heals before onRest; Dream Catcher opens a child.
 Smith selects currently upgradeable instances; Lift/Toke/Dig have actual Girya/
-Peace Pipe/Shovel state and restrictions. Empty/depleted menus must follow source
-rules, never invent an option or force key collection (A1C-B05/A1C-B06/A1C-B08).
+Peace Pipe/Shovel state and restrictions. E16 establishes that a final scan with
+none usable completes the room; Smith/Toke cancellation returns to campfire menu.
+Never invent an option or force key collection. Other per-relic/numeric/global
+arbitration obligations remain B05/B06/B08.
 
 **A1C-REQ-027 (A/F/O):** Keys are optional. Emerald is not relic-linked. Sapphire
 competes with its associated base chest relic, not every extra Matryoshka relic.
@@ -615,20 +684,94 @@ Boss chest uses a distinct path, not ordinary sapphire/Matryoshka rules.
 
 | Parent | Child / required return and commitment distinction | Open dependency |
 |---|---|---|
-| Neow | Drawback, then chosen reward; card/transform/relic children retain category/captured values; return to same Neow progress | A1C-B05/A1C-B08 |
-| Merchant | Paid obtain/removal; bottle/Mirror/Orrery/Cauldron children return to remaining shop stock, not map | A1C-B05/A1C-B06 |
-| Event | Local resource/reveal mutation, selection or screenless obtain, or event combat/rewards/direct Proceed | A1C-B05 |
-| Chest/reward | Linked choices, actual obtain/key effects, per-item skip and source continuation | A1C-B05/A1C-B06 |
-| Campfire | Heal/hooks/reward or selected service; deferred key distinct from local completion | A1C-B05/A1C-B06 |
-| Boss relic | Astrolabe/Empty Cage/Pandora/Bell/Tiny House/etc children before successor-ready completion | A1C-B05/A1C-B06/A1C-B10 |
+| Neow | Drawback before reward; grids consumed once by activated reward update; event resumes with no screen. Single transform generates before removal; double removes both before generating. Potion reward Proceed uses Neow's map branch; discarded automatic card offer already changed history. | A1C-B05/A1C-B08 |
+| Merchant | Confirmed purge result pays/advances price/removes/disables service; cancel does none. Card purchase constructs obtain before spend/restock; relic onEquip may open a child before restock finishes. Children cannot repay/reroll. Orrery/Cauldron labelled screens do not guarantee a Shop return marker: close may reach NONE; merchant reopens the **same** inventory. | A1C-B05/A1C-B06 |
+| Event | Event update consumes results only with no screen up. Dead Adventurer/Mushrooms combat and Lab reward Proceed open map directly; Woman in Blue uses unlabelled open()/Proceed returning to event/result, not labelled Cancel or Lab's exception. | A1C-B05/A1C-B08 |
+| Chest/reward | Card row remains on Skip and can reopen without resampling; Take consumes it before Fast obtain resolves. Whole-list Proceed can leave rewards. Relic claim uses instant onEquip, refuses while Grid, and marks linked sapphire ignored/done where applicable; actual key flags commit later. | A1C-B05/A1C-B06 |
+| Campfire | Heal precedes onRest/Dream child; empty generated offer opens no screen. Smith/Toke cancellation returns to menu. No usable final option completes room without a fabricated choice; appended Recall retains its own eligibility and deferred key. | A1C-B05/A1C-B06 |
+| Boss relic | Offer closes before ordinary arrival/onEquip and relic-owned children. Astrolabe/Cage/Pandora/Bell/Tiny House branches below precede resolved handoff; chest/no-pick and child rewards can be skipped where source permits. | A1C-B05/A1C-B06/A1C-B10 |
 | Any active parent | Actual death interrupts according to source dispatch; already committed effects persist; administrative fault is not death | A1C-B04/A1C-B05 |
 
-Omamori's already-done obtain effects need actual dispatch closure; the direct
-Note path bypasses that constructor but not its actual obtain hooks. Match and
-Keep needs exact reveal-input, five-attempt, pair resolution, cleanup/obtain and
-last-pair timing; an obtained pair is not proof all children drained. Wheel gold
-commits at reveal, not confirmation; its other outcomes have later callbacks.
-Neither local room COMPLETE nor generic screen closure proves universal return.
+The following E16 contracts supersede the older open local-dispatch obligations;
+global terminal arbitration and the named exceptional reachability remain open.
+Wheel gold commits at reveal, not confirmation; its other outcomes have later
+callbacks. Neither room COMPLETE nor screen closure proves universal return.
+
+### 8.3 Entered effects, curse prevention and removal (F; E16)
+
+On the normal desktop caller, raw/ordinary delta share the backend field and
+`CardCrawlGame.render` returns **before game update when raw delta>0.1f**. Rejected
+frames do not accumulate a later oversized subtraction. Admitted delta is at most
+0.1f. Dungeon active top-level effects update before done-removal, then ordinary
+effects do likewise; pending queues transfer afterward without update. Room relic
+objects update before removal; installed relic updates occur later in the overlay,
+after Proceed/Cancel handling. Grid/card screens update, with extra room dispatch
+only under Peek; event/Neow are not universal concurrent result consumers. Closing
+a grid with nonempty combat rewards overrides its remembered return to that screen;
+otherwise specific remembered screen/swap rules apply, or NONE, not automatic map.
+Native semantic parents must reproduce these conditions, not assume a UI stack.
+
+| Obtain route | Constructor/entered-update distinction and durable result |
+|---|---|
+| Fast curse prevented by nonzero Omamori | Constructor consumes one charge/marks done; entered Fast update has its own done guard. No obtain/deck-change hook or insertion follows. |
+| Show curse prevented by nonzero Omamori | Constructor consumes charge/marks done but completes bookkeeping, seen/poof work and duration initialization (0.5 fast/2 normal). Show's entered update calls card update and subtracts at most0.1; remainder stays positive, then dispatcher removes it. No obtain/deck-change hook or insertion, and no later accumulation. |
+| Unprevented effect reaches obtain checkpoint | Relic obtain hooks, Soul obtain and deck-change hooks are ordered; Soul's call inserts into master deck immediately, not at flying animation completion. |
+| Note direct incoming | No Omamori constructor/charge; actual obtain hooks, direct insertion, then deck-change hooks precede outgoing selection. Persistence is a different later boundary. |
+
+**Supersession:** an oversized direct Show update could enter acquisition only
+outside the admitted normal desktop domain. It is **not a phantom-curse fidelity
+obligation or an unresolved ordinary caller outcome**. Do not restore such a stale
+obligation from E03 or a generic delta argument. Equally, do not implement a universal
+done prefilter: constructor bookkeeping and Show's entered card update still differ
+from Fast. Native time choices cannot invent prevented curse insertion.
+
+Object removal deletes the selected object, invokes its removal hook, then relic
+deck-change hooks; string-ID/iterator removal does not inherit that sequence.
+Parasite's maxHP−3 helper floors at1/clamps HP without local damage/death. Independent
+site payment/damage remains separate: Shop pays at confirmed purge, Cleric before
+its nonempty mandatory grid, Wing damages before later selection. Bonfire reward
+precedes removal. Living Wall/Transmogrifier and each Astrolabe input remove before
+replacement generation; Neow's single/double order differs as above. Note removes
+through object hooks before retaining the live outgoing reference. No general
+remove-before-generate or nonlethal-removal claim follows.
+
+### 8.4 Exact Bowl, relic-child and exceptional-size contracts (F; E16)
+
+| Site | Required local law |
+|---|---|
+| Singing Bowl | Enabled ordinary card offer only, not discovery/codex/draft/choose-one. Increase maxHP2, then request heal2 through modifiers/cap/dying guard; no full heal or max-only substitution. Remove only associated reward item, then close/hide. Null item at Neow/Dream is a no-op removal but still grants the legal +2/heal; last row becoming empty does not itself position rewards or establish readiness. Take/Skip/Bowl remain distinct. Absent/mistyped records are local counterfactuals, not legal stale candidates. |
+| Bottles / Mirror | Typed bottle group must be nonempty; equipped relic consumes selected flag attachment. Mirror lacks a local empty-deck shortcut; selected stat-equivalent copy clears bottles and schedules Show obtain after local selection completes. |
+| Astrolabe | Zero purgeables: no transform/grid. One–three: automatic all. More: select three. Remove each input before upgraded generation; timer/local flags do not prove drain. |
+| Empty Cage | Zero: selection-complete flag set but room remains the earlier INCOMPLETE phase. One–two: automatic object removals and COMPLETE. More: grid waits for two. Preserve this difference without claiming initialized deadlock. |
+| Pandora / Bell | Pandora iterator-removes starter-tagged cards, previews replacements then confirmation schedules Fast obtains; zero starters skips grid. Bell curse confirmation schedules Fast; later relic update opens three screenless relic offers even if curse was prevented. Removed automatic reward generation can already mutate pity. |
+| Empty offers / belts | Zero-card helper omits its reward row; Dream omits empty screen. Full-belt potion reward stays available; Sozu reward claim consumes without insertion, unlike Shop refusal without payment/restock. |
+| Mandatory grids | Generic fixed-count grid neither clamps count nor auto-skips. Purifier/Transmogrifier committed grids and Wing's later purge have no local empty guard. Note can lack a guard if incoming is unremovable and nothing else qualifies; a valid removable incoming otherwise supplies a candidate. Local paths need legal-history witness/exclusion before deciding native exceptional treatment, not invented Leave. |
+
+### 8.5 Match and Keep's visible decisions and strict timers (F/O; E14/E16)
+
+At A0 construct twelve instances and five attempts; Intro/rules lead into Play
+without an invented initial strategic Leave. First face-down pick reveals exactly
+one card, retains five attempts and cannot be picked again while face up. Second
+pick reveals another, starts match1s/miss1.25s wait, but decrements nothing yet.
+Strict underflow during the resolution branch removes a matching pair and schedules
+one Show obtain from the **first card's fresh ordinary copy**, or turns a mismatch
+down while preserving learned memory. Both consume one attempt and clear picks.
+ID equality, not exclusive original/copy pairing, defines a match.
+
+The fifth resolved pair sets game-done and wait1s. Next Play enters cleanup before
+waiting for that timer to expire; with admitted delta≤0.1f its cleanup-entry wait is
+positive. Cleanup moves remaining board cards once, then needs positive wait to
+cross strictly below zero to show Complete; its button opens map. An obtain already
+queued by the fifth match is not proof of insertion or drain. Five matches still
+leave two objects; no ordinary sixth-match/empty-board branch is inferred.
+
+Exactly zero is distinct: pair wait landing at zero allows the next Play input
+branch instead of underflow resolution; cleanup can later land at zero and fail
+its guarded underflow completion path. Nonpositive **initial** cleanup entry is not
+the ordinary fifth-pair path under the desktop bound. These are conditional static
+branches, not measured runtime frequencies. D04 must choose the native schedule
+without claiming parity from erasing them. Public cells/order/memory and shuffle
+posteriors follow §10.1; no second hidden identity leaks before the first observation.
 
 ## 9. Handoff, task and profile/time
 
@@ -646,12 +789,28 @@ method, not unconditional HP=max assignment; per-act resets do not refill the de
 or replenish consumed one-time events. A1C-D08 must pin which successor initialization
 work has occurred before +1; no implementation may choose the cutoff ad hoc.
 
+E16 closes the source path: boss-combat Proceed transitions to boss treasure;
+next-dungeon Proceed records no-pick/warning where applicable and starts beaten/
+fade state, but does not yet construct TheCity. Main-game transition-screen
+completion constructs the successor with the **same player**. Base transition
+advances act, reinitializes per-act lists/room probabilities, resets room potion
+modifier and requests the A0 maxHP-sized heal through hooks; TheCity builds map
+and empty starting node. Original card-RNG counter bands are not new RNG-001 parity
+requirements. **P/D08:** successor-ready must include required child commits and
+heal/reset effects; exact generated-Act2-map versus defined-entry payload remains
+B05/B10. This local trace does not authorize Act2 gameplay or claim its map laws
+closed. Legal unclaimed rewards need not all be taken to complete.
+
 **A1C-REQ-029 (A/F/P/O):** Creation profile is an owned, validated value captured
 before entropy draw/episode allocation. It includes only supported rule-relevant
-history, not an imported account/save or arbitrary starting state. Recommended
-explicit facts are previous boss reach, seen boss sets and Note card ID/upgrades
-(A1C-D05). Boss discovery prioritizes first unseen; all-seen uses a finite seeded
-shuffle. A0 Note must not acquire an invented prior-win/cleared-Ascension gate.
+history, not an imported account/save or arbitrary starting state. Explicit facts
+are prior Ironclad Neow eligibility, per-act seen boss sets and Note ID/upgrades
+(P/D05; E15). The source standard death/abandon predicate uses floor≥16, not boss
+victory; native reproducibility seeds do not imply original custom-seeded Neow
+mode. Act1 first-unseen order is Guardian, Hexaghost, Slime Boss; only all-seen
+uses the seeded three-boss shuffle. Each boss adds discovery at its prebattle
+hook, not announcement or victory; later death does not undo it. Later-act sets
+remain separate carryover. A0 Note has no prior-win/cleared-Ascension gate.
 
 Stored records retain ID and valid upgrade count only, not bottle/cost/modifiers/
 misc growth. Ordinary upgrade bounds differ from repeatedly upgradeable Searing
@@ -662,12 +821,55 @@ hooks and saves a live reference; ID/upgrades are persisted on next room transit
 not selection. Do not prematurely reset live growth before removal hooks. Bottled/
 non-removable eligibility and malformed-ID/count validation must be explicit.
 
-Recommended output distinguishes staged versus committed Note result outside
-policy features (A1C-D06). Death before transition is not observed persistence;
-fault is not a manufactured completed result. Whether/how already committed
-profile metadata is inspectable on a faulted pool remains part of that contract.
-Reset never automatically applies another episode's result; callers can explicitly
-configure a later creation. Replay uses the captured profile, not current files.
+Source missing preferences use Iron Wave/0; unknown-ID fallback to Iron Wave is
+not proposed native validation. **P/D05:** raw profile fields are mandatory; resolve
+any named preset into a full detached value before initialization/replay. Validate
+standard permanent/removable kinds and each kind's upgrade domain, including
+repeated Searing Blow, not color/rarity alone or a generic upgraded boolean.
+Malformed kind/count/history rejects the whole batch before entropy/episode/time
+allocation; rejection instead of fallback is a disclosed proposed deviation. No
+note_enabled, arbitrary deck/resources/stance/orbs, next-boss override or real-save
+path. Exact supported stored-card catalog remains a normative-content dependency.
+
+### 9.1 Concrete detached profile recommendation (all new contracts P; E15)
+
+Recommend a run-owned exchange state and a separate committed descriptor containing
+only kind/upgrade count. This is typed **in-memory** commitment, not crash-atomic
+parity with the source's separate preference writes/flush or real account I/O.
+
+| Exchange state | Proposed ownership/output boundary |
+|---|---|
+| None | Ignore/no accepted exchange; prior committed descriptor unchanged. |
+| IncomingApplied | Incoming mutations reached actual checkpoints; no invented outgoing result. Output progress tag only. |
+| PendingTransition | Outgoing object removal/hooks finished; retain owned live identity/state. Deliver a detached staged ID/upgrades snapshot explicitly noncommitted. |
+| Committed | Source-qualified next departure samples then-current retained ID/upgrades once, increments revision and clears pending reference. Earlier staged exports do not change by alias. |
+| AbandonedBeforeTransition | Genuine death before departure abandons stage and retains prior commit, without forcing a transition. |
+
+Recommend `ProfileCandidate` as a **partial-run**, non-policy result: contract
+identity, captured creation profile, committed Note/revision (initially0), optional
+exchange identity/stage/status, boss-discovery additions, current-run Neow evidence
+and outcome status. Native codes/widths stay B10. Successful reads/steps deliver
+detached copies; successful terminal capture freezes before replacement. Staged
+output is not installable as a creation profile. Caller mutation/step/reset/close
+cannot alter past deliveries. Note descriptor is policy-visible only at legitimate
+event reveal; creation/history objects must not leak through ordering or metadata.
+
+| Interruption | Recommended behavior, not approved native policy |
+|---|---|
+| Death before selection / after removal before departure | Preserve applied incoming/removal mutations, respectively no invented outgoing or abandon stage; neither forces Note save. Return actual death, not fake completion. |
+| Death after commit | Preserve that commit and actual death final/partial-run candidate; death does not roll back or imply a completed account. |
+| Fault before/after commit | Quiesce/fault pool with actual checkpoint/revision and committed prefix retained internally. No normal success/final/profile result, rollback, death conversion, retry or autoreset. Earlier exports remain valid. Bounded fault diagnostic copy is not ordinary ProfileCandidate; allocation failure need not allow such a copy. |
+| Act2Ready | Capture after resolved handoff; do not flush an unrelated pending exchange. Report BossFloorReached, not FullRunCompleted. |
+
+Boss additions and Neow eligibility evidence are different outputs. A genuine
+Act1 death may report the observed floor predicate; Act2Ready cannot assert the
+future full-run history. Caller may explicitly union discoveries/use committed
+Note for a later profile but must choose next run's prior-Neow value. Every explicit
+reset and vector replacement uses its configured creation profile, never preceding
+slot output. Replay captures resolved profile and profile/time identities, semantic
+choices and checkpoints, not current presets/files or imported revisions. A local
+continuation acceptance row cannot override this still-unapproved death/fault output
+choice. No automatic cross-episode inheritance is adopted.
 
 **A1C-REQ-030 (O/P):** Native time must be deterministic and replayable if it affects
 rules. E07 establishes Secret Portal's source eligibility at playtime≥800 seconds
@@ -677,6 +879,43 @@ validity and replay must be chosen explicitly, not process speed, always-on or
 zero-time policy. Reaper also exposes update/timer ordering but has no established
 frame outcome. A1C-D04/A1C-B12 blocks clock/checkpoint finalization; adding a Wait
 action without approved semantics would create a new gameplay choice.
+
+### 9.2 Concrete time/settlement recommendation (F facts, P native choice; E15/E16)
+
+**F:** source binary32 playtime adds admitted graphics delta while stopClock is
+false, before screen dispatch; open screen alone is not clock stop. Final-boss
+clock logic is not an Act1 boss stop rule. Portal tests elapsed≥800 at event
+filtering in TheBeyond, not guaranteed selection or retroactive offer replacement.
+
+**F:** Reaper schedules zero-duration VFX before its 0.25s vampire damage action.
+After damage, orb VFX, conditional normal-mode0.3s wait and positive HealAction
+are queued; postcombat pending filtering retains healing, unlike later endBattle
+full clear. A front0.1s wait is separate. Actions finish on **negative**, not zero,
+timer residual; Heal applies on first update, not its duration completion or visual
+orb arrival. Unfinished current action update and later retirement/next-choice
+visits differ; room monster updates precede ordinary manager dispatch. Monster
+death timers (ordinary additions1.8s normal/1s fast, with other prior state/boss
+logic) can trigger endBattle/victory hooks/full clear. These dependencies explain
+the race without proving natural Reaper heal loss or a universal cutoff. Inspected
+Reaper/orb visuals do not heal, but zero-duration work still needs its dispatch.
+
+**P/D04 recommendation, NOT default/approved:**
+
+| Quantity/input | Concrete candidate law and disclosed cost |
+|---|---|
+| Scheduler | Normal mode fixed, virtual60-Hz gameplay updates with binary32 delta1/60 (ties-to-even bits0x3c888889). Preserve source order, guards, strict comparisons, entered/pending work and first-update effects. Retire/select on subsequent manager visit, never recursive same-frame drain. Omit only rendering proven mechanic-free. Record frame-count checkpoints. Canonical frames are a deterministic surrogate, not original FPS/parity. |
+| Elapsed time | Separate exact nonnegative signed-int64 units of1/3,000,000s; initial0, running-clock canonical dungeon frame adds50,000. Accepted dwell adds elapsed_us×3. stopClock suppresses elapsed contribution, not scheduler progress. Portal threshold2,400,000,000 units. Exact accumulation intentionally differs from source binary32 drift. No host/worker/Python/debug cost. Freeze task-captured time at terminal but carry successor running flag/value. |
+| Decision dwell | At genuinely settled decision only, nonnegative integer elapsed_us accompanies accepted action/token; omission means zero dwell, not frozen automatic frames. Whole-batch preflight before charging immediately prior to action. No offer/menu regeneration, RNG or second turn; reject suspended/unresolved/terminal/faulted dwell. Caller cannot choose automatic frame count or intervene in Reaper's automatic race. |
+| Finite policy wait | Recommend one WaitTo800Seconds candidate below threshold at running-clock settled decisions, including Act1 for carryover. Advance exact remaining units, retain parent decision, renew token; accompanying dwell must be0. No turn/reward/RNG/key/offer refresh, hidden-future-Portal condition or infinite timing-action enumeration. Candidate disappears at threshold. This is an explicit proposed timing abstraction/new choice, not already approved architecture. |
+| Bounds/replay/knowledge | Checked nonnegative int64 inputs/units; preflight feasible arithmetic, post-dispatch accumulation exhaustion faults administratively, never time cap. Public elapsed/running state supports public timing control; scheduler internals stay private. Record time identity, accepted dwell/wait and frame/commit comparisons. Invalid rows advance nothing; recording/workers do not change schedule. |
+
+Elapsed-only dwell/wait is legitimate **only** at quiescent decisions: any live
+mechanic-bearing timer/callback needs its defined source continuation/canonical
+frame path. The complete settlement/timer registry remains B04/B12, not closed by
+choosing60Hz. Native schedule must respect §8.3's closed prevention facts and §8.5's
+strict-zero distinctions. No Reaper-specific success/loss override is selected.
+Recorded per-frame source-binary32 traces and explicitly declared semantic
+checkpoint deviations remain D04 alternatives, not hidden fallbacks.
 
 ## 10. RNG contract and effect-site registry
 
@@ -708,12 +947,108 @@ Candidate families (P, **not frozen strings or independent streams**):
 
 The exact site inventory/codes, canonical derivation bytes and which families
 share cursors are A1C-B10. One independent stream per card/source/slot is not an
-approved shortcut. E01's unequal three-item permutation numerators sum to 2^48
-only under its analyzed uniform64 input; that is not automatically the game-history
-measure. Face Trader missing-face prefix, twelve-instance six-pair Match board,
-upgrade prefixes and five initialized relic pools require complete observable
-pushforwards, including repeated IDs/history (A1C-D03/A1C-B03). A constructive
-compositional exact law is sufficient; enumerating 2^48 states is not required.
+approved shortcut. E14 now supplies the complete **conditional** finite laws below;
+B03 is their input measure/order/joint-context disposition and actual-ensemble
+gap, not a claim that only the three-item table exists. No exhaustive2^48 table
+or source RNG port is required by this mathematical specification.
+
+### 10.1 Exact finite mapper, observables and posterior (F/math; E14)
+
+For Java-seeded shuffles let M=2^48, a=25214903917, c=11. States s are integers
+in[0,M); one transition T sends s to(as+c)modM. Output bits of post-state t are
+u(t)=floor(t/2^17). A seed word x induces g(x)=(x XOR a)modM. For each positive
+bound b≤2^31−1 define accepted sets A(b,j), j in[0,b), and rejection set R(b):
+
+| b | Acceptance/output relation |
+|---|---|
+| Power of two | Every post-state accepted, j=floor(b×u/2^31). |
+| Other | L=b×floor(2^31/b); accept u<L with j=u mod b, reject u≥L. |
+
+With D(S) the diagonal indicator of set S, the bounded-draw final-state kernel is
+**Q(b,j)=Σ over r=0,…,M−1 of (T D(R(b)))^r T D(A(b,j))**. The LCG's full M-cycle and
+nonempty acceptance set give a finite first-accepted path for every initial state;
+ΣjQ(b,j) is row-stochastic. Rejected advances cannot be discarded or replaced by
+independent normalized output marginals.
+
+Initially label each of n ordered list instances distinctly. Let S(b,j) exchange
+positions b−1 and j, and U(b)=Σj Q(b,j)⊗S(b,j). For input-state law ν and list A,
+the joint state/list law is **(ν⊗δA)U(n)U(n−1)…U(2)**, with identity product for
+n≤1. Marginalize final Java state only when no later dependency needs it; call the
+list law Kν(A,p). An observable's probability sums **actual K weights** over its
+fiber, not equal permutations. This completely defines arbitrary finite-size
+conditional shuffles within source index bounds, without claiming an efficient
+future sampling algorithm.
+
+U64 seed input gives each state2^16 preimages, hence ν=1/M; all event masses are
+multiples of1/M. For n≥3 ideal labeled uniformity is impossible because n! has an
+odd divisor; n≥17 also has n!>M, so some labeled permutations are outside the seed
+image. Fixed seed is a point mass; other input measures push through g instead.
+None of these facts prove original root/history input is U64 or independent.
+
+For retained latent object z with joint weight w(z), legal public transcript h
+restricts it to C(h). The next observable Y has mass
+**Σ[z∈C(h),Y(z)=y]w(z) / Σ[z∈C(h)]w(z)**. Zero denominator means no conditional
+law under that chosen measure, not retry. Preserve linked producer/context state
+before projection. Public-history-only policy action likelihood cancels among
+compatible states; hidden-informed/external conditioning needs its own likelihood.
+Reveals, misses, matched removals, upgrade results, rejected/accepted offers and
+skips condition this retained weighted object, never a fresh uniform compatible
+shuffle. Hidden rejection traces remain private and are summed out.
+
+| Observable/source | Exact construction and required discriminator |
+|---|---|
+| Face Trader | Filter owned IDs **before** shuffle from ordered CultistMask/FaceOfCleric/GremlinMask/NlothsMask/SsserpentHead; empty uses singleton Circlet. Consume one misc source long even at0/1 missing. Obtain first-entry copy. Apply head projection of K with history-conditioned input: under U64 two missing are exactly halves, five cannot all equal1/5. Repeated trades rebuild current missing list, not successive heads of one old list. |
+| Match board | Six originals in order Rare/Uncommon/Common/Uncommon-colorless/random-curse/current-character event starter(Bash); preview hooks precede stat-equivalent six-copy suffix. Shuffle twelve distinct labels once with misc long, then place index i at(column i mod4,row i mod3), not row-major. Project complete revealed records; match by ID. Duplicate-ID fibers sum weighted permutations; six distinct pairs have7,484,400 ID boards and cannot be uniformly weighted under U64. Retain original cells and revealed memory after removal/miss. Board-generation/context and seed law stay joint, not assumed independent. |
+| Upgrade prefix | Filter master-deck **instance encounter order** by canUpgrade (Attack for Whetstone, Skill for War Paint). One misc seed long even empty/singleton. Shining Light/Whetstone/War Paint upgrade first min(2,n), Tiny House first min(1,n). Sum exact ordered prefix weights, then any desired unordered/kind projection; never collapse same-kind instances first. Tiny House checks bottle links on first **and second** when available despite only one upgrade, then its potion source receives following misc state. |
+| Five relic pools | Pre-removal ordered counts33/30/28/17/22 in Common/Uncommon/Rare/Shop/Boss order. Five successive relic source longs seed five separate Java shuffles; Java rejection is local, not a new source-long draw. Ordered inputs arise from shared hash-map then actual-character hash-map population, not display sorting. Apply source-specified owned-ID deletions **after** shuffle, preserving survivors; floor≥1 adds currently owned IDs to that deletion list. Offers push the joint retained pools through exact requested-tier front/end/depletion/predicate rules in §8.1, including caller checks after promotion; skip never restores consumption. |
+
+For fixed ordered catalogs A and deletion context O, let η(s1,…,s5) be the joint
+folded-seed law and J(A,s) the deterministic kernel output. The pool law is the
+η-weighted image of **delete_O(J(A_C,s1),…,J(A_B,s5))**, retaining source/context
+state for later draws. Random A/O must remain joint with η, especially if ownership
+reveals earlier offers. No product of marginal tables is justified automatically.
+Postshuffle deletion does not commute: for U64 shuffle of(0,1,2), delete1;
+survivor orders(0,2)/(2,0) have numerators140737488352549/140737488358107 overM,
+not M/2 each from shuffling survivors alone. The difference2779/M is exact, not noise.
+
+### 10.2 Decision-ready input measures/order, not approved defaults (P; D03)
+
+An initialized semantic block means one declared U64 **input word**, transformed
+to the source initialized state, then linked state/word relations—not five IID
+words. Its conditional mathematical relation can be fixed without adopting an
+executable source RNG. On64-bit words define Z(x)=x XOR(x>>33) and
+H=Z∘multiply(0xc4ceb9fe1a85ec53)∘Z∘multiply(0xff51afd7ed558ccd)∘Z modulo2^64.
+Replace word0 by2^63 before initializing σ(r)=(H(r),H(H(r))). Thus zero/minimum
+alias, with2^64−1 distinct initialized states and doubled alias weight under U64.
+For state(u,v), the next pair is(v,z), with
+z=(I XOR R17)(I XOR L23)u XOR(I XOR R26)v; I is identity and L/R zero-fill bit
+shifts. Call this pair-state map X; emitted word is(v+z)mod2^64. Five such advances,
+folding each word through g, define η;
+retain the final state for linked draws. For intervening positive **bounded-integer
+primitive** b, include first-accepted raw transitions using u=floor(word/2),
+L=b×floor(2^63/b), accept u<L, result u mod b. Int wrappers first convert inclusive
+endpoints. This is **not** wrapper-long/double-scaling arithmetic or the Java Q.
+The finite nonzero state graph may formally include a wholly rejecting-cycle
+no-return marker; no general later-bound termination theorem or reachable failure
+is asserted. Five initialization unbounded longs require no such rejection proof.
+
+| Input option | Fidelity consequence / disposition |
+|---|---|
+| U64 per explicitly independent invocation | Exact finite per-call bias retained; five independent pool seeds would impose product ν^5 and discard source joint/cursor information. Independence from board generation or later Tiny House potion is not already approved. |
+| Initialized semantic block | Recommended for relic initialization and linked draws; preserves initialized within-block image/cursor relationships without unrelated root coupling. Needs declared block boundary, ordered inputs and linked callers. |
+| Uniform full nonzero128 state block | Keeps sequential relation but changes initialized support/weights. X is invertible; each emitted word has2^64 preimages except zero loses one. This is not the initialized law or proof of product marginals. |
+| Actual root/profile/history ensemble | Declare prior, policy likelihood and earlier draws/rejections, then push jointly to source entry state/catalog/context. No evaluated full Act1 ensemble is supplied; source determinism chooses no user prior. |
+| Ideal uniform permutations | Explicit extra deviation replacing mapper bias/support, not authorized by seed nonparity. |
+
+Recommend isolated-event/upgrade U64 only with reviewed independence boundaries;
+otherwise keep a joint conditional input. Separately propose ascending UTF-8-byte
+constructor-ID relic catalogs, explicitly deviating from unestablished historical
+host hash-map order. Source-host order is a valid alternative only when established.
+The law is complete **conditional on those declared inputs**, not approved by
+choosing a name or assuming deterministic HMAC is IID over an unspecified population.
+Native sampling still uses the pinned HMAC contract; semantic site derivations,
+efficient exact sampling and remaining producer/context laws are B03/B10, not
+permission to substitute a convenient universal sampler.
 
 ## 11. Packed observation and candidate proposal
 
@@ -740,7 +1075,7 @@ relationships are A1C-B09/A1C-B10. No hash is invented for an unfinished schema.
 
 | Table / fixed block | Candidate fields and width commitment |
 |---|---|
-| Player/context (fixed) | Phase, room/decision kind, HP/max HP/gold, keys, potion capacity, public floor/node, energy/Block/turn, stance, orb capacity, selection min/max/remaining and orderedness; exact width open |
+| Player/context (fixed) | Phase, room/decision kind, HP/max HP/gold, keys, potion capacity, public floor/node, energy/Block/turn, stance, orb capacity, selection min/max/remaining and orderedness; D04 proposal adds public elapsed units/running-clock state and finite wait availability; exact width open |
 | Permanent cards | Kind, upgrades, public scaling/overrides, bottled/property flags and multiplicity/relations where sound; width open |
 | Combat cards / public pile knowledge | Kind, upgrades, public base/turn/payable cost classification, damage/Block/scaling, zone, visible position/known-order facts and sound public source relation; width open |
 | Relics / potions | Catalog kind, public counters/state; potion physical slot and phase-use facts; no unobserved counter leak; widths open |
@@ -818,7 +1153,7 @@ checker patch or illegal-action repair is permitted to claim acceptance.
 | Create pool | Validate batch/workers/partition/reset mode/recording and all descriptors; no hidden game/profile process singleton |
 | Reset selected unique slots | Owned profile/seed request per slot; preflight/stage/reserve before installation; no duplicate index or partial invalid-input acceptance |
 | Read selected slots | Detached current decision/metadata; no state/RNG/token allocation advance |
-| Step configured slots | One local candidate/token per row; whole-batch preflight; one native dispatch/delivery, ordered results |
+| Step configured slots | One local candidate/token per row; whole-batch preflight; one native dispatch/delivery, ordered results. If D04 selected, accepted elapsed_us and WaitTo800Seconds use §9.2's preflight/zero-dwell/settlement rules, not caller-controlled automatic frames. |
 | Replay from start | Validate versioned creation record; reproduce accepted choices through normal menus, not state import |
 | Close | Quiesce/release pool; delivered arrays/finals stay valid |
 
@@ -916,14 +1251,17 @@ supplement but do not replace exact laws. No row below reports a test run in thi
 documentation task. Each future case must record expected state, durable commits,
 source/RNG boundary, observation/menu and task outcome; open laws are resolved
 before asserting their expected result, not converted into permissive tests.
+Actual implementation tests belong after separate plan/start authorization; written
+spec approval needs the precise expected contracts and review, not premature product
+execution to manufacture a pass.
 
 | Case ID | Discriminating acceptance obligation |
 |---|---|
-| A1C-T01 | Generated standard start; both prior-boss Neow branches, drawback before reward, every category/child; invalid profile leaves entropy/identity unchanged. |
+| A1C-T01 | Generated standard start; both prior-eligibility Neow branches, drawback before reward, every category/child; invalid profile leaves entropy/identity unchanged. |
 | A1C-T02 | Supplied map-choice topology: boundary two-way versus clamping; repeated-parent repairs, coordinate quirk, crossing snap and lowest-x trim. |
 | A1C-T03 | Quota binary32 rounding with row-13 omission; row-major retained bucket, skipped entries, deferred fallback and fixed-row exceptions. |
-| A1C-T04 | Root-seed witness/proof obligation distinct from supplied-choice zero elites; approved empty-set behavior, no silent map regeneration; common group buff and Insect ordering. |
-| A1C-T05 | Exact three-item finite law under approved measure; larger face/relic/board/upgrade observable pushforwards, five-pool joint/depletion and conditioned prefixes. |
+| A1C-T04 | Preserve run5988/map5989 MODEL requested3/assigned2 certificate, rank-barrier criterion and same-seed topology/bucket proof obligation, distinct from initialized zero existence. Disabled marker gates draw nothing; enabled empty increments wrapper only before failure, singleton draws; approved native administrative classification, no reroll/forced Elite/death. Group buff/Insect order remains separate. |
+| A1C-T05 | §10.1 finite first-return rejection/final-state and descending composition under approved measure; missing faces0–5 including deterministic-result seed consumption; weighted duplicate-ID board/reveal posterior; empty/singleton/ordered duplicate-kind upgrade prefixes/Tiny House second bottle check; postshuffle-owned-deletion2779/M counterexample, five-pool joint/posterior/requested-tier depletion; declared input order versus silent sorting. |
 | A1C-T06 | All weak/strong/elite/event/boss families and ordered compositions; first-strong exclusions, last-two/elite history and queue consumption on departure, not event fights. |
 | A1C-T07 | Each of 25 enemy HP/setup/AI/move-history records; Slaver 45/55, Jaw/Acid redirects, Lagavulin event Block0/Siphon Artifact, Sentry order. |
 | A1C-T08 | Slime split versus lethal/Fatal/spawn snapshot, Guardian queued mode/Sharp Hide, Hexaghost Divider/Inferno/in-flight Burn, Looter theft/refund/escape. |
@@ -932,24 +1270,24 @@ before asserting their expected result, not converted into permissive tests.
 | A1C-T11 | Draw/movement/creation, No Draw, Void/Deus/Endless Agony; discard causes/Reflex/Tactician; exhaust Spoon/Branch/Embrace/Fiend Fire snapshot. SI-I2: legally acquire Masterful Stab, exhaust via True Grit+, lose positive HP while it is exhausted, Exhume the same instance; no missed-notification cost increment, unlike a global combat-history formula. |
 | A1C-T12 | Retain/Ethereal/Pyramid/Establishment; Poison/debuff/Artifact/Explosion; Focus/orb zero/full/Dark/Plasma; stances/Mantra/Scry/extra turns. |
 | A1C-T13 | Non-final Feed/Greed/Lesson/Genetic/Dagger durable mutation; temporary copy/upgrade isolation; later death preserves committed resources. |
-| A1C-T14 | Fairy-before-Tail inspected branch and all other legal lethal/prevention/heal origins; modifier-zero rescue and repeated damage; Reaper under approved checkpoint contract. |
+| A1C-T14 | Fairy-before-Tail inspected branch and other lethal/prevention/heal origins; modifier-zero rescue/repeated damage. Under approved time contract, Reaper nonfinal/last hit/retaliation/rescue/death/no-heal with queued/current/first-update healing, VFX counts and death timer variations; no universal loss or always-drain. Strict-zero/negative and next-visit retirement must match the chosen schedule. |
 | A1C-T15 | Each of twenty generation rows at actual inner effect site, including off-color autoplay/repeat; Source support/mass/retry/history and no pity mutation. |
 | A1C-T16 | Master Reality Searing Blow at hand 9/10, Foreign Influence and overflow; Eviscerate copy cost; n-position insertion excluding new top; selection before insertion. |
 | A1C-T17 | Alchemize/Brew live capacity, proposal-before-obtain, combat/outside Sozu and Fruit Juice, own consumed slot/self-production; each potion Bark/phase/target/skip law. |
-| A1C-T18 | All 25 event eligibility/branches, no invented initial Leave; Scrap Ooze 26/100 initial success, Wheel reveal gold once, Match input/five attempts/final pair/hidden memory. |
-| A1C-T19 | Merchant duplicate whole-proposal retry, all stock/sale/prices/discounts/removal/Courier; nested relic children resume exact remaining shop. |
-| A1C-T20 | Ordinary/Sharded reward laws and pity-before-claim; skipped/removed offers; source Dream/Orrery/Tiny House distinctions, Singing Bowl helper/continuation. |
+| A1C-T18 | All25 event eligibility/branches, no invented initial Leave; Scrap Ooze26/100, Wheel reveal gold once. Match first/second observation, ID match/five delayed attempts/fresh-copy obtain/fifth cleanup entry positive versus later strict-zero landing, no sixth attempt or obtain drain. Woman unlabelled open()/Proceed versus Lab/event-fight direct map. Guarded empty event returns versus committed empty-grid reachability witness/exclusion. |
+| A1C-T19 | Merchant proposal/retry/stock/sale/prices/discounts/removal/Courier; cancel purge versus confirmed result/no double charge; child onEquip before restock, Grid Peek/nonempty-reward return override and close/reenter same inventory, not universal automatic Shop screen return. |
+| A1C-T20 | Ordinary/Sharded reward/pity-before-claim; Skip/reopen same row, Take consumes before insertion, Bowl distinct +2maxHP then heal2 at full/damaged/refused-heal state with null/last/mixed associated rows. Empty card/Dream offer omitted. Dream/Orrery/Tiny House sources retain history of discarded automatic rows. |
 | A1C-T21 | Each 141 relic primary/global record plus 32 spawn predicates; consumed rejected/skip offers; normal→end/requested-tier and depleted→normal/front, boss front/fallback. |
 | A1C-T22 | Chest correlated tier/gold, separately rounded amount endpoints, base-linked sapphire versus extra relics, deferred emerald/ruby, legal skip/key deferral. |
 | A1C-T23 | Campfire initial filter→Recall append→scan, Dripper/Hammer plus usable Recall, empty Smith/Toke targets, Rest/onRest/Dream child. |
-| A1C-T24 | Note incoming before outgoing, retrieve-and-store same card, bottled/nonremovable/Omamori/removal paths, scaling reset, staged versus transition-committed output, death/fault on either side. |
-| A1C-T25 | All boss rewards/relic take/skip and Astrolabe/Bell/Cage/Pandora/Tiny House children; +1 only at approved successor-ready checkpoint with proper heal/reset/carryover. |
+| A1C-T24 | Fast/Show prevented curse admitted delta0/0.1 and rejected>0.1: one charge, no acquisition/deck-change/insertion; Show entered card update/bookkeeping versus Fast guard, no universal prefilter/phantom curse. Note direct incoming has no Omamori charge; retrieve-and-store same removable card, removal/live reference/ID-upgrade-only transition save. Under approved output choice, detached stage/one commit/revision/abandonment and death/fault before/after; synthetic reference mutation is not natural witness. |
+| A1C-T25 | Boss chest/no-pick/legal skips and relic-owned children: Astrolabe0/1/3/4, Cage0/1/2/3 phase differences, Pandora0/nonzero starters, Bell prevented curse still relic offers. +1 after resolved children/transition heal/per-act reset and chosen entry/map cutoff, not close/fade. |
 | A1C-T26 | Descriptor/table shapes including empty/mixed segments, slot-local refs, ordered-selection parameters, numeric/offset/allocation checks and actual legal large growing piles. |
 | A1C-T27 | Hidden-state/private-handle renaming preserves values/order/lengths/masks/menu; Frozen Eye/Scry/board legitimate reveals change only entitled facts; Dome has no intent-derived damage leak. |
 | A1C-T28 | First/last candidate, negative/one-past, stale/cross-slot token/global-offset confusion; invalid final batch row leaves every state/RNG/token/reward/ordinal unchanged. |
 | A1C-T29 | Single explicit reset; vector mixed/consecutive SAME_STEP endings, K=0/K=B, final/replacement identity/resources and no action applied twice; detached profile reset isolation. |
 | A1C-T30 | Retain/mutate exports/finals through step/reset/close; injected core/encoding/binding/facade allocation faults quiesce pool, preserve committed prefix and current-delivery provenance, no success result. |
-| A1C-T31 | From-start replay of detached profile/time/accepted decisions; version mismatch errors; recording on/off and worker/neighbor/packing equivalence. |
+| A1C-T31 | From-start detached-profile/time replay; version mismatch, recording/worker/packing equivalence includes frame/time/commit revisions. All8 Act1 seen subsets, prebattle versus announcement, prior Neow floor15/16 evidence independent of unlock/project seed. Under approved time choice, running/stopped clock,800s boundary and Wait independent of hidden rooms, no offer reroll, elapsed overflow/invalid-last-row nonadvancement; waiting after sampling cannot replace an event. |
 | A1C-T32 | Approved facade carrier/Sequence/space/tree/wrappers/partial reset; no O(2^63) allocation, exact caller-RNG bounded sampling; all legacy combat-v1 regressions and known-answer RNG fixtures. |
 | A1C-T33 | Generated end-to-end trajectories through every applicable room/route, legal death/skip/key deferral and full handoff, including rare off-color/Note/relic chains; no production filtering or seed-search miss used as exclusion. |
 | A1C-T34 | Structural hot-path/ownership/source-policy review and fresh independent integrated review; scope/evidence/administrative limits disclosed separately from any later performance or transfer claim. |
@@ -958,7 +1296,7 @@ before asserting their expected result, not converted into permissive tests.
 
 IDs are stable within this consolidated document. A range in a cell means the
 explicit listed cases/blockers, not an open-ended promise. All requirements remain
-required; **no requirement is claimed fully accepted by this initial draft**.
+required; **no requirement is claimed fully accepted by this integration draft**.
 Architecture constraints marked A retain their earlier acceptance, not new API
 or whole-spec approval. Evidence references below do not mean tests executed.
 
@@ -970,7 +1308,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-004 | §3 single authority/overlay | E05/E08 | T10,T13,T32 | B04,B10 |
 | A1C-REQ-005 | §3 live durability | E02/E03/E05 | T13,T14,T30 | B04,B05 |
 | A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33 | B04,B05,B12 |
-| A1C-REQ-007 | §4 choices/continuations | E03/E05 | T18–T25 | B05 |
+| A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16 | T18–T25 | B05 |
 | A1C-REQ-008 | §4.1 origins/payment; §5.2 corrections | E02/E10/E11/E09-R | T09,T10,T11,T16 | B04,B07 |
 | A1C-REQ-009 | §4.2 scheduler | E02/E10/E11 | T08,T11,T14 | B04,B12 |
 | A1C-REQ-010 | §4.2 damage/rescue | E02/E03/E11 | T08,T13,T14 | B04,B07,B12 |
@@ -979,28 +1317,28 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-013 | §5 specials/Note | E03/E09 (qualified by E09-R)/E12 | T09,T11,T24 | B07,B11 |
 | A1C-REQ-014 | §6 shared resolver | E05/E08/E10 | T15,T17 | B10 |
 | A1C-REQ-015 | §6 site policies | E05/E10 | T15–T21,T34 | B04,B05,B06,B08,B10 |
-| A1C-REQ-016 | §7 map kernel | E01/E10 | T02,T03,T04 | B02,B03,B10 |
-| A1C-REQ-017 | §7 burning/empty | E01/E10/E11 | T04,T22 | B02,B04 |
+| A1C-REQ-016 | §7/§7.1 map kernel/initialized model | E01/E10/E13 | T02,T03,T04 | B02,B03,B10 |
+| A1C-REQ-017 | §7/§7.1 burning/empty cursors | E01/E10/E11/E13 | T04,T22 | B02,B04 |
 | A1C-REQ-018 | §7 encounters | E09/E11 | T06,T07,T08 | B07,B08 |
 | A1C-REQ-019 | §7 enemy mechanics | E02/E11 | T07,T08,T14 | B04,B07 |
-| A1C-REQ-020 | §8 Neow | E03/E09/E10 | T01 | B05,B08,B11 |
-| A1C-REQ-021 | §8/appendix C events | E03/E10 | T18,T33 | B03,B05,B08,B11 |
-| A1C-REQ-022 | §8 merchant | E03/E10 | T19,T21 | B05,B06,B08 |
-| A1C-REQ-023 | §8 rewards/transforms | E03/E10 | T13,T20,T24 | B04,B05,B08 |
-| A1C-REQ-024 | §8.1/appendix D relics | E04/E10 | T05,T21,T25 | B03,B06 |
-| A1C-REQ-025 | §8.1/appendix D potions | E09/E10 | T10,T14,T17 | B04,B05,B08 |
-| A1C-REQ-026 | §8.1 camps | E03/E04 | T23 | B05,B06,B08 |
-| A1C-REQ-027 | §8.1 keys/chests | E03/E10 | T22,T23,T25 | B04,B05,B08 |
-| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08 | T25,T29,T33 | B05,B10 |
-| A1C-REQ-029 | §9 profile; §1.1 bounded Note disposition | E03/E05/E09 (qualified by E09-R)/E12 | T01,T24,T29,T31 | B07,B11 |
-| A1C-REQ-030 | §9 clock | E02/E07 | T14,T25,T31 | B12 |
-| A1C-REQ-031 | §10 RNG | E01/E05/E08/E10/E11 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
+| A1C-REQ-020 | §8/§8.2/§9 Neow history/children | E03/E09/E10/E15/E16 | T01,T31 | B05,B08,B11 |
+| A1C-REQ-021 | §8/§8.5/appendix C events | E03/E10/E14/E16 | T18,T33 | B03,B05,B08,B11 |
+| A1C-REQ-022 | §8/§8.2–8.4 merchant | E03/E10/E16 | T19,T21 | B05,B06,B08 |
+| A1C-REQ-023 | §8/§8.3–8.4 rewards/transforms | E03/E10/E16 | T13,T20,T24 | B04,B05,B08 |
+| A1C-REQ-024 | §8.1/§10.1/appendix D relics | E04/E10/E14 | T05,T21,T25 | B03,B06 |
+| A1C-REQ-025 | §8.1/§8.4/appendix D potions | E09/E10/E16 | T10,T14,T17 | B04,B05,B08 |
+| A1C-REQ-026 | §8.1/§8.2 camps | E03/E04/E16 | T23 | B05,B06,B08 |
+| A1C-REQ-027 | §8.1/§8.2 keys/chests | E03/E10/E16 | T22,T23,T25 | B04,B05,B08 |
+| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16 | T25,T29,T33 | B05,B10 |
+| A1C-REQ-029 | §9/§9.1 profile; §1.1 bounded Note disposition | E03/E05/E09 (qualified by E09-R)/E12/E15/E16 | T01,T24,T29,T31 | B07,B10,B11 |
+| A1C-REQ-030 | §9.2 clock/settlement recommendation | E02/E07/E15/E16 | T14,T18,T24,T25,T31 | B04,B12 |
+| A1C-REQ-031 | §10/§10.1–10.2 RNG/finite laws | E01/E05/E08/E10/E11/E13/E14 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
 | A1C-REQ-032 | §11 schema/growth | E05/E08/E12 | T26,T32 | B09,B10 |
 | A1C-REQ-033 | §11 knowledge | E05/E08/E09 | T18,T24,T27 | B07,B10 |
 | A1C-REQ-034 | §11 action/menu | E05/E08/E12 | T10,T26,T28,T32 | B05,B10 |
 | A1C-REQ-035 | §12 API | E05/E12 | T26,T28–T32 | B10 |
 | A1C-REQ-036 | §12 reset/finals | E05/E08/E12 | T24,T29,T30 | B10,B11 |
-| A1C-REQ-037 | §12 replay | E05/E08 | T31 | B10,B11,B12 |
+| A1C-REQ-037 | §12/§9.1–9.2 replay | E05/E08/E15 | T31 | B10,B11,B12 |
 | A1C-REQ-038 | §13 preflight | E05/E08 | T01,T28,T31 | B10 |
 | A1C-REQ-039 | §13 fault/parallel | E05/E08 | T26,T29–T31 | B10 |
 | A1C-REQ-040 | §14 compatibility/performance | E05/E08/E12 | T32,T34 | B10,B13 |
@@ -1012,34 +1350,57 @@ needed to understand a requirement's state.
 
 ## 17. Exact blocker and integration ledger
 
-All items are **OPEN** in this initial draft. Ranked priority is for approval
+All items are **OPEN** with the narrowed residuals below. Ranked priority is for approval
 readback, not an implementation sequence or authority to perform new research.
-Dependencies name assigned interfaces for main to reconcile. This author has not
-polled or waited for sibling results; only the main-routed supporting review and
-its SI-I1/SI-I2 anchors were read for this bounded update.
+Dependencies name assigned interfaces for main to reconcile. Only main-routed
+reviewed E13–E16 and earlier supporting-review inputs are integrated; no unfinished
+normative author or pending execution/native/relic revision was polled or adopted.
 
 | ID / rank | Missing closure, smallest acceptable resolution | Main-owned integration interface |
 |---|---|---|
 | A1C-B01 / 1 | Adopt evidence target/limits in D01; do not silently claim a verified retail build, historical JRE or original-runtime equivalence. Original gameplay remains unexecuted and is not a test pass requirement invented by this draft. | Whole-spec human fidelity decision; E06 preserved |
-| A1C-B02 / 1 | Original initialized map-seed preimage/proof obligation, empty burning set and approved native initialization outcome; independently reconcile the retained finite repair records. Supplied-choice legality is insufficient; no bounded-search miss proves impossibility. | `map-seed` (`spire-gli.2.3.1`), D02 |
-| A1C-B03 / 1 | Exact compositional observable shuffle laws and approved input measure for face missing sets, duplicate-instance board, upgrade prefixes, ordered relic pools including five-pool joint/history/removal/rejection. Three-item uniform64 table is insufficient. | `shuffle-laws` (`spire-gli.2.3.2`), D03 |
+| A1C-B02 / 1 | E13 closes initialized underfill MODEL, rank criterion and conditional empty-marker counter+1/raw-state+0 failure. Still need initialized zero-Elite root witness/exclusion over declared domain with same-seed topology/bucket, and D02 native map-law/administrative initialization policy. Search minimum2 is not a minimum theorem. | Reviewed map input integrated; remaining fidelity/proof disposition main-owned, D02 |
+| A1C-B03 / 1 | E14 closes conditional finite mapper/posterior/observable and linked-pool compositions. Choose input measure, joint/independence boundaries and ordered relic catalog; provide joint producer/context laws for unconditional boards/offers, any required actual root/profile/history ensemble evaluation and efficient exact native sampling contract. No IID source words or source-host hash order inferred. | Reviewed shuffle input integrated; D03 and B10 site registry, not a missing general kernel |
 | A1C-B04 / 1 | Finite direct caller/override inventories and transitive legality/free/cost/copy/queue-extra plus draw/discard/exhaust/turn/death/prevention/heal callback records. Specify entered versus pending commit/cancel; close all matrix branches without universal FIFO/drain. Preserve §5.2 SI-I1/SI-I2 constraints in the corrected matrices and obtain exact-revision recheck; no pending author PR is clearance. | `execution` (`spire-gli.2.3.3`), shared CARD-* and D04 boundary |
-| A1C-B05 / 1 | Complete source-specific Neow/shop/boss/event/reward return/commit matrix, already-done Omamori, independent removal/Parasite, Bowl helper, Match input/final pair, empty/depleted selections, deferred keys and successor-ready cutoff. | `continuations` (`spire-gli.2.3.4`), D08 |
+| A1C-B05 / 1 | E16 closes the local parent/child, desktop Omamori prevention, removal/Bowl/Match/empty-size and handoff trace in §8–9. Remaining: global admitted/current/pending and Peek/terminal arbitration; legal-history witnesses/exclusions for unguarded mandatory empties, zero-Cage phase and stale/mistyped record conditions; initialized event-list exhaustion; exact successor-ready payload/cutoff. No phantom prevented Show curse remains an ordinary-path proof obligation. | Reviewed continuation input integrated; execution/native/content interfaces and D08 remain |
 | A1C-B06 / 1 | All 141 relic primary/global consumer records with exact trigger/payload/state/counter/reset/order and acquire/unequip effects; thirteen no-override rows explicitly covered, not only 141/32 counts. | `relic-mechanics` (`spire-gli.2.3.5`) |
-| A1C-B07 / 2 | Integrate paired primary records for appendix A/25 enemy kinds and close the fourteen CARD-* shared records, exact AI/formation/spawn/Fatal laws and per-route attribution. Each identity needs a record or named specific open fields. E09-R clears Note only as a bounded supporting draft; old Silent is not factually cleared. SI-I1/SI-I2 corrections and T09–T11 discriminators are recorded here, but their exact corrected author revisions and integrated whole-draft review remain pending. | Main supplies independently rechecked corrected heads and reconciles E09/E11; no author polling or blanket E09 approval |
-| A1C-B08 / 2 | Complete numerical Neow category/exclusion table; 25 event eligibility/branch/payment/risk records; evolving question-room odds; encounter setup integration; merchant stock/prices/restock/removal; chest/reward/potion drop/phase/Bark/transform policies and generated-start certification. Retained local facts stay closed only to their stated bounds; the listed strong weights/composition laws are not still unknown. | Main reconciles acquisition baselines with execution/continuation/relic/source-policy output; no invented defaults |
+| A1C-B07 / 2 | Publish and integrate actual paired base/upgraded card values/targets/payload/state/copy/growth and all25 enemy payload/AI/setup/spawn records, not roster/HP anchors. Close fourteen CARD-* laws with exact per-route attribution or named per-ID fields. Seven assignments below are not results. Note bounded clearance and corrected consolidated SI-I1/SI-I2 wording do not factually clear old Silent or certify shared matrices. | Main supplies exact independently cleared normative/card/enemy and execution heads; no private normative imports or blanket E09 approval |
+| A1C-B08 / 2 | Public numerical Neow categories/exclusions/quantities; all25 event eligibility/branch/payment/risk; question-room history odds; merchant slots/prices/discount rounding/restock/purge; combat/card/gold/chest/relic/potion drop/phase/Bark/transform and standard-start records. E16 closes specific local return/payment/Bowl/belt laws, not all those numerical records. Retained strong weights/source supports remain established at their bounds. | Main integrates reviewed events-Neow/economy-potions/enemy records below with remaining execution/relic/native interfaces |
 | A1C-B09 / 2 | Per-field numeric bounds, actual gameplay cap/overflow and conversion audit; final packed representation covers all legal rows and meaningful ordered growth. int64 alone is not this proof. | `native-contract` (`spire-gli.2.3.6`), D07 |
 | A1C-B10 / 2 | Complete concrete run/combat/continuation/site registry and RNG derivations/scopes; freeze row fields/widths/enums/masks/references/ordering; API/error/reset/replay/info/fault lease/carrier/facade contracts and new identities. Illustrative families/width-six candidate row are not a full schema. | `native-contract` (`spire-gli.2.3.6`), D07/D08 and other lanes' commit interfaces |
-| A1C-B11 / 2 | Creation history/default validation and full stored-card domain, Note live reference/staged/committed outputs and death/fault/reset/replay semantics. No automatic cross-episode inheritance. E09-R's bounded Note approval does not approve these detached contract choices or close this blocker. | `profile-time` (`spire-gli.2.3.7`), D05/D06, reviewed integration main-owned |
-| A1C-B12 / 1 | Approved deterministic elapsed-time/wait/advance/replay policy and headless update/checkpoint contract; exact Reaper timer outcome still unproved. Portal source threshold does not approve always-on or zero time. | `profile-time` and `execution`, D04 |
-| A1C-B13 / 3 | All T01–T34 remain unexecuted; later approved implementation must supply exact outcomes, generated-route coverage, binding/fault/replay/legacy regressions and evidence. Documentation checks cannot discharge these. | Later coordinated plan/start authorization; not requested by this draft |
-| A1C-B14 / 1 | Independent exact-revision review, integrated contradiction/coverage check (including SI-I1/SI-I2), disposition of D01–D08 and accessible human approval of the complete written spec. E09-R is not review of this consolidated revision or pending author PRs. Then separate coordinated plan review and start authorization. | Main; this draft PR remains review carrier, not approval or merge authority |
+| A1C-B11 / 2 | E15 supplies explicit history facts and decision-ready lifecycle/preset/output/death/fault/reset/replay recommendation, now §9/9.1. Need D05/D06 human disposition, full legal stored-card/upgrade catalog and native schema/diagnostic integration; later-act discovery hooks remain bounded evidence. No automatic inheritance. Neither technical review nor Note bounded approval chooses native behavior. | Reviewed profile/time input integrated; content/native interfaces and whole-spec readback main-owned |
+| A1C-B12 / 1 | E15/E16 close named timer dependencies/desktop bound; §9.2 gives concrete60Hz/exact-elapsed/dwell/wait P. Need D04 fidelity choice, complete mechanic-bearing timer/settlement/terminal registry and exact native Reaper/Match checkpoint outcomes under that chosen law. Natural original Reaper loss/frame distribution remain unproved; no source parity from model choice. | Reviewed timing inputs integrated; execution/native and D04 remain |
+| A1C-B13 / 3 | T01–T34 remain UNEXECUTED. Written spec must first define precise expected laws; later separately approved implementation supplies actual gameplay/binding/fault/replay/legacy/generated-route evidence. Not executing product cases in this documentation wave is not a demand to implement before written-spec approval. Documentation checks never discharge later acceptance. | Future implementation acceptance only; coordinated plan/start authorization still separate |
+| A1C-B14 / 1 | Prior fb7e9f8 review has zero findings only as BLOCKED-draft merge fitness, not user-approval readiness. This integrated head needs fresh independent contradiction/coverage/source-policy recheck; D01–D08 and accessible complete-spec human approval remain outstanding, then separate coordinated plan review/start. | Main; no ready/merge authority follows from this author update |
 
 The ledger deliberately separates missing evidence (B02–B08), candidate contract
 choices (B09–B12), unexecuted acceptance (B13), evidence target (B01) and review/
 human gates (B14). Accepting a recommendation cannot silently count as proving a
 source law. Conversely, lack of original-runtime validation does not erase bounded
 static facts already obtained safely.
+
+### 17.1 Pending normative-content interfaces — assignments, not evidence
+
+These seven authors are running under main's assignments. Only their single public
+document ownership and required gaps are recorded here; their unfinished facts,
+private outputs or PRs have **not** been read or integrated. Filenames below are
+descriptive future outputs, not claims that files exist in main or required hidden
+normative imports. Main must route exact reviewed heads and reconcile shared laws.
+
+| Assigned owner | Sole public document under docs/research/ | Required public record gap |
+|---|---|---|
+| spire-gli.2.3.18 / red-neutral | 2026-10-19-act1-content-red-colorless.md | Ironclad/colorless/status/curse/dependent special/removable event kinds: paired values, target/payload/upgrade/copy/growth/rounding and exact shared-law residuals. |
+| spire-gli.2.3.19 / Silent | 2026-10-19-act1-content-silent.md | All legal green basics/nonbasics/Shiv, paired numeric/conditional rules; corrected Setup/Masterful Stab, discard/Poison/Retain/X/copy boundaries, no Silent start. |
+| spire-gli.2.3.20 / Defect | 2026-10-19-act1-content-defect.md | Blue basics/nonbasics/special dependencies and orb/slot/Focus/Evoke/channel/resource laws; actual Ironclad generation context and growth/copy capture. |
+| spire-gli.2.3.21 / Watcher | 2026-10-19-act1-content-watcher.md | Purple basics/nonbasics/options/specials; paired stance/Mantra/Retain/Scry/X/Expunger/Conjure/selection/copy and death residuals. |
+| spire-gli.2.3.22 / enemies | 2026-10-19-act1-content-enemies.md | All25 A0 HP/setup/intent/AI-history/payload/spawn/split/escape and encounter/event/elite/boss distinctions; exact outstanding arbitration fields. |
+| spire-gli.2.3.23 / events-Neow | 2026-10-19-act1-content-event-neow.md | Neow categories/drawback/exclusions/quantities, evolving question-room probabilities, all25 event numeric/eligibility/payment/risk/source records. |
+| spire-gli.2.3.24 / economy-potions | 2026-10-19-act1-content-economy-potions.md | Merchant stock/price/rounding/retry/restock/purge; reward/chest/drop laws; all33 eligible potion base/Bark/phase/target/use/duration/Sozu/belt/commit records. |
+
+These assignments fill B07/B08 only when actual reviewed records replace missing
+fields. Inventories, a green document checker, parallel progress or an unreviewed
+claim of completeness cannot substitute. Pending native/relic/execution corrections
+likewise remain interfaces, not incorporated findings from those author lanes.
 
 ## Appendix A. Finite reachable-card inventory and closure boundaries
 
@@ -1122,37 +1483,38 @@ payload not numerically fixed here remains part of B07, not a zero-damage defaul
 ## Appendix C. Event branch closure inventory
 
 These 11 ordinary, six recurring-shrine and eight applicable one-time families
-are the required finite set. Rows identify all strategic branch families needing
-exact numeric/eligibility/commit records in B05/B08; they are not executable event
-rules or evidence that every branch supports initial Leave.
+are the required finite set. E16's closed local continuation/empty conditions below
+do not supply all missing numeric/generation records in B08. They are not executable
+event algorithms or evidence that every branch supports initial Leave. Unguarded
+mandatory-empty local conditions need initialized witness/exclusion, not a fallback.
 
 | Event | Required branch/continuation family |
 |---|---|
-| Big Fish | Heal / max HP / relic with Regret; hooks and actual damage/heal classification |
-| Dead Adventurer | Leave/search/repeated risk; pre-shuffled gold/relic/nothing categories, interrupted event elite and rewards |
-| Golden Idol | Decline/take; injury/HP/max-HP sacrifice alternatives and ordered relic obtain |
-| Hypnotizing Colored Mushrooms | Fight for Odd Mushroom or eat/heal with Parasite; event reward/return |
-| Living Wall | Remove / transform / upgrade current eligible instance |
+| Big Fish | Heal/maxHP/relic with Regret; no initial Leave. Curse and spawned relic resolve separately; Continue is not effect drain. |
+| Dead Adventurer | Leave/search/repeated risk; pre-shuffled categories and interrupted event elite. Successful tokens removed from fight rewards; reward Proceed direct-map, not elite-room keys/queue law. |
+| Golden Idol | Take/decline, then mandatory injury/HP/maxHP choice; relic scheduled before second choice, no new free Leave there. |
+| Hypnotizing Colored Mushrooms | Fight/eat, no initial Leave; eat heals before queued Parasite. Event fight rewards remain skippable/direct-map. |
+| Living Wall | Remove/transform/upgrade; upgrade initially disabled without upgradeables. Each route also gates grid on nonbottled purgeable count, including Grow; zero goes to result without selection mutation. No invented initial Leave. |
 | Scrap Ooze | Repeated HP cost and rising relic chance, stop/take; initial nominal25 accepts 26 of100 integers |
-| Shining Light | Damage then random upgradeable-instance prefix or decline; fewer eligible instances |
-| The Cleric | Gold eligibility, paid heal / paid purge / leave; payment and child return |
-| The Ssssserpent | Doubt plus gold or decline; never grants Ssserpent Head |
-| Wing Statue | Paid HP/purge versus eligible gold branch / leave, exact deck gate |
-| World of Goop | Gold with damage versus gold loss / leave semantics; actual gold guards |
+| Shining Light | Enter disabled with no upgradeables; Leave remains. Damage precedes up-to-two exact instance prefix; singleton upgrades once. |
+| The Cleric | Gold-eligible heal/remove/Leave. Remove with zero nonbottled purgeables opens no grid and spends no removal gold, then Proceed; nonempty committed branch pays before grid. |
+| The Ssssserpent | Agree confirmation before gold/Doubt scheduling, or Leave; never Ssserpent Head. |
+| Wing Statue | Damage precedes later mandatory purge with no local empty guard; separate gold branch has permanent base-damage deck gate, initial Leave exists. No post-damage invented Leave. |
+| World of Goop | Damage before recovered gold; alternative loses precomputed capped gold, possibly0. No card target required. |
 | Golden Shrine | Ordinary gold versus larger gold with Regret, or leave |
 | Match and Keep | Twelve instances/six pairs, five attempts, reveal/match/miss/final cleanup/obtain; memory projection |
-| Purifier | Purge current eligible card or leave; no invented target on empty list |
-| Transmogrifier | Transform selected eligible card or leave; removal/obtain separate |
-| Upgrade Shrine | Upgrade current eligible card or leave; unupgradeable inventory |
-| Wheel of Change | Gold/relic/heal/curse/purge/HP-loss outcomes, reveal versus later callback and confirmation |
-| Ominous Forge | Upgrade / take Warped Tongs with Pain / leave |
-| Bonfire Spirits | Sacrifice selected eligible instance; rarity/curse-dependent heal/max HP/Spirit Poop and removal hooks |
+| Purifier | Initial remove/Leave; committed noncancellable grid has no local empty guard. No automatic post-commit Skip. |
+| Transmogrifier | Initial transform/Leave; committed mandatory grid has no empty guard. Selected object removal precedes generation/Show obtain. |
+| Upgrade Shrine | Upgrade disabled without upgradeables, Leave remains; selected permanent upgrade refreshes bottle link. |
+| Wheel of Change | Gold at reveal once; other later callbacks. Purge empty subset opens no grid/replacement; relic outcome offers skippable rewards, not automatic obtain. |
+| Ominous Forge | Upgrade disabled without upgradeables; rummage/Leave remain. Warped Tongs and queued Pain are distinct work. |
+| Bonfire Spirits | No nonbottled purgeables: Choose→Complete without reward. Otherwise rarity reward (curse Spirit Poop/Circlet) precedes object removal/hooks; no arbitrary sacrifice or initial Leave. |
 | Face Trader | Paid HP/gold branch, missing-face trade or decline; missing set shuffle/Circlet fallback |
-| The Divine Fountain | Curse eligibility, remove applicable curses or decline; per-card callbacks |
-| Lab | Potion offers and claim/discard/full-belt/skip behavior |
-| A Note For Yourself | Ignore or incoming obtain before outgoing removable selection, then transition persistence |
-| We Meet Again! | Offered eligible potion/gold/card sacrifice for relic, or decline; sampled offer not arbitrary replacement |
-| The Woman in Blue | Gold gate, potion quantity/price alternatives or refusal; flat-ID source, parent reward continuation |
+| The Divine Fountain | Cleanse/Leave; actual curse objects retain bottle/unremovable exclusions. Empty removable subset supplies no replacement. |
+| Lab | Potion offers despite full belt, automatic card suppressed, claims can fail, Proceed direct-map. |
+| A Note For Yourself | Take/Ignore after reveal. Direct incoming hooks/insertion before outgoing purgeable/bottle filter; valid removable incoming supplies a candidate, otherwise no local empty guard. Ignore creates no outgoing write; departure persistence separate from selection. |
+| We Meet Again! | Missing eligible potion/gold/nonbasic-noncurse card disables that sacrifice; Leave remains. One actual sacrifice precedes one spawned relic, not a three-relic menu. |
+| The Woman in Blue | Paid quantity or A0 Leave; ordinary unlabelled CombatRewardScreen.open()/Proceed returns to event/result, not Lab direct-map or labelled open(String)/Cancel. Sozu/belt claim distinctions remain. |
 
 Act 2/3-only home events are not additional Act 1 candidates. Secret Portal's
 clock dependency is carried for future entry, not inserted into this table.
@@ -1198,9 +1560,11 @@ Stance/Ambrosia. Off-color Alchemize does not change this boundary.
 
 ## 18. Draft handoff status
 
-This initial document supplies a whole-scope contract and finite accounting, not
-closed mechanics/API evidence. The bounded Note/Silent disposition update adds no
-whole-spec approval or acceptance pass. B01–B14 remain open; D01–D08 are recommendations or
+This integration draft supplies whole-scope requirements and the reviewed E13–E16
+advances, not closed mechanics/API evidence or a human-approval-ready rulebook.
+The former phantom ordinary Show-curse obligation is superseded; complete normative
+content/numeric/native/relic/execution integration is still required. B01–B14 remain
+open at their narrowed boundaries; D01–D08 are recommendations or
 choices for main's readback; T01–T34 are unexecuted. The author may correct this
 document only through bounded main-directed follow-ups. Independent review,
 human whole-spec approval, coordinated implementation-plan review and separate
