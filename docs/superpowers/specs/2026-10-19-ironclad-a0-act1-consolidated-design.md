@@ -8,7 +8,8 @@ the approved architecture, states candidate detailed contracts, and accounts for
 required content even where a law is unresolved. It is not an implementation plan,
 an implementation claim, or permission to install, build, benchmark, or train.
 Main owns integration of independently reviewed follow-ups and the eventual human
-presentation. No result from the parallel closure lanes is assumed here.
+presentation. This bounded update records only the main-routed Note/Silent review
+disposition and corrections below; no parallel author-lane result is assumed.
 
 ## 1. Reading this specification
 
@@ -59,6 +60,30 @@ profile, packed-interface and generation-context supporting proposals. Their
 needed conclusions are restated here; none is a required external normative file.
 Unintegrated detail from them is a named blocker, not a hidden dependency readers
 must recover. These summaries are not new independent checks of private source.
+
+#### E09 review qualification — bounded update, 2026-10-19
+
+**E09-R** identifies the fresh independent Note/Silent supporting-draft review
+(review SHA256 `7c96c117462c5591d9e5c56de7a22237bfb12bd4836eb155578bde3a21909edc`).
+Its dispositions attach to these exact historical documents, not subsequent PRs:
+
+| E09 input | Exact reviewed SHA256 | Current evidence disposition |
+|---|---|---|
+| `2026-10-18-ironclad-a0-act1-note-card-rules.md` | `30f5599d5cf42c7293dca24c61508c0231c1f0afcc57b730b64a9c67cd95ed76` | Approved only as an accurate bounded primary-rule/supporting-obligation draft. Not full Note/content/profile closure or whole-spec approval. |
+| `2026-10-18-ironclad-a0-act1-silent-card-rules.md` | `e4a141078639ca5df84c54e2a7cea6f23897fb7456c3b7c85460e45ac8ca9238` | **Changes required; not factually cleared.** Important findings SI-I1 (Setup) and SI-I2 (Masterful Stab) prohibit the unconditional cost/history claims. Section 5.2 states the required constraints. |
+
+E09 is therefore not blanket factual approval of its member drafts. E09-R's
+source-derived corrections are static/bytecode-backed, not gameplay tests. The
+consolidation author read the complete review and the retained source/bytecode
+anchors for these two findings; that is not an independent clearance of this new
+revision. Corrected author documents still need exact-head independent recheck
+and main's integration disposition (B04/B07/B14). Note's bounded clearance does
+not approve the proposed detached output/default/death/fault contracts (B11).
+
+Main reports all eight initial author PRs open with technical review beginning.
+Their existence is pending-review context only: no new author semantics, proposed
+API, closure status or unpublished file is incorporated by that report. A later
+main-directed update must identify the exact reviewed revisions it integrates.
 
 All owned-source findings use archive SHA256
 `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`.
@@ -243,7 +268,7 @@ laws, not just examples or a generic “all interactions” assertion.
 
 | Mechanic record | Required fields / discriminator |
 |---|---|
-| CARD-COST | Printed/base/turn/until-played/free/X/unplayable layers, signed sentinels, upgrade and copy precedence; Blood for Blood counts HP-loss events, Force Field qualifying Power history, Eviscerate actual discard history. |
+| CARD-COST | Printed/base/turn/until-played/free/X/unplayable layers, signed sentinels, upgrade and copy precedence; Setup's positive-`cost` free-flag guard and Masterful Stab's per-instance notifications (§5.2); Blood for Blood counts HP-loss events, Force Field qualifying Power history, Eviscerate actual discard history. |
 | CARD-COPY | New identity versus stat-equivalent copy, source capture, all per-instance growth/cost/flags, permanent attribution; Anger/Dual Wield/Nightmare/Omniscience are not one route. |
 | CARD-DRAW | Successful draw versus retrieval/insertion; No Draw; full hand; reshuffle/Innate/bottles; Endless Agony/Deus/Void and Evolve/Fire Breathing; setup before opening draw. |
 | CARD-DISCARD | Explicit, random, effect and cleanup causes; Reflex/Tactician and counters; snapshots for Gamble/Storm of Steel/Unload/Scrape; no recursive inclusion of reaction arrivals. |
@@ -256,7 +281,7 @@ laws, not just examples or a generic “all interactions” assertion.
 | CARD-SCRY | Revealed prefix, legal discard subsets/order, empty/short piles, Weave/Nirvana reactions, retained knowledge and ensuing draws; no hidden remainder ordering. |
 | CARD-DELAY | Next-turn energy/draw/copies, turn countdowns, extra turn versus enemy turn, Blasphemy lethal mechanism, Deva/Wraith/Biased downsides, Mayhem timing and reset. |
 | CARD-FATAL | Actual attributed kill, Minion/split/suicide, simultaneous death and permanent Feed/Greed/Dagger/Lesson mutations; no reward on split alone. |
-| CARD-HISTORY | Play versus hit counts, previous-card predicates across turns, self/repeat inclusion, HP-loss/discard/Power/Mantra/channel histories, public versus hidden portions. |
+| CARD-HISTORY | Play versus hit counts, previous-card predicates across turns, self/repeat inclusion, HP-loss/discard/Power/Mantra/channel histories, public versus hidden portions; Masterful Stab's notified locations and retained instance state, not universal global-count catch-up (§5.2). |
 
 Primary numeric anchors retained from E09 include Strike 6/9, Defend 5/8, Bash
 8/10 plus Vulnerable 2/3; Searing Blow at upgrade count n has base
@@ -264,6 +289,25 @@ Primary numeric anchors retained from E09 include Strike 6/9, Defend 5/8, Bash
 begins at one Block and grows permanently by 2/3 per qualifying use; Ritual Dagger
 begins at 15 damage with Fatal growth 3/5. These anchors are not a substitute for
 the full paired-content records; their unintegrated primary detail is A1C-B07.
+
+### 5.2 Required Note/Silent review constraints (F, bounded; E09-R)
+
+These independently worded corrections override any incompatible implication from
+E09; they do not close the shared cost/copy/callback matrices or certify all Silent
+mechanics. The locators name inspected members, not a required private artifact.
+
+| Finding | Known constraint | Evidence locator / remaining boundary |
+|---|---|---|
+| SI-I1 — Setup | Move the selected existing hand instance to draw-pile top. Both singleton and selected-card routes grant `freeToPlayOnce` only if its current base/combat `cost` field is positive, not by testing `costForTurn`. This is a one-play-free flag, not a numeric-zero rewrite. Positive `cost` with changed turn cost qualifies; base zero with positive turn-only cost, X and unplayable sentinels receive no new flag. Selection does not make an unplayable card playable or redefine an X card's payment/effect. Ordinary attribute reset leaves this flag intact; use cleanup clears it. | `SetupAction.update` (both branches); `AbstractCard.resetAttributes/freeToPlay`; `UseCardAction.update`. Full override/copy/free/cleanup precedence remains B04/B07. |
+| SI-I2 — Masterful Stab | Fresh ordinary construction starts cost zero. Each qualifying damage notification increments that instance's cost by one through its cost-update helper, not by the number of HP points. The inspected positive-loss combat dispatch notifies hand, discard and draw, **not exhaust**. Exhume returns the existing exhausted instance without missed-notification catch-up. Preserve location and per-instance cost state; a global combat HP-loss count is not a replacement. Ordinary fresh copy and stat-equivalent copy are distinct routes, not universal historical reconstruction. | `MasterfulStab` constructor/`tookDamage/makeCopy`; `AbstractPlayer.damage/updateCardsOnDamage`; `ExhumeAction.update`; `AbstractCard.updateCost`. Other prevention, cost-layer and copy composition remains B04/B07. |
+
+Future discriminators under T09–T11 must retain the selected/card-instance identity,
+field/flag state and exact notification boundary. In particular, a legally acquired
+Masterful Stab exhausted by True Grit+, followed by positive HP loss while exhausted
+and retrieval by Exhume, must not receive that missed increment. This is a
+source-derived counterexample to a global formula, not an executed trajectory or
+initialized-root-seed witness. Note's NT-01–15 and Silent's SI-01–22 remain
+unexecuted future cases; neither inventory nor E09-R's bounded clearance runs them.
 
 ## 6. Shared generation and source-specific randomness
 
@@ -883,9 +927,9 @@ before asserting their expected result, not converted into permissive tests.
 | A1C-T06 | All weak/strong/elite/event/boss families and ordered compositions; first-strong exclusions, last-two/elite history and queue consumption on departure, not event fights. |
 | A1C-T07 | Each of 25 enemy HP/setup/AI/move-history records; Slaver 45/55, Jaw/Acid redirects, Lagavulin event Block0/Siphon Artifact, Sentry order. |
 | A1C-T08 | Slime split versus lethal/Fatal/spawn snapshot, Guardian queued mode/Sharp Hide, Hexaghost Divider/Inferno/in-flight Burn, Looter theft/refund/escape. |
-| A1C-T09 | Each card's base/upgrade primary record plus every CARD-* shared record; coverage cannot close by counts alone or successful random runs. |
-| A1C-T10 | Hand/autoplay/five repeats/Omniscience matrices with target death, mixed entitlements, X=0/nonzero/Chemical X, flags and exact payment/history/copy/destination. |
-| A1C-T11 | Draw/movement/creation, No Draw, Void/Deus/Endless Agony; discard causes/Reflex/Tactician; exhaust Spoon/Branch/Embrace/Fiend Fire snapshot. |
+| A1C-T09 | Each card's base/upgrade primary record plus every CARD-* shared record; coverage cannot close by counts alone or successful random runs. SI-I2: one qualifying multi-HP loss versus multiple losses, zero-loss prevention, notified hand/draw/discard locations, fresh versus stat-equivalent copy and per-instance cost layers. |
+| A1C-T10 | Hand/autoplay/five repeats/Omniscience matrices with target death, mixed entitlements, X=0/nonzero/Chemical X, flags and exact payment/history/copy/destination. SI-I1: Setup singleton and selection routes with positive `cost`/changed turn cost (including turn zero), base zero/positive turn-only cost, X and unplayable; distinguish flag from numeric fields, survival across ordinary reset and clearing on use. |
+| A1C-T11 | Draw/movement/creation, No Draw, Void/Deus/Endless Agony; discard causes/Reflex/Tactician; exhaust Spoon/Branch/Embrace/Fiend Fire snapshot. SI-I2: legally acquire Masterful Stab, exhaust via True Grit+, lose positive HP while it is exhausted, Exhume the same instance; no missed-notification cost increment, unlike a global combat-history formula. |
 | A1C-T12 | Retain/Ethereal/Pyramid/Establishment; Poison/debuff/Artifact/Explosion; Focus/orb zero/full/Dark/Plasma; stances/Mantra/Scry/extra turns. |
 | A1C-T13 | Non-final Feed/Greed/Lesson/Genetic/Dagger durable mutation; temporary copy/upgrade isolation; later death preserves committed resources. |
 | A1C-T14 | Fairy-before-Tail inspected branch and all other legal lethal/prevention/heal origins; modifier-zero rescue and repeated damage; Reaper under approved checkpoint contract. |
@@ -927,12 +971,12 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-005 | §3 live durability | E02/E03/E05 | T13,T14,T30 | B04,B05 |
 | A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33 | B04,B05,B12 |
 | A1C-REQ-007 | §4 choices/continuations | E03/E05 | T18–T25 | B05 |
-| A1C-REQ-008 | §4.1 origins/payment | E02/E10/E11 | T10,T16 | B04 |
+| A1C-REQ-008 | §4.1 origins/payment; §5.2 corrections | E02/E10/E11/E09-R | T09,T10,T11,T16 | B04,B07 |
 | A1C-REQ-009 | §4.2 scheduler | E02/E10/E11 | T08,T11,T14 | B04,B12 |
 | A1C-REQ-010 | §4.2 damage/rescue | E02/E03/E11 | T08,T13,T14 | B04,B07,B12 |
-| A1C-REQ-011 | §5/appendix A cards | E09/E10 | T09–T13 | B07 |
-| A1C-REQ-012 | §5 off-color mechanics | E08/E09/E10 | T09,T12,T15,T24 | B07 |
-| A1C-REQ-013 | §5 specials/Note | E03/E09/E12 | T09,T11,T24 | B07,B11 |
+| A1C-REQ-011 | §5/appendix A cards; §5.2 corrections | E09 (qualified by E09-R)/E10 | T09–T13 | B04,B07 |
+| A1C-REQ-012 | §5 off-color mechanics; §5.2 corrections | E08/E09 (qualified by E09-R)/E10 | T09–T12,T15,T24 | B04,B07 |
+| A1C-REQ-013 | §5 specials/Note | E03/E09 (qualified by E09-R)/E12 | T09,T11,T24 | B07,B11 |
 | A1C-REQ-014 | §6 shared resolver | E05/E08/E10 | T15,T17 | B10 |
 | A1C-REQ-015 | §6 site policies | E05/E10 | T15–T21,T34 | B04,B05,B06,B08,B10 |
 | A1C-REQ-016 | §7 map kernel | E01/E10 | T02,T03,T04 | B02,B03,B10 |
@@ -948,7 +992,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-026 | §8.1 camps | E03/E04 | T23 | B05,B06,B08 |
 | A1C-REQ-027 | §8.1 keys/chests | E03/E10 | T22,T23,T25 | B04,B05,B08 |
 | A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08 | T25,T29,T33 | B05,B10 |
-| A1C-REQ-029 | §9 profile | E03/E05/E09/E12 | T01,T24,T29,T31 | B07,B11 |
+| A1C-REQ-029 | §9 profile; §1.1 bounded Note disposition | E03/E05/E09 (qualified by E09-R)/E12 | T01,T24,T29,T31 | B07,B11 |
 | A1C-REQ-030 | §9 clock | E02/E07 | T14,T25,T31 | B12 |
 | A1C-REQ-031 | §10 RNG | E01/E05/E08/E10/E11 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
 | A1C-REQ-032 | §11 schema/growth | E05/E08/E12 | T26,T32 | B09,B10 |
@@ -970,25 +1014,26 @@ needed to understand a requirement's state.
 
 All items are **OPEN** in this initial draft. Ranked priority is for approval
 readback, not an implementation sequence or authority to perform new research.
-Dependencies name assigned interfaces for main to reconcile; this author has not
-polled, inspected or waited for sibling results.
+Dependencies name assigned interfaces for main to reconcile. This author has not
+polled or waited for sibling results; only the main-routed supporting review and
+its SI-I1/SI-I2 anchors were read for this bounded update.
 
 | ID / rank | Missing closure, smallest acceptable resolution | Main-owned integration interface |
 |---|---|---|
 | A1C-B01 / 1 | Adopt evidence target/limits in D01; do not silently claim a verified retail build, historical JRE or original-runtime equivalence. Original gameplay remains unexecuted and is not a test pass requirement invented by this draft. | Whole-spec human fidelity decision; E06 preserved |
 | A1C-B02 / 1 | Original initialized map-seed preimage/proof obligation, empty burning set and approved native initialization outcome; independently reconcile the retained finite repair records. Supplied-choice legality is insufficient; no bounded-search miss proves impossibility. | `map-seed` (`spire-gli.2.3.1`), D02 |
 | A1C-B03 / 1 | Exact compositional observable shuffle laws and approved input measure for face missing sets, duplicate-instance board, upgrade prefixes, ordered relic pools including five-pool joint/history/removal/rejection. Three-item uniform64 table is insufficient. | `shuffle-laws` (`spire-gli.2.3.2`), D03 |
-| A1C-B04 / 1 | Finite direct caller/override inventories and transitive legality/free/cost/copy/queue-extra plus draw/discard/exhaust/turn/death/prevention/heal callback records. Specify entered versus pending commit/cancel; close all matrix branches without universal FIFO/drain. | `execution` (`spire-gli.2.3.3`), shared CARD-* and D04 boundary |
+| A1C-B04 / 1 | Finite direct caller/override inventories and transitive legality/free/cost/copy/queue-extra plus draw/discard/exhaust/turn/death/prevention/heal callback records. Specify entered versus pending commit/cancel; close all matrix branches without universal FIFO/drain. Preserve §5.2 SI-I1/SI-I2 constraints in the corrected matrices and obtain exact-revision recheck; no pending author PR is clearance. | `execution` (`spire-gli.2.3.3`), shared CARD-* and D04 boundary |
 | A1C-B05 / 1 | Complete source-specific Neow/shop/boss/event/reward return/commit matrix, already-done Omamori, independent removal/Parasite, Bowl helper, Match input/final pair, empty/depleted selections, deferred keys and successor-ready cutoff. | `continuations` (`spire-gli.2.3.4`), D08 |
 | A1C-B06 / 1 | All 141 relic primary/global consumer records with exact trigger/payload/state/counter/reset/order and acquire/unequip effects; thirteen no-override rows explicitly covered, not only 141/32 counts. | `relic-mechanics` (`spire-gli.2.3.5`) |
-| A1C-B07 / 2 | Integrate paired primary records for appendix A/25 enemy kinds and close the fourteen CARD-* shared records, exact AI/formation/spawn/Fatal laws and per-route attribution. Current primary descriptions and inventories do not certify interaction closure. Each identity must have a record or named specific open fields before whole-spec approval. | Main integrates E09/E11 and reviewed corrections, including supporting Note/Silent review; no author polling |
+| A1C-B07 / 2 | Integrate paired primary records for appendix A/25 enemy kinds and close the fourteen CARD-* shared records, exact AI/formation/spawn/Fatal laws and per-route attribution. Each identity needs a record or named specific open fields. E09-R clears Note only as a bounded supporting draft; old Silent is not factually cleared. SI-I1/SI-I2 corrections and T09–T11 discriminators are recorded here, but their exact corrected author revisions and integrated whole-draft review remain pending. | Main supplies independently rechecked corrected heads and reconciles E09/E11; no author polling or blanket E09 approval |
 | A1C-B08 / 2 | Complete numerical Neow category/exclusion table; 25 event eligibility/branch/payment/risk records; evolving question-room odds; encounter setup integration; merchant stock/prices/restock/removal; chest/reward/potion drop/phase/Bark/transform policies and generated-start certification. Retained local facts stay closed only to their stated bounds; the listed strong weights/composition laws are not still unknown. | Main reconciles acquisition baselines with execution/continuation/relic/source-policy output; no invented defaults |
 | A1C-B09 / 2 | Per-field numeric bounds, actual gameplay cap/overflow and conversion audit; final packed representation covers all legal rows and meaningful ordered growth. int64 alone is not this proof. | `native-contract` (`spire-gli.2.3.6`), D07 |
 | A1C-B10 / 2 | Complete concrete run/combat/continuation/site registry and RNG derivations/scopes; freeze row fields/widths/enums/masks/references/ordering; API/error/reset/replay/info/fault lease/carrier/facade contracts and new identities. Illustrative families/width-six candidate row are not a full schema. | `native-contract` (`spire-gli.2.3.6`), D07/D08 and other lanes' commit interfaces |
-| A1C-B11 / 2 | Creation history/default validation and full stored-card domain, Note live reference/staged/committed outputs and death/fault/reset/replay semantics. No automatic cross-episode inheritance. | `profile-time` (`spire-gli.2.3.7`), D05/D06, supporting review main-owned |
+| A1C-B11 / 2 | Creation history/default validation and full stored-card domain, Note live reference/staged/committed outputs and death/fault/reset/replay semantics. No automatic cross-episode inheritance. E09-R's bounded Note approval does not approve these detached contract choices or close this blocker. | `profile-time` (`spire-gli.2.3.7`), D05/D06, reviewed integration main-owned |
 | A1C-B12 / 1 | Approved deterministic elapsed-time/wait/advance/replay policy and headless update/checkpoint contract; exact Reaper timer outcome still unproved. Portal source threshold does not approve always-on or zero time. | `profile-time` and `execution`, D04 |
 | A1C-B13 / 3 | All T01–T34 remain unexecuted; later approved implementation must supply exact outcomes, generated-route coverage, binding/fault/replay/legacy regressions and evidence. Documentation checks cannot discharge these. | Later coordinated plan/start authorization; not requested by this draft |
-| A1C-B14 / 1 | Independent exact-revision review, integrated contradiction/coverage check, disposition of D01–D08 and accessible human approval of the complete written spec. Then separate coordinated plan review and start authorization. | Main; this draft PR remains review carrier, not approval or merge authority |
+| A1C-B14 / 1 | Independent exact-revision review, integrated contradiction/coverage check (including SI-I1/SI-I2), disposition of D01–D08 and accessible human approval of the complete written spec. E09-R is not review of this consolidated revision or pending author PRs. Then separate coordinated plan review and start authorization. | Main; this draft PR remains review carrier, not approval or merge authority |
 
 The ledger deliberately separates missing evidence (B02–B08), candidate contract
 choices (B09–B12), unexecuted acceptance (B13), evidence target (B01) and review/
@@ -1154,7 +1199,8 @@ Stance/Ambrosia. Off-color Alchemize does not change this boundary.
 ## 18. Draft handoff status
 
 This initial document supplies a whole-scope contract and finite accounting, not
-closed mechanics/API evidence. B01–B14 remain open; D01–D08 are recommendations or
+closed mechanics/API evidence. The bounded Note/Silent disposition update adds no
+whole-spec approval or acceptance pass. B01–B14 remain open; D01–D08 are recommendations or
 choices for main's readback; T01–T34 are unexecuted. The author may correct this
 document only through bounded main-directed follow-ups. Independent review,
 human whole-spec approval, coordinated implementation-plan review and separate
