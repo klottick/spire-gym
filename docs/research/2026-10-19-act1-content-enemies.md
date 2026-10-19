@@ -14,9 +14,10 @@ The owned archive is pinned by SHA-256
 `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`
 (365086855 bytes). Findings are about those bytes; upstream build provenance is
 not established. Retained, previously reviewed enemy source/bytecode is the main
-evidence. Only the previously missing common intent/preview distinction received
-new targeted reconstruction here. No source, executable port, class, helper or
-fixture is published with this document.
+evidence. Initial targeted reconstruction covered the common intent/preview
+distinction; review correction additionally checks Strength and Block application
+bounds. No source, executable port, class, helper or fixture is published with
+this document.
 
 The tables are complete local A0 records, not imports requiring unpublished
 drafts. Source class and member anchors in §11 permit private evidence review;
@@ -43,16 +44,36 @@ Notation and defaults:
   through a queued RollMoveAction. Deterministic continuations do not become new
   independent categorical choices. Source rollMove can still consume an integer
   even when the selected getMove ignores it.
+- Mad and Sneaky Gremlin's repeated attacks are explicit exceptions: they queue
+  SetMoveAction for the next attack, not RollMoveAction or an independent next-move
+  roll. Fat Gremlin's ordinary continuation still uses RollMoveAction.
 
 ### Numeric and random domains
 
 HP, base/output damage, Block, power amounts, counters and stolen-gold ledgers
 are source signed 32-bit integer fields; move IDs are signed bytes. Initial
-domains and finite branch thresholds are given below. Growing Strength, histories,
-Guardian quotas and generated Status counts must not be truncated to invented
-small gameplay caps. Native numeric/allocation exhaustion is administrative, not
-defeat, skipped damage or fabricated escape. This document does not select a new
-native width or import Java overflow as intended gameplay.
+domains and finite branch thresholds are given below. Source-defined numeric
+**application bounds** are distinct from field width and resource exhaustion:
+
+- StrengthPower's constructor, stackPower and reducePower clamp the resulting
+  amount to **[-999,999]**; stacking/reduction apply their addition/subtraction
+  before that clamp. The stated +Str payload remains the requested amount, not
+  a pre-clipped move definition. For example, Strength999 with an accepted +3
+  request remains999, not1002, through this application path.
+- AbstractCreature.addBlock floors the processed gain, adds it to current Block,
+  then caps currentBlock at 999 for every creature, including enemies. The nearby
+  player-only achievement branch does not guard this cap. This is an upper cap
+  at this helper, not a claim of a universal minimum-zero clamp or that every
+  Block field write uses it; requested +B is not rewritten to the headroom.
+
+These are not caps on all powers, HP, histories, Guardian quotas or generated
+Status counts. Do not impose invented small caps on other growing counters.
+The helper bounds do not prove that every intermediate field value or saturated
+enemy state is naturally reachable, nor close all callback/modifier paths.
+Source saturation is gameplay behavior; native numeric/allocation exhaustion
+remains administrative, never defeat, skipped damage or fabricated escape. This
+document does not select a new native width or import Java overflow as intended
+gameplay.
 
 For local AI, let `r` be uniform on integers 0–99; a primary interval's mass is
 its integer count/100. A fair Boolean has mass 1/2. Chance-float secondary tests
@@ -96,9 +117,9 @@ scoped move payload. Shared reaction and transition definitions follow the table
 | Looter / `Looter` | `U[44,48]`; Thievery15, ledger0, attack count0 | **1 / ATTACK**, Mug: hit(10), separate theft15. **4 / ATTACK**, Lunge: hit(12), separate theft15. **2 / DEFEND**, Smoke Bomb: +B6. **3 / ESCAPE**, Escape. | Two Mugs, then one fair Smoke/Lunge choice; Lunge→Smoke→Escape. Separate accounting in §6. |
 | Fungi Beast / `FungiBeast` | `U[22,28]`; Spore Cloud2 | **1 / ATTACK**, Bite: hit(6). **2 / BUFF**, Grow: +Str3. | Bite0–59, Grow60–99; third Bite→Grow, consecutive Grow→Bite. Final-death guard in §4. |
 | Fat Gremlin / `GremlinFat` | `U[13,17]`; none | **2 / ATTACK_DEBUFF**, Smash: hit(4), then Weak1. | 2 repeatedly in ordinary Gang; no A17 Frail. Conditional escape99 is not an ordinary member-death reaction (§4). |
-| Mad Gremlin / `GremlinWarrior` | `U[20,24]`; Angry1 | **1 / ATTACK**, Scratch: hit(4). | 1 repeatedly; Angry's damage-event predicate is not an Attack-play predicate. Conditional escape99 as §4. |
+| Mad Gremlin / `GremlinWarrior` | `U[20,24]`; Angry1 | **1 / ATTACK**, Scratch: hit(4). | 1 repeatedly via queued SetMoveAction, not RollMoveAction; Angry's damage-event predicate is not an Attack-play predicate. Conditional escape99 as §4. |
 | Shield Gremlin / `GremlinTsundere` | `U[12,15]`; none | **1 / DEFEND**, Protect: +B7 to resolution-selected ally, otherwise self. **2 / ATTACK**, Shield Bash: hit(6). | Initial Protect even if alone; following selection uses takeTurn's living-actor count. Once Bash, continues Bash. Resolution-time targeting in §4; conditional escape99 there. |
-| Sneaky Gremlin / `GremlinThief` | `U[10,14]`; none | **1 / ATTACK**, Puncture: hit(9). | 1 repeatedly in ordinary Gang; no Thievery/gold ledger. Conditional escape99 as §4. |
+| Sneaky Gremlin / `GremlinThief` | `U[10,14]`; none | **1 / ATTACK**, Puncture: hit(9). | 1 repeatedly via queued SetMoveAction, not RollMoveAction, in ordinary Gang; no Thievery/gold ledger. Conditional escape99 as §4. |
 | Gremlin Wizard / `GremlinWizard` | `U[21,25]`; charge counter1 | **2 / UNKNOWN**, Charging: no damage, increment charge. **1 / ATTACK**, Ultimate Blast: hit(25), reset charge0. | Initial Charging twice then Blast; thereafter three Chargings per Blast. At charge3 select Blast, not an independent random choice. Conditional escape99 as §4. |
 
 Louse HP is rolled before constructor Bite. Curl Up is a separate HP-stream roll
@@ -550,6 +571,16 @@ player HP changes; Inferno pile/checkpoint distinctions; all three elites × fou
 burning branches and Insect rounding. These are specification obligations, not
 tests asserted to have passed.
 
+**UNEXECUTED numeric/application discriminators:** Strength999 with an accepted +3
+request remains999; Strength−999 with an accepted −1 request remains−999;
+construction outside either Strength endpoint clamps at that endpoint. Block995
+with processed gain7 ends at999, and Block999 with a positive processed gain
+remains999, for an enemy as well as the player. Fractional processed gain is
+floored before addition and capping. Preserve the original requested +Str/+B
+amounts separately from applied state; test modifier/prevention paths separately.
+These supplied-state future cases do not certify natural reachability or execute
+gameplay. They do not cap HP, other powers, histories or Guardian quotas.
+
 ## 11. Source-claim ledger and actual verification
 
 The principal retained evidence collection is
@@ -564,6 +595,7 @@ These are evidence locators, **not broken public hyperlinks or required imports*
 |---|---|
 | All25 HP/setup/payload/move-ID/intent records | Named `monsters.exordium` classes' constructors, prebattle, getMove and takeTurn; retained static reconstructions, with earlier specifically reviewed bytecode for material comparisons/order |
 | Integer supports, Louse setup, finite float masses | `AbstractMonster.setHp`, game `Random.random/randomBoolean`, `RandomXS128.nextInt/nextLong/nextFloat/nextBoolean`; retained source plus reviewed bounded-rejection/grid bytecode |
+| Strength/Block application bounds and Mad/Sneaky continuation exceptions | `StrengthPower` constructor offsets27–58, stackPower68–99, reducePower45–76; `AbstractCreature.addBlock` offsets187–235; retained `GremlinWarrior.takeTurn` and `GremlinThief.takeTurn` SetMoveAction producers, with `GremlinFat.takeTurn` RollMoveAction contrast; personally read source/bytecode, not runtime |
 | Selection history and conditional AI | `AbstractMonster.setMove/lastMove/lastTwoMoves/rollMove`; JawWorm/SlaverRed getMove and named slime/Louse/Slaver/Fungi/Nob getMove; reviewed source and named Jaw/Red/history offsets |
 | Reactions, wake, split and Guardian | Named enemy damage/changeState/takeTurn; CurlUp/Angry/Anger/SharpHide/SporeCloud/Ritual powers; ApplyPowerAction, Artifact, SpawnMonsterAction, SuicideAction, MonsterGroup.queueMonsters; retained source and selected bytecode, not runtime |
 | Looter accounting and terminal limits | `Looter.takeTurn/die`, its two anonymous ledger actions, `DamageAction.update/stealGold`, room stolen-reward/all-escaped handling; reviewed follow-up caller and manager/animation paths |
@@ -575,9 +607,9 @@ These are evidence locators, **not broken public hyperlinks or required imports*
 Actual checks in this lane: all four archive/tool identity pins checked before
 and after static inspection; **84** exact unique historical ZIP entries matched
 their recorded sizes/hashes; **27** retained enemy source files (25 classes plus
-two Looter anonymous actions) were inventoried. New work extracted one unique
-AbstractMonster class and ran one javap plus three targeted CFR selections, all
-exit0 with Java option injection variables removed. This is evidence reuse,
+two Looter anonymous actions) were inventoried. Initial inspection extracted one
+unique AbstractMonster class and ran one javap plus three targeted CFR selections,
+all exit0 with Java option injection variables removed. This is evidence reuse,
 not a new all-class or all-transitive scan.
 
 Six private stdlib tests passed, covering pin mismatch, missing/duplicate ZIP
@@ -591,6 +623,17 @@ checks are recorded privately. An initial inventory-check attempt included the
 separate event table and was rejected; the corrected check scopes the25 kind
 records explicitly. No product build/test, game probe, benchmark or training ran
 here.
+
+**Review correction EN-R1/EN-R2:** Strength's resulting-amount clamp and the
+all-creature addBlock cap are now explicit without changing requested payloads;
+Mad/Sneaky repeats explicitly override the RollMove default. The full independent
+report and actual retained source/bytecode were read before adopting either fix.
+Correction inspection checked all four pins before/after, extracted two exact
+unique classes, and ran two javap calls plus one targeted addBlock CFR selection,
+all exit0 with Java injection variables stripped. Three document regression checks
+failed before correction and passed afterwards; the original six helper tests
+also passed. These are document/helper checks only. Initial artifacts and failure
+logs remain preserved; EN-U1–EN-U6 and independent exact-head recheck remain open.
 
 The documented current-wave baseline exception concerns only the two already
 reproduced CUDA-environment test failures in documentation-only integration;
