@@ -159,6 +159,35 @@ ID-specific upgrade maximum remain an explicit integration dependency (B09/B10),
 not invented source facts. No user decision is needed to select enum widths or
 alias handling.
 
+The executable consumer contract is `StoredCardCatalogV1`, supplied by the
+main-routed accepted catalog/numeric producer; it is not defined by a second local
+card list. It is an immutable versioned manifest with `catalog_revision`,
+`source_archive_sha256`, and finite `rows`. Each row has exactly `canonical_id`,
+`accepted_aliases` (including canonical spelling), `permanent_instance`,
+`note_candidate`, `removable`, `upgrade_kind` (`none`, `once`, `repeatable`),
+`max_upgrade_count` (nullable only for a genuinely unbounded source law), and
+`checked_mutation_domain` (source member(s), widths, checked read/write/overflow
+predicate). Duplicate canonical IDs/aliases or unknown row fields reject.
+
+The consumer validates before episode mutation: (1) schema/revision and archive
+digest match the accepted routed producer receipt; (2) only a listed alias
+normalizes to its canonical ID, and unknown IDs, shared aliases, or noncanonical
+input where canonical encoding is required reject; (3) `permanent_instance`,
+`note_candidate`, and `removable` are all true; count is nonnegative and signed-i32
+representable; and the row law is exact (`none` => 0, `once` => 0/1,
+`repeatable` => the published finite domain or published checked unbounded law);
+(4) each replayed mutation satisfies that row's checked arithmetic domain, with no
+wrap, saturation, clamp, partial replay, or fallback; (5) the canonical row set
+equals the §3.2 semantic whitelist and every alias/eligibility/upgrade/arithmetic
+field equals its routed producer receipt. Missing, extra, duplicate, changed, or
+stale rows reject the whole addressed batch before RNG/identity/time advancement.
+Negative controls are missing/stale receipt, omitted/extra ID, duplicate row or
+alias, alias collision, temporary/status/nonremovable row, wrong eligibility,
+forged upgrade law/count/max, signed-i32 overflow, and arithmetic-domain violation;
+all reject atomically. These are contract controls, not executed catalog tests.
+Literal rows and arithmetic limits remain unbound until the accepted receipt is
+routed; this defines the equality predicate without inventing that data.
+
 ### 3.3 In-run Note ordering is unaffected
 
 Source Note Take calls the incoming card's obtain hooks, inserts it into the
@@ -367,7 +396,100 @@ resources are not duplicated in combat overlay; stale transient objects do not
 survive. `SuccessorStateV1` is owned by the Rust run and inaccessible as a policy
 observation except for its permitted public projection.
 
-### 6.3 Phase visibility and cutoff
+### 6.3 Finite construction, carry, and reset matrix
+
+This matrix makes the successor constructor auditable without claiming opaque
+source pools or rejected RNG proposals are public state. `Static` is immutable
+ruleset/content data, not a per-run depleted pool; `Rebuild` creates/reset the
+successor's run-owned instance; `Carry` preserves the same run-owned value/identity.
+Source anchors are static inspection of the pinned archive's
+`AbstractDungeon`/`TheCity` initialization and transition-setup bytecode. No class
+initializer or game runtime was executed.
+
+| Component / exact fields | Owner / input | Transition disposition | Initial value/domain at `Act2Ready` | Visibility |
+|---|---|---|---|---|
+| Player core: character/rules, HP/maxHP, gold, deck identities/card IDs/upgrades/misc/bottles, relic identities/counters/charges, potion slots/capacity, keys | Existing player/run | Carry post-boss committed values and same player identity; only selected normal transition healing mutates resources. | Exact post-effect values; never synthesize deck/relic/potion replacement. | Successor private. |
+| Progression: act, global floor, visited/reward/Neow history, three boss-seen sets, remaining one-time events, entry reference | Run owner | Carry run-owned histories; advance act/floor; install Act2 entry. Do not clear history on dungeon replacement. | `act=2`, first Act2 entry floor 17; prior committed history plus Act1 commits. | Private. |
+| Transition scratch: `pathX`, `pathY`, event/shrine lists, normal/elite encounter lists, boss list | Shared transition owner | Clear old lists and paths; TheCity/Act2 producer repopulates. | Empty during transition gap, then Act2-owned values before ready. | Private. |
+| Event-helper question probabilities | Event producer | Transition setup calls `resetProbabilities`; Act2 event producer initializes its own state. | Exact serialized initial representation is an accepted producer import, not guessed as zero. | Private. |
+| `AbstractRoom.blizzardPotionMod` | Shared transition owner | Explicitly set integer `0` at shared transition setup; does not refill player belt. | `0`. | Modifier private; owned belt only under normal observation. |
+| Act2 level params: shop/rest/treasure/event/elite; chest sizes; relic tier chances; colorless rare; card-upgrade | TheCity ruleset producer | Rebuild from Act2 A0 constructor. | Binary32 `.05/.12/0/.22/.08`; chest `50/33/17`; relic `50/33/17`; colorless `.3`; A0 upgrade `.25` (`ascension < 12`). Zero ordinary treasure chance does not remove fixed map chests. | Inputs private; realized map only. |
+| Normal/elite queues and boss candidates | Encounter producer + carried boss history | Clear Act1 lists, then Act2 generation creates 2 weak, first strong, 12 more strong, 10 elite entries; initialize bosses from Act2 seen set. Derive first-strong exclusions from actual Act2 weak result, never Act1 last encounter. | Entries/weight definitions §5.2; order/cursors private. | Private. |
+| Ordinary events, repeatable shrines, remaining one-time events | Event producer / progression | Rebuild ordinary and shrine lists; carry live remaining one-time set without restoring consumed IDs; evaluate eligibility only at future selection. | 13 ordinary and six shrine IDs §5.2 plus exact remaining one-time history. | Private including order/future eligible subset. |
+| Card pools: common/uncommon/rare/colorless/curse; static source definitions | Card-content producer + reward history owner | Clear/rebuild run-local rarity groups from character/content definitions; do not carry Act1 group depletion. Preserve reward/pity history separately only as accepted native card producer defines it. | Five groups exist; membership is accepted content manifest. Offer-history fields/domains pending accepted card producer schema. | Pools/history hidden; only generated offers shown. |
+| Card-rarity history fields `cardBlizzStartOffset`, `cardBlizzRandomizer`, `cardBlizzGrowth`, `cardBlizzMaxOffset` | Run-owned reward-history producer | Source `dungeonTransitionSetup` does not write these; the source full-run reset sets the randomizer from the start offset, so an Act1->Act2 transition must not silently zero/reinitialize the live history. Native policy's matching history representation/initial values is owned by the accepted card-reward producer. | Source representation is four signed Java `int` fields; exact native domains and selected-policy law must be provided by the accepted card producer. Carry current Act1 history at this handoff unless that accepted law explicitly establishes a different selected-native representation. | Private; no hidden pity/cursor in final observation. |
+| Potion catalog and transition modifier | Potion producer + carried player | Reinitialize available catalog for Ironclad; modifier set to `0` above; retain current belt exactly. | Belt/capacity equal carried PlayerCore; catalog rebuilt in Act2 context. Any other probability state must be initialized by named potion producer, not an unnamed “normal value.” | Belt legal observation; pool/modifier hidden. |
+| Relic pools: common/uncommon/rare/shop/boss; owned-ID exclusions | Relic producer + carried relic list | Rebuild all five run-local pools for Act2 context and current class; apply exclusions derived from carried owned IDs. The source method clears/repopulates/shuffles collections; do not carry Act1 depleted pools or confuse them with owned relics. | Five role collections; exact members and removal/depletion law pending accepted relic/content producer. Offer consumption mutates run-local pool, never static catalog. | Pools/order/depletion hidden; acquired relics normal. |
+| Shop visit, purge/removal history, stock/price | Economy producer + progression | No Shop room/inventory at construction. Carry run-owned purge/removal history and gold; create stock/prices/visit state only on actual shop entry. | No shop, stock, or prices; visit-local state absent. Exact cross-run history fields pending accepted economy/native schema. | No shop fields before visit. |
+| Act2 map, burning marker, entry node | Map producer | Build and validate complete Act2 map; install fresh `(x=0,y=-1)` node with `EmptyRoom`; this is not room entry. | Coherent validated map; empty current node, no Act2 room entered. | Private successor; not Act1 final. |
+| Native random provenance | Accepted RNG producer | Initialize role states from reviewed native producer; never source Java objects/cursors. | Exact schema, role set, serialized state are pending routed RNG import. | Private. |
+| Phase/work | Handoff owner | Ready only after required child and every named producer validator succeeds. | `Act2Ready`; no Act1 continuation/screen/action, Act2 room entry/menu/candidate/decision. | Act1 terminal projection has zero candidates and no successor fields. |
+
+Construction has multiple stages: shared transition setup clears listed
+transition-local lists and sets the room potion modifier; TheCity installs A0
+chance parameters, generates its map, and creates the empty entry node; the Act2
+state producer must then materialize encounter/boss/event/shrine/card/potion/relic
+state and validate coherence. The accepted native interface must freeze the order
+among private producer families. In particular, source `initializeCardPools`
+rebuilds run-local rarity groups, not immutable static card definitions; relic
+pool reset is separate from the player's owned relic list. The potion modifier's
+actual reset value is zero; other potion-producer state is a separate named import.
+
+### 6.4 Concrete child and transition completion protocol
+
+This is the finite handoff-side interface. Content callback/site/effect values
+remain pending execution import; this protocol does not reimplement that lane.
+
+`ParentChildCheckpointV1` has exactly: `checkpoint_id`, `parent_id`, nullable
+`child_id`, `source_owner` (boss reward, boss relic, relic child, transition
+effect), `kind` (choice, automatic effect, reward row, nested child, transition
+effect), `requiredness` (mandatory-to-resume or optional), `status`, `commit_id`,
+nullable `result_code`, nullable `resume_checkpoint_id`, and `once_key`. IDs are
+episode-local, not content IDs. Statuses are `Pending`, `Offered`, `Committed`,
+`Skipped`, `NoChoice`, `Resolved`, `Resumed`, or terminal `Faulted`. `Committed`
+requires a commit ID; `Skipped` is legal only for optional/skippable work;
+`NoChoice` requires producer declaration; `Resolved` requires its producer result
+and every mandatory descendant resolved; `Resumed` requires exactly one parent
+resume at the named checkpoint. `once_key` is unique per effect/commit/resume;
+duplicate application/resume faults. Parent/child links are acyclic, and nested
+work names the suspended parent checkpoint.
+
+`ResolvedTransitionEffectsV1` has ordered `effects`, each with `effect_id`,
+`once_key`, `consumer_site`, `requiredness`, `status`, `commit_id`, `result_code`,
+and optional `child_checkpoint_id`, plus `next_act`, `successor_build_id`, and
+`producer_revision`. Statuses are `NotApplicable`, `Pending`, `Committed`,
+`Resolved`, `Faulted`. Applicable effects transition Pending -> Committed ->
+Resolved exactly once; nonapplicable effects are explicitly `NotApplicable`; child
+work must resolve before its effect resolves. Exact site/effect IDs, code set and
+payload/result codes are `PendingImport(execution producer revision)`, not
+invented. The accepted producer must provide an exhaustive finite set including
+transition heal/relic hooks and selected immediate causal effects; unknown
+applicable work blocks completion.
+
+The handoff may enter `DungeonTransition` only when each boss reward row has
+explicit `Committed`, `Skipped`, or producer-authorized `NoChoice`; obtains'
+children resolve; the chest has exactly three offered/consumed relic identities
+and explicit take/skip/no-pick; selected relic mandatory descendants resolve; and
+each suspended parent resumes exactly once. Optional descendants may be skipped;
+offered rows are not implicitly claimed. `Act2Ready` is true iff simultaneously:
+(a) death/escape/fault has not won terminal arbitration; (b) boss reward/chest
+predicates above hold; (c) mandatory child work is resolved and each suspended
+parent resumed once; (d) each applicable transition effect is resolved exactly
+once and all others are explicitly nonapplicable; (e) destination is Act2 with
+same carried player identity; (f) map, empty node, queues, event/shrine/card/
+potion/relic/shop/history and RNG components pass their producer validators; and
+(g) no Act1 screen/continuation/action/child/effect remains, and no Act2 room
+entry/menu/action has begun. Collection emptiness is neither necessary nor
+sufficient: optional rows can remain as resolved skip provenance; an empty
+collection missing a required result is not ready.
+
+Terminal outcomes are exclusive and set once: `Death` => -1, terminated;
+`Act1CompleteAct2Ready` => +1, terminated; `Escape` or `AdministrativeFault` =>
+0 with no success final. Fault preserves committed prefix and does not fabricate a
+successor. This defines consumer record shape/predicate, not evidence that the
+execution producer has supplied its exact site/effect rows.
+
+### 6.5 Phase visibility and cutoff
 
 Before `Act2Ready`, the policy may observe only the current Act1 decision data
 per A1C-REQ-033; no full profile object, Note ID, boss pool, hidden Act2 map,
@@ -415,21 +537,30 @@ do not claim final binding before main routes accepted revisions:
   runSeed+200 map parity, source Java shuffles, or exact source cross-system
   cursor relations. Bind the Act2 map constructor's actual reviewed input/output
   after route; before that route this is explicitly **I**, not resolved.
-* **Execution import (I):** `ResolvedTransitionEffectsV1` and
-  `ResolvedParentChildCheckpointV1` from the named `execution` lane, binding
-  actual boss reward/skip, relic child, effect consumer/resume, death/fault,
-  semantic immediate-causal settlement and no-unrelated-drain rules. This
-  document fixes the handoff outcome/order contract; it does not reimplement
-  every content callback or settle another lane's incomplete transitive mechanics.
+* **Execution import (I):** exact accepted producer revision must instantiate
+  `ParentChildCheckpointV1` and `ResolvedTransitionEffectsV1` under §6.4, binding
+  the exhaustive legal site/effect/result-code set and mapping each content
+  callback's requiredness, commit, child, and resume into those fields. The record
+  shape, statuses, once-only rules, and `Act2Ready` predicate are fixed here;
+  concrete effect IDs/sites/payloads, callback-to-checkpoint rows, and producer
+  revision remain pending until an accepted execution result is main-routed. This
+  author does not reimplement every content callback or settle that lane's causal
+  mechanics.
 * **Catalog/numeric import (I):** exact legal stored-card ID aliases/upgrade
   domains and source member/domain/read/write/overflow facts from `catalog-numeric`,
   then routed into native contract dictionary. The profile grammar above specifies
   semantic set/exclusions, but does not make a partial accepted card crosswalk a
   full manifest.
-* **Native schema owner:** `CreationProfileV1`, `TransitionCheckpointV1`, and
-  `SuccessorStateV1` are the concrete producer records for the native owner to
-  consume. This author does not claim packed encoding, final property/visibility
-  dictionary, private core codec, hash, final API names, or restoration import.
+* **Native schema owner:** consumes `CreationProfileV1`, `TransitionCheckpointV1`,
+  `ParentChildCheckpointV1`, `ResolvedTransitionEffectsV1`, and `SuccessorStateV1`.
+  The required producer-to-native projection is: profile fields are validated
+  inputs only; checkpoint and successor are run-private; only the current legal
+  Act1 observation is policy-visible; terminal `final_obs` is detached Act1 state
+  with zero candidates and no successor/profile/Note hidden fields; successor
+  stays private for continuation. Exact native property names/types/widths,
+  visibility dictionary, packed encoding, codec/hash, API names, and restoration
+  format must be supplied by a concrete accepted native schema revision and remain
+  pending that handoff. This projection does not claim that revision exists.
 
 The open integration work is exact member/catalog joins, final native enum codes
 and packed projection, map/RNG constructor binding after reviewed deliveries,
@@ -444,10 +575,10 @@ guessed here.
 |---|---|---|
 | A1C-REQ-028: task reward and successor cutoff | Exact phase/terminal ordering; +1 only after resolved initialized Act2 pre-first-decision; −1 actual death; otherwise 0; no truncation/Act2 action. | Execution callback join and native API binding; future T25/T33 unexecuted. |
 | A1C-REQ-029: profile/history | Exact `CreationProfileV1`, experienced preset, independent overrides/reset, fixed start, Note minimum record, discovery/Neow separation and no inheritance. | Literal complete card/upgrade manifest and native codec review; B11 not declared closed. |
-| B05 successor/children | Ordered boss combat/reward/chest/relic-child/proceed/main-transition checkpoints, required nested completion and source-specific transition state. | Cross-lane exact callback/continuation composition and source-reachability residuals; no generic work-drain promise. |
-| B10 native state/visibility | Concrete checkpoint/successor components, owner/reset/visibility and private-vs-public boundary. | Complete native dictionaries/packed fields/visibility/site/RNG contracts and final hash remain with native owner. |
-| B11 stored profile | Versioned profile grammar, legal-set semantics, stored fields, validation and independent reset. | Full literal card and per-card upgrade-law equality is explicitly waiting for reviewed catalog input, not disguised as complete. |
-| Act2 initialization | Exact listed Act2 setup domains and source-informed initialization ordering, state carry/reset table, hidden cutoff. | RNG/map producer exact reviewed bindings and full Acts2 implementation are not claimed; no Act2 gameplay. |
+| B05 successor/children | Ordered checkpoints; concrete child/effect record fields, legal statuses, once-only resume/commit, and necessary/sufficient `Act2Ready` predicate. | Exact content callback/site/effect/result-code mapping and accepted execution producer revision; no generic work-drain promise. |
+| B10 native state/visibility | Successor component construction/carry/reset matrix and required private/public projection are explicit. | Exact native property/type/width dictionary, packed codec/hash, API and restoration schema remain pending a concrete accepted native revision; RNG state schema remains pending RNG route. |
+| B11 stored profile | Versioned profile grammar, validation algorithm, exact manifest equality predicate/negative controls, independent reset. | Literal card/alias/upgrade/arithmetic rows remain pending accepted catalog/numeric producer receipt; no false local catalog. |
+| Act2 initialization | Source-anchored list resets and level values; successor owner/carry/rebuild/initial-domain matrix; transition potion modifier explicitly 0; hidden cutoff. | Exact probability/event serialization and economy/card/relic/potion native producer fields, RNG/map producer bindings remain pending accepted routed schemas; no Act2 gameplay. |
 
 Future A1C-T01, T24, T25, T29, T31, T33 and T35 remain unexecuted acceptance
 cases; this is specification work, not gameplay evidence. Whole-spec independent
