@@ -729,7 +729,7 @@ The keys below use `relic.` plus lowercase ASCII snake_case class token; exact c
 
 ### 2.9 Power IDs, source aliases, and direct owner-class use
 
-Rows are pinned-JAR power classes with a compile-time `POWER_ID`/`ID`, statically referenced by constructor instruction or exact source-ID string in enumerated Act 1/card/relic/potion/enemy classes. Keys are `power.` + snake_case nested-or-top-level class path; owner list is the direct source use evidence, not a reachability/offer promise. Public emission still requires an accepted producer and actual visible power instance.
+Rows are pinned-JAR power classes with a compile-time `POWER_ID`/`ID`, statically referenced by constructor instruction or exact source-ID string in the enumerated card/relic/potion/enemy/event source-owner classes. Keys are `power.` + snake_case nested-or-top-level class path; owner list is the direct source use evidence, not a reachability/offer promise. Public emission still requires an accepted producer and actual visible power instance.
 
 | Native key | Exact power ID | Exact class alias | Direct owner families/classes |
 |---|---|---|---|
