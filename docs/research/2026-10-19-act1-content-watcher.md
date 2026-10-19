@@ -146,7 +146,7 @@ Clause order identifies local requests, not a universal drain-between-clauses la
 | [Judgment](https://slayspiredb.com/sts1/cards/judgment) | S; enemy; 1 | — | If action-time target HP ≤30/40 and target is a monster, request Instant Kill. Source spelling `Judgement`. Not a 30/40-damage Attack. |
 | [Lesson Learned](https://slayspiredb.com/sts1/cards/lesson-learned) | A; enemy; 2 | E | Attack for 10/13; qualifying fatal branch upgrades one eligible permanent-deck instance immediately. HEALING tag excludes it from healing-excluding generators. |
 | [Master Reality](https://slayspiredb.com/sts1/cards/master-reality) | P; self; 1/0 | — | Enable route-specific creation upgrades; not retroactive upgrading of existing combat/permanent cards. Multiple routes and copy paths are not interchangeable. |
-| [Omniscience](https://slayspiredb.com/sts1/cards/omniscience) | S; self; 4/3 | E | Select one draw-pile instance; set its Exhaust flag, remove it, enqueue it and one stat-equivalent purge-on-use copy. Both requests use autoplay/ignore-total; section 6. |
+| [Omniscience](https://slayspiredb.com/sts1/cards/omniscience) | S; self; 4/3 | E | Select one draw-pile instance; set its Exhaust flag, remove it, enqueue it and one stat-equivalent purge-on-use copy. Each child queue request is `randomTarget=true, immediateCard=false, autoplayCard=true, ignoreEnergyTotal=false`; section 6 distinguishes the later derived card state. |
 | [Ragnarok](https://slayspiredb.com/sts1/cards/ragnarok) | A; random; 3 | — | Enqueue 5/6 random-enemy attack actions, each with base damage 5/6. Each action owns its target/damage calculation; not one target or combined hit. |
 | [Scrawl](https://slayspiredb.com/sts1/cards/scrawl) | S; self; 1/0 | E | Request enough draws to fill a ten-card hand. Completed draws still depend on draw prevention, available cards and intervening draw callbacks. |
 | [Spirit Shield](https://slayspiredb.com/sts1/cards/spirit-shield) | S; self; 2 | — | At `use`, count hand instances other than this object; base Block = count ×3/4; apply Block modifiers once, request one gain. Not Dexterity once per card. |
@@ -310,16 +310,39 @@ knowledge. Empty draw finishes without a selection. After selection it marks the
 original Exhaust, removes it from draw/souls, and enqueues original then a
 **stat-equivalent copy** with purge-on-use. Those requests are assembled before
 either child's later resolution; do not replace them with “resolve the first
-fully, then decide whether to construct the second.” Nested modal choices still
-suspend the actual execution path; terminal/turn-ending arbitration is not closed.
+fully, then decide whether to construct the second.” Stat-equivalent copy makes a
+fresh UUID; it is not the separate same-instance copy operation. Each NewQueue
+request independently captures current energy **when that NewQueue action
+executes**, and specifies `randomTarget=true, immediateCard=false,
+autoplayCard=true`. NewQueue constructs a CardQueueItem with
+`ignoreEnergyTotal=false`; it passes the captured energy, random-target flag and
+autoplay flag through. Thus the queue record is exactly
+`autoplayCard=true, ignoreEnergyTotal=false` for both children—not the
+`true/true` ignore-total/autoplay queue route used by repeat powers.
 
-The queued child plays use autoplay and ignore-energy-total, without spending the
-remaining total as an ordinary hand payment. They are not a universal legality
-bypass. Five repeat powers (Double Tap, Burst, Amplify, Duplication, Echo) copy
-energy-on-use but explicitly set both flags true; mixed origins retain separate
-capture/copy/cleanup rules. Signature Move's inspected `canUse` first checks the
-shared gate, then rejects another Attack object in hand even if that object is
-unplayable. Its result depends on the actual selected instance/copy and origin.
+When GameActionManager later processes each item, it first assigns the card's
+`isInAutoplay` from `autoplayCard`, then runs `canUse`. Only after that gate passes
+does it assign `energyOnUse` from the captured queue field and derive the distinct
+card field `ignoreEnergyOnUse=true` from `isInAutoplay`; otherwise that card field
+would follow the queue's `ignoreEnergyTotal`. The manager's derived per-card value
+does not rewrite the queue flag. `AbstractPlayer.useCard` uses autoplay for its
+autoplay/free-payment path, while captured X remains a separate amount and the
+original remains marked Exhaust. This supports the ordinary no-energy-payment
+conclusion, but not a false queue provenance claim or a universal legality bypass.
+Nested modal choices still suspend the actual execution path; terminal/turn-ending
+arbitration is not closed.
+
+The Omniscience queued child plays are autoplayed without ordinary hand-energy
+payment, but their queue items have `ignoreEnergyTotal=false`. The manager derives
+the card's distinct `ignoreEnergyOnUse=true` only after assigning autoplay and
+passing `canUse`; this later card field is not the queue provenance flag. By
+contrast, the five repeat powers (Double Tap, Burst, Amplify, Duplication, Echo)
+copy energy-on-use and explicitly enqueue both queue flags true:
+`ignoreEnergyTotal=true, autoplayCard=true`. Preserve this source distinction.
+Autoplay is not a universal legality bypass. Signature Move's inspected `canUse`
+first checks the shared gate, then rejects another Attack object in hand even if
+that object is unplayable. Its result depends on the actual selected instance/copy
+and origin.
 
 Crush Joints, Follow-Up and Sanctity action predicates require at least two combat
 history entries and inspect entry `size−2`, expecting the current play at the end;
