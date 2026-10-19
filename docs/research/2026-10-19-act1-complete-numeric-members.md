@@ -147,10 +147,10 @@ call/owner qualified; no generic policy substitutes for them.
 | table.5.public_position | AbstractPlayer.relics list index | derived-i64; nonnegative actual inventory ordinal | always | Run/player/global owner member; its source lifecycle/writers govern changes and reset. Read the live owner at the observation checkpoint; no bulk-zero or universal cap. P-E: order is container order, not catalog order |
 | table.5.counter | AbstractRelic.counter:I | i32; full signed i32 including owner-specific sentinels; no universal clamp | conditional | Instance member/read accessor as named; constructor and each writer belong to that concrete owner. Preserve signed value and source callback timing; no universal clamp/reset. F: targeted javap field descriptor; individual relic laws remain source-owner-qualified |
 | table.5.used | AbstractRelic.usedUp:Z | bool; 0/1 | always | Instance member/read accessor as named; constructor and each writer belong to that concrete owner. Preserve signed value and source callback timing; no universal clamp/reset. F: targeted javap field descriptor |
-| table.6.belt_slot | AbstractPotion.slot:I | i32; actual signed source slot index; empty real slots retain their slot ordinal | always | Instance member/read accessor as named; constructor and each writer belong to that concrete owner. Preserve signed value and source callback timing; no universal clamp/reset. F: targeted javap field descriptor |
-| table.6.occupied | AbstractPlayer.potions list entry presence | derived-bool; 0/1; no padding beyond source potionSlots | always | Run/player/global owner member; its source lifecycle/writers govern changes and reset. Read the live owner at the observation checkpoint; no bulk-zero or universal cap. P-E: container occupancy is derived from list entries |
-| table.6.potion_code | AbstractPotion.ID:Ljava/lang/String; | source-key; exact source factory ID → potion key; absent only for empty actual slot | conditional | Instance member/read accessor as named; constructor and each writer belong to that concrete owner. Preserve signed value and source callback timing; no universal clamp/reset. F: targeted javap field descriptor; 33 eligible records are enumerated in the linked economy/potion source record; literal ID-to-key equality is not yet imported into this candidate |
-| table.6.potency | AbstractPotion.potency:I then getPotency():I | i32; accessor result as source int; Sacred Bark multiplication/overflow follows accessor; no universal positive bound | conditional | Instance member/read accessor as named; constructor and each writer belong to that concrete owner. Preserve signed value and source callback timing; no universal clamp/reset. F: targeted javap descriptor + potion source record; no effect when potion absent |
+| table.6.belt_slot | AbstractPotion.slot:I; setAsObtained(int) | i32; superclass constructor default `-1`; acquisition assigns actual source slot; removePotion restores a `PotionSlot` at that ordinal | always | Concrete owners/shared lifecycle are in accepted E26 potion-law table; occupancy/order is `AbstractPlayer.potions`, not padded synthetic indices. Empty placeholders carry slot only. F: retained AbstractPotion/AbstractPlayer bytecode; private v5 receipt |
+| table.6.occupied | AbstractPlayer.potions list and `PotionSlot` subtype | derived-bool; occupied iff actual list entry is not an empty `PotionSlot`; preserve actual list order and empty ordinal | always | Obtain finds an actual empty slot, calls `setAsObtained(slot)` and replaces it; removal writes `PotionSlot(slot)` back; slot growth appends actual placeholders. No absent-ID/potency object is fabricated. F: retained AbstractPlayer potion lifecycle bytecode |
+| table.6.potion_code | AbstractPotion.ID:Ljava/lang/String; | source-key; exact constructor ID → canonical key for occupied concrete potion; absent for empty `PotionSlot` | conditional | Exact 33 eligible Ironclad ID/class mappings and nine other-character exclusions are enumerated above. Offers follow the active source list, not belt occupancy or global Sozu hiding. F: targeted static javap of 33 constructors/factory + accepted E26 catalog |
+| table.6.potency | AbstractPotion.potency:I; concrete `getPotency(int)`; inherited `getPotency()` | i32; base and captured effective values are distinct; accessor uses current ascension and Sacred Bark signed-i32 doubling; concrete values and four no-amount exceptions are in accepted E26 table | conditional | Constructor/initializeData capture is distinct from later live use; EntropicBrew has dynamic slot-count potency and constructor capture. Empty slot has no potency. No universal positive bound/cap; owner/use operation determines domain and downstream result. F: 33 concrete javap outputs + shared AbstractPotion accessor; private v5 checker/receipt |
 | table.7.enemy_code | AbstractCreature.id:Ljava/lang/String; | source-key; exact source enemy identity alias → enemy key | always | Creature instance state; mutation occurs through source operation/callbacks (including resolution-time writes); read at observation checkpoint. No constructor-wide numeric default inferred. F: retained shared creature declaration and 25-key source table |
 | table.7.formation_position | MonsterGroup.monsters list index | derived-i64; nonnegative actual living/dead actor position; do not compact actors and lose formation order | always | Derived from live source container/object at checkpoint; no persistent source member or independent constructor default. Visibility follows exact owner/menu predicate. P-E: source container index |
 | table.7.hp | AbstractCreature.currentHealth:I | i32; full signed i32; source damage/death/rescue transitions govern, no display clamp | always | Creature instance state; mutation occurs through source operation/callbacks (including resolution-time writes); read at observation checkpoint. No constructor-wide numeric default inferred. F: retained AbstractCreature field descriptor |
@@ -378,6 +378,103 @@ The expected set is exactly the 25 named E25 records, not every event class in t
 Price-subkey discipline: price subkeys 19/20 are the HP/maxHP cost branches only; gold costs are `offer.price_amount` with `price_kind=gold`. Map only the exact integer operand/member/captured value for a currently active cost option. Binary32 conversions above occur at the source capture point, not at projection time. Where the source label is localized, numeric value comes from the recorded source field/literal and source phase, never by parsing text. Any display-time value is the source-captured value; the later callback uses that stored/literal operand against then-current resources. Gold charge uses `AbstractCreature.loseGold(int)` (subtract then clamp to zero), so if resources change between display and commit the offer stays visible, but the realized balance delta can be smaller than its nominal settled amount. This table does not claim unrelated concurrent mutation is normally reachable; it specifies the source behavior if the read changes.
 
 For each active source list the native consumer must reconcile emitted rows to that list at the same checkpoint, in exact order; duplicate/stale rows fail and a missing source-present legal offer fails. Lifecycle reconciliation follows the family’s actual callback above, not a universal `isDone` or “screen open” inference. E25 event input and the listed cost subkeys now join to each concrete owner; this does not imply event families outside accepted E25 or other property-source obligations are closed. No wire tags, IDs, or callback IDs are imported from sibling drafts.
+
+### Accepted E26 eligible potion identity and member laws
+
+Scope: selected Ironclad, full unlocks, unmodded standard A0; the finite owner set is
+the 33 exact `PotionHelper.getPotions(IRONCLAD,false)` IDs joined to their factory
+classes below. The nine excluded character-exclusive IDs are Poison Potion,
+CunningPotion, GhostInAJar (Silent); FocusPotion, PotionOfCapacity,
+EssenceOfDarkness (Defect); BottledMiracle, StancePotion, Ambrosia (Watcher).
+Special/non-factory potion classes are outside this set, not omitted eligible rows.
+The factory/ID literal is constructor-owned; the common superclass constructor
+initializes `slot=-1`, `potency=0`, `isObtained=false`, `discarded=false`,
+`isThrown=false`, and `targetRequired=false`. Each concrete standard constructor
+supplies its exact source ID and rarity; `makeCopy()` constructs a fresh instance,
+not a field-for-field copy of the current potency/slot/lifecycle state.
+
+`getPotency(int ascensionLevel)` is the concrete base law (no-arg values below are
+not direct calls to this method): inherited `getPotency()` passes current
+`AbstractDungeon.ascensionLevel`, then doubles the returned Java `int` iff a player
+exists and has Sacred Bark; the multiply is signed-i32 wraparound. `initializeData()`
+generally writes that no-arg result to the instance `potency` and rebuilds description
+and tips; it is not a live binding. EntropicBrew is the exception: its constructor
+captures no-arg potency, equal to current `potionSlots` (or 3 without a player), and
+does not override `initializeData`. Uses that read the stored `this.potency` consume
+that earlier captured value; they do not re-evaluate Sacred Bark/ascension at use.
+No-amount potions do not acquire a fictitious potency effect merely because the
+accessor has a numeric value.
+
+| Exact factory ID | Concrete constructor owner | `getPotency(int)` base / constructor or initialization capture | Use-time numeric law and lifecycle exception |
+|---|---|---|---|
+| `Block Potion` | `BlockPotion` | 12; initializeData captures no-arg potency | Stored potency supplies block amount; fresh `makeCopy`, slot is assigned by acquisition |
+| `Dexterity Potion` | `DexterityPotion` | 2; initializeData captures no-arg potency | Stored potency supplies Dexterity amount; fresh copy |
+| `Energy Potion` | `EnergyPotion` | 2; initializeData captures no-arg potency | Stored potency supplies energy amount; fresh copy |
+| `Explosive Potion` | `ExplosivePotion` | 10; initializeData captures no-arg potency | Stored potency supplies damage amount; downstream damage target/effect is not the potency domain |
+| `Fire Potion` | `FirePotion` | 20; initializeData captures no-arg potency | Stored potency supplies damage amount; downstream damage resolution is separate |
+| `Strength Potion` | `StrengthPotion` | 2; initializeData captures no-arg potency | Stored potency supplies Strength amount; fresh copy |
+| `Swift Potion` | `SwiftPotion` | 3; initializeData captures no-arg potency | Stored potency supplies draw amount; actual drawn-card count can be deck-limited |
+| `Weak Potion` | `WeakenPotion` | 3; initializeData captures no-arg potency | Stored potency supplies Weak amount |
+| `FearPotion` | `FearPotion` | 3; initializeData captures no-arg potency | Stored potency supplies Vulnerable amount |
+| `AttackPotion` | `AttackPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input, not damage/effect amount |
+| `SkillPotion` | `SkillPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
+| `PowerPotion` | `PowerPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
+| `ColorlessPotion` | `ColorlessPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
+| `SteroidPotion` | `SteroidPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Strength amount; end-turn removal is power lifecycle |
+| `SpeedPotion` | `SpeedPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Dexterity; same stored amount is used for the paired loss power |
+| `BlessingOfTheForge` | `BlessingOfTheForge` | 0; initializeData captures no-arg potency | No potency amount used; upgrade operation applies to eligible deck cards |
+| `BloodPotion` | `BloodPotion` | 20; initializeData captures no-arg potency | Stored potency is percentage input; heal uses source integer arithmetic and missing-HP bound, not flat 20 HP |
+| `Regen Potion` | `RegenPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Regen amount |
+| `Ancient Potion` | `AncientPotion` | 1; initializeData captures no-arg potency | Stored potency supplies Artifact amount |
+| `LiquidBronze` | `LiquidBronze` | 3; initializeData captures no-arg potency | Stored potency supplies Thorns amount |
+| `GamblersBrew` | `GamblersBrew` | 0; initializeData captures no-arg potency | No potency amount used; hand discard/replacement count is current hand size at use |
+| `EssenceOfSteel` | `EssenceOfSteel` | 4; initializeData captures no-arg potency | Stored potency supplies Plated Armor amount |
+| `DuplicationPotion` | `DuplicationPotion` | 1; initializeData captures no-arg potency | Stored potency supplies number of next-card duplication applications |
+| `DistilledChaos` | `DistilledChaosPotion` | 3; initializeData captures no-arg potency | Stored potency bounds random card-play iterations; current draw-pile/action state determines actual plays |
+| `LiquidMemories` | `LiquidMemories` | 1; initializeData captures no-arg potency | Stored potency is selection count; eligible discard-pile/card availability can reduce result |
+| `ElixirPotion` | `Elixir` | 0; initializeData captures no-arg potency | No potency amount used; exhaust action applies to currently exhaustible hand cards |
+| `CultistPotion` | `CultistPotion` | 1; initializeData captures no-arg potency | Stored potency is Ritual amount; use adds the corresponding power |
+| `Fruit Juice` | `FruitJuice` | 5; initializeData captures no-arg potency | Stored potency is max-HP increase input; use path is gated by `canUse`, distinct from actual HP healing |
+| `SneckoOil` | `SneckoOil` | 5; initializeData captures no-arg potency | Stored potency bounds draw count; randomized card-cost update is a separate operation |
+| `FairyPotion` | `FairyPotion` | 30; initializeData captures no-arg potency | Stored potency is revive percentage input, not a guaranteed 30 HP; `canUse` and death state gate use |
+| `SmokeBomb` | `SmokeBomb` | 0; initializeData captures no-arg potency | No potency amount used; escape outcome is encounter/room-state dependent and `canUse` guarded |
+| `EntropicBrew` | `EntropicBrew` | `player.potionSlots`, or 3 without player; constructor captures no-arg potency | Use loop reads live slot count, not stored/doubled potency. Combat queues that many limited proposals even with Sozu/full belt; each later obtain can fail. Outside combat, Sozu branches before generation; otherwise the same count drives unrestricted obtain effects. Constructor-built description/tip are not refreshed by base initializeData |
+| `HeartOfIron` | `HeartOfIron` | 6; initializeData captures no-arg potency | Stored potency supplies Metallicize amount |
+
+Concrete use-method overrides all read the stored `potency` except
+`BlessingOfTheForge`, `GamblersBrew`, `Elixir`, `EntropicBrew`, and `SmokeBomb`,
+whose effects have no potency amount. Zero is therefore a real stored/accessor
+result for those classes, not an invented unit. Sacred Bark doubling applies to
+the accessor/capture chain, not to the live use operation a second time. Potion
+slot ownership is separate: a live occupied list entry carries its concrete ID and
+instance potency; a `PotionSlot` placeholder carries its actual ordinal and no ID or
+potency. A0 starts with three slots; Potion Belt adds two live slots. Ordinary obtain
+scans belt order, replaces the first placeholder, sets slot/obtained state and flashes;
+full belt returns false. Its indexed overload directly replaces its supplied slot.
+Reward claim with Sozu flashes/returns success while removing the reward without
+obtaining; without Sozu, a full-belt claim fails and retains the offer. Combat
+`ObtainPotionAction` and outside `ObtainPotionEffect` each check Sozu at their own
+update checkpoint; combat proposals may fail on current capacity without resampling.
+Manual valid use resolves potion.use, ordered relic hooks, then destroys the slot;
+targeted use has its own target validation/cancel path. Discard replaces the slot with
+a placeholder without use/payload/onUsePotion; Sozu does not prohibit using/discarding
+held potions. `canDiscard` rejects We Meet Again. None of the 33 concrete potion
+classes declares a reset method; run reset is player/run-container-owned and no
+stronger concrete reset writer is inferred here. Each `makeCopy()` constructs a new
+same-class instance rather than copying the current potion's potency/slot/obtained/
+discarded state. Do not hide a known visible offer
+because no belt instance exists: shops reject Sozu before purchase, while reward claims
+with Sozu remove the offer without obtain. EntropicBrew's combat queued obtains versus
+outside obtain effects follow the distinct phase and Sozu ordering above. These are
+different producer/use/claim checkpoints, not a blanket visibility or acquisition
+rule.
+
+This finite table and the shared accessor/slot rules are backed by the retained
+E26 catalog and targeted static `javap` of the 33 concrete classes plus
+`AbstractPotion`, `PotionHelper`, and `AbstractPlayer`; exact per-class evidence,
+source/tool/archive pins, and semantic mutation checks are in private
+`event-cost-fix-v4`-adjacent `potion-laws-v5` receipt. It does not close the other
+146-member families or assert whole-spec approval.
 
 ### Native-derived fields and exact remaining joins
 
