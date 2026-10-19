@@ -591,7 +591,7 @@ all encoded in RNG cursors; mechanics state and RNG state are distinct:
 |---|---|---|---|
 | `run.map.draft` | Map input/output types and fields above; draft ordinal; `NativeRngState` per `run.map.draft` role/site. | Act2 mode, act2 ruleset, ordinal0; increment only for a wholly rejected complete draft. `map.topology`, `map.room_bucket`, `map.burning_elite` have distinct site IDs and draft scope. | Entire map private at Act1 terminal; later map visibility follows game rules. No draft/rejection/cursor exposed. |
 | `run.encounter` | Act2 encounter queue heads/contents and boss candidate/order state; per-site `NativeRngState` for `encounter.kind`, `encounter.composition`, `encounter.enemy_hp`, `encounter.opening`, plus the accepted constructor site `setup.act2_boss_order` scoped `(act=2)`. | Initialize the private Act2 queue from E07/§5.2: two weak, separately filtered first strong, twelve further strong, ten elite; use its Act2 candidates/weights/history rules. First-strong exclusion uses actual last Act2 weak result, never Act1. Room departure consumes queue head; Event combat does not. Boss constructor call uses invocation0 before `Act2Ready`: first-unseen priority Champ→Automaton→Collector, forced singleton duplication and no entropy; all-seen unbiased Fisher–Yates over ordered `(Automaton,Collector,Champ)`, then one list commit. BossRoom later consumes the current list head without another setup draw. Bind the exact accepted PR36 registry row at §5.2; Act1-only `setup.boss_order` and room-scoped `encounter.kind` are not substitutes. | Queues, future boss/encounter candidates, hidden selections and streams private. Accepted row identity/status and consumer binding are in §5.2/§6.5. |
-| `run.relic` | Per-role ordered pool arrays `Common,Uncommon,Rare,Shop,Boss`; run-owned consumed-ID history per role; separate RNG state for `relic.pool.init`, `relic.tier`, `relic.identity`, `relic.end`, `relic.screenless`, `relic.noncampfire`, `relic.neow`, `relic.shop`. | Pre-removal list counts 33/30/28/17/22. Canonical stable IDs -> shuffle full list -> remove current owned IDs and carried consumed IDs preserving order. A candidate removed by caller rejection commits to consumed history; generated offer consumes irrespective of take/skip/no-pick. Front/end selection consumes from array, not identity RNG. No-pick never restores. Each call uses accepted `(act,visit,site,invocation)` identity and caller-selected exact site/scope. | Arrays/history/streams hidden. Literal relic ID rows and callers' content-specific `canSpawn`/role-membership predicates await accepted catalog/content joins; counts and selection law are bound. |
+| `run.relic` | Per-role ordered pool arrays `Common,Uncommon,Rare,Shop,Boss`; run-owned consumed-ID history per role; separate RNG state for `relic.pool.init`, `relic.tier`, `relic.identity`, `relic.end`, `relic.screenless`, `relic.noncampfire`, `relic.neow`, `relic.shop`. | Pre-removal list counts 33/30/28/17/22. Canonical stable IDs -> shuffle full list -> remove current owned IDs and carried consumed IDs preserving order. A candidate removed by caller rejection commits to consumed history; generated offer consumes irrespective of take/skip/no-pick. Front/end selection consumes from array, not identity RNG. No-pick never restores. Each call uses accepted `(act,visit,site,invocation)` identity and caller-selected exact site/scope. Exact member sets, registration overlay, source aliases, selector callers, exclusions and finite `canSpawn` predicates are bound below. | Arrays/history/streams hidden. These are semantic lists and history, not a native property/codec schema; native representation remains separately unbound. |
 | `run.card.acquire` | Ordinary card-pity semantic integer `b`; rarity and identity are separate sites, with caller-qualified pairs for ordinary monster, elite, boss, colorless reward helper, Prayer Wheel second offer, Dream Catcher Rest offer, each Orrery offer, fifth-screen auto-card row, Neow-discarded auto-card row, and Tiny House reward-screen row. | Carry `b` across Act1→Act2. New-run `b=5`, range `[-40,5]`; generated rarity result applies once before identity retries: Rare sets5, Common `max(-40,b-1)`, Uncommon unchanged. Ordinary/elite/other thresholds and boss-forced-rare behavior follow accepted RNG §2/§3; identity retry stays at chosen rarity and excludes IDs already in same offer. Site scope `(act,source_event,site,invocation,slot)`. | Pity/site state hidden. Literal supported card IDs, aliases, upgrade laws remain accepted `.44/.46` I1 gap. Caller-specific counts/eligibility and exact candidate rows use those accepted catalog/content joins. |
 | `run.event` / `QuestionRoomState` | Separate binary32 ramp fields `(monster_ramp,shop_ramp,treasure_ramp)`; `question_room_roll_ordinal` is a checked semantic visit ordinal (native storage type/width remains schema-owner work); source-owned Tiny Chest counter remains in its carried relic instance; Juzu/Tiny Chest ownership read from carried relics. `NativeRngState` sites include `event.room.probability` and `event.room.override`; question roll ordinal maps to accepted `event_visit` scope. | Act2 initializes ramps to `F(.10),F(.03),F(.02)` and roll ordinal0. For each actual `?` entry, snapshot prior ramp values; compute `m=trunc(F(monster_ramp×100))`, `s=0` iff the room being left is ShopRoom, otherwise `trunc(F(shop_ramp×100))`, and `t=trunc(F(treasure_ramp×100))`. Draw `k∈[0,2^24)` once at `event.room.probability`; `cell=trunc(F(100×(k/2^24)))`. E25 later writes are ordered: start Event; A=`[0,min(100,m))` writes Monster; B=`[min(99,m),min(100,m+s))` writes Shop; C=`[min(99,m+s),min(100,m+s+t))` writes Treasure. Thus C wins B and B wins A, including cell-99 saturation. Increment Tiny Chest's carried counter once per roll; exactly4 resets it to0 and forces Treasure after the base draw. Then Juzu converts any remaining selected Monster to Event; scripted fights are unaffected. Commit that final room result once; an actual EventRoom's branch/ID are later separate event sites. Update ramps after overrides: Monster resets to `F(.10)` for a primitive Monster not replaced by Tiny Chest (including Juzu conversion), otherwise `F(old+F(.10))`; Shop resets to `F(.03)` iff final room is Shop, otherwise `F(old+F(.03))` (including a Shop-suppressed roll while leaving Shop); Treasure resets to `F(.02)` iff final room is Treasure (including Tiny Chest), otherwise `F(old+F(.02))`. Increment question-room roll ordinal once; no invalid action triggers another roll. `F` is IEEE binary32 rounding; the source tuple is separate from the initial 24-bit pushforward `(1_677_722,503_316,335_545,14_260_633)`. | Ramp fields/counters, snapshots, stream state and future outcomes hidden; carried relic counter is not duplicated/reset at Act boundary. E25 §3 supplies the complete mutation and precedence law, now joined here. |
 | `run.potion` + named caller owners | Run-owned `PotionAppearanceOffset:i32` semantic state; PlayerCore-owned ordered potion slots/live capacity and owned Sozu/Potion Belt relics; room/reward-owned `PotionOffer` rows; room-owned `blizzardPotionMod`. Sites: `potion.reward.appearance`, `potion.reward.identity`, `potion.shop.identity`, `potion.event.flat`, `potion.brew.combat`, `potion.brew.outside`, `potion.use.alchemize`, `potion.use.entropic_brew`. | Run starts offset0. On an actual appearance callback, chance is `40+offset` for Elite/Event, ordinary/boss only with no escape else0; White Beast→100, then ≥4 preexisting room reward rows→0 (last writer wins). Draw `0..99`, succeed iff `<chance`; on success commit one generated offer and offset−10, otherwise offset+10. Signed-i32 source arithmetic; no clamp/reset. Full belt does not suppress appearance. Only the appearance-result callback writes the offset—not identity selection/retry, claim, skip, obtain, use, or discard. `RewardItem.claim` with Sozu consumes the row without insertion; without Sozu, first-empty-slot obtain succeeds and consumes row, while full belt refuses and retains row. `ObtainPotionAction.update` and `ObtainPotionEffect.update` each check Sozu before ordinary obtain; generated proposals are not rerolled for Sozu/full capacity. Shop potion purchase has its distinct StorePotion ordering in the callback table below. Act transition carries offset/belt/relic owners; only room modifier resets0. Caller invocation/slot scopes remain separate from the offset field. | Carry offset/belt/capacity/relics; no active Act1 offers at Act2Ready. Publicly expose only legally held/claimed potions. Offset, reward rows before offer, streams and future identities hidden. No native width or callback mutation law is deferred; codec/property spelling is separate native-schema work. |
@@ -611,6 +611,98 @@ once; these are semantic state fields, not RNG cursor aliases:
 | `question_room_roll_ordinal` / `run.event` scope | Increment once per actual question-room roll as a checked semantic ordinal; native storage type/width remains schema-owner work. Bind that semantic visit to `(act,event_visit,site,invocation)`. Invalid external actions do not roll or increment. | Once with the resolved question-room commit; event branch/ID construction, if the result is Event, is a later independent site/checkpoint. |
 | Resolved room result | Starting Event, apply Monster A, then Shop B, then Treasure C writes; later matching interval overwrites earlier. Consume the one primitive `k` before Tiny Chest/Juzu; Juzu converts selected Monster to Event but does not alter scripted fights. | Commit exactly one final room result after overrides; no second roll for conversion or invalid input. |
 | Shared run RNG/replay | Root32, seed-adapter ID, contract ID, partition, RunKey, immutable role/site/scope/key/cursor state, rules/content/site descriptors, replay semantic decisions. Act2 roles are `run.map.draft`, `run.encounter`, `run.card.acquire`, `run.relic`, `run.event`, `run.potion`, `run.shop`, `run.combat`, and `run.handoff` where a named producer actually draws. | Exact IDs/frame/key/block/lane/cursor and checked episode/site caller ordinals from accepted RNG §§1–2. Derive streams by exact role/site/scope; no shared parent cursor. Lazy derivation is allowed for a site not yet called; do not fabricate an advanced cursor or eagerly consume a word. Retain current run identity at Act boundary; Act2 scopes use same RunKey, not new episode/reset identity. | All replay/RNG provenance private. No source Java cursor parity, hidden RNG projection, or reset of current episode identity at handoff. |
+
+**Relic membership and identity join (accepted E04 inventory + E18 mechanics + PR33 §3.4).**
+The member below is the constructor ID, not necessarily the displayed label. Sets are
+disjoint by tier; the Ironclad-red registration overlay is a subset of the applicable
+ordinary tier, not a second candidate or another-character pool. All ordinary IDs
+not in that overlay are shared-registration candidates. The 120 shared ordinary,
+10 Ironclad-red ordinary, 10 shared-special, and one Ironclad starter rows reconcile
+to the accepted 141-row inventory. No Shard/Note path imports another character's
+starter or exclusive relic pool.
+
+| Role | Exact constructor-ID set | Count / overlap and acquisition boundary |
+|---|---|---|
+| Common | `Akabeko`, `Anchor`, `Ancient Tea Set`, `Art of War`, `Bag of Marbles`, `Bag of Preparation`, `Blood Vial`, `Boot`, `Bronze Scales`, `Centennial Puzzle`, `CeramicFish`, `Dream Catcher`, `Happy Flower`, `Juzu Bracelet`, `Lantern`, `MawBank`, `MealTicket`, `Nunchaku`, `Oddly Smooth Stone`, `Omamori`, `Orichalcum`, `Pen Nib`, `Potion Belt`, `PreservedInsect`, `Red Skull`, `Regal Pillow`, `Smiling Mask`, `Strawberry`, `Tiny Chest`, `Toy Ornithopter`, `Vajra`, `War Paint`, `Whetstone` | 33; all candidates shared or Ironclad-red registered; no cross-tier overlap. |
+| Uncommon | `Blue Candle`, `Bottled Flame`, `Bottled Lightning`, `Bottled Tornado`, `Darkstone Periapt`, `Eternal Feather`, `Frozen Egg 2`, `Gremlin Horn`, `HornCleat`, `InkBottle`, `Kunai`, `Letter Opener`, `Matryoshka`, `Meat on the Bone`, `Mercury Hourglass`, `Molten Egg 2`, `Mummified Hand`, `Ornamental Fan`, `Pantograph`, `Paper Frog`, `Pear`, `Question Card`, `Self Forming Clay`, `Shuriken`, `Singing Bowl`, `StrikeDummy`, `Sundial`, `The Courier`, `Toxic Egg 2`, `White Beast Statue` | 30; no cross-tier overlap. |
+| Rare | `Bird Faced Urn`, `Calipers`, `CaptainsWheel`, `Champion Belt`, `Charon's Ashes`, `Dead Branch`, `Du-Vu Doll`, `FossilizedHelix`, `Gambling Chip`, `Ginger`, `Girya`, `Ice Cream`, `Incense Burner`, `Lizard Tail`, `Magic Flower`, `Mango`, `Old Coin`, `Peace Pipe`, `Pocketwatch`, `Prayer Wheel`, `Shovel`, `StoneCalendar`, `Thread and Needle`, `Torii`, `TungstenRod`, `Turnip`, `Unceasing Top`, `WingedGreaves` | 28; no cross-tier overlap. |
+| Boss | `Astrolabe`, `Black Blood`, `Black Star`, `Busted Crown`, `Calling Bell`, `Coffee Dripper`, `Cursed Key`, `Ectoplasm`, `Empty Cage`, `Fusion Hammer`, `Mark of Pain`, `Pandora's Box`, `Philosopher's Stone`, `Runic Cube`, `Runic Dome`, `Runic Pyramid`, `SacredBark`, `SlaversCollar`, `Snecko Eye`, `Sozu`, `Tiny House`, `Velvet Choker` | 22; no cross-tier overlap. |
+| Shop | `Brimstone`, `Cauldron`, `Chemical X`, `ClockworkSouvenir`, `DollysMirror`, `Frozen Eye`, `HandDrill`, `Lee's Waffle`, `Medical Kit`, `Membership Card`, `OrangePellets`, `Orrery`, `PrismaticShard`, `Sling`, `Strange Spoon`, `TheAbacus`, `Toolbox` | 17; no cross-tier overlap. |
+| Starter | `Burning Blood` | 1; Ironclad-red starting relic only. It is not a member of any random pool, so no starting relic identity leaves a role collection in the standard Ironclad profile. Neow boss swap removes Burning Blood from ownership before selection, which makes Black Blood's `requires Burning Blood` predicate false; it does not remove a Boss-pool member. |
+| Special | `CultistMask`, `FaceOfCleric`, `Golden Idol`, `GremlinMask`, `NeowsBlessing`, `NlothsMask`, `Odd Mushroom`, `Spirit Poop`, `SsserpentHead`, `WarpedTongs` | 10; source-fixed/event/Neow/Face Trader acquisition only, not ordinary random-tier members. |
+
+Display-label aliases (same row, no extra pool member): `Ceramic Fish`→`CeramicFish`,
+`Maw Bank`→`MawBank`, `Meal Ticket`→`MealTicket`, `Preserved Insect`→`PreservedInsect`,
+`The Boot`→`Boot`, `Frozen Egg`→`Frozen Egg 2`, `Horn Cleat`→`HornCleat`,
+`Ink Bottle`→`InkBottle`, `Molten Egg`→`Molten Egg 2`, `Paper Phrog`→`Paper Frog`,
+`Self-Forming Clay`→`Self Forming Clay`, `Strike Dummy`→`StrikeDummy`,
+`Toxic Egg`→`Toxic Egg 2`, `Bird-Faced Urn`→`Bird Faced Urn`,
+`Captain's Wheel`→`CaptainsWheel`, `Fossilized Helix`→`FossilizedHelix`,
+`Stone Calendar`→`StoneCalendar`, `Tungsten Rod`→`TungstenRod`,
+`Wing Boots`→`WingedGreaves` (class `WingBoots`), `Sacred Bark`→`SacredBark`,
+`Slaver's Collar`→`SlaversCollar`, `Clockwork Souvenir`→`ClockworkSouvenir`,
+`Dolly's Mirror`→`DollysMirror`, `Hand Drill`→`HandDrill`,
+`Orange Pellets`→`OrangePellets`, `Prismatic Shard`→`PrismaticShard`,
+`Sling of Courage`→`Sling`, `The Abacus`→`TheAbacus`,
+`Neow's Lament`→`NeowsBlessing`, `Warped Tongs`→`WarpedTongs`,
+`Face of Cleric`→`FaceOfCleric`, `Cultist Headpiece`→`CultistMask`,
+`Gremlin Visage`→`GremlinMask`, `N'loth's Hungry Face`→`NlothsMask`,
+`Ssserpent Head`→`SsserpentHead`. Each mapping is identity metadata, never a second
+candidate. `Circlet` and `Red
+Circlet` are fallback output identities only, outside the 141 authored IDs and all
+role arrays. Actual special sources: Neow's Lament (Neow), Golden Idol (Golden Idol
+event), Odd Mushroom (Hypnotizing Colored Mushrooms), Warped Tongs (Ominous Forge),
+Spirit Poop (Bonfire Spirits), and the five Face Trader faces Face of Cleric,
+Cultist Headpiece (`CultistMask`), Gremlin Visage (`GremlinMask`), N'loth's Hungry
+Face (`NlothsMask`), Ssserpent Head (`SsserpentHead`).
+
+The exact Ironclad-red overlay is `Burning Blood`, `Red Skull`, `Paper Frog`,
+`Self Forming Clay`, `Black Blood`, `Champion Belt`, `Charon's Ashes`, `Magic Flower`,
+`Mark of Pain`, `Runic Cube`, `Brimstone`. Of these, only Burning Blood is STARTER;
+the remaining ten remain in their ordinary tier sets. This is a registration fact,
+
+**Relic selection caller crosswalk.** In the following rows a normal selector consumes
+the front; end consumes the back except Boss, which consumes the front in both
+helpers. A rejected candidate is consumed. A `canSpawn=false` rejection from normal
+re-enters end at the originally requested tier; end rejection retries end at its
+requested tier. Depleted Common→Uncommon, Uncommon→Rare, Shop→Uncommon invokes
+normal selection for the promoted tier (including when depletion occurred in end).
+Empty Rare returns `Circlet`; empty Boss returns `Red Circlet`. The native selected
+model uses its canonical-ID full-list shuffle then post-shuffle ownership/depletion
+filter; it does not claim the source hash/set iteration or Java draw order.
+
+| Source/checkpoint | Requested role/tier and selector | Additional filter / result commit |
+|---|---|---|
+| Elite reward base relic | Common/Uncommon/Rare from `0..99`: 0–49/50–82/83–99; normal | Live `canSpawn`; consumed rejection/depletion and skip rules above. |
+| Ordinary chest base relic | Size-conditioned shared chest roll: Small 0–49 Common+gold, 50–74 Common/no gold, 75–99 Uncommon; Medium 0–34 Common+gold, 35–84 Uncommon, 85–99 Rare; Large 0–49 Uncommon+gold, 50–74 Uncommon, 75–99 Rare; normal | After ordered chest-open hooks, before chest-open-after hooks. Sapphire link applies only to this base row. |
+| Matryoshka extra nonboss chest relic | While counter>0, decrement first; strict Boolean 3/4 selects Common else Uncommon; normal | Separate extra offer/pool mutation from chest base and sapphire linkage; mark used at counter zero. |
+| Boss reward / Neow boss swap | Fixed Boss; normal | Boss front even if end-helper retry; Neow removes Burning Blood before candidate testing. |
+| Neow category 1/2 relic reward | Fixed Common / fixed Rare respectively; normal | No tier roll; live predicate; skip keeps consumed member. |
+| Campfire Dig (Shovel) | Common/Uncommon/Rare from 0–49/50–82/83–99; normal | One offer; no chest/key link; claim or skip after selection. |
+| Black Star extra reward | Common/Uncommon/Rare from 0–49/50–82/83–99; normal noncampfire | Only actual `MonsterRoomElite`, not EventRoom `eliteTrigger`; additionally consume/reject Peace Pipe, Shovel, Girya. |
+| Big Fish Box, Dead Adventurer successful-search relic token, Scrap Ooze, Wheel of Change relic result, We Meet Again sacrifice | Each source's own 0–99 tier draw Common 0–49, Uncommon 50–82, Rare 83–99; screenless normal | Consume/reject Bottled Flame, Bottled Lightning, Bottled Tornado, Whetstone and continue requested tier. Dead Adventurer consumes its once-shuffled GOLD/NOTHING/RELIC token before this; no token reroll. |
+| Dead Adventurer fight reward | Only if constructed event combat contains unconsumed RELIC token; 0–49/50–82/83–99 Common/Uncommon/Rare; normal | Distinct from successful-search screenless offer. |
+| Calling Bell continuation | One fixed Common, one fixed Uncommon, one fixed Rare offer after screen-down; screenless normal | Exactly three once-generated offers even if curse prevented; each has screenless filters and ordinary depletion/rejection/skip. |
+| Merchant initial/restock stock | Rows 0/1: 0–47 Common, 48–81 Uncommon, 82–99 Rare; row 2 fixed Shop; end | In ShopRoom consume/reject Old Coin, Smiling Mask, MawBank, The Courier plus live `canSpawn`. Stock generation consumes regardless of later purchase/refusal; purchase/payment/restock is separate. |
+
+The live base `canSpawn` exceptions are: Black Blood requires Burning Blood; Ectoplasm
+requires Act≤1; Bottled Flame/Lightning/Tornado require respectively a nonbasic
+permanent Attack/nonbasic permanent Skill/permanent Power; Girya, Peace Pipe, Shovel
+require floor<48 and fewer than two owned among those three; Ancient Tea Set, Ceramic
+Fish, Darkstone Periapt, Dream Catcher, Frozen Egg 2, Molten Egg 2, Toxic Egg 2, Juzu
+Bracelet, Meal Ticket, Meat on the Bone, Omamori, Potion Belt, Prayer Wheel, Question
+Card, Regal Pillow, Singing Bowl require floor≤48; Matryoshka and WingedGreaves
+floor≤40; Tiny Chest floor≤35; PreservedInsect floor≤52. The four Shop exclusions
+also have their own floor≤48 predicate. All other listed ordinary candidates inherit
+base `canSpawn=true`. Caller-specific screenless/noncampfire/ShopRoom exclusions are
+not universal membership deletions. The sources of every candidate rejection and
+selected/skip offer are distinct from ownership: track current ordered arrays and
+per-role consumed history; do not blanket-delete a consumed ID from all roles.
+Act1→Act2 carries these exact ordered arrays and histories unchanged: no reinitialize,
+reshuffle, or history reset. Initial owned-ID filtering and subsequent per-role
+consumption remain separate state. This is the accepted semantic advancement; exact
+native field/property/domain/visibility/codec/restoration schema remains the native
+owner's separate join.
 
 **Potion field-owner ↔ source-callback map (accepted PR33 §2/§3 + E26 §§2.3, 5.2, 7.2).** Run reward history, PlayerCore inventory/relic ownership, room reward rows, and room modifiers are distinct owners. A generated offer is not belt capacity or a held potion.
 
