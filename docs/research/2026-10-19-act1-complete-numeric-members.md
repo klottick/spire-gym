@@ -398,10 +398,12 @@ not direct calls to this method): inherited `getPotency()` passes current
 `AbstractDungeon.ascensionLevel`, then doubles the returned Java `int` iff a player
 exists and has Sacred Bark; the multiply is signed-i32 wraparound. `initializeData()`
 generally writes that no-arg result to the instance `potency` and rebuilds description
-and tips; it is not a live binding. EntropicBrew is the exception: its constructor
-captures no-arg potency, equal to current `potionSlots` (or 3 without a player), and
-does not override `initializeData`. Uses that read the stored `this.potency` consume
-that earlier captured value; they do not re-evaluate Sacred Bark/ascension at use.
+and tips; it is not a live binding. EntropicBrew instead captures no-arg potency in
+its constructor, equal to current `potionSlots` (or 3 without a player), and does not
+override `initializeData`. SmokeBomb also has no `initializeData()` override:
+superclass `potency=0` remains, while its constructor sets description/tip directly.
+Uses that read stored `this.potency` consume the earlier captured value; they do not
+re-evaluate Sacred Bark/ascension at use.
 No-amount potions do not acquire a fictitious potency effect merely because the
 accessor has a numeric value.
 
@@ -437,7 +439,7 @@ accessor has a numeric value.
 | `Fruit Juice` | `FruitJuice` | 5; initializeData captures no-arg potency | Stored potency is max-HP increase input; use path is gated by `canUse`, distinct from actual HP healing |
 | `SneckoOil` | `SneckoOil` | 5; initializeData captures no-arg potency | Stored potency bounds draw count; randomized card-cost update is a separate operation |
 | `FairyPotion` | `FairyPotion` | 30; initializeData captures no-arg potency | Stored potency is revive percentage input, not a guaranteed 30 HP; `canUse` and death state gate use |
-| `SmokeBomb` | `SmokeBomb` | 0; initializeData captures no-arg potency | No potency amount used; escape outcome is encounter/room-state dependent and `canUse` guarded |
+| `SmokeBomb` | `SmokeBomb` | 0; superclass default remains; constructor sets description/tip without initializeData | No potency amount used; escape outcome is encounter/room-state dependent and `canUse` guarded |
 | `EntropicBrew` | `EntropicBrew` | `player.potionSlots`, or 3 without player; constructor captures no-arg potency | Use loop reads live slot count, not stored/doubled potency. Combat queues that many limited proposals even with Sozu/full belt; each later obtain can fail. Outside combat, Sozu branches before generation; otherwise the same count drives unrestricted obtain effects. Constructor-built description/tip are not refreshed by base initializeData |
 | `HeartOfIron` | `HeartOfIron` | 6; initializeData captures no-arg potency | Stored potency supplies Metallicize amount |
 
