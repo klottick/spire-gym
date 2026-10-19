@@ -275,43 +275,94 @@ or establish the complete source-member expected set.
 | `AbstractPotion.getPotency()` | Calls `getPotency(AbstractDungeon.ascensionLevel)` first; if player exists and has Sacred Bark, multiplies returned int by 2 using Java i32 `imul`; returns that result. No clamp, widening, or rounding is present in the wrapper. | Record the accessor result after the optional multiply; overflow wraps at that multiply. The subclass’s `getPotency(int)` owns base potency and its operation laws; potion absence has no potency row. Copy is abstract and subclass-specific. (`economy-potions.javap.txt`, `getPotency()`) |
 | Shop settled prices / purge | `ShopScreen.applyDiscount(discount, includePurge)` iterates relic, potion, colored-card, then colorless-card offers; for each it converts existing i32 price to f32, multiplies by f32 `discount`, calls libGDX `MathUtils.round(x) = ((int)((double)x + 16384.5d)) - 16384`, and writes the i32 settled field. Smiling Mask sets purge price to 50; otherwise, when `includePurge`, it rounds `purgeCost * discount`. In `purgeCard`, player loses current `actualPurgeCost`, then `purgeCost += 25` with i32 wrap and becomes the new actual cost; Smiling Mask overrides to 50, otherwise Courier+Membership computes `(float)purgeCost * 0.8f * 0.5f` in that order then rounds, Courier alone rounds `purgeCost * 0.8f`, Membership alone rounds `purgeCost * 0.5f`. `AbstractPlayer.loseGold` performs its shop callbacks and source-side subtraction. | Store prices are not discounts applied at payment again. Preserve each f32 multiply, widening-to-f64/add-offset/narrow/subtract sequence; this libGDX helper is not Java `Math.round` and not `f2i` truncation. Shop card initial price construction also has its own `f2i` sites and must not be conflated with the discount path. Event/reward price owners remain excluded absent exact joins. (`economy-potions.javap.txt`, `applyDiscount`, `purgeCard`, purchase path, pricing sites; `mathutils.javap.txt`, `round(float)`) |
 
+### Property owner/read/visibility map (codes 1–45)
+
+This is the finite semantic join for the proposed property vocabulary, not a new wire allocation. Direct field claims in this table are bounded by the retained pinned-JAR `cards.javap.txt`, `resources-counters.javap.txt`, and `economy-potions.javap.txt` declarations/use records named above; adapter claims are projections at the explicit source checkpoint and remain locally unresolved where marked. `Adapter-derived` means a named native projection of the exact current source continuation or collection; it is not permission to manufacture values. “Unresolved” is local to the named owner/subkey and does not suppress other known legal properties or menu offers. Rows 1–45 each define the owner/projection, checkpoint, value domain and visibility/subkey predicate. Property 41 alone is excluded absent an actual owner proof.
+
+| Code | Owner/member or native producer | Read checkpoint / domain | Visibility and subkey predicate |
+|---:|---|---|---|
+| 1 | `AbstractCard.baseDamage:I` | card observation after construction/upgrade; signed i32 | Only for an entitled, identified card instance; card-table owner/ref + ordinal 0. |
+| 2 | `AbstractCard.damage:I` | current combat observation after source modifiers; signed i32 | Same card-instance entitlement as 1; do not expose hidden identity through value. |
+| 3 | `AbstractCard.baseBlock:I` | card observation after construction/upgrade; signed i32 | Only entitled identified card; card-table owner/ref + ordinal 0. |
+| 4 | `AbstractCard.block:I` | current combat observation after source modifiers; signed i32 | Same entitlement as 3; never substitute baseBlock. |
+| 5 | `AbstractCard.baseMagicNumber:I` | card observation after construction/upgrade; signed i32 | Only entitled identified card; card-table owner/ref + ordinal 0. |
+| 6 | `source play continuation captured-X value (adapter-derived; no common AbstractCard field)` | play decision after the source has captured X; signed i32 payload | Emit only for current play continuation that carries X; not derivable from printed cost or a later energy read. |
+| 7 | `AbstractCard.costForTurn:I` | current play/payment continuation read; signed i32 incl. source sentinels | Entitled exact card instance; mask cost and kind together whenever card identity/value is hidden. |
+| 8 | `AbstractCard.costForTurn:I` | current combat card observation after combat cost writers; signed i32 incl. source sentinels | Visible/entitled combat card only; distinct from base cost and captured X. |
+| 9 | `AbstractCard.freeToPlayOnce:Z` | current play/payment continuation; boolean 0/1 | Exact card instance at play checkpoint; emit false as known only when card itself is entitled. |
+| 10 | `AbstractCard.isInAutoplay:Z` | current play resolution; boolean 0/1 | Only for the resolved card instance during its play; not a general inferred card property. |
+| 11 | `AbstractCard.ignoreEnergyOnUse:Z` | current play/payment continuation; boolean 0/1 | Exact source card flag at payment check; card identity/value entitlement required. |
+| 12 | `AbstractCard.purgeOnUse:Z` | current card-resolution instance; boolean 0/1 | Only the exact card instance and resolution that reads this flag; no general card-group enumeration. |
+| 13 | `source-site provenance (adapter-derived from the exact creation/insert callback)` | after a public card is created/inserted and before provenance expires; typed public site key | Only where the actual source continuation exposes a public source and owner; never reveal hidden source identity. |
+| 14 | `source-copy provenance (adapter-derived from the exact copy operation)` | at the public copy result checkpoint; typed public source relation | Only when both source and copy are public and exact operation provenance exists; otherwise no relation row, not a guessed source. |
+| 15 | `AbstractCard.selfRetain:Z / retain:Z` | end-of-turn retention decision; boolean disjunction | Exact card in a public hand; value is retain OR selfRetain, not either flag by assumption. |
+| 16 | `AbstractCard.isEthereal:Z plus exact exhaust timing owner (source join incomplete)` | end-of-turn resolution; boolean / source duration | Per exact card; emit only when the read checkpoint and card instance are entitled. Delayed-duration owner/subkey remains unresolved. |
+| 17 | `source owner’s uses/count member (no common AbstractCard member)` | current public offer or selector continuation; signed source i32 | Emit only for a concrete owner whose uses member and decrement checkpoint are registered; no generic uses field. |
+| 18 | `AbstractCard.price:I; StoreRelic.price:I; StorePotion.price:I; ShopScreen.actualPurgeCost:I` | active ShopScreen offer/payment checkpoint; settled signed i32 | Only current listed shop offer or purge option; must match current menu membership and payment branch. |
+| 19 | `exact event/offer owner HP-cost member (not established for complete family)` | active offer before its payment continuation; signed i32 | Unresolved per owner; emit only once that owner, settled amount, and exposed choice predicate are proven. |
+| 20 | `exact event/offer owner max-HP-cost member (not established for complete family)` | active offer before its payment continuation; signed i32 | Unresolved per owner; emit only once that owner, settled amount, and exposed choice predicate are proven. |
+| 21 | `source selector’s selected ordered list (adapter-derived)` | current selector menu before commit; nonnegative exact ordinal | Only source-public selected members of the currently active selector; preserve exact order and owner-qualified card refs. |
+| 22 | `current source menu skip predicate (adapter-derived)` | current menu before choice; boolean 0/1 | True only if that exact current source menu offers skip; no synthetic skip on other screens. |
+| 23 | `current source menu confirm predicate (adapter-derived)` | current selector/menu before commit; boolean 0/1 | True only if source enables confirm now under exact selected-count/min/max rules. |
+| 24 | `ScryAction/ScryScreen current source selection list (adapter-derived)` | during active scry window; signed source count | Only count and ordered window currently exposed by active scry; hidden deck identities remain masked. |
+| 25 | `CardGroup discard pile membership/count` | current observation after source discard writes settle; signed exact count | Count public discard members at checkpoint; identities/order separately follow card knowledge policy. |
+| 26 | `source HP-loss callback/result ledger (adapter-derived; exact public owner family incomplete)` | after the committed HP-loss operation; signed source amount | No speculative amount before callback; unresolved owner-specific public join means no row for that owner. |
+| 27 | `GameActionManager current public play history (adapter-derived from completed play callbacks)` | after play callback commits; signed exact count | Only completed public plays in current history scope; not private queue entries or in-flight plays. |
+| 28 | `AbstractCreature.powers list filtered to current exact power owner` | current observation after power application/removal; signed exact count | Count only powers on a currently visible owner; do not disclose hidden actors/powers. |
+| 29 | `MantraPower.amount:I` | current player observation after power mutation; signed i32 | Emit only when player owns exact MantraPower ID; absent power has no property row. |
+| 30 | `AbstractPlayer.maxOrbs:I and actual orb slot list` | current player observation after orb-slot mutation; signed i32 capacity | Player owner always public at player checkpoint; occupied orb rows remain actual slots only. |
+| 31 | `FocusPower.amount:I (owner-qualified)` | current player orb calculation/observation checkpoint; signed i32 | Only player-owned FocusPower; visible player state, not inferred from orb values. |
+| 32 | `Dark power/orb source growth state (owner/subclass-specific; no common member proved)` | after exact public kill/growth callback; signed source i32 | Per registered content key + subkey only; unresolved until concrete owner member and callback are named. |
+| 33 | `AbstractPlayer.potionSlots:I` | current player inventory/menu observation; signed source i32 | Player capacity is public; no padding or inferred capacity beyond this member. |
+| 34 | `Settings.hasRubyKey/hasSapphireKey/hasEmeraldKey:Z (adapter key-kind projection)` | current run progression observation; enum key kind / boolean source | Only acquired progression flags; node burning marker is a separate owner and cannot satisfy this predicate. |
+| 35 | `MapRoomNode.hasEmeraldKey:Z` | current map observation for a publicly represented node; boolean 0/1 | Node-row owner only; public node marker does not disclose or imply Settings.hasEmeraldKey. |
+| 36 | `active EventRoom/source-option continuation stage (adapter-derived)` | current event option menu checkpoint; source option stage enum | Only the active public event and exact currently exposed stage; hidden future options excluded. |
+| 37 | `AbstractPlayer relic state including Frozen Eye + source draw sequence (adapter-derived)` | current draw-order observation; boolean 0/1 | Known=1 only when current order is source-revealed (e.g. Frozen Eye applies); otherwise mask as unknown, not false. |
+| 38 | `source attack/play continuation target and exact public target ref (adapter-derived)` | current outgoing attack/play announcement checkpoint; typed target relation | Emit only after source announces a public target; hidden target/intent remains masked. |
+| 39 | `AbstractCard.timesUpgraded:I` | current entitled card instance observation; signed i32 | Card-instance owner; do not impose a guessed upgrade cap or infer from card key. |
+| 40 | `AbstractRelic.counter:I or concrete power/card subclass counter (content-specific)` | current observation for exact visible owner; signed i32 subkey | Only explicitly registered (content key, source member/subkey) entries with exact owner visibility; no wildcard counter. |
+| 41 | `no proven selected public owner/member` | none; not applicable | Individually excluded: reserved proposal code has no actual public owner/member proof; never emit. |
+| 42 | `AbstractMonster.intent plus intentDmg:I / intentMultiAmt:I` | current monster intent disclosure checkpoint; boolean 0/1 plus source payload | Visible only when source intent disclosure permits; Runic Dome/hidden/suppressed intent masks the flag and all dependent payload. |
+| 43 | `current offer/payment continuation status (adapter-derived from source callback)` | after offer generation and at each claim/skip/payment transition; closed lifecycle enum | Only currently public offer and actual source continuation status; do not infer payment completion from offer existence. |
+| 44 | `transform selector’s exact public input card identity (adapter-derived)` | active transform choice before commit; typed card key/ref | Input identity is exposed only when source menu makes that exact card public; otherwise retain unknown mask. |
+| 45 | `AbstractCard.cost:I and costForTurn:I (adapter-derived difference/status; no separate source member)` | current combat-card observation after cost writers; signed i32 pair / modifier status | Only entitled exact card; preserve both source values and derive no modifier when hidden; not a new mutable source field. |
+
+### Offer-family visibility and price joins
+
+Offer visibility is the exact current source menu/reward membership, not a global allow/deny bit. An offered card/relic/potion/key/choice remains a row whenever the source menu currently exposes it; preserve source order and current lifecycle state. Content identity is the exact offered object’s source ID only when that offer is public. A row may omit only payload components whose own predicate is false/unknown; that does not erase the known offer or sibling known components. Binary32 intermediates are not settled prices: only the final registered signed-i32 amount at its source settlement checkpoint is a `price_amount` value.
+
+| Family | Current owner/producer and row predicate | Payload/price rule |
+|---|---|---|
+| Card reward | `CardRewardScreen` current reward group; one row per current public reward member, current order; offered ≠ claimed/skipped | Exact card key and current legal selection target are public. No price unless the source offer has a registered settled payment member.
+| Combat/treasure reward | Current `CombatRewardScreen`/treasure reward continuation; one row per publicly displayed reward in source order | Preserve each known reward (card, gold, relic, potion, key, or choice); settlement status changes only at the source claim/skip callback. Amount/price is owner-specific; no float intermediate is a settled price.
+| Shop card | Current `ShopScreen` colored/colorless card list membership | `AbstractCard.price:I` after source price construction and `applyDiscount`; settled signed-i32 amount is public with the listed card. Initial f32→i32 price construction and subsequent f32 discount/MathUtils.round are distinct source operations; emit only final settled member.
+| Shop relic | Current `ShopScreen` relic list membership | `StoreRelic.price:I` after discount settlement; preserve listed relic even when another offer component is unknown.
+| Shop potion | Current `ShopScreen` potion list membership | `StorePotion.price:I` after discount settlement; potency is separate and only read for an occupied/public potion.
+| Shop purge | Current `ShopScreen` purge option enabled by live purge predicate | `actualPurgeCost:I` at the current purge menu/payment checkpoint; this is settled i32, distinct from progression `purgeCost:I`.
+| Event/source option | Exact active `EventRoom` continuation and currently displayed option list | Preserve every source-displayed option and source order. Price/amount only from that concrete option owner’s settled member; unregistered HP/max-HP/composite prices stay unresolved individually, not represented as zero and not grounds to suppress the option.
+| Campfire | Current campfire room option/menu predicate | Preserve the currently displayed legal rest/smith/recall/other source options. No generic price; target and payload follow the exact current option branch.
+| Chest/key | Current chest room and source key-choice/reward continuation | Preserve currently displayed chest/key/reward choices and exact public key state; node designation and acquired key remain separate. No invented payment.
+| Generic/non-price reward | Exact active owner’s public reward collection and callback | Preserve known legal offers. `amount` and `price_amount` are emitted only when that owner’s exact integral payload and settled callback value are proven; no fallback to binary32.
+
+For every listed offer the native consumer must reconcile generated/current menu members with emitted rows at the same source read checkpoint, and reconcile claimed/skipped status to the corresponding callback transition. Duplicate or stale rows fail; a known legal current offer missing from the projection is a failure. This task does not import callback IDs or wire tags from sibling drafts.
+
 ### Native-derived fields and exact remaining joins
 
-Native-only state has no fictional Java initializer/reset. Each exported value must
-be produced by the named adapter checkpoint, with the native episode lifecycle
-owning initialization/reset and a documented visibility predicate. The following
-candidate table fields are native ledgers/joins, not source members: context
-decision/terminal/parent state; selector selection/min/max/orderedness; knowledge
-rows; public-history rows; property rows; action/parameter rows; and public
-relations. For these, this document provides no source reset law. Until their
-producer is connected to an accepted dispatch/selector/site inventory, mark the
-field non-emittable rather than using `conditional` as a visibility predicate.
-In the crosswalk, `always` means only “unmasked after an exact selected-model row
-has been established”; it never licenses enumeration of hidden source objects.
-`conditional` and `unknown-mask-zero` are not executable predicates. Where the exact
-predicate below is not stated, that row is non-emittable, not a zero-valued row.
+Native-only state has no fictional Java initializer/reset. Its source-backed producer and observation checkpoint are identified above. The unresolved rows are specific joins, not a policy to disable properties/offers wholesale:
 
-| Native/source join | Required producer/read point and predicate | Disposition |
-|---|---|---|
-| `table.14` property owner/value | Exact `(property_code, owner table, owner key, source member or adapter predicate, read checkpoint, visibility predicate, value kind/domain, lifetime)` tuple. The meanings are in E29 §3.3 (see pinned citation key above); that vocabulary is not ownership evidence. | Property 41 excluded. No other property is declared source-emittable solely from its codebook. Missing owner tuples are explicit non-emission, not a guessed union. |
-| `table.10` offer payload | Exact concrete menu owner + offer object/member + current menu-membership test + payment callback/checkpoint + entitlement predicate. | Registered shop settled i32 fields only; event/reward/composite price and generic `amount` remain excluded pending those joins. |
-| `table.1` node/reachability | Current map observation point; node identity in current map and exact current-node/edge traversal predicate. `hasEmeraldKey` is node designation; `Settings.hasEmeraldKey` is acquired progression state. | Marker’s source owner is established, but public observation predicate is not; do not emit marker absent the accepted map visibility predicate. Reachability remains native-derived and non-emittable without actual traversal join. |
-| `table.4` card visibility | Current observation owner and source entitlement for the exact card instance (not merely card ID); cost kind and value mask together. | Hidden card identity/cost are both masked. No public row is justified by a visible position alone. |
-| `table.7` intent | Exact current monster intent and its source disclosure/suppression predicate, evaluated at observation. | Hidden/suppressed intent code, damage and hit count all mask; code/value absence is not a numeric zero. |
-| Adapter history/profile/transition | Native ledger event producer, exact commit checkpoint, and detached export/read revision. | Environment-only facts have no source member. Do not put private RNG counters/history into public history. Profile/time/handoff semantic proposals remain unencoded/unselected in the main candidate; no invented defaults or source reset law. |
+| Specific unresolved join | Named limitation and current treatment |
+|---|---|
+| Property 16 delayed-duration subkey | No common duration owner/member was established in the retained source slice; do not emit this subkey until exact source owner and end-turn read are inspected. Other card properties remain independently available.
+| Property 17 uses subkey | No common uses member; concrete owner registration is required. Does not hide the offer/owner row.
+| Property 19/20 price subkeys | Complete event/offer HP and max-HP owner union not present in retained evidence. Keep the current offer visible; price component is unknown pending that owner-specific join.
+| Property 26 HP-loss history producer | Complete selected public history callback union not present in retained evidence; do not project private/in-flight effects as completed history.
+| Property 32 growth subkey | No common source field; require concrete content/member/callback registration before emitting that subkey.
+| Property 40 counter subkey | Exact `(content key, source member)` allowlist required; no universal counter fallback.
+| Offer-specific unregistered price/amount | Current public offer remains delivered; only unsupported component stays unresolved. Settled shop i32 members above remain available.
 
-This bounds the native-derived portion without duplicating native.34 wire IDs or
-layout, catalog.44 IDs, or execution.42 callback IDs. A correct consumer join must
-name those accepted route endpoints when available; their absence does not excuse
-the source-owned operation laws above.
+Visibility rules are evaluated at the stated read checkpoint against the exact owner and exact subkey. A visible location/order does not reveal hidden identity; hidden intent masks intent flag and dependent damage/hit payload; a hidden card masks cost and cost-kind together. Frozen Eye grants only the current source-revealed draw order. Adapter omissions are acceptable only for the specifically masked component under its predicate, never as blanket property/offer suppression. Property 41 is the single individually excluded property in this map.
 
-Until the per-property tuple is independently joined, property-code emission is
-disabled for the entire finite codebook `{1..45}`. Code 41 remains specifically
-reserved/unemittable even if other code owners are later proven; no generic property
-fallback is permitted. Likewise, current candidate `table.10` offer payload rows
-are not emission authority: only the named registered shop price members have a
-source-settlement law here, while the complete menu owner/visibility/payment join
-is still required before any row is emitted.
+No property code here assigns wire IDs/layout (native.34 owns those), content identity aliases (catalog.44 owns those), or action callback IDs. I1/I2/I3/I5 remain explicitly open: this bounded visibility map does not claim complete writer/default/reset/copy laws, global expected-set equality, every numeric producer law, or full selected persistent-state reconciliation.
 
 ### Independently inspected declaration/use slice and exact boundary
 
