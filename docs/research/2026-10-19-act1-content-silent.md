@@ -74,7 +74,7 @@ Rarity COMMON. Shared discard, poison, delayed, cost and damage qualifications i
 |---|---|---|---|
 | `Acrobatics` | S/NONE; 1 | M=3→4 | Request M draws, then selected discard 1. |
 | `Backflip` | S/SELF; 1 | B=5→8 | Block, then draw 2. |
-| `Bane` | A/EN; 1 | D=7→10 | First hit, then a separate conditional second hit; test Poison during the follow-up action, not once at input validation. |
+| `Bane` | A/EN; 1 | D=7→10 | At card use capture the target and both DamageInfo payloads; enqueue the first hit then a dedicated BaneAction. Its Poison, target-HP and initial-duration source-dying gates are specified in §7, not a generic second DamageAction. |
 | `Blade Dance` | S/NONE; 1 | M=3→4 | Create M ordinary Shivs, not Shiv+ by the card upgrade. |
 | `Cloak And Dagger` (Cloak and Dagger) | S/SELF; 1 | B=6, M=1→2 | Block, then create M ordinary Shivs. |
 | `Dagger Spray` | A/ALL; 1 | D=4→6 | Two distinct all-enemy damage requests using the card's calculated matrix. |
@@ -103,7 +103,7 @@ Rarity UNCOMMON.
 | `Backstab` | A/EN; 0 | D=11→15; E,I | One damage hit. |
 | `Blur` | S/SELF; 1 | B=5→8 | Block; install Blur 1, preserving Block at the relevant next start-turn removal checkpoint. |
 | `Bouncing Flask` | S/ALL; 2 | M=3→4 | M separate Poison-3 applications to source-selected random enemies, with repeats allowed; §7 gives sampling checkpoints. |
-| `Calculated Gamble` | S/NONE; 0 | E=true→false | Snapshot remaining hand size n at its action; random-discard n, then request n draws. Both versions call the same non-extra-draw action branch. |
+| `Calculated Gamble` | S/NONE; 0 | E=true→false | Snapshot remaining hand size n at its action; for n>0, random-discard n then request n draws; n=0 enqueues neither discard nor draw. Both versions call the same non-extra-draw action branch. |
 | `Caltrops` | P/SELF; 1 | M=3→5 | Install Thorns M; retaliate only on qualified incoming damage callbacks (§7), including fully blocked qualifying attacks. |
 | `Catalyst` | S/EN; 1 | E | If Poison exists at action resolution, request an additional current amount→twice current amount as Poison. No Poison means no application; not direct power multiplication. |
 | `Choke` | A/EN; 2 | D=12, M=3→5 | Damage; separately install Choked M. Its on-use hook requests M HP loss; it removes at afflicted start-turn. |
@@ -114,11 +114,11 @@ Rarity UNCOMMON.
 | `Endless Agony` | A/EN; 0 | D=4→6; E | Damage on use. Actual draw separately creates one stat-equivalent temporary copy at queue top; creation is not a draw. |
 | `Escape Plan` | S/SELF; 0 | B=3→5 | Draw 1 with a follow-up that scans DrawCardAction.drawnCards for any Skill; if found, enqueue one captured-B Block gain, then stop scanning. |
 | `Eviscerate` | A/EN; 3 | D=7→9 | Three distinct hits. Each received discard notification lowers eligible turn cost by 1; draw resets it from combat cost minus turn discard counter. Exact hooks in §6. |
-| `Expertise` | S/SELF; 1 | M=6→7 | At action resolution snapshot hand size h; request max(0,M−h) draws once, not a loop maintaining M after reactions. |
+| `Expertise` | S/SELF; 1 | M=6→7 | At action resolution snapshot hand size h; enqueue one draw of M−h only when h<M; otherwise enqueue none, not a zero-count draw or a loop maintaining M after reactions. |
 | `Finisher` | A/EN; 1 | D=6→8 | At follow-up resolution count ATTACK entries in cardsPlayedThisTurn, subtract 1, and enqueue that many hits if target exists with positive HP. Ordinary current Finisher is excluded by the subtraction. |
 | `Flechettes` | A/EN; 1 | D=4→6 | At its action, enqueue one hit per current hand card whose type is SKILL, including unplayable Skills; not per playable card. |
 | `Footwork` | P/SELF; 1 | M=2→3 | Apply M Dexterity. |
-| `Heel Hook` | A/EN; 1 | D=5→8 | Its action tests existing target Weak before damage; on success schedule damage, gain 1 energy, draw 1. Predicate is not retested after the hit. |
+| `Heel Hook` | A/EN; 1 | D=5→8 | Always prepend damage; if target is non-null and already has Weak at helper entry, also enqueue gain 1 energy then draw 1 behind that damage. Weak only gates the energy/draw; no positive-HP predicate or post-hit Weak retest is added. |
 | `Infinite Blades` | P/SELF; 1 | I=false→true | Install Infinite Blades 1; at start-turn create one ordinary Shiv per power amount unless monsters are basically dead. Upgrade does not increase amount. |
 | `Leg Sweep` | S/EN; 2 | B=11→14, M=2→3 | Apply M Weak, then player Block. |
 | `Masterful Stab` | A/EN; 0 | D=12→16 | Damage. Each qualifying per-instance tookDamage notification calls combat-cost update +1, not a global combat-loss-count formula (§6). |
@@ -154,7 +154,7 @@ COLORLESS. A scalarless row still has the explicit literal payload below.
 | `Malaise` | S/EN; X | E | For positive effective X (+1 upgraded), request −X Strength then X Weak; no restoration power (§8). |
 | `Night Terror` (Nightmare) | S/NONE; 3→2 | M=3; E | Choose one remaining hand card; capture/reset a stat-equivalent template when constructing its independent delayed power; next start-turn request M temporary copies. |
 | `Phantasmal Killer` | S/SELF; 1→0 | — | Install Phantasmal 1; next start-turn install Double Damage with initial duration 1 and reduce Phantasmal by 1. NORMAL damage ×2, not ×2 per stack. |
-| `Storm of Steel` | S/NONE; 1 | — | At action snapshot remaining hand size n; selected/all discard n before temporary creation of n Shiv→Shiv+ templates. Upgrade changes generated kind state, not n. |
+| `Storm of Steel` | S/NONE; 1 | — | Snapshot remaining hand size n; prepare one Shiv→Shiv+ template and construct its temporary-creation action before prepending discard n. Discard executes first; insertion later makes n stat-equivalent copies from that prepared template (§8). Upgrade changes template state, not n. |
 | `Tools of the Trade` | P/SELF; 1→0 | — | Install Tools 1; post-draw start-turn request amount draws, then selected discard amount. Stacks increase both, not the number of independent selections. |
 | `Unload` | A/EN; 1 | D=14→18 | Damage; snapshot all current non-Attack hand identities and prepend specific discards in iteration order (therefore reverse pending order). Recheck membership at each discard. |
 | `Wraith Form v2` (Wraith Form) | P/SELF; 3 | M=2→3 | Apply IntangiblePlayer M, then independently Wraith Form −1; downside loses 1 Dexterity per power amount magnitude at end-turn (§7). |
@@ -230,11 +230,13 @@ source-derived discriminators, not executed gameplay/seed witnesses.
   increments/notifies, **then** calls its manual-discard callback. Do not impose
   the selected-action callback order on this producer. Non-Attack includes Powers,
   Statuses and Curses, not just Skills; Reflex/energy callbacks never retype cards.
-* Calculated Gamble captures n before discard reactions and requests n draws;
-  both base and upgraded card pass `false` to its action. The action's unused
-  extra-draw branch is not Calculated Gamble+'s effect. Storm of Steel captures n
-  before discard and creates n templates after the discard action. Reaction-drawn
-  cards are not recursively added to the original discard set or count.
+* Calculated Gamble captures n before discard reactions. Both base and upgraded
+  card pass `false` to its action: n>0 queues discard n then draw n for execution,
+  while n=0 enqueues neither discard nor draw. The action's unused extra-draw
+  branch is not Calculated Gamble+'s effect. Storm of Steel captures n and prepares
+  one template and its temporary-creation action before discard executes; discard
+  runs first and insertion later makes n stat-equivalent copies (§8). Reaction-
+  drawn cards are not recursively added to the original discard set or count.
 * Eviscerate's `didDiscard` lowers eligible current turn cost by 1. Its on-draw
   hook instead sets eligible turn cost to combat cost−totalDiscardedThisTurn,
   floored at zero. Turn-start resets attributes and applies powers. Its makeCopy
@@ -256,7 +258,12 @@ source-derived discriminators, not executed gameplay/seed witnesses.
 * Finisher's hit count is sampled in its action, not from a preview; ordinary
   history includes the current attack and the source subtracts one. Flechettes
   samples the hand at its action, not at policy input. Expertise captures its
-  draw deficit once. Repeat/interposed history can therefore matter.
+  deficit M−h once and enqueues exactly one draw only when h<M; otherwise enqueue
+  none. Neither helper's absent child action may be replaced by a synthetic
+  DrawCardAction(0): an actual default-history-clearing zero-count draw clears
+  shared draw history on its initial update before exiting. Those absent children
+  perform no such clear; other nested-history writers remain CARD-HISTORY.
+  Repeat/interposed history can therefore matter without a proved nested outcome.
 
 Well-Laid Plans' power requests its optional up-to-amount selection at player
 end-turn only with a nonempty hand and without Runic Pyramid or Equilibrium.
@@ -267,6 +274,29 @@ All real choices resume their parent once; payment, draws and already committed
 discards must not be repeated upon resumption.
 
 ## 7. Poison, debuffs, retaliation and delayed powers
+
+### Bane's captured follow-up and local gates
+
+At card use Bane retains the selected target and constructs both DamageInfo
+payloads, each owned by the player with the card's then-calculated damage and
+damage type, before either hit resolves. The first request is an ordinary
+DamageAction; the second is a dedicated BaneAction with its own captured target
+and DamageInfo. Do not
+recalculate that second payload from later card fields or substitute a generic
+second DamageAction for its distinct local conditions.
+
+Each entered BaneAction update exits immediately on a null target. It then checks
+the target's current Poison; absence ends the action without a hit. With Poison
+present, the initial-duration branch (duration equals its initial 0.01f) additionally
+requires a non-null target with positive HP; **within that branch**, a non-THORNS
+payload whose owner is dying cancels the action. This is not an every-update
+source-death check, a universal
+canUse restriction, or a generalized null-source/origin policy. At completion
+after its duration update, it directly delivers the captured hit only if the
+target is still non-null with positive HP. Following that damage call it checks
+basically-dead cleanup and prepends its 0.1f wait. These entered local checkpoints are
+known; recipient damage/prevention/rescue, terminal arbitration and whether later
+work continues remain CARD-DEATH, not reasons to omit the local gates.
 
 ### Application and Poison
 
@@ -392,9 +422,19 @@ full-belt continuation, obtain hooks and interruption are the explicit potion
 interface gap in §10, not supplied by this card's constructor alone.
 
 Blade Dance, Cloak and Dagger and Infinite Blades specify ordinary Shiv templates.
-Storm of Steel+ explicitly upgrades its template. The common temporary-hand
-action also upgrades a non-Status/non-Curse template at action **construction**
-when Master Reality is present; this is a separate source of generated upgrades.
+Storm of Steel's BladeFuryAction first snapshots n; its one prepared template is
+constructed before discard executes. Its upgraded branch constructs a Shiv, makes
+a fresh kind copy and upgrades that copy; its base branch prepares an ordinary Shiv.
+It then constructs/prepends MakeTempCardInHandAction with that template and n,
+and only afterward constructs/prepends the DiscardAction. Thus discard executes
+first, but template preparation and the temporary-action constructor's Master
+Reality checkpoint have already happened. The insertion stage later creates
+n stat-equivalent copies from that template, not n fresh late templates after
+discard. No reaction-dependent gameplay witness is inferred from this order.
+
+The common temporary-hand action upgrades a non-Status/non-Curse template at
+action **construction** when Master Reality is present; this is a separate source
+of generated upgrades, including the Storm of Steel checkpoint just described.
 At update, its overflow calculation assigns available spaces up to ten to hand
 and excess to discard via distinct insertion effects; overflow is not deletion,
 nor a manual-discard callback. Effect completion/cancellation is CARD-ORDER.
@@ -533,7 +573,7 @@ broken local hyperlinks**. All normative facts claimed here are stated above.
 | SI-C | Same review closure: ApplyPowerAction, MakeTempCardInHandAction, PoisonLoseHpAction, ThornsPower, GetAllInBattleInstances, ExhumeAction. |
 | SI-R | Frozen initial-review and correction-recheck-v1 full reports plus 13-class source/bytecode set: Setup/Forethought guards, selection order, Confusion, cost/reset/copy cleanup, Masterful Stab and Exhume. Old Silent draft remains unchanged and **not factually cleared**. |
 | SI-N | This author lane's 27 targeted new classes: missing condition/count actions, ModifyDamageAction, Accuracy/delayed powers, DamageInfo, numeric powers, specific discard, MonsterGroup and AbstractPower. Exact unique ZIP entries, pinned javap/CFR and stripped Java environment; four pins before/after both batches. |
-| SI-B | Retained followup-v1 execution BaneAction.ALL identity/source/bytecode: Poison predicate and positive-target follow-up. |
+| SI-B | Retained followup-v1 execution BaneAction.ALL identity/source/bytecode and independent normative review confirmation: card-use payload capture, null/Poison gates, initial-duration positive-target source-dying cancellation and completion-time positive-target hit. Static evidence only. |
 
 The retained initial review inspected 148 classes; its narrow recheck inspected
 13, with overlap. Those are evidence counts, **not 161 distinct mechanics proofs**.
@@ -588,6 +628,9 @@ authorization remain separate human gates.
 | S12 X and repeat | Captured C differs from current energy; Chemical X; zero-X upgraded bonuses; free flag; Burst copy queue booleans/purge and no invented repeat payment. |
 | S13 character authority | Ironclad Distraction support and Alchemize limited potion pool despite green producer; Sozu after sampling; real belt mutation, not victory reconciliation. |
 | S14 numeric damage | Binary32 modifier chain/final floor, separate Dagger Spray/Riddle/Skewer hits, blocked Caltrops retaliation, positive NORMAL Envenom versus THORNS/HP_LOSS. |
+| S15 no-child versus zero-child | Start with nonempty shared draw history: empty-hand Calculated Gamble (both versions) and Expertise at h=M or h>M enqueue no draw and perform no child-history clear; contrast an actually enqueued default-history-clearing DrawCardAction(0), whose initial update clears history. Expertise at h<M enqueues one positive-deficit draw. No specific nested-history gameplay outcome is asserted. |
+| S16 Bane local checkpoints | Capture target and both DamageInfo payloads before either hit; distinguish null target, absent Poison during update, completion-time nonpositive target HP, and the initial-duration positive-target branch's non-THORNS/owner-isDying cancellation. Do not promote that checkpoint to every update, generic origins or universal legality; recipient/rescue/terminal outcomes remain unproved. |
+| S17 helper/template ordering | Heel Hook without Weak still enqueues damage; entry-time Weak gates only energy then draw behind it, without a helper positive-HP test or post-hit retest. Storm of Steel prepares one template and runs its temporary-action construction/Master Reality checkpoint before discard executes, then later inserts stat-equivalent copies. No reaction-dependent gameplay witness is claimed. |
 
 Exact assertions involving the listed shared gaps require their independent
 closure first. This case list is neither a test run nor a proof of legal root-seed
