@@ -407,41 +407,41 @@ re-evaluate Sacred Bark/ascension at use.
 No-amount potions do not acquire a fictitious potency effect merely because the
 accessor has a numeric value.
 
-| Exact factory ID | Concrete constructor owner | `getPotency(int)` base / constructor or initialization capture | Use-time numeric law and lifecycle exception |
-|---|---|---|---|
-| `Block Potion` | `BlockPotion` | 12; initializeData captures no-arg potency | Stored potency supplies block amount; fresh `makeCopy`, slot is assigned by acquisition |
-| `Dexterity Potion` | `DexterityPotion` | 2; initializeData captures no-arg potency | Stored potency supplies Dexterity amount; fresh copy |
-| `Energy Potion` | `EnergyPotion` | 2; initializeData captures no-arg potency | Stored potency supplies energy amount; fresh copy |
-| `Explosive Potion` | `ExplosivePotion` | 10; initializeData captures no-arg potency | Stored potency supplies damage amount; downstream damage target/effect is not the potency domain |
-| `Fire Potion` | `FirePotion` | 20; initializeData captures no-arg potency | Stored potency supplies damage amount; downstream damage resolution is separate |
-| `Strength Potion` | `StrengthPotion` | 2; initializeData captures no-arg potency | Stored potency supplies Strength amount; fresh copy |
-| `Swift Potion` | `SwiftPotion` | 3; initializeData captures no-arg potency | Stored potency supplies draw amount; actual drawn-card count can be deck-limited |
-| `Weak Potion` | `WeakenPotion` | 3; initializeData captures no-arg potency | Stored potency supplies Weak amount |
-| `FearPotion` | `FearPotion` | 3; initializeData captures no-arg potency | Stored potency supplies Vulnerable amount |
-| `AttackPotion` | `AttackPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input, not damage/effect amount |
-| `SkillPotion` | `SkillPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
-| `PowerPotion` | `PowerPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
-| `ColorlessPotion` | `ColorlessPotion` | 1; initializeData captures no-arg potency | Stored potency is choice-count input |
-| `SteroidPotion` | `SteroidPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Strength amount; end-turn removal is power lifecycle |
-| `SpeedPotion` | `SpeedPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Dexterity; same stored amount is used for the paired loss power |
-| `BlessingOfTheForge` | `BlessingOfTheForge` | 0; initializeData captures no-arg potency | No potency amount used; upgrade operation applies to eligible deck cards |
-| `BloodPotion` | `BloodPotion` | 20; initializeData captures no-arg potency | Stored potency is percentage input; heal uses source integer arithmetic and missing-HP bound, not flat 20 HP |
-| `Regen Potion` | `RegenPotion` | 5; initializeData captures no-arg potency | Stored potency supplies Regen amount |
-| `Ancient Potion` | `AncientPotion` | 1; initializeData captures no-arg potency | Stored potency supplies Artifact amount |
-| `LiquidBronze` | `LiquidBronze` | 3; initializeData captures no-arg potency | Stored potency supplies Thorns amount |
-| `GamblersBrew` | `GamblersBrew` | 0; initializeData captures no-arg potency | No potency amount used; hand discard/replacement count is current hand size at use |
-| `EssenceOfSteel` | `EssenceOfSteel` | 4; initializeData captures no-arg potency | Stored potency supplies Plated Armor amount |
-| `DuplicationPotion` | `DuplicationPotion` | 1; initializeData captures no-arg potency | Stored potency supplies number of next-card duplication applications |
-| `DistilledChaos` | `DistilledChaosPotion` | 3; initializeData captures no-arg potency | Stored potency bounds random card-play iterations; current draw-pile/action state determines actual plays |
-| `LiquidMemories` | `LiquidMemories` | 1; initializeData captures no-arg potency | Stored potency is selection count; eligible discard-pile/card availability can reduce result |
-| `ElixirPotion` | `Elixir` | 0; initializeData captures no-arg potency | No potency amount used; exhaust action applies to currently exhaustible hand cards |
-| `CultistPotion` | `CultistPotion` | 1; initializeData captures no-arg potency | Stored potency is Ritual amount; use adds the corresponding power |
-| `Fruit Juice` | `FruitJuice` | 5; initializeData captures no-arg potency | Stored potency is max-HP increase input; use path is gated by `canUse`, distinct from actual HP healing |
-| `SneckoOil` | `SneckoOil` | 5; initializeData captures no-arg potency | Stored potency bounds draw count; randomized card-cost update is a separate operation |
-| `FairyPotion` | `FairyPotion` | 30; initializeData captures no-arg potency | Stored potency is revive percentage input, not a guaranteed 30 HP; `canUse` and death state gate use |
-| `SmokeBomb` | `SmokeBomb` | 0; superclass default remains; constructor sets description/tip without initializeData | No potency amount used; escape outcome is encounter/room-state dependent and `canUse` guarded |
-| `EntropicBrew` | `EntropicBrew` | `player.potionSlots`, or 3 without player; constructor captures no-arg potency | Use loop reads live slot count, not stored/doubled potency. Combat queues that many limited proposals even with Sozu/full belt; each later obtain can fail. Outside combat, Sozu branches before generation; otherwise the same count drives unrestricted obtain effects. Constructor-built description/tip are not refreshed by base initializeData |
-| `HeartOfIron` | `HeartOfIron` | 6; initializeData captures no-arg potency | Stored potency supplies Metallicize amount |
+| Exact factory ID | Concrete constructor owner | Rarity | `getPotency(int)` base | Initialization contract | Use contract |
+|---|---|---|---|---|---|
+| `Block Potion` | `BlockPotion` | COMMON | 12 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=GainBlockAction;receiver=player;gate=any;effect=block-amount` |
+| `Dexterity Potion` | `DexterityPotion` | COMMON | 2 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/DexterityPower;receiver=player;gate=any;effect=dexterity-stacks` |
+| `Energy Potion` | `EnergyPotion` | COMMON | 2 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=GainEnergyAction;receiver=player;gate=any;effect=energy-amount` |
+| `Explosive Potion` | `ExplosivePotion` | COMMON | 10 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=DamageAllEnemiesAction;receiver=all-live-enemies;gate=any;effect=potency-to-damage-matrix` |
+| `Fire Potion` | `FirePotion` | COMMON | 20 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=DamageAction/DamageInfo;receiver=use-target;gate=any;effect=potency-damage-then-enemy-power-modifiers` |
+| `Strength Potion` | `StrengthPotion` | COMMON | 2 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/StrengthPower;receiver=player;gate=COMBAT;effect=strength-stacks` |
+| `Swift Potion` | `SwiftPotion` | COMMON | 3 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=DrawCardAction;receiver=player;gate=any;effect=draw-count-limited-by-piles` |
+| `Weak Potion` | `WeakenPotion` | COMMON | 3 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/WeakPower;receiver=use-target;gate=any;effect=weak-stacks` |
+| `FearPotion` | `FearPotion` | COMMON | 3 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/VulnerablePower;receiver=use-target;gate=any;effect=vulnerable-stacks` |
+| `AttackPotion` | `AttackPotion` | COMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=sacred-bark-index;tips=rebuild` | `read=stored-potency;sink=DiscoveryAction(ATTACK);receiver=choice-screen;gate=any;effect=choice-count` |
+| `SkillPotion` | `SkillPotion` | COMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=sacred-bark-index;tips=rebuild` | `read=stored-potency;sink=DiscoveryAction(SKILL);receiver=choice-screen;gate=any;effect=choice-count` |
+| `PowerPotion` | `PowerPotion` | COMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=sacred-bark-index;tips=rebuild` | `read=stored-potency;sink=DiscoveryAction(POWER);receiver=choice-screen;gate=any;effect=choice-count` |
+| `ColorlessPotion` | `ColorlessPotion` | COMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=sacred-bark-index;tips=rebuild` | `read=stored-potency;sink=DiscoveryAction(true);receiver=choice-screen;gate=any;effect=colorless-choice-count` |
+| `SteroidPotion` | `SteroidPotion` | COMMON | 5 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/StrengthPower+LoseStrengthPower;receiver=player;gate=COMBAT;effect=equal-strength-gain-and-end-turn-loss` |
+| `SpeedPotion` | `SpeedPotion` | COMMON | 5 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/DexterityPower+LoseDexterityPower;receiver=player;gate=COMBAT;effect=equal-dexterity-gain-and-end-turn-loss` |
+| `BlessingOfTheForge` | `BlessingOfTheForge` | COMMON | 0 | `writer=initializeData;capture=getPotency()->potency;description=fixed;tips=rebuild` | `read=none;sink=ArmamentsAction(true);receiver=player-hand;gate=COMBAT;effect=upgrade-operation-not-potency-amount` |
+| `BloodPotion` | `BloodPotion` | COMMON | 20 | `writer=initializeData;capture=getPotency()->potency;description=percentage-derived;tips=rebuild` | `read=stored-potency;sink=HealAction-or-player.heal;receiver=player;gate=COMBAT-vs-outside;effect=floor(maxHealth*potency/100)-missing-health-limited` |
+| `Regen Potion` | `RegenPotion` | UNCOMMON | 5 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/RegenPower;receiver=player;gate=COMBAT;effect=regen-stacks` |
+| `Ancient Potion` | `AncientPotion` | UNCOMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=artifact-keyword-rebuild` | `read=stored-potency;sink=ApplyPowerAction/ArtifactPower;receiver=player;gate=COMBAT;effect=artifact-stacks` |
+| `LiquidBronze` | `LiquidBronze` | UNCOMMON | 3 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=thorns-keyword-rebuild` | `read=stored-potency;sink=ApplyPowerAction/ThornsPower;receiver=player;gate=COMBAT;effect=thorns-stacks` |
+| `GamblersBrew` | `GamblersBrew` | UNCOMMON | 0 | `writer=initializeData;capture=super-default-zero;description=fixed;tips=rebuild` | `read=none;sink=GamblingChipAction;receiver=player-hand;gate=hand-nonempty;effect=discard-choice-and-redraw-count-from-current-hand` |
+| `EssenceOfSteel` | `EssenceOfSteel` | UNCOMMON | 4 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/PlatedArmorPower;receiver=player;gate=COMBAT;effect=plated-armor-stacks` |
+| `DuplicationPotion` | `DuplicationPotion` | UNCOMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=sacred-bark-index;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/DuplicationPower;receiver=player;gate=COMBAT;effect=next-card-duplication-count` |
+| `DistilledChaos` | `DistilledChaosPotion` | UNCOMMON | 3 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=PlayTopCardAction;receiver=random-live-monster;gate=loop-i<stored-potency;effect=top-card-play-count-limited-by-available-state` |
+| `LiquidMemories` | `LiquidMemories` | UNCOMMON | 1 | `writer=initializeData;capture=getPotency()->potency;description=potency-1-branch;tips=rebuild` | `read=stored-potency;sink=BetterDiscardPileToHandAction(potency,0);receiver=discard-pile-to-hand;gate=any;effect=selection-count-limited-by-eligible-cards` |
+| `ElixirPotion` | `Elixir` | UNCOMMON | 0 | `writer=initializeData;capture=getPotency()->potency;description=fixed;tips=keyword-rebuild` | `read=none;sink=ExhaustAction(false,true,true);receiver=hand;gate=COMBAT;effect=exhaust-eligible-hand-cards` |
+| `CultistPotion` | `CultistPotion` | RARE | 1 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=ritual-strength-keywords-rebuild` | `read=stored-potency;sink=ApplyPowerAction/RitualPower(potency,true);receiver=player;gate=COMBAT;effect=ritual-stacks` |
+| `Fruit Juice` | `FruitJuice` | RARE | 5 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=AbstractPlayer.increaseMaxHp(potency,true);receiver=player;gate=canUse-special;effect=max-health-increase-input-not-heal` |
+| `SneckoOil` | `SneckoOil` | RARE | 5 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=DrawCardAction+RandomizeHandCostAction;receiver=player-hand;gate=COMBAT;effect=potency-draw-count-plus-independent-cost-randomization` |
+| `FairyPotion` | `FairyPotion` | RARE | 30 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=AbstractPlayer.heal(pct,true)+TopPanel.destroyPotion;receiver=player;gate=canUse-always-false;effect=maxHealth*potency/100-floor-min1-revive` |
+| `SmokeBomb` | `SmokeBomb` | RARE | 0 | `writer=constructor;capture=super-default-zero;description=fixed;tips=constructor` | `read=none;sink=escape-flags+SmokeBombEffect;receiver=player-and-current-room;gate=COMBAT-only;effect=escape-transition-not-potency` |
+| `EntropicBrew` | `EntropicBrew` | RARE | player.potionSlots-or-3 | `writer=constructor;capture=getPotency()->potency-once;description=fixed;tips=constructor` | `read=live-potionSlots;sink=returnRandomPotion+ObtainPotionAction-or-ObtainPotionEffect;receiver=player-belt;gate=phase-split-and-outside-Sozu;effect=proposal-count-live-slots-not-potency` |
+| `HeartOfIron` | `HeartOfIron` | RARE | 6 | `writer=initializeData;capture=getPotency()->potency;description=potency-derived;tips=rebuild` | `read=stored-potency;sink=ApplyPowerAction/MetallicizePower;receiver=player;gate=COMBAT;effect=metallicize-stacks` |
 
 Concrete use-method overrides all read the stored `potency` except
 `BlessingOfTheForge`, `GamblersBrew`, `Elixir`, `EntropicBrew`, and `SmokeBomb`,
