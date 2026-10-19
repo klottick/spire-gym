@@ -244,7 +244,7 @@ No single uniform, replacement, rarity or independence rule fills these sites.
 | `Pen Nib` | Persistent Attack counter; ninth queues Pen Nib power, tenth resets 0. Battle start reinstalls power at counter 9. Power doubles NORMAL damage and Attack onUse queues its removal. | X,P |
 | `Potion Belt` | Equip increases capacity by 2 and appends two empty slots. | R,H |
 | `PreservedInsect` | Battle start with eliteTrigger lowers each initial monster's current HP to at most truncated 75% maxHP, not maxHP itself; no spawn hook. | X,P |
-| `Red Skull` | Battle-start delayed action checks bloodied; combat threshold entry/exit toggles active flag and +3/−3 Strength. Victory clears active state. | X,P |
+| `Red Skull` | Bloodied means integer HP≤half maxHP; above half exits. Battle start clears active; delayed action directly installs Strength 3 and activates if inactive/bloodied. Later entry queues +3 and activates only if inactive/in COMBAT; exit queues −3 only if active/in COMBAT, then clears active. Victory clears active. Completion after lethal transitions remains unproved. | X,P |
 | `Regal Pillow` | Sleep effect adds 15 to its Rest healing amount; not all healing. | R,H |
 | `Smiling Mask` | Shop removal price 50 takes precedence in price paths; room callback itself only presents activation. | H |
 | `Strawberry` | Equip increases maxHP 7, including helper healing. | R,H |
@@ -347,7 +347,7 @@ No single uniform, replacement, rarity or independence rule fills these sites.
 | `SlaversCollar` | Explicit beforeEnergyPrep tests eliteTrigger/BOSS enemy, temporarily master energy +1; activated victory removes it. No ordinary onEquip energy grant. | R,X |
 | `Snecko Eye` | Equip/unequip master hand size ±2; prebattle queues Confusion. Randomization is the power's draw behavior, not a universal initial card-cost rewrite. | X,G,P |
 | `Sozu` | Master energy ±1; potion refusal is caller-specific: reward claim can consume without obtain, store refuses before payment, low-level obtainPotion has no universal Sozu gate. | R,H,P |
-| `Tiny House` | Equip random upgrade prefix of one, maxHP +5, gold/potion rewards and ordinary-context card reward screen. Immediate upgrade/maxHP precede claims; not boss-combat forced rare. | R,H,G |
+| `Tiny House` | Equip random upgrade prefix of one, maxHP +5, 50 base-gold reward and one random-identity potion offer, then ordinary-context card reward screen. Upgrade/maxHP precede claims; gold-helper bonuses/claim guards still apply. Not immediate gold gain/potion obtain or boss-combat forced rare. | R,H,G |
 | `Velvet Choker` | Master energy ±1; battle/turn resets 0; onPlay increments up to 6; canPlay rejects at ≥6; victory −1. Applies through actual legality dispatch, not hand plays alone. | R,X,P |
 
 ### 4.5 Shop and special
