@@ -798,16 +798,39 @@ from the actual segment. No policy sampler or dense-head learner is required or
 implemented. Standard-space presentation is a separately tested adapter of these
 rows, not a promise of generic fixed-head/flattening/wrapper compatibility.
 
-Preflight, for **every** submitted/reset row before any transition:
+Common preflight, for **every addressed row** before any transition: exact
+operation, dtype, shape, contiguous-copy success, index range, unique ascending
+slots, descriptor/config compatibility, operation lease availability and the
+operation-specific lifecycle predicate below. Check row/reference/span/byte
+arithmetic and complete all pre-dispatch reservations for identity/token counters,
+coordination/replay bookkeeping and minimal failure reporting.
+Reservations check capacity without consuming semantic ordinals or installing IDs.
 
-1. Exact operation, dtype, shape, contiguous-copy success, index range, unique
-   ascending slots, descriptor/config compatibility and pool readiness.
-2. Current episode/decision token, nonterminal actionable phase, candidate bound,
-   exact private menu membership and core validation of that mapped choice.
-3. Checked row/reference/span/byte arithmetic and reservations for identities,
-   coordination/replay bookkeeping and failure reporting required to reject atomically.
-4. Reset additionally validates all detached profiles and seed/clock/config inputs;
-   no entropy draw/ordinal allocation before every row passes.
+* **Step-only preflight:** pool Ready, every addressed slot Live with a current
+  episode/decision token, nonterminal actionable phase, candidate bound, exact
+  private menu membership and core validation of that mapped choice. Uninitialized
+  or Terminal addressed slots reject, including one such row in full-pool step.
+* **Reset-only preflight:** pool Uninitialized or Ready, every addressed slot
+  Uninitialized, Live or Terminal. Reset requires no current decision token,
+  candidate or actionable phase. Validate **all** detached creation profiles,
+  profile/time policies, seeds (tag, width and range), clock/config inputs, stream
+  identities, next episode ordinals and duplicate-RunKey constraints, and complete
+  **all** required reservations before any entropy draw, identity installation,
+  ordinal consumption, abandonment or run mutation. The same rule covers first
+  initialization, explicit terminal reset and administrative live-run abandonment.
+
+Operating, Faulted and Closed pools reject step/reset; Operating cannot be entered
+reentrantly. Addressed-slot readiness, not initialization of every pool slot, is
+required. Partial initialization is permitted: unaddressed Uninitialized slots stay
+uninitialized and do not block valid subset operations. Empty index batches reject.
+`read_batch` requires Ready and only Live/Terminal addressed slots, not a token or
+candidate; it rejects an addressed Uninitialized slot rather than fabricating a row.
+
+| Operation | Allowed quiescent pool states | Allowed addressed slot states | Action token/menu required |
+|---|---|---|---|
+| step_batch | Ready | Live | yes |
+| reset_batch | Uninitialized, Ready | Uninitialized, Live, Terminal | no |
+| read_batch | Ready | Live, Terminal | no |
 
 Any invalid row rejects all rows with no state/RNG/history/reward/token/profile/
 episode advancement. No bool coercion, modulo, clamp, row drop or mapped no-op.
@@ -893,17 +916,138 @@ Live tokens/worker/slot addresses are not replay identities. An accepted action
 is recorded only after it passes preflight; post-dispatch faults retain accepted
 prefix and last known checkpoint, never fabricate completed delivery.
 
-Record format is concrete typed data, not executable algorithm/source: header
-identity strings are length-prefixed UTF-8, hashes/root are exact32-byte values,
-RunKey is16-byte stream plus big-endian unsigned64 ordinal. Accepted decision
-ordinal/index are unsigned64; every digest is32 bytes. Public-decision digest
-input is descriptor hash, fixed values/known arrays, then each table's segment
-length/values/known in table-ID order, using big-endian signed64 cells, raw known
-bytes and unsigned64 lengths. It excludes packed offsets, tokens and slot metadata.
-Semantic action payload is the canonical typed tuple encoded as the same sorted-
-key integer/string-only JSON convention; source references use semantic run-local
-provenance, not memory addresses. Profile/time attachments are length-prefixed
-bytes with their exact schema/hash, interpreted only by their approved contract.
+### 8.1 Replay outer byte grammar
+
+This **P** grammar fixes framing independently of the unresolved attachment/core
+contents. `||` is byte concatenation; `[n]` means exactly n repetitions, not a
+length field. `u8`, `u16`, `u64` are unsigned integers of 1, 2, 8 bytes respectively,
+all multibyte integers big-endian. `i64` is eight-byte big-endian two's complement.
+`HASH` is exactly32 raw bytes, never hex text. `BYTES(x) = u64(len(x)) || x`;
+length is **bytes**, excluding the prefix. `STR(s) = BYTES(UTF8(s))`, with strict
+Unicode scalar UTF-8 (no BOM, malformed/overlong sequences or lone surrogates).
+No normalization, NUL terminator, padding, alignment or implicit host-endian field.
+
+`SCHEMA = STR(schema_id) || HASH(schema_hash)`; nonempty IDs identify an exact
+version. `ATTACHMENT = SCHEMA || BYTES(payload)`. For any stated type T,
+`OPT(T) = u8(0)` for absent or `u8(1) || T` for present. No other presence tag is
+valid. Absent and present-empty payloads differ; no bytes follow an absent tag.
+Payload bytes are opaque to this outer grammar, owned and validated by their
+schema contract, not reserialized as text. NC10 supplies profile/time contents and
+allowed presence; this framing does not select defaults or approve their schemas.
+
+The complete ordered file grammar is:
+
+* `FILE = 41315250 || u16(1) || BYTES(HEADER) || u64(record_count)
+  || RECORD[record_count] || u8(end_status) || OPT(ATTACHMENT)`.
+  The first four bytes are literal hex (ASCII A1RP), not a string field. The final
+  attachment is interrupted-record diagnostics only. Status `0 clean-prefix` or
+  `1 terminal` requires it absent; `2 interrupted` requires it present. Unknown
+  status/tag/version rejects. End-of-file must follow immediately.
+* `HEADER = SCHEMA[8] || HASH(descriptor_hash) || STR(source_revision)
+  || STR(rules_revision) || u8(seed_kind) || seed_argument || root32
+  || u8(partition) || stream16 || u64(episode_ordinal)
+  || OPT(ATTACHMENT) || OPT(ATTACHMENT) || OPT(ATTACHMENT) || OPT(SCHEMA)`.
+  The eight SCHEMA pairs are exactly the section8 identity-table order:
+  observation, action, content/site, RNG registry, root adapter, replay, task,
+  delivery/fault. Each hash pins that component's canonical descriptor/manifest,
+  not the hash of its name; the separate descriptor hash pins their full composition.
+  Source/rules revisions are nonempty exact revision strings. `seed_kind` is
+  `1 Root32,2 Seed64,3 Entropy32`; seed_argument is u64(seed) **only for2**, empty
+  for1/3. root32 is always exactly32 bytes (including captured entropy for3).
+  Partition codes `1 train,2 selection,3 final,4 test` preserve existing meanings.
+  stream16 is the 128-bit stream identity big-endian, high byte first. The three
+  attachment slots are, in order, creation-profile snapshot, profile policy, time
+  policy. The last optional SCHEMA identifies the private-core digest encoding;
+  absent explicitly disclaims full-core comparison, never means public-only core.
+* `RECORD = u8(1) || BYTES(DECISION)`; tag1 is the only record kind in this version.
+  `DECISION = u64(accepted_ordinal) || HASH(pre_public) || u64(candidate_index)
+  || BYTES(semantic_action_json) || u8(completion) || post_fields`.
+  Ordinals start0 and are consecutive. Candidate_index must additionally fit the
+  section7 carrier/legal menu. Completion `0` has empty post_fields; completion `1`
+  has `HASH(post_public) || OPT(HASH(post_core))`. Other completion tags reject.
+  A completed record's post_core presence must equal header core-schema presence.
+  Only the last record may be incomplete, and only with end_status2. Interrupted
+  status may also follow a completed prefix (e.g. later export failure); it does
+  not certify successful delivery. Zero records are allowed, including an
+  initialization fault after a complete header exists. If entropy/header creation
+  itself fails, retain diagnostics outside FILE, not a fabricated root/header.
+  Diagnostics retain last known site/invocation/checkpoint and external cause
+  where available under their schema, not fake post digests.
+  Terminal status requires the regenerated last boundary (or initialization for
+  zero records) to be terminal. Prefix status promises only the recorded prefix.
+
+All lengths/counts must be in `0..U` (section6), despite their unsigned64 encoding.
+This bound does not narrow Seed64 or the unsigned64 episode/accepted ordinals.
+Before allocation or advancing a reader, check additions, count*element-width,
+remaining enclosing bytes and host-size conversions without wrapping. A BYTES
+child must consume exactly its declared length; a HEADER/DECISION must have no
+unconsumed suffix. Reject truncated, oversized, unknown-tag, extra-byte or
+noncanonical input; never ignore an extension or retry a different framing.
+Encoding failure is administrative, not legal-content truncation. A capture may
+retain an in-memory accepted prefix on export failure without promising that a
+partially written FILE is readable; record_count describes a finalized owned file.
+
+Canonical JSON for descriptor hashes and semantic actions is precisely: objects
+with unique ASCII keys sorted by unescaped key bytes, ordered arrays, Unicode
+scalar strings and base10 integer literals in `[-2^63,2^64-1]` only. No booleans,
+null, floats, insignificant whitespace, duplicate keys, leading zeros, plus signs
+or negative zero; whitespace inside strings is preserved. Escape quote and
+backslash as `\"` and `\\`; encode U+0000..U+001F as lowercase `\u00xx`, all
+other scalars directly as UTF-8 (including slash, U+007F and non-ASCII); no other
+escapes or normalization. An optional semantic tuple member uses `[]` or `[value]`,
+not null. The semantic-action root is an ordered array, framed by BYTES, with
+typed private source references using semantic run-local provenance, not addresses.
+The action component schema pins its exact tuple fields/dictionaries; their full
+content closure remains NC11/NC12. Empty `[]` below is a framing fixture, not a
+legal action. Opaque attachments need not be JSON.
+
+### 8.2 Public-decision digest and encoding vectors
+
+Public-decision SHA256 input has **no outer BYTES prefix**: raw descriptor HASH,
+then `context.values[0..12)`, `context.known[0..12)`,
+`player.values[0..16)`, `player.known[0..16)` for the one addressed slot, then
+tables1 through18. Each table contributes `u64(segment_row_count)`, **all** its
+values in row-major/declared-column order as i64, then **all** its known bytes in
+the same order. Fixed values also use i64; known bytes are raw0/1 (not ASCII or
+bit-packed). Do not interleave each cell with its known bit. Widths/order come
+from section6; no table-ID tags or fixed-array lengths are added. Empty segments
+contribute eight zero bytes and no cells/masks. Validate unknown-value zero rules
+before hashing. Exclude batch dimensions, offsets, tokens, slot/worker metadata,
+RunKeys, attachments and private/core state. For vector same-step replacement the
+post_public digest describes the stepped run's detached terminal boundary, not the
+replacement; replacement creation has its own from-start record. Pre_public
+describes that run's regenerated actionable boundary.
+
+The following **independently calculated author representation vectors** use hex
+notation `00*n` = n zero bytes and `+` = byte concat in the table (equivalent to
+`||` above), with no printed separators in the actual bytes. They are structural
+fixtures, not source/runtime evidence or valid initialized game states. SHA256
+covers the exact expanded bytes in column2.
+
+| Vector | Exact bytes/preimage in hex notation | SHA256 |
+|---|---|---|
+| G01 empty bytes | `0000000000000000` (BYTES of empty payload) | `af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc` |
+| G02 UTF-8 | `0000000000000002c3a9` (STR of U+00E9, length2 bytes not1 scalar) | `1d9b2f68e31ef2b6730c67d7729ca6a523e7f19d8987ca7c72eb93cb3bb9d979` |
+| G03 incomplete record | `01 + 000000000000003b + 00*48 + 0000000000000002 + 5b5d + 00` (ordinal/index0, zero pre digest, JSON `[]`, completion0) | `cbba1c720f971d132277b6a1547aa68dee3929bd387ab1b9bca27be9ee76611d` |
+| G04 empty tables | `00*428` (zero descriptor/fixed values/known, all18 tables empty) | `fced892c73c66d68fdbb01bb68464549f19996231e05ceddce888520d3b70227` |
+| G05 signed/mask/table | `00*32 + ffffffffffffffff + 00*88 + 01 + 00*155 + 0000000000000001 + 00*199` (context cell0=-1/known1; table1 has one all-unknown width7 row; other tables empty) | `9970458824150d3f8e19e7bcb2d608b9405f2cc31f6fedfd0136e5464b3eea46` |
+| G06 zero-record file | `41315250000100000000000001b8 + H + 00*10`, where H is defined below | `01ed74ddb35dcc8f98e2542a0b85707c5cbbfc3506f1149f720e0950a5979a19` |
+
+G05 is491 bytes: descriptor32 + context108 + player144 + table1(8+56+7) +
+other17 lengths136. Its deliberately unknown fixed cells do not certify legal
+phase/content. Optional-attachment framing examples: absent=`00`;
+present with schema ID `x`, zero schema hash and empty payload=
+`01 || 0000000000000001 || 78 || 00*32 || 0000000000000000`.
+These distinguish empty payload, absent attachment, byte count, sign encoding,
+mask order, table order and record/action framing without private fixtures.
+For G06, H is exactly `(000000000000000178 || 00*32)[8] || 00*32
+|| (000000000000000178)[2] || 01 || 00*32 || 01 || 00*28`, where parenthesized
+`[n]` repeats the entire group. H is440 bytes and FILE464 bytes: eight schema
+pairs with fixture ID `x`/zero hash, zero descriptor hash, source/rules `x`, Root32
+zero root, train, zero stream/ordinal, four absent header options; count0, clean
+prefix and absent diagnostics. Fixture IDs/hashes are not recognized schemas, so
+this is a framing vector, **not** a semantically acceptable runnable replay file.
+
 Full private-core digest encoding is **D NC11/NC12** until the authoritative state
 inventory closes; it must include hidden/RNG state and cannot be substituted with
 a public digest. Replay records without an approved core encoding cannot claim
@@ -923,7 +1067,7 @@ remains the old combat-only contract; no run checkpoint restore API is promised.
 | Operation | Exact ownership/outcome contract |
 |---|---|
 | `new(config)` | Validate B>0, workers>0/configured effective limit, identities, reset/recording mode, complete catalog/bindings/profile/time compatibility; no run installed until explicit reset. |
-| `reset_batch(indices, requests)` | Preflight all owned requests/reservations; initialize/install each requested new run and initial genuine decision. Nonrequested slots untouched; runtime failures follow section10. |
+| `reset_batch(indices, requests)` | Section7 reset-only preflight accepts addressed Uninitialized/Live/Terminal slots; initialize/install each requested new run and initial genuine decision. Nonrequested slots untouched, including uninitialized ones; runtime failures follow section10. |
 | `read_batch(indices)` | Return detached cached public decisions and non-policy tokens/metadata; no state/RNG/token/ordinal advancement. |
 | `step_batch(indices, actions, tokens)` | One accepted local choice per addressed live slot; automatic resolution and optional same-step replacement; output in requested logical slot order. |
 | `replay_from_start(record)` | Separate owned replay instance/result, not live pool installation or recovery of a faulted pool. |
@@ -944,6 +1088,15 @@ contains old/new RunKeys and the reset request, separately from replay actions.
 Subset operations use B=number addressed, while `slot_indices[B]` maps those rows
 to pool slots; compact final_slots below index this **returned** order. Metadata
 also retains pool slot identity outside policy features to avoid ambiguity.
+
+Reset-specific future acceptance cases (not executed native tests):
+
+| Case | Setup/discriminator | Required assertion |
+|---|---|---|
+| R01 first reset | New VectorSameStep pool with multiple Uninitialized slots; reset a proper subset with valid requests | No token/menu required; only addressed slots receive their first RunKeys/decisions; remaining slots stay Uninitialized; valid initialized subset read/step works, full-pool read/step rejects until all addressed slots qualify |
+| R02 terminal reset | SingleManual terminal with zero candidates, retained final resources | Explicit valid reset accepted without terminal action/token; installs new ordinal/initial decision, no fabricated reward/final transition; old detached terminal values unchanged |
+| R03 abandonment reset | Live decision and cached old token | Valid reset without action/token abandons old run, installs new ordinal/profile; not defeat/truncation/gameplay action; old token cannot step replacement and old outputs stay detached |
+| R04 invalid final reset | Partially initialized multi-slot pool with Uninitialized/Live rows; last request has bad profile/seed/config/ordinal or reservation failure; repeat invalid reset on SingleManual terminal | Reject entire batch before entropy/identity consumption or abandonment; all slot lifecycles, installed runs, profiles, tokens, RNG/history/reward/ordinals and nonrequested slots unchanged; no partial install |
 
 Successful step returns current packed batch, rewards float32[B] exactly -1/0/+1,
 terminated bool[B], truncated bool[B] all false, non-policy metadata and compact
@@ -990,6 +1143,19 @@ read-only flag by itself does not establish detachment.
 ## 10. Invalid input versus runtime administrative fault
 
 Pool lifecycle `1 Uninitialized,2 Ready,3 Operating,4 Faulted,5 Closed`.
+Slot lifecycle is `Uninitialized`, `Live` or `Terminal` at quiescent usable
+boundaries; Live means an installed genuine nonterminal Decision, Terminal an
+installed Dead/Act2Ready boundary. These slot states are distinct from private
+resolving phases and whole-pool Operating/Faulted/Closed. A successfully created
+pool is Uninitialized when no run is installed; after any successful reset it is
+Ready, including partial initialization. Pool Ready does not imply every slot is
+initialized. Section7 checks only addressed slots; unrequested slots are untouched.
+On accepted dispatch Uninitialized/Ready becomes Operating and returns to the
+appropriate quiescent state on success. Preflight rejection preserves the prior
+pool/slot states. Post-dispatch failure faults the whole pool, including its
+uninitialized slots; it is not partial-init success or rollback. Faulted/Closed
+never regain readiness through reset. No public observation exists for an
+Uninitialized slot, and read never initializes one implicitly.
 One operation lease prevents reentrant/concurrent read/step/reset/delivery on the
 same pool. Slots have exclusive mutable owners; persistent native pool-private
 workers dispatch only after all-row preflight, effective-one iterates directly.
@@ -1064,7 +1230,7 @@ not any implemented simulator. D-qualified cases cannot assert invented outcomes
 | C17 staged choices | Ordered/unordered selections with min/max and optionality | No combinatorial subset enumeration needed; selected sequence retained; no premature commit/reveal/RNG or invented Cancel/Confirm |
 | C18 reset/finals | Mixed endings K0/KB/consecutive same-step reset, retained old slices | End flags/reward/retired final identity align; replacement action never executed; single terminal awaits explicit reset; caller mutation and later close cannot corrupt old/native values |
 | C19 profile | Note incoming/outgoing and leaving/death/fault/reset | Independent reset profiles never inherit result; NC10 exact staged/committed attachment and reveal boundary required; do not label selection as transition persistence |
-| C20 replay | Same creation/choices across packing/workers/recording off-on | Same semantic boundaries/digests; captured profile, exact index-to-choice mapping; mismatch earliest provenance; no snapshot import or external-fault equivalence claim |
+| C20 replay | Same creation/choices across packing/workers/recording off-on; section8 vectors and malformed lengths/tags/JSON/order | Same semantic boundaries/digests; captured profile, exact index-to-choice mapping; byte/digest vectors match, malformed/overflow/extra-byte wire rejects; mismatch earliest provenance; no snapshot import or external-fault equivalence claim |
 | C21 runtime fault | Mutation then core/packing/export/facade failure and concurrent worker | Committed progress retained, all workers quiesced, whole pool faulted; no success/reward/fake loss/rollback/retry; current delivery/current-retired attribution, not prior episode |
 | C22 registry omissions | Add independently identified producer/consumer not preflagged | Catalog coverage rejects missing site/law/public field; complete labels cannot conceal Partial/Open; no unknown-field fallback at runtime |
 | C23 stochastic dependency | Five relic shuffles, missing faces, duplicate board, upgrade prefix, map-empty branch | Exact conditional/joint input measure/binding must be supplied/approved; namespace separation or mapper existence cannot approve IID; search miss is not impossibility |
