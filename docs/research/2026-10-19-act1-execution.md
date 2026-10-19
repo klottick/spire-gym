@@ -40,6 +40,7 @@ Evidence keys below identify methods, not unpublished document dependencies:
 | E8 | Fairy, Tail, creature healing/max-HP, heal overrides, alternate terminal writers |
 | E9 | Previously reviewed manager/room/dungeon, monster death/escape, Reaper and repeat-power bodies |
 | E10 | Correction check: Setup/Forethought actions, selected-group ordering and pile insertion; Masterful Stab construction/notification/copy, player damage dispatch, True Grit exhaust and Exhume retrieval |
+| E11 | Transmutation output support: library registration, colorless source-pool construction/filter, fresh/upgrade/setter/temp-card/stat-copy/hand-add path; Eviscerate/Blood for Blood copy receivers and Searing Blow constructor versus stat restoration |
 
 The private ledger retains exact source/bytecode locators, full direct inventories,
 commands, failed attempts and helper checks. Public facts here are independently
@@ -159,15 +160,26 @@ new fixed global priority table. [E2,E4,E7]
 All 439 card classes declare `makeCopy` (including the abstract declaration).
 Of the 438 concrete method bodies, 435 directly delegate to a kind constructor;
 the three additional direct state-reading bodies are Eviscerate, Blood for Blood,
-and Searing Blow. Eviscerate consults combat discard history; Blood for Blood
-consults combat damage-event history; Searing Blow passes its upgrade count to
-construction. Constructor behavior is a further dependency, not proved absent
-because a copy method is short. [E1,E2,E7]
+and Searing Blow. Their receivers and state sources differ:
+
+- Eviscerate constructs a fresh cost-three card to return, but under the
+  dungeon/map/combat guard applies the turn-cost setter to the **source**, using
+  source combat cost minus `totalDiscardedThisTurn`. This is per-turn history,
+  not an aggregate combat-discard count or an adjustment of that returned fresh card.
+- Blood for Blood instead updates the **returned fresh card** by the negative of
+  the player's `damagedThisCombat`, when a player exists; it does not apply that
+  copy-time update to the source.
+- Searing Blow passes `timesUpgraded` into construction, which stores that counter
+  but starts at base damage 12; that constructor does not replay damage upgrades.
+  The stat-equivalent route separately replays upgrades and restores source stats.
+
+Constructor behavior remains a further dependency elsewhere, not proved absent
+because a copy method is short. [E1,E2,E7,E11]
 
 | Copy route | State contract supported by the helper bodies |
 |---|---|
-| Fresh-kind `makeCopy` | Kind-specific construction; not an all-fields snapshot |
-| Stat-equivalent | Starts with fresh-kind construction and upgrade replay, then explicitly restores selected source statistics, costs, upgrade count, misc, bottle markers and one-shot free flag; does not copy every mutable play/destination flag |
+| Fresh-kind `makeCopy` | Kind-specific construction and possible source side effects, as in Eviscerate; not an all-fields snapshot or universally source-preserving operation |
+| Stat-equivalent | Calls the source's `makeCopy` first, including its source side effects, then replays upgrades and explicitly restores selected statistics, costs, upgrade count, misc, bottle markers and one-shot free flag from the then-current source; does not copy every mutable play/destination flag |
 | Same-instance helper | Stat-equivalent object plus source UUID; distinct object with shared source linkage, not an alias to the source object |
 | Expunger override | The sole stat-equivalent override; additionally restores its X-related magic values and clones the description list |
 
@@ -268,13 +280,29 @@ false. Autoplay makes the X card one-shot free before entering its payload.
 | Whirlwind / Skewer / Reinforced Body | Positive effective count queues individual damage/block operations; non-free payment consumes the current total when this action resolves |
 | Malaise / Doppelganger / Tempest / Collect | Upgraded form adds one to effective count; positive-count payload and non-free payment branch |
 | Multi-Cast | Entire effect/payment branch additionally requires a current orb; no-orb is not an automatic all-energy debit |
-| Transmutation | Card use first raises capture to at least current energy; action adds Chemical X, creates ordinary turn-zero results, and pays current total only for positive count when non-free |
+| Transmutation | Card use first raises capture to at least current energy; action adds Chemical X and requests turn zero per generated result; only already-nonnegative turn costs are set to zero (X sentinel unchanged); pays current total only for positive count when non-free |
 | Conjure Blade | Constructs Expunger even at zero effective count; non-free payment is not inside a positive-count gate |
 
 A repeat can retain an earlier capture without paying it again, but Transmutation
 can subsequently raise that value. Chemical X must not be pre-added to the stored
 capture and then added again by each repeat. The table closes these action-level
 branches, **not** every downstream orb/channel/generated-card interaction. [E7]
+
+Transmutation's no-argument colorless generator samples `srcColorlessCardPool`
+after filtering HEALING-tagged cards, with **no self-ID exclusion**. Library
+registration and colorless-pool construction include the rare Transmutation card,
+which has no HEALING tag. It is therefore a possible X result. Each selected result
+is freshly copied, optionally upgraded, and sent through the turn-cost setter
+before temporary-card creation. With unrelated modifiers absent, an ordinary
+nonnegative turn cost becomes zero (e.g. generated Apotheosis); a generated
+Transmutation keeps both X cost sentinels and receives no new free flag.
+The producer's captured free state governs its own payment, not an unconditional
+free entitlement for its generated cards.
+The subsequent stat-equivalent copy preserves those cost/flag values. With hand
+space, hand-add calls the copy hook, power recalculation and refresh dispatch;
+none is an unconditional X-to-zero/free conversion. This checked generation path
+does not settle all intervening power/relic compositions or initialized-root-seed
+realizability. [E2,E4,E5,E11]
 
 ## 5. Lifecycle: complete direct families, bounded transitive closure
 
@@ -436,9 +464,9 @@ states are not claims that all combinations have natural Act 1 reachability.
 | X05 | Mix repeat producers: verify actual power iteration, index-one reversal, pending-action priority and no fabricated `queueExtraCard` call |
 | X06 | Cost sample equals combat cost while turn cost differs: preserve that difference; Confusion still clears free flag, hand-randomization does not |
 | X07 | Upgrade positive versus zero turn cost; reset versus combat mutation; Corruption's draw/setter, refresh/modifier, exhaust and payment branches kept separate |
-| X08 | Stat copy versus fresh copy of Eviscerate/Blood for Blood/Searing Blow; Expunger X survives; destination flags not automatically copied |
+| X08 | Observe source and returned object before/after fresh-kind and stat-equivalent copying: Eviscerate's per-turn discard setter targets source under its guard; Blood for Blood's combat-damage update targets returned fresh card; Searing Blow constructor counter versus restored damage kept separate; Expunger X survives; destination flags not automatically copied |
 | X09 | Repeated X with capture below newly available energy: Transmutation raises it; ordinary X action does not universally do so; Chemical X applied once per action |
-| X10 | Multi-Cast with no orb; Conjure Blade with X zero; Collect+/Malaise+ at zero captured energy; distinguish payload/payment branches |
+| X10 | Multi-Cast with no orb; Conjure Blade with X zero; Collect+/Malaise+ at zero capture; also Transmutation ordinary positive-cost result versus self-generated X, unrelated modifiers absent and hand space available: follow fresh/upgrade/setter/stat-copy/hand dispatch, ordinary turn cost zero versus unchanged X/no new free flag, then source-specific later hand-play capture/payment |
 | X11 | Real draw versus retrieval/generation: own-card trigger, membership, powers/relics, refresh and Evolve/Fire Breathing eligibility |
 | X12 | Draw shortage with active souls, No Draw, full hand, and follow-up: verify source-specific exits/order without a universal draw-drain assumption |
 | X13 | Manual discard versus end-turn discard: movement/refresh before card hook, increment always, conditional Eviscerate/relic broadcast |
