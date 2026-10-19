@@ -36,6 +36,15 @@ Preserving that expression also states the actual source domain instead of assum
 an unlimited mathematical floor for arbitrary huge signed inputs. Exhausting native
 allocation/numeric capacity is an administrative failure, not an invented game loss.
 
+**Probability boundary:** unless a different measure is explicit, numeric masses
+below are primitive-input pushforwards: uniform bounded choices over the stated
+domain, or the uniform finite float grid specified in §3. Multi-draw products and
+rejection-law examples additionally assume those input laws **conditional on prior
+draws and rejections**. This is not proof of their distribution after conditioning
+on initialized runs, player choices or observed histories. Source RNG ownership and
+consumption are recorded in §2.3; separate RNG fields do not establish independence.
+The specific non-shuffle as well as shuffle joint obligations remain in §7.
+
 ## 2. Neow: variants, ordered offers and exact payloads (S, D)
 
 ### 2.1 Which start is offered
@@ -101,7 +110,7 @@ offer construction. It may be prevented by the actual obtain path.
 | upgrade one | Choose1 canUpgrade permanent instance; callback upgrades that actual object once. | Not a new card identity; no universal extra Searing Blow upgrade. |
 | transform one | Choose1 purgeable; generate output first, then object-remove input, then schedule Show obtain. | Uses Neow RNG; source-specific §5 transform support. |
 | transform two | Choose2 purgeables; object-remove both inputs first, then generate and schedule each output in selected order. | Outputs can repeat each other. Removal hooks can affect later generation/obtains; not two independent whole transactions. |
-| three potions | Exactly3 independent flat33-ID offers, duplicates legal. | Ordinary combat-reward screen opens, then the first automatically generated card row is removed. That discarded card generation has already changed ordinary rarity history. Potion claims/skips are separate. |
+| three potions | Exactly3 flat33-ID offers from successive calls on the shared potionRng, duplicates legal; probability boundary in §1 applies. | Ordinary combat-reward screen opens, then the first automatically generated card row is removed. That discarded card generation has already changed ordinary rarity history. Potion claims/skips are separate. |
 | common / rare relic | One live normal pool draw at fixed common / rare tier. | Spawn-and-obtain, with actual onEquip child work; not screenless filtering. |
 | boss swap | Remove the player's first starter relic **before** normal boss draw, then spawn-and-obtain. | Burning Blood is absent when Black Blood.canSpawn is tested, so Black Blood is rejected here. This is not a boss-chest Black Blood ban. |
 | Lament | Fixed Neow's Lament relic, counter3; each battle-start with positive counter decrements it and sets every currently present monster's current HP to1. | Final charge changes counter to−2/used-up; maximum HP is not set to1. No random relic-tier draw or three-enemy total counter. |
@@ -112,6 +121,31 @@ The selection update consumes its selected-card list once and clears activation.
 Neow's waiting-to-save path waits for no screen, no top-level effects and completed
 relic animation checks. That source save condition is not proof that every global
 queue/terminal family is resolved, nor approval of a native save API.
+
+### 2.3 Source draw ownership, timing and discarded proposals (S, BC)
+
+These are source-consumption facts, not a requirement for native seed/cursor parity
+or approval to replace them with independent native domains. The full blessing
+initializes NeowEvent.rng from the run seed before constructing the four categories.
+
+| Site / stage | Owning source RNG | Consumption and retry boundary |
+|---|---|---|
+| Full offers: construction | NeowEvent.rng | Category0,1,2,3 each makes a bounded reward-selection call, including singleton3. Category2 first draws its drawback, then selects from the filtered reward list. Payload card/potion/curse identities are not drawn here. |
+| Ordinary colored triple: activation | NeowEvent.rng for rarity **and** colored identity | Each slot draws rarity first, then identity at that rarity. A duplicate retries identity only, at the retained rarity; rejected identity draws remain consumed. |
+| Forced-rare colored triple: activation | NeowEvent.rng for rarity **and** colored identity | Each slot still consumes its rarity draw **before overriding to rare**. Identity-only duplicate retries do not reroll rarity. All three overridden rarity draws remain consumed. |
+| Ordinary / forced-rare colorless triple: activation | NeowEvent.rng for rarity; **cardRng for identity** | Each slot first consumes Neow rarity. Ordinary common is promoted to uncommon, so every ordinary output is uncommon despite those draws; forced-rare overwrites rarity after drawing. Duplicate retries consume only cardRng identity draws at the retained rarity. |
+| Direct random rare: activation; transforms: selected-card update | NeowEvent.rng | Direct rare draws one identity without a triple-builder rarity call. Transforms use the supplied Neow RNG and §5 input-specific support; no triple duplicate-rejection loop is imported. |
+| Pending curse: activation flag, then update-time identity | **cardRng**, through the random-curse helper | Activation sets the flag, not the identity. The later update consumes the curse choice and constructs its obtain effect. Colorless identities and this deferred curse therefore share cardRng; prevention does not undo the draw. |
+| Neow potions: activation; Lab/Woman: chosen button callback | Shared **potionRng**; Neow's discarded ordinary card offer uses **cardRng** | Each potion consumes the next bounded flat-ID choice, with no duplicate rejection or fresh stream per offer. Neow then opens ordinary rewards: card generation consumes ordinary rarity, identity/retries and applicable upgrade draws before the card offer is removed. Its draws and ordinary rarity-history changes are not undone. |
+| Question-room entry roll | Seed/counter-based event RNG copy | Transition constructs a copy from run seed and current eventRng counter, then consumes the room float **before Tiny Chest/Juzu handling**. On ordinary fresh entry it installs the already-advanced copy as eventRng before room entry; overrides do not refund the float. |
+| Actual event entry: branch then ID | Supplied event RNG copy | EventRoom.onPlayerEntry constructs a copy from run seed and the now-current eventRng counter and supplies it to generateEvent. Branch float precedes bounded eligible-ID selection on that supplied stream; §3.1 fallback/list consumption applies. It is not a newly proven independent branch/ID experiment after the room result. |
+
+One-step primitive mappings, including a discarded rarity result or an overridden
+room result, do not determine the initialized/history-conditioned joint ensemble.
+In particular, identity rejection can change subsequent consumption, and shared
+cardRng/potionRng or seed/counter-derived event copies cannot be treated as independent
+merely because their visible outcomes have flat primitive mappings. No contrary
+frequency or newly approved native independent-stream policy is asserted here.
 
 ## 3. Question rooms: numeric conditional law and history (S, BC, D)
 
@@ -158,7 +192,7 @@ at initial ramps. Each reroll reads the resulting state from all previous rolls.
 
 | Override/history boundary | Exact mutation |
 |---|---|
-| Tiny Chest owned | Increment its live counter once per question-room roll. Reaching exactly4 resets it to0 and overrides the chosen room to treasure. The primitive draw still happened. Other count values are not a newly invented modulo rule. |
+| Tiny Chest owned | Constructor counter is−1; onEquip sets0, so ordinary acquisition starts counting from0, not−1. Increment the live counter once per question-room roll. Reaching exactly4 resets it to0 and overrides the chosen room to treasure: the fourth roll after ordinary equip, not the fifth. The primitive float was already consumed. Other count values are not a newly invented modulo rule. |
 | Juzu Bracelet | A selected monster becomes event, but monster chance **resets to .10** rather than ramping. It does not suppress scripted Mushrooms/Dead Adventurer fights. |
 | Monster history | On monster selection (including Juzu conversion), reset to f(.10); otherwise add f(.10), rounding binary32. Tiny-Chest-forced treasure takes the latter branch. |
 | Shop history | On shop result reset to f(.03); otherwise add f(.03), binary32. A previous-shop suppressed roll still ramps when it does not select shop. |
@@ -173,8 +207,9 @@ must not trigger another entry roll or counter update.
 
 ### 3.1 Selecting an actual event and consuming history
 
-At an EventRoom, shrine branch has exact mass1/4, ordinary branch3/4 (strict .25
-float threshold). An ordinary choice is uniform by bounded integer over the
+Under §1's conditional primitive-input assumption, the shrine branch at an
+EventRoom has exact mass1/4, ordinary branch3/4 (strict .25 float threshold).
+An ordinary choice is uniform by bounded integer over the
 **remaining eligible ordinary IDs**, then removes that ID from its ordinary list.
 Shrine choice is uniform over the remaining six recurring-shrine IDs plus currently
 eligible one-time IDs, then removes the selected ID from its owning list. Neither
@@ -186,12 +221,16 @@ The one-time list has8 applicable Act1 IDs, of which Fountain needs isCursed and
 Woman needs G≥50; Note is enabled at standard non-Daily A0 independently of victories.
 Face Trader allows Exordium; the other five need no additional Act1 filter.
 
-With all relevant lists intact, floor≤6, G≥50, no qualifying curse: ordinary
+For the following examples, assume uniform primitive inputs **conditional on the
+actual event result, eligible-list state and preceding branch draw**; this is an
+explicit measure assumption, not a derived initialized-history law. With all
+relevant lists intact, floor≤6, G≥50, no qualifying curse: ordinary
 eligible count9, shrine count13. Hence each ordinary ID has mass1/12 and each
 shrine/eligible-one-time ID1/52 **conditional on an actual event being selected**.
 At floor>6 those ordinary masses become3/44; with a qualifying curse the shrine
-count14 gives1/56. These conditional examples do not assume that the intact-list
-history necessarily occurs at any particular initialized seed.
+count14 gives1/56. These examples neither prove the assumed conditional input law
+nor that the intact-list history occurs at a particular initialized seed. Room
+result, branch and ID dependence through §2.3's event RNG copies remains in §7.
 
 An empty eligible ordinary list delegates to shrine. A shrine-branch selection
 checks raw list emptiness, not just eligible count; its combined eligible list
@@ -281,13 +320,17 @@ not into its later-act event support. Normal outputs are fresh base copies;
 these event/Neow calls do not request autoUpgrade. Actual obtain hooks may upgrade
 them later. Multiple transforms do not reject repeated output IDs across inputs.
 
-The Neow curse drawback and Match curse use flat10, each1/10; they exclude
+The Neow curse drawback and Match curse use flat10, each1/10 under §1's
+primitive-input assumption; they exclude
 Ascender's Bane, Curse of the Bell, Necronomicurse and Pride. Fixed event curses
 in §4 are fixed identities, not ten-way draws. Ordinary colored or colorless
 transforms never gain arbitrary Status/BASIC/SPECIAL support.
 
-Neow/Lab/Woman use flat independent potion IDs, **each1/33 per offer**, duplicates
-allowed. The full identity support (not a second potion-effect catalog) is:
+Neow/Lab/Woman use successive flat potionRng choices, **each1/33 per offer under
+§1's conditional primitive-input assumption**, duplicates allowed. They do not
+create independent streams per offer; initialized/history-conditioned joint laws
+are not established by this marginal mapping. The full identity support (not a
+second potion-effect catalog) is:
 Attack Potion, Blessing of the Forge, Block Potion, Blood Potion, Colorless Potion,
 Dexterity Potion, Energy Potion, Explosive Potion, Fear Potion, Fire Potion,
 Power Potion, Skill Potion, Speed Potion, Flex Potion, Strength Potion, Swift
@@ -412,6 +455,8 @@ still blockers to a complete whole-Act1 claim:
 
 | Field / affected sites | Established information | Remaining obligation |
 |---|---|---|
+| non-shuffle Neow/card/curse/potion joint laws | §2.3 records source owners, construction/activation/update order, consumed overridden rarity draws, identity-only retries, shared cardRng for colorless/curse and successive potionRng calls | Initialized/history-conditioned conditional and joint laws for category/drawback/payload choices, rarity/identity/rejections, colorless identities→deferred curse, successive potions and discarded ordinary card generation. Flat primitive mappings alone do not prove these laws or authorize independent native streams. |
+| question-room→event joint law | Finite room mapping, consumed float before overrides, advanced eventRng installation and EventRoom's seed/counter-derived supplied copy, branch/ID/list filters | Conditional joint measure of room result, shrine branch, eligible ID and subsequent relevant event history. §3.1's numeric examples assume conditional primitive inputs; source ownership/counter reconstruction is not an independence proof after initialized histories. |
 | seeded-shuffle input/joint measure | Dead Adventurer six numeric mapper counts above; exact current supports/order and no-replacement consumption for all sites | Initialized/history-conditioned seed measure and relevant joint dependence; uniform64 is not silently approved. |
 | larger shuffle outcome law | Face missing subset≤5; Match12 labeled positions then identity/reveal history; Shining first min(2,n) U1; WeMeet potion/card separate captured lists; live depleted relic pools | Exact finite observable pushforwards/posteriors for these varying lists and jointly relevant history. Do not assume uniform faces, unordered pair upgrades, or uniformly permuted boards. Conditional on supplied complete ordered state/output shuffle, local mutation is specified. |
 | transitive relic callback effects | Reviewed tier roster, all32 candidate canSpawn overrides, normal/end/retry/fallback/screenless laws and actual fixed rewards | Whole callback/death/nested-screen composition for each actually obtained relic remains separate relic-mechanics/execution work; a reconciled roster is not that proof. |
@@ -454,8 +499,17 @@ waive the listed conditional/joint mechanic laws.
     same-ID exclusion if absent; SPECIAL colorless transforms to ordinary35.
     Face Trader can give SsserpentHead; Ssssserpent gives Doubt+175, never that face.
 11. Final Match match on attempt5 still obtains one fresh copy before cleanup;
-    no upgraded-preview alias or hidden-ID candidate ordering. Repeated card kinds
-    in Shining Light are distinct selectable upgrade instances.
+     no upgraded-preview alias or hidden-ID candidate ordering. Repeated card kinds
+     in Shining Light are distinct selectable upgrade instances.
+12. For each colored and colorless forced-rare triple, discriminate consumed
+    per-slot rarity draws from an implementation that omits them. Force a duplicate
+    identity proposal and check that only identity is retried, not rarity. Ordinary
+    colorless also consumes Neow rarity before promotion despite all-uncommon output.
+13. With a pending curse, vary colorless identity rejection history before the later
+    update-time curse draw: both use cardRng, unlike colored Neow identities. Check
+    successive potionRng use and room-float→advanced-copy→event-branch/ID consumption
+    rather than independent per-offer/branch streams. These are future consumption
+    discriminators, not executed original gameplay or an asserted joint frequency.
 
 ## 9. Source-claim ledger and actual verification
 
@@ -471,6 +525,7 @@ as a source fact.
 | Claim group | Actual members inspected / private evidence |
 |---|---|
 | Neow variants, ordered categories, payloads and flags | A neow/NeowEvent constructor, buttonEffect, miniBlessing, blessing, update; neow/NeowReward constructors, getRewardOptions, getRewardDrawbackOptions, activate, update, getRewardCards/getColorlessRewardCards/rollRarity |
+| Consumption and Tiny Chest correction | A NeowReward triple builders/update/activate, AbstractDungeon getColorlessCardFromPool/getCardWithoutRng/nextRoomTransition/generateEvent/getShrine/getEvent, CardGroup random selectors, CardLibrary.getCurse, PotionHelper.getRandomPotion and TinyChest constructor/onEquip; actual retained NeowReward/EventHelper/transition BC, fresh TinyChest and EventRoom.onPlayerEntry BC |
 | Question law | Fresh own exact-unique helpers/EventHelper class: roll/resetProbabilities BC offsets0–741 and0–23; retained source plus fresh reconstruction. AbstractDungeon.nextRoomTransition and dungeonTransitionSetup callers. |
 | Exact rounding / direct payload types | Fresh own exact-unique libGDX MathUtils.round BC and reconstruction; DamageInfo constructors establish default NORMAL; NeowsLament constructor/atBattleStart/setCounter BC closes counter3→−2 and current-HP-only effect. |
 | Event lists and entry guards | A dungeons/Exordium.initializeEventList/initializeShrineList; AbstractDungeon.initializeSpecialOneTimeEventList/isNoteForYourselfAvailable/generateEvent/getEvent/getShrine; AbstractPlayer.isCursed |
@@ -487,6 +542,13 @@ and document/path/link/privacy/whitespace checks. Static scope was four fresh
 classes/eight JVM tool commands, not a blind archive reconstruction. Java injection
 variables were stripped; no game class/initializer/runtime was executed. Arithmetic
 checks independently validate documentary finite counts, not original gameplay.
+
+The bounded I1/M1 correction retains new evidence in that lane's
+`correction-i1-m1/`, leaving initial artifacts unchanged: actual source and retained
+bytecode readback, two fresh exact-unique TinyChest/EventRoom javap inspections,
+four-pin checks, reused helper tests and document/publication checks. The correction
+adds source consumption and the explicit **non-shuffle** joint-law obligations; it
+does not supply an initialized ensemble or approve a new native RNG policy.
 
 The current-wave documentation baseline exception covers only the already recorded
 two CUDA-environment failures, conditional on no new failures and independent exact-
