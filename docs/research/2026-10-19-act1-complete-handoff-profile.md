@@ -221,7 +221,7 @@ a global rollback transaction. Each row names who owns the transition:
 
 | Phase / owner | Required state transition | Completion predicate / exclusions |
 |---|---|---|
-| `BossCombat` / combat + run | Resolve lethal packet, boss-specific death/split/cannot-lose and terminal logic; apply actual death/rescue rules. Live permanent mutations (Feed/gold/maxHP/card growth/relic counters/potions) already committed remain. Mark boss discovery at prebattle hook if reached. | An actual player death terminates −1. Boss dying/`isDying`, queued lethal packet, split child, escape, room victory latch or combat reward construction is not +1. No post-death heal. |
+| `BossCombat` / combat + run | Resolve lethal packet, boss-specific death/split/cannot-lose and terminal logic; apply actual death/rescue rules. Live permanent mutations (Feed/gold/maxHP/card growth/relic counters/potions) already committed remain. Mark boss discovery at prebattle hook if reached. | An actual player death terminates −1. Boss dying/`isDying`, queued lethal packet, split child, combat/room escape, room victory latch or combat reward construction is not +1. A legal escape settles its room/combat path and the run continues; it does not end this task episode. No post-death heal. |
 | `BossCombatRewards` / reward owner | Generate the boss combat reward rows under boss rarity/context, with their own card history/pity and other reward law. Each card row is an independent legal Take/Skip; Take consumes its row before deferred obtain resolves. Whole-list Proceed can leave legal rows unclaimed. Resolve all accepted obtains and any mandatory child before leaving this phase. | Do not call boss-combat rewards “boss chest”; TreasureRoomBoss is a distinct later phase. A skip is valid and does not undo offer history. |
 | `BossTreasureEntry` / chest owner | On entry, run the boss-chest opening hooks (`onChestOpen(true)`); construct three sequential boss-tier relic offers from the live boss pool (each consumes its pool entry), then open boss-relic selection. | No ordinary chest size/tier/gold roll, no sapphire-key attachment, no ordinary `onChestOpenAfter`, no Matryoshka extra relic, and Cursed Key's ordinary-chest curse. Do not emit chest gold or force a key. |
 | `BossRelicChoice` / choice owner | Take one offered relic or skip; the boss chest itself can also be proceeded past with no pick (record no-pick). Normal take closes selection before ordinary relic arrival/obtain/onEquip. Black Blood replacement is a distinct instant path. | Skip/no-pick is legal; offers are not claims. There is no implicit pick. Do not run onEquip while the choice is still open. |
@@ -230,14 +230,18 @@ a global rollback transaction. Each row names who owns the transition:
 | `DungeonTransition` / main game | Complete the actual main-game transition screen; construct the named successor with the same player object/state. Run shared transition setup, then TheCity/Act2 initialization in defined order below. | An administrative fault quiesces the pool, retains actual committed prefix/provenance, emits no success final/reward/autoreset. It is not death, defeat, retry, rollback or successful profile delivery. |
 | `Act2Ready` / run + env | After required map/state initialization, retain the fully initialized successor privately and freeze a detached terminal final of the completed episode; reward +1 exactly once, `terminated=true,truncated=false`. Do not publish an Act2 observation/menu or apply an Act2 action. | Checkpoint is strictly before any Act2 player decision. No Act2 policy play or hidden successor leakage. |
 
-Terminal arbitration applies at every phase: actual player death is −1 and
+Task-terminal arbitration applies at every phase: actual player death is −1 and
 `terminated=true,truncated=false`, even if earlier rewards/keys/Note commits remain
 durable; no later transition heal can revive it. A legally available escape is a
-distinct nondeath outcome with reward 0, never boss victory or +1; Act1 boss escape
-is not manufactured where the source does not offer a legal escape route. Skip,
-no-pick, empty offer, administrative numeric/resource failure, and post-dispatch
-fault are also not death. A fault quiesces and returns no successful final or
-autoreset; it preserves the committed prefix and fault boundary without rollback.
+nonterminal combat/room outcome: that step receives reward 0, resolves the
+source-specific room/combat settlement, and the same episode/run continues with
+later legal decisions. It is neither task termination nor a task final/autoreset,
+victory, death, or administrative fault. Act1 boss escape is not manufactured
+where the source offers no boss escape route; that boss-specific absence does not
+remove escape mechanics elsewhere. Skip, no-pick, empty offer, administrative
+numeric/resource failure, and post-dispatch fault are also not death. A fault
+quiesces and returns no successful final or autoreset; it preserves the committed
+prefix and fault boundary without rollback.
 Success is the sole `Act2Ready` outcome. A source one-use latch/pool consumption
 commits only at its named consumer: boss offer generation consumes all three
 offered pool entries even when skipped, boss relic install/child effects commit
@@ -267,7 +271,8 @@ produces an unconditional all-heal. Reset does not revive a dead player.
 |---|---|
 | Player HP/maxHP, gold, permanent deck instances/upgrades, relic instances and counters, current potions/belt, acquired keys and durable run effects | Carry exact post-effects values and identities from same player/run; preserve all actually committed mutations and consumed one-use flags. Apply only real transition heal/relic hooks. Do not replenish potions or clear deck. |
 | Act number/global floor/path/current room | Advance to Act 2 / next global floor by source transition; clear Act1 path/local current-room ownership and create Act2's empty starting map node. Preserve visited/history facts as named below, not old selectable map nodes. |
-| Act-local encounter queues, boss candidate list, ordinary events, six repeatable shrines, question-room probabilities, card/potion pools and local reward state | Reinitialize for Act2 at the described setup steps. Act1 queue heads/pools are not reused as Act2 pools. |
+| Act-local encounter queues, boss candidate list, ordinary events, six repeatable shrines, question-room probabilities, and Act2-derived offer collections | Initialize Act2-local collections/state as described below. Preserve the run-owned consumed-offer/depletion ledger across the act boundary; rebuilding a derived collection must reapply that ledger. Act1 encounter queue heads are not reused as Act2 queues. |
+| Relic pool depletion and committed offer history | Carry the current run-owned consumption history across Act1→Act2, independently of owned relic identities. Every generated offer consumes its source pool entry at the producer commit boundary, including an offered-but-skipped or no-pick boss relic. A newly derived Act2 available collection excludes all already-consumed IDs for that pool role as well as owned-ID exclusions; never restore an unowned consumed relic. |
 | Remaining run-wide one-time events | Carry the live remaining list; do not repopulate consumed events. Filter by Act2 eligibility when generating a future event, not by exposing hidden future IDs now. |
 | Discovery history | Carry Act1 seen-boss additions and existing independent Act2/Act3 seen sets. The new Act2 boss-selection setup depends on Act2's seen set; it is hidden from policy until legally announced/revealed. Boss lists do not become a public “all seen” feature by accident. |
 | Acquired ruby/sapphire/emerald flags | Carry actual owned keys; optional and deferred key effects commit only at their actual consumer. The burning map-node designation is distinct from acquired Emerald. Act1 boss chest has no Sapphire attachment. |
@@ -289,9 +294,12 @@ not Act2 gameplay mechanics or permission to expose future choices.
    the same player: set Act=2; reset act-local path/event/shrine/encounter/boss
    state and question-room probabilities; reset room potion-drop modifier; issue
    normal max-HP heal request through hooks. Do not recreate deck/player.
-3. Construct Act2 encounter pools/queues and the Act2 boss candidate state; create
-   Act2 ordinary event and six recurring shrine pools; rebuild card, potion and
-   relic offer pools and Act2 chance parameters. Keep the one-time event remainder.
+3. Apply Act2 ruleset/chance parameters, then initialize Act2 encounter pools/
+   queues and boss candidates, ordinary event and six recurring shrine pools, and
+   Act2 card/potion/relic derived offer collections. Carry the run-owned relic
+   consumption/offer-history ledger and reapply its exclusions to any derived relic
+   collection; also keep the one-time event remainder. Do not reset run histories
+   merely because a collection is reconstructed.
 4. Generate/validate the Act2 map and burning Elite designation through the
    accepted map producer. The visible map contains only map facts permitted at
    this boundary; future encounters, boss order, hidden room/event identities,
@@ -301,12 +309,24 @@ not Act2 gameplay mechanics or permission to expose future choices.
    construct/publish an Act2 action menu, or select an action. Mark `Act2Ready`
    only after these state components are coherent.
 
-The source Acts2/3 record says queues and boss list are built before act-specific
-map; native selected map RNG is independent, so this is an initialization phase
-ordering dependency, not a demand to recreate source cursor correlations. Exact
-per-subconstructor order among nonobservable pools must be frozen by the named
-producer contract; no policy-visible field may be derived by hidden allocation
-order.
+**Selected native constructor order** is the numbered sequence above: shared
+transition setup; Act2 ruleset/chance parameters; encounter/boss, event/shrine,
+card/potion/relic producers (with carried depletion applied); map validation and
+burning marker; empty entry node; then readiness validation. The dependencies are
+that Act2 context exists before its producers, the map producer receives Act2
+parameters, and the entry node refers to the validated map. Producer-internal
+order not required by those dependencies is private and must not affect policy-visible
+state.
+
+**Source ordering is a separate static fact, not the selected RNG schedule:** in
+the inspected `AbstractDungeon` constructor, shared transition setup is followed
+by `generateMonsters`, `initializeBoss`, `initializeEventList`,
+`initializeShrineList`, `initializeCardPools`, and `initializePotions`; control then
+returns to `TheCity`'s constructor body, which initializes level-specific chances,
+generates the map, and installs the empty node. This method/call ordering does not
+prove that every source pool initializer is invoked on an Act transition, and it
+does not override selected native depletion carry. Native independent RNG requires
+no host-cursor, source-call-order, or cross-system draw parity.
 
 ### 5.2 Act 2 initial state domains (source-informed)
 
@@ -319,7 +339,7 @@ order.
 | Events/shrines | Reinitialize the 13 Act2 ordinary event IDs: Addict; Back to Basics; Beggar; Colosseum; Cursed Tome; Drug Dealer; Forgotten Altar; Ghosts; Masked Bandits; Nest; The Library; The Mausoleum; Vampires. Reinitialize six repeatable shrines: Match and Keep, Wheel of Change, Golden Shrine, Transmogrifier, Purifier, Upgrade Shrine. Combine only the remaining one-time-event list under eligibility at a future event-selection site. | All pools private. Do not expose event identities/order or eligibility for hidden future rooms. |
 | Rewards/card state | Rebuild Act2 card generation/reward state and offer histories; keep prior deck and any run-wide reward/pity history that source/native policy defines. Boss reward rows are consumed/skipped as decided, not copied into Act2. | No unoffered card or reward candidate. Public current rewards only after actual generation. |
 | Shop/economy | Reinitialize Act2 shop visit state and Act2 applicable room/economy parameters; carry current gold and existing price/removal histories that are run-owned. The shop itself does not exist until a shop room is visited. | No stock, prices, relic/potion/card offers, or shop RNG before a shop visit. |
-| Relic pools | Rebuild applicable relic pools from Act2 context with owned-ID removals and source pool/depletion rules; ordinary Act2 relic chances Common/Uncommon/Rare=50/33/17; boss pool is initialized for boss selection/reward role; preserve acquired relic list/counters separately. | Pool members, order, depletion and future offers hidden. Relics already owned remain visible. |
+| Relic pools and depletion | Carry run-owned per-role consumed-ID/committed-offer history across Act1→Act2, including offered-but-skipped IDs; derive Act2-context eligible collections only by reapplying that history plus owned-ID removals. Never resurrect a consumed-but-unowned relic. Ordinary Act2 relic chances Common/Uncommon/Rare=50/33/17; preserve acquired relic list/counters separately. Exact catalog/role membership/history encoding awaits accepted relic producer. | Pool members, order, depletion and future offers hidden. Relics already owned remain visible. |
 | Potions | Reinitialize Act2 potion-drop probability modifier to its normal reset value, with source shared modifier reset at transition; retain actual current belt contents/capacity and Potion counters/Sozu effects. | Current belt visible under normal observation; no future potion proposal/identity. |
 | Room probabilities | Act2 room chance parameters from source construction: Shop .05, Rest .12, Event .22, Elite .08 (binary32 source anchors). Ordinary treasure parameter zero does not remove the fixed map chest. Chest size 50/33/17; ordinary relic tier 50/33/17; colorless rare parameter .3; card-upgrade parameter .25. These are map/producer inputs, not independent per-node probabilities or all producer rules. | Only realized public map types; no hidden chance values or unrevealed chest/reward outcomes. |
 | One-time event history | Continue only the remaining source run-wide one-time event IDs; already consumed remain absent. Act2-specific eligible additions (including Designer, Duplicator, Knowing Skull, N'loth) are evaluated at their proper future event generation. | Hidden pool not exposed; revealed/history facts only. |
@@ -419,21 +439,22 @@ initializer or game runtime was executed.
 | Card pools: common/uncommon/rare/colorless/curse; static source definitions | Card-content producer + reward history owner | Clear/rebuild run-local rarity groups from character/content definitions; do not carry Act1 group depletion. Preserve reward/pity history separately only as accepted native card producer defines it. | Five groups exist; membership is accepted content manifest. Offer-history fields/domains pending accepted card producer schema. | Pools/history hidden; only generated offers shown. |
 | Card-rarity history fields `cardBlizzStartOffset`, `cardBlizzRandomizer`, `cardBlizzGrowth`, `cardBlizzMaxOffset` | Run-owned reward-history producer | Source `dungeonTransitionSetup` does not write these; the source full-run reset sets the randomizer from the start offset, so an Act1->Act2 transition must not silently zero/reinitialize the live history. Native policy's matching history representation/initial values is owned by the accepted card-reward producer. | Source representation is four signed Java `int` fields; exact native domains and selected-policy law must be provided by the accepted card producer. Carry current Act1 history at this handoff unless that accepted law explicitly establishes a different selected-native representation. | Private; no hidden pity/cursor in final observation. |
 | Potion catalog and transition modifier | Potion producer + carried player | Reinitialize available catalog for Ironclad; modifier set to `0` above; retain current belt exactly. | Belt/capacity equal carried PlayerCore; catalog rebuilt in Act2 context. Any other probability state must be initialized by named potion producer, not an unnamed “normal value.” | Belt legal observation; pool/modifier hidden. |
-| Relic pools: common/uncommon/rare/shop/boss; owned-ID exclusions | Relic producer + carried relic list | Rebuild all five run-local pools for Act2 context and current class; apply exclusions derived from carried owned IDs. The source method clears/repopulates/shuffles collections; do not carry Act1 depleted pools or confuse them with owned relics. | Five role collections; exact members and removal/depletion law pending accepted relic/content producer. Offer consumption mutates run-local pool, never static catalog. | Pools/order/depletion hidden; acquired relics normal. |
+| Relic pool state: common/uncommon/rare/shop/boss roles; consumed IDs/offer history; owned-ID exclusions | Run-owned relic-pool history + relic producer + carried owned relic list | Carry each role's current run-owned consumed-ID/committed-offer history unchanged across Act1→Act2, including offers skipped or not picked. If Act2 context requires a derived eligible collection, rebuild from accepted static catalog and reapply **both** consumed-ID history and owned-ID exclusions before any offer. Rebuilding a derived collection is not a history reset. The inspected source initializer method body clears/repopulates/shuffles collections; the static evidence here does not establish its caller or invocation on Act2 transition, and it does not authorize dropping selected native within-pool depletion. | Exact selected invariant: no previously consumed identity in a pool role can reappear in that role's available set. Offer-generation commit appends every offered identity to that role's consumed history regardless of later claim/skip/no-pick. Exact content members, role overlap, and source/native history encoding remain pending accepted relic/content producer. | Pool state/order/depletion hidden; acquired relics normal. |
 | Shop visit, purge/removal history, stock/price | Economy producer + progression | No Shop room/inventory at construction. Carry run-owned purge/removal history and gold; create stock/prices/visit state only on actual shop entry. | No shop, stock, or prices; visit-local state absent. Exact cross-run history fields pending accepted economy/native schema. | No shop fields before visit. |
 | Act2 map, burning marker, entry node | Map producer | Build and validate complete Act2 map; install fresh `(x=0,y=-1)` node with `EmptyRoom`; this is not room entry. | Coherent validated map; empty current node, no Act2 room entered. | Private successor; not Act1 final. |
 | Native random provenance | Accepted RNG producer | Initialize role states from reviewed native producer; never source Java objects/cursors. | Exact schema, role set, serialized state are pending routed RNG import. | Private. |
 | Phase/work | Handoff owner | Ready only after required child and every named producer validator succeeds. | `Act2Ready`; no Act1 continuation/screen/action, Act2 room entry/menu/candidate/decision. | Act1 terminal projection has zero candidates and no successor fields. |
 
-Construction has multiple stages: shared transition setup clears listed
-transition-local lists and sets the room potion modifier; TheCity installs A0
-chance parameters, generates its map, and creates the empty entry node; the Act2
-state producer must then materialize encounter/boss/event/shrine/card/potion/relic
-state and validate coherence. The accepted native interface must freeze the order
-among private producer families. In particular, source `initializeCardPools`
-rebuilds run-local rarity groups, not immutable static card definitions; relic
-pool reset is separate from the player's owned relic list. The potion modifier's
-actual reset value is zero; other potion-producer state is a separate named import.
+Construction has a selected native order and a distinct source order as stated in
+§5.1. Under the native order, Act2 parameters and pool producers finish before the
+validated map and empty entry are installed; `Act2Ready` follows only after all
+components validate. Static inspection establishes the source superclass and
+subclass call sequence, not that each source initializer is a transition reset
+contract. Source `initializeCardPools` rebuilds run-local rarity groups, not
+immutable static card definitions. Regardless of any derived relic collection
+rebuild, the selected native run-owned consumed-offer ledger carries across the act
+boundary and is reapplied before offers. The potion modifier's actual transition
+reset value is zero; other potion-producer state is a separate named import.
 
 ### 6.4 Concrete child and transition completion protocol
 
@@ -472,7 +493,9 @@ children resolve; the chest has exactly three offered/consumed relic identities
 and explicit take/skip/no-pick; selected relic mandatory descendants resolve; and
 each suspended parent resumes exactly once. Optional descendants may be skipped;
 offered rows are not implicitly claimed. `Act2Ready` is true iff simultaneously:
-(a) death/escape/fault has not won terminal arbitration; (b) boss reward/chest
+(a) no actual death or administrative fault has won task-terminal arbitration and
+the run remains live (a prior nonterminal room/combat escape does not terminate or
+invalidate the episode); (b) boss reward/chest
 predicates above hold; (c) mandatory child work is resolved and each suspended
 parent resumed once; (d) each applicable transition effect is resolved exactly
 once and all others are explicitly nonapplicable; (e) destination is Act2 with
@@ -483,11 +506,15 @@ entry/menu/action has begun. Collection emptiness is neither necessary nor
 sufficient: optional rows can remain as resolved skip provenance; an empty
 collection missing a required result is not ready.
 
-Terminal outcomes are exclusive and set once: `Death` => -1, terminated;
-`Act1CompleteAct2Ready` => +1, terminated; `Escape` or `AdministrativeFault` =>
-0 with no success final. Fault preserves committed prefix and does not fabricate a
-successor. This defines consumer record shape/predicate, not evidence that the
-execution producer has supplied its exact site/effect rows.
+Task-terminal outcomes are exclusive and set once: `Death` => -1, terminated;
+`Act1CompleteAct2Ready` => +1, terminated; `AdministrativeFault` => 0, quiesced,
+and no success final. `None` means the task episode remains live. A room/combat
+escape is not in this episode terminal domain: it resolves at its producer's
+room/combat boundary with step reward 0, no task final, no task autoreset, and run
+continuation to later legal decisions. Do not create a task-terminal escape phase
+or outcome. Fault preserves committed prefix and does not fabricate a successor.
+This defines consumer record shape/predicate, not evidence that the execution
+producer has supplied its exact site/effect rows.
 
 ### 6.5 Phase visibility and cutoff
 
