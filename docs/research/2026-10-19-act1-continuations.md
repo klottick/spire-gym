@@ -39,6 +39,7 @@ and successor readiness are different boundaries.
 
 | Entry / condition | Established consequence | Grade / source locator |
 |---|---|---|
+| Normal desktop frame reaches game update | The launcher installs the LWJGL backend; its raw and ordinary delta getters return the same field. `CardCrawlGame.render` returns for raw delta greater than `0.1f` before game update. Thus an admitted ordinary delta is at most `0.1f`; an oversized frame never reaches dungeon/effect update through this caller. | S/BC: `DesktopLauncher.main`, `LwjglApplication` constructor / `mainLoop`, `LwjglGraphics.getDeltaTime/getRawDeltaTime`, `CardCrawlGame.render`; `TimeHelper.update` does not change backend delta |
 | Dungeon update reaches its effect section | Active top-level effects are updated, then tested for completion/removal; the ordinary active effect list follows the same update-before-test order. An already-done object is not filtered before its update. | BC: `AbstractDungeon.update` |
 | Work is in either pending effect queue | Pending objects are transferred to their corresponding active lists after the active-list passes. Transfer does not itself update the object, or check its done flag. | BC: `AbstractDungeon.update` |
 | Room contains a spawned relic | `AbstractRoom.updateObjects` updates it before checking removal from the room's relic list. This call occurs before the dungeon's selected-screen branch. | S: `AbstractRoom.updateObjects`; BC: dungeon caller |
@@ -112,18 +113,25 @@ Locators: `NeowReward.activate/update`, `NeowEvent.update/buttonEffect`,
 | Route and condition | Constructor / dispatch consequence | Durable obtain consequence |
 |---|---|---|
 | Fast obtain, curse, Omamori counter nonzero | Constructor consumes a charge and marks effect done; the dispatcher still enters update, whose own initial done guard returns. | No obtain callbacks or permanent insertion from that update. BC: `FastCardObtainEffect` plus dungeon dispatcher. |
-| Show obtain, curse, Omamori counter nonzero | Constructor consumes a charge and marks done **but continues initialization and replaces duration with 0.5 (fast mode) or 2 seconds**. Dispatcher enters update before removing done effects; this implementation has no initial done guard. | Conditional: if the first entered update leaves duration nonnegative, no obtain block runs and the dispatcher removes it. If that subtraction makes duration negative, it enters the obtain block despite the preexisting done flag. BC: constructor, update and dispatcher. |
+| Show obtain, curse, Omamori counter nonzero | Constructor consumes a charge and marks done **but continues initialization and replaces duration with 0.5 (fast mode) or 2 seconds**. Dispatcher enters update before removing done effects; Show has no initial done guard and enters the card's update. | On the normal desktop caller path, the first admitted subtraction is at most `0.1f`, leaving positive duration. No obtain/deck-change hooks or permanent insertion run; the dispatcher removes the already-done effect. BC/D: constructor, update, dispatcher and upstream frame gate. |
 | Either effect, no prevention | On its qualifying update, ordered relic obtain hooks precede Soul obtain; deck-change hooks follow. | `SoulGroup.obtain` reaches `Soul.obtain`, which inserts into master deck immediately; the later flying-card animation is not the insertion boundary. S. |
 | Note incoming card, including a stored removable curse | Directly invokes obtain hooks, adds the card to master deck, then invokes deck-change hooks; no Omamori effect constructor is involved. | Charge is not consumed by this path. Incoming card is available before the outgoing selector is built, and can itself be selected. S: `NoteForYourself.buttonEffect`. |
 
-The Show row is a **conditional static result, not an observed frame-timing bug or
-a claim that a particular original runtime supplies a sufficiently large delta**.
-It rules out both “done effects never enter update” and “constructor prevention
-alone proves all downstream behavior.” Native elapsed-time treatment belongs to
-the profile/time proposal; global admitted/current/pending-work arbitration belongs
-to execution. These interfaces must resolve this condition explicitly. Do not
-silently introduce a global done-filter, universal forced obtain, or universal
-queue drain to hide it. Constructor bookkeeping is not a durable deck grant.
+The upstream desktop bound closes durable prevention for **both Fast and Show**:
+there is no accumulation over later frames because the dispatcher removes the
+already-done effect after its first admitted update. A rejected long frame does
+not supply an oversized subtraction. Their one-time constructor bookkeeping still
+runs; Show additionally marks the card seen and queues its poof effect. Show enters
+card update, whereas Fast's own done guard returns before card update. Preserve
+these differences without a universal done prefilter or a fabricated deck grant.
+
+A direct Show update with a subtraction exceeding its initialized duration would
+enter the obtain block: this is a **method-local counterfactual outside the admitted
+normal desktop domain**, not a legal game choice or native fidelity obligation.
+Native elapsed-time policy remains a human-unapproved profile/time proposal, but
+cannot use that counterfactual to invent prevented curse acquisition. Global
+admitted/current/pending-work arbitration remains execution-owned. Note's direct
+obtain is still distinct. Constructor bookkeeping is not a durable deck grant.
 
 ### Removal matrix
 
@@ -200,12 +208,15 @@ that leaks unrevealed cards; preserve legitimately revealed memory.
 
 **Exact timer qualification:** zero and negative are not interchangeable here.
 If a pair wait lands exactly on zero, the following Play call enters the input
-branch rather than the underflow-resolution branch. If cleanup is entered with
-nonpositive wait, or its positive wait lands exactly on zero, its guarded
-underflow completion is not reached by that local timer path. These are BC
-conditions, not observed natural-runtime frequencies or authority to invent
-retries. A deterministic native logical reveal/pair-resolution/cleanup schedule
-is a **P** requiring the profile/time fidelity decision; it must not accidentally
+branch rather than the underflow-resolution branch. After the ordinary fifth
+resolved pair sets wait to 1, normal next-Play cleanup entry stays positive:
+that call subtracts at most `0.1f`. Cleanup's later positive wait can still land
+exactly on zero, failing to enter its guarded strict-underflow completion path.
+Nonpositive cleanup entry is a method-local counterfactual, not that normal
+fifth-pair path. These are BC/D conditions, not observed natural-runtime
+frequencies or authority to invent retries. A deterministic native logical
+reveal/pair-resolution/cleanup schedule is a **P** requiring the profile/time
+fidelity decision; it must not accidentally
 erase these distinctions while claiming original timing parity. It must also not
 expose the second hidden identity before the first-pick observation.
 
@@ -243,7 +254,7 @@ not redefined by this table.
 | Lab / `Lab` | Offers potions with auto card suppressed. Full belt does not suppress the offers; claims can fail. Proceed uses the direct-map exception. |
 | Note / `NoteForYourself` | Take or Ignore after initial reveal. Incoming direct obtain precedes building outgoing nonbottled purgeables. A valid removable incoming card supplies a candidate even if the prior removable subset was empty. The selector has no local empty guard if the incoming card is itself unremovable and no other candidate exists. Ignore has no outgoing selection/write. |
 | We Meet Again / `WeMeetAgain` | Missing potion, insufficient gold or no eligible nonbasic/noncurse card disables the corresponding sacrifice; Leave remains. One actual sacrifice precedes one spawned relic, not a three-relic menu. |
-| Woman in Blue / `WomanInBlue` | Buy potion quantity or A0 Leave. Paid reward child returns to event/result via close, not Lab's direct-map exception; claims retain Sozu/capacity behavior. |
+| Woman in Blue / `WomanInBlue` | Buy potion quantity or A0 Leave. Each paid branch calls ordinary unlabelled `CombatRewardScreen.open()`; Proceed closes it back to event/result, not Lab's direct-map exception. This is not labelled `open(String)`/Cancel handling; claims retain Sozu/capacity behavior. |
 
 ### Non-event empty/depleted choices
 
@@ -322,7 +333,7 @@ effect status and relevant RNG/history change, not just a terminal label.
 | C02 | Neow/Dream Catcher null-item Bowl versus present last card row versus card row among mixed rewards; +2/heal in all legal cases, only associated row removed. |
 | C03 | Full HP and damaged HP Bowl: distinguish +2/+2 from maximum-only/full-heal; dying/refused-heal preserves already-applied maximum change. |
 | C04 | Fast prevented curse: one charge, entered update, no obtain/deck-change hooks or insertion; no repeat charge on list transfer. |
-| C05 | Show prevented curse with first-update remainder positive, zero and negative: preserve conditional branch distinction; native timing decision must be named, not assumed. |
+| C05 | Show prevented curse through the normal desktop caller, fast/ordinary duration and admitted delta at 0 and `0.1f`: one charge, positive remainder, entered card update, no obtain/deck-change hooks or permanent insertion, then removal without accumulation. Preserve one-time seen/poof/bookkeeping; oversized rejected frames do not update it. |
 | C06 | Note curse with Omamori/Fish/Darkstone: no Omamori charge; incoming hooks/insertion precede outgoing candidates; selecting retrieved card is legal. |
 | C07 | Parasite object removal at maxHP 1, 3 and 4 while living: floor/clamp without fabricated damage/death; string/iterator removals do not inherit object hooks. |
 | C08 | Independent removal effects: Wing damage before grid, Shop payment before removal, Bonfire reward before removal, Note removal before saved reference. |
@@ -336,28 +347,33 @@ effect status and relevant RNG/history change, not just a terminal label.
 | C16 | Match first pick: reveal one, retain five attempts; reject picking that face-up object as a second position. |
 | C17 | Match/miss second pick: reveal second before delayed resolution; both consume one attempt only at resolution, fresh-copy obtain only for match. |
 | C18 | Fifth resolved pair match/miss: no sixth attempt; game-done→cleanup→Complete→map, without declaring queued obtain already inserted. |
-| C19 | Pair-wait exact zero and cleanup entered/landing at nonpositive wait: record source conditional behavior and selected native timing policy, no accidental false parity. |
+| C19 | Pair-wait exact zero and cleanup's later exact-zero landing: record source conditions and selected native timing policy, no accidental false parity. Normal fifth-pair next-Play cleanup entry remains positive under the desktop bound; nonpositive entry is not a required normal-path outcome. |
 | C20 | Boards differing only in unrevealed identities/order have identical public rows/candidates until legitimate reveal; known faces remain remembered after miss. |
 | C21 | Empty Living Wall, Bonfire and Cleric: their evidenced result/Continue paths differ from committed empty Purifier/Transmogrifier/Wing grids and Note with an unremovable incoming card. Supply reachability witness/exclusion, not a fallback. |
 | C22 | No upgradeables at Smith, Upgrade Shrine, Forge and Shining Light; exhausted Girya; Dripper+Hammer with/without Ruby: retain initial-filter/Recall-append/final-scan order. |
 | C23 | Ordinary zero-card offer and empty Dream Catcher offer: no empty card row/screen; other rewards and legal leaving survive. |
 | C24 | Full-belt potion reward, Sozu reward and Sozu shop purchase: respectively retained offer, consumed-without-obtain, refused-without-spend. |
 | C25 | Depleted common/shop with two distinct promoted candidates, normal rejection and depleted boss: preserve draw side, consumed history and exact fallback. |
-| C26 | Event-combat rewards and Lab Proceed versus Woman in Blue labelled rewards: direct-map exception versus event return; no illicit elite key/Prayer Wheel reward. |
+| C26 | Event-combat rewards and Lab Proceed versus Woman in Blue's ordinary unlabelled `open()`/Proceed path: direct-map exception versus event return; no illicit elite key/Prayer Wheel reward or substituted labelled Cancel contract. |
 | C27 | Chest linked Sapphire versus extra relic and independent Emerald; claim/Recall before key effect versus after: only resolved flag changes. |
 | C28 | Boss rewards/chest/child take or skip before successor transition: +1 only after required effects and heal/reset boundary; unclaimed legal rewards need not be forced. |
-| C29 | Legal death/fault during each multi-stage route: apply shared terminal rule, retain committed mutations, no fake reward grant/rollback/defeat or successful profile output. |
+| C29 | Legal death: actual -1, no fabricated grants or +1; administrative fault: not a game defeat or +1. In each multi-stage route retain committed mutations without rollback. Note persistence/detached output assertions depend on the separately reviewed, human-unapproved profile contract; this row does not impose success-only output or suppress a death-committed Note result. |
 
 ## 10. Verification performed and exact residual interfaces
 
 This lane performed 34 successful static tool commands over 21 unique class
 entries (21 disassemblies, 13 focused reconstructions), inspected the relevant
 retained source members, and matched all 914 artifacts in the frozen acquisition
-manifest. The private standard-library evidence helper had seven expected
-unimplemented red failures, then seven passing tests, including duplicate/missing/
+manifest. Review correction added 9 successful static commands over 5 exact class
+entries (5 disassemblies, 4 focused reconstructions), closing the desktop caller's
+delta bound; one entry overlaps the initial set. The private standard-library
+evidence helper had seven expected unimplemented red failures, then seven passing
+tests, including duplicate/missing/
 unsafe ZIP entries, contaminated JVM environment, reused/escaping output and
 wrong hash/length negative controls. An incorrect NeowRoom package lookup failed
-closed and was preserved before corrected exact-entry inspection. No gameplay,
+closed and was preserved before corrected exact-entry inspection. Five author
+prose-regression checks failed on the prior text then passed on the corrections;
+these test wording, not source/runtime behavior. No gameplay,
 product build, original-runtime test, benchmark or distribution experiment ran.
 
 The remaining interfaces are bounded, not a claim that all earlier unknowns
@@ -366,9 +382,12 @@ remain untraced:
 1. **Execution:** complete callback/terminal arbitration across other families,
    including Peek-dependent result consumers and effects admitted before a
    transition. Section 2 supplies actual local dispatch order, not a global proof.
-2. **Profile/time:** explicit elapsed-time abstraction for Show's pre-done branch
-   and Match's strict timer boundaries; Note staged/committed detached output and
-   death/fault/reset/replay policy. No original delta-time law was measured.
+2. **Profile/time:** an explicit, human-unapproved native elapsed-time abstraction
+   constrained by the closed normal desktop prevention path, and treatment of
+   Match's strict timer boundaries; Note staged/committed detached output and
+   death/fault/reset/replay policy. Review of a profile proposal is not human
+   approval. No original timing frequencies were measured; oversized-delta Show
+   acquisition is not an unresolved normal-desktop outcome.
 3. **Exceptional reachability:** legal initialized-history witness or exclusion
    for committed empty mandatory grids, zero-Cage phase and stale/mistyped reward
    records. Local behavior is specified; natural reachability is not invented.
@@ -381,4 +400,4 @@ remain untraced:
 
 Source, reconstructed code, helpers, binaries, raw logs and detailed manifests
 remain private. Only independently authored factual/design summaries are here.
-Independent review and main readback are pending; the Bead remains in progress.
+Independent exact-head recheck and main readback are pending; the Bead remains in progress.
