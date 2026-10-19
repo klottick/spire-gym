@@ -2061,11 +2061,30 @@ execution to manufacture a pass.
 | A1C-T33 | Generated end-to-end trajectories through every applicable room/route, legal death/skip/key deferral and full handoff, including rare off-color/Note/relic chains; no production filtering or seed-search miss used as exclusion. |
 | A1C-T34 | Structural hot-path/ownership/source-policy review and fresh independent integrated review; scope/evidence/administrative limits disclosed separately from any later performance or transfer claim. |
 | A1C-T35 | E29 contract discriminator (UNEXECUTED): check the 146 candidate field joins without treating the count as source-equality proof; exact node `hasEmeraldKey` burning designation versus acquired run key; entitled base `cost` ordinary-zero/X−1/unplayable−2 versus independent `costForTurn`/free-once; registered settled-i32 shop price versus excluded float intermediates and unemittable property 41; 131 exact card ID/class aliases as a subset only; malformed/duplicate alias and missing/unmatched source-member/site/property/visibility rows reject. Confirm all eight named core payloads remain unencoded/unfreezable, byte delivery is blocked pending complete schemas/replay integration, and no final schema hash is emitted. |
+| TX01 | **UNEXECUTED.** ApplyPowerAction: add powers with lower/equal/higher priority; check comparator ordering and stable relative order for equal priority, sorting only on new insertion. Compare with direct `addPower` (matching stack/append without this sort); do not generalize tie stability beyond that sort. |
+| TX02 | **UNEXECUTED.** Have a source callback enqueue a child while its current action remains entered. Verify the child does not run until the current action returns/completes, then follows its own container's dispatch priority; do not infer recursive drain. |
+| TX03 | **UNEXECUTED.** With ordinary work queued, top-insert A then B and verify B-before-A. Separately establish ordinary-actions before preTurnActions before card queue at manager selection; do not extend the priority claim to other containers. |
+| TX04 | **UNEXECUTED.** Contrast an admitted card whose target dies later, an earlier legality rejection, and the explicitly suppressed-notification branch. Compare play/onPlay history, use, energy debit and cleanup independently; late target rejection does not undo already committed admission history. |
+| TX05 | **UNEXECUTED.** Apply the same damage packet with null owner, player owner and monster owner. Distinguish owner-callback branches, `lastDamageTaken` timing, HP_LOSS counters, card notifications and actual HP commit; null-owner damage skips the owner-sensitive callback block. |
+| TX06 | **UNEXECUTED.** Let a power alter amount during `onLoseHp` after `lastDamageTaken` capture. Compare captured Reaper-relevant monster-side amount against final player HP and the subsequent heal amount; do not treat the later mutation as rewriting the capture. |
+| TX07 | **UNEXECUTED.** Compare positive player loss, zero/prevented loss and HP_LOSS. Check ordered once-per-card-object notifications across current hand/discard/draw (not exhaust), followed by rescue only after earlier loss mutations/notifications; do not substitute a global HP-loss formula. |
+| TX08 | **UNEXECUTED.** Lethal player damage with Fairy and unused Lizard Tail: Fairy is consumed first and Tail remains. Add Bloom/dying as an explicit negative control; this control is not a claimed natural Act 1 witness. |
+| TX09 | **UNEXECUTED.** Monster lethal hit with surviving ally, last monster, `cannotLose`, split and escaping actor. Keep `isDying`, later `isDead`, and `escaped` distinct; check death callbacks, group terminal predicate and room settlement. No automatic kill/victory/Fatal credit is inferred from split or escape. |
+| TX10 | **UNEXECUTED.** Reaper's pending HealAction at the last-enemy filter: compare its retention and selection before a later manager clear with removal/interposition by that clear. No natural heal-loss or guaranteed-heal outcome is claimed absent an exact approved timer policy and source schedule. |
+| TX11 | **UNEXECUTED.** Reaper damages each eligible current non-dying/non-escaping monster and sums each target's captured `lastDamageTaken`. Vary Block, prevention and target-death state; verify no heal is inferred from raw packet amount or an ineligible target. |
+| TX12 | **UNEXECUTED.** Match timer landing exactly at zero versus below zero, including fifth attempt then cleanup, under admitted frame delta ≤0.1 s. Preserve strict-underflow distinction and the revealed-information boundary; do not choose a native clock or infer frame frequencies. |
+| TX13 | **UNEXECUTED.** Card reward skip/reopen versus take/deferred obtain, and Singing Bowl with null item versus last row. Assert the source mutation occurs once at its own commit checkpoint and distinguish it from later child insertion. |
+| TX14 | **UNEXECUTED.** Neow one-card versus two-card transform, shop purchase, relic `onEquip` child, and boss-relic take/skip. Assert each source-local mutation commits once and a child resumes only at its actual consumer; no universal screen-return/drain rule. |
+| TX15 | **UNEXECUTED.** Cage empty-target counts 0/1/2 and a committed fixed grid with zero candidates. Separate each guarded local branch from the distinct initialized legal-history witness/exclusion question; a forced fixture proves no reachability fact. |
+| TX16 | **UNEXECUTED.** Note incoming removable versus unremovable card with empty prior outgoing candidates. Preserve direct obtain and candidate construction before outgoing selection; only a proven natural profile/history fixture can resolve whether the exceptional history is reachable. |
+| TX17 | **UNEXECUTED.** Last-enemy filter followed by `endBattle`/manager clear. Preserve already committed HP/gold/deck/relic writes; distinguish the admitted current stack, each pending list, effects and souls. Do not invent rollback, fake defeat, or universal drain. |
+| TX18 | **UNEXECUTED.** End turn with Entrench in the remaining-hand clone, Ethereal cards and other queued discards. Distinguish marker-time `triggerOnEndOfTurnForPlayingCard` from later shuffled-clone `triggerOnEndOfPlayerTurn`; verify Entrench's override top-queues Ethereal cleanup ahead of already queued discard work. Entrench is not itself Ethereal; do not infer a seeded/uniform shuffle or selected clock. |
 
-E28's **TX01–TX18** are additional future discriminators, all UNEXECUTED; they refine
-(not replace) A1C-T04/T05/T10/T14/T18/T25/T33 for manager priority, insertion/ties,
-accepted-history versus late-target rejection, player/monster damage and rescue,
-nested commit/return, and Entrench's later end-player-turn callback.
+E28's TX01–TX18 are each future acceptance discriminators above, not test results.
+They refine and supplement (not replace or collapse into) A1C-T04/T05/T10/T14/T18/
+T25/T33 where their complete expected distinction is not already enumerated. Exact
+reachability, transitive composition, natural timer outcomes and native policy remain
+open as stated in the corresponding blocker rows.
 
 ## 16. Requirements traceability ledger
 
@@ -2083,7 +2102,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-004 | §3/§10.3 single authority/overlay | E05/E08/E17/E19 | T10,T13,T32 | B04,B10 |
 | A1C-REQ-005 | §3 live durability | E02/E03/E05 | T13,T14,T30 | B04,B05 |
 | A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33 | B04,B05,B12 |
-| A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16 | T18–T25 | B05 |
+| A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16/E28 | T18–T25,TX13–TX17 | B05 |
 | A1C-REQ-008 | §4.1–4.1.2/§5.2 origins/cost/copy/X | E02/E10/E11/E09-R/E18/E19 | T09,T10,T11,T16 | B04,B07 |
 | A1C-REQ-009 | §4.2–4.5 scheduler/lifecycle | E02/E10/E11/E19/E28 | T08,T10,T11,T14,TX01–TX04,TX17–TX18 | B04,B05,B12 |
 | A1C-REQ-010 | §4.2–4.3/4.6/appendixE damage/rescue | E02/E03/E11/E18/E19/E28 | T08,T13,T14,TX05–TX11 | B04,B06,B07,B12 |
@@ -2104,7 +2123,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-025 | §8.1/§8.6/appendix D potions | E09/E10/E16/E26 | T10,T14,T17 | B04,B05,B08 |
 | A1C-REQ-026 | §8.1/§8.2 camps | E03/E04/E16 | T23 | B05,B06,B08 |
 | A1C-REQ-027 | §8.1/§8.2 keys/chests | E03/E10/E16 | T22,T23,T25 | B04,B05,B08 |
-| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16/E28 | T25,T29,T33,TX14 | B05,B10 |
+| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16/E28 | T25,T29,T33,TX13–TX17 | B05,B10 |
 | A1C-REQ-029 | §9/§9.1 profile; §1.1 bounded Note disposition | E03/E05/E09 (qualified by E09-R)/E12/E15/E16 | T01,T24,T29,T31 | B07,B10,B11 |
 | A1C-REQ-030 | §9.2 clock/settlement recommendation | E02/E07/E15/E16/E28 | T14,T18,T24,T25,T31,TX10,TX12 | B04,B12 |
 | A1C-REQ-031 | §6.2/§10–10.3 RNG/finite laws/registry | E01/E05/E08/E10/E11/E13/E14/E17/E27 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
