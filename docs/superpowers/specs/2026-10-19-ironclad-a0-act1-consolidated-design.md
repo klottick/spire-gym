@@ -8,7 +8,7 @@ the approved architecture, states candidate detailed contracts, and accounts for
 required content even where a law is unresolved. It is not an implementation plan,
 an implementation claim, or permission to install, build, benchmark, or train.
 Main owns integration of independently reviewed follow-ups and the eventual human
-presentation. This revision integrates seven main-authorized, independently
+presentation. This revision integrates fourteen main-authorized, independently
 cleared and merged follow-ups, plus the earlier Note/Silent corrections. Technical
 clearance of a proposal is not human approval of its behavior.
 
@@ -105,15 +105,40 @@ merges. Only final corrected heads above are authority; older
 relic-review unqualified generated-turn-zero wording is superseded by E18's
 explicit negative-X exception, consistent with E19, not a second competing law.
 
+#### Final normative-content integration cutoff — canonical main `9645d1758833c2b99c6dc34320307c98475767fe`
+
+The following seven public documents are integrated from their exact cleared
+author heads and ordinary main merges. Relative links resolve against canonical
+main; immutable links pin each reviewed author revision. These records establish
+local requirements within their stated evidence limits, not complete transitive
+closure, gameplay execution, or human approval.
+
+| ID | Accessible document / exact reviewed head | Local coverage integrated here; residual limit |
+|---|---|---|
+| E20 | [Enemy records](../../research/2026-10-19-act1-content-enemies.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/e56d4ace59219d07d01dd69f117c9534f9fbe941/docs/research/2026-10-19-act1-content-enemies.md) · `e56d4ace59219d07d01dd69f117c9534f9fbe941` | All25 local A0 enemy records and bounded setup/reaction/factory/key/status facts, as integrated in §7/Appendix F; not global scheduling or root-conditioned RNG closure. |
+| E21 | [Silent paired records](../../research/2026-10-19-act1-content-silent.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/60f97e2bbc8b4c2b35622f039bd972685fd73142/docs/research/2026-10-19-act1-content-silent.md) · `60f97e2bbc8b4c2b35622f039bd972685fd73142` | 4 basics, 71 nonbasics and dependent Shiv with paired costs/targets/payloads plus named local callbacks; no Silent run/start, and no global target/callback/terminal closure. |
+| E22 | [Defect paired records](../../research/2026-10-19-act1-content-defect.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/40c1a2f93fb65bfa0b19d1ca1618edbdb3ccd476/docs/research/2026-10-19-act1-content-defect.md) · `40c1a2f93fb65bfa0b19d1ca1618edbdb3ccd476` | 4 basics, 71 nonbasics, two Status dependencies and four orb kinds with paired local mechanics, including Lock-On lifecycle; not full orb/callback/terminal composition. |
+| E23 | [Watcher paired records](../../research/2026-10-19-act1-content-watcher.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/1f3abc31306410a0a4ea48ab73bea1351a40fd21/docs/research/2026-10-19-act1-content-watcher.md) · `1f3abc31306410a0a4ea48ab73bea1351a40fd21` | 4 basics, 71 nonbasics, eight physical dependencies and three nonphysical Wish options; queue provenance is distinct from manager-derived play fields; not global queue/terminal closure. |
+| E24 | [Red/colorless/dependent records](../../research/2026-10-19-act1-content-red-colorless.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/6ec9659534b19ff57cd9699bfa9fb09793e977d0/docs/research/2026-10-19-act1-content-red-colorless.md) · `6ec9659534b19ff57cd9699bfa9fb09793e977d0` | 75 red, 35 ordinary colorless, five Status, eleven Curse, four stored-event and twelve dependent/control records; local Feed/heal, Mayhem, Flame Barrier, Exhume and Entrench cases do not establish universal callbacks. |
+| E25 | [Neow/events/question-room records](../../research/2026-10-19-act1-content-event-neow.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/f880dc8c02e2a208860802b0ddb594acd942ce7e/docs/research/2026-10-19-act1-content-event-neow.md) · `f880dc8c02e2a208860802b0ddb594acd942ce7e` | Numeric/conditional records for Neow, evolving question-room law, all25 events, choices, payments and return paths; initialized/history-conditioned joint measure and exceptional legal reachability remain open. |
+| E26 | [Economy/reward/chest/potion records](../../research/2026-10-19-act1-content-economy-potions.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/637723b1bf8157a20186f5c4c221bf7e25cc35a1/docs/research/2026-10-19-act1-content-economy-potions.md) · `637723b1bf8157a20186f5c4c221bf7e25cc35a1` | Numeric card/relic/potion/reward/chest/merchant/Dig records and all33 potion local effects/guards; seeded-shuffle joint measure, transitive potion actions and global commit/scheduler composition remain open. |
+
+Private controller merge receipts bind E21–E26 respectively to normal merge commits
+`faba306317a36e17aaded8c98d79ef75c9ed2ec8`,
+`848aaec89e3b3d5638ba6f9c65904341a75f2650`,
+`63b1dcf43e1b56334555dee47d545e5448711268`,
+`9645d1758833c2b99c6dc34320307c98475767fe`,
+`ae7750c38e2084abdd5c7f3b772e33e0d15c4e6b`, and
+`e2d5e2db19b434898166badfdebe1680e09595ae`. No sibling working-tree content is
+used as authority.
+
 The independent whole-draft review at prior head
 `fb7e9f8ff3d9665e3120f0b772623d5125146576` found zero findings **as an accurate
 BLOCKED draft**, explicitly not a complete human-approval-ready mechanics/API
-specification. It does not clear this revised head. PR16's enemy records are
-integrated within their reviewed scope. PR17/18/20 merged after this integration
-pass's source cutoff and are deliberately deferred: their documents/findings are
-not integrated here; await a separate main-routed pass. Other normative lanes also
-remain pending. Their existence or rosters do not close the remaining paired-card
-B07 or economic/content B08 rows.
+specification. It does not clear this revised head. PR16 enemy records and PR17–22
+normative tables are integrated above only within their exact independently cleared
+scope. They address the paired-primary and numeric-content subgaps, but do not close
+the remaining transitive, source-proof, initialized-measure or human-choice gates.
 
 All owned-source findings use archive SHA256
 `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`.
@@ -433,7 +458,8 @@ Primary numeric anchors retained from E09 include Strike 6/9, Defend 5/8, Bash
 `12 + n(n+7)/2`; Heavy Blade multiplies signed Strength by 3/5; Genetic Algorithm
 begins at one Block and grows permanently by 2/3 per qualifying use; Ritual Dagger
 begins at 15 damage with Fatal growth 3/5. These anchors are not a substitute for
-the full paired-content records; their unintegrated primary detail is A1C-B07.
+the full paired-content records; E21–E24 now supply those local primary records,
+while their shared execution/composition residuals remain A1C-B07.
 
 ### 5.2 Required Note/Silent review constraints (F, bounded; E09-R)
 
@@ -453,6 +479,30 @@ and retrieval by Exhume, must not receive that missed increment. This is a
 source-derived counterexample to a global formula, not an executed trajectory or
 initialized-root-seed witness. Note's NT-01–15 and Silent's SI-01–22 remain
 unexecuted future cases; neither inventory nor E09-R's bounded clearance runs them.
+
+### 5.3 Integrated paired primary records and local discriminators (F; E20–E24)
+
+The exact paired record tables and their full local conditional payloads are in the
+linked E21–E24 documents above; this section states the cross-family requirements
+needed at this whole-spec boundary rather than duplicating four catalogs. The
+integrated local record sets are 75 Silent kinds plus dependent Shiv; 75 Defect
+kinds plus two Status/four orb kinds; 75 Watcher kinds plus physical dependencies
+and nonphysical Wish choices; and 75 red, 35 ordinary colorless, five Status,
+eleven Curse, four stored-event and twelve dependent/control records. Counts
+describe primary record coverage, not transitive execution closure.
+
+| Integrated source fact | Required distinction at the consolidated boundary | Still not proved |
+|---|---|---|
+| Silent Gamble/Expertise and Bane | “No child action enqueued” is not equivalent to constructing a zero-amount draw child: the latter can run its initial history-clearing update. Bane captures target and both DamageInfo payloads at use; its follow-up has distinct null/Poison and completion-time positive-HP gates. Only its initial-duration branch additionally requires a positive-HP target and cancels a non-THORNS payload when its owner is dying. | Shared history mutation composition, arbitrary Bane origins, all nested callbacks and terminal outcomes; do not generalize that branch's source-death check to every update. |
+| Defect Lock-On and potion X guard | Lock-On amount is duration, while the orb modifier remains ×1.5; qualifying duration 2 then 3 stacks to 5 and expires at its named end-round lifecycle. `setCostForTurn(0)` rewrites only an existing nonnegative turn cost; negative X/unplayable sentinels remain negative. | Global hook ordering, all generated-X/copy precedence and every orb/action composition. |
+| Neow and seeded history | Neow full offers consume category selections at construction; drawback selection precedes filtered reward selection; activation owns payload draws. Colored duplicate retries retain rarity, while colorless identity uses card RNG after Neow rarity draws; potion offers share successive potion RNG calls. Tiny Chest ordinary acquisition initializes its counter at 0; the fourth room roll still consumes its primitive float before forcing treasure. | Initialized/history-conditioned joint measure for offer and shuffle histories; no independent-stream or uniform-permutation assumption follows. |
+| Potion and Dig routes | Potion source is actual Ironclad character, not printed color. After copy/upgrade, `setCostForTurn(0)` changes only an existing nonnegative turn cost; X-cost −1 stays negative and no generic free-play flag is set. Distilled Chaos captures each queued action's target during potion use, before any queued card resolves. Campfire Dig rolls common/uncommon/rare 50/33/17, uses the normal/front relic selector and offers one relic; it is not a chest and has no chest gold/tier/key hooks. | Downstream action retargeting/death/cancel composition, relic seeded-shuffle measure and complete commit/terminal arbitration. |
+| Watcher Omniscience | The queued original/copy requests preserve `randomTarget=true, immediateCard=false, autoplayCard=true, ignoreEnergyTotal=false`; the card manager later derives `ignoreEnergyTotal=true` for the card play. That derived value does not rewrite or falsify queue provenance. | Nested selection ordering/cancellation, mixed repeats and global queue/terminal resolution. |
+| Red and colorless lifecycle | Feed's qualifying Fatal raises max HP then requests ordinary healing through hooks/cap (not fixed current-HP gain). Mayhem's callback is pre-normal-draw and queues deferred wrappers; completion of their nested plays relative to normal draw remains open. Flame Barrier retaliates at the hit owner only for a nonnull other-owner hit that is neither THORNS nor HP_LOSS, then removes at the next start turn. Exhume transfers an existing eligible exhausted instance, with explicit empty/hand-full/no-candidate branches and no history catch-up. Entrench itself is not Ethereal; its own end-player-turn card-callback override front-queues Ethereal cleanup. | Whole hook/queue arbitration, death/revival, exceptional initialized reachability and all combinations with other callbacks. |
+
+Every row is a source-bounded fact from the exact linked, reviewed revision, not a
+newly performed source audit. T09–T18 discriminate these cases where applicable;
+all remain future, unexecuted acceptance obligations.
 
 ## 6. Shared generation and source-specific randomness
 
@@ -888,6 +938,27 @@ the ordinary fifth-pair path under the desktop bound. These are conditional stat
 branches, not measured runtime frequencies. D04 must choose the native schedule
 without claiming parity from erasing them. Public cells/order/memory and shuffle
 posteriors follow §10.1; no second hidden identity leaks before the first observation.
+
+### 8.6 Integrated numeric and conditional content tables (F; E25–E26)
+
+E25 supplies the actual Neow category/reward payloads, question-room probability
+updates, and all25 event branch/eligibility/payment/risk/return records. E26 supplies
+the numeric card/reward/pity, shop/restock/price, relic/potion, Dig and correlated
+chest tables. These replace roster-only treatment for the local B08 content
+families; the linked tables are the detailed normative records.
+
+| Boundary | Integrated numeric/conditional discriminator | Residual boundary |
+|---|---|---|
+| Neow | Shortlist is fixed +8 max HP or Lament. Full category0 has six equiprobable reward choices and category1 has five; the four category2 drawbacks are equiprobable before filtered reward selection. At max HP79, `b=7` and +2b is14 (not15); ordinary colored triple slots have exact finite common/uncommon masses and no rare; potion offers are three flat-ID calls with repeats allowed. | Category/drawback/payload joint laws over initialized histories; generated then discarded card offer still mutates ordinary card history. No independent RNG streams. |
+| Question rooms and events | Probability state updates on room transitions with binary32 rounding; primitive room roll precedes Juzu/Tiny Chest overrides. Tiny Chest forces treasure on its fourth post-equip room roll. Event records include actual entry thresholds, amounts, conditional risks and result routes (for example Dead Adventurer search risk25/50/75% and Cleric entry G≥35 with 35-gold heal or 50-gold removal). | Joint room→shrine→event-ID law and initialized legal-history witnesses for exceptional selectors; not every branch is proven reachable from a fresh root. |
+| Cards, merchants, rewards | Ordinary card rarity starts rare/uncommon/common 0/35/65; elite 5/40/55, with per-generated-slot pity mutation before fixed-tier identity retries. Shard's ordinary reward support is320 with rarity counts76/160/84. Shop initial inventory and each price/discount/restock/removal expression use their documented separate rounding order; removal base starts75 and rises25 per paid removal. | Seeded permutation measure, complete shared history/callback integration, source-specific empty-stock and exceptional reachability composition. |
+| Chests and relic offers | Chest type is50/33/17; tier and gold presence share their roll, and gold amount uses separately rounded binary32 0.9G/1.1G endpoints. Base relic and sapphire-key competition differs from extra Matryoshka relics; keys commit at their effect checkpoint. | Joint relic pool initialization/depletion under declared input measure, deferred-key/terminal composition and all caller histories. |
+| Potions | Ironclad has33 eligible candidates (17/9/7 by tier); ordinary combat/shop/Courier is rarity-first65/25/10, whereas named event factories are flat-ID. Combat Brew uses Fruit-Juice-excluded rare support6; it proposes once per live slot, including the consumed Brew slot, before each obtain check. Bark payload/use-count distinction, Sozu, belt capacity, negative-X guard, Dig and Distilled Chaos target capture retain source-specific records. | All33 full per-use behavior under mixed callbacks/terminal interruption, seeded identity joint law and whole potion/execution/continuation closure. |
+
+The table is a compact index to concrete primary values and paired conditional
+records, not a replacement for E25/E26. B08 is narrowed to residual source-proof,
+initialized/joint-measure, exceptional-reachability and cross-system composition
+obligations listed here and in §17.
 
 ## 9. Handoff, task and profile/time
 
@@ -1720,7 +1791,7 @@ execution to manufacture a pass.
 | A1C-T06 | All weak/strong/elite/event/boss families and ordered compositions; first-strong exclusions, last-two/elite history and queue consumption on departure, not event fights. |
 | A1C-T07 | AppendixF every identity/HP/setup/move-intent-payload/initial and redirected AI; finite float grid counts, post-Entangle execution flag, interrupted-selection history; factory/ordered instances, event elites, burning application/rounding then Insect, Emerald offer vs obtain, nine fixed Status sites, Strength endpoint and enemy Block999. Root/history-conditioned joints remain T05/B03. |
 | A1C-T08 | CurlUp strict preHP/lethal/block gate; Mad/Enrage/SharpHide/SporeCloud/Protect/Wizard/escape checkpoints; asleep/event Lagavulin; living split vs lethal, parent HP at Split execution, fresh ordered children outside queue snapshot; cannot-lose suicide suppresses kill hooks; Guardian queued quota/change/Block; Hex capture/Inferno checkpoints; Looter ledger/decrement/HP/timed escape/refund. Transitive callbacks/terminal/timers remain open. |
-| A1C-T09 | Each card's base/upgrade primary record plus every CARD-* shared record; coverage cannot close by counts alone or successful random runs. SI-I2: one qualifying multi-HP loss versus multiple losses, zero-loss prevention, notified hand/draw/discard locations, fresh versus stat-equivalent copy and per-instance cost layers. |
+| A1C-T09 | Each E21–E24 paired base/upgrade primary record plus every CARD-* shared record; local coverage cannot close by counts alone or successful random runs. Silent no-child versus zero-child history, Bane captured payload/checkpoints, and SI-I2: one qualifying multi-HP loss versus multiple losses, zero-loss prevention, notified hand/draw/discard locations, fresh versus stat-equivalent copy and per-instance cost layers. |
 | A1C-T10 | §4.1.1 eight legality overrides/permission gates and accepted-history-before-later-target rejection. Five repeats true/true,energy capture,physical object≠same UUID;mixed queue index1 reversal. Ten X branches captured versus live/free;no-orb Multi-Cast,zero Conjure,Chemical once;Transmutation ordinary output versus self-generated X through fresh/upgrade/stat-copy/hand,then later source capture/payment. Setup/Forethought positive mutable combat cost guard versus turn-only/X/unplayable and pre-existing flag;reset/use/Confusion clearing distinct. |
 | A1C-T11 | Draw/movement/creation, No Draw, Void/Deus/Endless Agony; discard causes/Reflex/Tactician; exhaust Spoon/Branch/Embrace/Fiend Fire snapshot. SI-I2: legally acquire Masterful Stab, exhaust via True Grit+, lose positive HP while it is exhausted, Exhume the same instance; no missed-notification cost increment, unlike a global combat-history formula. |
 | A1C-T12 | Retain/Ethereal/Pyramid/Establishment; Poison/debuff/Artifact/Explosion; Focus/orb zero/full/Dark/Plasma; stances/Mantra/Scry/extra turns. |
@@ -1728,10 +1799,10 @@ execution to manufacture a pass.
 | A1C-T14 | Fairy-before-Tail inspected branch and other lethal/prevention/heal origins; modifier-zero rescue/repeated damage. Under approved time contract, Reaper nonfinal/last hit/retaliation/rescue/death/no-heal with queued/current/first-update healing, VFX counts and death timer variations; no universal loss or always-drain. Strict-zero/negative and next-visit retirement must match the chosen schedule. |
 | A1C-T15 | Each of twenty generation rows at actual inner effect site, including off-color autoplay/repeat; Source support/mass/retry/history and no pity mutation. |
 | A1C-T16 | Master Reality Searing Blow hand9/10 versus Foreign Influence/overflow;Searing counter constructor versus upgrade replay/restored damage;Expunger extra X copy restoration. Eviscerate makeCopy mutates source with this-turn discards under guard,returned fresh3 unchanged versus BloodForBlood returned-object combat-loss update;stat copy reads then-current source. n positions excluding new top,selection before insertion. |
-| A1C-T17 | Alchemize/Brew live capacity, proposal-before-obtain, combat/outside Sozu and Fruit Juice, own consumed slot/self-production; each potion Bark/phase/target/skip law. |
-| A1C-T18 | All25 event eligibility/branches, no invented initial Leave; Scrap Ooze26/100, Wheel reveal gold once. Match first/second observation, ID match/five delayed attempts/fresh-copy obtain/fifth cleanup entry positive versus later strict-zero landing, no sixth attempt or obtain drain. Woman unlabelled open()/Proceed versus Lab/event-fight direct map. Guarded empty event returns versus committed empty-grid reachability witness/exclusion. |
+| A1C-T17 | All33 potion paired/use/Bark/phase/target/skip laws; Alchemize/Brew live capacity, proposal-before-obtain, combat/outside Sozu and Fruit Juice, own consumed slot/self-production; negative/X cost guard; Dig's separate one-relic route; Distilled Chaos targets captured before any queued card resolves. |
+| A1C-T18 | E25 exact Neow categories/drawback/reward quantities and source RNG ownership; question-room history and Tiny Chest fourth-roll override after its primitive draw; all25 event eligibility/branches, no invented initial Leave; Scrap Ooze26/100, Wheel reveal gold once. Match first/second observation, ID match/five delayed attempts/fresh-copy obtain/fifth cleanup entry positive versus later strict-zero landing, no sixth attempt or obtain drain. Woman unlabelled open()/Proceed versus Lab/event-fight direct map. Guarded empty event returns versus committed empty-grid reachability witness/exclusion. Initialized/history-conditioned joint laws remain open. |
 | A1C-T19 | Merchant proposal/retry/stock/sale/prices/discounts/removal/Courier; cancel purge versus confirmed result/no double charge; child onEquip before restock, Grid Peek/nonempty-reward return override and close/reenter same inventory, not universal automatic Shop screen return. |
-| A1C-T20 | Ordinary/Sharded reward/pity-before-claim; Skip/reopen same row, Take consumes before insertion, Bowl distinct +2maxHP then heal2 at full/damaged/refused-heal state with null/last/mixed associated rows. Empty card/Dream offer omitted. Dream/Orrery/Tiny House sources retain history of discarded automatic rows. |
+| A1C-T20 | E26 ordinary/Sharded reward support and pity-before-claim, correlated chest type/tier/gold, and documented shop price/rounding/restock records; Skip/reopen same row, Take consumes before insertion, Bowl distinct +2maxHP then heal2 at full/damaged/refused-heal state with null/last/mixed associated rows. Empty card/Dream offer omitted. Dream/Orrery/Tiny House sources retain history of discarded automatic rows. |
 | A1C-T21 | AppendixE141 local/13 shared records plus32 spawn predicates and X/H/G/P/V composition. Red Skull integer half/direct initial versus queued asymmetric COMBAT transitions;Tiny House50 BASE gold reward/one potion OFFER before guarded claim. Statue3/4 rows;Calipers8/20 with Blur/Barricade;IceCream998+3→999 at helper;Ginger/Turnip before Artifact;Pyramid/retain/Ethereal;Spoon destination/no draw for purge/Power;Frog/Mushroom factors;Idol direct/theft/Treasure distinctions;Drill exact Block depletion;Collar/EventRoom vs BlackStar. Counter lifetimes and skipped/rejected requested-tier pool consumption remain exact. |
 | A1C-T22 | Chest correlated tier/gold, separately rounded amount endpoints, base-linked sapphire versus extra relics, deferred emerald/ruby, legal skip/key deferral. |
 | A1C-T23 | Campfire initial filter→Recall append→scan, Dripper/Hammer plus usable Recall, empty Smith/Toke targets, Rest/onRest/Dream child. |
@@ -1767,21 +1838,21 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-008 | §4.1–4.1.2/§5.2 origins/cost/copy/X | E02/E10/E11/E09-R/E18/E19 | T09,T10,T11,T16 | B04,B07 |
 | A1C-REQ-009 | §4.2–4.3 scheduler/lifecycle | E02/E10/E11/E19 | T08,T11,T14 | B04,B12 |
 | A1C-REQ-010 | §4.2–4.3/appendixE damage/rescue | E02/E03/E11/E18/E19 | T08,T13,T14 | B04,B07,B12 |
-| A1C-REQ-011 | §5/appendix A cards; §5.2 corrections | E09 (qualified by E09-R)/E10 | T09–T13 | B04,B07 |
-| A1C-REQ-012 | §5 off-color mechanics; §5.2 corrections | E08/E09 (qualified by E09-R)/E10 | T09–T12,T15,T24 | B04,B07 |
-| A1C-REQ-013 | §5 specials/Note | E03/E09 (qualified by E09-R)/E12 | T09,T11,T24 | B07,B11 |
+| A1C-REQ-011 | §5/appendix A cards; §5.2–5.3 corrections and paired records | E09 (qualified by E09-R)/E10/E21–E24 | T09–T13 | B04,B07 |
+| A1C-REQ-012 | §5 off-color mechanics; §5.2–5.3 corrections | E08/E09 (qualified by E09-R)/E10/E21–E23 | T09–T12,T15,T24 | B04,B07 |
+| A1C-REQ-013 | §5 specials/Note and E20–E24 dependencies | E03/E09 (qualified by E09-R)/E12/E20–E24 | T09,T11,T24 | B07,B11 |
 | A1C-REQ-014 | §6/§10.3 shared resolver | E05/E08/E10/E17 | T15,T17 | B10 |
 | A1C-REQ-015 | §6/§10.3 finite site policies | E05/E10/E17/E18/E19 | T15–T21,T34 | B04,B05,B06,B08,B10 |
 | A1C-REQ-016 | §7/§7.1 map kernel/initialized model | E01/E10/E13 | T02,T03,T04 | B02,B03,B10 |
 | A1C-REQ-017 | §7/§7.1/appendixF burning/empty cursors | E01/E10/E11/E13/E20 | T04,T07,T22 | B02,B04 |
 | A1C-REQ-018 | §7/appendixF encounters and factories | E09/E11/E20 | T06,T07,T08 | B07,B08 |
 | A1C-REQ-019 | §7/appendixF complete local enemy records | E02/E11/E19/E20 | T07,T08,T14 | B03,B04,B07,B12 |
-| A1C-REQ-020 | §8/§8.2/§9 Neow history/children | E03/E09/E10/E15/E16 | T01,T31 | B05,B08,B11 |
-| A1C-REQ-021 | §8/§8.5/appendix C/F events | E03/E10/E14/E16/E20 | T07,T18,T33 | B03,B05,B08,B11 |
-| A1C-REQ-022 | §8/§8.2–8.4 merchant | E03/E10/E16 | T19,T21 | B05,B06,B08 |
-| A1C-REQ-023 | §8/§8.3–8.4 rewards/transforms | E03/E10/E16 | T13,T20,T24 | B04,B05,B08 |
-| A1C-REQ-024 | §8.1/§4.1.2/§10.1/appendixD/E relics | E04/E10/E14/E18 | T05,T10,T21,T25 | B03,B06 |
-| A1C-REQ-025 | §8.1/§8.4/appendix D potions | E09/E10/E16 | T10,T14,T17 | B04,B05,B08 |
+| A1C-REQ-020 | §8/§8.2/§8.6/§9 Neow history/children | E03/E09/E10/E15/E16/E25 | T01,T31 | B05,B08,B11 |
+| A1C-REQ-021 | §8/§8.5–8.6/appendix C/F events | E03/E10/E14/E16/E20/E25 | T07,T18,T33 | B03,B05,B08,B11 |
+| A1C-REQ-022 | §8/§8.2–8.6 merchant | E03/E10/E16/E26 | T19,T21 | B05,B06,B08 |
+| A1C-REQ-023 | §8/§8.3–8.6 rewards/transforms | E03/E10/E16/E25/E26 | T13,T20,T24 | B04,B05,B08 |
+| A1C-REQ-024 | §8.1/§8.6/§4.1.2/§10.1/appendixD/E relics | E04/E10/E14/E18/E26 | T05,T10,T21,T25 | B03,B06,B08 |
+| A1C-REQ-025 | §8.1/§8.6/appendix D potions | E09/E10/E16/E26 | T10,T14,T17 | B04,B05,B08 |
 | A1C-REQ-026 | §8.1/§8.2 camps | E03/E04/E16 | T23 | B05,B06,B08 |
 | A1C-REQ-027 | §8.1/§8.2 keys/chests | E03/E10/E16 | T22,T23,T25 | B04,B05,B08 |
 | A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16 | T25,T29,T33 | B05,B10 |
@@ -1819,9 +1890,9 @@ normative author revision or result was polled or adopted.
 | A1C-B04 / 1 | E19 closes direct method/invoke families,eight legality overrides,important helper/receiver/X/lifecycle/rescue/commit distinctions. Still need every reachable transitive constructor/callback/power sorting/applyPowers/glow,mixed-origin cost/repeat/queue reaction and damage/Fatal/split/escape/terminal arbitration. No queueExtraCard direct caller remains unknown;no global total cost order or natural Reaper outcome is proved. | Reviewed execution integrated;shared CARD-* and D04,not repeat direct-inventory research |
 | A1C-B05 / 1 | E16 closes the local parent/child, desktop Omamori prevention, removal/Bowl/Match/empty-size and handoff trace in §8–9. Remaining: global admitted/current/pending and Peek/terminal arbitration; legal-history witnesses/exclusions for unguarded mandatory empties, zero-Cage phase and stale/mistyped record conditions; initialized event-list exhaustion; exact successor-ready payload/cutoff. No phantom prevented Show curse remains an ordinary-path proof obligation. | Reviewed continuation input integrated; execution/native/content interfaces and D08 remain |
 | A1C-B06 / 1 | E18 closes141 primary laws,13 actual shared consumers and10 local X action/payment laws (§4.1.2/appendixE),including corrected Skull/House/self-generated X. Remaining per-row X/H/G/P/V:all transitive payloads,mixed callback/cancel/terminal,source return/exceptional inventory reachability,joint history kernels and native visibility. Local R helper facts remain established,not proof of all combined states. | Reviewed relic input integrated;exact appendixE residual endpoints cross execution/continuation/content/native |
-| A1C-B07 / 2 | E20 integrates all25 local A0 identity/HP/setup/move/payload/conditional AI and bounded reaction/split/boss/preview/fixed-Status/factory records; local enemy primary gap is narrowed, not transitive combat closure. Still paired base/upgraded card numerical/state/copy/growth records and fourteen CARD-* per-route attribution; mixed callbacks/global interactions remain B04. Six other normative inputs are not integrated here; PR17/18 merged after this pass's cutoff and are deferred. Existing Silent file remains unchanged; consolidated SI-I1/SI-I2 does not approve it. | PR16 reviewed exact enemy head integrated; PR17/18/20 require separate main-routed integration; other content only after exact clearance/merge directions; shared execution/relic/native interfaces remain |
-| A1C-B08 / 2 | E20 closes enemy/event-elite numbers only within scoped factories, event fights, burning choices, key offer/effect and nine Status sites. Still numeric Neow categories/exclusions/quantities; all25 event branches/eligibility/payment/risk; question-room odds; merchant price/rounding/restock/purge; card/gold/chest/relic/potion drop/phase/Bark/transform and standard-start records. E16 closes specific local return/payment/Bowl/belt laws, not full tables. | Main integrates future reviewed events-Neow/economy-potions and remaining relic/execution/native interfaces; enemy facts E20 integrated |
-| A1C-B09 / 2 | E17 fixes candidate signed64 rows/U counts/checked conversions,not full source numeric bounds audit. E18 actual addEnergy/addBlock999 applies at helper,not clipping requests or all counters. Still map every legal field to actual source integer/binary32/cap/overflow and encoding domain,including growing state. Pending normative findings are not accepted new primary tables. | D07 per-field domain/application audit with reviewed content,not admin cap substitution |
+| A1C-B07 / 2 | **Primary paired-record gap addressed:** E21–E24 provide concrete base/upgraded numeric/state/target/payload/copy/growth records for in-scope card families and named dependencies; E20 supplies local enemies. §5.3 records cross-family source-specific discriminators. B07 remains OPEN for full CARD-* per-route attribution, transitive constructors/callbacks, mixed-origin/cost/copy/queue composition, damage/Fatal/split/terminal laws and initialized-root/history reachability where required; records/counts do not prove whole mechanics closure (B04/B05). | E20–E24 exact cleared heads integrated; residual shared execution/relic/native interfaces and human source-policy readback remain |
+| A1C-B08 / 2 | **Primary numeric-content gap addressed:** E25/E26 provide actual Neow quantities/exclusions, evolving question-room law, all25 event numeric/conditional branches, and card/reward/shop/chest/relic/potion/Dig tables; E20 retains scoped enemy/event-elite numbers. §8.6 indexes concrete discriminators. B08 remains OPEN for initialized/history-conditioned joint measures, exceptional legal reachability, standard-start certification and cross-system reward/claim/Bark/child/commit/timing composition (B03–B06/B09/B12); local tables do not prove every combination. | E20/E25/E26 exact cleared heads integrated; residual source-proof and shared execution/native interfaces remain |
+| A1C-B09 / 2 | E17 fixes candidate signed64 rows/U counts/checked conversions,not full source numeric bounds audit. E18 actual addEnergy/addBlock999 applies at helper,not clipping requests or all counters. Still map every legal field to actual source integer/binary32/cap/overflow and encoding domain,including growing state, using E20–E26 numeric records. | D07 per-field domain/application audit with reviewed content,not admin cap substitution |
 | A1C-B10 / 2 | E17 supplies concrete ownership/registry,18 widths/enums/local refs/carrier,operation-specific reset/delivery/fault and exact ordered replay grammar/digest/six goldens. Still D:NC11/NC12 full semantic catalogs/public-field/site equality,all action tuples,private-core hidden/RNG encoding;NC04 exact joint domain bindings/canonical semantic scopes;NC10 profile/time payload,clock/wait extension;successor cutoff. No final descriptor/fingerprint/schema freeze or human D07 approval. | Reviewed native candidate integrated;final whole-spec semantic/schema/fidelity reconciliation,not missing generic byte framing |
 | A1C-B11 / 2 | E15 supplies explicit history facts and decision-ready lifecycle/preset/output/death/fault/reset/replay recommendation, now §9/9.1. Need D05/D06 human disposition, full legal stored-card/upgrade catalog and native schema/diagnostic integration; later-act discovery hooks remain bounded evidence. No automatic inheritance. Neither technical review nor Note bounded approval chooses native behavior. | Reviewed profile/time input integrated; content/native interfaces and whole-spec readback main-owned |
 | A1C-B12 / 1 | E15/E16 close named timer dependencies/desktop bound; §9.2 gives concrete60Hz/exact-elapsed/dwell/wait P. Need D04 fidelity choice, complete mechanic-bearing timer/settlement/terminal registry and exact native Reaper/Match checkpoint outcomes under that chosen law. Natural original Reaper loss/frame distribution remain unproved; no source parity from model choice. | Reviewed timing inputs integrated; execution/native and D04 remain |
@@ -1834,28 +1905,25 @@ human gates (B14). Accepting a recommendation cannot silently count as proving a
 source law. Conversely, lack of original-runtime validation does not erase bounded
 static facts already obtained safely.
 
-### 17.1 Pending normative-content interfaces — assignments, not evidence
+### 17.1 Integrated normative-content inputs — scope and remaining interfaces
 
-PR16's exact reviewed enemy document is integrated as E20 and is no longer pending.
-PR17 Silent, PR18 Defect and PR20 event-Neow merged after this pass's source cutoff;
-this bounded update deliberately does not incorporate them. Their documents/findings
-were not read here. Await main's separate integration routing. Other normative lanes
-remain unimported. The rows below identify dependencies, not evidence or claims that
-absent files are required hidden imports.
+E20–E26 are integrated from the exact reviewed heads and main merge receipts in
+§1.1. The seven accessible links there are the bounded public primary-record sources;
+this section records their disposition, not a claim of transitive completeness.
 
-| Assigned owner | Sole public document under docs/research/ | Required public record gap |
+| Input | Integrated local primary coverage | Remaining interface (still OPEN) |
 |---|---|---|
-| spire-gli.2.3.18 / red-neutral | 2026-10-19-act1-content-red-colorless.md | Ironclad/colorless/status/curse/dependent special/removable event kinds: paired values, target/payload/upgrade/copy/growth/rounding and exact shared-law residuals. |
-| spire-gli.2.3.19 / Silent (PR17 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-silent.md | Separate main-routed pass: all legal green basics/nonbasics/Shiv, paired numeric/conditional rules; Setup/Masterful Stab, discard/Poison/Retain/X/copy boundaries, no Silent start. Existing old file remains unchanged; this table does not itself clear its facts. |
-| spire-gli.2.3.20 / Defect (PR18 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-defect.md | Separate main-routed pass: blue basics/nonbasics/special dependencies and orb/slot/Focus/Evoke/channel/resource laws; actual Ironclad generation context and growth/copy capture. |
-| spire-gli.2.3.21 / Watcher | 2026-10-19-act1-content-watcher.md | Purple basics/nonbasics/options/specials; paired stance/Mantra/Retain/Scry/X/Expunger/Conjure/selection/copy and death residuals. |
-| spire-gli.2.3.23 / events-Neow (PR20 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-event-neow.md | Separate main-routed pass: Neow categories/drawback/exclusions/quantities, evolving question-room probabilities, all25 event numeric/eligibility/payment/risk/source records. |
-| spire-gli.2.3.24 / economy-potions | 2026-10-19-act1-content-economy-potions.md | Merchant stock/price/rounding/retry/restock/purge; reward/chest/drop laws; all33 eligible potion base/Bark/phase/target/use/duration/Sozu/belt/commit records. |
+| E20 enemies | All25 local enemy identity/HP/setup/move/payload/conditional-AI records and bounded reaction/split/boss/preview/fixed-Status/factory laws. | Global scheduler, nested callbacks, terminal/timer and initialized RNG/root composition (B02–B05/B12). |
+| E21 Silent | 4 basics, 71 nonbasics and dependent Shiv paired records, plus Setup/Forethought, Masterful Stab, Bane and named discard/Poison/Retain/copy distinctions. | Mixed CARD-* laws and callbacks, target/death composition, remaining initialized-root and source-policy closure (B04/B07). |
+| E22 Defect | 4 basics, 71 nonbasics, two Status and four orb kinds, including costs, payloads, cost receivers, Lock-On and local orb rules. | Full mixed orb/callback/cost/terminal and source-generator composition (B04/B07/B10). |
+| E23 Watcher | 4 basics, 71 nonbasics, eight physical dependencies and three Wish option records, including queue-versus-derived Omniscience fields. | Nested choices, global queue/terminal, cross-family callbacks and initialized joint measure (B03/B04/B07/B12). |
+| E24 red/colorless/dependent | 75 red, 35 ordinary colorless, five Status, eleven Curse, four stored-event and twelve dependent/control records, including named Feed/Mayhem/Flame Barrier/Exhume/Entrench branches. | Cross-system lifecycle/callback/terminal composition, stored-card reachability and remaining shared CARD-* laws (B04/B05/B07/B11). |
+| E25 Neow/events | Numeric Neow categories/payloads and RNG ownership, question-room update/override law, and all25 event local conditions, amounts, branches and returns. | Initialized/history-conditioned joint measures, exceptional legal-history witnesses, parent/child arbitration (B03/B05/B08). |
+| E26 economy/potions | Numeric economy, reward/pity, shop/price/restock, chest correlations, Dig and all33 local potion records including guards/targets. | Seeded-shuffle joint laws, full potion callback/terminal composition, standard-start numeric certification and native numeric-domain audit (B03/B04/B08/B09/B12). |
 
-These interfaces fill B07/B08 only after exact main-directed integration. PR17/18/20
-clearance and merger are not integration into this spec; await the separate main route.
-Inventories/checkers do not prove completeness. Earlier card documents remain
-unchanged; do not infer their reviewed statuses from this table.
+No unreviewed sibling content or working-tree-only records are needed for these
+dispositions. Their linked source documents are normative inputs; they do not
+substitute for human selection among unresolved D01–D08 proposals.
 
 ### 17.2 Three distinct gap classes for final readback
 
@@ -1863,8 +1931,8 @@ unchanged; do not infer their reviewed statuses from this table.
    history context when required;B04–B08 actual remaining per-site/transitive/paired/
    numeric records;B09 exact numeric application domains;B10 complete semantic/public/
    private-core dictionaries and bindings. Human approval of a layout cannot prove
-    these laws. Six other normative lanes remain unmerged/unaccepted in this
-    integration.
+    these laws. E20–E26 close the local enemy/card/numeric primary-record gaps only;
+    remaining transitive/source-proof and initialized-measure residuals stay open.
 2. **Human choices:** D01 evidence target,D02 native empty-map law,D03 measure/order/
    independence,D04 timing/settlement deviation,D05 profile/preset validation,D06 Note
    output,D07 concrete representation/ownership/wire/API,D08 successor cutoff. Reviewed
@@ -1880,8 +1948,9 @@ unchanged; do not infer their reviewed statuses from this table.
 
 These names are identity labels, not localized substring tests or assigned native
 enum values. Aliases need explicit catalog mapping. E09 inventories and E10 pool
-findings support these groups; **all primary/execution records still require
-A1C-REQ-011 through A1C-REQ-015**, with A1C-B07 preserving missing paired detail.
+findings support these groups; E21–E24 provide paired local primary records, while
+execution/source-policy composition still requires A1C-REQ-011 through A1C-REQ-015
+and A1C-B07.
 This is a complete-scope draft inventory, not a declaration of a complete rules
 catalog. Source/type filters in section 6 determine which subset a site can sample.
 
