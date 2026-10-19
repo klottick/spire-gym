@@ -242,7 +242,7 @@ produces an unconditional all-heal. Reset does not revive a dead player.
 | Remaining run-wide one-time events | Carry the live remaining list; do not repopulate consumed events. Filter by Act2 eligibility when generating a future event, not by exposing hidden future IDs now. |
 | Discovery history | Carry Act1 seen-boss additions and existing independent Act2/Act3 seen sets. The new Act2 boss-selection setup depends on Act2's seen set; it is hidden from policy until legally announced/revealed. Boss lists do not become a public “all seen” feature by accident. |
 | Acquired ruby/sapphire/emerald flags | Carry actual owned keys; optional and deferred key effects commit only at their actual consumer. The burning map-node designation is distinct from acquired Emerald. Act1 boss chest has no Sapphire attachment. |
-| Run play clock | Pure elapsed eligibility is selected satisfied; no clock/wait-only action is added. Do not invent Act2 policy time behavior in this contract. Preserve only whatever resolved run-owned logical clock fields the selected final run schema requires; no frame clock is an Act1 completion gate. |
+| Run play clock | The selected policy satisfies pure elapsed eligibility; this Act1 contract adds no elapsed-time field, clock/wait-only action, or frame clock. No time value is needed to initialize Act2 at this cutoff. |
 | RNG state | Replace any source cursor assumption with reviewed native producer import; do not carry twelve original source streams, source seed offsets, Java shuffle cursors, or card-RNG counter bands as policy. Run/RNG replay provenance follows named import only. |
 | Temporary Act1 combat/room/reward/UI work | Must have reached source-specific resolved consumer or be legally abandoned by the actual transition. Never copy queues, screens, temporary card piles, actor timers or stale candidate tokens into Act2. Durable effects already applied remain. No arbitrary private carry-all blob. |
 
@@ -283,7 +283,7 @@ order.
 
 | Owner/state | Required initialized domain/value | Visibility at Act2Ready |
 |---|---|---|
-| Act/floor/entry | `act=2`; global floor is the next Act2 entry floor (source successor from the Act1 boss); fresh path; Act2 start node exists with no Act2 room visited. Exact native floor counter representation is the run owner contract. | Internal successor only at this terminal; no Act2 fields are inserted into the Act1 policy final. |
+| Act/floor/entry | `act=2`; global floor `17` at the first Act2 entry; fresh path; Act2 start node exists with no Act2 room visited. Native floor counter retains the checked source integer domain. | Internal successor only at this terminal; no Act2 fields are inserted into the Act1 policy final. |
 | Map | TheCity topology, room assignments, edges, and valid burning-Elite marker generated as one Act2 map; every exposed map satisfies the selected valid-map predicate (including >=1 Elite) by deterministic reject/regenerate before exposure. New map is not a patched Act1 map. | Retained in private successor; not projected into the Act1 final. Burning marker is not acquired Emerald key. No hidden future encounter/event/boss result. |
 | Encounter queues | Weak and strong lists: two weak entries, the separately filtered first strong, then twelve more strong; ten elite entries. Act2 boss candidate pool/order built from its seen history. Source nominal weak: Spheric Guardian, Chosen, Shell Parasite, 3 Byrds, 2 Thieves (weight 2 each). Strong nominal weights: Chosen and Byrds 2; Sentry and Sphere 2; Snake Plant 6; Snecko 4; Centurion and Healer 6; Cultist and Chosen 3; 3 Cultists 3; Shelled Parasite and Fungi 3. Elites: Gremlin Leader, Slavers, Book of Stabbing (1 each). Boss identities: Automaton, Collector, Champ. | Queues, future list order, conditional draws and unselected identities are private. The actual future encounter is not an observation. No Act2 fields are projected into the Act1 final. |
 | Encounter history | Preserve Act1 visited rooms and encounter history; initialize Act2's own encounter queue/history and first-strong exclusion from actual last Act2 weak entry (not Act1 last encounter). Ordinary append rejects last two; elite append rejects only immediate prior; first strong uses source-specific exclusions, not ordinary rule. Room departure consumes its Act2 queue head, event fight does not. | Private successor history; do not publish hidden queue entries or underlying queue cursor. |
@@ -338,8 +338,9 @@ dungeon object,” an opaque private blob, or an Act1 object graph:
    entries `(instance_id, canonical_card_id, upgrade_count, actual persistent
    misc only where that card law owns it, bottle flags)`, relic entries
    `(canonical_relic_id,counter,used/charge state)`, potion capacity and each live
-   slot `(occupied,potion_id,potency)`, acquired key bits, run-level permanent
-   counters/history.
+   slot `(occupied,potion_id,potency)`, and acquired key bits. Other profile-wide
+   history and pool counters live only in the named `Progression` or `Act2Pools`
+   fields below; no unenumerated player counter bag is carried.
 2. `Progression`: act=2, next global floor, prior visited-room/reward/Neow/boss
    history, independent Act1/Act2/Act3 boss-seen sets, remaining one-time event
    identities, and current entry-node reference.
