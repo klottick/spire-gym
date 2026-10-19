@@ -12,6 +12,10 @@ specifying the common transition points those local rules compose through. The
 tables close named shared endpoints; they do not claim every possible product of
 content rules has been enumerated.
 
+This revision distinguishes marker-time and discard-action-time end-turn card
+callbacks, including Entrench's source-specific Ethereal enqueue; TX18 is an
+unexecuted discriminator for their insertion order.
+
 ## 1. Evidence boundary and method
 
 The inspected owned archive is `desktop-1.0.jar`, SHA-256
@@ -50,9 +54,19 @@ call. **S/BC:** `GameActionManager.update/getNextAction`, `addToTop/addToBottom`
 | Card selection/dispatch | Set autoplay from queue item, optionally choose random target, evaluate actual `canUse` (or explicit `dontTriggerOnUseCard` alternative), then set captured energy/ignore flags; on normal-notification branch invoke callbacks and commit history; only afterward reject a later null/dead/escaped enemy target or enter player use | A rejected legality gate does not make normal play history. Accepted history is not rolled back by later target rejection, and a late target rejection omits player use/payment. |
 | No-play autoplay cleanup | A failed autoplay card sets the suppress-notification flag and queues `UseCardAction` for cleanup; it is not a normal successful payload/history branch. | The producer's destination flags and `UseCardAction` cleanup still need their own branch. |
 | Monster turn queue | Once card queue is empty, enqueue monster snapshots if not already queued; process one head monster, enter `takeTurn` and its turn-power producer calls, then remove the snapshot | The next monster or room end-of-round work is not a child executed within `takeTurn`. |
-| End-turn marker | Null card-queue entry calls relic/blight end-turn, player pre-card powers, queues orb handling, calls current hand end-turn-for-playing hooks, then stance; room `endTurn` separately queues clear/discard and enemy-turn work | Producer calls can directly mutate state and queue work. End-turn callback completion is not equivalent to all created actions having run. |
+| Null card-queue end-turn marker | Calls room relic/blight end-turn hooks, player pre-card powers, queues orb handling, calls current-hand `triggerOnEndOfTurnForPlayingCard`, then stance end-turn | This marker-time card callback is distinct from the later discard action's `triggerOnEndOfPlayerTurn` dispatch below. |
+| Room end-turn scheduling | Separately invokes player end-turn work, queues clear/discard actions and enemy-turn wrapper, and resets the named pile/card attributes | Scheduling this work does not execute the discard action or its later per-card callbacks. |
+| `DiscardAtEndOfTurnAction.update` | On its initial update, moves retain/self-retain objects to limbo and queues their restore action at top; unless Pyramid/Equilibrium suppress bulk discard, repeatedly top-inserts discard actions; then clones the remaining hand, calls `Collections.shuffle` on that clone, and visits it via `triggerOnEndOfPlayerTurn` | A visited Entrench overrides this latter callback and top-inserts `ExhaustAllEtherealAction`; Entrench is not itself Ethereal. That queued cleanup sits ahead of already queued discard work; repeated top insertions reverse producer order, including among Entrench callbacks. The shuffle call has no explicit gameplay RNG argument, so no seeded or uniform law is asserted. |
 | Victory filtering | On basically-dead monster group, `cleanCardQueue` removes card-queue items still in hand and marks limbo cards fading; `clearPostCombatActions` removes pending ordinary actions except `HealAction`, `GainBlockAction`, `UseCardAction`, and `DAMAGE`-typed actions | Does not clear `preTurnActions`, monster snapshots, entered stacks, room objects, dungeon effect/soul lists or every current action. It is a selective filter, not cancellation rollback. |
 | Later manager clear | `clear` empties ordinary/pre-turn/card queues, nulls current/previous/start actions, clears named play/orb/stance histories and resets turn fields | It does not undo durable state already changed; it does not itself clear the monster queue or prove all room/effect/soul work is gone. |
+
+The two end-turn card callbacks above are not aliases: `triggerOnEndOfTurnForPlayingCard`
+is marker-time work; `triggerOnEndOfPlayerTurn` is called later by
+`DiscardAtEndOfTurnAction` on a shuffled clone of the remaining hand. Entrench's
+override implements only the latter and queues Ethereal cleanup at top after the
+bulk discard actions were inserted. That action is pending work, not synchronous
+exhaustion during the callback. The source's `Collections.shuffle` invocation has
+no explicit gameplay RNG parameter; its native order/measure is unresolved here.
 
 The game-level dungeon update has additional independently ordered containers:
 room-object updates, active top-level and ordinary effects (update before done
@@ -269,6 +283,7 @@ their initialized Act 1 reachability is unresolved.
 | TX15 | Empty Cage 0/1/2 and committed fixed grid with zero candidates: test conditional local branch separately from an initialized legal witness/exclusion; never treat forced fixture as proof. |
 | TX16 | Note incoming removable versus unremovable card with empty prior candidates; direct obtain and candidate construction precede outgoing selection, but only a proven natural profile/history fixture can settle reachability. |
 | TX17 | Last-enemy filter followed by endBattle/manager clear: preserve earlier HP/gold/deck/relic writes, distinguish admitted current stack, each pending list and effects/souls, and avoid fake rollback/defeat. |
+| TX18 | End turn with Entrench in the remaining-hand clone, Ethereal cards and other queued discards: distinguish marker-time `triggerOnEndOfTurnForPlayingCard` from later shuffled-clone `triggerOnEndOfPlayerTurn`; check Entrench's override inserts top-priority Ethereal cleanup ahead of already queued discard work, without treating Entrench as an Ethereal card or assuming a seeded/uniform shuffle. |
 
 ## 9. Remaining exact proof obligations and approvals
 
