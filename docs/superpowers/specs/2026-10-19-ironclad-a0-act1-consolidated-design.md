@@ -1,6 +1,6 @@
 # Ironclad A0 Act 1 — consolidated specification
 
-Date: 2026-10-19. Author task: `spire-gli.2.3.8`.
+Date: 2026-10-19. Author task: `spire-gli.2.3.38`.
 
 **Whole-scope integration draft — BLOCKED, not approved or implementation-ready.**
 This is the single review surface for standard Ironclad A0 Act 1. It preserves
@@ -8,9 +8,10 @@ the approved architecture, states candidate detailed contracts, and accounts for
 required content even where a law is unresolved. It is not an implementation plan,
 an implementation claim, or permission to install, build, benchmark, or train.
 Main owns integration of independently reviewed follow-ups and the eventual human
-presentation. This revision integrates fourteen main-authorized, independently
-cleared and merged follow-ups, plus the earlier Note/Silent corrections. Technical
-clearance of a proposal is not human approval of its behavior.
+presentation. This revision preserves the fourteen previously integrated main-
+authorized follow-ups and earlier Note/Silent corrections, and substantively
+integrates accepted PR24 (E27) and corrected PR23 (E28). Technical clearance of a
+source claim or proposal is not human approval of its behavior.
 
 ## 1. Reading this specification
 
@@ -61,6 +62,37 @@ profile, packed-interface and generation-context supporting proposals. Their
 needed conclusions are restated here; none is a required external normative file.
 Unintegrated detail from them is a named blocker, not a hidden dependency readers
 must recover. These summaries are not new independent checks of private source.
+
+#### Newly integrated reviewed inputs (E27–E29)
+
+The following exact author revisions were independently cleared for bounded research
+claims and normally merged into canonical main at this integration base. They provide
+static/bytecode evidence, not original execution or whole-spec closure.
+
+| ID | Accessible input / exact reviewed author head | Merge identity | Integrated contribution and limit |
+|---|---|---|---|
+| E27 | [Initialized RNG and map closure](../../research/2026-10-19-act1-initialized-rng-map-closure.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/8f13d5231bfcc119aec871a5b0a726a91c008454/docs/research/2026-10-19-act1-initialized-rng-map-closure.md) · `8f13d5231bfcc119aec871a5b0a726a91c008454` | PR24 merge `dc1759cdab02bb653ebda9887c2709e2c3459f11` | Same-root twelve-stream initialization, Act1 fresh `s+1` map stream, five consecutive relic-source seed calls, and linked Neow/card/curse/potion/event cursor transitions. Conditional fixed-input wiring only; no root/history prior, evaluated complete joints, target host/JRE catalog order, or initialized zero-Elite witness/exclusion. |
+| E28 | [Transitive execution closure](../../research/2026-10-19-act1-transitive-execution-closure.md) · [reviewed revision](https://github.com/klottick/spire-gym/blob/4167152c5d0fce47586fe83f3d1cfc1f976af609/docs/research/2026-10-19-act1-transitive-execution-closure.md) · `4167152c5d0fce47586fe83f3d1cfc1f976af609` | PR23 merge `b637b580a920942e392eab44c35c2a9869219874` | Shared manager/power/card-play checkpoints, player-vs-monster damage and rescue/death/escape paths, source-specific nested commits/returns, and conditional Reaper/Match timer facts, including corrected marker-vs-discard callbacks and Entrench. Static bounded transitions only; no exhaustive reachable composition, initialized exceptional-history proof, natural timer outcome, or native clock choice. |
+| E29 | [Semantic/native contract closure](https://github.com/klottick/spire-gym/blob/d3e9b7a3565932e83235936d083e906f087ab078/docs/research/2026-10-19-act1-semantic-contract-closure.md) · exact reviewed author head `d3e9b7a3565932e83235936d083e906f087ab078` · document SHA-256 `db5061114732ba8ea18099e81249df1fdfc015055ed7ab528c8ab5121ff4d599` | PR25 normal two-parent merge `1790f22ec47d294b018eb1ab567b9668ab5828d7` | Independently cleared bounded candidate/source joins: 146 fixed/table field crosswalk rows, actual primitive/domain and visibility labels (including named unresolved owner joins); 131 exact card ID/class aliases for the retained Ironclad/colorless/Status/Curse subset; node `hasEmeraldKey` burning-elite designation distinct from acquired `Settings` key; base cost 0/X−1/unplayable−2 versus mutable turn cost/free-once; registered settled-i32 shop prices and property 41 unemittable; private-core envelope/generic framing only, with eight payloads explicitly unencoded/unfreezable. Not full legal numeric ranges, all namespaces/sites/properties/visibility/source policy, or a complete core codec. |
+
+The independent exact-head reviews found PR24 clear for its bounded scope and PR23
+clear only after its Entrench/end-turn callback correction. PR24 author model checks
+passed 4/4, with retained map and shuffle suites at 7/7 and 9/9; its independent
+reviewer reran all three suites successfully. These checks validate helper/model
+arithmetic only. PR23 author performed read-only static/bytecode reconciliation
+without a new JVM invocation; the independent review/recheck spot-checked exact
+source transitions. TX01–TX18 remain unexecuted future cases. The accepted heads
+above are the only authorities; earlier PR23 head
+`7b8a05c9f2bbd0ffed67657a03bad2e36614c309` was not merge-fit. Private author/reviewer
+ledgers and controller merge receipts retain detailed commands and checks.
+
+The accepted E29 revision was exact-head independently cleared for bounded contract
+candidate fit (0 Critical/0 Important/0 Minor) and normally merged. This is not
+completion of its native-contract assignment: its crosswalk and dictionary rows are
+partial joins, not runtime evidence or a complete legal-range/site/visibility audit.
+The accepted document is present in the exact merged Git object above; its relative
+path is not in this branch's base tree and is intentionally not copied into this
+single-document worktree. The immutable commit-pinned link is the source locator.
 
 #### E09 review qualification — bounded update, 2026-10-19
 
@@ -408,6 +440,94 @@ notifications commit before rescue/death. Direct-family completeness never close
 every nested override, applyPowers/glow, mixed reaction, entered tail or terminal
 dispatch. B04/B07/B12 retain those exact composition obligations.
 
+### 4.4 Card admission, history, use and payment checkpoints (F; E28)
+
+A queued card is not yet an accepted play. At manager dispatch, legality (`canUse`)
+precedes the ordinary notification branch; only an admitted play records the inspected
+play/onPlay history. On the accepted route, captured energy and ignore-total are set,
+then player powers, monster powers, player relics, stance, blights and hand/discard/
+draw cards receive their ordered notifications. A later null/dead/escaped target check
+can reject use after this history commit; that late rejection omits player use/payment
+and does not roll history back. The explicitly suppressed-notification branch is
+distinct from normal accepted notification.
+
+Player use then recalculates damage, applies the source-specific X cap only when
+ignore-total is false, invokes card `use`, constructs `UseCardAction` (including its
+constructor-time callbacks), notifies other cards in hand, removes the played instance
+from hand, and applies ordinary energy debit subject to the actual free/autoplay/
+Corruption-Skill exceptions. Payload actions commonly remain queued after this use
+entry. Five repeat powers explicitly set autoplay and ignore-total true while copying
+energy; this does not generalize to other queue producers. Preserve the already stated
+Forethought+ selected order, Setup/Forethought positive mutable combat-cost free-flag
+guard without numeric zeroing, per-instance Masterful Stab notifications, Eviscerate
+source receiver, Transmutation negative-X/self-generation path, and Omniscience queue
+flags versus later manager-derived play flags. No total cost precedence or all mixed
+callback law follows.
+
+### 4.5 Shared manager, queue and power-selection checkpoints (F; E28)
+
+The manager does not recursively drain a selected action: in its executing branch it
+updates at most the current action, and later manager updates choose subsequent work.
+Selection priority is current entered action first, then index 0 of ordinary `actions`,
+then index 0 of `preTurnActions`, then card-queue work, then monster snapshots/turn
+work; the turn-ended branch is later still. `addToTop` inserts at index 0,
+`addToBottom` appends, and repeated top insertions reverse producer order.
+`addToTurnStart` inserts at its own index 0 but does not outrank ordinary actions.
+Card-queue immediate insertion uses index 1 when nonempty (otherwise index 0), with
+a separately managed single end-turn marker. The marker calls
+`triggerOnEndOfTurnForPlayingCard`; later `DiscardAtEndOfTurnAction` clones and calls
+`Collections.shuffle` on the remaining hand, then invokes the distinct
+`triggerOnEndOfPlayerTurn` callback. Entrench overrides only that later callback and
+front-queues `ExhaustAllEtherealAction` after bulk discard work was queued; Entrench
+is not itself Ethereal, and the cleanup remains pending work. Repeated top insertions
+reverse producer order. `Collections.shuffle` has no explicit gameplay RNG argument,
+so no seeded/native-order/uniform shuffle law is claimed. These are list-specific
+rules, not a universal FIFO across effects, souls, room objects or other containers.
+
+For power application through `ApplyPowerAction`, source `onApplyPower` callbacks can
+precede target validity and named relic prevention; Artifact is checked after those
+prevention hooks. Existing matching IDs stack at the application branch (except
+`Night Terror`); a newly added power is appended, the list is sorted by
+`this.priority - other.priority`, then initial/modify callbacks follow. Stable equal-key
+order is scoped to that sort operation. Direct `addPower` instead stacks matching IDs
+or appends without sorting. Lifecycle passes visit the current list; do not snapshot or
+re-sort every callback family by editorial rule.
+
+**E28 update to A1C-REQ-009 (F/O):** Preserve these current/pending/container
+distinctions and selection priorities; callback-created work remains pending until
+the manager reaches its container on a later dispatch. Selective post-combat filtering and later full manager
+clear are separate transitions: neither unwinds the already-entered call nor proves
+all other work drained. Exhaustive callback and reachable-combination closure remains
+A1C-B04/B05/B07.
+
+### 4.6 Distinct player/monster damage, rescue and terminal checkpoints (F; E28)
+
+Player damage and monster damage are different state machines. For the inspected
+player-target route, clamp negative input, apply player Intangible and Block, then
+apply source relic, owner-power, target relic and target-power damage modifiers. The
+later attack notifications are source relic, owner powers, target powers, then target
+relics; the owner-sensitive callback block is skipped for null-owner damage.
+`onLoseHpLast` precedes capture of `lastDamageTaken`; later `onLoseHp` amount changes
+therefore do not rewrite that capture. Positive post-hook loss commits HP-loss/damage
+counters and notifies then-current hand, discard and draw card instances once each
+(excluding exhaust), before HP/bloodied updates and rescue/death. If lethal and Bloom
+is absent, Fairy is consumed before unused Lizard Tail; their healing is synchronous
+through normal heal modifiers, and earlier counters/notifications are not rolled
+back. Otherwise death is committed; a later queued heal is not resurrection.
+
+Monster damage separately checks Intangible and dying/escaping, runs its distinct
+owner/target callback order (including the local target-power `wasHPLost` pass not
+guarded by positive damage), captures `lastDamageTaken` before HP subtraction, and
+has no player card-history or rescue pass. First `die(triggerRelics)` sets `isDying`
+and conditionally calls target-power death and player relic monster-death hooks; it
+is not `isDead`. Death-timer settlement, group/cannotLose checks, room `endBattle`,
+and manager clearing are later checkpoints. Escape has its own three-second timer and
+`escaped` state, not death/Fatal/victory credit. Split children are later actors, not
+immediate replacement kill credit; `cannotLose` suicide can suppress kill hooks. Player healing visits relic modifiers then power `onHeal`; monster
+healing instead checks dying, visits powers only, then adds/caps HP. These bounded
+base paths do not enumerate all damage producers, overrides, Fatal attribution,
+simultaneous callbacks, splits, rescues or terminal interposition; retain B04/B06/B07.
+
 ## 5. Card and mechanic closure
 
 **A1C-REQ-011 (A/O):** Every catalog identity in appendix A needs paired base/upgrade
@@ -572,7 +692,35 @@ are not fixed 55/30/15. Separate invocations do not ban earlier outputs. These
 paths do not mutate card-reward pity. Do not independently repartition rarity to
 erase the within-offer dependencies.
 
-### 6.2 Destination and construction laws
+### 6.2 Initialized RNG ownership and linked consumption (F; E27)
+
+For a fixed numeric run root `s`, the inspected initializer constructs twelve distinct
+stream objects—monster, event, merchant, card, treasure, relic, monster-HP, potion,
+AI, shuffle, card-randomizer and miscellaneous—from that same root. Their initial
+expanded XS pair and zero wrapper counter are equal, but object state advances
+separately after construction; this is common-root initialization, not twelve IID
+seeded domains. For Act 1, Exordium replaces the map wrapper with a fresh stream from
+`s + 1` using signed-64 wrap semantics. Map topology and its direct-XS bucket shuffle
+therefore share that replacement stream/cursor, not the earlier relic stream.
+
+| Source transition | Normative relation to retain | Still not established |
+|---|---|---|
+| Relic pool initialization | Populate Common, Uncommon, Rare, Shop, Boss inputs; consume five consecutive `relic`-stream `randomLong()` outputs in that order, each seeding a separate Java shuffle. Java shuffle rejection advances only that fresh Java generator. Apply owned-ID deletion after all five shuffles. | Exact input iteration order of hash-backed catalogs on the target host/JRE; root/history measure or evaluated joint posterior. Never sort silently or replace linked source words with five independent seeds. |
+| Neow and card/curse | Neow categories/colored identity/rarity use event-owned state as called; duplicate colored identity retries preserve selected rarity. Colorless identity and deferred curse use the advancing card stream; a previously generated then removed automatic Neow card row still consumes its calls. | Full initialized/history-conditioned action measure, exact posterior over complete offer histories, or independent-stream law. |
+| Potion offers | Successive flat-ID Neow/Lab/Woman potion choices consume the same advancing potion stream; duplicates remain allowed. | Unconditional history-weighted offer joint or a different native cursor policy. |
+| Question room and event | The question-room float is consumed before Tiny Chest/Juzu overrides; event branch then eligible ID use counter-linked copies/advances of event state, branch before ID. | Complete event/history source law and evaluated joint distribution; no independent resampling after override. |
+
+For any fixed `(s, ordered catalogs, legal prior history and caller transcript)`,
+these source transitions are deterministic conditional wiring and compose with the
+finite kernels in §10.1. This does not supply a measure over root seeds, profiles,
+player choices or histories, nor all producer/context transitions needed to evaluate
+every observable joint. Seed UI conversion and timestamp paths do not define a
+standard-run prior. The conditional zero-Elite criterion still needs a witness or
+exclusion with topology and bucket derived from that same `s+1` stream. The seed image is the audited 64-bit input image, not all nonzero 128-bit XS states;
+seed 0 aliases signed minimum after expansion. No user-seed prior follows from that
+constructor. These claims are static/bytecode-backed; no initializer/runtime ran.
+
+### 6.3 Destination and construction laws
 
 Hand placement selects/constructs before checking capacity ten; excess goes to
 discard, not deletion. Sequential children see then-live occupancy. Nonempty draw
@@ -675,6 +823,13 @@ increment the wrapper counter; ordinary assignment/fill uses neither. In the
 5989 model, topology ends at counter/raw98/98, bucket at98/134, marker at99/135.
 These are model counts, not original runtime measurements or new RNG-001 parity
 requirements. Visual jitter uses a different RNG object.
+
+E27 connects this map transition to run initialization: all twelve named streams
+begin from common root `s`, but Act1 map generation replaces the map object with a
+fresh `s+1` state; the map topology, direct-XS bucket shuffle and marker therefore
+share that replacement path and do not continue the relic cursor. This narrows the
+conditional source wiring only. The root/history measure, host/JRE relic catalog
+order and a same-root initialized zero-Elite witness/exclusion remain B02/B03.
 
 | Marker condition | Source-local F contract |
 |---|---|
@@ -862,6 +1017,21 @@ The following E16 contracts supersede the older open local-dispatch obligations;
 global terminal arbitration and the named exceptional reachability remain open.
 Wheel gold commits at reveal, not confirmation; its other outcomes have later
 callbacks. Neither room COMPLETE nor screen closure proves universal return.
+
+E28 adds shared commit checkpoints; retain exact source boundaries rather than
+interpreting screen close or queued child as completion:
+
+| Source | Mutation/commit checkpoint | Return/settlement boundary |
+|---|---|---|
+| Card reward | Take removes the selected row before deferred Fast obtain; Skip leaves the offer available. | Reopen reuses that row; later insertion is not implied by Take or close. |
+| Shop card/relic | Card purchase enqueues Fast obtain before spend/stock mutation; relic payment/install is committed before an `onEquip` child and restock completion. | Child resolves at its own consumer; no second charge/purchase on resume. |
+| Neow transform | Single transform generates before removal; two-card transform removes both inputs before generation. | Parent resumes through its own no-screen consumer. |
+| Delayed relic / event | Installed relic update consumes its pending latch/result at the relic-update pass; event result/Proceed effects are event-specific. | Child parent may be absent; source-owned consumer/return route applies, not a universal screen-stack or map return. |
+| Note | Incoming hooks and master-deck insertion precede outgoing candidate construction; selected outgoing removal precedes later-room transition persistence. | Direct incoming does not invoke Omamori obtain-effect constructors; selection alone is not persisted departure. |
+| Boss successor | Reward/skip and child effects precede next-dungeon transition; later game transition constructs the successor using the same player and applies per-act reset/heal hooks. | `+1` waits for resolved successor-ready boundary; exact generated-map payload remains D08/B05/B10. |
+
+These checkpoints do not close exceptional initialized-history reachability, full
+consumer composition or universal terminal arbitration.
 
 ### 8.3 Entered effects, curse prevention and removal (F; E16)
 
@@ -1086,6 +1256,22 @@ logic) can trigger endBattle/victory hooks/full clear. These dependencies explai
 the race without proving natural Reaper heal loss or a universal cutoff. Inspected
 Reaper/orb visuals do not heal, but zero-duration work still needs its dispatch.
 
+E28 narrows the source checkpoint without selecting a native clock or natural
+outcome: after its local initial wait, Reaper visits current non-dying/non-escaping
+monsters in list order, applies damage, sums each target's captured `lastDamageTaken`,
+and queues VFX plus a HealAction only for a positive sum; non-fast mode inserts a wait
+before that heal, and the action also inserts its own top-priority wait. At the
+basically-dead filter, HealAction and damage-typed ordinary work are retained; later
+`endBattle`/manager clear can still intervene, or the heal can run first. This is a
+conditional race surface, not a natural lost-heal or guaranteed-heal witness. The
+ordinary desktop caller rejects raw frame deltas above 0.1 seconds before game update;
+that caller bound is not a native scheduler recommendation. Match uses strict `< 0`
+timer gates: a pair revealed on the second selection resolves only on a later
+underflow; the fifth resolved pair enters cleanup with a positive wait under the
+admitted desktop delta, while exact-zero later differs from negative. These are
+source-condition facts, not observed frame frequencies. D04 and B12 still require
+a human clock decision and complete timer/settlement registry.
+
 **P/D04 recommendation, NOT default/approved:**
 
 | Quantity/input | Concrete candidate law and disclosed cost |
@@ -1134,7 +1320,10 @@ Candidate families (P, **not frozen strings or independent streams**):
 
 The exact site inventory/codes, canonical derivation bytes and which families
 share cursors are A1C-B10. One independent stream per card/source/slot is not an
-approved shortcut. E14 now supplies the complete **conditional** finite laws below;
+approved shortcut. E27 now supplies the fixed-root source wiring for initialization,
+map replacement, five relic seed calls and selected linked caller cursors (§6.2); it
+does not supply the root/history measure or every producer/context transition. E14
+supplies the complete **conditional** finite laws below;
 B03 is their input measure/order/joint-context disposition and actual-ensemble
 gap, not a claim that only the three-item table exists. No exhaustive2^48 table
 or source RNG port is required by this mathematical specification.
@@ -1384,14 +1573,42 @@ numeric coverage. Source clamps apply at their actual helper boundary, e.g.
 addEnergy/addBlock999, **not** incoming request clipping. No universal counter cap;
 source per-field domain/application audit remains B09. Encoding exhaustion faults.
 
+**E29 bounded crosswalk refinement (F/P-E/U-S, not B09 closure):** The accepted
+contract supplies a 146-key candidate source/derived-field-to-carrier crosswalk
+(118 packed-table columns plus 12 context and 16 player cells), labeling primitive,
+candidate domain, visibility and evidence/open-join status per cell. It distinguishes
+direct Java `int` sign-extension from counts/ordinals and adapter-derived values;
+candidate encoding range is never a claim that all values are reachable or that all
+source members have been inventoried. Preserve the exact source helper boundary for
+`addEnergy`/`addBlock` 999 caps; other resource/counter fields are not thereby capped.
+Remaining per-owner read/write methods, sentinel/reachable domains, overflow behavior,
+float operations/rounding and the source-member↔column/property/private-exclusion
+equality are still required.
+
+For cards, source-entitled `cost` is a signed-i32 value paired with a base-cost kind:
+ordinary includes 0, X is −1 and unplayable is −2. Do not coerce those sentinels or
+infer payment from the kind. Mutable `costForTurn` is a separate signed-i32 value;
+`cost_kind` does not classify it. Preserve guarded negative setter behavior and the
+positive mutable combat-cost `freeToPlayOnce` writer as independent from zero turn
+cost, printed/base cost, X, autoplay, ignore-total and captured X. Entitlement and
+owner/callback joins remain source-qualified. For offers, `price_amount` is settled
+signed-i32 only for registered entitled owners: shop card `AbstractCard.price`, shop
+relic/potion settled price members, and purge `actualPurgeCost` are named candidates;
+source-local float price generation/discount intermediates are not this field. Other
+event/reward/composite price owners need their own exact settled member/callback and
+entitlement row. Do not emit an unregistered price under generic property 41; that
+reserved property is unemittable pending actual-public-owner proof.
+
 Proposed enums (start1 unless stated): phase Neow/Map/Room/Combat/Selection/Dead/
 Act2Ready; outcome0 none/1 Death/2 Act1CompleteAct2Ready; decision0 none then Neow/
 Map/Event/Shop/Campfire/Chest/Reward/BossRelic/Combat/DeckSelection/CombatSelection/
 MatchBoard/PotionSelection/Handoff. Character1–4 Ironclad/Silent/Defect/Watcher,
 creation only1,ascension0. Stance0 none then Neutral/Wrath/Calm/Divinity. Room0
 unknown then monster/elite/boss/event/shop/rest/treasure/boss-treasure. Zone hand/
-draw/discard/exhaust/in-play/other-public; cost ordinary/X/unplayable (numeric cells
-masked for last two); bottle0 none then Attack/Skill/Power. Offer card/relic/potion/
+draw/discard/exhaust/in-play/other-public; base cost kind ordinary/X/unplayable is
+paired with the source-entitled signed-i32 base cost (including −1/−2 sentinels);
+mask both together only when the source entitlement predicate withholds them. The tag
+never classifies mutable turn cost. Bottle0 none then Attack/Skill/Power. Offer card/relic/potion/
 gold/key/HP/maxHP/removal/upgrade/transform/source-option; price0 none then gold/
 HP-loss/damage/maxHP/source-composite; status offered/selected/claimed/skipped/
 removed/disabled. Disabled row has no candidate. Object kind board-position/event-
@@ -1422,7 +1639,7 @@ gold-price,HP-price,maxHP-price,selected-order,can-skip,can-confirm,scry-count,
 public-discard-count,public-HP-loss-count,public-play-count,public-Power-count,
 Mantra,orb-slots,Focus,kill-growth,potion-capacity,key-kind,burning-buff-public,
 source-option-stage,draw-order-known,outgoing-card-public,upgrades,source-visible-
-counter,nominal-price-binary32,intent-visible,payment-status,transform-input-kind,
+counter,reserved-unemittable-property41,intent-visible,payment-status,transform-input-kind,
 public-turn-cost-modifier. Code40 requires frozen content-qualified ordinal subkeys,
 not an escape hatch. D04 elapsed/running fields/wait opcode remain B10 integration,
 not silently assigned to40 or source-option action21.
@@ -1482,6 +1699,32 @@ argument,public-price-component,source-public-flag. Empty span(0,0). Caller subm
 index/token, never edited candidate/parameter rows. Order action kind,visible
 source/target order,option,ordered parameters; source public_position preserves
 strategic option order. Carrier0≤a<U; live legality0≤a<N≤U. No U-sized allocation.
+
+E29 narrows one identity ambiguity without closing dictionaries: in the map-node
+carrier, source `MapRoomNode.hasEmeraldKey` is the burning-elite node designation
+written by map generation and consumed by pre-battle/elite-room logic. It is distinct
+from acquired run-key state `Settings.hasEmeraldKey`; do not alias node marker and
+player Emerald key. The exact observation-visibility predicate/checkpoint and
+initialized/history-conditioned map law remain open.
+
+The accepted literal dictionary contribution is exactly 131 source card ID/class
+pairs for the retained Ironclad, colorless, Status and Curse ledger, with exact aliases
+and proposed semantic keys checked without normalization. It is a bounded subset, not
+the complete 13-namespace dictionary: other character cards and all relic, potion,
+enemy/intent, event/option, power, orb, room/public-fact and site identities still
+require literal inventories and two-way collision/equality joins. Names/counts are
+not proof of complete content or site equality.
+
+For representation, E29 proposes the `A1CORE` envelope and generic primitive/framing
+rules only. They do not make any tag payload emission-ready. PendingContinuation,
+SourceRngState, HistoryState, RoomState, EconomyState, ProfileStage, TimeState and
+HandoffCheckpoint payloads—eight schemas—are explicitly unencoded/unfreezable; the
+other tag rows are partial layouts, not frozen payload schemas. Therefore the full
+private core remains unencoded/unfreezable, future byte attachments are contingent
+on complete selected schemas and replay integration, and no final descriptor hash or
+schema fingerprint is asserted. Full field visibility/property-owner mappings,
+source aliases/sites/policies, RNG/history joins, profile/time/handoff choices, and
+the source-state equality proof remain open.
 
 ### 11.2 Standard-space facade recommendation (P)
 
@@ -1786,21 +2029,21 @@ execution to manufacture a pass.
 | A1C-T01 | Generated standard start; both prior-eligibility Neow branches, drawback before reward, every category/child; invalid profile leaves entropy/identity unchanged. |
 | A1C-T02 | Supplied map-choice topology: boundary two-way versus clamping; repeated-parent repairs, coordinate quirk, crossing snap and lowest-x trim. |
 | A1C-T03 | Quota binary32 rounding with row-13 omission; row-major retained bucket, skipped entries, deferred fallback and fixed-row exceptions. |
-| A1C-T04 | Preserve run5988/map5989 MODEL requested3/assigned2 certificate, rank-barrier criterion and same-seed topology/bucket proof obligation, distinct from initialized zero existence. Disabled marker gates draw nothing; enabled empty increments wrapper only before failure, singleton draws; approved native administrative classification, no reroll/forced Elite/death. Group buff/Insect order remains separate. |
-| A1C-T05 | §10.1 finite first-return rejection/final-state and descending composition under approved measure; missing faces0–5 including deterministic-result seed consumption; weighted duplicate-ID board/reveal posterior; empty/singleton/ordered duplicate-kind upgrade prefixes/Tiny House second bottle check; postshuffle-owned-deletion2779/M counterexample, five-pool joint/posterior/requested-tier depletion; declared input order versus silent sorting. |
+| A1C-T04 | Preserve run5988/map5989 MODEL requested3/assigned2 certificate, rank-barrier criterion and same-seed topology/bucket proof obligation, distinct from initialized zero existence. Disabled marker gates draw nothing; enabled empty increments wrapper only before failure, singleton draws; approved native administrative classification, no reroll/forced Elite/death. Group buff/Insect order remains separate. For one root, distinguish twelve same-root stream objects from IID domains, fresh wrapped `s+1` map replacement from relic continuation, five consecutive relic words and post-shuffle deletion; no initialized zero-Elite witness/exclusion is implied. |
+| A1C-T05 | §10.1 finite first-return rejection/final-state and descending composition under approved measure; missing faces0–5 including deterministic-result seed consumption; weighted duplicate-ID board/reveal posterior; empty/singleton/ordered duplicate-kind upgrade prefixes/Tiny House second bottle check; postshuffle-owned-deletion2779/M counterexample, five-pool joint/posterior/requested-tier depletion; declared input order versus silent sorting. Reconstruct five linked relic seed words and Neow/card/deferred-curse/potion/event cursor transitions from a shared root; root/history measure and complete evaluated joints remain open. |
 | A1C-T06 | All weak/strong/elite/event/boss families and ordered compositions; first-strong exclusions, last-two/elite history and queue consumption on departure, not event fights. |
 | A1C-T07 | AppendixF every identity/HP/setup/move-intent-payload/initial and redirected AI; finite float grid counts, post-Entangle execution flag, interrupted-selection history; factory/ordered instances, event elites, burning application/rounding then Insect, Emerald offer vs obtain, nine fixed Status sites, Strength endpoint and enemy Block999. Root/history-conditioned joints remain T05/B03. |
 | A1C-T08 | CurlUp strict preHP/lethal/block gate; Mad/Enrage/SharpHide/SporeCloud/Protect/Wizard/escape checkpoints; asleep/event Lagavulin; living split vs lethal, parent HP at Split execution, fresh ordered children outside queue snapshot; cannot-lose suicide suppresses kill hooks; Guardian queued quota/change/Block; Hex capture/Inferno checkpoints; Looter ledger/decrement/HP/timed escape/refund. Transitive callbacks/terminal/timers remain open. |
 | A1C-T09 | Each E21–E24 paired base/upgrade primary record plus every CARD-* shared record; local coverage cannot close by counts alone or successful random runs. Silent no-child versus zero-child history, Bane captured payload/checkpoints, and SI-I2: one qualifying multi-HP loss versus multiple losses, zero-loss prevention, notified hand/draw/discard locations, fresh versus stat-equivalent copy and per-instance cost layers. |
-| A1C-T10 | §4.1.1 eight legality overrides/permission gates and accepted-history-before-later-target rejection. Five repeats true/true,energy capture,physical object≠same UUID;mixed queue index1 reversal. Ten X branches captured versus live/free;no-orb Multi-Cast,zero Conjure,Chemical once;Transmutation ordinary output versus self-generated X through fresh/upgrade/stat-copy/hand,then later source capture/payment. Setup/Forethought positive mutable combat cost guard versus turn-only/X/unplayable and pre-existing flag;reset/use/Confusion clearing distinct. |
+| A1C-T10 | §4.1.1 eight legality overrides/permission gates and accepted-history-before-later-target rejection. Distinguish current action from later ordinary→preTurn→card-queue→monster selection; top/bottom and repeated insertion order; ApplyPowerAction new-power stable-priority sort from direct unsorted `addPower`. Five repeats true/true,energy capture,physical object≠same UUID;mixed queue index1 reversal. Ten X branches captured versus live/free;no-orb Multi-Cast,zero Conjure,Chemical once;Transmutation ordinary output versus self-generated X through fresh/upgrade/stat-copy/hand,then later source capture/payment. Setup/Forethought positive mutable combat cost guard versus turn-only/X/unplayable and pre-existing flag;reset/use/Confusion clearing distinct. |
 | A1C-T11 | Draw/movement/creation, No Draw, Void/Deus/Endless Agony; discard causes/Reflex/Tactician; exhaust Spoon/Branch/Embrace/Fiend Fire snapshot. SI-I2: legally acquire Masterful Stab, exhaust via True Grit+, lose positive HP while it is exhausted, Exhume the same instance; no missed-notification cost increment, unlike a global combat-history formula. |
 | A1C-T12 | Retain/Ethereal/Pyramid/Establishment; Poison/debuff/Artifact/Explosion; Focus/orb zero/full/Dark/Plasma; stances/Mantra/Scry/extra turns. |
 | A1C-T13 | Non-final Feed/Greed/Lesson/Genetic/Dagger durable mutation; temporary copy/upgrade isolation; later death preserves committed resources. |
-| A1C-T14 | Fairy-before-Tail inspected branch and other lethal/prevention/heal origins; modifier-zero rescue/repeated damage. Under approved time contract, Reaper nonfinal/last hit/retaliation/rescue/death/no-heal with queued/current/first-update healing, VFX counts and death timer variations; no universal loss or always-drain. Strict-zero/negative and next-visit retirement must match the chosen schedule. |
+| A1C-T14 | Distinguish player and monster damage modifiers/callbacks, `lastDamageTaken` capture, positive-loss commit, hand/discard/draw notification versus exhaust, Fairy-before-Tail synchronous rescue and delayed death/escape/endBattle; include split/cannotLose/Fatal controls. Under approved time contract, Reaper nonfinal/last hit/retaliation/rescue/death/no-heal with queued/current/first-update healing, VFX counts and death timer variations; no universal loss or always-drain. Strict-zero/negative and next-visit retirement must match the chosen schedule. |
 | A1C-T15 | Each of twenty generation rows at actual inner effect site, including off-color autoplay/repeat; Source support/mass/retry/history and no pity mutation. |
 | A1C-T16 | Master Reality Searing Blow hand9/10 versus Foreign Influence/overflow;Searing counter constructor versus upgrade replay/restored damage;Expunger extra X copy restoration. Eviscerate makeCopy mutates source with this-turn discards under guard,returned fresh3 unchanged versus BloodForBlood returned-object combat-loss update;stat copy reads then-current source. n positions excluding new top,selection before insertion. |
 | A1C-T17 | All33 potion paired/use/Bark/phase/target/skip laws; Alchemize/Brew live capacity, proposal-before-obtain, combat/outside Sozu and Fruit Juice, own consumed slot/self-production; negative/X cost guard; Dig's separate one-relic route; Distilled Chaos targets captured before any queued card resolves. |
-| A1C-T18 | E25 exact Neow categories/drawback/reward quantities and source RNG ownership; question-room history and Tiny Chest fourth-roll override after its primitive draw; all25 event eligibility/branches, no invented initial Leave; Scrap Ooze26/100, Wheel reveal gold once. Match first/second observation, ID match/five delayed attempts/fresh-copy obtain/fifth cleanup entry positive versus later strict-zero landing, no sixth attempt or obtain drain. Woman unlabelled open()/Proceed versus Lab/event-fight direct map. Guarded empty event returns versus committed empty-grid reachability witness/exclusion. Initialized/history-conditioned joint laws remain open. |
+| A1C-T18 | E25 exact Neow categories/drawback/reward quantities and source RNG ownership; question-room history and Tiny Chest fourth-roll override after its primitive draw; all25 event eligibility/branches, no invented initial Leave; Scrap Ooze26/100, Wheel reveal gold once. Match first/second observation, ID match/five delayed attempts/fresh-copy obtain/fifth cleanup entry positive versus later strict-zero landing, no sixth attempt or obtain drain. Woman unlabelled open()/Proceed versus Lab/event-fight direct map. Guarded empty event returns versus committed empty-grid reachability witness/exclusion. Reconcile source-local child commit/consumer/resume checkpoints without assuming drain/rollback. Initialized/history-conditioned joint laws remain open. |
 | A1C-T19 | Merchant proposal/retry/stock/sale/prices/discounts/removal/Courier; cancel purge versus confirmed result/no double charge; child onEquip before restock, Grid Peek/nonempty-reward return override and close/reenter same inventory, not universal automatic Shop screen return. |
 | A1C-T20 | E26 ordinary/Sharded reward support and pity-before-claim, correlated chest type/tier/gold, and documented shop price/rounding/restock records; Skip/reopen same row, Take consumes before insertion, Bowl distinct +2maxHP then heal2 at full/damaged/refused-heal state with null/last/mixed associated rows. Empty card/Dream offer omitted. Dream/Orrery/Tiny House sources retain history of discarded automatic rows. |
 | A1C-T21 | AppendixE141 local/13 shared records plus32 spawn predicates and X/H/G/P/V composition. Red Skull integer half/direct initial versus queued asymmetric COMBAT transitions;Tiny House50 BASE gold reward/one potion OFFER before guarded claim. Statue3/4 rows;Calipers8/20 with Blur/Barricade;IceCream998+3→999 at helper;Ginger/Turnip before Artifact;Pyramid/retain/Ethereal;Spoon destination/no draw for purge/Power;Frog/Mushroom factors;Idol direct/theft/Treasure distinctions;Drill exact Block depletion;Collar/EventRoom vs BlackStar. Counter lifetimes and skipped/rejected requested-tier pool consumption remain exact. |
@@ -1817,6 +2060,31 @@ execution to manufacture a pass.
 | A1C-T32 | Approved facade carrier/Sequence/space/tree/wrappers/partial reset; no O(2^63) allocation, exact caller-RNG bounded sampling; all legacy combat-v1 regressions and known-answer RNG fixtures. |
 | A1C-T33 | Generated end-to-end trajectories through every applicable room/route, legal death/skip/key deferral and full handoff, including rare off-color/Note/relic chains; no production filtering or seed-search miss used as exclusion. |
 | A1C-T34 | Structural hot-path/ownership/source-policy review and fresh independent integrated review; scope/evidence/administrative limits disclosed separately from any later performance or transfer claim. |
+| A1C-T35 | E29 contract discriminator (UNEXECUTED): check the 146 candidate field joins without treating the count as source-equality proof; exact node `hasEmeraldKey` burning designation versus acquired run key; entitled base `cost` ordinary-zero/X−1/unplayable−2 versus independent `costForTurn`/free-once; registered settled-i32 shop price versus excluded float intermediates and unemittable property 41; 131 exact card ID/class aliases as a subset only; malformed/duplicate alias and missing/unmatched source-member/site/property/visibility rows reject. Confirm all eight named core payloads remain unencoded/unfreezable, byte delivery is blocked pending complete schemas/replay integration, and no final schema hash is emitted. |
+| TX01 | **UNEXECUTED.** ApplyPowerAction: add powers with lower/equal/higher priority; check comparator ordering and stable relative order for equal priority, sorting only on new insertion. Compare with direct `addPower` (matching stack/append without this sort); do not generalize tie stability beyond that sort. |
+| TX02 | **UNEXECUTED.** Have a source callback enqueue a child while its current action remains entered. Verify the child does not run until the current action returns/completes, then follows its own container's dispatch priority; do not infer recursive drain. |
+| TX03 | **UNEXECUTED.** With ordinary work queued, top-insert A then B and verify B-before-A. Separately establish ordinary-actions before preTurnActions before card queue at manager selection; do not extend the priority claim to other containers. |
+| TX04 | **UNEXECUTED.** Contrast an admitted card whose target dies later, an earlier legality rejection, and the explicitly suppressed-notification branch. Compare play/onPlay history, use, energy debit and cleanup independently; late target rejection does not undo already committed admission history. |
+| TX05 | **UNEXECUTED.** Apply the same damage packet with null owner, player owner and monster owner. Distinguish owner-callback branches, `lastDamageTaken` timing, HP_LOSS counters, card notifications and actual HP commit; null-owner damage skips the owner-sensitive callback block. |
+| TX06 | **UNEXECUTED.** Let a power alter amount during `onLoseHp` after `lastDamageTaken` capture. Compare captured Reaper-relevant monster-side amount against final player HP and the subsequent heal amount; do not treat the later mutation as rewriting the capture. |
+| TX07 | **UNEXECUTED.** Compare positive player loss, zero/prevented loss and HP_LOSS. Check ordered once-per-card-object notifications across current hand/discard/draw (not exhaust), followed by rescue only after earlier loss mutations/notifications; do not substitute a global HP-loss formula. |
+| TX08 | **UNEXECUTED.** Lethal player damage with Fairy and unused Lizard Tail: Fairy is consumed first and Tail remains. Add Bloom/dying as an explicit negative control; this control is not a claimed natural Act 1 witness. |
+| TX09 | **UNEXECUTED.** Monster lethal hit with surviving ally, last monster, `cannotLose`, split and escaping actor. Keep `isDying`, later `isDead`, and `escaped` distinct; check death callbacks, group terminal predicate and room settlement. No automatic kill/victory/Fatal credit is inferred from split or escape. |
+| TX10 | **UNEXECUTED.** Reaper's pending HealAction at the last-enemy filter: compare its retention and selection before a later manager clear with removal/interposition by that clear. No natural heal-loss or guaranteed-heal outcome is claimed absent an exact approved timer policy and source schedule. |
+| TX11 | **UNEXECUTED.** Reaper damages each eligible current non-dying/non-escaping monster and sums each target's captured `lastDamageTaken`. Vary Block, prevention and target-death state; verify no heal is inferred from raw packet amount or an ineligible target. |
+| TX12 | **UNEXECUTED.** Match timer landing exactly at zero versus below zero, including fifth attempt then cleanup, under admitted frame delta ≤0.1 s. Preserve strict-underflow distinction and the revealed-information boundary; do not choose a native clock or infer frame frequencies. |
+| TX13 | **UNEXECUTED.** Card reward skip/reopen versus take/deferred obtain, and Singing Bowl with null item versus last row. Assert the source mutation occurs once at its own commit checkpoint and distinguish it from later child insertion. |
+| TX14 | **UNEXECUTED.** Neow one-card versus two-card transform, shop purchase, relic `onEquip` child, and boss-relic take/skip. Assert each source-local mutation commits once and a child resumes only at its actual consumer; no universal screen-return/drain rule. |
+| TX15 | **UNEXECUTED.** Cage empty-target counts 0/1/2 and a committed fixed grid with zero candidates. Separate each guarded local branch from the distinct initialized legal-history witness/exclusion question; a forced fixture proves no reachability fact. |
+| TX16 | **UNEXECUTED.** Note incoming removable versus unremovable card with empty prior outgoing candidates. Preserve direct obtain and candidate construction before outgoing selection; only a proven natural profile/history fixture can resolve whether the exceptional history is reachable. |
+| TX17 | **UNEXECUTED.** Last-enemy filter followed by `endBattle`/manager clear. Preserve already committed HP/gold/deck/relic writes; distinguish the admitted current stack, each pending list, effects and souls. Do not invent rollback, fake defeat, or universal drain. |
+| TX18 | **UNEXECUTED.** End turn with Entrench in the remaining-hand clone, Ethereal cards and other queued discards. Distinguish marker-time `triggerOnEndOfTurnForPlayingCard` from later shuffled-clone `triggerOnEndOfPlayerTurn`; verify Entrench's override top-queues Ethereal cleanup ahead of already queued discard work. Entrench is not itself Ethereal; do not infer a seeded/uniform shuffle or selected clock. |
+
+E28's TX01–TX18 are each future acceptance discriminators above, not test results.
+They refine and supplement (not replace or collapse into) A1C-T04/T05/T10/T14/T18/
+T25/T33 where their complete expected distinction is not already enumerated. Exact
+reachability, transitive composition, natural timer outcomes and native policy remain
+open as stated in the corresponding blocker rows.
 
 ## 16. Requirements traceability ledger
 
@@ -1834,16 +2102,16 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-004 | §3/§10.3 single authority/overlay | E05/E08/E17/E19 | T10,T13,T32 | B04,B10 |
 | A1C-REQ-005 | §3 live durability | E02/E03/E05 | T13,T14,T30 | B04,B05 |
 | A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33 | B04,B05,B12 |
-| A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16 | T18–T25 | B05 |
+| A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16/E28 | T18–T25,TX13–TX17 | B05 |
 | A1C-REQ-008 | §4.1–4.1.2/§5.2 origins/cost/copy/X | E02/E10/E11/E09-R/E18/E19 | T09,T10,T11,T16 | B04,B07 |
-| A1C-REQ-009 | §4.2–4.3 scheduler/lifecycle | E02/E10/E11/E19 | T08,T11,T14 | B04,B12 |
-| A1C-REQ-010 | §4.2–4.3/appendixE damage/rescue | E02/E03/E11/E18/E19 | T08,T13,T14 | B04,B07,B12 |
+| A1C-REQ-009 | §4.2–4.5 scheduler/lifecycle | E02/E10/E11/E19/E28 | T08,T10,T11,T14,TX01–TX04,TX17–TX18 | B04,B05,B12 |
+| A1C-REQ-010 | §4.2–4.3/4.6/appendixE damage/rescue | E02/E03/E11/E18/E19/E28 | T08,T13,T14,TX05–TX11 | B04,B06,B07,B12 |
 | A1C-REQ-011 | §5/appendix A cards; §5.2–5.3 corrections and paired records | E09 (qualified by E09-R)/E10/E21–E24 | T09–T13 | B04,B07 |
 | A1C-REQ-012 | §5 off-color mechanics; §5.2–5.3 corrections | E08/E09 (qualified by E09-R)/E10/E21–E23 | T09–T12,T15,T24 | B04,B07 |
 | A1C-REQ-013 | §5 specials/Note and E20–E24 dependencies | E03/E09 (qualified by E09-R)/E12/E20–E24 | T09,T11,T24 | B07,B11 |
 | A1C-REQ-014 | §6/§10.3 shared resolver | E05/E08/E10/E17 | T15,T17 | B10 |
-| A1C-REQ-015 | §6/§10.3 finite site policies | E05/E10/E17/E18/E19 | T15–T21,T34 | B04,B05,B06,B08,B10 |
-| A1C-REQ-016 | §7/§7.1 map kernel/initialized model | E01/E10/E13 | T02,T03,T04 | B02,B03,B10 |
+| A1C-REQ-015 | §6/§10.3 finite site policies | E05/E10/E17/E18/E19/E27/E28 | T04,T05,T15–T21,T34 | B03,B04,B05,B06,B08,B10 |
+| A1C-REQ-016 | §6.2/§7/§7.1 map kernel/initialized model | E01/E10/E13/E27 | T02,T03,T04,T05 | B02,B03,B10 |
 | A1C-REQ-017 | §7/§7.1/appendixF burning/empty cursors | E01/E10/E11/E13/E20 | T04,T07,T22 | B02,B04 |
 | A1C-REQ-018 | §7/appendixF encounters and factories | E09/E11/E20 | T06,T07,T08 | B07,B08 |
 | A1C-REQ-019 | §7/appendixF complete local enemy records | E02/E11/E19/E20 | T07,T08,T14 | B03,B04,B07,B12 |
@@ -1855,20 +2123,20 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-025 | §8.1/§8.6/appendix D potions | E09/E10/E16/E26 | T10,T14,T17 | B04,B05,B08 |
 | A1C-REQ-026 | §8.1/§8.2 camps | E03/E04/E16 | T23 | B05,B06,B08 |
 | A1C-REQ-027 | §8.1/§8.2 keys/chests | E03/E10/E16 | T22,T23,T25 | B04,B05,B08 |
-| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16 | T25,T29,T33 | B05,B10 |
+| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16/E28 | T25,T29,T33,TX13–TX17 | B05,B10 |
 | A1C-REQ-029 | §9/§9.1 profile; §1.1 bounded Note disposition | E03/E05/E09 (qualified by E09-R)/E12/E15/E16 | T01,T24,T29,T31 | B07,B10,B11 |
-| A1C-REQ-030 | §9.2 clock/settlement recommendation | E02/E07/E15/E16 | T14,T18,T24,T25,T31 | B04,B12 |
-| A1C-REQ-031 | §10–10.3 RNG/finite laws/registry | E01/E05/E08/E10/E11/E13/E14/E17 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
-| A1C-REQ-032 | §11 exact candidate widths/growth | E05/E08/E12/E17 | T26,T32 | B09,B10 |
-| A1C-REQ-033 | §11/appendixE/F knowledge and intent | E05/E08/E09/E17/E18/E20 | T18,T24,T27 | B07,B10 |
-| A1C-REQ-034 | §11 action/menu | E05/E08/E12/E17 | T10,T26,T28,T32 | B05,B10 |
-| A1C-REQ-035 | §12/§12.1 API | E05/E12/E17 | T26,T28–T32 | B10 |
+| A1C-REQ-030 | §9.2 clock/settlement recommendation | E02/E07/E15/E16/E28 | T14,T18,T24,T25,T31,TX10,TX12 | B04,B12 |
+| A1C-REQ-031 | §6.2/§10–10.3 RNG/finite laws/registry | E01/E05/E08/E10/E11/E13/E14/E17/E27 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
+| A1C-REQ-032 | §11 exact candidate widths/growth and qualified source crosswalk | E05/E08/E12/E17/E29 | T26,T32,T35 | B09,B10 |
+| A1C-REQ-033 | §11/appendixE/F knowledge and intent | E05/E08/E09/E17/E18/E20/E29 | T18,T24,T27,T35 | B07,B10 |
+| A1C-REQ-034 | §11 action/menu and bounded literal-key contribution | E05/E08/E12/E17/E29 | T10,T26,T28,T32,T35 | B05,B10 |
+| A1C-REQ-035 | §12/§12.1 API, replay and gated attachment bytes | E05/E12/E17/E29 | T26,T28–T32,T35 | B10 |
 | A1C-REQ-036 | §12/§12.1 reset/finals | E05/E08/E12/E17 | T24,T29,T30 | B10,B11 |
 | A1C-REQ-037 | §12.2/§9.1–9.2 replay | E05/E08/E15/E17 | T31 | B10,B11,B12 |
 | A1C-REQ-038 | §12.1/§13 operation-specific preflight | E05/E08/E17 | T01,T28,T29,T31 | B10 |
 | A1C-REQ-039 | §13 exact fault/parallel delivery | E05/E08/E17 | T26,T29–T31 | B10 |
 | A1C-REQ-040 | §14 compatibility/performance | E05/E08/E12 | T32,T34 | B10,B13 |
-| A1C-REQ-041 | §15 acceptance | E08 and this draft | T01–T34 | B13,B14 |
+| A1C-REQ-041 | §15 acceptance | E08 and this draft | T01–T35,TX01–TX18 | B13,B14 |
 
 In the ledger only, Tnn and Bnn abbreviate `A1C-Tnn` and `A1C-Bnn`.
 Their complete definitions are sections 15 and 17; no external task tracker is
@@ -1878,25 +2146,27 @@ needed to understand a requirement's state.
 
 All items are **OPEN** with the narrowed residuals below. Ranked priority is for approval
 readback, not an implementation sequence or authority to perform new research.
-Dependencies name assigned interfaces for main to reconcile. Only main-routed
-reviewed E13–E20 and earlier supporting-review inputs are integrated; no unmerged
-normative author revision or result was polled or adopted.
+Dependencies name assigned interfaces for main to reconcile. Main-routed, exact-head
+reviewed and merged inputs E13–E29 are integrated within bounded claims; no
+unreviewed contract draft or sibling working-copy result was polled or adopted. PR25
+is included only at accepted reviewed head `d3e9b7a3565932e83235936d083e906f087ab078`;
+this supersedes the earlier HELD boundary only for that exact revision.
 
 | ID / rank | Missing closure, smallest acceptable resolution | Main-owned integration interface |
 |---|---|---|
 | A1C-B01 / 1 | Adopt evidence target/limits in D01; do not silently claim a verified retail build, historical JRE or original-runtime equivalence. Original gameplay remains unexecuted and is not a test pass requirement invented by this draft. | Whole-spec human fidelity decision; E06 preserved |
-| A1C-B02 / 1 | E13 closes initialized underfill MODEL, rank criterion and conditional empty-marker counter+1/raw-state+0 failure. Still need initialized zero-Elite root witness/exclusion over declared domain with same-seed topology/bucket, and D02 native map-law/administrative initialization policy. Search minimum2 is not a minimum theorem. | Reviewed map input integrated; remaining fidelity/proof disposition main-owned, D02 |
-| A1C-B03 / 1 | E14 closes conditional finite mapper/posterior/observable and linked-pool compositions. Choose input measure, joint/independence boundaries and ordered relic catalog; provide joint producer/context laws for unconditional boards/offers, any required actual root/profile/history ensemble evaluation and efficient exact native sampling contract. No IID source words or source-host hash order inferred. | Reviewed shuffle input integrated; D03 and B10 site registry, not a missing general kernel |
-| A1C-B04 / 1 | E19 closes direct method/invoke families,eight legality overrides,important helper/receiver/X/lifecycle/rescue/commit distinctions. Still need every reachable transitive constructor/callback/power sorting/applyPowers/glow,mixed-origin cost/repeat/queue reaction and damage/Fatal/split/escape/terminal arbitration. No queueExtraCard direct caller remains unknown;no global total cost order or natural Reaper outcome is proved. | Reviewed execution integrated;shared CARD-* and D04,not repeat direct-inventory research |
-| A1C-B05 / 1 | E16 closes the local parent/child, desktop Omamori prevention, removal/Bowl/Match/empty-size and handoff trace in §8–9. Remaining: global admitted/current/pending and Peek/terminal arbitration; legal-history witnesses/exclusions for unguarded mandatory empties, zero-Cage phase and stale/mistyped record conditions; initialized event-list exhaustion; exact successor-ready payload/cutoff. No phantom prevented Show curse remains an ordinary-path proof obligation. | Reviewed continuation input integrated; execution/native/content interfaces and D08 remain |
+| A1C-B02 / 1 | E13 closes initialized underfill MODEL, rank criterion and conditional empty-marker counter+1/raw-state+0 failure; E27 fixes the twelve same-root stream objects and fresh wrapped `s+1` map source. Still need a declared root/history input measure, initialized zero-Elite witness/exclusion over the declared domain with topology and bucket from that same stream, and D02 native map-law/administrative initialization policy. Search minimum2 is not a minimum theorem. | E27 exact accepted head integrated; root/history and zero-Elite proof plus D02 remain |
+| A1C-B03 / 1 | E14 closes conditional finite mapper/posterior/observable laws; E27 adds five consecutive relic-stream words, source-owner/cursor links for Neow/card/deferred curse/potion/event, and caller-specific map reseeding. Still choose input measure, joint/independence boundaries and ordered relic catalog; close evaluated producer/context joints for unconditional boards/offers and any required root/profile/history ensemble; bind exact sites to native policy. No IID source words, sorted catalog, or target-host hash order is inferred. | E27 adds concrete conditional wiring, not root/history measure, complete evaluated joints, host order, or B10 bindings; D03/B03 remain open |
+| A1C-B04 / 1 | E19 closes direct method/invoke families and corrected local distinctions; E28 adds bounded manager current/pending selection, insertion and power-sort checkpoints, card admission/use/payment ordering, damage/heal/death/escape transitions, and conditional Reaper timer/queue facts. Still required: exhaustive reachable transitive constructors/callbacks/applyPowers/glow, mixed-origin cost/copy/history and queue composition, every damage/Fatal/split/terminal arbitration, and the full mechanic-bearing timer registry. No queueExtraCard direct caller is inferred; no global total cost order or natural Reaper outcome is proved. | E28 accepted shared endpoints are partial; transitive callback/site and terminal composition, B12 timer registry and D04 remain |
+| A1C-B05 / 1 | E16 closes local parent/child and selected screen/continuation paths; E28 adds action/pre-turn/card/monster dispatch and source-specific before→commit→consumer→return checkpoints. Still required: global container/Peek/terminal arbitration; initialized-history witnesses/exclusions for mandatory empty selectors, zero-Cage phase and stale/mistyped records; initialized event-list exhaustion; exact successor-ready payload/cutoff. The superseded phantom prevented-Show-curse obligation is not reinstated. | E28 narrows shared scheduler/commit endpoints only; reachability, exhaustive continuation arbitration and D08 remain |
 | A1C-B06 / 1 | E18 closes141 primary laws,13 actual shared consumers and10 local X action/payment laws (§4.1.2/appendixE),including corrected Skull/House/self-generated X. Remaining per-row X/H/G/P/V:all transitive payloads,mixed callback/cancel/terminal,source return/exceptional inventory reachability,joint history kernels and native visibility. Local R helper facts remain established,not proof of all combined states. | Reviewed relic input integrated;exact appendixE residual endpoints cross execution/continuation/content/native |
-| A1C-B07 / 2 | **Primary paired-record gap addressed:** E21–E24 provide concrete base/upgraded numeric/state/target/payload/copy/growth records for in-scope card families and named dependencies; E20 supplies local enemies. §5.3 records cross-family source-specific discriminators. B07 remains OPEN for full CARD-* per-route attribution, transitive constructors/callbacks, mixed-origin/cost/copy/queue composition, damage/Fatal/split/terminal laws and initialized-root/history reachability where required; records/counts do not prove whole mechanics closure (B04/B05). | E20–E24 exact cleared heads integrated; residual shared execution/relic/native interfaces and human source-policy readback remain |
-| A1C-B08 / 2 | **Primary numeric-content gap addressed:** E25/E26 provide actual Neow quantities/exclusions, evolving question-room law, all25 event numeric/conditional branches, and card/reward/shop/chest/relic/potion/Dig tables; E20 retains scoped enemy/event-elite numbers. §8.6 indexes concrete discriminators. B08 remains OPEN for initialized/history-conditioned joint measures, exceptional legal reachability, standard-start certification and cross-system reward/claim/Bark/child/commit/timing composition (B03–B06/B09/B12); local tables do not prove every combination. | E20/E25/E26 exact cleared heads integrated; residual source-proof and shared execution/native interfaces remain |
-| A1C-B09 / 2 | E17 fixes candidate signed64 rows/U counts/checked conversions,not full source numeric bounds audit. E18 actual addEnergy/addBlock999 applies at helper,not clipping requests or all counters. Still map every legal field to actual source integer/binary32/cap/overflow and encoding domain,including growing state, using E20–E26 numeric records. | D07 per-field domain/application audit with reviewed content,not admin cap substitution |
-| A1C-B10 / 2 | E17 supplies concrete ownership/registry,18 widths/enums/local refs/carrier,operation-specific reset/delivery/fault and exact ordered replay grammar/digest/six goldens. Still D:NC11/NC12 full semantic catalogs/public-field/site equality,all action tuples,private-core hidden/RNG encoding;NC04 exact joint domain bindings/canonical semantic scopes;NC10 profile/time payload,clock/wait extension;successor cutoff. No final descriptor/fingerprint/schema freeze or human D07 approval. | Reviewed native candidate integrated;final whole-spec semantic/schema/fidelity reconciliation,not missing generic byte framing |
+| A1C-B07 / 2 | **Primary paired-record gap addressed:** E21–E24 supply accepted local paired card/dependent records; E20 supplies enemy primary records. E28 adds shared transition checkpoints but not their exhaustive composition. B07 remains OPEN for per-route CARD-* attribution, transitive constructors/callbacks, mixed-origin/cost/copy/queue combinations, damage/Fatal/split/terminal laws, and initialized-root/history reachability where needed; local records/counts are not whole-mechanics closure. | E28 adds bounded shared-source evidence only; substantive transitive/site and exceptional-history obligations remain |
+| A1C-B08 / 2 | **Local primary numeric-content gap addressed:** E20/E25/E26 provide enemy, event, Neow and economy/potion values/conditions; E28 clarifies nested commit/consumer/resume checkpoints, not local numeric catalogs. B08 remains OPEN for initialized/history-conditioned joints, exceptional reachability, standard-start certification, cross-system reward/claim/Bark/child/commit/timing composition and remaining exact per-site obligations (B03–B06/B09/B12); local tables do not prove every combination. | Accepted local tables and E28 checkpoints are integrated; root/history, reachability and cross-system composition remain |
+| A1C-B09 / 2 | E17 fixes candidate signed64 rows/U counts/checked conversions; E18 confines addEnergy/addBlock 999 to those helper boundaries; E29 adds 146 field-key candidate joins, distinguishes source `int`/derived/ordinal carriers, specifies entitled base-cost 0/X−1/unplayable−2 separately from mutable turn cost/free-once, and names settled-i32 shop price members while excluding source float intermediates/property 41. Still require exact owner/member source reads/writes, legal/sentinel/reachable ranges, overflow/rounding, remaining price-owner callbacks and full source-member↔carrier/property/private-exclusion equality, including growing state. | E29 narrows named candidate joins only; full per-field source-domain/application audit and all remaining B09 joins stay OPEN; never substitute admin cap |
+| A1C-B10 / 2 | E17 supplies candidate ownership/registry, 18 widths/enums/local refs, operation-specific reset/delivery/fault and ordered replay grammar/digest/six goldens. E29 adds 131 literal card ID/class aliases for the specified subset, node burning-marker versus acquired key distinction, bidirectional site/dictionary equality criteria, and generic private-core envelope/framing. Still require all other namespace IDs/aliases, every site/action/current-menu binding, property-owner and per-field visibility map, full hidden/source RNG/history equality, and all source policies. Eight named tag payloads are unencoded/unfreezable; remaining layouts are partial; byte attachments contingent on full schemas/replay integration. No final descriptor/fingerprint/schema freeze or human D07 approval. | E29 narrows candidate identity/field/carrier distinctions and framing only; semantic/site/visibility/source equality and complete private core remain OPEN |
 | A1C-B11 / 2 | E15 supplies explicit history facts and decision-ready lifecycle/preset/output/death/fault/reset/replay recommendation, now §9/9.1. Need D05/D06 human disposition, full legal stored-card/upgrade catalog and native schema/diagnostic integration; later-act discovery hooks remain bounded evidence. No automatic inheritance. Neither technical review nor Note bounded approval chooses native behavior. | Reviewed profile/time input integrated; content/native interfaces and whole-spec readback main-owned |
-| A1C-B12 / 1 | E15/E16 close named timer dependencies/desktop bound; §9.2 gives concrete60Hz/exact-elapsed/dwell/wait P. Need D04 fidelity choice, complete mechanic-bearing timer/settlement/terminal registry and exact native Reaper/Match checkpoint outcomes under that chosen law. Natural original Reaper loss/frame distribution remain unproved; no source parity from model choice. | Reviewed timing inputs integrated; execution/native and D04 remain |
-| A1C-B13 / 3 | T01–T34 remain UNEXECUTED. Written spec must first define precise expected laws; later separately approved implementation supplies actual gameplay/binding/fault/replay/legacy/generated-route evidence. Not executing product cases in this documentation wave is not a demand to implement before written-spec approval. Documentation checks never discharge later acceptance. | Future implementation acceptance only; coordinated plan/start authorization still separate |
+| A1C-B12 / 1 | E15/E16 establish named timer facts and desktop bound; E28 adds conditional Reaper queue/filter/clear alternatives, Match strict-underflow distinctions and the admitted desktop delta bound. §9.2 60-Hz/exact-elapsed/dwell/wait remain P. Need D04 fidelity choice, complete mechanic-bearing timer/settlement/terminal registry and exact native Reaper/Match outcomes under that chosen law. Natural Reaper success/loss and frame distribution remain unproved; no source parity follows from a model. | E28 narrows source checkpoints only; full timer registry, natural outcomes and D04 remain |
+| A1C-B13 / 3 | T01–T35 and TX01–TX18 remain UNEXECUTED. Written spec must first define precise expected laws; later separately approved implementation supplies actual gameplay/binding/fault/replay/legacy/generated-route evidence. Not executing product cases in this documentation wave is not a demand to implement before written-spec approval. Documentation checks never discharge later acceptance. | Future implementation acceptance only; coordinated plan/start authorization still separate |
 | A1C-B14 / 1 | Prior fb7e9f8 review has zero findings only as BLOCKED-draft merge fitness, not user-approval readiness. This integrated head needs fresh independent contradiction/coverage/source-policy recheck; D01–D08 and accessible complete-spec human approval remain outstanding, then separate coordinated plan review/start. | Main; no ready/merge authority follows from this author update |
 
 The ledger deliberately separates missing evidence (B02–B08), candidate contract
@@ -1905,11 +2175,11 @@ human gates (B14). Accepting a recommendation cannot silently count as proving a
 source law. Conversely, lack of original-runtime validation does not erase bounded
 static facts already obtained safely.
 
-### 17.1 Integrated normative-content inputs — scope and remaining interfaces
+### 17.1 Integrated evidence inputs — scope and remaining interfaces
 
-E20–E26 are integrated from the exact reviewed heads and main merge receipts in
-§1.1. The seven accessible links there are the bounded public primary-record sources;
-this section records their disposition, not a claim of transitive completeness.
+E20–E29 are integrated from exact reviewed author heads and merge receipts in §1.1.
+Their accessible links provide bounded primary records or shared transitions; this
+section records their disposition, not a claim of transitive completeness.
 
 | Input | Integrated local primary coverage | Remaining interface (still OPEN) |
 |---|---|---|
@@ -1920,6 +2190,9 @@ this section records their disposition, not a claim of transitive completeness.
 | E24 red/colorless/dependent | 75 red, 35 ordinary colorless, five Status, eleven Curse, four stored-event and twelve dependent/control records, including named Feed/Mayhem/Flame Barrier/Exhume/Entrench branches. | Cross-system lifecycle/callback/terminal composition, stored-card reachability and remaining shared CARD-* laws (B04/B05/B07/B11). |
 | E25 Neow/events | Numeric Neow categories/payloads and RNG ownership, question-room update/override law, and all25 event local conditions, amounts, branches and returns. | Initialized/history-conditioned joint measures, exceptional legal-history witnesses, parent/child arbitration (B03/B05/B08). |
 | E26 economy/potions | Numeric economy, reward/pity, shop/price/restock, chest correlations, Dig and all33 local potion records including guards/targets. | Seeded-shuffle joint laws, full potion callback/terminal composition, standard-start numeric certification and native numeric-domain audit (B03/B04/B08/B09/B12). |
+| E27 initialized RNG/map | Twelve same-root stream objects; Act1 `s+1` map replacement; five ordered relic seed calls; linked Neow/card/curse/potion/event cursor edges. | Root/history prior, evaluated full joints, host/JRE catalog order, initialized zero-Elite witness/exclusion and native bindings (B02/B03/B10). |
+| E28 shared execution | Manager/power/card-play checkpoints; distinct player/monster damage, rescue/death/escape; nested commit/consumer; local Reaper/Match timer conditions and Entrench callback. | Exhaustive transitive content/callback/terminal composition, selector reachability, natural timer outcomes and chosen native clock (B04/B05/B06/B07/B12). |
+| E29 native contract | 146 candidate fixed/table field joins; 131 exact card ID/class pairs for retained Ironclad/colorless/Status/Curse subset; burning-node marker versus acquired key; separated card base/turn cost and sentinel/price facts; partial private-core framing. | Full per-field legal domains/read-write/overflow and member equality; all other namespace dictionaries, source sites, properties/visibility/policies and RNG/history bindings; eight unencoded/unfreezable payload schemas and complete private core; no final hash or byte delivery readiness (B09/B10/B11/B12). |
 
 No unreviewed sibling content or working-tree-only records are needed for these
 dispositions. Their linked source documents are normative inputs; they do not
@@ -1927,19 +2200,22 @@ substitute for human selection among unresolved D01–D08 proposals.
 
 ### 17.2 Three distinct gap classes for final readback
 
-1. **Fact/proof/integration:** B02 initialized root image;B03 unconditional producer/
-   history context when required;B04–B08 actual remaining per-site/transitive/paired/
-   numeric records;B09 exact numeric application domains;B10 complete semantic/public/
-   private-core dictionaries and bindings. Human approval of a layout cannot prove
-    these laws. E20–E26 close the local enemy/card/numeric primary-record gaps only;
-    remaining transitive/source-proof and initialized-measure residuals stay open.
+1. **Fact/proof/integration:** B02 initialized root image; B03 root/history measure,
+   catalog order and required producer joints; B04–B08 actual remaining per-site,
+   transitive and exceptional-history composition; B09 exact numeric application
+   domains; B10 complete semantic/public/private-core dictionaries and bindings.
+   Human approval of a layout cannot prove these laws. E20–E26 close accepted local
+   enemy/card/numeric primary records; E27–E29 add conditional wiring, transition
+   checkpoints and bounded field/dictionary/encoding candidates only. Remaining
+   transitive/source-proof, source-equality and initialized-measure residuals stay
+   open.
 2. **Human choices:** D01 evidence target,D02 native empty-map law,D03 measure/order/
    independence,D04 timing/settlement deviation,D05 profile/preset validation,D06 Note
    output,D07 concrete representation/ownership/wire/API,D08 successor cutoff. Reviewed
    candidate schemas do not approve these or fill missing content laws. Accepted
    Rust/single-authority/uncapped/invalid-batch/no-rollback/compatibility architecture
    remains accepted,not a repeated approval question.
-3. **Implementation acceptance:** B13/T01–T34 stay UNEXECUTED future obligations after
+3. **Implementation acceptance:** B13/T01–T35 and TX01–TX18 stay UNEXECUTED future obligations after
    separate approved plan/start. Written-spec approval requires precise expected
    laws and independent whole-head review/human readback (B14),not product tests
    before authorization. Document checker/golden arithmetic is not gameplay evidence.
@@ -2021,9 +2297,9 @@ include spawned children/formation members, not 25 distinct encounters.
 
 Burning/Preserved Insect/event setup and legal other effects modify these initial
 anchors. Do not apply an ordinary constructor HP roll to split children. AppendixF
-now supplies the complete reviewed local payload/AI records; remaining B07 concerns
-paired card records and transitive enemy composition, not unspecified enemy payload
-or an assumed zero-damage default.
+now supplies the accepted local payload/AI records; paired primary card/enemy
+records are not an open roster gap. Remaining B07 concerns transitive enemy/card
+composition, not unspecified enemy payload or an assumed zero-damage default.
 
 ## Appendix C. Event branch closure inventory
 
@@ -2518,14 +2794,15 @@ future discriminators, and this appendix is not an all-transitive closure claim.
 
 ## 18. Draft handoff status
 
-This integration draft supplies whole-scope requirements and the reviewed E13–E20
+This integration draft supplies whole-scope requirements and bounded reviewed E13–E29
 advances, not closed mechanics/API evidence or a human-approval-ready rulebook.
-The former phantom ordinary Show-curse obligation is superseded; paired-card
-normative records, remaining numerical content, and transitive/source/schema
-reconciliation are still required.
+The former phantom ordinary Show-curse obligation is superseded; accepted paired
+primary records and local numeric tables are integrated. Remaining root/history
+measures, catalog/joint laws, exceptional reachability, transitive/source composition,
+numeric domains, timer/profile/handoff interfaces and schema reconciliation remain required.
 Concrete native contracts and all141 local relic laws do not erase those gaps. B01–B14 remain
-open at their narrowed boundaries; D01–D08 are recommendations or
-choices for main's readback; T01–T34 are unexecuted. The author may correct this
+open at their narrowed boundaries; D01–D08 remain unapproved recommendations or
+choices for main's readback; T01–T35 and TX01–TX18 are unexecuted. The author may correct this
 document only through bounded main-directed follow-ups. Independent review,
 human whole-spec approval, coordinated implementation-plan review and separate
 start authorization remain distinct. No PR readiness, merge or parent-task closure
