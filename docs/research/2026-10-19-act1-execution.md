@@ -39,6 +39,7 @@ Evidence keys below identify methods, not unpublished document dependencies:
 | E7 | Ten named X actions; Transmutation's card entry; selected cost-writing producers |
 | E8 | Fairy, Tail, creature healing/max-HP, heal overrides, alternate terminal writers |
 | E9 | Previously reviewed manager/room/dungeon, monster death/escape, Reaper and repeat-power bodies |
+| E10 | Correction check: Setup/Forethought actions, selected-group ordering and pile insertion; Masterful Stab construction/notification/copy, player damage dispatch, True Grit exhaust and Exhume retrieval |
 
 The private ledger retains exact source/bytecode locators, full direct inventories,
 commands, failed attempts and helper checks. Public facts here are independently
@@ -51,6 +52,13 @@ escape and overwrite. Eighty fresh disassembly records across 77 selected classe
 match 4,819 invoke and 8,451 field instructions by offset/opcode/name/descriptor
 against the index. These checks validate the static evidence machinery, not
 gameplay, every caller branch, or the future cases below.
+
+The SI-I1/SI-I2 correction additionally checks retained source anchors against
+14 fresh static disassemblies; 12 corresponding outputs exactly match the
+independent supporting review's records. Four failure-first document regression
+checks and the seven existing helper checks pass. These are evidence/document
+checks, not execution of the correction's six new gameplay obligations. Initial
+evidence and old supporting drafts are preserved unchanged.
 
 ## 2. Legality: a finite direct inventory
 
@@ -169,6 +177,42 @@ one same-instance declaration and ten invokes. The latter are manager
 construction, the five repeat powers, and Necronomicon (later-act negative context).
 Do not erase permanent-instance linkage or equate shared UUID with physical object
 identity. Temporary-copy provenance and permanent growth targets remain separate.
+
+### 3.3 Per-instance cost/state submatrix
+
+These source/bytecode-checked rules supersede the older Silent supporting draft's
+unconditional Setup-zero and Masterful-Stab-global-history formulations (review
+findings **SI-I1** and **SI-I2**). The older draft is unchanged. Here `cost` means
+the instance's **mutable combat cost**, not an immutable printed/base cost;
+`costForTurn` and `freeToPlayOnce` are separate state. [E2,E4,E5,E10]
+
+| Instance state / operation | Established cost/state consequence | Identity / boundary |
+|---|---|---|
+| Positive combat cost, changed turn cost | Setup and Forethought grant `freeToPlayOnce` when `cost > 0`, even if turn cost is already zero or differs otherwise; not numeric zeroing of either cost field | Both singleton and selection-return branches act on the selected object |
+| Zero combat cost, positive turn cost | Neither action grants a new free flag: the guard reads combat cost, not turn cost | In particular, a base-zero card with only a turn-cost increase is not made free by this rule |
+| X or negative-unplayable cost | Neither action grants a new free flag for the negative sentinel | Movement is not permission to play; X capture/payment remains source-specific |
+| Existing free flag / ordinary reset / use cleanup | A failed positive-cost guard does not clear a pre-existing free flag; `resetAttributes` restores turn cost from combat cost without clearing the flag; UseCardAction clears it after after-use callbacks, before destination handling | Other explicit writers, including Confusion, can clear it; this is not an unconditional until-play guarantee through every interaction |
+| Masterful Stab construction / notification | Fresh construction starts at cost zero; each `tookDamage` notification calls the cost updater with +1 on that instance, preserving the updater's combat/turn-cost distinction and clamps | This is per-instance notification state, not a formula evaluated from a global combat HP-loss counter |
+| Qualifying player-loss dispatch | Positive damage amount in combat dispatches to hand, discard, then draw; **not exhaust**. Zero/prevented loss supplies no notification through this branch | One notification per visited instance per qualifying event, not per HP point; not restricted to the `HP_LOSS` damage type |
+| Exhaust → loss → Exhume | The exhausted Stab misses those notifications; Exhume returns the existing eligible object with no missed-loss catch-up | Both singleton and selected retrieval paths preserve that object; retrieval is not fresh construction or ordinary draw |
+| Stab fresh-kind versus stat-equivalent copy | `makeCopy` constructs a fresh zero-cost Stab without reading combat-loss history; the stat-equivalent helper instead restores selected source costs/state after construction | Neither route is a universal global-history catch-up; other mutations still compose in actual order |
+
+Setup sends the selected card to draw-top; Forethought sends it to draw-bottom.
+Forethought's ordinary form requires one card when selection is available;
+Forethought+ allows any number, including an empty choice. Its selected sequence
+is ordered and iterated for bottom insertion: keep the source sequence and its
+insertion effects, not a sorted set of identities. Different selected orders of
+the same subset can change future draws. Neither movement is an actual draw or a
+generic zero-cost rewrite. [E5,E10]
+
+A source-static legal Ironclad cross-source discriminator is: obtain Masterful
+Stab through a legal off-color route, select it for True Grit+ exhaustion, lose
+positive HP while it remains exhausted, then return it with Exhume. With unrelated
+cost mutations excluded, the missed event does not increase that object's cost.
+The global-history formula would incorrectly add an increment. This is a static
+counterexample, **not executed gameplay or an initialized-root-seed witness**;
+prevention, intervening modifiers and selection/resume behavior remain separate
+composition obligations. [E2,E4,E5,E10]
 
 ## 4. Origin, payment, captured X, history and destination
 
@@ -404,13 +448,19 @@ states are not claims that all combinations have natural Act 1 reachability.
 | X17 | HP_LOSS/Blasphemy versus max-HP reduction and enemy InstantKill/Suicide; do not share one unconditional death/rescue handler |
 | X18 | Effect already entered versus detached current versus each pending container: preserve earlier HP/gold/deck writes across filter and clear |
 | X19 | Reaper retaliation/filter/endBattle schedules: record static alternatives; do not assign a natural timing outcome without its missing proof/policy |
+| X20 | Setup and Forethought with positive combat cost but turn cost zero versus another changed turn cost: grant the one-play-free flag without numeric zeroing; contrast ordinary reset preserving that flag and UseCardAction clearing it |
+| X21 | Setup/Forethought with zero combat cost and positive turn cost, including base-zero/turn-only increase: no new free flag; contrast initially false versus pre-existing true flag and keep later modifiers separate |
+| X22 | Setup/Forethought on X/unplayable cards: movement still occurs but supplies no new free flag or legality bypass; keep X captured value/payment and unplayable overrides distinct, including a pre-existing-flag control |
+| X23 | Masterful Stab in hand/discard/draw versus exhaust during qualifying positive combat loss; contrast zero/prevented loss and ordinary damage versus HP_LOSS; increment once per notification, not per HP point or global event count |
+| X24 | Legally acquired Stab → True Grit+ exhaust → positive loss → Exhume: return the same object with no catch-up; test singleton and selected retrieval, then a subsequent qualifying loss in hand; compare fresh-kind/stat-equivalent copies without importing global history |
+| X25 | Forethought+ same subset in different selected order, plus empty choice and ordinary mandatory-single contrast: preserve selected sequence, exact bottom-insertion effects, per-card positive-cost free guard and once-only parent effects on resume |
 
 ## 8. Closure status and exact shared interfaces
 
 | Obligation | Current status / remaining proof |
 |---|---|
 | Direct legality/free/cost/copy/extra-queue families | Finite complete classfile inventories, with actual instruction sites; eight legality overrides and direct helper distinctions inspected |
-| Cost precedence / copy construction | Important mutations and ten X action branches advanced; all helper callers' branch conditions, every constructor's history dependence, and all legal mixed mutations still require per-site closure |
+| Cost precedence / copy construction | Important mutations and ten X action branches advanced; Setup/Forethought conditional flags and Masterful Stab's per-instance notification/copy/retrieval distinction checked; remaining helper callers, constructor history dependencies and legal mixed mutations still require per-site closure |
 | Direct lifecycle families | Enumerated exactly, including empty/unused names; draw/exhaust/discard/retain and shared turn dispatch traced |
 | Full transitive lifecycle | Not closed: every reachable override's payload, nested choice, power sorting/mutation, applyPowers/glow and mixed relic reactions require composition against the shared dispatcher |
 | Lethal commit boundaries | Direct death/heal writer families narrowed; all attack/damage-all/Poison/Fatal/split/escape/reaction combinations not thereby closed |
