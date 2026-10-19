@@ -549,41 +549,41 @@ This is the exact 33-ID Ironclad potion list from the retained `PotionHelper.get
 
 | Canonical key | Exact factory/source ID | Exact class alias | Factory owner | Tier / eligibility |
 |---|---|---|---|---|
-| `potion.blockpotion` | `Block Potion` | `BlockPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.dexteritypotion` | `Dexterity Potion` | `DexterityPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.energypotion` | `Energy Potion` | `EnergyPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.explosivepotion` | `Explosive Potion` | `ExplosivePotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.firepotion` | `Fire Potion` | `FirePotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.strengthpotion` | `Strength Potion` | `StrengthPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.swiftpotion` | `Swift Potion` | `SwiftPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.weakenpotion` | `Weak Potion` | `WeakenPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.fearpotion` | `FearPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.attackpotion` | `AttackPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.skillpotion` | `SkillPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.powerpotion` | `PowerPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.colorlesspotion` | `ColorlessPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.steroidpotion` | `SteroidPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.speedpotion` | `SpeedPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.blessingoftheforge` | `BlessingOfTheForge` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.bloodpotion` | `BloodPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.regenpotion` | `Regen Potion` | `RegenPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.ancientpotion` | `Ancient Potion` | `AncientPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.liquidbronze` | `LiquidBronze` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.gamblersbrew` | `GamblersBrew` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.essenceofsteel` | `EssenceOfSteel` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.duplicationpotion` | `DuplicationPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.distilledchaospotion` | `DistilledChaos` | `DistilledChaosPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.liquidmemories` | `LiquidMemories` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.elixir` | `ElixirPotion` | `Elixir` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.cultistpotion` | `CultistPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.fruitjuice` | `Fruit Juice` | `FruitJuice` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.sneckooil` | `SneckoOil` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.fairypotion` | `FairyPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.smokebomb` | `SmokeBomb` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.entropicbrew` | `EntropicBrew` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
-| `potion.heartofiron` | `HeartOfIron` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.block_potion` | `Block Potion` | `BlockPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.dexterity_potion` | `Dexterity Potion` | `DexterityPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.energy_potion` | `Energy Potion` | `EnergyPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.explosive_potion` | `Explosive Potion` | `ExplosivePotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.fire_potion` | `Fire Potion` | `FirePotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.strength_potion` | `Strength Potion` | `StrengthPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.swift_potion` | `Swift Potion` | `SwiftPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.weak_potion` | `Weak Potion` | `WeakenPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.fear_potion` | `FearPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.attack_potion` | `AttackPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.skill_potion` | `SkillPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.power_potion` | `PowerPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.colorless_potion` | `ColorlessPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.steroid_potion` | `SteroidPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.speed_potion` | `SpeedPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.blessing_of_the_forge` | `BlessingOfTheForge` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.blood_potion` | `BloodPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | COMMON; common rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.regen_potion` | `Regen Potion` | `RegenPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.ancient_potion` | `Ancient Potion` | `AncientPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.liquid_bronze` | `LiquidBronze` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.gamblers_brew` | `GamblersBrew` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.essence_of_steel` | `EssenceOfSteel` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.duplication_potion` | `DuplicationPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.distilled_chaos` | `DistilledChaos` | `DistilledChaosPotion` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.liquid_memories` | `LiquidMemories` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.elixir_potion` | `ElixirPotion` | `Elixir` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | UNCOMMON; uncommon rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.cultist_potion` | `CultistPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.fruit_juice` | `Fruit Juice` | `FruitJuice` | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.snecko_oil` | `SneckoOil` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.fairy_potion` | `FairyPotion` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.smoke_bomb` | `SmokeBomb` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.entropic_brew` | `EntropicBrew` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
+| `potion.heart_of_iron` | `HeartOfIron` | — | `PotionHelper.getPotions(IRONCLAD,false)` → `getPotion` | RARE; rare rarity; generate only at an entitled drop/reward/offer or eligible use; emit identity only when its live slot/offer is public |
 
-Factory IDs and class aliases are exact case-sensitive source names. `getPotions` membership is the constructor identity set, not an assertion that every producer emits every entry: rarity filters, the fixed player-class authority and Fruit Juice limited-helper exclusion continue to apply. `Entropic Brew` uses the actual class/use phase and must not be inferred from potion ID alone.
+Every potion canonical token is explicitly mapped from its exact factory ID and class alias to lowercase snake_case in this table (for example, `BlessingOfTheForge` maps to `potion.blessing_of_the_forge`). These are native key-name choices; exact factory/source IDs and aliases in their columns are unchanged byte-for-byte. Factory IDs and class aliases are exact case-sensitive source names. `getPotions` membership is the constructor identity set, not an assertion that every producer emits every entry: rarity filters, the fixed player-class authority and Fruit Juice limited-helper exclusion continue to apply. `Entropic Brew` uses the actual class/use phase and must not be inferred from potion ID alone.
 
 ### 2.4 Act 1 event-kind identities
 
@@ -621,7 +621,7 @@ Event choices are not globally numbered or keyed by localized labels. The select
 
 ### 2.5 Encounter identities and route-qualified factories
 
-The source encounter ID is the exact `MonsterHelper` string constant. An encounter key is a factory/formation identity, never a monster kind: repeated actors retain separate actor identities under the same monster-kind key. These rows cover the scoped ordinary Act 1 families, three bosses, and the two event-specific factory variants named by accepted records. The same Nob/Sentries keys may be reached through Dead Adventurer, but that event-owned combat does not consume ordinary elite queue state. Emit an encounter key only at an entitled active public formation/checkpoint; never reveal future queued encounter identities.
+The source encounter ID is the exact `MonsterHelper` string constant. Canonical tokens are explicit lowercase snake_case aliases; numeric-leading display IDs use word tokens (`2 Louse` → `encounter.two_louse`, `3 Louse` → `encounter.three_louse`, `2 Fungi Beasts` → `encounter.two_fungi_beasts`, `3 Sentries` → `encounter.three_sentries`). Exact encounter IDs and constant aliases remain unchanged. An encounter key is a factory/formation identity, never a monster kind: repeated actors retain separate actor identities under the same monster-kind key. These rows cover the scoped ordinary Act 1 families, three bosses, and the two event-specific factory variants named by accepted records. The same Nob/Sentries keys may be reached through Dead Adventurer, but that event-owned combat does not consume ordinary elite queue state. Emit an encounter key only at an entitled active public formation/checkpoint; never reveal future queued encounter identities.
 
 | Canonical key | Exact source encounter key | Exact source constant alias | Factory/route owner | Public eligibility |
 |---|---|---|---|---|
@@ -629,19 +629,19 @@ The source encounter ID is the exact `MonsterHelper` string constant. An encount
 | `encounter.cultist` | `Cultist` | `CULTIST_ENC` | `MonsterHelper.CULTIST_ENC`; ordinary weak | Active current formation only; future queue hidden |
 | `encounter.jaw_worm` | `Jaw Worm` | `JAW_WORM_ENC` | `MonsterHelper.JAW_WORM_ENC`; ordinary weak | Active current formation only; future queue hidden |
 | `encounter.looter` | `Looter` | `LOOTER_ENC` | `MonsterHelper.LOOTER_ENC`; ordinary strong | Active current formation only; future queue hidden |
-| `encounter.2_louse` | `2 Louse` | `TWO_LOUSE_ENC` | `MonsterHelper.TWO_LOUSE_ENC`; ordinary weak | Active current formation only; future queue hidden |
+| `encounter.two_louse` | `2 Louse` | `TWO_LOUSE_ENC` | `MonsterHelper.TWO_LOUSE_ENC`; ordinary weak | Active current formation only; future queue hidden |
 | `encounter.small_slimes` | `Small Slimes` | `SMALL_SLIMES_ENC` | `MonsterHelper.SMALL_SLIMES_ENC`; ordinary weak | Active current formation only; future queue hidden |
 | `encounter.gremlin_gang` | `Gremlin Gang` | `GREMLIN_GANG_ENC` | `MonsterHelper.GREMLIN_GANG_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.red_slaver` | `Red Slaver` | `RED_SLAVER_ENC` | `MonsterHelper.RED_SLAVER_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.large_slime` | `Large Slime` | `LARGE_SLIME_ENC` | `MonsterHelper.LARGE_SLIME_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.exordium_thugs` | `Exordium Thugs` | `LVL_1_THUGS_ENC` | `MonsterHelper.LVL_1_THUGS_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.exordium_wildlife` | `Exordium Wildlife` | `LVL_1_WILDLIFE_ENC` | `MonsterHelper.LVL_1_WILDLIFE_ENC`; ordinary strong | Active current formation only; future queue hidden |
-| `encounter.3_louse` | `3 Louse` | `THREE_LOUSE_ENC` | `MonsterHelper.THREE_LOUSE_ENC`; ordinary strong | Active current formation only; future queue hidden |
-| `encounter.2_fungi_beasts` | `2 Fungi Beasts` | `TWO_FUNGI_ENC` | `MonsterHelper.TWO_FUNGI_ENC`; ordinary strong | Active current formation only; future queue hidden |
+| `encounter.three_louse` | `3 Louse` | `THREE_LOUSE_ENC` | `MonsterHelper.THREE_LOUSE_ENC`; ordinary strong | Active current formation only; future queue hidden |
+| `encounter.two_fungi_beasts` | `2 Fungi Beasts` | `TWO_FUNGI_ENC` | `MonsterHelper.TWO_FUNGI_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.lots_of_slimes` | `Lots of Slimes` | `LOTS_OF_SLIMES_ENC` | `MonsterHelper.LOTS_OF_SLIMES_ENC`; ordinary strong | Active current formation only; future queue hidden |
 | `encounter.gremlin_nob` | `Gremlin Nob` | `GREMLIN_NOB_ENC` | `MonsterHelper.GREMLIN_NOB_ENC`; ordinary elite; also Dead Adventurer event | Active current formation only; future queue hidden |
 | `encounter.lagavulin` | `Lagavulin` | `LAGAVULIN_ENC` | `MonsterHelper.LAGAVULIN_ENC`; ordinary elite | Active current formation only; future queue hidden |
-| `encounter.3_sentries` | `3 Sentries` | `THREE_SENTRY_ENC` | `MonsterHelper.THREE_SENTRY_ENC`; ordinary elite; also Dead Adventurer event | Active current formation only; future queue hidden |
+| `encounter.three_sentries` | `3 Sentries` | `THREE_SENTRY_ENC` | `MonsterHelper.THREE_SENTRY_ENC`; ordinary elite; also Dead Adventurer event | Active current formation only; future queue hidden |
 | `encounter.the_guardian` | `The Guardian` | `GUARDIAN_ENC` | `MonsterHelper.GUARDIAN_ENC`; Act1 boss | Active current formation only; future queue hidden |
 | `encounter.hexaghost` | `Hexaghost` | `HEXAGHOST_ENC` | `MonsterHelper.HEXAGHOST_ENC`; Act1 boss | Active current formation only; future queue hidden |
 | `encounter.slime_boss` | `Slime Boss` | `SLIME_BOSS_ENC` | `MonsterHelper.SLIME_BOSS_ENC`; Act1 boss | Active current formation only; future queue hidden |
@@ -1032,8 +1032,32 @@ The following labels and numbers are the finite **native proposal** in accepted 
 | 44 | `transform_input_kind` | Native proposal only; transform source required |
 | 45 | `public_turn_cost_modifier` | Native proposal only; owner/member join required |
 
-This list freezes only the referenced native proposal vocabulary. It does not turn any label into a source ID or prove source-set equality, current visibility, or emission entitlement.
+This list freezes only the referenced native proposal vocabulary. It does not turn any label into a source ID or prove source-set equality, current visibility, or emission entitlement. The document-wide canonical-key inventory covers only the literal source-key tables present here. Source event choices/options, source-property IDs (these 1–45 labels are native-only proposals), public-fact/history keys, and effect-site identities have no delivered canonical rows in this document; they are explicitly unprovided/open namespaces, not silently treated as empty source sets.
 
+
+### 2.15 Document-wide canonical-key table coverage
+
+The key-comparator-v3 pass validates every canonical key in the delivered source-identity tables below. The expected key set is independently derived from the retained static source inventories plus the explicit potion/encounter token maps; it is compared with parsed delivered rows, not inferred from table counts. Markdown display grouping remains non-normative; canonical iteration/serialization sorts by the complete key’s unsigned UTF-8 bytes.
+
+| Namespace | Expected/delivered keys | Evidence boundary |
+|---|---:|---|
+| `card` | 370 | Complete static `CardLibrary` registration identities; not the complete legal producer/selector set |
+| `encounter` | 22 | Scoped encounter factory keys; word tokens avoid leading digits and exact source IDs remain unchanged |
+| `event` | 25 | Act 1 event factory identities; not event choices/source options |
+| `intent` | 17 | Global `AbstractMonster.Intent` literals; local move IDs remain owner-qualified |
+| `monster` | 25 | Act 1 enemy-kind identities |
+| `move` | 69 | Compile-time local move fields for 25 Act 1 monster owners |
+| `orb` | 5 | Four channelable classes plus the non-channelable `EmptyOrbSlot` sentinel |
+| `potion` | 33 | Ironclad factory IDs, with explicit snake_case native-token mapping and exact IDs preserved |
+| `power` | 106 | Bounded direct class/ID owner-use inventory; not mediated/dynamic producer closure |
+| `relic` | 178 | 141 accepted candidate rows plus 37 statically registered outside-candidate rows |
+| `reward` | 7 | `RewardItem.RewardType` literals; not reward-origin producer identities |
+| `room` | 6 | `AbstractRoom.RoomType` literals |
+| `room_object` | 4 | Bounded selected state-bearing source-owner families |
+| `room_phase` | 4 | `AbstractRoom.RoomPhase` literals |
+| **Total delivered canonical keys** | **871** | Exact expected/delivered key equality for these present namespaces only |
+
+The comparator also validates the owner-qualified `move.<monster>.<token>` grammar. Reused move-field aliases (for example `BELLOW`, `BITE`, `TACKLE`, and `DEBUFF`) are explicitly disambiguated by the monster owner in the canonical key. Source event choices/options, source-property IDs, public facts/history, and effect-site identities remain explicitly unprovided/open above; 871 is not a whole-source-universe count or `.44` completion claim.
 
 ## 3. Numeric-domain/member join rules
 
