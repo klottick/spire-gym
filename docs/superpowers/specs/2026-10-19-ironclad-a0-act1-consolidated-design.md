@@ -1336,13 +1336,15 @@ The finite nonzero state graph may formally include a wholly rejecting-cycle
 no-return marker; no general later-bound termination theorem or reachable failure
 is asserted. Five initialization unbounded longs require no such rejection proof.
 
-| Input option | Fidelity consequence / disposition |
+The following input-option descriptions are retained only as **superseded historical/source-analysis alternatives**. They are not current native-policy recommendations, open user choices, or constraints. The selected native law is independent reproducible random systems across distinct approved roles/sites, including map/board generation and potion acquisition where those are separate systems; each uses unbiased draws/shuffles and intended conditional weights. Preserve mechanic-required state/history conditioning, exclusions, without-replacement rules, pity and guarantees. Seed/site identifiers, deterministic derivation and exact replay bindings remain engineering work, not a question of whether selected systems are independent.
+
+| Superseded historical/source-analysis alternative (not current recommendation) | Historical fidelity consequence / disposition |
 |---|---|
-| U64 per explicitly independent invocation | Exact finite per-call bias retained; five independent pool seeds would impose product ν^5 and discard source joint/cursor information. Independence from board generation or later Tiny House potion is not already approved. |
-| Initialized semantic block | Recommended for relic initialization and linked draws; preserves initialized within-block image/cursor relationships without unrelated root coupling. Needs declared block boundary, ordered inputs and linked callers. |
-| Uniform full nonzero128 state block | Keeps sequential relation but changes initialized support/weights. X is invertible; each emitted word has2^64 preimages except zero loses one. This is not the initialized law or proof of product marginals. |
-| Actual root/profile/history ensemble | Declare prior, policy likelihood and earlier draws/rejections, then push jointly to source entry state/catalog/context. No evaluated full Act1 ensemble is supplied; source determinism chooses no user prior. |
-| Ideal uniform permutations | Explicit extra deviation replacing mapper bias/support, not authorized by seed nonparity. |
+| U64 per explicitly independent invocation | Historical source mapper wording; its finite per-call bias and joint/cursor implications describe source analysis only. The former indecision about independence from board generation or a later Tiny House potion is superseded by the selected independent-native-systems policy above. |
+| Initialized semantic block | Historical source-analysis alternative for relic initialization and linked draws; its within-block image/cursor relationships and proposed block boundaries are not a current native recommendation or constraint. |
+| Uniform full nonzero128 state block | Historical source-law comparison: keeps a sequential relation but changes initialized support/weights. X is invertible; each emitted word has2^64 preimages except zero loses one. This is neither the initialized source law nor a native independence requirement. |
+| Actual root/profile/history ensemble | Historical source-analysis alternative: declare prior, policy likelihood and earlier draws/rejections, then push jointly to source entry state/catalog/context. No evaluated full Act1 ensemble is supplied; source determinism chooses no user prior. This source ensemble is not required for the selected native law. |
+| Ideal uniform permutations | Historical source-analysis comparison for replacing mapper bias/support; the former “not authorized by seed nonparity” qualification is superseded, not a native constraint. Native shuffles are unbiased as selected above. |
 
 Use a native stable canonical ordering wherever catalog order is needed and label it as a native contract, not source-host order. Native distribution implementation, per-role/site independence boundaries, seed derivation and replay determinism are unresolved engineering contracts (B03/B10); they do not revive source correlations or demand initialized source ensembles. No exact numeric map-fidelity or distribution-percentage claim is made.
 
