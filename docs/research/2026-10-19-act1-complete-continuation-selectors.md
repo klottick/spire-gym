@@ -47,6 +47,117 @@ The table is intentionally site-specific. A shared grid widget does not collapse
 
 This table covers the finite named continuation families established in the accepted acquisition record, including the exceptional event/relic sites. It is not a claim that every primary card callback has been joined to every transitive generated choice: those are still source/content closure obligations. Native consumers must bind each actual producer to a row above or add a separately source-qualified row before claiming full closure; “generic grid” is not an acceptable substitute.
 
+### 3.1 E21 Silent card and power selector inventory
+
+This bounded extension joins the complete 76-member E21 set (75 Silent kinds plus dependent temporary `Shiv`) to player-choice dispositions. It adds only the actual hand-selection sites produced by these cards and their named powers; it does not claim all-color/transitive closure. **E21 has no GridCardSelectScreen producer in this set:** its card choices use the hand-selection screen. The separately named `enemy-target` choice is not a hand/grid selector; its roster is listed below so EN-targeted members are not mistaken for automatic/random targeting. No player chooses a target for ALL, SELF or NONE records.
+
+#### Actual hand-selection sites
+
+Every `DiscardAction` row below is `random=false,endTurn=false`. At action entry its source first exits without selector or discard when monsters are basically dead. Otherwise it reads the **then-current** hand size: `h≤requested` means automatic removal of all h (including h=0), while `h>requested` opens the hand selector for exactly the requested amount. That selector call does not enable zero-pick or carry a caller cancel parameter. Selected instances are consumed from the returned selected-card group; do not replace the action-time hand with the card-use snapshot. The producer-specific captured request, preceding hand mutation and consumer remain stated per row.
+
+| Site / exact producer variants | Captured request and live candidate predicate | Cardinality, order, zero/automatic and cancel | Commit, consumer and resume |
+|---|---|---|---|
+| `combat.hand.discard` — `Survivor` | `DiscardAction(1, random=false)` follows its Block request. At that action's execution, candidates are the current live hand; the preceding card-use hand is not frozen as the candidate list. | If current hand size is 0 or 1, automatically discard all currently present (0 or 1); if >1, mandatory exact 1. Hand display order; selected result order is retained by the action. No pick-zero or cancel flag in this caller. | Move selected instance(s) to discard, invoke manual-discard callbacks per card, increment the turn discard counter, mark result retrieved and finish the action; Survivor's use continuation then resumes. |
+| `combat.hand.discard` — `Acrobatics` | Draw `M=3/4`, then `DiscardAction(1, random=false)`; candidates are the live hand when the discard action executes, including the preceding draw's actual result. | Same branch: 0/1 automatic-all; >1 mandatory exact 1. No zero-choice/cancel branch. | Same discard consumer; follows Acrobatics' already-requested draw, then remaining action/use continuation resumes. |
+| `combat.hand.discard` — `Dagger Throw` | EN target-bound damage request, then draw 1, then `DiscardAction(1, random=false)`; live post-draw hand at discard-action execution. | Same 0/1 automatic-all; >1 exact 1. The enemy target and discard are distinct choices/checkpoints. No cancel. | Discard commit/callback/counter as above; remaining Dagger Throw/use queue resumes once. |
+| `combat.hand.discard` — `Prepared` base/+ | Draw `M=1/2`, then `DiscardAction(M, random=false)`; candidate hand is live at discard-action execution. | If hand size `h≤M`, automatically discard all `h` (including zero); if `h>M`, mandatory exact `M`. No can-pick-zero or cancel. | Selected sequence is moved to discard in returned order; manual-discard callbacks/counter occur per selected instance; action finishes and parent queue resumes. |
+| `combat.hand.discard` — `Concentrate` base/+ | `DiscardAction(M, random=false)`, `M=3/2`; candidate hand is live at action execution. Gain 2 energy is separately queued after the discard request. | `h≤M`: automatically discard all `h`, including zero. `h>M`: mandatory exact `M`. This is not “must have M”; no cancel/zero-pick override. | Discard result commits as above; queued gain 2 energy follows even when fewer than M cards were available; parent then resumes. |
+| `combat.hand.discard` — `Tools of the Trade` power callback | At player post-draw start-turn, request draw `amount`, then `DiscardAction(amount, random=false)`. Amount is the current power amount (base card installs 1; stacking changes amount); discard candidates are live post-draw hand at action execution, not a use-time snapshot. | For discard request `M=amount`: `h≤M` auto-discards all; `h>M` requires exact M. Empty hand is no selector. No cancel/pick-zero. | Each selected card moves to discard and triggers manual-discard/counter path; this child ends, then the post-draw start-turn queue continues. Stacks increase amounts, not selector count. |
+| `combat.hand.discard` — `Storm of Steel` base/+ | `BladeFuryAction` captures `n=remaining hand size` and prepares one ordinary/Shiv+ template and the temp-creation action before enqueueing discard. It then invokes `DiscardAction(n, random=false)`. Candidate hand is live at discard-action execution; `n` remains the captured request, not a recomputed hand size. | If live `h≤n`, auto-discard all h. If `h>n`, mandatory exact n. No cancel or zero-pick flag. If `n=0` and a card has entered hand before this action executes, the literal `h>n` branch requests exactly zero; no custom positive-count guard is substituted. | Discarded instances run the manual discard/counter path. The already-prepared temp action later inserts n copies from the captured template (Master Reality construction checkpoint is before discard); then parent queue resumes. |
+| `combat.hand.move.setup` — `Setup` base/+ | `SetupAction`; candidates are current remaining hand when the action resolves; no type/cost filter. | 0: no-op/no screen. 1: automatic singleton. >1: mandatory exact 1, `canPickZero=false`; no cancel. | Move the same selected object to draw top; set `freeToPlayOnce` only if mutable combat `cost>0`. Action marks retrieved/finishes; card-use queue resumes. |
+| `combat.hand.move.forethought` — Forethought callback reference, **not one of the 76 E21 primary IDs** | Cross-reference only: E19's colorless `ForethoughtAction` receives the upgraded bit and selects from current hand at action resolution. Included because E21 §6 names its callback distinction; not counted as an E21 primary member. | 0 hand: no-op. Base with one: auto-move it; base with >1: exact 1. `Forethought+`: selection up to the live hand count (source request 99), including zero; selected sequence order is meaningful. Base/plus are distinct cardinality variants. No cancel transition is inferred; plus's confirmed empty result is a legal zero choice. | Move same instances to draw bottom in selection order; positive mutable combat-cost guard alone sets one-play-free. No numeric cost rewrite. Forethought's own use action then resumes. |
+| `combat.hand.copy.nightmare` — `Nightmare`/Night Terror | `NightmareAction` after card use; candidates are current remaining hand at that action's execution, with no card-type filter. | 0: no choice/no power. 1: automatic singleton. >1: mandatory exact 1; no pick-zero/cancel flag. | Capture selected live card as the Nightmare power's reset stat-equivalent template; return it to hand and apply the power. At next player start-turn, the power requests its stored three temporary copies automatically—no second choice—then its own removal. |
+| `combat.hand.retain.endturn` — `Well Laid Plans`/`Retain Cards` power | At player end-turn only, and only with nonempty hand, no Runic Pyramid, and no Equilibrium. Those are callback-time gates; `RetainCardsAction` later reads the live hand. No prefiltered “non-Ethereal” subset (Ethereal can be selected but receives no temporary retain). Maximum is current power amount (1/2 from fresh card; stack amount thereafter). | `upTo` amount, 0 through `min(amount, live hand size when action runs)`; source flags permit zero. This is a committed empty selection, not a separate cancel. No generic cancel is claimed. Candidate/display hand order; commit iterates selected-card result order. | Set temporary retain only on selected non-Ethereal cards, return selected objects to hand, mark selection retrieved, then the end-turn action queue resumes. The power does not enqueue selection when any callback entry guard fails. |
+
+#### Complete E21 member disposition
+
+The following source IDs are the complete 76-member E21 primary set. `Hand site` means the named hand-selector row above; `EN target` means one ordinary enemy target must be bound separately from the hand/grid contract; `No hand/grid` means the primary payload and callback details are automatic, random, all-target, self-target, or state mutation—not a player hand/grid selection. A member can have both a hand site and an EN target (Dagger Throw). This roster is deliberately explicit so random discards, generated cards, draw-history scans, per-instance callbacks and automatic temporary copies are not mislabeled as choices.
+
+| E21 primary source ID | Selector disposition |
+|---|---|
+| `Strike_G` | EN target; no hand/grid |
+| `Defend_G` | No hand/grid |
+| `Neutralize` | EN target; no hand/grid |
+| `Survivor` | `combat.hand.discard` exact producer above |
+| `Acrobatics` | `combat.hand.discard` exact producer above |
+| `Backflip` | No hand/grid |
+| `Bane` | EN target; captured target/payload BaneAction is automatic follow-up, not another choice |
+| `Blade Dance` | No hand/grid; creates ordinary Shivs automatically |
+| `Cloak And Dagger` | No hand/grid; creates ordinary Shivs automatically |
+| `Dagger Spray` | No hand/grid; ALL target and two separate hits, no selected enemy |
+| `Dagger Throw` | EN target plus `combat.hand.discard` exact producer above |
+| `Deadly Poison` | EN target; no hand/grid |
+| `Deflect` | No hand/grid |
+| `Dodge and Roll` | No hand/grid; captures Block for delayed automatic effect |
+| `Flying Knee` | EN target; no hand/grid |
+| `Outmaneuver` | No hand/grid; automatic Energized literal |
+| `PiercingWail` | No hand/grid; ALL target, two source passes are automatic |
+| `Poisoned Stab` | EN target; no hand/grid |
+| `Prepared` | `combat.hand.discard` base/+ variants above |
+| `Quick Slash` | EN target; no hand/grid |
+| `Slice` | EN target; no hand/grid |
+| `Underhanded Strike` | EN target; later discard-counter energy is automatic |
+| `Sucker Punch` | EN target; no hand/grid |
+| `Accuracy` | No hand/grid; identity-specific Shiv rewrites are automatic callbacks |
+| `All Out Attack` | No hand/grid; random discard 1, not a player-selected discard |
+| `Backstab` | EN target; no hand/grid |
+| `Blur` | No hand/grid |
+| `Bouncing Flask` | No hand/grid; no player target; initial and bounce targets use source random sampling |
+| `Calculated Gamble` | No hand/grid; captured-n random discard/draw; n=0 requests neither |
+| `Caltrops` | No hand/grid; automatic qualified damage callback |
+| `Catalyst` | EN target; no hand/grid |
+| `Choke` | EN target; no hand/grid; Choked callback is automatic |
+| `Concentrate` | `combat.hand.discard` base/+ variants above |
+| `Crippling Poison` | No hand/grid; ALL target, per-monster applications automatic |
+| `Dash` | EN target; no hand/grid |
+| `Distraction` | No hand/grid; actual-character pool generates a random Skill, not a player choice |
+| `Endless Agony` | No hand/grid; actual draw creates its temporary copy automatically |
+| `Escape Plan` | No hand/grid; post-draw-history scan automatically gates Block |
+| `Eviscerate` | No hand/grid; per-instance discard notifications/cost update are automatic |
+| `Expertise` | No hand/grid; captured deficit conditionally queues draw |
+| `Finisher` | EN target; sampled Attack count determines automatic hits |
+| `Flechettes` | EN target; action-time Skill count determines automatic hits |
+| `Footwork` | No hand/grid |
+| `Heel Hook` | EN target; entry-time Weak gates automatic energy/draw follow-up |
+| `Infinite Blades` | No hand/grid; creates ordinary Shivs automatically at start-turn |
+| `Leg Sweep` | EN target; no hand/grid |
+| `Masterful Stab` | EN target; `tookDamage` cost notifications are automatic and location-sensitive |
+| `Noxious Fumes` | No hand/grid; automatic post-draw power callback |
+| `Predator` | EN target; no hand/grid |
+| `Reflex` | No hand/grid; manual-discard callback automatically appends draw |
+| `Riddle With Holes` | EN target; five separate hits, not five target selections |
+| `Setup` | `combat.hand.move.setup` above |
+| `Skewer` | EN target; one captured-X hit per positive effect amount |
+| `Tactician` | No hand/grid; manual-discard callback automatically prepends energy |
+| `Terror` | EN target; no hand/grid |
+| `Well Laid Plans` | `combat.hand.retain.endturn` power callback above |
+| `A Thousand Cuts` | No hand/grid; automatic after-card-played callback |
+| `Adrenaline` | No hand/grid |
+| `After Image` | No hand/grid; automatic on-use callback |
+| `Venomology` | No hand/grid; limited potion sampled by source RNG, not selected from a visible list |
+| `Bullet Time` | No hand/grid; automatic No Draw and current-hand turn-cost setter |
+| `Burst` | No hand/grid; automatic eligible-repeat entitlement/copy |
+| `Corpse Explosion` | EN target; death payload callback is automatic |
+| `Die Die Die` | No hand/grid; ALL target, one all-enemy hit |
+| `Doppelganger` | No hand/grid; automatic positive-X delayed effects |
+| `Envenom` | No hand/grid; automatic qualified on-attack callback |
+| `Glass Knife` | EN target; UUID-family mutation is automatic, not a selection |
+| `Grand Finale` | No hand/grid; ALL target; draw-pile legality gate is not a choice |
+| `Malaise` | EN target; no hand/grid |
+| `Night Terror` | `combat.hand.copy.nightmare` above; delayed three-copy creation is automatic |
+| `Phantasmal Killer` | No hand/grid; delayed power callback is automatic |
+| `Storm of Steel` | `combat.hand.discard` captured-n variant above; template preparation/copy is automatic |
+| `Tools of the Trade` | `combat.hand.discard` power callback above |
+| `Unload` | EN target; captured non-Attack identities are specifically discarded automatically in source iteration order, not reselected |
+| `Wraith Form v2` | No hand/grid; automatic Intangible/downside power requests |
+| `Shiv` | EN target; temporary/exhaust behavior is automatic |
+
+#### E21 finite-site coverage boundary
+
+The actual E21 hand/grid producers are therefore `Survivor`, `Acrobatics`, `Dagger Throw`, `Prepared`, `Concentrate`, `Setup`, `Night Terror`/`NightmareAction`, `Storm of Steel`/`BladeFuryAction`, the `Well Laid Plans`/`Retain Cards` power, and the `Tools of the Trade` power. They collapse to four semantic owners only where their actual callers share a contract: live-hand `DiscardAction` with producer-specific requests; Setup movement; Nightmare copy selection; and end-turn Retain selection. The exact producer variants above remain distinct inputs, not a generic “discard action” row. No grid selector, random discard, random target, generated temporary copy, retained-state callback, or automatic movement is omitted by calling it a player selector.
+
+This completes only the E21 primary-member-to-choice/nonchoice disposition and the bounded actual hand-selector producers named here. It does **not** claim the remaining accepted source domains' transitive selector joins (E19/E20/E22–E26, potions, events/rewards, non-Silent generated producer families), nor global selector closure, semantic causal-edge ordering owned by `.42`, initialized-history closure owned by `.58`, catalog/upgrade equality, or gameplay validation. The `.42` execution owner must retain its distinct causal-edge/resume interface; this table defines candidate/cardinality/selection ownership only.
+
 ## 4. Commit, cancel, empty, and resume laws
 
 1. Opening a selector captures its semantic parent, checkpoint, candidate instance identities and source parameters. Opening does not commit a choice, pay an uncommitted cancellable service, or regenerate the parent offer.
