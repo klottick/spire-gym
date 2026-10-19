@@ -330,11 +330,13 @@ it is not uniform over the 2^128−1 nonzero source states.
 For any source entry-state law ρ, define ηρ as the pushforward of ρ through
 five successive X transitions, emitted-word relation and g. This **fully
 specifies** the five-input law in §7. Retaining X^5's state also specifies the
-joint law with later `relicRng` activity. For later positive bounded source
-draws, use the first-accepted transition relation with u=floor(word/2),
-L=b·floor(2^63/b), u<L and result u modulo b. Include all rejected source
+joint law with later `relicRng` activity. For the XS bounded-integer primitive
+(including int wrapper calls after their inclusive-endpoint conversion), use the
+first-accepted transition relation with positive bound b, u=floor(word/2),
+L=b·floor(2^63/b), u<L and result u modulo b. This formula does not cover wrapper
+long overloads or double-draw/scaling arithmetic. Include all rejected primitive
 transitions before the next seed-producing long. Do not use the Java Q for
-these source draws: its state space and bit extraction differ. This relation
+this primitive: its state space and bit extraction differ. This relation
 can be defined over its finite state graph: search through at most 2^128−1
 distinct nonzero states; a wholly rejecting cycle has a separate no-return
 marker. That marker completes the mathematical relation, not an asserted
