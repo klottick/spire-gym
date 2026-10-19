@@ -98,7 +98,7 @@ an orb. Enqueue is not proof every later payload survives cancellation.
 | Multi-Cast / `MulticastAction` | adjusted count +1 if upgraded | Count−1 evocations without removal, then final evoke/removal; no-orb branch produces neither boost processing nor payment. |
 | Skewer / `SkewerAction` | adjusted count | That many targeted damage actions with captured damage/type. |
 | Tempest / `TempestAction` | adjusted count +1 if upgraded | That many Lightning channel actions; actual orb-slot behavior remains a payload rule. |
-| Transmutation / `TransmutationAction` | adjusted count | Card use first raises energyOnUse to live energy if lower; action then makes that many colorless combat-card proposals, upgrades each if upgraded, sets turn cost zero and enqueues hand generation. |
+| Transmutation / `TransmutationAction` | adjusted count | Card use first raises energyOnUse to live energy if lower; action then makes that many colorless combat-card proposals, upgrades each if upgraded, requests turn zero only for already-nonnegative turn costs and enqueues hand generation. Possible X results, including Transmutation itself, preserve their negative sentinel and receive no free grant from this request. |
 | Whirlwind / `WhirlwindAction` | adjusted count | That many all-enemy damage actions with supplied damage array/type. |
 | Collect / `CollectAction` | adjusted count +1 if upgraded | Collect power of that amount. |
 | Conjure Blade / `ConjureBladeAction` | adjusted count; upgraded card passes energyOnUse+1 into action | Always constructs Expunger with that X and queues draw-pile creation, then nonfree live-energy payment; no positive-effect guard in this action. |
