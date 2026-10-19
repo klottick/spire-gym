@@ -26,7 +26,7 @@ Evidence anchors are class/member locators, not required private imports:
 | ECON-SHOP | `Merchant` constructor; `ShopScreen.initCards/initRelics/initPotions/applyDiscount/setPrice/purgeCard/updatePurge/purchaseCard`; `StoreRelic.purchaseRelic`; `StorePotion.purchasePotion`; card/potion/relic `getPrice` |
 | ECON-REWARD | `AbstractRoom.update/addPotionToRewards/addGoldToRewards`; `MonsterRoomElite.dropReward`; `CombatRewardScreen.setupItemReward`; `RewardItem` constructors/claim/increment; `CardRewardScreen`; `SingingBowlButton.onClick` |
 | ECON-RELIC | `AbstractDungeon.initializeRelicList/returnRandomRelicKey/returnRandomRelicEnd/returnRandomScreenlessRelic/returnRandomNonCampfireRelic`; `RelicLibrary.populateRelicPool`; named relic spawn/hooks |
-| ECON-CHEST | `AbstractDungeon.getRandomChest`; Small/Medium/Large/Abstract/Boss chest constructors/open; Matryoshka, Cursed Key and Hungry Face hooks; `ObtainKeyEffect.update` |
+| ECON-CHEST | `AbstractDungeon.getRandomChest`; Small/Medium/Large/Abstract/Boss chest constructors/open; `CampfireDigEffect.update`; Matryoshka, Cursed Key and Hungry Face hooks; `ObtainKeyEffect.update` |
 | POT-CATALOG | `AbstractDungeon.initializePotions` → `PotionHelper.initialize(player.chosenClass)` → `getPotions/getPotion`; all 33 eligible constructors, `initializeData`, `use`, `getPotency`; override inventory and Blood/Fruit `canUse` bytecode |
 | POT-CONSUMER | `AbstractPotion.canUse/canDiscard/getPotency`; `PotionPopUp.updateInput/updateTargetMode`; `AbstractPlayer.obtainPotion/damage`; `TopPanel.destroyPotion`; `ObtainPotionAction/ObtainPotionEffect.update`; named action/power consumers in §§6–8 |
 
@@ -236,7 +236,26 @@ that every relic constructor/spawn predicate alone proves its full primary effec
 The exact measure on initial seeded permutations and their history-conditioned
 remaining orders remains separate (§9); “shuffled” does not prove uniformity.
 
-### 4.2 Ordinary chest joint outcomes
+### 4.2 Shovel Dig: separate relic-reward source
+
+At a RestRoom campfire, choosing Dig schedules `CampfireDigEffect`. When its dig
+branch runs, it clears that room's reward list and appends **one relic offer**.
+It draws a tier using the ordinary dungeon relic-tier helper (Act 1: common /
+uncommon / rare 50/33/17 from an inclusive integer 0–99), then uses the ordinary
+**normal/front** relic selector. The same consumed-candidate, rejection and
+depletion-promotion rules in §4.1 apply; this is not a fresh catalog draw. The
+effect marks the local room phase COMPLETE and opens the reward screen. A relic
+row is offered, not installed: claim, skip and durable continuation are separate
+transitions, with full terminal arbitration still open in §9.
+
+Dig is not chest opening: it has no chest-size/shared gold-tier roll, gold, key,
+chest-opening hooks (`onChestOpen`/`onChestOpenAfter`), or chest sapphire linkage.
+It does not use the merchant end selector or Black Star's noncampfire selector.
+The reward screen's ordinary card setup excludes RestRoom, so this route adds no
+automatic card reward. Do not infer that the local COMPLETE phase settles reward
+claiming or terminal composition.
+
+### 4.3 Ordinary chest joint outcomes
 
 Chest size uses an integer 0–99: small 50%, medium 33%, large 17%. A second integer
 0–99 is **shared** between that chest's relic tier and gold-presence test:
@@ -342,10 +361,10 @@ require one monster. Combat powers do not become persistent run stats.
 | Swift Potion / `Swift Potion` | C | Draw **3→6** cards, ordinary draw hooks/hand capacity apply; no cost randomization. |
 | Weak Potion / `Weak Potion` | C | Selected enemy **3→6 Weak**, `isSourceMonster=false`; debuff duration follows ordinary owner turn hooks, not “three player turns” by assumption. |
 | Fear Potion / `FearPotion` | C | Selected enemy **3→6 Vulnerable**, `isSourceMonster=false`; ordinary debuff application/duration. |
-| Attack Potion / `AttackPotion` | C | Three distinct Attack offers; choose one identity, **1→2 stat-equivalent copies** at turn cost 0. See §7.1 for exact support, optionality and overflow. |
-| Skill Potion / `SkillPotion` | C | Three distinct Skill offers; choose one identity, **1→2 copies**, same local creation/cost rules. |
-| Power Potion / `PowerPotion` | C | Three distinct Power offers; choose one identity, **1→2 copies**, same local creation/cost rules. |
-| Colorless Potion / `ColorlessPotion` | C | Three distinct ordinary nonhealing colorless offers; **1→2 copies** of chosen identity, same cost/overflow route; colorless is an explicit source policy. |
+| Attack Potion / `AttackPotion` | C | Three distinct Attack offers; choose one identity, **1→2 stat-equivalent copies** with a guarded zero-cost request. See §7.1 for exact support, optionality and overflow. |
+| Skill Potion / `SkillPotion` | C | Three distinct Skill offers; choose one identity, **1→2 copies**, same guarded zero-cost request and local creation rules. |
+| Power Potion / `PowerPotion` | C | Three distinct Power offers; choose one identity, **1→2 copies**, same guarded zero-cost request and local creation rules. |
+| Colorless Potion / `ColorlessPotion` | C | Three distinct ordinary nonhealing colorless offers; **1→2 copies** of chosen identity, same guarded zero-cost request and overflow route; colorless is an explicit source policy. |
 | Flex Potion / `SteroidPotion` | C | Self **5→10 Strength**, then separate **5→10 Lose Strength** power request. End-of-turn loss applies negative Strength and schedules removal of the loss power. Artifact/prevention can distinguish the two applications. |
 | Speed Potion / `SpeedPotion` | C | Self **5→10 Dexterity**, then separate **5→10 Lose Dexterity** request; analogous end-of-turn negative Dexterity/removal, not a timeless stat. |
 | Blessing of the Forge / `BlessingOfTheForge` | C | Upgrade every currently upgradeable hand instance once on action resolution, then apply powers. **Unchanged by Bark** (potency 0); not permanent deck upgrades or two upgrades. |
@@ -356,8 +375,8 @@ require one monster. Combat powers do not become persistent run stats.
 | Gambler's Brew / `GamblersBrew` | U | Choose any number (including zero) of hand cards to discard, then draw that count. **Unchanged by Bark** (potency 0). Manual-discard notifications occur per selected instance; empty hand schedules no action. |
 | Essence of Steel / `EssenceOfSteel` | U | Self **4→8 Plated Armor**. Pre-end-turn-card hook requests that much Block. Qualifying positive HP damage with other nonnull owner and neither THORNS nor HP_LOSS queues a reduction by 1. |
 | Duplication Potion / `DuplicationPotion` | U | Self **1→2 Duplication** charges. A non-purgeOnUse card with positive charges creates one same-instance repeat and consumes one charge. End-of-round removes if already zero, otherwise reduces by 1; do not replace this with unconditional end-turn removal. Repeat copies captured energy and sets autoplay/ignore-total true. |
-| Distilled Chaos / `DistilledChaos` | U | Queue **3→6** PlayTopCardAction instances, retaining each action's actual queue/random-target/hand/death behavior. No payment of an ordinary selected card cost. This is not a card-offer lottery. |
-| Liquid Memories / `LiquidMemories` | U | Retrieve **1→2** selected discard instances to hand, turn cost 0. Mandatory count where available; auto-all when discard count≤requested. Each move requires hand size<10; otherwise that instance remains discarded. Not “overflow to discard” construction. |
+| Distilled Chaos / `DistilledChaos` | U | Queue **3→6** PlayTopCardAction instances. Each target proposal is captured during potion use, while constructing the queued action list and **before any queued card resolves**; these are not fresh independent live-target draws after prior cards resolve. Retain each action's downstream queue/hand/death behavior. No payment of an ordinary selected card cost. This is not a card-offer lottery. |
+| Liquid Memories / `LiquidMemories` | U | Retrieve **1→2** selected discard instances to hand, requesting turn cost 0 through the guarded setter. Mandatory count where available; auto-all when discard count≤requested. Each move requires hand size<10; otherwise that instance remains discarded. Not “overflow to discard” construction. |
 | Elixir / `ElixirPotion` | U | Choose any number including zero of hand instances to Exhaust; **unchanged by Bark** (potency 0). Uses actual Exhaust movement/hooks, not manual discard or deletion. |
 | Cultist Potion / `CultistPotion` | R | Self **1→2 Ritual**. Each player end-turn hook requests that much Strength; persists as a combat power, not an immediate-only Strength grant. |
 | Fruit Juice / `Fruit Juice` | R | Immediate **+5→+10 maxHP** request, then ordinary heal request of the added amount through increaseMaxHp. Special use gate §7; not eligible in limited generation. |
@@ -394,7 +413,11 @@ Selecting does not reroll the displayed candidates. Bark copies one selected
 identity twice; it does not generate six offers or two independent selections.
 
 Construction makes stat-equivalent copies, explicitly upgrades each for Master
-Reality when present, then sets turn cost 0. One child goes to hand if size<10,
+Reality when present, then calls `setCostForTurn(0)`. That setter changes an
+**existing nonnegative** turn cost to 0; an existing negative turn cost (including
+X-cost −1) is left unchanged. The call does not set a generic free-play flag.
+Thus the local request is not an unconditional zero-cost result. One child goes
+to hand if size<10,
 otherwise discard; two at size≤8 both to hand, at size9 one hand/one discard,
 at size10 both discard. These destinations are chosen before deferred add effects;
 route-specific downstream creation upgrades/Searing Blow and interruption remain §9.
@@ -437,7 +460,7 @@ pool or a victory reward. Merely acquiring a potion does not invoke onUsePotion.
 | Thorns | Requires nonnull other attacker and neither THORNS nor HP_LOSS type. **No positive-damage test occurs in this hook**, so it must not be replaced by Plated Armor's positive-HP-loss predicate. Retaliation is queued at top, not an immediate simultaneous “net damage” adjustment. |
 | Regeneration | End-turn power queues its RegenAction at top; action exits outside COMBAT, heals only a positive-HP target, then decrements/removes the player power. The isolated 15/55 totals assume enough qualifying turns, missing HP and no modifiers/interruption. |
 | Temporary stat loss | Flex/Speed first apply the positive stat, then a separate debuff power. Its end-turn hook applies the negative stat and schedules loss-power removal. Prevention/Artifact and intervening stat changes can distinguish this from restoring a saved pre-potion stat. |
-| Distilled Chaos / Duplication | Inner card effects retain their actual current-character source policies and captured energy/history/targets. A potion does not erase autoplay versus normal play, origin, payment or nested continuation identity. Multi-card death/cancellation is not settled merely by counting queued actions. |
+| Distilled Chaos / Duplication | Inner card effects retain their actual current-character source policies and captured energy/history/targets. Distilled Chaos captures target proposals during potion.use before queued cards resolve; downstream retargeting, death and cancellation remain action/scheduler-specific. A potion does not erase autoplay versus normal play, origin, payment or nested continuation identity. Multi-card death/cancellation is not settled merely by counting queued actions. |
 
 Mark of the Bloom is stated as an explicit source rescue/heal guard, **not** a
 newly eligible Act 1 acquisition; its later-act home event is not imported here.
@@ -455,7 +478,7 @@ representation must still be reviewed under the existing
 |---|---|
 | ECON-JOINT | Full observable joint/conditional masses after arbitrary history require the declared root-seed/input measure and exact seeded-shuffle pushforward/posterior for relic pools (and any mechanically relevant shared random dependencies). The finite float/integer laws above do not certify uniform remaining permutations or independently reset streams. Preserve conditional source transformations; do not substitute a universal random pool. |
 | ECON-TERMINAL | Whether each pending reward, maxHP/heal, repeat, obtain/key effect or nested shop child survives/cancels when death, escape, battle end and parent-screen transitions compete. Local call order is evidenced; complete transitive scheduling and durable Act2Ready are not inferred. No rollback/fake defeat/retry on administrative failure. |
-| POT-COPY | Complete route composition of Discovery stat-equivalent copies, Master Reality, Searing Blow repeat upgrades, downstream add-effect upgrades, X/turn-cost precedence, prior per-instance history and full-hand deferred placement under other simultaneous effects. Explicit local operations in §7.1 are not a universal final-upgrade/cost theorem. |
+| POT-COPY | Complete route composition of Discovery stat-equivalent copies, Master Reality, Searing Blow repeat upgrades, downstream add-effect upgrades, later X/turn-cost precedence, prior per-instance history and full-hand deferred placement under other simultaneous effects. The local guarded `setCostForTurn(0)` result and use-time Distilled Chaos target proposals are specified; neither is a universal final-upgrade/cost or downstream target/scheduler theorem. |
 | ECON-EXCEPTIONAL | Reachability and exact handling of exhausted/empty exceptional candidate lists, zero accepted proposal mass, unusual purge selection/death and numeric exhaustion beyond the supported local records. Do not invent a rarity retry, fallback relic/card, dropped child or gameplay cap from a helper/tool limit. |
 | POT-RESCUE | Universal death prevention across non-damage maxHP/removal paths and lethal multi-effect interactions remains unproved here. The precise Fairy damage callback is not a blanket rescue contract. |
 
@@ -483,6 +506,13 @@ Future discriminating acceptance cases (**not executed gameplay**):
    retaining an unmoved discard instance at capacity. Discovery copies are not new offers.
 9. Bark Regen isolated55 rather than30; Duplication charge consumption and its actual
    end-round decrement; Snecko whole-hand nonnegative base-cost0–3 versus negative/X.
+10. Attack Potion chooses Whirlwind and creates one/two copies with Bark: the
+    negative X turn cost remains negative; Liquid Memories retrieves an X-cost
+    discard instance with and without Bark and leaves that cost negative; include
+    an ordinary positive-cost retrieved/copied card control. These are unexecuted.
+11. Shovel Dig: one ordinary tier proposal and normal-selector relic offer, including
+    consumed-candidate/depletion behavior; contrast no chest hooks/gold/keys and no
+    automatic RestRoom card reward. Claim/skip/terminal composition remains separate.
 
 ## 10. Verification performed and handoff
 
