@@ -108,10 +108,12 @@ explicit negative-X exception, consistent with E19, not a second competing law.
 The independent whole-draft review at prior head
 `fb7e9f8ff3d9665e3120f0b772623d5125146576` found zero findings **as an accurate
 BLOCKED draft**, explicitly not a complete human-approval-ready mechanics/API
-specification. It does not clear this revised head. PR16's enemy records are now
-integrated within their reviewed scope. PR17/18/20 and other normative-content PRs
-remain unmerged/unaccepted; do not import them. Their existence or rosters do not
-close the remaining paired-card B07 or economic/content B08 rows.
+specification. It does not clear this revised head. PR16's enemy records are
+integrated within their reviewed scope. PR17/18/20 merged after this integration
+pass's source cutoff and are deliberately deferred: their documents/findings are
+not integrated here; await a separate main-routed pass. Other normative lanes also
+remain pending. Their existence or rosters do not close the remaining paired-card
+B07 or economic/content B08 rows.
 
 All owned-source findings use archive SHA256
 `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`.
@@ -1817,7 +1819,7 @@ normative author revision or result was polled or adopted.
 | A1C-B04 / 1 | E19 closes direct method/invoke families,eight legality overrides,important helper/receiver/X/lifecycle/rescue/commit distinctions. Still need every reachable transitive constructor/callback/power sorting/applyPowers/glow,mixed-origin cost/repeat/queue reaction and damage/Fatal/split/escape/terminal arbitration. No queueExtraCard direct caller remains unknown;no global total cost order or natural Reaper outcome is proved. | Reviewed execution integrated;shared CARD-* and D04,not repeat direct-inventory research |
 | A1C-B05 / 1 | E16 closes the local parent/child, desktop Omamori prevention, removal/Bowl/Match/empty-size and handoff trace in §8–9. Remaining: global admitted/current/pending and Peek/terminal arbitration; legal-history witnesses/exclusions for unguarded mandatory empties, zero-Cage phase and stale/mistyped record conditions; initialized event-list exhaustion; exact successor-ready payload/cutoff. No phantom prevented Show curse remains an ordinary-path proof obligation. | Reviewed continuation input integrated; execution/native/content interfaces and D08 remain |
 | A1C-B06 / 1 | E18 closes141 primary laws,13 actual shared consumers and10 local X action/payment laws (§4.1.2/appendixE),including corrected Skull/House/self-generated X. Remaining per-row X/H/G/P/V:all transitive payloads,mixed callback/cancel/terminal,source return/exceptional inventory reachability,joint history kernels and native visibility. Local R helper facts remain established,not proof of all combined states. | Reviewed relic input integrated;exact appendixE residual endpoints cross execution/continuation/content/native |
-| A1C-B07 / 2 | E20 integrates all25 local A0 identity/HP/setup/move/payload/conditional AI and bounded reaction/split/boss/preview/fixed-Status/factory records; local enemy primary gap is narrowed, not transitive combat closure. Still paired base/upgraded card numerical/state/copy/growth records and fourteen CARD-* per-route attribution; mixed callbacks/global interactions remain B04. Six other normative PRs are unmerged/unaccepted; old Silent remains uncleared, and consolidated SI-I1/SI-I2 does not approve it. | PR16 reviewed exact enemy head integrated; other content only after main exact clearance/merge directions; shared execution/relic/native interfaces remain |
+| A1C-B07 / 2 | E20 integrates all25 local A0 identity/HP/setup/move/payload/conditional AI and bounded reaction/split/boss/preview/fixed-Status/factory records; local enemy primary gap is narrowed, not transitive combat closure. Still paired base/upgraded card numerical/state/copy/growth records and fourteen CARD-* per-route attribution; mixed callbacks/global interactions remain B04. Six other normative inputs are not integrated here; PR17/18 merged after this pass's cutoff and are deferred. Existing Silent file remains unchanged; consolidated SI-I1/SI-I2 does not approve it. | PR16 reviewed exact enemy head integrated; PR17/18/20 require separate main-routed integration; other content only after exact clearance/merge directions; shared execution/relic/native interfaces remain |
 | A1C-B08 / 2 | E20 closes enemy/event-elite numbers only within scoped factories, event fights, burning choices, key offer/effect and nine Status sites. Still numeric Neow categories/exclusions/quantities; all25 event branches/eligibility/payment/risk; question-room odds; merchant price/rounding/restock/purge; card/gold/chest/relic/potion drop/phase/Bark/transform and standard-start records. E16 closes specific local return/payment/Bowl/belt laws, not full tables. | Main integrates future reviewed events-Neow/economy-potions and remaining relic/execution/native interfaces; enemy facts E20 integrated |
 | A1C-B09 / 2 | E17 fixes candidate signed64 rows/U counts/checked conversions,not full source numeric bounds audit. E18 actual addEnergy/addBlock999 applies at helper,not clipping requests or all counters. Still map every legal field to actual source integer/binary32/cap/overflow and encoding domain,including growing state. Pending normative findings are not accepted new primary tables. | D07 per-field domain/application audit with reviewed content,not admin cap substitution |
 | A1C-B10 / 2 | E17 supplies concrete ownership/registry,18 widths/enums/local refs/carrier,operation-specific reset/delivery/fault and exact ordered replay grammar/digest/six goldens. Still D:NC11/NC12 full semantic catalogs/public-field/site equality,all action tuples,private-core hidden/RNG encoding;NC04 exact joint domain bindings/canonical semantic scopes;NC10 profile/time payload,clock/wait extension;successor cutoff. No final descriptor/fingerprint/schema freeze or human D07 approval. | Reviewed native candidate integrated;final whole-spec semantic/schema/fidelity reconciliation,not missing generic byte framing |
@@ -1835,25 +1837,25 @@ static facts already obtained safely.
 ### 17.1 Pending normative-content interfaces — assignments, not evidence
 
 PR16's exact reviewed enemy document is integrated as E20 and is no longer pending.
-Six other normative PRs remain unmerged/unaccepted. PR17 Silent, PR18 Defect and
-PR20 event-Neow have main-reported exact-head bounded clearances but are not merged;
-their documents/findings are deliberately not read or integrated in this pass.
-Other pending lanes likewise remain unimported. The rows below identify dependencies,
-not evidence or claims that absent files are required hidden imports.
+PR17 Silent, PR18 Defect and PR20 event-Neow merged after this pass's source cutoff;
+this bounded update deliberately does not incorporate them. Their documents/findings
+were not read here. Await main's separate integration routing. Other normative lanes
+remain unimported. The rows below identify dependencies, not evidence or claims that
+absent files are required hidden imports.
 
 | Assigned owner | Sole public document under docs/research/ | Required public record gap |
 |---|---|---|
 | spire-gli.2.3.18 / red-neutral | 2026-10-19-act1-content-red-colorless.md | Ironclad/colorless/status/curse/dependent special/removable event kinds: paired values, target/payload/upgrade/copy/growth/rounding and exact shared-law residuals. |
-| spire-gli.2.3.19 / Silent (PR17 exact-head cleared, unmerged) | 2026-10-19-act1-content-silent.md | After normal merge/routing: all legal green basics/nonbasics/Shiv, paired numeric/conditional rules; Setup/Masterful Stab, discard/Poison/Retain/X/copy boundaries, no Silent start. Old file remains unchanged and uncleared until that integration. |
-| spire-gli.2.3.20 / Defect (PR18 exact-head cleared, unmerged) | 2026-10-19-act1-content-defect.md | After normal merge/routing: blue basics/nonbasics/special dependencies and orb/slot/Focus/Evoke/channel/resource laws; actual Ironclad generation context and growth/copy capture. |
+| spire-gli.2.3.19 / Silent (PR17 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-silent.md | Separate main-routed pass: all legal green basics/nonbasics/Shiv, paired numeric/conditional rules; Setup/Masterful Stab, discard/Poison/Retain/X/copy boundaries, no Silent start. Existing old file remains unchanged; this table does not itself clear its facts. |
+| spire-gli.2.3.20 / Defect (PR18 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-defect.md | Separate main-routed pass: blue basics/nonbasics/special dependencies and orb/slot/Focus/Evoke/channel/resource laws; actual Ironclad generation context and growth/copy capture. |
 | spire-gli.2.3.21 / Watcher | 2026-10-19-act1-content-watcher.md | Purple basics/nonbasics/options/specials; paired stance/Mantra/Retain/Scry/X/Expunger/Conjure/selection/copy and death residuals. |
-| spire-gli.2.3.23 / events-Neow (PR20 exact-head cleared, unmerged) | 2026-10-19-act1-content-event-neow.md | After normal merge/routing: Neow categories/drawback/exclusions/quantities, evolving question-room probabilities, all25 event numeric/eligibility/payment/risk/source records. |
+| spire-gli.2.3.23 / events-Neow (PR20 exact-head cleared, merged; not integrated here) | 2026-10-19-act1-content-event-neow.md | Separate main-routed pass: Neow categories/drawback/exclusions/quantities, evolving question-room probabilities, all25 event numeric/eligibility/payment/risk/source records. |
 | spire-gli.2.3.24 / economy-potions | 2026-10-19-act1-content-economy-potions.md | Merchant stock/price/rounding/retry/restock/purge; reward/chest/drop laws; all33 eligible potion base/Bark/phase/target/use/duration/Sozu/belt/commit records. |
 
 These interfaces fill B07/B08 only after exact main-directed integration. PR17/18/20
-clearance is not merger or authorization to import; await canonical merged bytes and
-main's route. Inventories/checkers do not prove completeness. Earlier card documents
-remain unchanged; do not infer their reviewed statuses from this table.
+clearance and merger are not integration into this spec; await the separate main route.
+Inventories/checkers do not prove completeness. Earlier card documents remain
+unchanged; do not infer their reviewed statuses from this table.
 
 ### 17.2 Three distinct gap classes for final readback
 
