@@ -194,6 +194,94 @@ all reject atomically. These are contract controls, not executed catalog tests.
 Literal rows and arithmetic limits remain unbound until the accepted receipt is
 routed; this defines the equality predicate without inventing that data.
 
+### 3.2.1 Accepted primary-red count consumer
+
+The immutable accepted numeric producer at commit `bebe5546f84f2d40ed629313faeb7d4d743f6df8` (document SHA-256 `59938a28966cb8617bb25b3ff8901fc45f4183db76d3bfefd34f39d3c427c437`) supplies exactly these 75 primary-red ID/count rows, R01–R22 and R24–R76. This is a finite consumer crosswalk, not the complete `StoredCardCatalogV1`, the legal Note source set, or a color restriction. `Iron Wave` R24 is the configured default `(upgraded=false,count=0)`.
+
+| Producer row | Literal source ID | Canonical identity key | Reconstruction count / upgrade law |
+|---|---|---|---|
+| R01 | `Bash` | `card.bash` | once: (false,0) or (true,1); default (false,0) |
+| R02 | `Defend_R` | `card.defend_red` | once: (false,0) or (true,1); default (false,0) |
+| R03 | `Strike_R` | `card.strike_red` | once: (false,0) or (true,1); default (false,0) |
+| R04 | `Anger` | `card.anger` | once: (false,0) or (true,1); default (false,0) |
+| R05 | `Armaments` | `card.armaments` | once: (false,0) or (true,1); default (false,0) |
+| R06 | `Body Slam` | `card.body_slam` | once: (false,0) or (true,1); default (false,0) |
+| R07 | `Clash` | `card.clash` | once: (false,0) or (true,1); default (false,0) |
+| R08 | `Cleave` | `card.cleave` | once: (false,0) or (true,1); default (false,0) |
+| R09 | `Clothesline` | `card.clothesline` | once: (false,0) or (true,1); default (false,0) |
+| R10 | `Flex` | `card.flex` | once: (false,0) or (true,1); default (false,0) |
+| R11 | `Havoc` | `card.havoc` | once: (false,0) or (true,1); default (false,0) |
+| R12 | `Headbutt` | `card.headbutt` | once: (false,0) or (true,1); default (false,0) |
+| R13 | `Heavy Blade` | `card.heavy_blade` | once: (false,0) or (true,1); default (false,0) |
+| R14 | `Perfected Strike` | `card.perfected_strike` | once: (false,0) or (true,1); default (false,0) |
+| R15 | `Pommel Strike` | `card.pommel_strike` | once: (false,0) or (true,1); default (false,0) |
+| R16 | `Shrug It Off` | `card.shrug_it_off` | once: (false,0) or (true,1); default (false,0) |
+| R17 | `Sword Boomerang` | `card.sword_boomerang` | once: (false,0) or (true,1); default (false,0) |
+| R18 | `Thunderclap` | `card.thunder_clap` | once: (false,0) or (true,1); default (false,0) |
+| R19 | `True Grit` | `card.true_grit` | once: (false,0) or (true,1); default (false,0) |
+| R20 | `Twin Strike` | `card.twin_strike` | once: (false,0) or (true,1); default (false,0) |
+| R21 | `Warcry` | `card.warcry` | once: (false,0) or (true,1); default (false,0) |
+| R22 | `Wild Strike` | `card.wild_strike` | once: (false,0) or (true,1); default (false,0) |
+| R24 | `Iron Wave` | `card.iron_wave` | once: (false,0) or (true,1); default (false,0) |
+| R25 | `Battle Trance` | `card.battle_trance` | once: (false,0) or (true,1); default (false,0) |
+| R26 | `Blood for Blood` | `card.blood_for_blood` | once: (false,0) or (true,1); default (false,0) |
+| R27 | `Bloodletting` | `card.bloodletting` | once: (false,0) or (true,1); default (false,0) |
+| R28 | `Burning Pact` | `card.burning_pact` | once: (false,0) or (true,1); default (false,0) |
+| R29 | `Carnage` | `card.carnage` | once: (false,0) or (true,1); default (false,0) |
+| R30 | `Combust` | `card.combust` | once: (false,0) or (true,1); default (false,0) |
+| R31 | `Dark Embrace` | `card.dark_embrace` | once: (false,0) or (true,1); default (false,0) |
+| R32 | `Disarm` | `card.disarm` | once: (false,0) or (true,1); default (false,0) |
+| R33 | `Dropkick` | `card.dropkick` | once: (false,0) or (true,1); default (false,0) |
+| R34 | `Dual Wield` | `card.dual_wield` | once: (false,0) or (true,1); default (false,0) |
+| R35 | `Entrench` | `card.entrench` | once: (false,0) or (true,1); default (false,0) |
+| R36 | `Evolve` | `card.evolve` | once: (false,0) or (true,1); default (false,0) |
+| R37 | `Feel No Pain` | `card.feel_no_pain` | once: (false,0) or (true,1); default (false,0) |
+| R38 | `Fire Breathing` | `card.fire_breathing` | once: (false,0) or (true,1); default (false,0) |
+| R39 | `Flame Barrier` | `card.flame_barrier` | once: (false,0) or (true,1); default (false,0) |
+| R40 | `Ghostly Armor` | `card.ghostly_armor` | once: (false,0) or (true,1); default (false,0) |
+| R41 | `Hemokinesis` | `card.hemokinesis` | once: (false,0) or (true,1); default (false,0) |
+| R42 | `Infernal Blade` | `card.infernal_blade` | once: (false,0) or (true,1); default (false,0) |
+| R43 | `Inflame` | `card.inflame` | once: (false,0) or (true,1); default (false,0) |
+| R44 | `Intimidate` | `card.intimidate` | once: (false,0) or (true,1); default (false,0) |
+| R45 | `Metallicize` | `card.metallicize` | once: (false,0) or (true,1); default (false,0) |
+| R46 | `Power Through` | `card.power_through` | once: (false,0) or (true,1); default (false,0) |
+| R47 | `Pummel` | `card.pummel` | once: (false,0) or (true,1); default (false,0) |
+| R48 | `Rage` | `card.rage` | once: (false,0) or (true,1); default (false,0) |
+| R49 | `Rampage` | `card.rampage` | once: (false,0) or (true,1); default (false,0) |
+| R50 | `Reckless Charge` | `card.reckless_charge` | once: (false,0) or (true,1); default (false,0) |
+| R51 | `Rupture` | `card.rupture` | once: (false,0) or (true,1); default (false,0) |
+| R52 | `Searing Blow` | `card.searing_blow` | repeatable: constructor may encode (false,n>=0); each upgrade increments count, sets true |
+| R53 | `Second Wind` | `card.second_wind` | once: (false,0) or (true,1); default (false,0) |
+| R54 | `Seeing Red` | `card.seeing_red` | once: (false,0) or (true,1); default (false,0) |
+| R55 | `Sentinel` | `card.sentinel` | once: (false,0) or (true,1); default (false,0) |
+| R56 | `Sever Soul` | `card.sever_soul` | once: (false,0) or (true,1); default (false,0) |
+| R57 | `Shockwave` | `card.shockwave` | once: (false,0) or (true,1); default (false,0) |
+| R58 | `Spot Weakness` | `card.spot_weakness` | once: (false,0) or (true,1); default (false,0) |
+| R59 | `Uppercut` | `card.uppercut` | once: (false,0) or (true,1); default (false,0) |
+| R60 | `Whirlwind` | `card.whirlwind` | once: (false,0) or (true,1); default (false,0) |
+| R61 | `Barricade` | `card.barricade` | once: (false,0) or (true,1); default (false,0) |
+| R62 | `Berserk` | `card.berserk` | once: (false,0) or (true,1); default (false,0) |
+| R63 | `Bludgeon` | `card.bludgeon` | once: (false,0) or (true,1); default (false,0) |
+| R64 | `Brutality` | `card.brutality` | once: (false,0) or (true,1); default (false,0) |
+| R65 | `Corruption` | `card.corruption` | once: (false,0) or (true,1); default (false,0) |
+| R66 | `Demon Form` | `card.demon_form` | once: (false,0) or (true,1); default (false,0) |
+| R67 | `Double Tap` | `card.double_tap` | once: (false,0) or (true,1); default (false,0) |
+| R68 | `Exhume` | `card.exhume` | once: (false,0) or (true,1); default (false,0) |
+| R69 | `Feed` | `card.feed` | once: (false,0) or (true,1); default (false,0) |
+| R70 | `Fiend Fire` | `card.fiend_fire` | once: (false,0) or (true,1); default (false,0) |
+| R71 | `Immolate` | `card.immolate` | once: (false,0) or (true,1); default (false,0) |
+| R72 | `Impervious` | `card.impervious` | once: (false,0) or (true,1); default (false,0) |
+| R73 | `Juggernaut` | `card.juggernaut` | once: (false,0) or (true,1); default (false,0) |
+| R74 | `Limit Break` | `card.limit_break` | once: (false,0) or (true,1); default (false,0) |
+| R75 | `Offering` | `card.offering` | once: (false,0) or (true,1); default (false,0) |
+| R76 | `Reaper` | `card.reaper` | once: (false,0) or (true,1); default (false,0) |
+
+For these rows the accepted source identity is the literal ID plus its canonical key; the display name and `+` suffix are never identity. Persist only `card_id` and `upgrade_count`, not `misc`. Reconstruction constructs the identified card then replays the count under its row law; the upgraded boolean is validated as a distinct source state, not substituted for count. Ordinary upgrades are one-shot and no-op after the first call. Searing Blow is the exception: constructor state can carry a nonnegative count while `upgraded=false`; each repeat applies the source progression (`4 + prior count` damage), increments count and sets the boolean. No universal cap is inferred; checked i32/resource failure is an administrative rejection, not a gameplay ceiling.
+
+The profile validator requires exact literal ID/key membership in the pinned producer rows and rejects unknown IDs rather than falling back to Iron Wave. This 75-row input only enables validation for its own supported slice. It does not suppress otherwise legal off-color Note states: all other colors, statuses, curses, generated cards, Note removal/source legality, other numeric namespaces, and equality of the complete legal stored-card set remain explicit integration obligations. Never treat this bounded join as complete I1/I3/native closure.
+
+Validation order retains the source consumer boundary: on Note exchange, incoming obtain/hooks and master-deck insertion/deck-change hooks happen before outgoing selection; outgoing selection uses the resulting live deck and applies purgeable/permanent and bottled-instance predicates. Do not reset imported cost, misc, or history merely because ID/count/display changes; `misc` is not part of persisted Note payload. No staged export/history API is introduced. Unrelated relic depletion and the existing Act2Ready successor cutoff are unchanged by this card-count consumer.
+
 ### 3.3 In-run Note ordering is unaffected
 
 Source Note Take calls the incoming card's obtain hooks, inserts it into the
