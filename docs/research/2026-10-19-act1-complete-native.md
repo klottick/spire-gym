@@ -295,7 +295,7 @@ This document does not report gameplay acceptance, product build/tests, original
 
 <!-- BEGIN GENERATED NATIVE GRAMMAR APPENDIX -->
 
-## Appendix A — corrected complete consumer wire grammar (candidate 9)
+## Appendix A — corrected complete consumer wire grammar (candidate 10)
 
 **Normative correction precedence.** This appendix supersedes conflicting earlier candidate-2 statements in §§2, 4, 6.2 and 10 for RowRef, child types, enum codes, and descriptor bytes. It is a consumer-owned finite representation grammar, not source-value proof. Exact producer-supplied semantic key sets, legal member domains, and site values remain open at the four join keys in §11. A source value can populate this grammar only after that join; an open key set is not an unbounded payload type.
 
@@ -488,10 +488,12 @@ Primitive widths are those in §2. `HashHex64` is exactly 64 lowercase ASCII hex
 | `ReplayFileV8` | `magic:AsciiKey`, `version:U16`, `header:ReplayHeaderV8`, `records:Vec<DecisionRecord>`, `end_status:ReplayEndStatus`, `diagnostic:Option<ReplayDiagnostic>` |
 | `CourierShopState` | `next_visit_id:U64`, `live_visit:Option<CourierVisitState>`, `retired_visits:Vec<CourierVisitState>` |
 | `CourierVisitState` | `visit_id:U64`, `act:U8`, `next_purchase_ordinal:U64`, `next_replacement_ordinal:U64`, `slots:Vec<CourierSlotState>`, `purchases:Vec<CourierPurchaseState>`, `active_replacement:Option<CourierReplacementState>` |
-| `CourierSlotState` | `stable_slot_id:AsciiKey`, `initial_kind:CourierSlotKind`, `current_offer:Option<Handle>`, `status:CourierSlotStatus` |
+| `CourierSlotState` | `stable_slot_id:AsciiKey`, `initial_kind:Enum<CourierSlotKindV10>`, `current_offer:Option<Handle>`, `status:Enum<CourierSlotStatusV10>` |
 | `CourierPurchaseState` | `purchase_ordinal:U64`, `slot_id:AsciiKey`, `purchased_offer:Handle`, `purchase_commit:CommitKey`, `obtain_queue:Vec<Handle>`, `payment:PaymentState`, `replacement_ordinal:Option<U64>`, `settled_offer:Option<Handle>` |
-| `CourierReplacementState` | `replacement_ordinal:U64`, `purchase_ordinal:U64`, `slot_id:AsciiKey`, `requested_type:Option<CardType>`, `attempt_count:U64`, `proposal_branch:CourierProposalBranch`, `committed_sites:Vec<CourierSiteCommit>`, `candidate_prefix:Vec<OwnerKey>`, `phase:CourierReplacementPhase` |
+| `CourierReplacementState` | `replacement_ordinal:U64`, `purchase_ordinal:U64`, `slot_id:AsciiKey`, `requested_type:Option<CardType>`, `attempt_count:U64`, `proposal_branch:Enum<CourierProposalBranchV10>`, `committed_sites:Vec<CourierSiteCommit>`, `candidate_prefix:Vec<OwnerKey>`, `phase:Enum<CourierReplacementPhaseV10>` |
 | `CourierSiteCommit` | `site_id:AsciiKey`, `invocation:U64`, `next_word:U128`, `committed_words:Vec<U64>` |
+| `CoreSchemaDescriptorV10` | `identity:AsciiKey`, `codebooks:Vec<CoreEnumCodebookV1>` |
+| `CoreEnumCodebookV1` | `name:AsciiKey`, `version:U16`, `wire:AsciiKey`, `members:Vec<DescriptorEnumMember>` |
 
 | Tagged union | Exact variants (`tag → payload type`; wire U16 codes derive by the sorted-tag rule above) |
 |---|---|
@@ -1207,6 +1209,18 @@ Every pair below is `member=U32 wire code`; values are frozen consumer assignmen
 #### `ContentNamespace`
 `Card=1`; `Relic=2`; `Potion=3`; `Enemy=4`; `Encounter=5`; `Event=6`; `Power=7`; `Intent=8`; `Orb=9`; `SourceOption=10`; `RoomObject=11`; `PublicFact=12`; `EffectSite=13`
 
+#### `CourierProposalBranchV10` (private-core codebook version 1)
+`Colored=1`; `Colorless=2`
+
+#### `CourierReplacementPhaseV10` (private-core codebook version 1)
+`Drawing=2`; `Faulted=6`; `Previewing=3`; `Pricing=4`; `Reserved=1`; `Settled=5`
+
+#### `CourierSlotKindV10` (private-core codebook version 1)
+`ColoredAttack=1`; `ColoredPower=3`; `ColoredSkill=2`; `ColorlessRare=5`; `ColorlessUncommon=4`
+
+#### `CourierSlotStatusV10` (private-core codebook version 1)
+`Occupied=1`; `Removed=2`
+
 #### `ContinuationPhaseKind`
 `Creation=1`; `Neow=2`; `Map=3`; `Room=4`; `Combat=5`; `Decision=6`; `Selection=7`; `Reward=8`; `Event=9`; `Shop=10`; `Campfire=11`; `Chest=12`; `Handoff=13`; `Terminal=14`
 
@@ -1476,7 +1490,7 @@ closure remain separate pending joins.
 
 The descriptor is the exact `Descriptor` record above; its object keys are exactly its declared field names, recursively. Unknown or missing fields, duplicate JSON keys, duplicate IDs/names/codes, invalid nested record fields, unknown enum codes/tags, and out-of-order declared arrays reject. JSON object keys are sorted by unsigned ASCII byte order. Arrays are never reordered by the serializer: fixed rows follow the schema list, tables by ascending table ID, each table/fixed-row columns by contiguous ordinal from zero, codebooks by name bytes and members by name bytes, references/visibility by field bytes, ordering by table bytes, actions/parameters by numeric code, compatibility and component hashes by name bytes. Arrays whose keys repeat are invalid. The serializer emits no whitespace; only null, booleans, signed-i64 integers, strings, arrays, and objects are permitted; floats and integers outside `[-2^63,2^63-1]` reject. Integer form is shortest base-10, no plus, leading zero, or negative zero. Strings are Unicode scalar sequences encoded as UTF-8; quote and backslash are escaped as `\"` and `\\`; every U+0000..U+001F is `\u00xx` with lowercase hex; every other scalar is emitted directly as UTF-8, with no normalization. Parser input is accepted only if strict UTF-8 JSON parses without duplicate keys and byte-for-byte reserialization equals the original bytes. This descriptor/manifest JSON grammar is distinct from the action-JSON grammar in §10; action JSON rules do not implicitly define descriptor bytes.
 
-A production descriptor additionally requires fixed rows exactly `context` (12 ordered columns) then `player` (16); table IDs exactly 1..18 with widths `[7,3,9,12,4,4,8,5,5,9,7,5,6,8,7,8,6,5]` (118 table columns total); one visibility record for every fully qualified fixed/table carrier field; every `ActionKind` and `ParameterKind` code/name pair; the exact complete `enums` codebook set with wire width 4 and exact member/code pairs in this appendix; the exact `union/<name>` codebook set with wire width 2 and lexicographically derived tag/code pairs; and exactly 10 component hashes. An empty descriptor is only a serializer test vector and fails production-descriptor validation. This shape gate does not close any producer-supplied member/domain/visibility/equality join.
+A production observation descriptor additionally requires fixed rows exactly `context` (12 ordered columns) then `player` (16); table IDs exactly 1..18 with widths `[7,3,9,12,4,4,8,5,5,9,7,5,6,8,7,8,6,5]` (118 table columns total); one visibility record for every fully qualified fixed/table carrier field; every `ActionKind` and `ParameterKind` code/name pair; the exact complete observation `enums` codebook set with wire width 4 and exact member/code pairs in this appendix; the exact `union/<name>` codebook set with wire width 2 and lexicographically derived tag/code pairs; and exactly 10 component hashes. Private-core codebooks are separately committed by the named versioned core schema descriptor and do not alter observation wire identity. An empty descriptor is only a serializer test vector and fails production-descriptor validation. This shape gate does not close any producer-supplied member/domain/visibility/equality join.
 
 Component bytes are themselves canonical encodings of their versioned closed component records. For component `(name,schema_id,bytes)`, `component_hash = SHA256(ASCII("spire-lab-act1-descriptor-component-v1") || 00 || U64BE(len(UTF8(schema_id))) || UTF8(schema_id) || U64BE(len(bytes)) || bytes)`. Descriptor `component_hashes` contains the exact lowercase 64-hex digest and schema ID for each component, sorted by ASCII name; the set is exactly `{observation, action, content-site, visibility, numeric-fields, native-rng, private-core, replay, task, delivery}` once all inputs close. While any import is unresolved, no final descriptor, component, or composed fingerprint is claimed; a structural test vector below is not a production descriptor.
 
@@ -1488,7 +1502,7 @@ For canonical descriptor byte string `D`, `descriptor_preimage = ASCII("spire-la
 - String-escape vector for value containing quote, backslash, LF, TAB, slash, and `é` has canonical bytes `7b2273223a225c225c5c5c75303030615c75303030392fc3a9227d`; controls use lowercase `\u00xx`, while slash and non-ASCII scalar bytes remain literal.
 - Wire-code checks: `SiteNamespace.Run=6`, `RoomObjectKind.Chest=4`, `ActionKind.SourceOption=21`; `CommittedEffect.Card` is the lexicographic tag code shown by its `union/CommittedEffect` codebook.
 - Component hash check: schema ID `schema.v1` and component bytes `{}` yield `0fbaea9ccdb4ed8fbf9b55b411b2b9f9e4218988a4c79644d5a90eb9a83f3320`.
-- Empty structural candidate-7 observation descriptor vector uses core candidate 9 / replay 7 schema references in the corrected v12 vector; its canonical bytes therefore differ from the historical candidate-8/replay-6 vector. It is only a serializer vector: an empty table set is not a valid production Act 1 observation descriptor.
+- Empty structural candidate-7 observation descriptor vector now uses core candidate 10 / replay 8 schema references after v13-v14; its canonical bytes therefore differ from the historical candidate-8/replay-6 and v12 candidate-9/replay-7 vectors. It is only a serializer vector: an empty table set is not a valid production Act 1 observation descriptor.
 - RowRef vectors: absent `(0,-1)`; first row `(1,0)` with count 1; last representable slot row `(18,I64_MAX-1)` with count I64_MAX; reject `(0,-2)`, `(1,-1)`, unknown table 19, row equal to count, and segment count I64_MAX+1.
 
 ### A.6 Recursive grammar validation and boundary
@@ -1848,9 +1862,9 @@ Canonical bytes follow the existing `Vec<T>` and record grammar: U64 element cou
 
 ### Courier shop consumer binding (v13)
 
-This section consumes the accepted Courier registry amendment (four exact children and lifecycle law); it does not restate or broaden its source proof. The registry's authoritative JSON spells the scope member `shop_visit_id` (not the prose shorthand `shop_visit`). For colored replacements the exact key is `(partition,run_id,role_id=run.shop,site_id,act,shop_visit_id,successful_purchase_ordinal,replacement_ordinal,stable_slot_id,requested_type)`; for colorless replacements it is `(partition,run_id,role_id=run.shop,site_id,act,shop_visit_id,successful_purchase_ordinal,replacement_ordinal,stable_slot_id)`. The four site IDs are exactly `shop.restock.courier_card.colored_rarity`, `shop.restock.courier_card.colored_identity`, `shop.restock.courier_card.colorless_rarity`, and `shop.restock.courier_card.colorless_identity`. These are literal registry additions, not wildcard expansions. They use `RunState.rng.site_invocations[]` and `streams[]:NativeSiteState/NativeRngState`; the scope components are canonical ASCII decimal for checked integers and exact stable-slot/type literals. Rarity and identity retain distinct site rows/cursors. They do not alias initial `card.shop.*`, generic `shop.restock`, rewards, prices, sale/purge, or relic/potion restock. Existing generic restock remains for other callers.
+This v14 corrective revision consumes the accepted Courier registry amendment (four exact children and lifecycle law); it does not restate or broaden its source proof. The registry's authoritative JSON spells the scope member `shop_visit_id` (not the prose shorthand `shop_visit`). For colored replacements the exact key is `(partition,run_id,role_id=run.shop,site_id,act,shop_visit_id,successful_purchase_ordinal,replacement_ordinal,stable_slot_id,requested_type)`; for colorless replacements it is `(partition,run_id,role_id=run.shop,site_id,act,shop_visit_id,successful_purchase_ordinal,replacement_ordinal,stable_slot_id)`. The four site IDs are exactly `shop.restock.courier_card.colored_rarity`, `shop.restock.courier_card.colored_identity`, `shop.restock.courier_card.colorless_rarity`, and `shop.restock.courier_card.colorless_identity`. These are literal registry additions, not wildcard expansions. They use `RunState.rng.site_invocations[]` and `streams[]:NativeSiteState/NativeRngState`; the scope components are canonical ASCII decimal for checked integers and exact stable-slot/type literals. Rarity and identity retain distinct site rows/cursors. They do not alias initial `card.shop.*`, generic `shop.restock`, rewards, prices, sale/purge, or relic/potion restock. Existing generic restock remains for other callers.
 
-`EconomyState.courier` is the sole owner of run-local Courier visit lifecycle. `next_visit_id` starts at 0; `U64::MAX` is an exhausted sentinel and is never allocated. On a new ShopRoom entry, preflight the counter before stock or entropy, then atomically set the live visit ID to its prior value and increment the counter. Reopen/UI close/child suspension resumes the same live record; leaving the room moves it unchanged to `retired_visits` and clears `live_visit`. Only a later new ShopRoom entry allocates the next ID. Retired visits are retained through the run for equality/replay; reset creates a new empty CourierShopState. A live record has unique stable slot identities, initially `colored.attack.0`, `.attack.1`, `.skill.0`, `.skill.1`, `.power.0`, `colorless.uncommon.0`, `colorless.rare.0`. Resolve the clicked current row to its stable ID before mutation. Non-Courier deletion marks/removes only that slot without renumbering survivors; Courier replacement retains the same slot ID. No list index or card identity is a slot key.
+`EconomyState.courier` is the sole owner of run-local Courier visit lifecycle. `next_visit_id` starts at 0; `U64::MAX` is an exhausted sentinel and is never allocated. On a new ShopRoom entry, preflight the counter before stock or entropy, then atomically set the live visit ID to its prior value and increment the counter. Reopen/UI close/child suspension resumes the same live record; leaving the room moves it unchanged to `retired_visits` and clears `live_visit`. Only a later new ShopRoom entry allocates the next ID. Retired visits are retained through the run for equality/replay; reset creates a new empty CourierShopState. A live record has unique stable slot identities, initially `colored.attack.0`, `.attack.1`, `.skill.0`, `.skill.1`, `.power.0`, `colorless.uncommon.0`, `colorless.rare.0`. Resolve the clicked current row to its stable ID before mutation. `CourierVisitState.slots` is the retained identity registry in initial order: non-Courier deletion marks that record `Removed` and clears its current offer, while shop stock no longer exposes the removed offer; do not erase or renumber the registry tombstone. Courier replacement retains the same stable slot ID and sets its current offer to the distinct replacement handle. No list index or card identity is a slot key.
 
 Successful card purchases use a separate zero-based visit-local `next_purchase_ordinal`, including non-Courier card purchases. Insufficient affordability changes no ordinal, purchase, stock, or RNG state. On an affordable card branch, preflight purchase capacity; evaluate live Courier ownership and whether the purchased card is Courier-eligible, then preflight replacement capacity only if replacement will run. Both preflights precede purchase record, obtain queue, and payment. Commit the purchase ordinal exactly once at the purchase-record checkpoint. The source-ordered `CourierPurchaseState` then owns the purchased slot/offer, purchase commit, queued obtain handles, payment/debit checkpoint, optional replacement ordinal, and eventual settled replacement offer. Exact commit order: validate affordability; purchase record/ordinal; queue obtain; debit displayed price; allocate replacement ordinal if applicable; draw/commit site prefix; preview hooks; set replacement price; replace the same slot; expose settled offer. The sold offer remains the purchase record's object and cannot be bought again; the replacement is a distinct unacquired offer available only to a later purchase.
 
@@ -1858,6 +1872,63 @@ Replacement ordinal is independently zero-based per visit and allocated once at 
 
 Invalid request, unaffordable purchase, and any preflight exhaustion fault before irreversible effects are state/RNG neutral. If an administrative fault follows payment or a committed random proposal prefix, retain purchase/queue/payment/allocated ordinal and exactly the consumed site-word/candidate prefix; do not refund, roll back, substitute, reuse an ordinal or fabricate defeat. Record the actual fault through existing `PoolFault`/`ApiError` and quiesce. Hidden visit IDs, ordinals, slots, candidates, attempts and cursors never enter public observation; only legally revealed settled offers and prices do. Core equality includes live and retired Courier records plus RNG rows. From-start replay reconstructs the semantic purchase/slot lifecycle and compares these bytes; no arbitrary snapshot restore is added.
 
-The actual record grammar change appends `courier:CourierShopState` to `EconomyState` and introduces the typed records in Appendix A. The exact finite enum domains are `CourierSlotKind={ColoredAttack,ColoredSkill,ColoredPower,ColorlessUncommon,ColorlessRare}`, `CourierSlotStatus={Occupied,Removed}`, `CourierProposalBranch={Colored,Colorless}`, and `CourierReplacementPhase={Reserved,Drawing,Previewing,Pricing,Settled,Faulted}`. Site commit rows are ordered by the four-site registry order and unique by site ID; committed words are the consumed prefix for that site invocation, not a copied RNG authority, and must agree exactly with `RunState.rng.streams[].next_word` and `RunState.rng.rejections`. Candidate prefix is private explanatory state and never overrides the pool/offer owner.
+The actual record grammar change appends `courier:CourierShopState` to `EconomyState` and introduces the typed records in Appendix A. Each scalar enum field is declared `Enum<K>` and uses its explicitly versioned `K` codebook; no source/compiler ordinal or union-tag sorting is implied. The exact field enum types and assigned codes are in §A.4. These four codebooks are part of the candidate10 private-core schema descriptor (`CoreSchemaDescriptorV10`) included in `core_descriptor_hash`, not the unchanged observation-wire enum table. Candidate10 is still unaccepted at the prior public head; these assignments correct that candidate before independent acceptance. No accepted/frozen v10 schema is reinterpreted; after acceptance the schema identity and assignments are immutable. Site commit rows are ordered by the four-site registry order and unique by site ID; committed words are the consumed prefix for that site invocation, not a copied RNG authority, and must agree exactly with `RunState.rng.streams[].next_word` and `RunState.rng.rejections`. Candidate prefix is private explanatory state and never overrides the pool/offer owner.
 
-Because this changes canonical core grammar, the current root advances to `CoreStateV10=(version=10,run:RunState,private_catalog_revision:Hash32)` / `spire-lab-act1-core-candidate10`; canonical prefix is `A1CS || U16_BE(10) || SCHEMA("spire-lab-act1-core-candidate10",core_descriptor_hash)`. Replay advances to `ReplayHeaderV8`, `ReplayFileV8` / `spire-lab-act1-replay-v8`, with mandatory core reference to candidate10. The four literal children amend the candidate content/site registry at this revision; the accepted RNG contract ID and draw-site registry ID are not silently rewritten, and the component/schema reference that commits the expanded candidate registry must change explicitly. No final registry/component identity or hash is invented here. The eight existing replay schema-ref positions and other header fields remain; their core/replay refs and affected component/composed descriptors necessarily change. Old core-v9/replay-v7 data rejects rather than being reinterpreted. Descriptor preimage domain remains `spire-lab-act1-descriptor-v7`; observation/action wire identities and standalone combat-v1 pins remain unchanged. No final component/descriptor/composed hash is claimed. This is a bounded consumer join only; exact downstream EXEC IDs, relic mechanics/reset and other joins, final fingerprints, and broad native closure remain open.
+The following machine-readable records are normative and are parsed by the private semantic validator. They bind the literal Courier sites/scopes and owner relations to the Appendix A records; they do not replace those typed records or the accepted producer registry. Codebook member arrays use canonical member-name byte order; the explicit integer is the wire code. Unknown/zero/duplicate enum codes and dangling references reject.
+
+<!-- core-codebooks-v10:start -->
+{
+  "schema": "core-codebooks-v10",
+  "version": 1,
+  "core_schema": "spire-lab-act1-core-candidate10",
+  "wire": "U32_BE",
+  "codebooks": [
+    {"name":"CourierProposalBranchV10","version":1,"wire":"U32_BE","members":[{"name":"Colored","code":1},{"name":"Colorless","code":2}]},
+    {"name":"CourierReplacementPhaseV10","version":1,"wire":"U32_BE","members":[{"name":"Drawing","code":2},{"name":"Faulted","code":6},{"name":"Previewing","code":3},{"name":"Pricing","code":4},{"name":"Reserved","code":1},{"name":"Settled","code":5}]},
+    {"name":"CourierSlotKindV10","version":1,"wire":"U32_BE","members":[{"name":"ColoredAttack","code":1},{"name":"ColoredPower","code":3},{"name":"ColoredSkill","code":2},{"name":"ColorlessRare","code":5},{"name":"ColorlessUncommon","code":4}]},
+    {"name":"CourierSlotStatusV10","version":1,"wire":"U32_BE","members":[{"name":"Occupied","code":1},{"name":"Removed","code":2}]}
+  ],
+  "descriptor_binding": {"owner":"private-core","record":"CoreSchemaDescriptorV10","field":"codebooks","hash_input":"core_descriptor_hash"}
+}
+<!-- core-codebooks-v10:end -->
+
+<!-- courier-consumer-map-v1:start -->
+{
+  "schema": "courier-consumer-map-v1",
+  "version": 1,
+  "core_schema": "spire-lab-act1-core-candidate10",
+  "replay_schema": "spire-lab-act1-replay-v8",
+  "required_records": ["RunState","RunRngState","EconomyState","CourierShopState","CourierVisitState","CourierSlotState","CourierPurchaseState","CourierReplacementState","CourierSiteCommit","NativeSiteState","NativeRngState"],
+  "consumer_field_order": {
+    "EconomyState":["gold_owner","shop_visit","stock_generation","shop_stock","prices","purge_price","purchased_services","restock_phase","card_pool","relic_pool","potion_pool","reward_pool","pity","consumed_ids","history","courier"],
+    "CourierShopState":["next_visit_id","live_visit","retired_visits"],
+    "CourierVisitState":["visit_id","act","next_purchase_ordinal","next_replacement_ordinal","slots","purchases","active_replacement"],
+    "CourierSlotState":["stable_slot_id","initial_kind","current_offer","status"],
+    "CourierPurchaseState":["purchase_ordinal","slot_id","purchased_offer","purchase_commit","obtain_queue","payment","replacement_ordinal","settled_offer"],
+    "CourierReplacementState":["replacement_ordinal","purchase_ordinal","slot_id","requested_type","attempt_count","proposal_branch","committed_sites","candidate_prefix","phase"],
+    "CourierSiteCommit":["site_id","invocation","next_word","committed_words"]
+  },
+  "sites": [
+    {"id":"shop.restock.courier_card.colored_rarity","role":"run.shop","scope":["act","shop_visit_id","successful_purchase_ordinal","replacement_ordinal","stable_slot_id","requested_type"],"slot_kind":"colored"},
+    {"id":"shop.restock.courier_card.colored_identity","role":"run.shop","scope":["act","shop_visit_id","successful_purchase_ordinal","replacement_ordinal","stable_slot_id","requested_type"],"slot_kind":"colored"},
+    {"id":"shop.restock.courier_card.colorless_rarity","role":"run.shop","scope":["act","shop_visit_id","successful_purchase_ordinal","replacement_ordinal","stable_slot_id"],"slot_kind":"colorless"},
+    {"id":"shop.restock.courier_card.colorless_identity","role":"run.shop","scope":["act","shop_visit_id","successful_purchase_ordinal","replacement_ordinal","stable_slot_id"],"slot_kind":"colorless"}
+  ],
+  "owner_paths": {
+    "visit_counter":"EconomyState.courier.next_visit_id",
+    "live_visit":"EconomyState.courier.live_visit",
+    "retired_visits":"EconomyState.courier.retired_visits",
+    "purchase_counter":"CourierVisitState.next_purchase_ordinal",
+    "replacement_counter":"CourierVisitState.next_replacement_ordinal",
+    "slots":"CourierVisitState.slots",
+    "purchases":"CourierVisitState.purchases",
+    "active_replacement":"CourierVisitState.active_replacement",
+    "site_prefix":"CourierReplacementState.committed_sites",
+    "rng_streams":"RunState.rng.streams",
+    "rng_sites":"RunState.rng.site_invocations"
+  },
+  "constraints": {"counter_width":"U64","exhausted_sentinel":"MAX_NOT_ALLOCATED","zero_based_ordinals":true,"site_order":"sites_array","slot_namespace":["visit_id","stable_slot_id"],"hidden":true,"from_start_replay":true,"initial_slots":["colored.attack.0","colored.attack.1","colored.skill.0","colored.skill.1","colored.power.0","colorless.uncommon.0","colorless.rare.0"],"separate_initial_sites":["card.shop.attack","card.shop.skill","card.shop.power","card.shop.colorless_uncommon","card.shop.colorless_rare"],"distinct_non_courier_sites":["shop.restock","shop.price","shop.discount","card.reward.identity"]}
+}
+<!-- courier-consumer-map-v1:end -->
+
+Because this changes canonical core grammar, the current root advances to `CoreStateV10=(version=10,run:RunState,private_catalog_revision:Hash32)` / `spire-lab-act1-core-candidate10`; canonical prefix is `A1CS || U16_BE(10) || SCHEMA("spire-lab-act1-core-candidate10",core_descriptor_hash)`. `CoreSchemaDescriptorV10=(identity:AsciiKey,codebooks:Vec<CoreEnumCodebookV1>)` contains the exact four v10 Courier codebooks above, sorted by codebook name bytes; each member list is sorted by member-name bytes, with unique names and nonzero unique U32 codes. Each `CoreEnumCodebookV1` carries its explicit version 1 and `U32_BE` wire declaration. `core_descriptor_hash` includes this descriptor, so changing any code/member/version requires a new core schema identity. Replay advances to `ReplayHeaderV8`, `ReplayFileV8` / `spire-lab-act1-replay-v8`, with mandatory core reference to candidate10. The four literal children amend the candidate content/site registry at this revision; the accepted RNG contract ID and draw-site registry ID are not silently rewritten, and the component/schema reference that commits the expanded candidate registry must change explicitly. No final registry/component identity or hash is invented here. The eight existing replay schema-ref positions and other header fields remain; their core/replay refs and affected component/composed descriptors necessarily change. Old core-v9/replay-v7 data rejects rather than being reinterpreted. Descriptor preimage domain remains `spire-lab-act1-descriptor-v7`; observation/action wire identities and standalone combat-v1 pins remain unchanged. No final component/descriptor/composed hash is claimed. This is a bounded consumer join only; exact downstream EXEC IDs, relic mechanics/reset and other joins, final fingerprints, and broad native closure remain open.
