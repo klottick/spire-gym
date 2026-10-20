@@ -103,6 +103,121 @@ No first-unseen output aliases the Act1 `run.setup/setup.boss_order`: both the l
 
 **Registry identity and status.** This is a bounded amendment to the still-unimplemented candidate `spire-lab-act1-draw-site-registry-v1` under the unchanged `spire-lab-act1-rng-hmac-sha256-v1`. It completes an omitted caller binding before that candidate registry is frozen, following the candidate-amendment treatment in §2.2. It changes neither framing, primitive word sequence, nor standalone combat-v1 identity/pins. It does not retroactively rewrite a deployed/frozen identity; any later change after acceptance/freeze to registry semantics, accepted framing, or word sequence requires the new-run-RNG-ID rule in §1.1. These rows remain proposed pending independent exact-head review and main acceptance; they are not runtime bindings before then.
 
+The following structured record is the **normative field-level contract** for this amendment. The explanatory prose/table below it restates the caller rationale; it does not override the record. If they conflict, the record is authoritative and the conflict is an amendment defect. The record deliberately carries deterministic visit/purchase/replacement lifecycle, not just draw-site names.
+
+<!-- courier-registry-v2:start -->
+```json
+{
+  "schema": "courier-card-sites-v2",
+  "registry_id": "spire-lab-act1-draw-site-registry-v1",
+  "rng_contract_id": "spire-lab-act1-rng-hmac-sha256-v1",
+  "accepted_source": {
+    "head": "f0e43d3db2e19bcb10d474d36e32f75dbefc552d",
+    "document_sha256": "359e79cc4dcf325f0fdccb582a4554672ea6c13ced7b82b700f72e1535b0712f"
+  },
+  "sites": {
+    "colored": {
+      "role": "run.shop",
+      "site_ids": ["shop.restock.courier_card.colored_rarity", "shop.restock.courier_card.colored_identity"],
+      "scope": ["act", "shop_visit_id", "successful_purchase_ordinal", "replacement_ordinal", "stable_slot_id", "requested_type"],
+      "requested_types": ["ATTACK", "SKILL", "POWER"],
+      "initial_or_reward_aliases": [],
+      "rejection": {
+        "reject_only": ["COLORLESS"],
+        "retry": "rarity_then_identity_pair",
+        "exclude_purchased_or_other_offers": false,
+        "power_fallback": ["COMMON_TO_UNCOMMON", "UNCOMMON_TO_RARE"]
+      },
+      "reward_pity": false
+    },
+    "colorless": {
+      "role": "run.shop",
+      "site_ids": ["shop.restock.courier_card.colorless_rarity", "shop.restock.courier_card.colorless_identity"],
+      "scope": ["act", "shop_visit_id", "successful_purchase_ordinal", "replacement_ordinal", "stable_slot_id"],
+      "initial_or_reward_aliases": [],
+      "threshold": {
+        "source_expression": "merchantRng.random() < colorlessRareChance",
+        "encoding": "accepted_binary32_0.3f",
+        "grid_bits": 24,
+        "strict_true_count": 5033165,
+        "true": "RARE",
+        "false": "UNCOMMON"
+      },
+      "identity_support": {"Rare": 15, "Uncommon": 20},
+      "singleton_identity_consumes_word": false,
+      "duplicate_exclusion": false,
+      "reward_pity": false
+    }
+  },
+  "shop_visit_lifecycle": {
+    "owner": "run.shop_state",
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "allocate": "new_shop_room_entry_before_stock_or_entropy",
+    "commit": "atomically_store_visit_id_and_next_counter_before_stock_generation",
+    "reopen": "resume_same_live_visit_id_and_counters",
+    "new_visit": "only_new_shop_room_entry_allocates_next_id",
+    "leave": "retire_live_visit_but_retain_run_level_next_counter_and_history; later_room_entry_allocates_new_id",
+    "persist": ["child_suspension", "nested_choice", "ui_close_while_room_live", "run_record_for_from_start_replay"],
+    "exhaustion": "administrative_fault_before_room_stock_or_rng; no_wrap_or_reuse",
+    "hidden": true
+  },
+  "successful_purchase_lifecycle": {
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "ordinal": "zero_based",
+    "preflight": "after_affordability_and_before_purchase_record_obtain_queue_or_payment",
+    "allocate_and_commit": "at_purchase_record_checkpoint_once_for_each_successful_card_purchase",
+    "includes": ["Courier_card", "non_Courier_card"],
+    "courier_eligibility": "evaluate_current_Courier_ownership_after_affordability_before_counter_preflight; reserve_replacement_capacity_only_if_source_branch_runs",
+    "unaffordable": "no_ordinal_increment_and_no_purchase_or_replacement_entropy",
+    "persist": ["child_suspension", "nested_choice", "ui_close_while_room_live", "visit_state", "replay_record"],
+    "exhaustion": "administrative_fault_before_irreversible_purchase_effect; no_wrap_or_reuse",
+    "post_commit_fault": "preserve_purchase_ordinal_and_committed_effect_prefix; quiesce_without_rollback_or_refund"
+  },
+  "replacement_lifecycle": {
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "ordinal": "zero_based_per_visit",
+    "preflight": "after_purchase_validation_but_before_purchase_record_obtain_queue_or_payment_if_Courier_card_replacement_will_run",
+    "allocate_and_commit": "once_at_replacement_invocation_start_after_payment; never reuse after fault",
+    "attempt": "private_per_invocation_diagnostic_counter_not_scope_or_invocation",
+    "invocation": "replacement_ordinal",
+    "stream_cursor": "independent_next_word_per_role_site_scope_key",
+    "non_Courier_purchase": "increments_purchase_only_not_replacement",
+    "exhaustion": "administrative_fault_before_irreversible_purchase_effect; no_wrap_or_reuse",
+    "post_payment_draw_fault": "preserve_purchase_queue_payment_and_allocated_replacement_ordinal; preserve_consumed_draw_prefix; quiesce_without_rollback_or_refund"
+  },
+  "stable_slots": {
+    "identity_namespace": "(shop_visit_id,stable_slot_id)",
+    "initial": ["colored.attack.0", "colored.attack.1", "colored.skill.0", "colored.skill.1", "colored.power.0", "colorless.uncommon.0", "colorless.rare.0"],
+    "index_resolution": "resolve_current_clicked_index_to_stable_id_before_stock_mutation",
+    "non_Courier_remove": "remove_slot_without_renumbering_survivors",
+    "replacement": "retain_same_stable_slot_id"
+  },
+  "commit_order": [
+    "validate_affordability_then_preflight_counter_capacity_only_on_affordable_branch",
+    "purchase_record_and_ordinal_commit",
+    "queue_obtain_purchased_instance",
+    "spend_displayed_price",
+    "allocate_replacement_ordinal_if_courier_card",
+    "draw_and_commit_prefix",
+    "preview_hooks",
+    "set_replacement_price",
+    "replace_same_stable_slot",
+    "expose_settled_offer"
+  ],
+  "failure_visibility_replay": {
+    "unaffordable": "no_purchase_or_replacement_mutation_or_draw",
+    "administrative_fault": "retain_committed_prefix_then_quiesce; no_refund_rollback_substitute_or_fake_defeat",
+    "private": ["keys", "cursors", "ordinals", "candidate_rows", "attempt_count", "rejected_proposals"],
+    "visible": "only_legally_revealed_settled_offer_and_price",
+    "replay": "from_start_with_root_partition_run_role_site_scope_invocation_and_cursors; no_arbitrary_snapshot_restore"
+  }
+}
+```
+<!-- courier-registry-v2:end -->
+
 | Required field | Courier colored replacement | Courier colorless replacement |
 |---|---|---|
 | Caller / guard | `run.shop`; `ShopScreen.purchaseCard` successful-affordability branch with Courier present, purchased offer's color requested. Insufficient gold, no card purchase, non-Courier removal, and relic/potion restock do not call this row. | Same purchase checkpoint, with the purchased offer color `COLORLESS`. |
