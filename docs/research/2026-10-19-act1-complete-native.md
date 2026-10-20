@@ -1551,3 +1551,284 @@ For every owner-family cell, the owner is `InventoryState.potion_slots[slot]` on
 Owner distinctions enforced by the matrix: only Fire Potion, Weak Potion, and Fear Potion take the `L07` targeted route; Blood, Fruit Juice, Entropic Brew, Fairy, and Smoke Bomb take their exact `L09` override branch; only Entropic Brew has `L10`; only Fairy Potion has automatic `L11` rescue. A target-cancel has no use commit and preserves the row; permitted discard has a `DiscardPotion` slot mutation but no use/hook commit; Fairy rescue is damage-owned, not manual use; `L12` creates a fresh instance and is not a whole-run reset writer.
 
 The source family records bind to existing table-6 slot/potion fields, table-10 offer status, typed `UsePotion`/`DiscardPotion` action records, and existing continuation/commit grammar. No potion-specific action/site/EXEC integer is introduced. This v10 join does not claim the unresolved downstream effect action IDs or global run-reset callsites.
+
+### Relic identity, pool and caller consumer (v11)
+
+This finite consumer join uses accepted handoff-profile commit `ff568b7c8d49ab47340f9216f4d0fd8064cf31a4`, document SHA-256 `28259aada5ec45d00692a9e0bff2e1a805f614af461901f0c5b6090a9cca5dea` and the accepted RNG/map registry on main `fe18c4155496da6f54c8335d9de174f1f6265936` (RNG/map document SHA-256 `1fa042e4bd68e8d799893fb61c9f614115167543ca1cfde5aae01b1103b93a7c`). The consumer input is immutable; these rows bind its already-reviewed identities, aliases, role sets, and caller records without re-extracting source.
+
+#### Literal identity → native key and role registry
+
+Each constructor ID resolves byte-exactly to `ContentKey(ContentNamespace.Relic=2, semantic_key=<same exact constructor ID>)` and `OwnerKey(Relic,<same exact constructor ID>)`; display labels are aliases only and never separate keys or candidates. The table is the literal accepted 141-row catalog, not a count-derived range. `random_pool_member` is the one exact tier role for the five random pools, or `none` for Starter/Special. The Ironclad-red overlay column is registration metadata over the existing ordinary member; it adds no pool row. IDs, keys, and acquired instance handles remain distinct.
+
+| Exact source constructor ID | Native relic content/owner key | Role | Random-pool membership | Ironclad-red registration overlay |
+|---|---|---|---|---|
+| `Akabeko` | `Relic/Akabeko` | Common | Common | no |
+| `Anchor` | `Relic/Anchor` | Common | Common | no |
+| `Ancient Tea Set` | `Relic/Ancient Tea Set` | Common | Common | no |
+| `Art of War` | `Relic/Art of War` | Common | Common | no |
+| `Bag of Marbles` | `Relic/Bag of Marbles` | Common | Common | no |
+| `Bag of Preparation` | `Relic/Bag of Preparation` | Common | Common | no |
+| `Blood Vial` | `Relic/Blood Vial` | Common | Common | no |
+| `Boot` | `Relic/Boot` | Common | Common | no |
+| `Bronze Scales` | `Relic/Bronze Scales` | Common | Common | no |
+| `Centennial Puzzle` | `Relic/Centennial Puzzle` | Common | Common | no |
+| `CeramicFish` | `Relic/CeramicFish` | Common | Common | no |
+| `Dream Catcher` | `Relic/Dream Catcher` | Common | Common | no |
+| `Happy Flower` | `Relic/Happy Flower` | Common | Common | no |
+| `Juzu Bracelet` | `Relic/Juzu Bracelet` | Common | Common | no |
+| `Lantern` | `Relic/Lantern` | Common | Common | no |
+| `MawBank` | `Relic/MawBank` | Common | Common | no |
+| `MealTicket` | `Relic/MealTicket` | Common | Common | no |
+| `Nunchaku` | `Relic/Nunchaku` | Common | Common | no |
+| `Oddly Smooth Stone` | `Relic/Oddly Smooth Stone` | Common | Common | no |
+| `Omamori` | `Relic/Omamori` | Common | Common | no |
+| `Orichalcum` | `Relic/Orichalcum` | Common | Common | no |
+| `Pen Nib` | `Relic/Pen Nib` | Common | Common | no |
+| `Potion Belt` | `Relic/Potion Belt` | Common | Common | no |
+| `PreservedInsect` | `Relic/PreservedInsect` | Common | Common | no |
+| `Red Skull` | `Relic/Red Skull` | Common | Common | yes |
+| `Regal Pillow` | `Relic/Regal Pillow` | Common | Common | no |
+| `Smiling Mask` | `Relic/Smiling Mask` | Common | Common | no |
+| `Strawberry` | `Relic/Strawberry` | Common | Common | no |
+| `Tiny Chest` | `Relic/Tiny Chest` | Common | Common | no |
+| `Toy Ornithopter` | `Relic/Toy Ornithopter` | Common | Common | no |
+| `Vajra` | `Relic/Vajra` | Common | Common | no |
+| `War Paint` | `Relic/War Paint` | Common | Common | no |
+| `Whetstone` | `Relic/Whetstone` | Common | Common | no |
+| `Blue Candle` | `Relic/Blue Candle` | Uncommon | Uncommon | no |
+| `Bottled Flame` | `Relic/Bottled Flame` | Uncommon | Uncommon | no |
+| `Bottled Lightning` | `Relic/Bottled Lightning` | Uncommon | Uncommon | no |
+| `Bottled Tornado` | `Relic/Bottled Tornado` | Uncommon | Uncommon | no |
+| `Darkstone Periapt` | `Relic/Darkstone Periapt` | Uncommon | Uncommon | no |
+| `Eternal Feather` | `Relic/Eternal Feather` | Uncommon | Uncommon | no |
+| `Frozen Egg 2` | `Relic/Frozen Egg 2` | Uncommon | Uncommon | no |
+| `Gremlin Horn` | `Relic/Gremlin Horn` | Uncommon | Uncommon | no |
+| `HornCleat` | `Relic/HornCleat` | Uncommon | Uncommon | no |
+| `InkBottle` | `Relic/InkBottle` | Uncommon | Uncommon | no |
+| `Kunai` | `Relic/Kunai` | Uncommon | Uncommon | no |
+| `Letter Opener` | `Relic/Letter Opener` | Uncommon | Uncommon | no |
+| `Matryoshka` | `Relic/Matryoshka` | Uncommon | Uncommon | no |
+| `Meat on the Bone` | `Relic/Meat on the Bone` | Uncommon | Uncommon | no |
+| `Mercury Hourglass` | `Relic/Mercury Hourglass` | Uncommon | Uncommon | no |
+| `Molten Egg 2` | `Relic/Molten Egg 2` | Uncommon | Uncommon | no |
+| `Mummified Hand` | `Relic/Mummified Hand` | Uncommon | Uncommon | no |
+| `Ornamental Fan` | `Relic/Ornamental Fan` | Uncommon | Uncommon | no |
+| `Pantograph` | `Relic/Pantograph` | Uncommon | Uncommon | no |
+| `Paper Frog` | `Relic/Paper Frog` | Uncommon | Uncommon | yes |
+| `Pear` | `Relic/Pear` | Uncommon | Uncommon | no |
+| `Question Card` | `Relic/Question Card` | Uncommon | Uncommon | no |
+| `Self Forming Clay` | `Relic/Self Forming Clay` | Uncommon | Uncommon | yes |
+| `Shuriken` | `Relic/Shuriken` | Uncommon | Uncommon | no |
+| `Singing Bowl` | `Relic/Singing Bowl` | Uncommon | Uncommon | no |
+| `StrikeDummy` | `Relic/StrikeDummy` | Uncommon | Uncommon | no |
+| `Sundial` | `Relic/Sundial` | Uncommon | Uncommon | no |
+| `The Courier` | `Relic/The Courier` | Uncommon | Uncommon | no |
+| `Toxic Egg 2` | `Relic/Toxic Egg 2` | Uncommon | Uncommon | no |
+| `White Beast Statue` | `Relic/White Beast Statue` | Uncommon | Uncommon | no |
+| `Bird Faced Urn` | `Relic/Bird Faced Urn` | Rare | Rare | no |
+| `Calipers` | `Relic/Calipers` | Rare | Rare | no |
+| `CaptainsWheel` | `Relic/CaptainsWheel` | Rare | Rare | no |
+| `Champion Belt` | `Relic/Champion Belt` | Rare | Rare | yes |
+| `Charon's Ashes` | `Relic/Charon's Ashes` | Rare | Rare | yes |
+| `Dead Branch` | `Relic/Dead Branch` | Rare | Rare | no |
+| `Du-Vu Doll` | `Relic/Du-Vu Doll` | Rare | Rare | no |
+| `FossilizedHelix` | `Relic/FossilizedHelix` | Rare | Rare | no |
+| `Gambling Chip` | `Relic/Gambling Chip` | Rare | Rare | no |
+| `Ginger` | `Relic/Ginger` | Rare | Rare | no |
+| `Girya` | `Relic/Girya` | Rare | Rare | no |
+| `Ice Cream` | `Relic/Ice Cream` | Rare | Rare | no |
+| `Incense Burner` | `Relic/Incense Burner` | Rare | Rare | no |
+| `Lizard Tail` | `Relic/Lizard Tail` | Rare | Rare | no |
+| `Magic Flower` | `Relic/Magic Flower` | Rare | Rare | yes |
+| `Mango` | `Relic/Mango` | Rare | Rare | no |
+| `Old Coin` | `Relic/Old Coin` | Rare | Rare | no |
+| `Peace Pipe` | `Relic/Peace Pipe` | Rare | Rare | no |
+| `Pocketwatch` | `Relic/Pocketwatch` | Rare | Rare | no |
+| `Prayer Wheel` | `Relic/Prayer Wheel` | Rare | Rare | no |
+| `Shovel` | `Relic/Shovel` | Rare | Rare | no |
+| `StoneCalendar` | `Relic/StoneCalendar` | Rare | Rare | no |
+| `Thread and Needle` | `Relic/Thread and Needle` | Rare | Rare | no |
+| `Torii` | `Relic/Torii` | Rare | Rare | no |
+| `TungstenRod` | `Relic/TungstenRod` | Rare | Rare | no |
+| `Turnip` | `Relic/Turnip` | Rare | Rare | no |
+| `Unceasing Top` | `Relic/Unceasing Top` | Rare | Rare | no |
+| `WingedGreaves` | `Relic/WingedGreaves` | Rare | Rare | no |
+| `Astrolabe` | `Relic/Astrolabe` | Boss | Boss | no |
+| `Black Blood` | `Relic/Black Blood` | Boss | Boss | yes |
+| `Black Star` | `Relic/Black Star` | Boss | Boss | no |
+| `Busted Crown` | `Relic/Busted Crown` | Boss | Boss | no |
+| `Calling Bell` | `Relic/Calling Bell` | Boss | Boss | no |
+| `Coffee Dripper` | `Relic/Coffee Dripper` | Boss | Boss | no |
+| `Cursed Key` | `Relic/Cursed Key` | Boss | Boss | no |
+| `Ectoplasm` | `Relic/Ectoplasm` | Boss | Boss | no |
+| `Empty Cage` | `Relic/Empty Cage` | Boss | Boss | no |
+| `Fusion Hammer` | `Relic/Fusion Hammer` | Boss | Boss | no |
+| `Mark of Pain` | `Relic/Mark of Pain` | Boss | Boss | yes |
+| `Pandora's Box` | `Relic/Pandora's Box` | Boss | Boss | no |
+| `Philosopher's Stone` | `Relic/Philosopher's Stone` | Boss | Boss | no |
+| `Runic Cube` | `Relic/Runic Cube` | Boss | Boss | yes |
+| `Runic Dome` | `Relic/Runic Dome` | Boss | Boss | no |
+| `Runic Pyramid` | `Relic/Runic Pyramid` | Boss | Boss | no |
+| `SacredBark` | `Relic/SacredBark` | Boss | Boss | no |
+| `SlaversCollar` | `Relic/SlaversCollar` | Boss | Boss | no |
+| `Snecko Eye` | `Relic/Snecko Eye` | Boss | Boss | no |
+| `Sozu` | `Relic/Sozu` | Boss | Boss | no |
+| `Tiny House` | `Relic/Tiny House` | Boss | Boss | no |
+| `Velvet Choker` | `Relic/Velvet Choker` | Boss | Boss | no |
+| `Brimstone` | `Relic/Brimstone` | Shop | Shop | yes |
+| `Cauldron` | `Relic/Cauldron` | Shop | Shop | no |
+| `Chemical X` | `Relic/Chemical X` | Shop | Shop | no |
+| `ClockworkSouvenir` | `Relic/ClockworkSouvenir` | Shop | Shop | no |
+| `DollysMirror` | `Relic/DollysMirror` | Shop | Shop | no |
+| `Frozen Eye` | `Relic/Frozen Eye` | Shop | Shop | no |
+| `HandDrill` | `Relic/HandDrill` | Shop | Shop | no |
+| `Lee's Waffle` | `Relic/Lee's Waffle` | Shop | Shop | no |
+| `Medical Kit` | `Relic/Medical Kit` | Shop | Shop | no |
+| `Membership Card` | `Relic/Membership Card` | Shop | Shop | no |
+| `OrangePellets` | `Relic/OrangePellets` | Shop | Shop | no |
+| `Orrery` | `Relic/Orrery` | Shop | Shop | no |
+| `PrismaticShard` | `Relic/PrismaticShard` | Shop | Shop | no |
+| `Sling` | `Relic/Sling` | Shop | Shop | no |
+| `Strange Spoon` | `Relic/Strange Spoon` | Shop | Shop | no |
+| `TheAbacus` | `Relic/TheAbacus` | Shop | Shop | no |
+| `Toolbox` | `Relic/Toolbox` | Shop | Shop | no |
+| `Burning Blood` | `Relic/Burning Blood` | Starter | none | yes |
+| `CultistMask` | `Relic/CultistMask` | Special | none | no |
+| `FaceOfCleric` | `Relic/FaceOfCleric` | Special | none | no |
+| `Golden Idol` | `Relic/Golden Idol` | Special | none | no |
+| `GremlinMask` | `Relic/GremlinMask` | Special | none | no |
+| `NeowsBlessing` | `Relic/NeowsBlessing` | Special | none | no |
+| `NlothsMask` | `Relic/NlothsMask` | Special | none | no |
+| `Odd Mushroom` | `Relic/Odd Mushroom` | Special | none | no |
+| `Spirit Poop` | `Relic/Spirit Poop` | Special | none | no |
+| `SsserpentHead` | `Relic/SsserpentHead` | Special | none | no |
+| `WarpedTongs` | `Relic/WarpedTongs` | Special | none | no |
+
+#### Exact pool-role keys
+
+Role keys are semantic owner labels used by `RelicHistory.pool`, not relic content IDs and not source action/site IDs.
+
+| Random role | Native role key | Accepted pre-removal member count |
+|---|---|---|
+| Common | `OwnerKey(Relic,pool.common)` | 33 |
+| Uncommon | `OwnerKey(Relic,pool.uncommon)` | 30 |
+| Rare | `OwnerKey(Relic,pool.rare)` | 28 |
+| Boss | `OwnerKey(Relic,pool.boss)` | 22 |
+| Shop | `OwnerKey(Relic,pool.shop)` | 17 |
+
+#### Display labels (identity aliases, not pool members)
+
+| Display alias | Exact target constructor ID | Resolved native key |
+|---|---|---|
+| `Ceramic Fish` | `CeramicFish` | `Relic/CeramicFish` |
+| `Maw Bank` | `MawBank` | `Relic/MawBank` |
+| `Meal Ticket` | `MealTicket` | `Relic/MealTicket` |
+| `Preserved Insect` | `PreservedInsect` | `Relic/PreservedInsect` |
+| `The Boot` | `Boot` | `Relic/Boot` |
+| `Frozen Egg` | `Frozen Egg 2` | `Relic/Frozen Egg 2` |
+| `Horn Cleat` | `HornCleat` | `Relic/HornCleat` |
+| `Ink Bottle` | `InkBottle` | `Relic/InkBottle` |
+| `Molten Egg` | `Molten Egg 2` | `Relic/Molten Egg 2` |
+| `Paper Phrog` | `Paper Frog` | `Relic/Paper Frog` |
+| `Self-Forming Clay` | `Self Forming Clay` | `Relic/Self Forming Clay` |
+| `Strike Dummy` | `StrikeDummy` | `Relic/StrikeDummy` |
+| `Toxic Egg` | `Toxic Egg 2` | `Relic/Toxic Egg 2` |
+| `Bird-Faced Urn` | `Bird Faced Urn` | `Relic/Bird Faced Urn` |
+| `Captain's Wheel` | `CaptainsWheel` | `Relic/CaptainsWheel` |
+| `Fossilized Helix` | `FossilizedHelix` | `Relic/FossilizedHelix` |
+| `Stone Calendar` | `StoneCalendar` | `Relic/StoneCalendar` |
+| `Tungsten Rod` | `TungstenRod` | `Relic/TungstenRod` |
+| `Wing Boots` | `WingedGreaves` | `Relic/WingedGreaves` |
+| `Sacred Bark` | `SacredBark` | `Relic/SacredBark` |
+| `Slaver's Collar` | `SlaversCollar` | `Relic/SlaversCollar` |
+| `Clockwork Souvenir` | `ClockworkSouvenir` | `Relic/ClockworkSouvenir` |
+| `Dolly's Mirror` | `DollysMirror` | `Relic/DollysMirror` |
+| `Hand Drill` | `HandDrill` | `Relic/HandDrill` |
+| `Orange Pellets` | `OrangePellets` | `Relic/OrangePellets` |
+| `Prismatic Shard` | `PrismaticShard` | `Relic/PrismaticShard` |
+| `Sling of Courage` | `Sling` | `Relic/Sling` |
+| `The Abacus` | `TheAbacus` | `Relic/TheAbacus` |
+| `Neow's Lament` | `NeowsBlessing` | `Relic/NeowsBlessing` |
+| `Warped Tongs` | `WarpedTongs` | `Relic/WarpedTongs` |
+| `Face of Cleric` | `FaceOfCleric` | `Relic/FaceOfCleric` |
+| `Cultist Headpiece` | `CultistMask` | `Relic/CultistMask` |
+| `Gremlin Visage` | `GremlinMask` | `Relic/GremlinMask` |
+| `N'loth's Hungry Face` | `NlothsMask` | `Relic/NlothsMask` |
+| `Ssserpent Head` | `SsserpentHead` | `Relic/SsserpentHead` |
+
+#### Separate registration and acquisition domains
+
+The 11-row Ironclad-red registration overlay is exactly the following subset of existing roles; the ten nonstarter members remain in their listed tier and Burning Blood remains Starter-only. It neither adds a second pool entry nor changes another character's pool.
+
+| Overlay constructor ID | Existing role | Pool effect |
+|---|---|---|
+| `Red Skull` | Common | registration overlay only; no extra candidate |
+| `Paper Frog` | Uncommon | registration overlay only; no extra candidate |
+| `Self Forming Clay` | Uncommon | registration overlay only; no extra candidate |
+| `Champion Belt` | Rare | registration overlay only; no extra candidate |
+| `Charon's Ashes` | Rare | registration overlay only; no extra candidate |
+| `Magic Flower` | Rare | registration overlay only; no extra candidate |
+| `Black Blood` | Boss | registration overlay only; no extra candidate |
+| `Mark of Pain` | Boss | registration overlay only; no extra candidate |
+| `Runic Cube` | Boss | registration overlay only; no extra candidate |
+| `Brimstone` | Shop | registration overlay only; no extra candidate |
+| `Burning Blood` | Starter | registration overlay only; no extra candidate |
+
+Special acquisition sources are source-bound; these identities never enter the five random pools. Fallback identities likewise are output keys, not members of any role array.
+
+| Acquisition route | Special identity output(s) | Native key(s) |
+|---|---|---|
+| Neow's Lament (Neow) | `NeowsBlessing` | `Relic/NeowsBlessing` |
+| Golden Idol event | `Golden Idol` | `Relic/Golden Idol` |
+| Hypnotizing Colored Mushrooms | `Odd Mushroom` | `Relic/Odd Mushroom` |
+| Ominous Forge | `WarpedTongs` | `Relic/WarpedTongs` |
+| Bonfire Spirits | `Spirit Poop` | `Relic/Spirit Poop` |
+| Face Trader | `FaceOfCleric`, `CultistMask`, `GremlinMask`, `NlothsMask`, `SsserpentHead` | `Relic/FaceOfCleric`, `Relic/CultistMask`, `Relic/GremlinMask`, `Relic/NlothsMask`, `Relic/SsserpentHead` |
+| Empty Rare role | `Circlet` | `Relic/Circlet` (fallback output only) |
+| Empty Boss role | `Red Circlet` | `Relic/Red Circlet` (fallback output only) |
+
+#### Exact native owner, visibility, ordering, and lifecycle
+
+`PlayerState.inventory.relics` owns acquired `RelicInstance(handle,relic_key,counter,used,properties)` records. `EconomyState.relic_pool` holds ordered `PoolEntry(key,eligible,consumed,ordinal)` entries whose exact identity keys resolve through the registry above; `HistoryState.relics` holds one `RelicHistory(pool,remaining_keys,consumed_rejected,owned_exclusions)` per role. The exact role qualifier is the `RelicHistory.pool` key listed in the role-key table; each `RelicHistory.remaining_keys` vector is that role's ordered selectable membership, cross-checked against the pool-entry vector and closed source-ID→role registry. Rejected selections append only to `RelicHistory.consumed_rejected`; generated offers add their content key to the existing `EconomyState.consumed_ids` and remove it from that role's remaining keys, whether later taken or skipped. `owned_exclusions` remain independent from both depletion forms. Each relic key is `OwnerKey(Relic,<exact constructor ID>)`. This binds existing `RelicInstance.relic_key`, table 5 `relic_code/public_position/counter/used`, `Offer.content/source_instance/status/claim_commit`, `EconomyState.consumed_ids`, and typed `OfferMutation`/`CommitKey` fields; it introduces no relic record or ordinal codebook.
+
+On initialization, privately order the canonical full list for each of Common, Uncommon, Rare, Shop, and Boss, then remove owned and carried-consumed IDs while preserving each surviving order. Keep `owned_exclusions` distinct from `consumed_rejected`; never globally delete an ID across roles. A selected candidate is removed from that role and committed to its consumed history when its offer/stock row is generated—not when the offer is taken. Rejected candidates are also removed/recorded. Claim/take installs a separate owned handle; skip/no-pick/decline leaves that pool consumption intact and changes only the owning offer/claim state. The five role-ordered remaining-key vectors, flat pool entries, rejection ledgers, acquired instances and carried Ironclad registration state remain private; public table 5 reveals only acquired relic identity/order and each counter/used value under that relic's exact entitlement predicate. Current generated offers appear only under the offer row's legal visibility; never expose remaining pool IDs, pending candidate order, rejection ledger, hidden offers, or future generated identity. Static Starter/Special role identities are not inserted into random arrays; special outputs appear only at the source route, and fallback keys are not role members.
+
+Normal selection consumes the role front; end selection consumes the role back, except Boss consumes the front for both helpers. Rejection consumes the rejected member and records it in that role's rejected history. A `canSpawn=false` rejection from normal resumes end selection at the originally requested role; an end rejection retries end at its requested role. Depleted Common promotes to Uncommon, Uncommon to Rare, Shop to Uncommon, via normal selection (also after end depletion). Empty Rare returns `Circlet`; empty Boss returns `Red Circlet`. Merchant rows 0/1 use end selection; row 2 is a fixed Shop-role selection and uses the same end/back rule. On Act1→Act2 carry, preserve exact remaining order, `consumed_ids`, and every per-role rejection/owned-exclusion history unchanged—no reinitialization, reshuffle, or reset.
+
+#### Accepted caller-family → native consumer matrix
+
+Each row is the exact immutable accepted caller family/checkpoint. Source tier selector and filter/result clause are copied from the accepted record, then paired with its existing native owner projection. Exact final EXEC/action/site/callback IDs remain pending and are not invented here.
+
+| Accepted source/caller family | Source requested tier/selection | Source filter / result commit | Native pool/selector projection | Native offer/ownership/history commit |
+|---|---|---|---|---|
+| Elite reward base relic | Common/Uncommon/Rare from `0..99`: 0–49/50–82/83–99; normal | Live `canSpawn`; consumed rejection/depletion and skip rules above. | Common/Uncommon/Rare; normal: front | live canSpawn; rejected candidates consumed; offer selection consumes before take/skip; relic_pool[role] + RelicHistory(role); Offer.content=Relic key; skip does not restore |
+| Ordinary chest base relic | Size-conditioned shared chest roll: Small 0–49 Common+gold, 50–74 Common/no gold, 75–99 Uncommon; Medium 0–34 Common+gold, 35–84 Uncommon, 85–99 Rare; Large 0–49 Uncommon+gold, 50–74 Uncommon, 75–99 Rare; normal | After ordered chest-open hooks, before chest-open-after hooks. Sapphire link applies only to this base row. | Common/Uncommon/Rare; normal: front | size roll and sapphire only for base row; ordered chest-open hooks before/after; one role entry consumed at generated offer; chest's offer/claim state is distinct from pool state |
+| Matryoshka extra nonboss chest relic | While counter>0, decrement first; strict Boolean 3/4 selects Common else Uncommon; normal | Separate extra offer/pool mutation from chest base and sapphire linkage; mark used at counter zero. | Common/Uncommon; normal: front | counter>0; decrement before strict Boolean 3/4 tier choice; separate pool mutation/offer from chest base and Sapphire; counter used at zero |
+| Boss reward / Neow boss swap | Fixed Boss; normal | Boss front even if end-helper retry; Neow removes Burning Blood before candidate testing. | Boss; normal: front | Neow removes owned Burning Blood before candidate testing; Boss ignores end-selector reversal; Boss role entry consumed on generated offer; acquired relic instance is separate |
+| Neow category 1/2 relic reward | Fixed Common / fixed Rare respectively; normal | No tier roll; live predicate; skip keeps consumed member. | Common / Rare; normal: front | fixed Common/Rare; live owner predicate; one generated offer consumes member even when skipped |
+| Campfire Dig (Shovel) | Common/Uncommon/Rare from 0–49/50–82/83–99; normal | One offer; no chest/key link; claim or skip after selection. | Common/Uncommon/Rare; normal: front | tier roll; no chest/key link; single generated offer; claim/skip does not restore role member |
+| Black Star extra reward | Common/Uncommon/Rare from 0–49/50–82/83–99; normal noncampfire | Only actual `MonsterRoomElite`, not EventRoom `eliteTrigger`; additionally consume/reject Peace Pipe, Shovel, Girya. | Common/Uncommon/Rare; normal noncampfire: front | actual MonsterRoomElite only; additionally reject Peace Pipe/Shovel/Girya; role consumption and owned acquisition are distinct; generated offer persists through skip |
+| Big Fish Box, Dead Adventurer successful-search relic token, Scrap Ooze, Wheel of Change relic result, We Meet Again sacrifice | Each source's own 0–99 tier draw Common 0–49, Uncommon 50–82, Rare 83–99; screenless normal | Consume/reject Bottled Flame, Bottled Lightning, Bottled Tornado, Whetstone and continue requested tier. Dead Adventurer consumes its once-shuffled GOLD/NOTHING/RELIC token before this; no token reroll. | Common/Uncommon/Rare; screenless normal: front | reject Bottled Flame/Lightning/Tornado and Whetstone; Dead Adventurer consumes its one shuffled token first; screenless generated output still consumes role member; its result commit is source-owned |
+| Dead Adventurer fight reward | Only if constructed event combat contains unconsumed RELIC token; 0–49/50–82/83–99 Common/Uncommon/Rare; normal | Distinct from successful-search screenless offer. | Common/Uncommon/Rare; normal: front | only constructed event combat with unconsumed RELIC token; distinct from screenless search; separate generated offer consumes its own selected role member |
+| Calling Bell continuation | One fixed Common, one fixed Uncommon, one fixed Rare offer after screen-down; screenless normal | Exactly three once-generated offers even if curse prevented; each has screenless filters and ordinary depletion/rejection/skip. | Common, Uncommon, Rare; screenless normal: front | three once-generated offers after screen-down, even when curse prevented; each applies screenless filters; each generated offer independently consumes its selected member; skip never restores |
+| Merchant initial/restock stock | Rows 0/1: 0–47 Common, 48–81 Uncommon, 82–99 Rare; row 2 fixed Shop; end | In ShopRoom consume/reject Old Coin, Smiling Mask, MawBank, The Courier plus live `canSpawn`. Stock generation consumes regardless of later purchase/refusal; purchase/payment/restock is separate. | Common/Uncommon/Rare/Shop; end: back, including fixed Shop role | stock rows 0/1 tier roll, row 2 fixed Shop; ShopRoom rejects Old Coin/Smiling Mask/MawBank/The Courier and live canSpawn; stock generation consumes; later purchase/refusal/restock is separate; no rollback on declined offer |
+
+#### Base member predicates and caller-local filters
+
+The literal `canSpawn` exceptions below are live candidate predicates, not static removal from membership; every other listed ordinary candidate uses the accepted true base predicate. Rejected candidates remain role-local consumed history. Specific screenless/noncampfire/ShopRoom filters apply only at their named caller row above.
+
+| Exact source candidate predicate | Accepted condition |
+|---|---|
+| Black Blood | Burning Blood |
+| Ectoplasm | Act≤1 |
+| Bottled Flame/Lightning/Tornado | respectively a nonbasic permanent Attack/nonbasic permanent Skill/permanent Power |
+| Girya, Peace Pipe, Shovel | floor<48 and fewer than two owned among those three |
+| Floor≤48 group | Ancient Tea Set, Ceramic Fish, Darkstone Periapt, Dream Catcher, Frozen Egg 2, Molten Egg 2, Toxic Egg 2, Juzu Bracelet, Meal Ticket, Meat on the Bone, Omamori, Potion Belt, Prayer Wheel, Question Card, Regal Pillow, Singing Bowl require floor≤48 |
+| Matryoshka and WingedGreaves | floor≤40 |
+| Tiny Chest | floor≤35 |
+| PreservedInsect | floor≤52 |
+| Merchant-only exclusions | Old Coin, Smiling Mask, MawBank, The Courier; four Shop exclusions also have their own floor≤48 predicate |
+
+The five random role counts are Common 33, Uncommon 30, Rare 28, Boss 22, Shop 17 (130 pool identities: 120 shared ordinary plus ten Ironclad-red ordinary overlay identities already included). Add ten Special and one Starter to reach 141 authored identities; overlay is metadata, not extra membership. Circlet/Red Circlet are absent from these 141 authored IDs. The 35 display aliases resolve to one canonical constructor ID/key and never duplicate membership.
+
+The native key namespace code `ContentNamespace.Relic=2`, existing pool/instance/offer records, source-aligned ordered arrays, skip/depletion and Act2 carry require no new serialized field/codebook/descriptor/canonical-byte/core/replay version. This is a static registry/semantic binding only; standalone combat-v1 pins remain unchanged. Full descriptor/fingerprint remains open. Exact downstream EXEC and whole relic-mechanics closure are not claimed.
