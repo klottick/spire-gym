@@ -191,12 +191,45 @@ mechanics, complete native contracts and compatibility remain required.
 | Creation/profile | Experienced default: all unlocked, full Neow eligibility, all ordinary bosses seen; explicit overrides supported. Each independent episode defaults Note to unupgraded Iron Wave. | Preserve legal stored/off-color cards and one-per-run in-run exchange, no automatic inheritance. Partial pending/committed profile export is not required or a blocker. Minimal honest optional output/reuse may remain. Administrative failure cannot yield successful final/profile, death/reset/rollback; configured hidden Note card cannot leak before legal reveal. |
 | Rules reference | Latest unmodded game, pinned owned bytes as working rules reference; latest identity is the user’s statement. | No independent retail/JRE/runtime certification gate or false certification. Static facts and future gameplay evidence stay distinct; no runtime claim. |
 | Completion | Resolve Act1 rewards, mandatory choices and applicable transition effects; initialize Act2 map and required state; stop before its first policy decision. | Hidden successor state stays hidden. Exact payload/init/visibility is engineering work; no Act2 policy play. |
-| Empty Transmogrifier Transform | **HUMAN-SELECTED NATIVE EXCEPTION (not observed source behavior):** if the actual then-current purgeable, nonbottled eligible candidate set is empty when the player chooses Transform, resolve only that zero-target child as an explicit no-op and expose the event's existing COMPLETE/Leave choice. Leave remains a later explicit player decision through the ordinary COMPLETE handler. | No automatic Leave/map routing; no removal, transform, obtain, card/HP/gold mutation, RNG draw/cursor advance, reward, terminal/defeat/fault or rollback. Do not fabricate a selected card, confirmation or source empty-result callback. Preserve detached result/token and idempotent continuation lifetime under existing native rules. Scope is only `event.transmogrifier`; nonempty Transform and other mandatory grids retain their ordinary/source-qualified rules. |
+| Empty Transmogrifier Transform | **HUMAN-SELECTED NATIVE EXCEPTION, not observed source behavior.** The finite normative contract is `EMPTY_TRANSFORM_NATIVE_EXCEPTION` below; it applies only to `event.transmogrifier`. The contract does not change source facts, nonempty Transform or any other mandatory grid. | The finite record below is the sole normative encoding of this exception; its enums are semantic labels, not wire IDs. |
 
 This register records explicit human selections, not newly established source facts.
 Where later wording conflicts, this register controls. D01–D08 dispositions are in
 §1.3 and B01–B14 in §17. Whole-spec human approval, reviewed implementation plan
 and separate implementation-start authorization remain distinct and unsatisfied.
+
+#### Empty-Transform native exception record (normative)
+
+The following finite record makes the selected event exception directly checkable;
+it is a native policy, not an observed empty-grid source result. Field values are
+closed semantic enums, not transport/wire identifiers.
+
+| Field | Normative value |
+|---|---|
+| `kind` | `HUMAN_SELECTED_NATIVE_EXCEPTION_NOT_SOURCE_FACT` |
+| `event` | `event.transmogrifier` |
+| `choice` | `TRANSFORM` |
+| `eligible_set` | `THEN_CURRENT_PURGEABLE_NONBOTTLED` |
+| `checkpoint` | `AT_CHILD_RESOLUTION` |
+| `empty_result` | `CHILD_NOOP` |
+| `visible_parent_choice` | `EXISTING_COMPLETE_LEAVE` |
+| `leave` | `LATER_EXPLICIT_PLAYER_CHOICE_ORDINARY_COMPLETE_HANDLER` |
+| `empty_effects` | `NONE_NO_REMOVE_TRANSFORM_OBTAIN_CARD_HP_GOLD_RNG_REWARD_TERMINAL_DEFEAT_FAULT_ROLLBACK_OR_AUTOROUTE` |
+| `fabricated_selection` | `NO_CARD_CONFIRMATION_OR_SOURCE_EMPTY_CALLBACK` |
+| `nonempty_path` | `ORDINARY_SOURCE_QUALIFIED_TRANSFORM` |
+| `other_events_and_grids` | `UNCHANGED_ORDINARY_SOURCE_QUALIFIED` |
+| `continuation_lifetime` | `DETACHED_RESULT_TOKEN_IDEMPOTENT_CONTINUATION` |
+
+Interpretation: evaluate the eligible set at child resolution using the then-current
+purgeable, nonbottled candidates. If empty, close only this child as a no-op and
+expose the existing COMPLETE/Leave choice; do not choose Leave automatically. An
+explicit later Leave uses the ordinary COMPLETE handler. No selected object,
+confirmation, or source empty-result callback is fabricated. The empty branch has
+no card/HP/gold mutation, RNG draw/cursor advance, reward, terminal/defeat/fault,
+rollback, removal, transform, obtain, or automatic Leave/map route. For nonempty
+eligibility preserve the ordinary source-qualified Transform path; do not apply this
+exception to another event or mandatory grid. Detached result/token and idempotent
+continuation lifetime remain under existing native rules.
 
 ### 1.3 Decision disposition (D01–D08)
 
