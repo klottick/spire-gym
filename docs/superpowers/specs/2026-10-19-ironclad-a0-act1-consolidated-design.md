@@ -191,6 +191,7 @@ mechanics, complete native contracts and compatibility remain required.
 | Creation/profile | Experienced default: all unlocked, full Neow eligibility, all ordinary bosses seen; explicit overrides supported. Each independent episode defaults Note to unupgraded Iron Wave. | Preserve legal stored/off-color cards and one-per-run in-run exchange, no automatic inheritance. Partial pending/committed profile export is not required or a blocker. Minimal honest optional output/reuse may remain. Administrative failure cannot yield successful final/profile, death/reset/rollback; configured hidden Note card cannot leak before legal reveal. |
 | Rules reference | Latest unmodded game, pinned owned bytes as working rules reference; latest identity is the user’s statement. | No independent retail/JRE/runtime certification gate or false certification. Static facts and future gameplay evidence stay distinct; no runtime claim. |
 | Completion | Resolve Act1 rewards, mandatory choices and applicable transition effects; initialize Act2 map and required state; stop before its first policy decision. | Hidden successor state stays hidden. Exact payload/init/visibility is engineering work; no Act2 policy play. |
+| Empty Transmogrifier Transform | **HUMAN-SELECTED NATIVE EXCEPTION (not observed source behavior):** if the actual then-current purgeable, nonbottled eligible candidate set is empty when the player chooses Transform, resolve only that zero-target child as an explicit no-op and expose the event's existing COMPLETE/Leave choice. Leave remains a later explicit player decision through the ordinary COMPLETE handler. | No automatic Leave/map routing; no removal, transform, obtain, card/HP/gold mutation, RNG draw/cursor advance, reward, terminal/defeat/fault or rollback. Do not fabricate a selected card, confirmation or source empty-result callback. Preserve detached result/token and idempotent continuation lifetime under existing native rules. Scope is only `event.transmogrifier`; nonempty Transform and other mandatory grids retain their ordinary/source-qualified rules. |
 
 This register records explicit human selections, not newly established source facts.
 Where later wording conflicts, this register controls. D01–D08 dispositions are in
@@ -1067,7 +1068,7 @@ remove-before-generate or nonlethal-removal claim follows.
 | Empty Cage | Zero: selection-complete flag set but room remains the earlier INCOMPLETE phase. One–two: automatic object removals and COMPLETE. More: grid waits for two. Preserve this difference without claiming initialized deadlock. |
 | Pandora / Bell | Pandora iterator-removes starter-tagged cards, previews replacements then confirmation schedules Fast obtains; zero starters skips grid. Bell curse confirmation schedules Fast; later relic update opens three screenless relic offers even if curse was prevented. Removed automatic reward generation can already mutate pity. |
 | Empty offers / belts | Zero-card helper omits its reward row; Dream omits empty screen. Full-belt potion reward stays available; Sozu reward claim consumes without insertion, unlike Shop refusal without payment/restock. |
-| Mandatory grids | Generic fixed-count grid neither clamps count nor auto-skips. Purifier/Transmogrifier committed grids and Wing's later purge have no local empty guard. Note can lack a guard if incoming is unremovable and nothing else qualifies; a valid removable incoming otherwise supplies a candidate. Local paths need legal-history witness/exclusion before deciding native exceptional treatment, not invented Leave. |
+| Mandatory grids | Generic fixed-count grid neither clamps count nor auto-skips. Purifier/Transmogrifier committed grids and Wing's later purge have no local empty guard **as inspected source facts**; this does not prescribe native resolution of the separately selected empty-Transform exception above. Note can lack a guard if incoming is unremovable and nothing else qualifies; a valid removable incoming otherwise supplies a candidate. No exception is selected for other mandatory grids. |
 
 ### 8.5 Match and Keep's visible decisions and historical strict-timer facts (F/S/O; E14/E16)
 
@@ -1998,6 +1999,7 @@ execution to manufacture a pass.
 | TX16 | **UNEXECUTED.** Note incoming removable versus unremovable card with empty prior outgoing candidates. Preserve direct obtain and candidate construction before outgoing selection; only a proven natural profile/history fixture can resolve whether the exceptional history is reachable. |
 | TX17 | **UNEXECUTED.** Last-enemy filter followed by `endBattle`/manager clear. Preserve already committed HP/gold/deck/relic writes; distinguish the admitted current stack, each pending list, effects and souls. Do not invent rollback, fake defeat, or universal drain. |
 | TX18 | **UNEXECUTED.** End turn with Entrench in the remaining-hand clone, Ethereal cards and other queued discards. Distinguish marker-time `triggerOnEndOfTurnForPlayingCard` from later shuffled-clone `triggerOnEndOfPlayerTurn`; verify Entrench's override top-queues Ethereal cleanup ahead of already queued discard work. Entrench is not itself Ethereal; do not infer a seeded/uniform shuffle or selected clock. |
+| TX19 | **UNEXECUTED.** For `event.transmogrifier` only, derive the actual then-current purgeable, nonbottled eligible candidate set at the selected child checkpoint. Empty set after Transform must resolve only that child as a native no-op and expose the existing COMPLETE/Leave choice; verify no selected object/confirmation/source empty-result callback is fabricated and no removal, transform, obtain, card/HP/gold mutation, RNG draw/cursor advance, reward, automatic Leave/map routing, terminal/defeat/fault or rollback occurs. Explicitly choose Leave afterward to test that it follows the ordinary COMPLETE handler. Negative controls: a nonempty set follows the ordinary source-qualified Transform path; wrong event, wrong eligibility set/checkpoint, or any forbidden side effect rejects; duplicate dispatch/stale result reuse rejects while detached outputs/tokens and idempotent continuation lifetime are preserved. This is a human-selected native exception, not source empty-grid evidence. All checks remain future gameplay acceptance, not executed here. |
 
 
 #### Policy-aligned expectation disposition for every future case
@@ -2055,10 +2057,15 @@ required.
 | TX16 | Preserve Note in-run acquisition/candidate legality; partial profile export/reachability proof is not a blocker. |
 | TX17 | Preserve live durable commits and work-container distinctions; no rollback, fake defeat or unrelated drain. |
 | TX18 | Preserve callback distinctions; remove seeded/uniform shuffle, frame/clock parity requirements. |
+| TX19 | Human-selected native exception for only an empty eligible Transform in `event.transmogrifier`: child no-op exposes existing COMPLETE/Leave; explicit later Leave uses ordinary COMPLETE. Failure-first controls reject a fabricated selection/confirmation/callback, wrong candidate set or checkpoint, nonempty-path substitution, automatic Leave/map, removal/transform/obtain/resource or RNG mutation, reward/terminal/fault/rollback, repeated dispatch and stale result reuse. Preserve existing detached-result/token/idempotent-continuation rules. Do not present this as an observed source resolution or extend it to other mandatory grids; nonempty Transform remains source-qualified. |
 
 E28's TX01–TX18 are each future acceptance discriminators above, not test results.
 They refine and supplement (not replace or collapse into) A1C-T04/T05/T10/T14/T18/
-T25/T33 where their complete expected distinction is not already enumerated. Genuine ordinary-mechanics reachability and transitive composition remain technical; frame-natural timer outcomes/source RNG parity are superseded. All future cases remain unexecuted.
+T25/T33 where their complete expected distinction is not already enumerated. TX19
+is the separate human-selected empty-Transform discriminator added by this amendment,
+also unexecuted. Genuine ordinary-mechanics reachability and transitive composition
+remain technical; frame-natural timer outcomes/source RNG parity are superseded. All
+future cases remain unexecuted.
 
 ## 16. Requirements traceability ledger
 
@@ -2267,7 +2274,7 @@ mandatory-empty local conditions need initialized witness/exclusion, not a fallb
 | Golden Shrine | Ordinary gold versus larger gold with Regret, or leave |
 | Match and Keep | Twelve instances/six pairs, five attempts, reveal/match/miss/final cleanup/obtain; memory projection |
 | Purifier | Initial remove/Leave; committed noncancellable grid has no local empty guard. No automatic post-commit Skip. |
-| Transmogrifier | Initial transform/Leave; committed mandatory grid has no empty guard. Selected object removal precedes generation/Show obtain. |
+| Transmogrifier | Source facts: initial Transform/Leave; committed mandatory grid has no local empty guard; selected object removal precedes generation/Show obtain. **Native exception selected by this amendment:** only when Transform is chosen and the actual eligible set is empty, resolve that child as a no-op and expose existing COMPLETE/Leave. This is not source empty-grid behavior and does not alter nonempty Transform or other grids. |
 | Upgrade Shrine | Upgrade disabled without upgradeables, Leave remains; selected permanent upgrade refreshes bottle link. |
 | Wheel of Change | Gold at reveal once; other later callbacks. Purge empty subset opens no grid/replacement; relic outcome offers skippable rewards, not automatic obtain. |
 | Ominous Forge | Upgrade disabled without upgradeables; rummage/Leave remain. Warped Tongs and queued Pain are distinct work. |
