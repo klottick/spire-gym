@@ -1315,6 +1315,103 @@ Every pair below is `member=U32 wire code`; values are frozen consumer assignmen
 #### `SiteOperation`
 `Use=1`; `ActualDraw=2`; `ActualExhaust=3`; `StartTurn=4`; `EndTurn=5`; `PreDraw=6`; `Equip=7`; `RewardBuild=8`; `Claim=9`; `Purchase=10`; `Transform=11`; `Remove=12`; `Copy=13`; `Insert=14`; `KeyCommit=15`; `Selection=16`; `Resume=17`; `Transition=18`; `Damage=19`; `Heal=20`; `Lifecycle=21`; `PoolSelect=22`; `Initialize=23`; `Restock=24`; `Preview=25`; `ResourceMutation=26`
 
+## Potion consumer binding (accepted finite producer)
+
+The potion row is an observation of the existing `InventoryState.potion_slots` owner,
+not a second potion inventory. Each actual slot ordinal is emitted, including an empty
+slot. An empty slot has `occupied=false`, `potion_code=absent`, and no potency; it is
+not a fabricated zero-potency potion. An occupied row has a run-local `PotionInstance`
+handle, the namespace-qualified `OwnerKey(Potion, exact factory ID)` below, its actual
+slot, and signed-i32 captured potency. The source factory ID, stable content key,
+instance handle, and belt ordinal are distinct identities. The source ID→key mapping is
+byte-exact (no display-name normalization); unknown IDs reject. The held instance and
+its slot are public; potency is public only for an occupied held instance. Unheld
+offers/proposals are represented by their offer/continuation owner and do not create a
+row in table 6 until obtained.
+
+| Exact factory ID / source alias | Concrete source owner | Native content key | Potency domain and capture |
+|---|---|---|---|
+| `Block Potion` | `BlockPotion` | `Potion/Block Potion` | signed i32; `initializeData` captures accessor result |
+| `Dexterity Potion` | `DexterityPotion` | `Potion/Dexterity Potion` | signed i32; `initializeData` captures accessor result |
+| `Energy Potion` | `EnergyPotion` | `Potion/Energy Potion` | signed i32; `initializeData` captures accessor result |
+| `Explosive Potion` | `ExplosivePotion` | `Potion/Explosive Potion` | signed i32; `initializeData` captures accessor result |
+| `Fire Potion` | `FirePotion` | `Potion/Fire Potion` | signed i32; `initializeData` captures accessor result |
+| `Strength Potion` | `StrengthPotion` | `Potion/Strength Potion` | signed i32; `initializeData` captures accessor result |
+| `Swift Potion` | `SwiftPotion` | `Potion/Swift Potion` | signed i32; `initializeData` captures accessor result |
+| `Weak Potion` | `WeakenPotion` | `Potion/Weak Potion` | signed i32; `initializeData` captures accessor result |
+| `FearPotion` | `FearPotion` | `Potion/FearPotion` | signed i32; `initializeData` captures accessor result |
+| `AttackPotion` | `AttackPotion` | `Potion/AttackPotion` | signed i32; `initializeData` captures accessor result |
+| `SkillPotion` | `SkillPotion` | `Potion/SkillPotion` | signed i32; `initializeData` captures accessor result |
+| `PowerPotion` | `PowerPotion` | `Potion/PowerPotion` | signed i32; `initializeData` captures accessor result |
+| `ColorlessPotion` | `ColorlessPotion` | `Potion/ColorlessPotion` | signed i32; `initializeData` captures accessor result |
+| `SteroidPotion` | `SteroidPotion` | `Potion/SteroidPotion` | signed i32; `initializeData` captures accessor result |
+| `SpeedPotion` | `SpeedPotion` | `Potion/SpeedPotion` | signed i32; `initializeData` captures accessor result |
+| `BlessingOfTheForge` | `BlessingOfTheForge` | `Potion/BlessingOfTheForge` | signed i32; initialized zero; effect is not potency-sized |
+| `BloodPotion` | `BloodPotion` | `Potion/BloodPotion` | signed i32; `initializeData` captures accessor result |
+| `Regen Potion` | `RegenPotion` | `Potion/Regen Potion` | signed i32; `initializeData` captures accessor result |
+| `Ancient Potion` | `AncientPotion` | `Potion/Ancient Potion` | signed i32; `initializeData` captures accessor result |
+| `LiquidBronze` | `LiquidBronze` | `Potion/LiquidBronze` | signed i32; `initializeData` captures accessor result |
+| `GamblersBrew` | `GamblersBrew` | `Potion/GamblersBrew` | signed i32; initialized zero; effect is not potency-sized |
+| `EssenceOfSteel` | `EssenceOfSteel` | `Potion/EssenceOfSteel` | signed i32; `initializeData` captures accessor result |
+| `DuplicationPotion` | `DuplicationPotion` | `Potion/DuplicationPotion` | signed i32; `initializeData` captures accessor result |
+| `DistilledChaos` | `DistilledChaosPotion` | `Potion/DistilledChaos` | signed i32; `initializeData` captures accessor result |
+| `LiquidMemories` | `LiquidMemories` | `Potion/LiquidMemories` | signed i32; `initializeData` captures accessor result |
+| `ElixirPotion` | `Elixir` | `Potion/ElixirPotion` | signed i32; initialized zero; effect is not potency-sized |
+| `CultistPotion` | `CultistPotion` | `Potion/CultistPotion` | signed i32; `initializeData` captures accessor result |
+| `Fruit Juice` | `FruitJuice` | `Potion/Fruit Juice` | signed i32; `initializeData` captures accessor result |
+| `SneckoOil` | `SneckoOil` | `Potion/SneckoOil` | signed i32; `initializeData` captures accessor result |
+| `FairyPotion` | `FairyPotion` | `Potion/FairyPotion` | signed i32; `initializeData` captures accessor result |
+| `SmokeBomb` | `SmokeBomb` | `Potion/SmokeBomb` | signed i32; constructor retains superclass zero |
+| `EntropicBrew` | `EntropicBrew` | `Potion/EntropicBrew` | signed i32; constructor captures accessor once; use count reads live slots |
+| `HeartOfIron` | `HeartOfIron` | `Potion/HeartOfIron` | signed i32; `initializeData` captures accessor result |
+
+These 33 rows are the selected Ironclad `PotionHelper.getPotions(IRONCLAD,false)`
+factory identities; they are not a claim that other character-exclusive or special
+non-factory classes belong to this set. Shared capture uses the current ascension
+accessor and optional Sacred Bark doubling with signed-i32 wrap; later use consumes
+the stored instance value rather than recomputing it. Concrete zero/no-amount cases,
+including Smoke Bomb, remain zero-valued and are not converted into a fictitious
+potency effect. The four native properties for a potion row bind as follows:
+`belt_slot` is the actual list ordinal (source signed-int represented by the declared
+slot i32 domain); `occupied` is derived from whether that list element is a placeholder;
+`potion_code` is the byte-exact source alias lookup above; and `potency` is the stored
+signed-i32 instance member. Table 6's slot ordinals are the only public references
+needed for potion use/discard actions; there is no need to publish private source
+flags, description, tips, target-required flag, or discarded/thrown bookkeeping.
+
+Lifecycle binding is owner/checkpoint-specific. Ordinary acquisition scans the live
+belt in order, replaces the first placeholder and sets the instance slot/obtained
+state; a full belt refuses acquisition. The indexed acquisition overload is not that
+scan. A reward claim checks Sozu before acquisition: Sozu may remove the visible offer
+without creating ownership, while a non-Sozu full-belt claim retains it. Shop offer
+visibility remains independent and Sozu blocks purchase at its own route. Combat
+`ObtainPotionAction` and outside-combat `ObtainPotionEffect` perform separate Sozu and
+capacity checks when their queued proposal resolves; a proposal is not an owned
+instance and failed acquisition does not resample. Manual use validates `canUse`,
+dispatches the source effect, runs ordered `onUsePotion` relic hooks, then replaces
+the held slot with its same-ordinal placeholder. For targeted use, cancel only exits
+target mode: it does not dispatch, run hooks, or consume. Discard similarly replaces
+the slot but does not invoke use or hooks; We Meet Again disallows it. Sozu does not
+prohibit use or discard of held potions. Fairy Potion is the exception to manual use:
+its manual `canUse` is always false, while qualifying lethal damage automatically
+rescues through the damage path, heals, and removes the potion without manual-use hooks.
+`makeCopy` creates a fresh same-class instance, not a clone of slot/potency/lifecycle
+fields. These are the accepted bounded branches; they do not assert whole-run reset
+callsite closure or source-frame timing.
+
+Concrete join checks: `Fire Potion` is an occupied source instance with its own slot
+and stored potency, and its target-use action references that slot, not the factory
+ID as an instance handle. A canceled target selection leaves that same occupied row
+unchanged. A `PotionSlot(2)` projects slot 2 as unoccupied with absent ID/potency, not
+three default potion records. A Sozu-blocked reward claim can remove its offered
+reward without adding a table-6 row. Fairy automatic rescue removes the held Fairy row
+without inventing a manual `UsePotion` commit. These distinctions are registry and
+semantic bindings to existing types/properties/operations, not a wire change: no record,
+field, enum, descriptor, version, canonical-byte, or standalone combat-v1 pin changes.
+The exact receiver/sink/effect branches are bound only to the accepted potion producer;
+downstream action IDs, other numeric families, reward catalog routes, and global reset
+closure remain separate pending joins.
+
 #### `SlotStateKind`
 `Uninitialized=1`; `Live=2`; `Terminal=3`
 
