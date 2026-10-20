@@ -191,10 +191,11 @@ mechanics, complete native contracts and compatibility remain required.
 | Creation/profile | Experienced default: all unlocked, full Neow eligibility, all ordinary bosses seen; explicit overrides supported. Each independent episode defaults Note to unupgraded Iron Wave. | Preserve legal stored/off-color cards and one-per-run in-run exchange, no automatic inheritance. Partial pending/committed profile export is not required or a blocker. Minimal honest optional output/reuse may remain. Administrative failure cannot yield successful final/profile, death/reset/rollback; configured hidden Note card cannot leak before legal reveal. |
 | Rules reference | Latest unmodded game, pinned owned bytes as working rules reference; latest identity is the user’s statement. | No independent retail/JRE/runtime certification gate or false certification. Static facts and future gameplay evidence stay distinct; no runtime claim. |
 | Completion | Resolve Act1 rewards, mandatory choices and applicable transition effects; initialize Act2 map and required state; stop before its first policy decision. | Hidden successor state stays hidden. Exact payload/init/visibility is engineering work; no Act2 policy play. |
-| Empty Transmogrifier Transform | **HUMAN-SELECTED NATIVE EXCEPTION, not observed source behavior.** The finite normative contract is `EMPTY_TRANSFORM_NATIVE_EXCEPTION` below; it applies only to `event.transmogrifier`. The contract does not change source facts, nonempty Transform or any other mandatory grid. | The finite record below is the sole normative encoding of this exception; its enums are semantic labels, not wire IDs. |
+| Empty master deck | **HUMAN-SELECTED NATIVE TERMINAL POLICY, not source behavior:** after an accepted action and all mandatory immediate follow-ups in its same causal root settle, exactly zero permanent master-deck instances terminates the episode as `EmptyMasterDeckLoss`. | This is an ordinary task loss (−1, terminated, not truncated), not HP death, rescue/death hooks, or administrative fault. Never inspect transient remove-before-replacement state or unrelated future rewards. Full finite contract below; semantic cause is not a wire ID. |
+| Empty Transmogrifier Transform | **HUMAN-SELECTED NATIVE EXCEPTION, not observed source behavior.** The finite normative contract below applies only to `event.transmogrifier` when the permanent master deck is nonempty and the actual then-current purgeable, nonbottled eligible set is empty. | This narrow child no-op is not an empty-master-deck loss and does not change source facts, nonempty Transform or any other mandatory grid. The finite record is the sole normative encoding; enums are semantic labels, not wire IDs. |
 
 This register records explicit human selections, not newly established source facts.
-Where later wording conflicts, this register controls. D01–D08 dispositions are in
+Where later wording conflicts, this register controls. D01–D09 dispositions are in
 §1.3 and B01–B14 in §17. Whole-spec human approval, reviewed implementation plan
 and separate implementation-start authorization remain distinct and unsatisfied.
 
@@ -211,6 +212,7 @@ closed semantic enums, not transport/wire identifiers.
 | `choice` | `TRANSFORM` |
 | `eligible_set` | `THEN_CURRENT_PURGEABLE_NONBOTTLED` |
 | `checkpoint` | `AT_CHILD_RESOLUTION` |
+| `permanent_deck_guard` | `STRICTLY_POSITIVE_PERMANENT_MASTER_DECK` |
 | `empty_result` | `CHILD_NOOP` |
 | `visible_parent_choice` | `EXISTING_COMPLETE_LEAVE` |
 | `leave` | `LATER_EXPLICIT_PLAYER_CHOICE_ORDINARY_COMPLETE_HANDLER` |
@@ -231,7 +233,63 @@ eligibility preserve the ordinary source-qualified Transform path; do not apply 
 exception to another event or mandatory grid. Detached result/token and idempotent
 continuation lifetime remain under existing native rules.
 
-### 1.3 Decision disposition (D01–D08)
+This child exception requires a nonempty permanent master deck. If the permanent
+master deck is zero after the accepted action's same causal root and mandatory
+replacement/obtain work settle, the separate `EmptyMasterDeckLoss` record below
+controls. A temporary zero during a transform is not a settled master-deck loss.
+
+#### Empty-master-deck-loss record (normative)
+
+This finite native policy is deliberately distinct from inspected source behavior.
+Its stable causal-root boundary prevents a temporary empty deck during a transform,
+multi-transform, remove/replace/obtain sequence, or other mandatory child from being
+mistaken for settled loss.
+
+| Field | Normative value |
+|---|---|
+| `kind` | `HUMAN_SELECTED_NATIVE_TERMINAL_POLICY_NOT_SOURCE_FACT` |
+| `scope` | `PERMANENT_MASTER_DECK_ONLY` |
+| `trigger` | `ACCEPTED_ACTION_ONLY` |
+| `root_settlement` | `SAME_CAUSAL_ROOT_AND_MANDATORY_IMMEDIATE_FOLLOWUPS_COMPLETE` |
+| `counted_state` | `PERMANENT_MASTER_DECK_INSTANCES_ONLY` |
+| `zero_predicate` | `EXACTLY_ZERO` |
+| `transient_replacement` | `DO_NOT_CHECK_WHILE_SAME_ROOT_REPLACEMENT_OR_OBTAIN_PENDING` |
+| `settled_boundary` | `BEFORE_NEXT_DECISION_OR_ACT1_SUCCESS` |
+| `cause` | `EmptyMasterDeckLoss_SEMANTIC_NOT_WIRE_ID` |
+| `task_reward` | `ONCE_MINUS_ONE` |
+| `terminated` | `TRUE` |
+| `truncated` | `FALSE` |
+| `death_and_hp` | `NOT_HP_DEATH_NO_HP_ZERO_OR_DEATH_RESCUE_HOOKS` |
+| `admin_fault` | `NOT_ADMIN_FAULT` |
+| `existing_terminal` | `DO_NOT_OVERWRITE` |
+| `invalid_input` | `NO_TRANSITION_REWARD_RNG_OR_STATE_MUTATION` |
+| `delivery` | `ORDINARY_TERMINAL_OBSERVATION_DETACHED_OUTPUT` |
+| `reset` | `EXISTING_EXPLICIT_TERMINAL_RESET_AND_CONFIGURED_SAME_STEP_VECTOR_RULES` |
+| `historical_itinerary` | `Y11_TOKE_LOSS_Y12_NOT_ADMITTED_HISTORICAL_ROUTE_SUPERSEDED_FOR_CURRENT_POLICY` |
+
+Interpretation: after a valid accepted action fully resolves its causal root and all
+mandatory immediate continuations, count actual permanent master-deck instances. If
+the count is zero, deliver one ordinary loss with reward −1, `terminated=true`,
+`truncated=false`, and semantic reason `EmptyMasterDeckLoss`; do not set HP to zero,
+invoke HP-death/rescue hooks, or report an administrative fault. Empty hand/draw/
+discard/exhaust piles do not qualify, nor does a nonempty permanent deck with zero
+eligible cards. Do not check during an unresolved replacement/obtain root, drain
+unrelated work, or wait for a future optional card reward. Preserve any already
+committed terminal outcome, genuine death interruption, and administrative-fault
+meaning. Rejected/invalid actions and failed settlement remain state/reward/RNG
+neutral. Evaluate before the next ordinary decision or Act1 success. Terminal
+observation, detached delivery, explicit terminal reset, and configured vector
+same-step replacement use existing API rules; the semantic cause is retained without
+claiming final codec, wire value, or EXEC integration.
+
+The historical accepted itinerary includes a y11 Toke route that leaves the permanent
+master deck empty under the former no-loss policy. Under this selection that same
+settled y11 root is `EmptyMasterDeckLoss`; its y12 Transmogrifier prompt is no longer
+an admitted continuation. Keep the old itinerary/model inputs and receipts as
+historical evidence under the former policy, not as source contradiction or failed
+proof; no new map/history/source audit is implied.
+
+### 1.3 Decision disposition (D01–D09)
 
 | ID | Disposition | Residual / evidence limit |
 |---|---|---|
@@ -243,6 +301,7 @@ continuation lifetime remain under existing native rules.
 | A1C-D06 | **SELECTED:** episodes independent; preserve legal Note exchange and no automatic inheritance. Partial staged/committed profile export is not required or a blocker. | Minimal optional output/reuse must remain honest; no successful profile/final on administrative failure. Exact fields remain technical (B11). |
 | A1C-D07 | Policy disposition is **not** blanket schema approval. Detailed representation is technical candidate work for whole-spec review, not a user questionnaire. | Complete native encodings, hidden state, replay, semantic/site/visibility bindings remain open (B09/B10). No final fingerprint. |
 | A1C-D08 | **SELECTED:** resolve Act1 rewards/mandatory choices/transition effects, initialize Act2 map and required state; stop before first Act2 player decision. | Exact successor payload/init/visibility remains engineering work; keep hidden future state hidden; no Act2 policy play (B05/B10). |
+| A1C-D09 | **SELECTED:** an accepted action whose same causal root and mandatory immediate follow-ups fully settle with exactly zero permanent master-deck instances ends in the ordinary `EmptyMasterDeckLoss` outcome. | Reward−1 once, terminated/not truncated; no HP-death/rescue/fault conversion or transient transform false positive. Empty combat/eligible piles do not count; semantic API/replay encoding and downstream consumers remain technical. This is a native policy, not source behavior. |
 
 ## 2. Scope and completion boundary
 
@@ -309,7 +368,9 @@ reward totals or diagnostic logs.
 combat, source-qualified decision/selection, suspended child, death and completed
 handoff. Run retains phase authority during combat. An accepted action resolves
 automatic work to the next genuine decision, actual death or resolved handoff;
-never auto-pick a strategic option. No effect/step/turn cap is a game rule.
+never auto-pick a strategic option. After the accepted action's mandatory causal
+root fully settles, apply the selected permanent-master-deck loss check before
+exposing the next decision. No effect/step/turn cap is a game rule.
 
 **A1C-REQ-007 (A/F):** A suspended decision retains parent identity, resume point,
 already generated offers, payment/captured X, ordered selected instances, remaining
@@ -407,7 +468,7 @@ free flag on each new child; generic zero-output language is expressly supersede
 
 ### 4.2 Work and lethal boundaries
 
-**A1C-REQ-009 (F/S/O):** Preserve distinct entered/current action, pending ordinary and pre-turn actions, card queue, monster snapshot queue, room objects, dungeon effects and souls; there is no universal FIFO. At a terminal boundary, deterministically finish the resolving card/potion immediate effects and mandatory causal follow-ups before victory unless an explicit gameplay interruption applies. Preserve live callback/cost/copy/terminal ordering and distinct filtering/clear steps; do not drain unrelated work, unwind entered calls, add enemy turns, heal after death or claim global source-FIFO. Exact semantic ordering where outcomes are not yet specified remains technical work (B04/B05), not original frame timing.
+**A1C-REQ-009 (F/S/O):** Preserve distinct entered/current action, pending ordinary and pre-turn actions, card queue, monster snapshot queue, room objects, dungeon effects and souls; there is no universal FIFO. At a terminal boundary, deterministically finish the resolving card/potion immediate effects and mandatory causal follow-ups in the same root before victory or the selected empty-master-deck check, unless an explicit gameplay interruption applies. The deck-loss check counts only settled permanent master-deck instances; pending replacement/obtain work in that root prevents a transient-zero loss, while unrelated work is not drained. Preserve live callback/cost/copy/terminal ordering and distinct filtering/clear steps; do not unwind entered calls, add enemy turns, heal after death or claim global source-FIFO. Exact semantic ordering where outcomes are not yet specified remains technical work (B04/B05), not original frame timing.
 
 Actual Exhaust locally calls relics, powers, then the card callback before movement.
 Dead Branch samples at its relic callback; Dark Embrace queues its later draw.
@@ -1143,10 +1204,20 @@ The table indexes bounded static source records, not source parity. B08 retains 
 
 ## 9. Handoff, task and profile/time
 
-**A1C-REQ-028 (A/P/O):** Task reward is exactly +1 once at resolved
-`Act1Complete/Act2Ready`, −1 on actual death, otherwise zero. Both end with
-terminated=true and truncated=false. No shaping, potion penalties, rollout/turn/
-time cap, administrative defeat or retry. Act 1 success is not Heart victory.
+**A1C-REQ-028 (A/S/O):** Task reward is exactly +1 once at resolved
+`Act1Complete/Act2Ready`; −1 once on actual death or on the separately selected
+settled `EmptyMasterDeckLoss`; otherwise zero. Either ordinary loss terminates with
+`terminated=true`, `truncated=false`. Empty-master-deck loss is not HP death: do not
+fake HP=0, run death/rescue/revival hooks, or report administrative fault. Count
+permanent master-deck instances only after the accepted action's same causal root
+and mandatory immediate follow-ups settle; no transient transform gap or empty combat
+pile triggers it. Preserve detached terminal observation/delivery and existing
+explicit terminal reset/configured same-step vector replacement rules. Invalid or
+rejected input/failed settlement is neutral; preserve committed terminal/death
+precedence, no rollback, and quiescent administrative-fault semantics. No shaping,
+potion penalties, rollout/turn/time cap, administrative defeat or retry. The semantic
+cause `EmptyMasterDeckLoss` is distinct and not a final wire ID/codec; API/replay
+binding remains engineering work. Act 1 success is not Heart victory.
 
 Completion requires boss victory hooks/rewards, legal reward skips/claims, boss
 relic take/skip and every resulting child/counter/key/acquisition effect at its
@@ -1555,7 +1626,8 @@ entitlement row. Do not emit an unregistered price under generic property 41; th
 reserved property is unemittable pending actual-public-owner proof.
 
 Proposed enums (start1 unless stated): phase Neow/Map/Room/Combat/Selection/Dead/
-Act2Ready; outcome0 none/1 Death/2 Act1CompleteAct2Ready; decision0 none then Neow/
+Act2Ready; candidate semantic terminal outcomes none/Death/EmptyMasterDeckLoss/
+Act1CompleteAct2Ready (not a final wire mapping or codec); decision0 none then Neow/
 Map/Event/Shop/Campfire/Chest/Reward/BossRelic/Combat/DeckSelection/CombatSelection/
 MatchBoard/PotionSelection/Handoff. Character1–4 Ironclad/Silent/Defect/Watcher,
 creation only1,ascension0. Stance0 none then Neutral/Wrath/Calm/Divinity. Room0
@@ -2032,7 +2104,8 @@ execution to manufacture a pass.
 | TX16 | **UNEXECUTED.** Note incoming removable versus unremovable card with empty prior outgoing candidates. Preserve direct obtain and candidate construction before outgoing selection; only a proven natural profile/history fixture can resolve whether the exceptional history is reachable. |
 | TX17 | **UNEXECUTED.** Last-enemy filter followed by `endBattle`/manager clear. Preserve already committed HP/gold/deck/relic writes; distinguish the admitted current stack, each pending list, effects and souls. Do not invent rollback, fake defeat, or universal drain. |
 | TX18 | **UNEXECUTED.** End turn with Entrench in the remaining-hand clone, Ethereal cards and other queued discards. Distinguish marker-time `triggerOnEndOfTurnForPlayingCard` from later shuffled-clone `triggerOnEndOfPlayerTurn`; verify Entrench's override top-queues Ethereal cleanup ahead of already queued discard work. Entrench is not itself Ethereal; do not infer a seeded/uniform shuffle or selected clock. |
-| TX19 | **UNEXECUTED.** For `event.transmogrifier` only, derive the actual then-current purgeable, nonbottled eligible candidate set at the selected child checkpoint. Empty set after Transform must resolve only that child as a native no-op and expose the existing COMPLETE/Leave choice; verify no selected object/confirmation/source empty-result callback is fabricated and no removal, transform, obtain, card/HP/gold mutation, RNG draw/cursor advance, reward, automatic Leave/map routing, terminal/defeat/fault or rollback occurs. Explicitly choose Leave afterward to test that it follows the ordinary COMPLETE handler. Negative controls: a nonempty set follows the ordinary source-qualified Transform path; wrong event, wrong eligibility set/checkpoint, or any forbidden side effect rejects; duplicate dispatch/stale result reuse rejects while detached outputs/tokens and idempotent continuation lifetime are preserved. This is a human-selected native exception, not source empty-grid evidence. All checks remain future gameplay acceptance, not executed here. |
+| TX19 | **UNEXECUTED.** For `event.transmogrifier` only, require a positive permanent master-deck count and derive the actual then-current purgeable, nonbottled eligible candidate set at the selected child checkpoint. Empty eligible set must resolve only that child as a native no-op and expose existing COMPLETE/Leave; it is not master-deck loss. Verify no selected object/confirmation/source empty-result callback, removal, transform, obtain, card/HP/gold mutation, RNG draw/cursor advance, reward, automatic Leave/map, terminal/defeat/fault or rollback. Later explicit Leave follows ordinary COMPLETE. Nonempty eligible set follows the ordinary source-qualified exact-one Transform path. Negative controls: zero permanent deck cannot use the no-op exception; wrong event, predicate/checkpoint, side effect, duplicate dispatch or stale result rejects; detached outputs/tokens and idempotent continuation lifetime remain. Human-selected native exception, not source empty-grid evidence. Future gameplay acceptance remains unexecuted. |
+| TX20 | **UNEXECUTED.** Parse/execute the finite EmptyMasterDeckLoss record after accepted-action settlement. Positive: stable same-root settled permanent master count0 produces exactly one ordinary loss reward−1, `terminated=true`, `truncated=false`, semantic cause EmptyMasterDeckLoss; no HP=0/death/rescue hooks/admin fault, no next decision or Act1 success. Permanent count>0 with hand/draw/discard/exhaust all empty is nonterminal; future optional card reward does not delay a settled zero-deck loss. A transform/remove/replace/obtain root at transient permanent count0 remains pending, then settles >0 with no loss; if that root settles at0, lose once. Keep the previously accepted y11 Toke route as historical input under prior policy, now terminal at y11 with y12 Transmogrifier not admitted. Negative controls: wrong pile/eligible count, early transient loss, missing/double reward, wrong flags/cause or HP-death/fault conversion, invalid/rejected input mutation, last-card replacement race, nonempty-zero-eligible Transform loss, permanent-zero unconditional no-op, other-event fallback, postterminal continuation/reset contamination. Existing terminal/death/fault precedence and detached terminal/reset/vector rules remain. This policy case is not source behavior or gameplay evidence. |
 
 
 #### Policy-aligned expectation disposition for every future case
@@ -2090,7 +2163,8 @@ required.
 | TX16 | Preserve Note in-run acquisition/candidate legality; partial profile export/reachability proof is not a blocker. |
 | TX17 | Preserve live durable commits and work-container distinctions; no rollback, fake defeat or unrelated drain. |
 | TX18 | Preserve callback distinctions; remove seeded/uniform shuffle, frame/clock parity requirements. |
-| TX19 | Human-selected native exception for only an empty eligible Transform in `event.transmogrifier`: child no-op exposes existing COMPLETE/Leave; explicit later Leave uses ordinary COMPLETE. Failure-first controls reject a fabricated selection/confirmation/callback, wrong candidate set or checkpoint, nonempty-path substitution, automatic Leave/map, removal/transform/obtain/resource or RNG mutation, reward/terminal/fault/rollback, repeated dispatch and stale result reuse. Preserve existing detached-result/token/idempotent-continuation rules. Do not present this as an observed source resolution or extend it to other mandatory grids; nonempty Transform remains source-qualified. |
+| TX19 | Human-selected native exception only for nonempty permanent master deck plus empty eligible set in `event.transmogrifier`; child no-op exposes existing COMPLETE/Leave, later Leave uses ordinary COMPLETE. Zero permanent deck uses the separate settled loss policy, not no-op. Preserve nonempty source-qualified exact-one Transform and other grids; no source empty-resolution claim. |
+| TX20 | EmptyMasterDeckLoss only after an accepted action's same causal root/mandatory immediate work settles; count permanent master deck, not combat/eligible piles. Preserve terminal flags/reward/cause/API delivery, invalid neutrality, death/fault/prior-terminal precedence, same-root replacement ordering and no unrelated work drain; y11 is loss and old y12 route no longer admitted. TX20 remains unexecuted gameplay acceptance. |
 
 E28's TX01–TX18 are each future acceptance discriminators above, not test results.
 They refine and supplement (not replace or collapse into) A1C-T04/T05/T10/T14/T18/
@@ -2113,10 +2187,10 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-003 | §3/§10.3 owners | E05/E08/E17 | T30,T34 | B10 |
 | A1C-REQ-004 | §3/§10.3 single authority/overlay | E05/E08/E17/E19 | T10,T13,T32 | B04,B10 |
 | A1C-REQ-005 | §3 live durability | E02/E03/E05 | T13,T14,T30 | B04,B05 |
-| A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33 | B04,B05,B12 |
+| A1C-REQ-006 | §4 phases/resolution | E03/E05/E08 | T10,T25,T33,TX20 | B04,B05,B12 |
 | A1C-REQ-007 | §4/§8.2–8.5 continuations | E03/E05/E16/E28 | T18–T25,TX13–TX17 | B05 |
 | A1C-REQ-008 | §4.1–4.1.2/§5.2 origins/cost/copy/X | E02/E10/E11/E09-R/E18/E19 | T09,T10,T11,T16 | B04,B07 |
-| A1C-REQ-009 | §4.2–4.5 scheduler/lifecycle | E02/E10/E11/E19/E28 | T08,T10,T11,T14,TX01–TX04,TX17–TX18 | B04,B05,B12 |
+| A1C-REQ-009 | §4.2–4.5 scheduler/lifecycle | E02/E10/E11/E19/E28 | T08,T10,T11,T14,TX01–TX04,TX17–TX20 | B04,B05,B12 |
 | A1C-REQ-010 | §4.2–4.3/4.6/appendixE damage/rescue | E02/E03/E11/E18/E19/E28 | T08,T13,T14,TX05–TX11 | B04,B06,B07,B12 |
 | A1C-REQ-011 | §5/appendix A cards; §5.2–5.3 corrections and paired records | E09 (qualified by E09-R)/E10/E21–E24 | T09–T13 | B04,B07 |
 | A1C-REQ-012 | §5 off-color mechanics; §5.2–5.3 corrections | E08/E09 (qualified by E09-R)/E10/E21–E23 | T09–T12,T15,T24 | B04,B07 |
@@ -2135,7 +2209,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-025 | §8.1/§8.6/appendix D potions | E09/E10/E16/E26 | T10,T14,T17 | B04,B05,B08 |
 | A1C-REQ-026 | §8.1/§8.2 camps | E03/E04/E16 | T23 | B05,B06,B08 |
 | A1C-REQ-027 | §8.1/§8.2 keys/chests | E03/E10/E16 | T22,T23,T25 | B04,B05,B08 |
-| A1C-REQ-028 | §9 handoff/task | E03/E05/E07/E08/E16/E28 | T25,T29,T33,TX13–TX17 | B05,B10 |
+| A1C-REQ-028 | §1.2/§4.2/§9 handoff, terminal cause and task reward | E03/E05/E07/E08/E16/E28 plus selected native policy | T25,T29,T33,TX13–TX17,TX20 | B05,B10 |
 | A1C-REQ-029 | §1.2/§1.3/§9 profile; selected independent Note policy | E03/E05/E09 (qualified by E09-R)/E12/E15/E16 | T01,T24,T29,T31 | B07,B10,B11 |
 | A1C-REQ-030 | §1.2/§9.2 semantic settlement and elapsed gate | E02/E07/E15/E16/E28 | T14,T18,T24,T25,T31,TX10,TX12 | B04,B12 |
 | A1C-REQ-031 | §1.2/§6/§10–10.3 selected native RNG and technical bindings | E01/E05/E08/E10/E11/E13/E14/E17/E27 | T02–T08,T15–T22,T31,T32 | B02,B03,B10 |
@@ -2148,7 +2222,7 @@ or whole-spec approval. Evidence references below do not mean tests executed.
 | A1C-REQ-038 | §12.1/§13 operation-specific preflight | E05/E08/E17 | T01,T28,T29,T31 | B10 |
 | A1C-REQ-039 | §13 exact fault/parallel delivery | E05/E08/E17 | T26,T29–T31 | B10 |
 | A1C-REQ-040 | §14 compatibility/performance | E05/E08/E12 | T32,T34 | B10,B13 |
-| A1C-REQ-041 | §15 acceptance | E08 and this draft | T01–T35,TX01–TX18 | B13,B14 |
+| A1C-REQ-041 | §15 acceptance | E08 and this draft | T01–T35,TX01–TX20 | B13,B14 |
 
 In the ledger only, Tnn and Bnn abbreviate `A1C-Tnn` and `A1C-Bnn`.
 Their complete definitions are sections 15 and 17; no external task tracker is
@@ -2164,7 +2238,7 @@ Statuses distinguish selected policy, residual engineering contract, future acce
 | A1C-B02 / 1 | **SOURCE PROOF SUPERSEDED.** Remove initialized zero-Elite witness/exclusion, source root ensemble and source empty-marker failure as blockers. **ENGINEERING OPEN:** native valid-draft predicate, representative topology/placement, deterministic reject/regenerate, stream/replay and administrative resource failure. | D02 selected; no forced Elite, retry bound or defeat. |
 | A1C-B03 / 1 | **SOURCE JOINTS SUPERSEDED.** Remove source root/history prior, catalog host/JRE order, Java shuffle bias and correlated cross-system laws. **ENGINEERING OPEN:** independent native streams, intended per-site weighted/conditioned laws, canonical order, site bindings, seed derivation and replay determinism. | D03 selected; retain within-mechanic eligibility/history/pity/without-replacement. |
 | A1C-B04 / 1 | **ENGINEERING OPEN.** Preserve real ordinary callback, cost/copy/history, damage/Fatal/split/rescue, interruption and terminal order. Specify immediate mandatory causal settlement before victory and Reaper final-kill heal; no frame race parity, unrelated drain or post-death healing. | E19/E28 facts remain bounded; exact unresolved native composition is not excused by policy. |
-| A1C-B05 / 1 | **ENGINEERING OPEN.** Preserve parent/child commit/consumer/resume, empty-selector reachability where mechanically necessary, global semantic terminal arbitration and exact Act2 successor payload/init/visibility. Remove phantom prevented-Show-curse and obsolete frame cutoff blockers. | D08 selected; stop before Act2 decision. |
+| A1C-B05 / 1 | **ENGINEERING OPEN.** Preserve parent/child commit/consumer/resume, empty-selector reachability where mechanically necessary, global semantic terminal arbitration and exact Act2 successor payload/init/visibility. Remove phantom prevented-Show-curse and obsolete frame cutoff blockers. | D08 and D09 selected; stop before Act2 decision; concrete causal-token consumers remain open. |
 | A1C-B06 / 1 | **ORDINARY MECHANICS OPEN.** Preserve 141 relic laws, 13 shared consumers, X/payment, cross-callback and route-specific behavior; selected settlement does not close their composition. | Accepted local E18/E28 facts remain scoped; exact mechanic contracts required. |
 | A1C-B07 / 2 | **ORDINARY CONTENT/EXECUTION OPEN.** Paired primary card/enemy records exist; retain per-route attribution, transitive callbacks/constructors, mixed costs/copies/queues, damage/terminal composition and any genuinely necessary legal-history reachability. No source-root or waived parity proofs. | E20–E24/E28 bounded; counts/local tables are not full closure. |
 | A1C-B08 / 2 | **ORDINARY CONDITIONAL MECHANICS OPEN.** Retain exact Neow/event/economy/reward/potion quantities, weights, conditions, child/claim/commit behavior and genuine exceptional reachability. Remove source joint-ensemble requirements. | E20/E25/E26 and mechanics remain; native weighted/conditioned implementations need contracts. |
@@ -2172,7 +2246,7 @@ Statuses distinguish selected policy, residual engineering contract, future acce
 | A1C-B10 / 2 | **ENGINEERING OPEN.** Complete native semantic dictionaries, site/action/menu bindings, visibility/hidden-state, RNG/history, all core payload schemas and replay contract. | Eight payloads remain unencoded; no fingerprint or encoded completion claimed. D07 detail is technical review, not unanswered user policy. |
 | A1C-B11 / 2 | **POLICY SELECTED; ENGINEERING OPEN.** Experienced defaults, explicit overrides, independent episodes, Note Iron Wave/0 and no automatic inheritance are normative. Complete legal profile/card validation, minimal honest optional output and failure diagnostics. Partial-profile staged export is not required/blocking. | D05/D06 selected; no automatic profile-return-on-fault or false persistence checkpoint. |
 | A1C-B12 / 1 | **POLICY RESOLVED; MECHANICS OPEN.** Remove frame/60Hz/elapsed/wait-only scheduling and exact-zero race acceptance. Satisfy pure elapsed eligibility (Portal included); preserve non-time eligibility. Specify genuine callback/cost/terminal semantics and Match semantic attempts/reveal/cleanup. | D04 selected; no wait-only gate, frame parity, Portal forcing/removal or substitute gameplay. |
-| A1C-B13 / 3 | **FUTURE ACCEPTANCE OPEN.** T01–T35 and TX01–TX18 remain UNEXECUTED gameplay/binding/fault/replay/compatibility obligations after separate plan/start authorization. Written checks in this amendment are not gameplay evidence. | Future implementation acceptance; not a written-spec policy blocker. |
+| A1C-B13 / 3 | **FUTURE ACCEPTANCE OPEN.** T01–T35 and TX01–TX20 remain UNEXECUTED gameplay/binding/fault/replay/compatibility obligations after separate plan/start authorization. Written checks in this amendment are not gameplay evidence. | Future implementation acceptance; not a written-spec policy blocker. |
 | A1C-B14 / 1 | **REVIEW/HUMAN GATE OPEN.** Independent exact-head whole-spec review, controller readback and accessible human approval remain. Then a coordinated implementation plan must be reviewed and implementation start separately authorized. | This amendment does not claim whole-spec approval/readiness or close parent goal. |
 
 ### 17.1 Integrated evidence inputs — bounded historical facts and surviving interfaces
@@ -2199,8 +2273,8 @@ dispositions. Their linked source documents are historical evidence inputs; §1.
 ### 17.2 Three distinct gap classes for final readback
 
 1. **Residual technical contracts:** B02 native map generator/validator details; B03 native stream/site/seed/replay bindings; B04–B08 ordinary per-site, transitive and genuine exceptional-history mechanics; B09 exact numeric domains; B10 complete semantic/public/private-core dictionaries and bindings. Source root/history measures, initialized zero-Elite proof, host/JRE ordering and source parity are superseded.
-2. **Policy and technical disposition:** D01–D06 and D08 are selected. D07 detailed representation remains technical candidate work, not a questionnaire or blanket schema approval. Accepted Rust/single-authority/uncapped/invalid-batch/no-rollback/compatibility architecture remains accepted; native schema details remain open.
-3. **Future acceptance and human gate:** B13/T01–T35 and TX01–TX18 remain UNEXECUTED after separate approved plan/start. B14 requires independent whole-head review/human readback. Document checker/golden arithmetic is not gameplay evidence.
+2. **Policy and technical disposition:** D01–D06 and D08–D09 are selected. D07 detailed representation remains technical candidate work, not a questionnaire or blanket schema approval. Accepted Rust/single-authority/uncapped/invalid-batch/no-rollback/compatibility architecture remains accepted; native schema details remain open.
+3. **Future acceptance and human gate:** B13/T01–T35 and TX01–TX20 remain UNEXECUTED after separate approved plan/start. B14 requires independent whole-head review/human readback. Document checker/golden arithmetic is not gameplay evidence.
 
 ## Appendix A. Finite reachable-card inventory and closure boundaries
 
@@ -2307,7 +2381,7 @@ mandatory-empty local conditions need initialized witness/exclusion, not a fallb
 | Golden Shrine | Ordinary gold versus larger gold with Regret, or leave |
 | Match and Keep | Twelve instances/six pairs, five attempts, reveal/match/miss/final cleanup/obtain; memory projection |
 | Purifier | Initial remove/Leave; committed noncancellable grid has no local empty guard. No automatic post-commit Skip. |
-| Transmogrifier | Source facts: initial Transform/Leave; committed mandatory grid has no local empty guard; selected object removal precedes generation/Show obtain. **Native exception selected by this amendment:** only when Transform is chosen and the actual eligible set is empty, resolve that child as a no-op and expose existing COMPLETE/Leave. This is not source empty-grid behavior and does not alter nonempty Transform or other grids. |
+| Transmogrifier | Source facts: initial Transform/Leave; committed mandatory grid has no local empty guard; selected object removal precedes generation/Show obtain. **Native exception:** only with a nonempty permanent master deck and empty actual eligible set, resolve that child as a no-op and expose existing COMPLETE/Leave. A settled zero master deck instead follows EmptyMasterDeckLoss before the next event decision. Neither native rule is source empty-grid behavior; nonempty Transform and other grids remain unchanged. |
 | Upgrade Shrine | Upgrade disabled without upgradeables, Leave remains; selected permanent upgrade refreshes bottle link. |
 | Wheel of Change | Gold at reveal once; other later callbacks. Purge empty subset opens no grid/replacement; relic outcome offers skippable rewards, not automatic obtain. |
 | Ominous Forge | Upgrade disabled without upgradeables; rummage/Leave remain. Warped Tongs and queued Pain are distinct work. |
@@ -2770,7 +2844,7 @@ The surviving enemy/execution residuals are exact mixed-origin/cost/copy and tra
 
 ## 18. Draft handoff status
 
-This policy-amended whole-scope specification integrates bounded reviewed E13–E29 evidence and selected policies, but does not claim all mechanics/API contracts closed or human approval. The former phantom ordinary Show-curse obligation is superseded; paired primary records and numeric tables remain bounded. Native RNG/site/replay bindings, exceptional reachability where mechanically necessary, ordinary transitive composition, numeric domains, minimal profile fields and initialized Act2 payload/visibility remain technical work. Source root/history measures, source catalog/joint parity and frame scheduling are not residual blockers. Concrete native contracts and all141 local relic laws do not erase genuine gaps. B02–B12 remain open only at their stated residual boundaries; B13 is future acceptance and B14 is review/human approval. D01–D06 and D08 are selected; D07 detailed representation remains technical. T01–T35 and TX01–TX18 remain unexecuted. Independent review,
+This policy-amended whole-scope specification integrates bounded reviewed E13–E29 evidence and selected policies, but does not claim all mechanics/API contracts closed or human approval. The former phantom ordinary Show-curse obligation is superseded; paired primary records and numeric tables remain bounded. Native RNG/site/replay bindings, exceptional reachability where mechanically necessary, ordinary transitive composition, numeric domains, minimal profile fields and initialized Act2 payload/visibility remain technical work. Source root/history measures, source catalog/joint parity and frame scheduling are not residual blockers. Concrete native contracts and all141 local relic laws do not erase genuine gaps. B02–B12 remain open only at their stated residual boundaries; B13 is future acceptance and B14 is review/human approval. D01–D06 and D08–D09 are selected; D07 detailed representation remains technical. T01–T35 and TX01–TX20 remain unexecuted. Independent review,
 human whole-spec approval, coordinated implementation-plan review and separate
 start authorization remain distinct. No PR readiness, merge or parent-task closure
 is implied by publishing this draft.
