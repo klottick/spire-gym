@@ -59,7 +59,7 @@ All run maps, encounters, reward/economy, event and run-combat systems are disjo
 | `run.card.acquire` | `card.reward.rarity`, `card.reward.identity`, `card.colorless.rarity`, `card.colorless.identity`, `card.neow.colored_rarity`, `card.neow.colored_identity`, `card.neow.colorless_rarity`, `card.neow.colorless_identity`, `card.neow.direct_rare`, `card.neow.three_rare`, `card.neow.curse_identity`, `card.transform.neow1`, `card.transform.neow2`, `card.transform.living_wall`, `card.transform.transmogrifier`, `card.transform.astrolabe`, `card.transform.pandora`, `card.shop.attack`, `card.shop.skill`, `card.shop.power`, `card.shop.colorless_uncommon`, `card.shop.colorless_rare`, plus the 20 exact generation producers in §3.3 / `(act, source_event, site, invocation, slot)` | Each literal site derives its own key. Reward rarity and identity are separate semantic sites but the mechanics transition preserves order: roll rarity, mutate pity once per generated slot, then retry identity at that fixed rarity excluding IDs already in this offer. Ordinary nonelite baseline `R/U/C=0/35/65`, elite `5/40/55`; exact integer rarity roll is 0–99 with current bonus `b`, rare if `n+b<R`, uncommon if `<R+U`, else common. Rare resets `b=5`; common `b=max(-40,b-1)`; uncommon unchanged. Initial `b=5`; Elite `R=10,U=40`; ordinary `R=3,U=37`; boss forces rare. Question Card +1 and Busted Crown −2 change count, not probability. Shard ordinary reward IDs: 76/160/84 by rarity over the 320 eligible union; non-Shard ordinary Ironclad has 72 IDs. The dungeon colorless helper's strict binary32 .3 rare threshold has exact grid mass `5,033,165/16,777,216`; do not apply it to Neow's distinct ordinary/forced-rare colorless helpers. |
 | `run.relic` | `relic.pool.init`, `relic.tier`, `relic.identity`, `relic.end`, `relic.screenless`, `relic.noncampfire`, `relic.neow`, `relic.shop` / `(act, visit, site, invocation)` | Native pool initialization uses canonical stable ID order, not source hash order: common/uncommon/rare/shop/boss candidate lists have pre-removal counts 33/30/28/17/22. Unbiased within-pool shuffle precedes deletion of owned IDs (and floor≥1 owned IDs where applicable); do not shuffle the surviving subset. Pool identity selection is ordered front/end consumption, not another random catalog draw. The finite caller→pool/tier/checkpoint rows are in §3.4. Every rejected candidate is consumed; skip never restores a selected row. |
 | `run.potion` | `potion.reward.appearance`, `potion.reward.identity`, `potion.shop.identity`, `potion.event.flat`, `potion.brew.combat`, `potion.brew.outside`, `potion.use.alchemize`, `potion.use.entropic_brew` / `(act, room_or_visit, source, invocation, slot)` | Accepted Ironclad catalog: 33 IDs, 17 common/9 uncommon/7 rare; rarity-first combat/shop/Courier law draws integer 0–99: 0–64 common,65–89 uncommon,90–99 rare, then uniform identity; per-ID masses are 65/(100×17),25/(100×9),10/(100×7). Named Lab/Woman/Neow/Cauldron factories choose flat 1/33; outside Brew is unrestricted rarity-first. Combat Brew first consumes/discards one flat proposal then retains selected rarity while rejecting Fruit Juice/wrong rarity (rare support6). Appearance offset starts0; eligible elite/Event combat chance `40+offset`, ordinary including boss only if no escape else starts0; White Beast overrides100, then ≥4 existing room reward rows overrides0. Draw integer0–99 and succeed strictly below chance; success adds unrestricted rarity-first offer and subtracts10 offset, failure adds10; no clamp/reset. Claim, skip, use and identity do not mutate offset. Full belt does not suppress offer. Brew samples each live slot including consumed Brew slot once per slot before obtain check; no reroll for full slot. Duplicate behavior is source-site-specific. Sozu claim consumes offer but blocks insertion; Shop refusal does not pay/restock. |
-| `run.shop` | `shop.card.stock`, `shop.relic.stock`, `shop.potion.stock`, `shop.price`, `shop.discount`, `shop.restock`, `shop.purge` / `(act, shop_visit, phase, slot)` | Cards are 2 Attack/2 Skill/1 Power from current-character typed permanent pools (never Shard or combat HEALING filter); second same-type proposal rejects whole proposal and rerolls rarity+identity, with accepted mass `p(i)/(1-p(first))`; common Power falls through to uncommon typed Power. Colorless stock is one uncommon-20 and one rare-15. Three potions rarity-first 65/25/10 with repeats allowed. Relics use tiers 48/34/18 and source pool-end draws. Price generation preserves each E26 expression’s binary32/rounding order and separate discount/reprice checkpoints; removal base 75 then +25 for each paid removal. Restock ordinal has its own sequence and inventory exclusions. Purchase/payment and purge payment are not offer-generation draws. |
+| `run.shop` | `shop.card.stock`, `shop.relic.stock`, `shop.potion.stock`, `shop.price`, `shop.discount`, `shop.restock`, `shop.restock.courier_card.colored_rarity`, `shop.restock.courier_card.colored_identity`, `shop.restock.courier_card.colorless_rarity`, `shop.restock.courier_card.colorless_identity`, `shop.purge` / `(act, shop_visit, phase, slot)` plus the Courier fields in §2.3 | Initial stock, prices, relic/potion restocks, sale and purge retain their existing contracts. A successful Courier card replacement uses the four caller-qualified sites in §2.3, not initial `card.shop.*` or an unspecified generic draw. |
 | `run.event` | `event.room.probability`, `event.room.override`, `event.select`, `event.id`, `event.dead_adventurer.category`, `event.dead_adventurer.enemy`, `event.face.missing`, `event.face.pick`, `event.match.board` / `(act, event_visit, site, invocation)` | Question-room finite input uses the E25 24-bit grid counts: initial monster/shop/treasure/event numerators 1,677,722 / 503,316 / 335,545 / 14,260,633 over 16,777,216. Native keeps current history (initial ramps .10/.03/.02; binary32 increments; leaving Shop suppresses its shop chance) and later-write cell precedence; Tiny Chest's fourth roll forces Treasure after the base draw, Juzu converts selected Monster to Event and resets Monster ramp to .10. Event branch is shrine1/4 or ordinary3/4; initial ordinary list has11 IDs, with Dead Adventurer/Mushrooms eligible only floor>6 and Cleric only with gold≥35; filter current ordinary history before uniform ID. Shrine selection is uniform among remaining six recurring shrines plus currently eligible one-time IDs, then removes selected ID from its owning list. Dead Adventurer search risk is 25/50/75% by search count. Face Trader filters owned IDs from the five exact faces (Cultist Mask, Face of Cleric, Gremlin Mask, N'loth's Mask, Ssserpent Head) before choosing; empty pool gives Circlet. Match board uses six originals Rare/Uncommon/Common/Uncommon-colorless/random-Curse/current-character event starter (Bash), six stat-equivalent copies; 12 labels shuffled once and laid `cell i → (i mod 4, i mod 3)`. Pair outcomes compare IDs, retain revealed memory and attempts; no hidden faces in observation. Note choices are player selections over the legal finite stored-card catalog, not RNG calls; Ironclad remains the run character and Note/off-color identity does not redirect other draw sites. |
 | `run.combat` | `combat.draw.shuffle`, `combat.discard.shuffle`, `combat.generated_card`, `combat.reward.card`, `combat.reward.relic`, `combat.reward.potion`, `combat.reward.gold`, `combat.enemy.ai`, `combat.enemy.hp` / `(combat_id, semantic_site, invocation, actor_ordinal)` | Run combat obtains a fresh run-scoped role assignment and uses same detailed combat engine with explicit persistent resource context. Actual pile shuffles are separate site requests and uniform Fisher–Yates; generated cards use owner/source exact eligible subset and count (39 direct card producers are source-qualified by E17 §10.3; nested child uses inner site). Rewards retain source room/count/rarity/pity and boss/elite distinctions. Gold bounds are ordinary 10–20, Elite 25–35, boss 95–105 (each inclusive uniform integer before hooks). AI and HP are not advanced by pile or card draws. No borrowing or widening standalone combat-v1 streams. |
 | `run.chest` | `chest.kind`, `chest.gold.present`, `chest.relic.tier`, `chest.relic.identity`, `chest.key` / `(act, chest_visit, site, invocation)` | Chest type weights are 50/33/17; type/tier/gold-presence keep their source-conditioned same chest decision context. Gold payload amount is the E26 rounded binary32 `0.9G/1.1G` bounds. Base relic/sapphire-key competition differs from extra Matryoshka relics; Cursed Key/emerald/ruby/sapphire deferred keys commit at the source effect checkpoint, not offer generation. |
@@ -98,6 +98,137 @@ Potion appearance/identity bindings are also caller-qualified: combat drop, merc
 | Evidence and status | Accepted E07 Act2 facts: candidate IDs; first-unseen priority `Champ → Automaton → Collector`; forced-singleton/internal duplication; all-seen candidate ordering `(Automaton, Collector, Champ)` and constructor-before-readiness checkpoint (see [Acts 2/3 research](2026-10-18-ironclad-a0-acts23-research.md) and consolidated A1C-REQ-029). Native operation/stream binding uses this document's accepted §1.3 Fisher–Yates and `run.encounter` request law. Private `.59` model checks cover branch/order/validation/consumption; they are model evidence, not gameplay/source-runtime proof. Current status: proposed amendment, pending independent review and controller/main acceptance. |
 
 No first-unseen output aliases the Act1 `run.setup/setup.boss_order`: both the literal site and semantic role differ, and this row's scope is only `(act=2)`. The accepted `NativeRngState` is supplied by the consumer through the existing aggregate request contract; this amendment intentionally does not define wire serialization or revise native descriptors/fingerprints beyond adding the registry entry. Once accepted and frozen, a later semantic change to the site set follows the new-run-RNG-ID rule in §1.1.
+
+### 2.3 Courier card-replacement registry amendment
+
+**Registry identity and status.** This is a bounded amendment to the still-unimplemented candidate `spire-lab-act1-draw-site-registry-v1` under the unchanged `spire-lab-act1-rng-hmac-sha256-v1`. It completes an omitted caller binding before that candidate registry is frozen, following the candidate-amendment treatment in §2.2. It changes neither framing, primitive word sequence, nor standalone combat-v1 identity/pins. It does not retroactively rewrite a deployed/frozen identity; any later change after acceptance/freeze to registry semantics, accepted framing, or word sequence requires the new-run-RNG-ID rule in §1.1. These rows remain proposed pending independent exact-head review and main acceptance; they are not runtime bindings before then.
+
+The following structured record is the **normative field-level contract** for this amendment. The explanatory prose/table below it restates the caller rationale; it does not override the record. If they conflict, the record is authoritative and the conflict is an amendment defect. The record deliberately carries deterministic visit/purchase/replacement lifecycle, not just draw-site names.
+
+<!-- courier-registry-v2:start -->
+```json
+{
+  "schema": "courier-card-sites-v2",
+  "registry_id": "spire-lab-act1-draw-site-registry-v1",
+  "rng_contract_id": "spire-lab-act1-rng-hmac-sha256-v1",
+  "accepted_source": {
+    "head": "f0e43d3db2e19bcb10d474d36e32f75dbefc552d",
+    "document_sha256": "359e79cc4dcf325f0fdccb582a4554672ea6c13ced7b82b700f72e1535b0712f"
+  },
+  "sites": {
+    "colored": {
+      "role": "run.shop",
+      "site_ids": ["shop.restock.courier_card.colored_rarity", "shop.restock.courier_card.colored_identity"],
+      "scope": ["act", "shop_visit_id", "successful_purchase_ordinal", "replacement_ordinal", "stable_slot_id", "requested_type"],
+      "requested_types": ["ATTACK", "SKILL", "POWER"],
+      "initial_or_reward_aliases": [],
+      "rejection": {
+        "reject_only": ["COLORLESS"],
+        "retry": "rarity_then_identity_pair",
+        "exclude_purchased_or_other_offers": false,
+        "power_fallback": ["COMMON_TO_UNCOMMON", "UNCOMMON_TO_RARE"]
+      },
+      "reward_pity": false
+    },
+    "colorless": {
+      "role": "run.shop",
+      "site_ids": ["shop.restock.courier_card.colorless_rarity", "shop.restock.courier_card.colorless_identity"],
+      "scope": ["act", "shop_visit_id", "successful_purchase_ordinal", "replacement_ordinal", "stable_slot_id"],
+      "initial_or_reward_aliases": [],
+      "threshold": {
+        "source_expression": "merchantRng.random() < colorlessRareChance",
+        "encoding": "accepted_binary32_0.3f",
+        "grid_bits": 24,
+        "strict_true_count": 5033165,
+        "true": "RARE",
+        "false": "UNCOMMON"
+      },
+      "identity_support": {"Rare": 15, "Uncommon": 20},
+      "singleton_identity_consumes_word": false,
+      "duplicate_exclusion": false,
+      "reward_pity": false
+    }
+  },
+  "shop_visit_lifecycle": {
+    "owner": "run.shop_state",
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "allocate": "new_shop_room_entry_before_stock_or_entropy",
+    "commit": "atomically_store_visit_id_and_next_counter_before_stock_generation",
+    "reopen": "resume_same_live_visit_id_and_counters",
+    "new_visit": "only_new_shop_room_entry_allocates_next_id",
+    "leave": "retire_live_visit_but_retain_run_level_next_counter_and_history; later_room_entry_allocates_new_id",
+    "persist": ["child_suspension", "nested_choice", "ui_close_while_room_live", "run_record_for_from_start_replay"],
+    "exhaustion": "administrative_fault_before_room_stock_or_rng; no_wrap_or_reuse",
+    "hidden": true
+  },
+  "successful_purchase_lifecycle": {
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "ordinal": "zero_based",
+    "preflight": "after_affordability_and_before_purchase_record_obtain_queue_or_payment",
+    "allocate_and_commit": "at_purchase_record_checkpoint_once_for_each_successful_card_purchase",
+    "includes": ["Courier_card", "non_Courier_card"],
+    "courier_eligibility": "evaluate_current_Courier_ownership_after_affordability_before_counter_preflight; reserve_replacement_capacity_only_if_source_branch_runs",
+    "unaffordable": "no_ordinal_increment_and_no_purchase_or_replacement_entropy",
+    "persist": ["child_suspension", "nested_choice", "ui_close_while_room_live", "visit_state", "replay_record"],
+    "exhaustion": "administrative_fault_before_irreversible_purchase_effect; no_wrap_or_reuse",
+    "post_commit_fault": "preserve_purchase_ordinal_and_committed_effect_prefix; quiesce_without_rollback_or_refund"
+  },
+  "replacement_lifecycle": {
+    "next_counter_initial": 0,
+    "width": "u64_checked_with_max_as_exhausted_sentinel",
+    "ordinal": "zero_based_per_visit",
+    "preflight": "after_purchase_validation_but_before_purchase_record_obtain_queue_or_payment_if_Courier_card_replacement_will_run",
+    "allocate_and_commit": "once_at_replacement_invocation_start_after_payment; never reuse after fault",
+    "attempt": "private_per_invocation_diagnostic_counter_not_scope_or_invocation",
+    "invocation": "replacement_ordinal",
+    "stream_cursor": "independent_next_word_per_role_site_scope_key",
+    "non_Courier_purchase": "increments_purchase_only_not_replacement",
+    "exhaustion": "administrative_fault_before_irreversible_purchase_effect; no_wrap_or_reuse",
+    "post_payment_draw_fault": "preserve_purchase_queue_payment_and_allocated_replacement_ordinal; preserve_consumed_draw_prefix; quiesce_without_rollback_or_refund"
+  },
+  "stable_slots": {
+    "identity_namespace": "(shop_visit_id,stable_slot_id)",
+    "initial": ["colored.attack.0", "colored.attack.1", "colored.skill.0", "colored.skill.1", "colored.power.0", "colorless.uncommon.0", "colorless.rare.0"],
+    "index_resolution": "resolve_current_clicked_index_to_stable_id_before_stock_mutation",
+    "non_Courier_remove": "remove_slot_without_renumbering_survivors",
+    "replacement": "retain_same_stable_slot_id"
+  },
+  "commit_order": [
+    "validate_affordability_then_preflight_counter_capacity_only_on_affordable_branch",
+    "purchase_record_and_ordinal_commit",
+    "queue_obtain_purchased_instance",
+    "spend_displayed_price",
+    "allocate_replacement_ordinal_if_courier_card",
+    "draw_and_commit_prefix",
+    "preview_hooks",
+    "set_replacement_price",
+    "replace_same_stable_slot",
+    "expose_settled_offer"
+  ],
+  "failure_visibility_replay": {
+    "unaffordable": "no_purchase_or_replacement_mutation_or_draw",
+    "administrative_fault": "retain_committed_prefix_then_quiesce; no_refund_rollback_substitute_or_fake_defeat",
+    "private": ["keys", "cursors", "ordinals", "candidate_rows", "attempt_count", "rejected_proposals"],
+    "visible": "only_legally_revealed_settled_offer_and_price",
+    "replay": "from_start_with_root_partition_run_role_site_scope_invocation_and_cursors; no_arbitrary_snapshot_restore"
+  }
+}
+```
+<!-- courier-registry-v2:end -->
+
+| Required field | Courier colored replacement | Courier colorless replacement |
+|---|---|---|
+| Caller / guard | `run.shop`; `ShopScreen.purchaseCard` successful-affordability branch with Courier present, purchased offer's color requested. Insufficient gold, no card purchase, non-Courier removal, and relic/potion restock do not call this row. | Same purchase checkpoint, with the purchased offer color `COLORLESS`. |
+| Role, site, scope, invocation | `role_id=run.shop`; `site_id=shop.restock.courier_card.colored_rarity` and `shop.restock.courier_card.colored_identity`; scope `(act=1, shop_visit, successful_purchase_ordinal, replacement_ordinal, stable_slot_id, requested_type)` with requested type exactly Attack, Skill, or Power. Each successful Courier card replacement allocates one checked visit-local `replacement_ordinal` before drawing; it is the invocation on both site requests. The successful-purchase ordinal is visit-local and counts each successful card purchase, whether or not it was Courier-eligible. | Same role/site family and invocation; scope `(act=1, shop_visit, successful_purchase_ordinal, replacement_ordinal, stable_slot_id)`; sites `shop.restock.courier_card.colorless_rarity` and `shop.restock.courier_card.colorless_identity`. |
+| Stable slot / row order | Resolve the clicked mutable row index to the row's stable slot ID before stock mutation. Initial identities are `colored.attack.0`, `colored.attack.1`, `colored.skill.0`, `colored.skill.1`, `colored.power.0`, `colorless.uncommon.0`, `colorless.rare.0`; replacement retains the purchased slot ID. Non-Courier removal deletes that slot but never renumbers other identities. A later Courier purchase resolves its current row index anew and uses that surviving slot ID. Slot ID, not current list index or card ID, enters scope. | Same rule. The identity of the initial colorless slot does not constrain the replacement rarity: replacement is typed by the purchased offer's `COLORLESS` branch, and retains that slot ID. |
+| Ordered proposal law | On every attempt, request rarity using the source-qualified rarity site and its accepted Merchant `rollRarity()` law, then draw identity from that rarity and the requested Attack/Skill/Power typed current-character permanent pool via identity site with `useRng=false` semantics. Candidate IDs are the exact requested-type pool in canonical unsigned-UTF-8 ID order with equal unit weights, with only `COLORLESS` rejected. Do not exclude purchased ID, any other current offer ID, or prior Courier output. Rejecting `COLORLESS` rejects the whole pair and retries rarity plus identity; accepted identity ends the loop. Common Power's source fallback is Uncommon, then Rare, when that typed tier has no eligible candidate; it is not an extra rarity draw. No reward-pity/history mutation, Shard widening, combat HEALING filter, or shop-wide distinctness set applies. | First consume one exact-grid Bernoulli comparison for the strict source condition `merchantRng.random() < colorlessRareChance`: true selects Rare, false Uncommon. Encode the accepted source binary32 threshold `q=colorlessRareChance` exactly as its 24-bit uniform grid; the true-count is `ceil(q·2^24)` for `u/2^24 < q`, using exact rational arithmetic (not host-float comparison). Then draw one identity uniformly from the fixed exact colorless tier (Rare15 or Uncommon20), in canonical unsigned-UTF-8 ID order. There is no rarity retry, cross-slot duplicate exclusion, or reward pity. A valid singleton identity consumes no word by the existing kernel; the threshold operation still follows its non-endpoint Bernoulli rule. |
+| Attempts / cursor / commit | Attempt count is private diagnostic state, starts at zero per replacement, and increments once after each rejected `COLORLESS` pair; it is not an invocation or scope component. Each attempt uses the accepted Merchant `rollRarity()` probability/grid law unchanged, then the separate identity kernel. Rarity and identity cursors are separate per-site `next_word` counters; rejection advances only the two streams actually drawn, and a successful pair commits their resulting cursors with the replacement. The checked replacement ordinal is allocated and advanced exactly once when this generation invocation starts, never reused, and persists across child-screen suspension/UI close; it is retained even if later administrative exhaustion faults the run. Checked overflow faults before any draw. | The rarity site is one Bernoulli operation using exact source `q=colorlessRareChance` binary32 threshold-to-grid conversion; identity site one fixed-rarity operation, each once. Separate site cursors commit with the replacement. A valid singleton identity requires no identity word; no retry/resample or extra invocation is created. |
+| Purchase, exposure, failure | Validate registry row, act/visit/slot/type/purchase/invocation/counter domains before entropy. On sufficient gold, source order records purchase and queues obtain for the purchased instance, spends the displayed price, then generates replacement, runs preview hooks, sets its price, and commits it in the same stable slot. The new offer is not acquired. If a post-payment draw exhausts a stream or another administrative generation fault occurs, keep purchase, queued obtain, spend, and any committed prefix; quiesce with no refund, rollback, substitute, retry-as-new-purchase, or fake defeat. Expose only the legally revealed settled replacement/price; all RNG states, counters, candidates, and rejected attempts remain hidden. | Same purchase ordering and administrative-fault rule. Unaffordable purchase rejects before purchase ordinal, replacement ordinal, RNG state, or stock mutation. |
+| Relation to existing sites / replay | Specializes the formerly generic `shop.restock` wording for this caller by adding four explicit caller-qualified children; generic row remains for non-card restock semantics and does not alias these streams. Initial colored stock remains on `run.card.acquire/card.shop.attack|skill|power`; initial colorless stock remains `.colorless_uncommon|rare`. `shop.price`, `shop.discount`, sale/purge, and relic/potion restock are disjoint and are not entropy sources for card replacement. From-start replay reconstructs full root/partition/run ID/role/site/scope/invocation/cursors and replays semantic purchase/slot transitions; cursor alone or arbitrary snapshot restoration is insufficient. | Same. |
+
+The accepted source caller facts and laws above are bounded to the reviewed Merchant/Courier interface at immutable catalog head `f0e43d3` (document SHA-256 `359e79cc4dcf325f0fdccb582a4554672ea6c13ced7b82b700f72e1535b0712f`) and accepted E26 shop contract. The registry amendment adds no final native descriptor/fingerprint or wire grammar: those joins remain main-routed consumer work. The selected model preserves within-branch source conditioning (including the strict colorless threshold and colored whole-pair rejection) while intentionally waiving source cross-system RNG correlation; it does not claim source-seed or runtime parity.
 
 ## 3. Source-grounded ordinary parameter and history table
 
