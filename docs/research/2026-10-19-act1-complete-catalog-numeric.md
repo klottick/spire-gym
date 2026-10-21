@@ -89,20 +89,22 @@ producer-output insertion joins.
 | **Fixed generated specials and statuses** — exact card producers in Red-Colorless §7, Silent §8, Watcher §7.1, Defect §8 | Fixed outputs are literal accepted identities, not pool candidates: Wound (Wild Strike), Dazed (Reckless Charge), Burn (Immolate/Overclock), Void (TURBO), two Wounds (Power Through), Shiv (Blade Dance/Cloak and Dagger/Infinite Blades/Storm of Steel), Smite (Battle Hymn/Carve Reality), Safety (Deceive Reality), Insight (Evaluate/Pray/Study), Through Violence (Reach Heaven), Beta (Alpha), Omega (Beta), Miracle (Deus Ex Machina/Collect), Expunger (Conjure Blade). Three Wish records remain nonphysical option callbacks, not card outputs. | Each output count, base/upgraded identity, actual-draw versus insertion trigger, hand/draw/discard destination and timing are owner-specific in the cited source sections. Hexaghost Burn upgrades distinguish existing pile cards from later generated Burns. Fixed output does not imply ordinary acquisition eligibility. | The source callback/request is not itself permanent acquisition. Reveal only when the created instance/offer reaches an entitled visible zone/checkpoint; actual-draw callbacks fire only on actual draw. Pending construction and animation do not reveal a hidden identity early. |
 | **Copies and existing-instance movement** — named card copy/movement owners (`Red-Colorless §6`; Silent §8; Watcher §7.1; continuations §3) | Anger creates a same-kind copy; Dual Wield, Endless Agony and Nightmare copy existing selected/actual instances; Omniscience purges a copy; Note incoming is fresh from stored ID/count. Meditate, Flurry, Weave and Tantrum move existing instances and are not new kind samples. Exact identity therefore comes from the source instance, resolved through the same 370-key/alias spine. | Copy-vs-move, upgrade restoration, temporary cost, bottle flags, overflow and recursion differ by owner. Discovery/Foreign Influence selected copies are not fresh selectors. A copy operation does not authorize a hidden original identity to be revealed. | Selection/capture, copy construction, insertion and later permanent acquisition are distinct. Reveal follows the actual visible instance/offer; no emission from registration or hidden copy capture alone. |
 
-**Finite but not yet closed:** these retained facts establish priority families,
-not the expected whole-source-set equality. Exact outstanding joins are: (a) any
-unlisted combat setup caller and remaining fixed Neow/event/relic branches beyond the
-direct rows enumerated above; (b) the `Pandora's Box` current-character replacement
-candidate identity predicate plus any unlisted caller of `NeowReward.update`,
-`LivingWall.buttonEffect`, `Transmogrifier.buttonEffect` or Astrolabe transform;
-(d) exact owner method → literal output ID → insertion/acquisition caller joins for
-the listed random and fixed generated producers, including all remaining direct
-card-producing methods; (e) every E01–E25 fixed/random card-producing event callback
-and each Act-1 enemy/encounter fixed-card/status producer/guard; and (f) two-way
-source-invocation versus route-row reconciliation after alias resolution, proving
-no omitted or unsupported owner. These name the concrete caller families and
-missing identity/member joins; they are not a claim that all routes are generically
-open. Until they close, this registry is a source-grounded finite-family map, not
+**Finite but not yet closed:** the root units now bounded and source-accepted are
+ordinary combat/boss, named Neow card branches, Dream Catcher Rest, and Merchant/
+Courier card stock; their exact source traces are in the caller table above. The five
+fixed event edges in §2.16 additionally close Big Fish/Box→Regret,
+Golden Idol/Take→Injury, Mushrooms/Eat→Parasite, Liars Game/Agree→Doubt, and
+Accursed Blacksmith/Rummage→Pain through their actual consumers. Exact outstanding
+joins are: (a) the remaining fixed Neow/event/relic branches not enumerated by those
+bounded caller rows; (b) `Pandora's Box` current-character replacement candidate
+predicate and any unlisted transform callers; (c) owner method → literal output ID →
+insertion/acquisition joins for remaining direct random/fixed/generated producers;
+(d) every other E01–E25 event callback and Act-1 enemy/encounter fixed-card/status
+producer and its guard/consumer; and (e) source-invocation versus route-row two-way
+reconciliation after alias resolution, proving no omitted or unsupported owner.
+Source choice-key, public-fact/history-key, property-owner, and effect-site canonical
+namespaces are also not closed by §2.16's five rows. These are concrete residuals,
+not generic “all routes open” language. This remains a finite-family map, not
 producer-set closure or full `.44` completion.
 
 | Canonical key | Exact source ID (`cardID`) | Exact class alias | Source registry owner | Eligibility / emission  | Source mechanics anchor(s) | Physical kind | Act 1 acquisition domain |
@@ -1146,6 +1148,31 @@ The key-comparator-v3 pass validates every canonical key in the delivered source
 
 The comparator also validates the owner-qualified `move.<monster>.<token>` grammar. Reused move-field aliases (for example `BELLOW`, `BITE`, `TACKLE`, and `DEBUFF`) are explicitly disambiguated by the monster owner in the canonical key. Source event choices/options, source-property IDs, public facts/history, and effect-site identities remain explicitly unprovided/open above; 871 is not a whole-source-universe count or `.44` completion claim.
 
+### 2.16 Event card emitter → consumer identity joins
+
+These five rows close concrete fixed-card edges from the accepted event source
+record and retained event members. The canonical event key identifies the producer
+owner; the output key resolves through §2.1's `CardLibrary` identity/alias spine.
+An event option's display is not necessarily the obtain checkpoint: the Liars Game
+exposes Doubt in its initial option but delays `ShowCardAndObtainEffect` until the
+player confirms the agreed result. “ProducerConsumerKey” here is the owner/member/
+option-qualified relation, not a wire property or native numeric RNG site.
+
+| Canonical event key | Exact event source ID / owner alias | Source producer member and selected option | Output SourceIdentity key / exact card ID | Consumer and entitlement checkpoint |
+|---|---|---|---|---|
+| `event.big_fish` | `Big Fish` / `BigFish` | `BigFish.buttonEffect`, Box result | `card.regret` / `Regret` | `ShowCardAndObtainEffect(CardLibrary.getCopy(c.cardID))` is queued in the Box callback; result screen follows. No card-choice offer. |
+| `event.golden_idol` | `Golden Idol` / `GoldenIdolEvent` | `GoldenIdolEvent.buttonEffect`, Take | `card.injury` / `Injury` | `ShowCardAndObtainEffect` is queued in Take callback; Injury is fixed, not random-curse selection. |
+| `event.mushrooms` | `Mushrooms` / `Mushrooms` | `Mushrooms.buttonEffect`, Eat | `card.parasite` / `Parasite` | Heal occurs, then `ShowCardAndObtainEffect` is queued; Fight does not produce Parasite. |
+| `event.liars_game` | `Liars Game` / `Sssserpent` | `Sssserpent` constructor (option display) then `buttonEffect`, Agree and result confirmation | `card.doubt` / `Doubt` | `CardLibrary.getCopy` is displayed with the initial Agree option; `ShowCardAndObtainEffect` occurs only on the subsequent Agree-result confirmation. Disagree does not acquire it. |
+| `event.accursed_blacksmith` | `Accursed Blacksmith` / `AccursedBlacksmith` | `AccursedBlacksmith` constructor (Rummage option) then `buttonEffect`, Rummage | `card.pain` / `Pain` | `CardLibrary.getCopy(Pain)` is shown with the option; selected callback queues Pain acquisition and spawns Warped Tongs. This is a fixed Pain edge, not a random curse selector. |
+
+This is an actual subset of the remaining joins, not an exhaustive E01–E25 event
+choice/effect-site table. In particular, other fixed/random event outputs, enemy
+and encounter card/status producers, powers/relic direct grants and their full
+consumer checkpoints, source choice-key namespace, public-fact/history keys, and
+property/effect-site canonical identities remain open. No inference from an event's
+factory identity to its option/member identity is allowed.
+
 ## 3. Numeric-domain/member join rules
 
 The source primitive domain, reachable values, local helper caps, selected native representation, and public visibility are separate facts. Direct Java `int` members have source representability `[-2^31, 2^31-1]`; where Java `int` arithmetic is executed, overflow wraps at that operation in source behavior. A wider native carrier must sign-extend and preserve the resulting value; it must not narrow an out-of-range input. A Java `byte` intent/move discriminator is signed `[-128,127]` and must be decoded under its owning monster before it becomes a semantic key. Boolean fields are exactly `0/1`. Collection sizes/indexes derive from source `int`, but imply no fixed content limit. Allocation/carrier failure is administrative, never a reason to clip a legal source value, shorten a menu, omit a row, or fabricate defeat.
@@ -1196,11 +1223,15 @@ The accepted property vocabulary is finite and version-local. Property 41’s st
 
 Accepted E29 reports a 146-cell candidate crosswalk and a 131-card bounded alias table; neither is proof that all source-owned fields or legal identities are equal to a complete emitted set. This continuation now publishes concrete static identity rows for 370 `CardLibrary` registrations, the 141 accepted Act 1 relic candidates, the 33 Ironclad potion factory IDs, 25 Act 1 enemy kinds, 22 scoped encounter keys, and 25 Act 1 event factory IDs. Private checks compare the card table against source loader calls and exact class-file constants; relic rows against the accepted candidate ledger and `RelicLibrary` registration/class IDs; potion rows against the Ironclad factory list/cases; event rows against `EventHelper.getEvent`; encounter names against retained source constants; and enemy IDs against pinned class-file constants. These are bounded namespace checks, not proof of all legal producer/use sites or all required source namespaces. Static declarations alone also do not prove a source member is read, written, reset, owner-qualified, or public. The complete expected set still must be derived from actual in-scope reachability and compared against independently maintained delivered rows; a checker built from the same authored list on both sides is circular and invalid.
 
-For that reason this document does **not** claim full catalog or numeric closure. The identity-catalog work remains incomplete; these concrete joins are still open:
+For that reason this document does **not** claim full catalog or numeric closure. The
+caller coverage has advanced since the original identity-v2 inventory: bounded
+combat/boss, Neow, Dream Catcher Rest, and Merchant/Courier source traces now exist,
+and §2.16 adds five exact event owner/member/output/consumer edges. Those bounded
+proofs do not establish whole-source equality. The remaining concrete obligations are:
 
-1. **Cards:** the 370-row list is the static `CardLibrary` registration universe, not yet the exact legal producer set. Every reachable producer/selector route (ordinary rewards, Note/Shard/off-color, generated/dependent, transformed/copied/event/potion and Status/Curse/control identities) still needs explicit owner-qualified inclusion/exclusion and emission checkpoints; current per-row route/pool text is not a substitute for those joins.
+1. **Cards:** the 370-row list is the static `CardLibrary` registration universe, not yet the exact legal producer set. The four caller roots and five §2.16 event edges are bounded joins, not an exhaustive owner-qualified producer/selector census. Remaining transformed/copied/event/potion and Status/Curse/control identities need owner-specific inclusion/exclusion and emission/consumer checkpoints; current per-row route/pool text is not a substitute for those joins.
 2. **Powers:** this supplement now lists 106 power class/ID rows directly constructed or referenced by exact ID strings in the enumerated card/relic/potion/enemy owner classes. It is a bounded static owner-use inventory, not the complete application/creation universe: mediated actions, dynamic/reflective IDs, event/reward-option sites, player/monster application lifecycles, visibility and removal owners remain to be joined.
-3. **Events and choices:** the event-kind IDs/classes are joined, but finite event source-option keys/indexes and owner-specific eligible/current-choice emission rows remain open. Room type/phase and reward enum constants are now literal-keyed; source reward origins/producer routes and complete reward/choice transition identities remain open. The four room-object rows name only bounded state-bearing source-owner families; concrete event/campfire choice sets and source-specific emission joins are not closed.
+3. **Events and choices:** the event-kind IDs/classes are joined, and §2.16 joins five exact event card-output edges. Finite event source-option keys/indexes and the remaining owner-specific eligible/current-choice emission rows remain open. Room type/phase and reward enum constants are now literal-keyed; source reward origins/producer routes and complete reward/choice transition identities remain open. The four room-object rows name only bounded state-bearing source-owner families; complete event/campfire choice sets and source-specific emission joins are not closed.
 4. **Orbs/intents/public facts/effect sites:** five orb class/ID rows are listed, including `EmptyOrbSlot` explicitly as a non-channelable slot sentinel. The global `AbstractMonster.Intent` enum has 17 literal values; 69 compile-time byte move constants are catalogued owner-locally for the 25 Act 1 enemy classes. These declarations do not prove complete use/producer sets, legal visibility, or payload ownership. Public-fact/history keys and source effect-site identities/use-set equality remain absent.
 5. **Properties:** accepted codes 1–45 are a native proposal vocabulary, not source IDs. Code 41 is excluded and unemittable pending owner proof; code 40 is not an open bag. The mapping from every other property/subkey to exact source owner/member, source option/producer, and public reveal checkpoint is not complete.
 6. **Ownership/emission equality:** identity-v2 independently compares expected static key/payload rows with delivered tables for its bounded 37 relic exclusions, 106 power rows, 5 orb rows, 6 room types, 4 room phases, 7 reward types, 17 global intents, 69 monster-local move constants and 4 room-object families. Mutations of key, owner, alias, classification, omission and duplication are rejected in that bounded reconciliation. This does not establish all producer/read/write/use sites, route eligibility, hidden-state predicates or full namespace source-set equality. The current card row selector language and broad live-offer disclosure conditions are intentionally qualified, not asserted as proven source law.
