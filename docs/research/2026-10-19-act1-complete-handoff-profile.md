@@ -953,23 +953,27 @@ profile, boss history, time or terminal state is implicitly inherited. Invalid
 whole-batch reset/replacement preflight is neutral. A fault never causes reset or
 same-step replacement.
 
-Capture is an owned state transition, not a repeatable projection helper. Each
-committed episode terminal initializes one run-owned capture token in `Available`
-state. A successful `CaptureTerminalResult` operation requires a committed immutable
-terminal outcome, that token still `Available`, delivery state `NotCaptured`, and a
-pool that is neither faulted nor closed. In one atomic transition it consumes the
-token, freezes the terminal output into a detached owned value and enters
-`CapturedDetached`; the reward-capture fact is derived from this successful
-token-consuming transition, not from a prefilled counter. A second capture attempt
-has no result and no reward and leaves all state unchanged. Transfer of the captured
-value to the caller happens once and moves it to `Transferred`. A post-commit fault
-before capture leaves the terminal commit and unused token intact but faults the
-pool, thereby blocking both capture and reset. A fault after capture but before
-transfer leaves the token consumed and detached internal capture intact, faults the
-pool and forbids retry/second transfer. A later fault after transfer preserves the
-already-returned detached value byte-for-byte and cannot recapture or reward. The
-detached info/result member layout remains an explicit native `.87` join; this rule
-defines lifetime/ownership, not a guessed schema.
+Capture is an owned state transition, not a repeatable projection helper. Each of
+the three committed semantic outcomes initializes the same run-owned capture
+protocol, parameterized by the selected public `terminal_outcomes` row and commit
+input. The commit freezes kind, reward, flags, cause, actual HP and terminal
+projection from those inputs; it does not substitute the empty-deck-loss row for a
+death or ready-success row. A successful `CaptureTerminalResult` operation requires
+a committed immutable terminal outcome, that run's token still `Available`, delivery
+state `NotCaptured`, and a pool that is neither faulted nor closed. In one atomic
+transition it consumes the token, freezes the row-derived terminal output into a
+detached owned value and enters `CapturedDetached`; the reward-capture fact is
+derived from this successful token-consuming transition, not from a prefilled
+counter. A second capture attempt has no result and no reward and leaves all state
+unchanged. Transfer of the captured value to the caller happens once and moves it to
+`Transferred`. A post-commit fault before capture leaves the selected terminal
+commit and unused token intact but faults the pool, thereby blocking both capture
+and reset. A fault after capture but before transfer leaves the token consumed and
+detached internal capture intact, faults the pool and forbids retry/second transfer.
+A later fault after transfer preserves the already-returned detached value
+byte-for-byte and cannot recapture or reward. The detached info/result member layout
+remains an explicit native `.87` join; this rule defines lifetime/ownership, not a
+guessed schema.
 
 The `SingleManual` lifecycle has three distinct operations: terminal reads return a
 fresh detached copy of the same frozen zero-candidate terminal observation without
@@ -1027,19 +1031,29 @@ the final enums, APIs and wire layouts must join through §7.
   },
   "capture_protocol": {
     "state_owner": ["episode-run", "environment-pool"],
-    "state_fields": ["run_outcome", "terminal_commit_identity", "capture_token", "delivery_state", "pool_state", "live_terminal_result", "captured_result", "reward_capture_count", "transferred_results"],
+    "state_fields": {
+      "run_outcome": {"type": "outcome-or-null", "initial": null},
+      "terminal_commit_identity": {"type": "string-or-null", "initial": null},
+      "capture_token": {"type": "capture-token", "initial": "Unavailable"},
+      "delivery_state": {"type": "delivery-state", "initial": "NotCaptured"},
+      "pool_state": {"type": "pool-state", "initial": "Operating"},
+      "live_terminal_result": {"type": "result-or-null", "initial": null},
+      "captured_result": {"type": "result-or-null", "initial": null},
+      "reward_capture_count": {"type": "integer", "initial": 0},
+      "transferred_results": {"type": "result-list", "initial": []}
+    },
     "token_states": ["Available", "Consumed"],
     "delivery_states": ["NotCaptured", "CapturedDetached", "Transferred", "FaultedAfterCapture"],
     "capture_guard": {"requires": ["committed-terminal-outcome", "capture-token-Available", "delivery-NotCaptured", "pool-not-Faulted-or-Closed"], "successful_capture_consumes_token": true, "reward_capture_derived_from_transition": true},
     "transitions": {
-      "commit_terminal": {"requires": {"run_outcome": "None"}, "sets": {"run_outcome": "EmptyMasterDeckLoss", "terminal_commit_identity": "current-commit", "capture_token": "Available", "delivery_state": "NotCaptured", "captured_result": null, "reward_capture_count": 0}},
-      "capture_once": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "terminal_commit_identity": "current-commit", "capture_token": "Available", "delivery_state": "NotCaptured", "pool_not_faulted": true}, "sets": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "capture_result": true, "detach": true, "capture_reward": true},
+      "commit_terminal": {"requires": {"run_outcome": null, "pool_not_faulted": true}, "sets": {"run_outcome": "$input.outcome", "terminal_commit_identity": "$input.commit_identity", "capture_token": "Available", "delivery_state": "NotCaptured", "captured_result": null, "reward_capture_count": 0}, "commit_result_from_outcome_row": true},
+      "capture_once": {"requires": {"run_outcome": "$input.outcome", "terminal_commit_identity": "$input.commit_identity", "capture_token": "Available", "delivery_state": "NotCaptured", "pool_not_faulted": true}, "sets": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "capture_result": true, "detach": true, "capture_reward": true},
       "transfer_once": {"requires": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"delivery_state": "Transferred"}, "transfer_capture": true}
     },
     "fault_transitions": {
-      "before_terminal_commit": {"requires": {"run_outcome": "None"}, "sets": {"pool_state": "Faulted", "delivery_state": "NotCaptured"}},
-      "after_commit_before_capture": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "capture_token": "Available", "delivery_state": "NotCaptured"}, "sets": {"pool_state": "Faulted"}},
-      "after_capture_before_transfer": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"pool_state": "Faulted", "delivery_state": "FaultedAfterCapture"}},
+      "before_terminal_commit": {"requires": {"run_outcome": null}, "sets": {"pool_state": "Faulted", "delivery_state": "NotCaptured"}},
+      "after_commit_before_capture": {"requires": {"run_outcome": "$any-terminal-outcome", "capture_token": "Available", "delivery_state": "NotCaptured"}, "sets": {"pool_state": "Faulted"}},
+      "after_capture_before_transfer": {"requires": {"run_outcome": "$any-terminal-outcome", "capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"pool_state": "Faulted", "delivery_state": "FaultedAfterCapture"}},
       "after_transfer": {"requires": {"capture_token": "Consumed", "delivery_state": "Transferred"}, "sets": {"pool_state": "Faulted"}, "preserve_transferred": true}
     }
   },
