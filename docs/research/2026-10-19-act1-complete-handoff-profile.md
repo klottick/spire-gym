@@ -953,6 +953,36 @@ profile, boss history, time or terminal state is implicitly inherited. Invalid
 whole-batch reset/replacement preflight is neutral. A fault never causes reset or
 same-step replacement.
 
+Capture is an owned state transition, not a repeatable projection helper. Each
+committed episode terminal initializes one run-owned capture token in `Available`
+state. A successful `CaptureTerminalResult` operation requires a committed immutable
+terminal outcome, that token still `Available`, delivery state `NotCaptured`, and a
+pool that is neither faulted nor closed. In one atomic transition it consumes the
+token, freezes the terminal output into a detached owned value and enters
+`CapturedDetached`; the reward-capture fact is derived from this successful
+token-consuming transition, not from a prefilled counter. A second capture attempt
+has no result and no reward and leaves all state unchanged. Transfer of the captured
+value to the caller happens once and moves it to `Transferred`. A post-commit fault
+before capture leaves the terminal commit and unused token intact but faults the
+pool, thereby blocking both capture and reset. A fault after capture but before
+transfer leaves the token consumed and detached internal capture intact, faults the
+pool and forbids retry/second transfer. A later fault after transfer preserves the
+already-returned detached value byte-for-byte and cannot recapture or reward. The
+detached info/result member layout remains an explicit native `.87` join; this rule
+defines lifetime/ownership, not a guessed schema.
+
+The `SingleManual` lifecycle has three distinct operations: terminal reads return a
+fresh detached copy of the same frozen zero-candidate terminal observation without
+consuming the capture token or recapturing reward; a step/action submitted while
+terminal rejects neutrally and cannot autoreset; explicit reset is the only path to
+a new episode, and requires a new run identity plus newly resolved profile. It
+initializes new episode time and decision generation, inherits no prior Note,
+profile, or history, and leaves every previously detached terminal value stable.
+`VectorSameStep` instead completes capture and transfer of the retired result before
+installing an independently resolved replacement; the response separates old final
+from new top-level observation/identity, never applies the retired action to the
+replacement, and rejects any old decision token against the new run identity.
+
 Task elapsed-time ownership is independent of wall-clock or host/worker time. At
 terminal commit, freeze the terminal capture's task elapsed value. If and only if
 the episode reaches valid `Act2Ready`, carry the selected running-clock state/value
@@ -983,7 +1013,7 @@ the final enums, APIs and wire layouts must join through §7.
     "EmptyMasterDeckLoss": {"reward": -1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-actual-hp", "semantic_cause": "EmptyMasterDeckLoss"},
     "Act1CompleteAct2Ready": {"reward": 1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-post-transition-hp", "semantic_cause": "Act1CompleteAct2Ready"}
   },
-  "outcome_axis": {"owner": "episode-run", "immutable_after_commit": true, "reward_capture_count": 1},
+  "outcome_axis": {"owner": "episode-run", "immutable_after_commit": true},
   "pool_axis": {"owner": "environment-pool", "states": ["Ready", "Operating", "Faulted", "Closed"], "fault_is_terminal_outcome": false, "rollback_on_fault": false, "reset_on_fault": false},
   "overwrite_guard": {"field": "terminal_overwrite_effect", "closed_values": ["None", "Allow"], "None_terminal_target": "reject", "Allow_terminal_target": "reject", "Allow_nonterminal_projection_target": "producer-authorized-only", "unknown_value": "reject"},
   "delivery": {
@@ -994,6 +1024,38 @@ the final enums, APIs and wire layouts must join through §7.
     "delivered_capture": "immutable-after-return",
     "faulted_operation": "no-partial-normal-success-result-or-fabricated-final",
     "earlier_delivered_capture": "remains-stable"
+  },
+  "capture_protocol": {
+    "state_owner": ["episode-run", "environment-pool"],
+    "state_fields": ["run_outcome", "terminal_commit_identity", "capture_token", "delivery_state", "pool_state", "live_terminal_result", "captured_result", "reward_capture_count", "transferred_results"],
+    "token_states": ["Available", "Consumed"],
+    "delivery_states": ["NotCaptured", "CapturedDetached", "Transferred", "FaultedAfterCapture"],
+    "capture_guard": {"requires": ["committed-terminal-outcome", "capture-token-Available", "delivery-NotCaptured", "pool-not-Faulted-or-Closed"], "successful_capture_consumes_token": true, "reward_capture_derived_from_transition": true},
+    "transitions": {
+      "commit_terminal": {"requires": {"run_outcome": "None"}, "sets": {"run_outcome": "EmptyMasterDeckLoss", "terminal_commit_identity": "current-commit", "capture_token": "Available", "delivery_state": "NotCaptured", "captured_result": null, "reward_capture_count": 0}},
+      "capture_once": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "terminal_commit_identity": "current-commit", "capture_token": "Available", "delivery_state": "NotCaptured", "pool_not_faulted": true}, "sets": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "capture_result": true, "detach": true, "capture_reward": true},
+      "transfer_once": {"requires": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"delivery_state": "Transferred"}, "transfer_capture": true}
+    },
+    "fault_transitions": {
+      "before_terminal_commit": {"requires": {"run_outcome": "None"}, "sets": {"pool_state": "Faulted", "delivery_state": "NotCaptured"}},
+      "after_commit_before_capture": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "capture_token": "Available", "delivery_state": "NotCaptured"}, "sets": {"pool_state": "Faulted"}},
+      "after_capture_before_transfer": {"requires": {"run_outcome": "EmptyMasterDeckLoss", "capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"pool_state": "Faulted", "delivery_state": "FaultedAfterCapture"}},
+      "after_transfer": {"requires": {"capture_token": "Consumed", "delivery_state": "Transferred"}, "sets": {"pool_state": "Faulted"}, "preserve_transferred": true}
+    }
+  },
+  "lifecycle_modes": {
+    "SingleManual": {
+      "mode": "SingleManual",
+      "terminal_read": {"returns": "same-terminal-observation", "detached": true, "mutates": false, "capture": false, "reward_capture": false, "auto_reset": false},
+      "terminal_step": {"result": "reject-neutral", "mutates": false, "capture": false, "autoreset": false},
+      "explicit_reset": {"requires_fresh_identity_profile": true, "pool_must_not_be_faulted": true, "initializes_time": true, "time_value": 0, "initializes_generation": true, "generation_value": 0, "no_inherit": true, "preserve_old_detached_final": true}
+    },
+    "VectorSameStep": {
+      "mode": "VectorSameStep",
+      "capture_order": ["capture", "transfer", "replace"],
+      "replacement": {"requires_fresh_identity_profile": true, "initializes_time": true, "time_value": 0, "initializes_generation": true, "generation_value": 0, "apply_submitted_action": false, "preserve_old_final": true},
+      "stale_token": {"result": "reject-cross-run"}
+    }
   },
   "time": {"terminal_capture": "freeze-task-elapsed-value-at-terminal-commit", "act2_successor": "carry-selected-running-clock-and-value", "fresh_episode": "independent-clock-starts-at-zero", "owner": "episode-time-state;not-wall-clock"},
   "replay": {"mode": "from-start-only", "validate_complete_header_before-construction": true, "regenerate_terminal_boundary": true, "verify_terminal_outcome_reward_flags_cause": true, "arbitrary_terminal_restore": false},
