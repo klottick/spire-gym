@@ -154,6 +154,98 @@ to a player selector. E21/E22 exact membership and producer variants remain in
 their existing tables; this export supplies their result-parent/lifecycle joins
 without claiming other color domains have been exhaustively member-audited.
 
+### 3.4 Normative typed producer records — v15 checked subset
+
+The JSON records below are the normative typed values for the named sites and
+branches. The prose rows above remain source explanations and do not override a
+typed field here. Each `source_binding` identifies an independently retained,
+immutable accepted fact used by the semantic check; it is not a reference to a
+same-document phrase. `source` facts and the selected native result-lifetime
+contract are separated. An explicit `unvalidated` value means downstream owners
+must not treat that aspect as a closed producer binding.
+
+The v15 checker semantically validates five source sites: Neow ordinary card
+offer, Neow upgrade, Hologram, Purifier Remove, and Transmogrifier Transform.
+It additionally validates all three settled-empty/Transmogrifier policy
+branches. Within those five records, only the fields listed as `validated` are
+source-bound. In particular, Neow card-screen's exact consumer method, Hologram
+`canZero`, Cancel-button dispatch/result contents and causal parent identity, and generic
+detached-token implementation are explicitly not source-validated here. All
+other 54 site rows in §3.3 remain prose/source summaries, not semantically
+validated typed producer interfaces. No downstream consumer may infer coverage
+from the row roster.
+
+```json
+{
+  "schema": "Act1SelectorProducerContractsV1",
+  "records": [
+    {
+      "site": "neow.card",
+      "variant": "THREE_CARDS",
+      "source_binding": ["E16:NeowReward.activate", "E25:three ordinary cards"],
+      "producer": {"class": "NeowReward", "member": "activate", "phase": "reward_activation"},
+      "capture": {"member": "getRewardCards(false)", "point": "before CardRewardScreen.open", "candidate_snapshot": "three returned offer objects"},
+      "candidate": {"owner": "captured_offer_rows", "predicate": "member_of_three_returned_offer_objects", "offer_count": 3, "minimum": 0, "maximum": 1, "visible_order": "returned_offer_slot_order", "selection_order": "single_selected_offer", "flags": {"selectorKind": "reward_screen", "canSkip": true}},
+      "result": {"branches": {"take": {"effects": ["schedule_fast_obtain_for_selected_offer"]}, "skip": {"effects": []}}, "consumer": {"class": "CardRewardScreen", "member": null, "status": "unvalidated_member"}, "resume": {"owner": "NeowEvent", "via": "NeowRoom", "checkpoint": "screen_not_up"}, "lifetime": {"offer_set": "captured_once_no_reroll_on_screen_reopen", "selection_ack": "unvalidated_consumer_member", "native_detached_result": "semantic_once_only_contract_not_source_token"}},
+      "validated": ["producer.class", "producer.member", "producer.phase", "capture.member", "capture.point", "capture.candidate_snapshot", "candidate.owner", "candidate.predicate", "candidate.minimum", "candidate.maximum", "candidate.visible_order", "candidate.selection_order", "candidate.flags", "result.branches", "result.consumer.class", "result.resume.owner", "result.resume.via", "result.resume.checkpoint", "result.lifetime.offer_set"],
+      "unvalidated": ["result.consumer.member", "result.lifetime.selection_ack", "result.lifetime.native_detached_result"]
+    },
+    {
+      "site": "neow.upgrade",
+      "variant": "UPGRADE_CARD",
+      "source_binding": ["E16:NeowReward.update", "E25:upgrade one"],
+      "producer": {"class": "NeowReward", "member": "activate", "phase": "reward_activation"},
+      "capture": {"member": "masterDeck.getUpgradableCards()", "point": "grid_open", "candidate_snapshot": "returned live card instances"},
+      "candidate": {"owner": "masterDeck", "predicate": "card.canUpgrade", "minimum": 1, "maximum": 1, "visible_order": "returned_deck_order", "selection_order": "single_selected_instance", "flags": {"upTo": false, "any": false, "canCancel": false, "canZero": false}, "source_open_args": {"requested": 1, "forUpgrade": true, "forTransform": false, "canCancel": false, "forPurge": false}},
+      "result": {"branches": {"select_one": {"effects": ["upgrade_selected_instance", "show_stat_equivalent_copy_effect", "upgrade_shine_effect", "clear_selectedCards", "clear_activated"]}}, "consumer": {"class": "NeowReward", "member": "update"}, "resume": {"owner": "NeowEvent", "via": "NeowRoom", "checkpoint": "reward_child_consumed"}, "lifetime": {"selected_identity": "same_master_deck_instance", "ack": "NeowReward.update", "retire": "selectedCards_cleared_after_effects"}},
+      "validated": ["producer.class", "producer.member", "producer.phase", "capture.member", "capture.point", "capture.candidate_snapshot", "candidate.owner", "candidate.predicate", "candidate.minimum", "candidate.maximum", "candidate.visible_order", "candidate.selection_order", "candidate.flags", "result.branches", "result.consumer", "result.resume", "result.lifetime"],
+      "unvalidated": []
+    },
+    {
+      "site": "combat.grid.hologram",
+      "variant": "BetterDiscardPileToHandAction.request_1",
+      "source_binding": ["E22:defect-sites-v5:Hologram", "hologram-fix-v6:BetterDiscardPileToHandAction.update"],
+      "producer": {"class": "BetterDiscardPileToHandAction", "member": "update", "phase": "action_execution"},
+      "capture": {"member": "AbstractDungeon.player.discardPile", "point": "action_execution", "candidate_snapshot": "live_group_passed_to_grid_without_copy_or_sort"},
+      "candidate": {"owner": "discardPile", "predicate": "all_current_discard_instances", "minimum": 1, "maximum": 1, "visible_order": "live_group_order", "selection_order": "returned_selectedCards_order", "flags": {"upTo": false, "any": false, "canCancel": true, "canZero": null}, "cardinality_branches": {"zero": "action_done_no_screen", "one": "automatic_transfer_attempt", "more_than_one": "open_exact_one_grid"}},
+      "result": {"branches": {"confirm_one": {"effects": ["if_hand_capacity_move_same_instance_to_hand_else_leave_in_discard", "clear_selectedCards", "refresh_hand_layout"]}, "cancel": {"effects": "unvalidated_cancel_dispatch_and_result_contents"}}, "consumer": {"class": "BetterDiscardPileToHandAction", "member": "update"}, "resume": {"owner": "GameActionManager", "checkpoint": "action_done_then_next_queued_action_once", "causal_parent": "unvalidated_by_42"}, "lifetime": {"confirmed_selection_ack": "action_update", "retire": "selectedCards_cleared_after_result_handling", "cancel_result": "unvalidated"}},
+      "validated": ["producer", "capture", "candidate.owner", "candidate.predicate", "candidate.minimum", "candidate.maximum", "candidate.visible_order", "candidate.selection_order", "candidate.flags", "candidate.cardinality_branches", "result.branches.confirm_one", "result.consumer", "result.resume.owner", "result.resume.checkpoint", "result.lifetime.confirmed_selection_ack", "result.lifetime.retire"],
+      "unvalidated": ["candidate.flags.canZero", "result.branches.cancel", "result.resume.causal_parent", "result.lifetime.cancel_result", "native_detached_result_token"]
+    },
+    {
+      "site": "event.purifier.remove",
+      "variant": "REMOVE_COMMITTED",
+      "source_binding": ["E16:PurificationShrine", "purifier-candidate-fix-v12:PurificationShrine.java"],
+      "producer": {"class": "PurificationShrine", "member": "buttonEffect", "phase": "Remove_committed"},
+      "capture": {"member": "masterDeck.getPurgeableCards()", "point": "after_Remove_before_grid_open", "candidate_snapshot": "then_current_purgeable_group"},
+      "candidate": {"owner": "masterDeck", "predicate": "card_is_purgeable_and_not_bottled", "minimum": 1, "maximum": 1, "visible_order": "returned_group_order", "selection_order": "single_selected_instance", "flags": {"upTo": false, "any": false, "canCancel": false, "canZero": false}, "source_open_args": {"requested": 1, "forUpgrade": false, "forTransform": false, "canCancel": false, "forPurge": true}, "empty_guard": false, "empty_branch": "no_local_guard_grid_still_opens"},
+      "result": {"branches": {"select_one": {"effects": ["remove_selected_live_instance", "clear_selectedCards", "enter_event_result_phase"]}, "empty": {"effects": "source_case_has_no_selected_result_and_no_purifier_noop"}}, "consumer": {"class": "PurificationShrine", "member": "update"}, "resume": {"owner": "PurificationShrine", "checkpoint": "event_result_phase"}, "lifetime": {"selected_identity": "same_master_deck_instance", "ack": "PurificationShrine.update", "retire": "selectedCards_cleared_after_removal"}},
+      "validated": ["producer", "capture", "candidate", "result", "resume", "lifetime"],
+      "unvalidated": ["legal_history_reachability_of_empty_branch", "generic_native_detached_token"]
+    },
+    {
+      "site": "event.transmogrifier.transform",
+      "variant": "TRANSFORM_COMMITTED",
+      "source_binding": ["E16:Transmogrifier", "selector81:f30740a8d947c55951281a6941a0554e036cbcf9"],
+      "producer": {"class": "Transmogrifier", "member": "buttonEffect", "phase": "initial_Transform_committed"},
+      "capture": {"member": "masterDeck.getPurgeableCards()_then_GroupWithoutBottledCards", "point": "Transform_child_entry", "candidate_snapshot": "live_then_current_instances"},
+      "candidate": {"owner": "masterDeck", "predicate": "card_is_purgeable_and_not_bottled", "minimum": 1, "maximum": 1, "visible_order": "returned_group_order", "selection_order": "single_selected_instance", "flags": {"upTo": false, "any": false, "canCancel": false, "canZero": false}, "source_open_args": {"requested": 1, "forUpgrade": false, "forTransform": true, "canCancel": false, "forPurge": false}, "source_empty_guard": false},
+      "result": {"consumer": {"class": "Transmogrifier", "member": "update"}, "resume": {"owner": "Transmogrifier", "checkpoint": "event_parent_COMPLETE_decision"}, "lifetime": {"selected_identity": "same_master_deck_instance", "source_consume": "update_handles_nonempty_selectedCards", "native_result": "commit_once_close_child_resume_same_parent"}, "policy_branches": [
+        {"case": "settled_master_deck_zero", "when": {"inputValid": true, "episode": "live", "rootSettlement": "settled", "priorTerminal": "none", "hpDeath": false, "adminFault": false, "permanentMasterDeckCount": 0}, "outcome": {"reason": "EmptyMasterDeckLoss", "lossReward": -1, "lossDeliveries": 1, "terminated": true, "truncated": false, "hpMutation": "none", "permanentCardMutation": "none", "rngAdvance": "none", "deathRescueHooks": "none", "administrativeFault": "none", "rollback": "none", "nextDecision": "none"}},
+        {"case": "positive_master_deck_zero_eligible", "when": {"inputValid": true, "episode": "live", "event": "event.transmogrifier", "phase": "TransformChildEntry", "permanentMasterDeckCount": ">0", "eligibleCandidateCount": 0}, "outcome": {"result": "TransmogrifierEmptyTransformNoOp", "child": "closed", "parentResume": "COMPLETE/Leave", "reward": 0, "lossDeliveries": 0, "terminated": false, "truncated": false, "mapOpen": false, "cardMutation": "none", "rngAdvance": "none", "hpGoldMutation": "none", "fault": "none", "rollback": "none"}},
+        {"case": "positive_master_deck_eligible", "when": {"inputValid": true, "episode": "live", "event": "event.transmogrifier", "phase": "TransformChildEntry", "permanentMasterDeckCount": ">0", "eligibleCandidateCount": ">0"}, "outcome": {"result": "ordinary-source-grid", "selectionCardinality": "exactly-one"}}
+      ]},
+      "validated": ["producer", "capture", "candidate", "result.consumer", "result.resume", "result.lifetime", "result.policy_branches"],
+      "unvalidated": ["positive_deck_zero_eligible_history_reachability", "generic_native_detached_token", "same_root_terminal_arbitration_owned_by_42_34"]
+    }
+  ],
+  "site_coverage": {
+    "validated_sites": ["neow.card", "neow.upgrade", "combat.grid.hologram", "event.purifier.remove", "event.transmogrifier.transform"],
+    "unvalidated_sites": ["neow.remove", "neow.transform.single", "neow.transform.double", "shop.purge", "relic.bottle.flame", "relic.bottle.lightning", "relic.bottle.tornado", "relic.dolly", "relic.astrolabe", "relic.cage", "relic.pandora", "relic.bell.curse-confirm", "relic.bell.relic-offers", "reward.card", "event.living_wall.upgrade", "event.living_wall.remove", "event.shining_light", "event.cleric.remove", "event.upgrade_shrine", "event.wing.purge", "event.note.take", "event.note.outgoing", "event.match.position", "campfire.smith", "campfire.toke", "combat.hand.discard", "combat.hand.setup", "combat.hand.nightmare", "combat.hand.retain.endturn", "combat.grid.seek", "combat.hand.recycle", "combat.hand.armaments", "combat.grid.headbutt", "combat.hand.warcry", "combat.hand.true_grit", "combat.hand.burning_pact", "combat.hand.dual_wield", "combat.grid.exhume", "combat.reward.discovery", "combat.hand.forethought", "combat.hand.madness", "combat.hand.purity", "combat.grid.secret_technique", "combat.grid.secret_weapon", "combat.hand.thinking_ahead", "combat.hand.foreign_influence", "combat.grid.meditate", "combat.hand.scry", "combat.grid.omniscience", "combat.option.wish", "combat.potion.gambler_brew", "combat.potion.elixir", "combat.potion.liquid_memories", "combat.potion.typed_card_offer"]
+  }
+}
+```
+
 This table covers the finite named continuation families established in the accepted acquisition record, including the exceptional event/relic sites. It is not a claim that every primary card callback has been joined to every transitive generated choice: those are still source/content closure obligations. Native consumers must bind each actual producer to a row above or add a separately source-qualified row before claiming full closure; “generic grid” is not an acceptable substitute.
 
 ### Selected settled empty-master-deck loss and Transmogrifier selector lifecycle
