@@ -3,12 +3,17 @@
 ## Bounded combat environment status
 
 The existing native batching and single/vector Gymnasium slice passed a fresh
-offline run of 169 Rust workspace tests on this integration candidate. The retained
-167-test `tests/python/env` result used a previously built extension, not one freshly
-built from this integration candidate; exact-target extension and full-suite controller
-verification remain pending. The two retained required-CUDA readiness checks fail
-with CPU-capacity OOM; CUDA readiness is not certified. These checks do not claim
-original-runtime validation or full-run support.
+offline run of 169 Rust workspace tests. Controller verification with a freshly
+built candidate-revision extension passed all 167 `tests/python/env` tests. The
+full Python suite had 995 passes and two unchanged baseline readiness-test failures:
+
+- `test_check_fails_closed_when_required_cuda_report_is_unsuccessful`
+- `test_check_normalizes_cuda_probe_exception`
+
+These current CPU-only failures report `CPU readiness probe failed: No CUDA GPUs
+are available`; they are separate from historical required-CUDA checks that failed
+with CUDA allocation OOMs. This is not a fully green suite, CUDA-readiness
+certification, original-runtime validation or full-run support.
 
 Exact versions resolved for phase 1a task 1 (including fix round 1). The
 lockfiles (`uv.lock`, `Cargo.lock`), `.python-version`, and

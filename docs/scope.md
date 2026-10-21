@@ -150,8 +150,9 @@ The supplied-entry combat slice now has native batching and tested single/vector
 Gymnasium facades with masked actions. This is a bounded interface implementation,
 not full-run support or a promise of compatibility with arbitrary learners, mask
 conventions or vector adapters; framework-specific adapters are added only when a
-selected learner needs them. Fresh exact-target extension and full-suite controller
-verification remain pending.
+selected learner needs them. Fresh candidate-revision extension verification passed
+all 167 environment Python tests; the full suite retained the same two baseline
+readiness-test failures as main (995 passed), not a fully green suite.
 
 The repository is now named **spire-gym** on GitHub under **klottick**. The user
 separately authorized public MIT-licensed repository creation and publication of
@@ -203,7 +204,7 @@ not a claim that the planned interfaces or full-game content already exist.
 | Python verification | Reviewed reference baseline: 735 tests, including 52 whole-combat acceptance cases. Final minor-fix verification: 830 full-suite tests and all 95 differential tests pass, including above-CPython-threshold handles and isolated reveal execution. Native provenance correction and adapter fix are independently reviewed; historical failed exchanges remain retained. The unchanged default Python product engine still has its enormous-handle reveal conversion limit. Not original-runtime correctness evidence |
 | Original combat validation | Incomplete; the reference remains static-evidence-grounded, **not original-runtime validated** |
 | Narrow Rust combat core | User plan/start approval executed; supplied-entry combat, project RNG, public actions/views, snapshots, native acceptance and test-only differential harness implemented. Historical core-handoff controller workspace/release runs each passed 124 native tests; complete differential checkpoints agreed, including both formerly failing fault cases. Task reviews, whole-slice review, final correction review and controller verification were complete for that core-only handoff, not the later batching/Gymnasium integration. **Source-grounded, not original-runtime validated**; no optimization/throughput claim |
-| Native environment pool/batched interface | Implemented for bounded supplied-entry Ironclad A0 combat with public observations, replay, native workers and single/vector Gymnasium facades. This integration candidate freshly passed 169 offline Rust workspace tests; the retained 167 environment Python tests used a previously built extension. Exact-target extension/full-suite controller verification pending. Not full-run support; required-CUDA readiness has two retained OOM failures |
+| Native environment pool/batched interface | Implemented for bounded supplied-entry Ironclad A0 combat with public observations, replay, native workers and single/vector Gymnasium facades. Fresh verification passed 169 offline Rust workspace tests and all 167 environment Python tests with a newly built candidate-revision extension. Full Python:995 passed and the same two baseline readiness-test failures as main, not fully green. Historical CUDA allocation OOMs are separate; neither CUDA readiness nor full-run support is claimed |
 | Learning/training/evaluation system | Not implemented; no learned playing-strength or release simulator-throughput result claimed |
 | Linux capture readiness | Approved specification retained; helper/feasibility work deferred in favor of source-first Rust. A concrete capture consumer remains required if resumed |
 | Windows real capture adapter/platform gates | Incomplete/fail-closed; Linux readiness does not satisfy them |

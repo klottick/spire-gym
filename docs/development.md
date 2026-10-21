@@ -15,10 +15,12 @@ implemented and reviewed; the final recorded core-handoff verification passed 12
 native tests in each workspace/release run and 830 Python tests. The bounded
 environment slice adds supplied-entry scenarios, public observations, native
 batching and single/vector Gymnasium facades. A fresh offline Rust workspace run
-on this integration candidate passed 169 tests. The retained 167-test environment
-Python run used a previously built extension; fresh exact-target extension/full-suite
-verification is pending. Required-CUDA readiness has two retained CPU-capacity OOM failures; CUDA
-readiness and original-runtime validation are not claimed. Models and learners are
+passed 169 tests. Controller verification with a freshly built candidate-revision
+extension passed all 167 environment Python tests; the full Python suite had 995
+passes and the same two baseline readiness-test failures as main. Those CPU-only
+failures are separate from historical required-CUDA checks that failed with CUDA
+allocation OOMs. A fully green suite, CUDA readiness and original-runtime validation
+are not claimed. Models and learners are
 not implemented. The optimizer probe is only a
 tiny smoke computation, not a validated learning result or training pipeline.
 

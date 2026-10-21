@@ -39,11 +39,12 @@ they are not the final production simulator or a separate infrastructure goal.
 
 The bounded combat/Gymnasium slice adds native scenarios, public numeric
 observations, masked actions, replay and single/vector facades. A fresh offline
-Rust workspace run on this integration candidate passed 169 tests; the retained
-167-test environment Python run used the previously built extension, so a fresh
-target-built extension and full-suite controller verification remain pending. Required-CUDA
-readiness has two retained CPU-capacity OOM failures; no CUDA readiness or
-original-runtime validation is claimed for this slice.
+Rust workspace run passed 169 tests. Controller verification with a freshly built
+candidate-revision extension passed all 167 environment Python tests; the full
+Python suite had 995 passes and the same two baseline readiness-test failures as
+main. Those CPU-only test failures are distinct from historical required-CUDA
+checks that failed with CUDA allocation OOMs. No fully green suite, CUDA readiness,
+or original-runtime validation is claimed for this slice.
 
 The [ML-first design](docs/superpowers/specs/2026-10-11-spire-lab-ml-first-design.md)
 and [combat behavior plan](docs/superpowers/plans/2026-10-16-python-combat-behavior.md)
