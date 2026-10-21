@@ -11,8 +11,10 @@ normative proposals for whole-spec review. All future gameplay cases remain
 
 ## 1. Boundary and inputs
 
-This document closes the profile and successor-state engineering joins for
-A1C-REQ-028/029 and B05/B10/B11. The selected endpoint is a resolved Act 1 boss
+This document defines the bounded profile and successor-state consumer contracts
+for A1C-REQ-028/029 and B05/B10/B11. Final execution-root and native terminal,
+delivery, time and replay producer joins remain pending the reviewed `.83`/`.87`
+revisions and a later exact consumer integration. The selected endpoint is a resolved Act 1 boss
 successor, after the Act 2 map and required initialized state exist, and strictly
 before the first Act 2 player decision. Boss lethal damage, reward-screen closure,
 the first fade flag, or `dungeon.beaten` alone is not success. No Act 2 decision or
@@ -464,7 +466,7 @@ generic source-state snapshot:
 
 | Field | Domain / checkpoint owner | Reset or visibility |
 |---|---|---|
-| `phase` | `BossCombat`, `BossCombatRewards`, `BossTreasureEntry`, `BossRelicChoice`, `BossRelicChild`, `NextDungeonProceed`, `DungeonTransition`, `Act2Initialize`, `Act2Ready`, `Dead`, `Faulted` | Monotone only along allowed transitions; one terminal outcome. Private phase is not a feature except current phase's legal public projection. |
+| `phase` | `BossCombat`, `BossCombatRewards`, `BossTreasureEntry`, `BossRelicChoice`, `BossRelicChild`, `NextDungeonProceed`, `DungeonTransition`, `Act2Initialize`, `Act2Ready`, `EpisodeTerminal` | Monotone only along allowed run transitions; a committed terminal moves to `EpisodeTerminal`. Administrative pool `Faulted` is not a run phase or outcome. Private phase is not a feature except current phase's legal public projection. |
 | `run_key` | stable stream identity + episode ordinal, no slot/worker | Never changes in this episode; hidden. |
 | `act1_boss_id`, `boss_discovery_committed` | exact Act1 boss identity + boolean | Commit only at prebattle discovery hook. Retain even if later death. Internal/history projection obeys legitimate visibility. |
 | `reward_rows` | owned source-qualified reward identities/status and source parent | Built once; each claim/skip commits at its source checkpoint; clears/retains under the exact consumer, not list-empty heuristic. Hidden absent legal current screen. |
@@ -473,7 +475,7 @@ generic source-state snapshot:
 | `durable_mutation_prefix` | player/run-owned actual values: HP/maxHP/gold/deck/relics/counters/potions/keys/histories | Applied in place; no rollback on later death/fault; never reconstructed from rewards/logs. |
 | `handoff_effects` | actual source-qualified transitions/heal child IDs and resolved status | Every applicable effect resolves once; no all-heal assignment. Clear after consumer. |
 | `transition_state` | act/floor/room, Act2 map/queues/events/shrines/reward/shop/relic/potion pools and histories listed §5 | Reset only the named Act1-local families; carry only named run-owned fields. Hidden fields stay private. |
-| `terminal` | `None`, `Death`, `Act1CompleteAct2Ready`, `AdministrativeFault` | Set once. Death gets −1; successful ready gets +1; fault and all other non-death endings get 0 and no success final. |
+| `terminal` | `None`, `ActualPlayerDeath`, `EmptyMasterDeckLoss`, `Act1CompleteAct2Ready` | Immutable run-owned gameplay outcome, committed at most once. Actual death and settled empty-master-deck loss each capture −1; ready success captures +1. Administrative pool fault is not a terminal variant and lives on the independent environment-pool axis. |
 
 Fields use checked source/native domains; transport must not narrow counters or
 introduce a generic arbitrary cap. Completion checkpoint and task-captured Act1
@@ -610,9 +612,11 @@ entry/menu/action has begun. Collection emptiness is neither necessary nor
 sufficient: optional rows can remain as resolved skip provenance; an empty
 collection missing a required result is not ready.
 
-Task-terminal outcomes are exclusive and set once: `Death` => -1, terminated;
-`Act1CompleteAct2Ready` => +1, terminated; `AdministrativeFault` => 0, quiesced,
-and no success final. `None` means the task episode remains live. A room/combat
+Task-terminal outcomes are exclusive and set once: `ActualPlayerDeath` => −1,
+terminated; `EmptyMasterDeckLoss` => −1, terminated; `Act1CompleteAct2Ready` => +1,
+terminated. All are not truncated. `AdministrativeFault` is a separate pool stop,
+not a task outcome, reward or loss; it quiesces delivery and creates no fabricated
+success final. `None` means the task episode remains live. A room/combat
 escape is not in this episode terminal domain: it resolves at its producer's
 room/combat boundary with step reward 0, no task final, no task autoreset, and run
 continuation to later legal decisions. Do not create a task-terminal escape phase
@@ -873,6 +877,157 @@ than substituted with the reset episode. Vector finals retain one such value per
 retired terminal row in returned-row order. A fault produces no successful
 `TerminalFinalV1`; its diagnostic is not a successful final.
 
+### 6.7 Terminal outcome, detached delivery, reset and replay
+
+This section fixes the handoff-owned semantic contract independently of native wire
+codes. `EmptyMasterDeckLoss` is the accepted selected native policy, not source
+behavior. It is evaluated only after an accepted action's same causal root and all
+mandatory immediate descendants settle. The committed permanent master-deck
+instance count is the predicate: exactly zero loses; draw/discard/exhaust emptiness,
+a transient remove-before-replacement interval, a rejected action, or an unsettled
+root does not. No unrelated queue is drained and no future optional reward rescues a
+settled loss. The currently accepted y11 Toke route therefore ends at that root
+when it leaves zero permanent cards; the historical y12 prompt is not entered.
+
+The episode outcome and environment-pool delivery condition are orthogonal. The
+first is an immutable run-owned commit; the second reports whether the current pool
+operation can still deliver results. A post-commit output/encoding failure faults
+and quiesces the pool but cannot erase or rewrite a terminal outcome or its one
+reward-capture facts. A fault before any terminal commit leaves the outcome unset
+and likewise cannot fabricate loss/death/success, roll back committed mutations, or
+request reset. If delivery fails before ownership transfer, that operation returns
+no partial ordinary-success batch/final; an already returned detached result from
+an earlier operation remains stable. This is chronology, not a terminal-priority
+list:
+
+| Order / transition | Required predicate and commit | Forbidden result |
+|---|---|---|
+| Whole-batch preflight | Validate every addressed row, terminal/reset lifecycle, profile, seed, identity and capacity before dispatch. A rejected batch changes no run/pool slot, RNG, time, reward, outcome, identity ordinal or detached result. | Partial row dispatch, entropy/time charge, or terminal inferred from invalid input. |
+| Accepted root admission | Admit one action root only for a live episode; consume its decision provenance once. Resolve only that root and its immediate mandatory causal frontier. | New root after terminal commit; draining unrelated pending work. |
+| Actual HP death | If source death/rescue processing actually commits player death during the root, commit `ActualPlayerDeath` once and interrupt later gameplay descendants. Retain real HP/death state and already committed mutations. | Reclassifying as deck loss; post-death healing/resurrection or successful Act2 handoff. |
+| Settled root / deck predicate | Only if no actual death or earlier terminal and the root is fully settled, inspect permanent master-deck count. Zero commits `EmptyMasterDeckLoss`; positive count permits only otherwise-valid continuation. | Testing transient zero, counting combat piles, waiting for optional rewards, or admitting next root first. |
+| Successor commit | Only a live nonterminal run with boss rewards, mandatory child/effect work, parent resumes, Act2 producers and successor validators complete may commit `Act1CompleteAct2Ready` and +1 before any Act2 decision. | Success after prior terminal or pool fault; Act2 decision/action before cutoff. |
+| Terminal capture and delivery | Freeze one terminal capture from committed outcome and current episode-owned facts; detach observation, info and arrays before caller ownership transfer or configured vector replacement. | Second capture/reward, alias to mutable run/replacement state, or retroactive mutation of returned values. |
+| Fault before terminal commit | Record `AdministrativeFault` only on pool/operation axis and quiesce. | Gameplay terminal, reward, final success, automatic reset, retry or rollback. |
+| Fault after terminal commit | Preserve exact terminal kind, reward/flags/cause and capture count; record separate pool fault and quiesce. If current operation did not transfer a complete result, return no ordinary successful result from it. | Replacing terminal with fault/loss, recomputing reward, second delivery, reset or vector replacement caused by fault. |
+
+The typed overwrite guard is part of the join, not an English rule substituted for
+validation. Parse the producer's closed `terminal_overwrite_effect` enum as
+`None | Allow` and validate its target field. `None` rejects every mutation of an
+already committed `run_terminal` or `terminal_commit`. `Allow` is acceptable only
+for a separately named nonterminal projection field; `Allow` targeting either
+terminal field is an impossible state and rejects without changing the committed
+outcome. Unknown enum values also reject. Final enum codepoints and the actual
+producer field paths remain pending `.83`/`.87`; the validator must consume the
+actual parsed enum/target pair, never hardcode “no overwrite” while ignoring an
+`Allow` mutation.
+
+Concrete terminal output is an owned value with fields `retired_run_identity`,
+`retired_decision_generation`, `detached_terminal_observation`, `actual_hp`,
+`elapsed_time_us`, `terminal_outcome`, `reward`, `terminated`, `truncated`,
+`semantic_cause`, and `producer_bindings`. The observation is the frozen terminal
+Act1 projection with zero legal candidates and no successor, configured Note,
+profile or hidden Act2 fields. For `EmptyMasterDeckLoss`, preserve actual HP
+unchanged by this policy and do not invoke HP-death/rescue hooks; the cause is
+semantic and is not a guessed wire ID. For actual death, report the actual source
+death state. For ready success, the final remains the Act1 terminal projection and
+does not expose the private Act2 successor.
+
+The reward is −1 for either ordinary loss and +1 only for validated
+`Act1CompleteAct2Ready`; all three set `terminated=true`, `truncated=false`. Capture
+the reward once at outcome commit. A nonterminal accepted step has reward zero and
+both flags false. An administrative fault is not a reward row or fabricated final.
+This preserves a positive-HP empty-deck loss as distinct from death; it does not
+require positive HP when the permanent-deck predicate is checked, because an
+already committed actual death has earlier chronological ownership.
+
+In `SingleManual` mode, a terminal observation remains readable with zero candidates
+until an explicit reset request starts a new independent episode. That reset is
+administrative abandonment/episode replacement, not another action, death, loss or
+truncation. In configured `VectorSameStep` mode, capture and detach the retired
+episode final first, then initialize the replacement from that row's own fully
+resolved profile/seed request. The returned top-level observation/current identity
+describe the replacement; reward/end flags/final describe the retired episode.
+The submitted action is never applied to the replacement. No preceding Note,
+profile, boss history, time or terminal state is implicitly inherited. Invalid
+whole-batch reset/replacement preflight is neutral. A fault never causes reset or
+same-step replacement.
+
+Task elapsed-time ownership is independent of wall-clock or host/worker time. At
+terminal commit, freeze the terminal capture's task elapsed value. If and only if
+the episode reaches valid `Act2Ready`, carry the selected running-clock state/value
+with the private successor as defined by the accepted time policy; an empty-deck
+loss and actual death have no successor clock to resume. Every independent reset
+starts its own episode clock from the selected initial value (zero), not from the
+retired episode. Exact native field/schema keys remain a pending join below.
+
+Replay is from-start only. Validate its complete versioned header and producer
+bindings before constructing a run; regenerate the profile, initial state, accepted
+actions through regenerated legal menus, root settlements and terminal boundary.
+Compare terminal kind, semantic cause, reward, terminated/truncated flags and
+detached terminal projection at the regenerated boundary. A terminal record is not
+an arbitrary live-state restore or a way to restart after terminal. A mismatch is a
+provenance-bearing replay error; it does not invent another gameplay outcome or
+mutate a prior detached delivery. Exact replay tag/code/schema IDs await reviewed
+native and execution imports.
+
+The following normative record is a machine-readable mirror of these semantic rules.
+Its strings name owner boundaries, not fabricated consumer integer/codebook IDs;
+the final enums, APIs and wire layouts must join through §7.
+
+```json task86-terminal-consumer-v1
+{
+  "schema": "Task86TerminalConsumerV1",
+  "terminal_outcomes": {
+    "ActualPlayerDeath": {"reward": -1, "terminated": true, "truncated": false, "hp_mutation": "source-death-only", "semantic_cause": "actual-player-death"},
+    "EmptyMasterDeckLoss": {"reward": -1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-actual-hp", "semantic_cause": "EmptyMasterDeckLoss"},
+    "Act1CompleteAct2Ready": {"reward": 1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-post-transition-hp", "semantic_cause": "Act1CompleteAct2Ready"}
+  },
+  "outcome_axis": {"owner": "episode-run", "immutable_after_commit": true, "reward_capture_count": 1},
+  "pool_axis": {"owner": "environment-pool", "states": ["Ready", "Operating", "Faulted", "Closed"], "fault_is_terminal_outcome": false, "rollback_on_fault": false, "reset_on_fault": false},
+  "overwrite_guard": {"field": "terminal_overwrite_effect", "closed_values": ["None", "Allow"], "None_terminal_target": "reject", "Allow_terminal_target": "reject", "Allow_nonterminal_projection_target": "producer-authorized-only", "unknown_value": "reject"},
+  "delivery": {
+    "record_fields": ["retired_run_identity", "retired_decision_generation", "detached_terminal_observation", "actual_hp", "elapsed_time_us", "terminal_outcome", "reward", "terminated", "truncated", "semantic_cause", "producer_bindings"],
+    "terminal_observation": "frozen-act1-projection-zero-candidates-no-successor-fields",
+    "single_manual": "retain-readable-terminal-until-explicit-independent-reset",
+    "vector_same_step": "capture-retired-final-before-independent-replacement;top-level-observation-is-replacement;submitted-action-never-applies-to-replacement",
+    "delivered_capture": "immutable-after-return",
+    "faulted_operation": "no-partial-normal-success-result-or-fabricated-final",
+    "earlier_delivered_capture": "remains-stable"
+  },
+  "time": {"terminal_capture": "freeze-task-elapsed-value-at-terminal-commit", "act2_successor": "carry-selected-running-clock-and-value", "fresh_episode": "independent-clock-starts-at-zero", "owner": "episode-time-state;not-wall-clock"},
+  "replay": {"mode": "from-start-only", "validate_complete_header_before-construction": true, "regenerate_terminal_boundary": true, "verify_terminal_outcome_reward_flags_cause": true, "arbitrary_terminal_restore": false},
+  "chronology": [
+    "invalid-whole-batch-rejects-before-dispatch-with-no-state-rng-time-reward-or-slot-mutation",
+    "accepted-action-root-enters-and-settles-only-its-same-root-mandatory-immediate-work",
+    "committed-actual-player-death-interrupts-gameplay-work-and-commits-death-once",
+    "otherwise-fully-settled-root-checks-exact-permanent-master-deck-count-before-next-root-or-successor",
+    "zero-deck-commits-EmptyMasterDeckLoss-once-preserving-real-hp-and-without-death-hooks",
+    "nonzero-deck-may-continue-normal-act1-or-transition-if-all-other-predicates-hold",
+    "Act2Ready-commits-success-only-after-mandatory-rewards-children-effects-and-initialized-successor-validate-before-first-act2-decision",
+    "terminal-outcome-and-reward-capture-are-immutable-after-commit",
+    "fault-before-terminal-commit-means-terminal-none-pool-faulted-no-success-output-or-reset",
+    "fault-after-terminal-commit-preserves-terminal-and-reward-facts-pool-faulted-no-second-capture-or-reset",
+    "a-normal-output-capture-that-was-already-returned-remains-detached-and-stable-after-later-fault"
+  ],
+  "forbidden_combinations": [
+    "administrative-fault-as-game-terminal-or-loss",
+    "empty-deck-loss-with-hp-set-to-zero-or-death-rescue-hooks",
+    "empty-deck-loss-before-same-root-mandatory-replacement-settles",
+    "empty-combat-pile-as-empty-master-deck-loss",
+    "Act2Ready-or-positive-reward-after-any-prior-terminal",
+    "fault-triggered-reset-vector-replacement-retry-rollback-or-loss",
+    "two-terminal-commits-or-duplicate-terminal-reward-capture",
+    "terminal-reset-inherits-prior-profile-history-or-time",
+    "y12-event-prompt-after-y11-Toke-settles-to-empty-master-deck"
+  ],
+  "pending_producer_keys": {
+    "EXEC83": ["terminal.run_terminal", "terminal.terminal_commit.kind", "terminal.terminal_commit.source_root_id", "terminal.terminal_commit.commit_checkpoint", "terminal.terminal_commit.reward_delta", "terminal.terminal_commit.terminated", "terminal.terminal_commit.truncated", "terminal.terminal_commit.token_consumed", "terminal.operational_stop", "terminal.terminal_overwrite_effect", "terminal.permanent_master_deck_before_after", "terminal.mandatory_frontier_and_result_consume_count", "transition.mandatory_effect_and_child_completion_keys", "handoff.act2ready_pre_first_decision_checkpoint"],
+    "NATIVE87": ["task_terminal.cause_enum_and_wire_codebook", "task_terminal.result_and_flag_schema_keys", "delivery.detached_final_observation_and_info_schema_keys", "delivery.manual_reset_and_vector_same_step_api_keys", "time.elapsed_capture_and_successor_clock_field_keys", "replay.terminal_completion_tag_and_delivery_schema_keys", "descriptor.task_and_delivery_component_identity_keys"]
+  }
+}
+```
+
 ## 7. Named imports and remaining joins
 
 These contracts are the handoff producer side; do not block on other authors, but
@@ -900,9 +1055,52 @@ do not claim final binding before main routes accepted revisions:
   callback's requiredness, commit, child, and resume into those fields. The record
   shape, statuses, once-only rules, and `Act2Ready` predicate are fixed here;
   concrete effect IDs/sites/payloads, callback-to-checkpoint rows, and producer
-  revision remain pending until an accepted execution result is main-routed. This
-  author does not reimplement every content callback or settle that lane's causal
-  mechanics.
+  revision remain pending until an accepted execution result is main-routed. The
+  terminal join requires the actual `run_terminal`; `terminal_commit` kind,
+  `source_root_id`, commit checkpoint, reward delta, terminated/truncated and
+  token-consumed fields; independent `operational_stop`; typed
+  `terminal_overwrite_effect`; permanent-master-deck before/after and mandatory
+  frontier/result-consumption fields for the settled-root predicate; exact mandatory
+  effect/child completion keys; and the `Act2Ready` pre-first-decision checkpoint.
+  These are required semantic producer keys, not final IDs or already accepted
+  field bindings. Route each from the actual reviewed `.83` producer and validate
+  parsed overwrite enum plus target, so `Allow` cannot mutate a committed terminal.
+  This author does not reimplement every content callback or settle that lane's
+  causal mechanics.
+* **Native terminal/delivery import:** final `.87` must bind semantic outcomes to
+  the actual terminal-cause enum/codebook, result/reward/terminated/truncated
+  schema, detached final-observation/info and candidate-empty projection, explicit
+  single-manual reset and configured vector same-step API, task elapsed capture and
+  private successor-clock fields, replay terminal completion tag/delivery schema,
+  and task/delivery descriptor component identities. This public contract defines
+  values, ownership and ordering only. All native integer IDs, serialized member
+  names, widths, codebooks, versions and hashes remain pending the reviewed `.87`
+  producer; no code or wire identifier is invented here.
+* **Stable unresolved consumer slots:** the following names identify exact meaning
+  and owner-side join locations for main routing. They are not assertions that the
+  producer already uses this spelling, and are not wire IDs. A routed producer must
+  supply the exact source field/member/owner/codebook and an equality mapping for
+  every row; a spelling difference is recorded as an explicit alias, never silently
+  guessed.
+
+| Consumer slot | Required accepted producer pin | Two-way join that remains pending |
+|---|---|---|
+| `HAND.TerminalOutcome.EmptyMasterDeckLoss` | `.83` root-settlement + `.87` native terminal record | One accepted semantic outcome; exact native member/code resolves to the settled permanent-deck-zero commit, −1, terminated, not truncated, no HP-death mutation. |
+| `HAND.TerminalOutcome.ActualPlayerDeath` | `.83` death commit + `.87` native terminal record | Actual source death commit only; distinct from deck loss; −1, terminated, not truncated. |
+| `HAND.TerminalOutcome.Act1CompleteAct2Ready` | `.83` handoff commit + `.87` native terminal record | Validated initialized successor before first Act2 decision only; +1, terminated, not truncated; never after prior terminal/fault. |
+| `HAND.terminal_commit` | `.83` `run_terminal`/`terminal_commit` actual typed record | Compare kind, root, checkpoint, reward, flags and consumed token exactly once; no producer record omitted or extra consumer state. |
+| `HAND.terminal_overwrite_effect` | `.83` typed overwrite field + `.87` consumer validator binding | Parse closed `None/Allow` and target; reject terminal mutation for either value, reject unknown value, allow only producer-authorized nonterminal projection. |
+| `HAND.detached_final_delivery` | `.87` final/result/observation/info/delivery records | Retired identity/generation, terminal observation, reward/flags/cause and ownership match; zero candidates/no successor leak; detached before replacement; exact empty/full vector shapes. |
+| `HAND.reset_and_replacement` | `.87` reset mode/API and profile/time constructor records | SingleManual retains terminal until explicit reset; VectorSameStep captures final first and independently resolves replacement; no inherited Note/history/time or applied submitted action. |
+| `HAND.terminal_time` | `.87` task-time fields + `.83` terminal checkpoint | Capture/freeze exact episode elapsed value at terminal; carry only valid Act2Ready successor time; fresh episode starts at selected initial value. |
+| `HAND.from_start_terminal_replay` | `.87` replay header/tag/delivery schema + `.83` completion/root records | Validate whole header before construction; regenerate the same terminal boundary and compare cause/reward/flags/projection; no snapshot restoration. |
+
+Main must route the independently reviewed actual `.83` and `.87` commits/document
+hashes and their field/codebook rows before this integration can replace any pending
+slot. After routing, this owner performs a bounded final consumer join against those
+exact immutable pins and only then revises the broad `.45` completion claim. A
+symbolic slot, current native candidate, or this Task86 recheck alone does not close
+the final join.
 * **Catalog/numeric import (I):** exact legal stored-card ID aliases/upgrade
   domains and source member/domain/read/write/overflow facts from `catalog-numeric`,
   then routed into native contract dictionary. The profile grammar above specifies
@@ -921,7 +1119,7 @@ do not claim final binding before main routes accepted revisions:
 
 The open integration work is exact member/catalog joins, final native enum codes
 and packed projection, relic literal content predicates, accepted execution joins,
-and cross-lane consistency
+the terminal/delivery/replay `.83`/`.87` joins above, and cross-lane consistency
 review. Map/RNG constructor, E07 first-unseen priority, E25 question history,
 potion callback/owner transitions, shop ordinals/commits/prices, relic depletion,
 the StoreRelic reservation/source-removal/Courier checkpoints, accepted Act2 boss
@@ -937,10 +1135,10 @@ guessed here.
 
 | Spec requirement | Concrete closure in this delivery | Still open / explicit nonclaim |
 |---|---|---|
-| A1C-REQ-028: task reward and successor cutoff | Exact phase/terminal ordering; +1 only after resolved initialized Act2 pre-first-decision; −1 actual death; otherwise 0; no truncation/Act2 action. | Execution callback join and native API binding; future T25/T33 unexecuted. |
+| A1C-REQ-028: task reward and successor cutoff | Exact phase/outcome/delivery chronology; +1 only after resolved initialized Act2 pre-first-decision; −1 actual death or settled empty permanent deck, with actual HP preserved for the latter; independent pool-fault axis; detached final, explicit reset/vector same-step and from-start replay boundaries. | Exact execution root/terminal/effect joins and native cause/API/schema/codebook/delivery/replay/time bindings; future T25/T33 unexecuted. |
 | A1C-REQ-029: profile/history | Exact `CreationProfileV1`, experienced preset, independent overrides/reset, fixed start, Note minimum record, discovery/Neow separation and no inheritance. | Literal complete card/upgrade manifest and native codec review; B11 not declared closed. |
-| B05 successor/children | Ordered checkpoints; concrete child/effect record fields, legal statuses, once-only resume/commit, and necessary/sufficient `Act2Ready` predicate. | Exact content callback/site/effect/result-code mapping and accepted execution producer revision; no generic work-drain promise. |
-| B10 native state/visibility | Successor component construction/carry/reset matrix and required private/public projection; accepted typed RNG/map records and hidden boundary joined in §6.5. | Exact native property/type/width dictionary, packed codec/hash, API and restoration schema remain pending native owner. |
+| B05 successor/children | Ordered checkpoints; concrete child/effect record fields, legal statuses, once-only resume/commit, necessary/sufficient `Act2Ready` predicate, and settled loss arbitration before next root/success. | Exact content callback/site/effect/result-code and terminal-root producer join from `.83`; no generic work-drain promise. |
+| B10 native state/visibility | Successor component construction/carry/reset matrix and required private/public projection; accepted typed RNG/map records and hidden boundary joined in §6.5; terminal detached delivery/reset/time/replay semantics in §6.7. | Exact native property/type/width dictionary, terminal codebook, packed codec/hash, API, time, replay delivery schema and final `.83`/`.87` cross-binding remain pending routed producer revisions. |
 | B11 stored profile | Versioned profile grammar, validation algorithm, exact manifest equality predicate/negative controls, independent reset. | Literal card/alias/upgrade/arithmetic rows remain pending accepted catalog/numeric producer receipt; no false local catalog. |
 | Act2 initialization | Source-anchored list resets and level values; accepted map/RNG record and PR36 `setup.act2_boss_order` constructor site; E07 encounter queue and first-unseen boss priority; relic depletion transaction law; card pity; full potion appearance/offer/Sozu/belt/shop/purge callback-to-field commits, StoreRelic stock reservation/source-removal/Courier checkpoints, and E25 question-room transition; hidden cutoff; potion modifier explicitly 0. | Relic literal member/caller predicates; accepted execution callback/child/resume mappings; exact native property/type/width/codec/API/restoration schema; no Act2 gameplay. |
 
