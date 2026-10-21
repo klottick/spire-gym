@@ -1,0 +1,1224 @@
+# Act 1 creation profile and resolved Act 2 handoff
+
+Date: 2026-10-19. Companion contract for the policy-amended Act 1 specification.
+
+**Status: bounded source facts plus explicit native engineering contract.** This is
+not whole-spec approval, an implementation plan, an implementation authorization,
+or Act 2 gameplay. Source descriptions below are static/reconstruction facts from
+the pinned owned archive, not original-game execution. Selected native rules are
+normative proposals for whole-spec review. All future gameplay cases remain
+**UNEXECUTED**.
+
+## 1. Boundary and inputs
+
+This document defines the bounded profile and successor-state consumer contracts
+for A1C-REQ-028/029 and B05/B10/B11. Final execution-root and native terminal,
+delivery, time and replay producer joins remain pending the reviewed `.83`/`.87`
+revisions and a later exact consumer integration. The selected endpoint is a resolved Act 1 boss
+successor, after the Act 2 map and required initialized state exist, and strictly
+before the first Act 2 player decision. Boss lethal damage, reward-screen closure,
+the first fade flag, or `dungeon.beaten` alone is not success. No Act 2 decision or
+player action is taken here.
+
+Normative baseline: [consolidated spec](../superpowers/specs/2026-10-19-ironclad-a0-act1-consolidated-design.md)
+at main `2e090d78297a236bfd549797e460db40d47e709f`, SHA-256
+`06c5bca48b579c27388bd23a8d4e0d062109efc02061ad95e4950a0788bcbf9e`.
+Relevant reviewed inputs: [E07 Acts 2/3 setup](2026-10-18-ironclad-a0-acts23-research.md);
+[E15 profile/history](2026-10-19-act1-profile-time.md);
+[E16 continuations](2026-10-19-act1-continuations.md);
+[E20 enemy records](2026-10-19-act1-content-enemies.md);
+[E25 Neow/events](2026-10-19-act1-content-event-neow.md);
+[E26 economy/potions](2026-10-19-act1-content-economy-potions.md);
+[E28 execution](2026-10-19-act1-transitive-execution-closure.md); and [E29 partial
+native candidate](https://github.com/klottick/spire-gym/blob/d3e9b7a3565932e83235936d083e906f087ab078/docs/research/2026-10-19-act1-semantic-contract-closure.md) (immutable author head `d3e9b7a3565932e83235936d083e906f087ab078`,
+document SHA `db5061114732ba8ea18099e81249df1fdfc015055ed7ab528c8ab5121ff4d599`);
+and the independently reviewed, main-routed [RNG and representative map contract]
+(https://github.com/klottick/spire-lab/blob/35808a1b61a79566ec5a18cd50fea85ae60eadc0/docs/research/2026-10-19-act1-complete-rng-maps.md)
+(merged main `35808a1b61a79566ec5a18cd50fea85ae60eadc0`, document SHA-256
+`e24d7f0667ccf6397a9ee84e5a1ccc72d40294f3c5cb9269f98b4f61d22447c1`). This last
+input is accepted only for its bounded RNG/maps producer; it does not close this
+document's remaining semantic/native joins or the whole spec.
+These are bounded inputs, not a new source audit. Owned archive
+SHA-256 is `cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673`.
+No original class, game, initializer, or gameplay was executed.
+
+Evidence marks: **F** bounded source fact; **S** selected native policy; **E**
+explicit native engineering contract proposed here; **I** named producer import not
+yet bound to a reviewed support-lane result. A proposal is not a source claim.
+
+## 2. Creation profile: versioned, owned, closed grammar
+
+### 2.1 Exact record
+
+`CreationProfileV1` is a fully materialized immutable value. It is validated and
+deep-copied before entropy acquisition, semantic run identity/ordinal reservation,
+slot abandonment, or any episode mutation. There are no absent fields, implicit
+per-field defaults, account/save imports, mutable global preference reads, or
+partial pending/committed profile states.
+
+| Field | Type/domain | Owner and effect |
+|---|---|---|
+| `contract_id` | exact ASCII `spire-lab-act1-creation-profile-v1` | Version gate; any other value rejects. |
+| `ruleset` | exact tuple `standard=true, modded=false, character=Ironclad, ascension=0, act4_enabled=true, fully_unlocked=true` | Fixed task profile, not user-tunable. “Unlocked” is not history. |
+| `prior_ironclad_neow_eligible` | boolean | Selects eligible Neow history branch only; independent of boss discoveries. `true` is experienced preset. |
+| `bosses_seen` | three sorted, duplicate-free sets over `Act1={Guardian,Hexaghost,SlimeBoss}`, `Act2={Champ,Automaton,Collector}`, `Act3={AwakenedOne,DonuAndDeca,TimeEater}` | Run owns per-act history. Act1 initializes from input; Act1 discoveries add at their prebattle hook; Acts2/3 sets initialize from input and remain separate. No single `all_seen` bit. |
+| `stored_note_card` | `StoredCardV1 { card_id: enum, upgrade_count: nonnegative signed-i32 source count }` | Per-episode initial Note payload. Default is `Iron Wave, 0`; not a feature before legal reveal. |
+
+No other fields are legal. In particular, no custom deck/resources, start HP/gold,
+Ascension override, unlock progression, character switch, Note enable/disable,
+next boss, map, key, RNG cursor, combat state, bottle, temporary cost, misc growth,
+or saved game path. Extra/unknown keys, wrong types, duplicate set members, invalid
+enum values, out-of-domain counts, integer overflow, or unsupported contract ID
+reject the **whole addressed batch** before any row advances. No fallback is applied.
+
+The fixed standard-start values are not knobs: Ironclad A0 starts at 80/80 HP and
+99 gold, Burning Blood, five Ironclad Strikes, four Ironclad Defends, Bash, three
+empty potion slots, and Ruby/Sapphire/Emerald all absent. Starting deck instances
+are new identities with zero upgrades. These are per the accepted baseline's
+bounded E09/E12 anchor; this author does not upgrade it to an independent source
+numeric certification.
+
+### 2.2 Named defaults and independent episode semantics
+
+`ExperiencedA0V1` is the only implicit convenience selection when the caller omits
+the profile argument as a whole: it expands before initialization to the exact
+record `standard fully-unlocked ruleset; prior_ironclad_neow_eligible=true;
+Act1={Guardian,Hexaghost,SlimeBoss}; Act2={Champ,Automaton,Collector};
+Act3={AwakenedOne,DonuAndDeca,TimeEater}; stored_note_card={IronWave,0}`.
+The resolved value is captured in replay. A supplied raw record has no omitted
+field defaults. A supported explicit override changes only the Neow boolean,
+per-act seen sets, and/or legal stored-card record. It does not require account
+provenance, a training episode, or proof the profile was played. The preset is a
+creation baseline for every independent episode—not inherited state.
+
+Every explicit reset and vector same-step replacement receives its own resolved
+profile input (or the pool's explicitly configured, already resolved preset value).
+Replacement never reads the retired episode's Note, discoveries, Neow outcome,
+unlock/history mutations, or profile candidate. The detached completed final is
+captured before replacement and is not an alias to the successor episode. Invalid
+last-row profile rejects every row before RNG/identity/time advancement. A valid
+reset of a live run is administrative abandonment, not death, truncation, or a
+gameplay choice. This does not imply runtime reset rollback after dispatch.
+
+The source's Neow eligibility is related to standard death/abandon at floor >=16,
+not prior boss victory; the user-selected experienced default is not that source
+history. `project seed present` is not original custom-seeded mode. Act1 first
+unseen boss priority is Guardian, Hexaghost, Slime Boss; the all-seen branch uses
+the selected native random contract, not a source-seed parity demand. Boss
+discovery is recorded at the actual prebattle hook, not at announcement, boss-list
+construction, or victory; later death does not erase it. Acts2/3 discovery sets
+are carried as explicit profile history, not collapsed into an inherited flag.
+
+## 3. Stored Note card grammar and validation
+
+### 3.1 Stored value is deliberately minimal
+
+`StoredCardV1` stores only a canonical supported card ID and the source signed-i32
+upgrade count to replay on a freshly constructed card. Negative counts reject.
+There is no card instance UUID, persisted `misc` field, bottle flag, cost override,
+turn/free flag, retain flag, potion, or card-specific combat/permanent growth.
+`misc` is deliberately omitted: retrieval starts from the constructor's default
+and does not import old growth. Retrieval applies exactly `upgrade_count` calls
+under that card's legal upgrade behavior. Thus ordinary once-upgrade cards allow
+0/1; `Searing Blow` is repeatedly upgradeable and is not limited to one by a
+generic boolean. The count is not reduced to a boolean. Other unupgradeable and
+nonrepeatable kinds allow only their actual domain (normally 0 or 0/1); invalid
+counts reject, never clamp or silently replay a different value. Check source
+signed-i32 conversion and that card's actual upgrade/mutation arithmetic before
+initialization. Do not impose an arbitrary collection/count cap; any tighter
+domain must be established by the exact card law and legal native transport.
+
+### 3.2 Identity whitelist
+
+The `card_id` is a canonical semantic identity, not localized text, color, rarity,
+substring, Java class name, or “any ID accepted by source fallback.” The finite
+candidate grammar consists of the physical permanent card kinds in Appendix A of
+the baseline: all Ironclad, Silent, Defect, Watcher and ordinary colorless card
+identities; the twelve other-character basic Note identities; the four removable
+event cards `Apparition`, `Bite`, `J.A.X.`, `Ritual Dagger`; and only otherwise
+reachable ordinary removable curse identities. Aliases normalize at validation
+to one canonical ID; duplicate aliases within one profile are not a set and are
+rejected as malformed input. It does not admit Status cards, generated temporary
+physical specials (`Shiv`, `Miracle`, `Smite`, `Safety`, `Insight`, `Through
+Violence`, `Beta`, `Omega`, `Expunger`), wish-only options, `Curse of the Bell`,
+Ascender's Bane, Necronomicurse, Pride, nonphysical options, arbitrary library
+IDs, or a merely temporary copy. A source ID must also resolve to a standard
+permanent instance whose actual removal eligibility is valid; legal off-color
+does not mean another character's start or event pool is imported.
+
+The removable-curse set is exactly the ordinary removable curse support (Clumsy,
+Decay, Doubt, Injury, Normality, Pain, Parasite, Regret, Shame, Writhe) where the
+canonical content catalog marks it as a permanent card and `canRemove`/Note
+candidate rules accept that instance. `Curse of the Bell`, Ascender's Bane and
+Necronomicurse are rejected. Source Note's observed missing preference fallback
+to Iron Wave/0 and unknown-library-ID fallback are **not** native behavior. The
+native input is validated atomically and malformed/unsupported IDs fail closed.
+
+The whitelist is checked against the named content manifest at initialization:
+`supported_stored_card_ids` must equal the catalog's legal permanent/removable
+card IDs after exclusions above, and each member must have its exact upgrade
+domain. This is an equality binding, not “all colors,” rarity filtering, or a
+numeric cap. Content owner must provide the literal ID-to-kind/upgrade-law rows;
+the accepted 131 ID/class crosswalk is only the Ironclad/colorless/Status/Curse
+subset and is not falsely treated as complete catalog evidence. Until main routes
+the reviewed complete catalog/numeric delivery, this public whitelist grammar is
+the precise legal *set definition*, while literal final enum codes and every
+ID-specific upgrade maximum remain an explicit integration dependency (B09/B10),
+not invented source facts. No user decision is needed to select enum widths or
+alias handling.
+
+The executable consumer contract is `StoredCardCatalogV1`, supplied by the
+main-routed accepted catalog/numeric producer; it is not defined by a second local
+card list. It is an immutable versioned manifest with `catalog_revision`,
+`source_archive_sha256`, and finite `rows`. Each row has exactly `canonical_id`,
+`accepted_aliases` (including canonical spelling), `permanent_instance`,
+`note_candidate`, `removable`, `upgrade_kind` (`none`, `once`, `repeatable`),
+`max_upgrade_count` (nullable only for a genuinely unbounded source law), and
+`checked_mutation_domain` (source member(s), widths, checked read/write/overflow
+predicate). Duplicate canonical IDs/aliases or unknown row fields reject.
+
+The consumer validates before episode mutation: (1) schema/revision and archive
+digest match the accepted routed producer receipt; (2) only a listed alias
+normalizes to its canonical ID, and unknown IDs, shared aliases, or noncanonical
+input where canonical encoding is required reject; (3) `permanent_instance`,
+`note_candidate`, and `removable` are all true; count is nonnegative and signed-i32
+representable; and the row law is exact (`none` => 0, `once` => 0/1,
+`repeatable` => the published finite domain or published checked unbounded law);
+(4) each replayed mutation satisfies that row's checked arithmetic domain, with no
+wrap, saturation, clamp, partial replay, or fallback; (5) the canonical row set
+equals the §3.2 semantic whitelist and every alias/eligibility/upgrade/arithmetic
+field equals its routed producer receipt. Missing, extra, duplicate, changed, or
+stale rows reject the whole addressed batch before RNG/identity/time advancement.
+Negative controls are missing/stale receipt, omitted/extra ID, duplicate row or
+alias, alias collision, temporary/status/nonremovable row, wrong eligibility,
+forged upgrade law/count/max, signed-i32 overflow, and arithmetic-domain violation;
+all reject atomically. These are contract controls, not executed catalog tests.
+Literal rows and arithmetic limits remain unbound until the accepted receipt is
+routed; this defines the equality predicate without inventing that data.
+
+### 3.2.1 Accepted primary-red count consumer
+
+The immutable accepted numeric producer at commit `bebe5546f84f2d40ed629313faeb7d4d743f6df8` (document SHA-256 `59938a28966cb8617bb25b3ff8901fc45f4183db76d3bfefd34f39d3c427c437`) supplies exactly these 75 primary-red ID/count rows, R01–R22 and R24–R76. This is a finite consumer crosswalk, not the complete `StoredCardCatalogV1`, the legal Note source set, or a color restriction. `Iron Wave` R24 is the configured default `(upgraded=false,count=0)`.
+
+| Producer row | Literal source ID | Canonical identity key | Reconstruction count / upgrade law |
+|---|---|---|---|
+| R01 | `Bash` | `card.bash` | once: (false,0) or (true,1); default (false,0) |
+| R02 | `Defend_R` | `card.defend_red` | once: (false,0) or (true,1); default (false,0) |
+| R03 | `Strike_R` | `card.strike_red` | once: (false,0) or (true,1); default (false,0) |
+| R04 | `Anger` | `card.anger` | once: (false,0) or (true,1); default (false,0) |
+| R05 | `Armaments` | `card.armaments` | once: (false,0) or (true,1); default (false,0) |
+| R06 | `Body Slam` | `card.body_slam` | once: (false,0) or (true,1); default (false,0) |
+| R07 | `Clash` | `card.clash` | once: (false,0) or (true,1); default (false,0) |
+| R08 | `Cleave` | `card.cleave` | once: (false,0) or (true,1); default (false,0) |
+| R09 | `Clothesline` | `card.clothesline` | once: (false,0) or (true,1); default (false,0) |
+| R10 | `Flex` | `card.flex` | once: (false,0) or (true,1); default (false,0) |
+| R11 | `Havoc` | `card.havoc` | once: (false,0) or (true,1); default (false,0) |
+| R12 | `Headbutt` | `card.headbutt` | once: (false,0) or (true,1); default (false,0) |
+| R13 | `Heavy Blade` | `card.heavy_blade` | once: (false,0) or (true,1); default (false,0) |
+| R14 | `Perfected Strike` | `card.perfected_strike` | once: (false,0) or (true,1); default (false,0) |
+| R15 | `Pommel Strike` | `card.pommel_strike` | once: (false,0) or (true,1); default (false,0) |
+| R16 | `Shrug It Off` | `card.shrug_it_off` | once: (false,0) or (true,1); default (false,0) |
+| R17 | `Sword Boomerang` | `card.sword_boomerang` | once: (false,0) or (true,1); default (false,0) |
+| R18 | `Thunderclap` | `card.thunder_clap` | once: (false,0) or (true,1); default (false,0) |
+| R19 | `True Grit` | `card.true_grit` | once: (false,0) or (true,1); default (false,0) |
+| R20 | `Twin Strike` | `card.twin_strike` | once: (false,0) or (true,1); default (false,0) |
+| R21 | `Warcry` | `card.warcry` | once: (false,0) or (true,1); default (false,0) |
+| R22 | `Wild Strike` | `card.wild_strike` | once: (false,0) or (true,1); default (false,0) |
+| R24 | `Iron Wave` | `card.iron_wave` | once: (false,0) or (true,1); default (false,0) |
+| R25 | `Battle Trance` | `card.battle_trance` | once: (false,0) or (true,1); default (false,0) |
+| R26 | `Blood for Blood` | `card.blood_for_blood` | once: (false,0) or (true,1); default (false,0) |
+| R27 | `Bloodletting` | `card.bloodletting` | once: (false,0) or (true,1); default (false,0) |
+| R28 | `Burning Pact` | `card.burning_pact` | once: (false,0) or (true,1); default (false,0) |
+| R29 | `Carnage` | `card.carnage` | once: (false,0) or (true,1); default (false,0) |
+| R30 | `Combust` | `card.combust` | once: (false,0) or (true,1); default (false,0) |
+| R31 | `Dark Embrace` | `card.dark_embrace` | once: (false,0) or (true,1); default (false,0) |
+| R32 | `Disarm` | `card.disarm` | once: (false,0) or (true,1); default (false,0) |
+| R33 | `Dropkick` | `card.dropkick` | once: (false,0) or (true,1); default (false,0) |
+| R34 | `Dual Wield` | `card.dual_wield` | once: (false,0) or (true,1); default (false,0) |
+| R35 | `Entrench` | `card.entrench` | once: (false,0) or (true,1); default (false,0) |
+| R36 | `Evolve` | `card.evolve` | once: (false,0) or (true,1); default (false,0) |
+| R37 | `Feel No Pain` | `card.feel_no_pain` | once: (false,0) or (true,1); default (false,0) |
+| R38 | `Fire Breathing` | `card.fire_breathing` | once: (false,0) or (true,1); default (false,0) |
+| R39 | `Flame Barrier` | `card.flame_barrier` | once: (false,0) or (true,1); default (false,0) |
+| R40 | `Ghostly Armor` | `card.ghostly_armor` | once: (false,0) or (true,1); default (false,0) |
+| R41 | `Hemokinesis` | `card.hemokinesis` | once: (false,0) or (true,1); default (false,0) |
+| R42 | `Infernal Blade` | `card.infernal_blade` | once: (false,0) or (true,1); default (false,0) |
+| R43 | `Inflame` | `card.inflame` | once: (false,0) or (true,1); default (false,0) |
+| R44 | `Intimidate` | `card.intimidate` | once: (false,0) or (true,1); default (false,0) |
+| R45 | `Metallicize` | `card.metallicize` | once: (false,0) or (true,1); default (false,0) |
+| R46 | `Power Through` | `card.power_through` | once: (false,0) or (true,1); default (false,0) |
+| R47 | `Pummel` | `card.pummel` | once: (false,0) or (true,1); default (false,0) |
+| R48 | `Rage` | `card.rage` | once: (false,0) or (true,1); default (false,0) |
+| R49 | `Rampage` | `card.rampage` | once: (false,0) or (true,1); default (false,0) |
+| R50 | `Reckless Charge` | `card.reckless_charge` | once: (false,0) or (true,1); default (false,0) |
+| R51 | `Rupture` | `card.rupture` | once: (false,0) or (true,1); default (false,0) |
+| R52 | `Searing Blow` | `card.searing_blow` | repeatable: constructor may encode (false,n>=0); each upgrade increments count, sets true |
+| R53 | `Second Wind` | `card.second_wind` | once: (false,0) or (true,1); default (false,0) |
+| R54 | `Seeing Red` | `card.seeing_red` | once: (false,0) or (true,1); default (false,0) |
+| R55 | `Sentinel` | `card.sentinel` | once: (false,0) or (true,1); default (false,0) |
+| R56 | `Sever Soul` | `card.sever_soul` | once: (false,0) or (true,1); default (false,0) |
+| R57 | `Shockwave` | `card.shockwave` | once: (false,0) or (true,1); default (false,0) |
+| R58 | `Spot Weakness` | `card.spot_weakness` | once: (false,0) or (true,1); default (false,0) |
+| R59 | `Uppercut` | `card.uppercut` | once: (false,0) or (true,1); default (false,0) |
+| R60 | `Whirlwind` | `card.whirlwind` | once: (false,0) or (true,1); default (false,0) |
+| R61 | `Barricade` | `card.barricade` | once: (false,0) or (true,1); default (false,0) |
+| R62 | `Berserk` | `card.berserk` | once: (false,0) or (true,1); default (false,0) |
+| R63 | `Bludgeon` | `card.bludgeon` | once: (false,0) or (true,1); default (false,0) |
+| R64 | `Brutality` | `card.brutality` | once: (false,0) or (true,1); default (false,0) |
+| R65 | `Corruption` | `card.corruption` | once: (false,0) or (true,1); default (false,0) |
+| R66 | `Demon Form` | `card.demon_form` | once: (false,0) or (true,1); default (false,0) |
+| R67 | `Double Tap` | `card.double_tap` | once: (false,0) or (true,1); default (false,0) |
+| R68 | `Exhume` | `card.exhume` | once: (false,0) or (true,1); default (false,0) |
+| R69 | `Feed` | `card.feed` | once: (false,0) or (true,1); default (false,0) |
+| R70 | `Fiend Fire` | `card.fiend_fire` | once: (false,0) or (true,1); default (false,0) |
+| R71 | `Immolate` | `card.immolate` | once: (false,0) or (true,1); default (false,0) |
+| R72 | `Impervious` | `card.impervious` | once: (false,0) or (true,1); default (false,0) |
+| R73 | `Juggernaut` | `card.juggernaut` | once: (false,0) or (true,1); default (false,0) |
+| R74 | `Limit Break` | `card.limit_break` | once: (false,0) or (true,1); default (false,0) |
+| R75 | `Offering` | `card.offering` | once: (false,0) or (true,1); default (false,0) |
+| R76 | `Reaper` | `card.reaper` | once: (false,0) or (true,1); default (false,0) |
+
+For these rows the accepted source identity is the literal ID plus its canonical key; the display name and `+` suffix are never identity. Persist only `card_id` and `upgrade_count`, not `misc`. For a stored Searing Blow, reconstruct with its zero-count/default constructor, then replay the stored count exactly once; do not use its count-taking constructor and also replay that count. For ordinary rows, reconstruct the default instance and apply the single legal upgrade only when count is one. The upgraded boolean is validated as a distinct source state, not substituted for count. Ordinary upgrades are one-shot and no-op after the first call. Searing Blow is the exception: constructor state can carry a nonnegative count while `upgraded=false`; each repeat applies the source progression (`4 + prior count` damage), increments count and sets the boolean. No universal cap is inferred; checked i32/resource failure is an administrative rejection, not a gameplay ceiling.
+
+Validation is dispatched in distinct stages, not by using the red table as the profile whitelist. The complete `StoredCardCatalogV1` remains the first membership and Note-eligibility authority as specified in §3.2; its full literal set/domain closure remains pending: validate the source ID/key identity and whether that registered instance is a legal Note candidate/removable card, then dispatch by that registered row's source namespace and apply its own upgrade-count contract. Source ID/key validity, Note eligibility, and upgrade-count legality are separate checks.
+
+Only a row registered as primary-red is checked against this exact 75-row red slice. For such a row, the literal source ID and canonical key must match the red producer row and its red upgrade-count law; a red-slice miss is not a global unknown-ID result: a registered primary-red member missing from the 75 rows is a missing/inconsistent red-slice binding, not a cue to substitute Iron Wave. Other registered namespaces continue through their own count-domain contract under the complete catalog/legal-set binding; the red lookup is not applied to them. For example, the Note-eligible Silent `Strike_G` row, when registered in `StoredCardCatalogV1`, bypasses the red-slice lookup using its catalog-provided canonical key and proceeds to the Silent count-domain contract—it is not rejected as unknown merely because it is absent from these 75 rows. A globally unregistered ID rejects without an Iron Wave fallback.
+
+This 75-row input only validates its primary-red slice. It does not establish that all other colors, statuses, curses, generated cards, Note removal/source legality, other numeric namespaces, or the complete legal stored-card set are closed; those remain explicit integration obligations. Never treat this bounded join as complete I1/I3/native closure.
+
+Validation order retains the source consumer boundary: on Note exchange, incoming obtain/hooks and master-deck insertion/deck-change hooks happen before outgoing selection; outgoing selection uses the resulting live deck and applies purgeable/permanent and bottled-instance predicates. Do not reset imported cost, misc, or history merely because ID/count/display changes; `misc` is not part of persisted Note payload. No staged export/history API is introduced. Unrelated relic depletion and the existing Act2Ready successor cutoff are unchanged by this card-count consumer.
+
+### 3.3 In-run Note ordering is unaffected
+
+Source Note Take calls the incoming card's obtain hooks, inserts it into the
+master deck, then calls deck-change hooks **before** constructing outgoing
+selection; incoming itself may be selected. This direct path does not run the
+ordinary Fast/Show obtain constructor and does not consume Omamori. Outgoing
+selection uses purgeable permanent instances, then excludes bottled instances.
+Selection is from the live deck after the incoming addition. Removal uses the
+actual object-removal hooks, then the source retains that same live object as the
+pending save reference. The departure/next-room-transition checkpoint persists
+its then-current ID and upgrade count—not the selection-time tuple, misc growth,
+or a full card object. Preserve the order and source live-reference fact. Native
+profile capture must not introduce mandatory `IncomingApplied`/`PendingTransition`
+export API; it can own in-run progress privately and expose only a minimal honest
+optional result.
+
+Configured creation values are caller-known initialization inputs; this does not
+authorize policy metadata, observation table length/order, reward/menu ordering,
+or diagnostics to re-expose the hidden Note ID. Until the event reveals it, no
+policy observation, candidate, feature, final metadata, or reset side channel may
+identify that stored card. Once legally revealed, show only the legitimate
+revealed value. Caller input is not itself observation permission.
+
+## 4. Boss victory is a multi-stage transition, not a terminal
+
+### 4.1 Ordered phases and commitment checkpoints
+
+The source facts are bounded by E16/E20/E26/E28; selected native settlement is
+semantic. Preserve durable changes at their actual boundaries, and do not create
+a global rollback transaction. Each row names who owns the transition:
+
+| Phase / owner | Required state transition | Completion predicate / exclusions |
+|---|---|---|
+| `BossCombat` / combat + run | Resolve lethal packet, boss-specific death/split/cannot-lose and terminal logic; apply actual death/rescue rules. Live permanent mutations (Feed/gold/maxHP/card growth/relic counters/potions) already committed remain. Mark boss discovery at prebattle hook if reached. | An actual player death terminates −1. Boss dying/`isDying`, queued lethal packet, split child, combat/room escape, room victory latch or combat reward construction is not +1. A legal escape settles its room/combat path and the run continues; it does not end this task episode. No post-death heal. |
+| `BossCombatRewards` / reward owner | Generate the boss combat reward rows under boss rarity/context, with their own card history/pity and other reward law. Each card row is an independent legal Take/Skip; Take consumes its row before deferred obtain resolves. Whole-list Proceed can leave legal rows unclaimed. Resolve all accepted obtains and any mandatory child before leaving this phase. | Do not call boss-combat rewards “boss chest”; TreasureRoomBoss is a distinct later phase. A skip is valid and does not undo offer history. |
+| `BossTreasureEntry` / chest owner | On entry, run the boss-chest opening hooks (`onChestOpen(true)`); construct three sequential boss-tier relic offers from the live boss pool (each consumes its pool entry), then open boss-relic selection. | No ordinary chest size/tier/gold roll, no sapphire-key attachment, no ordinary `onChestOpenAfter`, no Matryoshka extra relic, and Cursed Key's ordinary-chest curse. Do not emit chest gold or force a key. |
+| `BossRelicChoice` / choice owner | Take one offered relic or skip; the boss chest itself can also be proceeded past with no pick (record no-pick). Normal take closes selection before ordinary relic arrival/obtain/onEquip. Black Blood replacement is a distinct instant path. | Skip/no-pick is legal; offers are not claims. There is no implicit pick. Do not run onEquip while the choice is still open. |
+| `BossRelicChild` / relic + continuation owners | If taken, install exactly once and apply its ordered immediate effects; suspend on any real child selection/reward (e.g. Astrolabe purge/transform, Empty Cage removals, Pandora starter replacement confirmation, Calling Bell curse then its screenless relic offers, Tiny House's upgrade/maxHP/gold/potion/reward rows). Resolve or legally skip every exposed child according to that source's actual policy, resume the owning parent/checkpoint once. Applied grants/removals/rewards are durable at their own checkpoint. | A local flag, screen close, room COMPLETE, queued child, or reward row remaining does not prove global readiness. Preserve empty/automatic/grid size branches and no fabricated choice. Skippable card/relic/potion rows need not be claimed. |
+| `NextDungeonProceed` / handoff owner | After permitted choices, next-dungeon Proceed records no-pick where appropriate; a three-relic warning can delay this handler once. Then start fade and mark dungeon beaten. | This still has not constructed TheCity; fade start / beaten flag is not +1. Do not drain unrelated work or discard committed mutations. |
+| `DungeonTransition` / main game | Complete the actual main-game transition screen; construct the named successor with the same player object/state. Run shared transition setup, then TheCity/Act2 initialization in defined order below. | An administrative fault quiesces the pool, retains actual committed prefix/provenance, emits no success final/reward/autoreset. It is not death, defeat, retry, rollback or successful profile delivery. |
+| `Act2Ready` / run + env | After required map/state initialization, retain the fully initialized successor privately and freeze a detached terminal final of the completed episode; reward +1 exactly once, `terminated=true,truncated=false`. Do not publish an Act2 observation/menu or apply an Act2 action. | Checkpoint is strictly before any Act2 player decision. No Act2 policy play or hidden successor leakage. |
+
+Task-terminal arbitration applies at every phase: actual player death is −1 and
+`terminated=true,truncated=false`, even if earlier rewards/keys/Note commits remain
+durable; no later transition heal can revive it. A legally available escape is a
+nonterminal combat/room outcome: that step receives reward 0, resolves the
+source-specific room/combat settlement, and the same episode/run continues with
+later legal decisions. It is neither task termination nor a task final/autoreset,
+victory, death, or administrative fault. Act1 boss escape is not manufactured
+where the source offers no boss escape route; that boss-specific absence does not
+remove escape mechanics elsewhere. Skip, no-pick, empty offer, administrative
+numeric/resource failure, and post-dispatch fault are also not death. A fault
+quiesces and returns no successful final or autoreset; it preserves the committed
+prefix and fault boundary without rollback.
+Success is the sole `Act2Ready` outcome. A source one-use latch/pool consumption
+commits only at its named consumer: boss offer generation consumes all three
+offered pool entries even when skipped, boss relic install/child effects commit
+once, selected key effects commit at their key-effect update, and visited-room/
+encounter queue consumption follows its room-specific departure rule. No later
+death erases these mutations.
+
+Boss treasure's three boss relics are not three boss rewards to auto-collect. Boss
+card row Take/Skip, boss chest relic Take/Skip/no-pick, and proceeding past chest
+are distinct decisions. Boss relic children are resolved only after install. Other
+boss-combat reward rows may remain unclaimed if the source allows Proceed; do not
+invent mandatory claiming. Resolve all mandatory source child work and the selected
+semantic immediate-causal effects before `Act2Ready`; do not require unrelated
+queue/list emptiness as a substitute for consumer-specific completion.
+
+### 4.2 Transition effects that persist / reset
+
+The existing player is carried. The new-act constructor does not create a new
+Ironclad deck. Shared transition setup advances to Act 2, clears/rebuilds act-local
+path, event/shrine/encounter/boss collections and question-room probability state,
+resets the shared potion-drop modifier, and requests heal equal to max HP through
+normal heal processing. Applicable heal modifiers, caps, dying guards, and prior
+relic/history conditions apply; do not write `hp=max_hp` or assume every relic
+produces an unconditional all-heal. Reset does not revive a dead player.
+
+| State family | Transition treatment |
+|---|---|
+| Player HP/maxHP, gold, permanent deck instances/upgrades, relic instances and counters, current potions/belt, acquired keys and durable run effects | Carry exact post-effects values and identities from same player/run; preserve all actually committed mutations and consumed one-use flags. Apply only real transition heal/relic hooks. Do not replenish potions or clear deck. |
+| Act number/global floor/path/current room | Advance to Act 2 / next global floor by source transition; clear Act1 path/local current-room ownership and create Act2's empty starting map node. Preserve visited/history facts as named below, not old selectable map nodes. |
+| Act-local encounter queues, boss candidate list, ordinary events, six repeatable shrines, question-room probabilities, and Act2-derived offer collections | Initialize Act2-local collections/state as described below. Preserve the run-owned consumed-offer/depletion ledger across the act boundary; rebuilding a derived collection must reapply that ledger. Act1 encounter queue heads are not reused as Act2 queues. |
+| Relic pool depletion and committed offer history | Carry the current run-owned consumption history across Act1→Act2, independently of owned relic identities. Every generated offer consumes its source pool entry at the producer commit boundary, including an offered-but-skipped or no-pick boss relic. A newly derived Act2 available collection excludes all already-consumed IDs for that pool role as well as owned-ID exclusions; never restore an unowned consumed relic. |
+| Remaining run-wide one-time events | Carry the live remaining list; do not repopulate consumed events. Filter by Act2 eligibility when generating a future event, not by exposing hidden future IDs now. |
+| Discovery history | Carry Act1 seen-boss additions and existing independent Act2/Act3 seen sets. The new Act2 boss-selection setup depends on Act2's seen set; it is hidden from policy until legally announced/revealed. Boss lists do not become a public “all seen” feature by accident. |
+| Acquired ruby/sapphire/emerald flags | Carry actual owned keys; optional and deferred key effects commit only at their actual consumer. The burning map-node designation is distinct from acquired Emerald. Act1 boss chest has no Sapphire attachment. |
+| Run play clock | The selected policy satisfies pure elapsed eligibility; this Act1 contract adds no elapsed-time field, clock/wait-only action, or frame clock. No time value is needed to initialize Act2 at this cutoff. |
+| RNG state | Replace any source cursor assumption with reviewed native producer import; do not carry twelve original source streams, source seed offsets, Java shuffle cursors, or card-RNG counter bands as policy. Run/RNG replay provenance follows named import only. |
+| Temporary Act1 combat/room/reward/UI work | Must have reached source-specific resolved consumer or be legally abandoned by the actual transition. Never copy queues, screens, temporary card piles, actor timers or stale candidate tokens into Act2. Durable effects already applied remain. No arbitrary private carry-all blob. |
+
+## 5. Act 2 initialization producer contract
+
+The following distinguishes fixed source-informed Act2 setup facts **F** from
+concrete native successor contract **E**. These are construction requirements,
+not Act2 gameplay mechanics or permission to expose future choices.
+
+### 5.1 Required order
+
+1. Finish boss reward, boss relic selection/no-pick, all mandatory selected relic
+   children, and the source-specific boss treasure Proceed. Preserve legal skips.
+2. Complete transition-screen boundary, then shared dungeon transition setup on
+   the same player: set Act=2; reset act-local path/event/shrine/encounter/boss
+   state and question-room probabilities; reset room potion-drop modifier; issue
+   normal max-HP heal request through hooks. Do not recreate deck/player.
+3. Apply Act2 ruleset/chance parameters, then initialize Act2 encounter pools/
+   queues and boss candidates, ordinary event and six recurring shrine pools, and
+   Act2 card/potion/relic derived offer collections. Carry the run-owned relic
+   consumption/offer-history ledger and reapply its exclusions to any derived relic
+   collection; also keep the one-time event remainder. Do not reset run histories
+   merely because a collection is reconstructed.
+4. Generate/validate the Act2 map and burning Elite designation through the
+   accepted map producer. The visible map contains only map facts permitted at
+   this boundary; future encounters, boss order, hidden room/event identities,
+   offer pools and RNG state remain private.
+5. Create the Act2 empty entry node/current position and set its initial state.
+   Do not enter the node, roll its encounter/event, perform its room-entry hooks,
+   construct/publish an Act2 action menu, or select an action. Mark `Act2Ready`
+   only after these state components are coherent.
+
+**Selected native constructor order** is the numbered sequence above: shared
+transition setup; Act2 ruleset/chance parameters; encounter/boss, event/shrine,
+card/potion/relic producers (with carried depletion applied); map validation and
+burning marker; empty entry node; then readiness validation. The dependencies are
+that Act2 context exists before its producers, the map producer receives Act2
+parameters, and the entry node refers to the validated map. Producer-internal
+order not required by those dependencies is private and must not affect policy-visible
+state.
+
+**Source ordering is a separate static fact, not the selected RNG schedule:** in
+the inspected `AbstractDungeon` constructor, shared transition setup is followed
+by `generateMonsters`, `initializeBoss`, `initializeEventList`,
+`initializeShrineList`, `initializeCardPools`, and `initializePotions`; control then
+returns to `TheCity`'s constructor body, which initializes level-specific chances,
+generates the map, and installs the empty node. This method/call ordering does not
+prove that every source pool initializer is invoked on an Act transition, and it
+does not override selected native depletion carry. Native independent RNG requires
+no host-cursor, source-call-order, or cross-system draw parity.
+
+### 5.2 Act 2 initial state domains (source-informed)
+
+| Owner/state | Required initialized domain/value | Visibility at Act2Ready |
+|---|---|---|
+| Act/floor/entry | `act=2`; global floor `17` at the first Act2 entry; fresh path; Act2 start node exists with no Act2 room visited. Native floor counter retains the checked source integer domain. | Internal successor only at this terminal; no Act2 fields are inserted into the Act1 policy final. |
+| Map | TheCity topology, room assignments, edges, and valid burning-Elite marker generated as one Act2 map; every exposed map satisfies the selected valid-map predicate (including >=1 Elite) by deterministic reject/regenerate before exposure. New map is not a patched Act1 map. | Retained in private successor; not projected into the Act1 final. Burning marker is not acquired Emerald key. No hidden future encounter/event/boss result. |
+| Encounter queues and Act2 boss order | Weak and strong lists: two weak entries, separately filtered first strong, then twelve more strong; ten elite entries. Weak/strong/elite candidates and weights are the E07 §2 Act2 pool rows. For boss selection, first-unseen priority is **Champ → Automaton → Collector**; if none is unseen, use the accepted `run.encounter / setup.act2_boss_order` registry row at scope `(act=2)`, invocation `0`: unbiased Fisher–Yates over the exact ordered input `(Automaton, Collector, Champ)`. The first-unseen branch duplicates its selected identity three times internally and consumes no RNG. Commit the complete three-entry list once during the Act2 constructor before `Act2Ready`; BossRoom later consumes the list head without another setup draw. This is the accepted PR36 amendment at main `fe18c4155496da6f54c8335d9de174f1f6265936`, canonical RNG/maps document SHA-256 `1fa042e4bd68e8d799893fb61c9f614115167543ca1cfde5aae01b1103b93a7c`. E07's forced unseen identity is not a second fight. | Queue order/cursors and future boss candidates stay private. Act1's `run.setup/setup.boss_order` and room-scoped `encounter.kind` are not aliases for the Act2 constructor site. No Act2 field is projected into Act1 final. |
+| Encounter history | Preserve Act1 visited rooms and encounter history; initialize Act2's own encounter queue/history and first-strong exclusion from actual last Act2 weak entry (not Act1 last encounter). Ordinary append rejects last two; elite append rejects only immediate prior; first strong uses source-specific exclusions, not ordinary rule. Room departure consumes its Act2 queue head, event fight does not. | Private successor history; do not publish hidden queue entries or underlying queue cursor. |
+| Events/shrines | Reinitialize the 13 Act2 ordinary event IDs: Addict; Back to Basics; Beggar; Colosseum; Cursed Tome; Drug Dealer; Forgotten Altar; Ghosts; Masked Bandits; Nest; The Library; The Mausoleum; Vampires. Reinitialize six repeatable shrines: Match and Keep, Wheel of Change, Golden Shrine, Transmogrifier, Purifier, Upgrade Shrine. Combine only the remaining one-time-event list under eligibility at a future event-selection site. | All pools private. Do not expose event identities/order or eligibility for hidden future rooms. |
+| Card reward state | Carry the live ordinary-card rarity-pity integer `b` across the Act boundary; new-run initial `b=5`, Rare resets to5, Common sets `max(-40,b-1)`, Uncommon leaves it unchanged. Boss forced-Rare generation still applies the caller's listed pity transition; boss rows already generated are not copied. Card rarity and identity are distinct named sites. | Current unoffered rewards absent; pity and site counters private. Only actually generated current offers may be shown. |
+| Shop/economy | Carry current gold and run-owned nonnegative checked `paid_purge_count`; `purge_base=75+25*paid_purge_count`, actual displayed purge price follows the E26 entry/discount or post-purge formula in §6.5. Initialize the Act2-local next `shop_visit_ordinal=0`; no active visit, stock, phase, purchase ordinal, or removal-use state exists at handoff. Each actual Merchant entry allocates one visit; initial generation uses phase0; only an actual Courier replacement transaction allocates the next phase. Successful-purchase ordinal and paid-purge count advance only at their success checkpoints. | No stock/prices/offers before entry; next visit, current phase/slot, purchase ordinal, inventory exclusions, and site state private. Carry gold/purge history. Card/relic/potion IDs remain hidden until legally offered. |
+| Relic pools and depletion | For each role `Common,Uncommon,Rare,Shop,Boss`, carry ordered-consumption history across acts. At Act2 pool construction, stable-canonical full pre-removal members are shuffled first by the accepted `run.relic/relic.pool.init` site, then current owned IDs and all previously consumed IDs for that role are removed while preserving surviving order. Every selected candidate removed by a rejection predicate is committed consumed at that selector checkpoint; an accepted/generated offer is consumed regardless of later take/skip/no-pick. Pool choice itself is front/end consumption, not another identity draw. | Exact counts, site scope, shuffle and selector transaction law are in §6.5; literal member rows and all caller predicates remain accepted catalog/content joins. No consumed unowned relic can reappear; pools/history hidden. |
+| Potion state | Carry run-owned `PotionAppearanceOffset` in the E26 signed-i32 semantic domain (run-start0; actual appearance result applies exactly −10 on success/+10 on failure with signed-i32 arithmetic, no clamp or Act reset). Carry PlayerCore's ordered potion-slot vector unchanged (capacity is its live slot count; Potion Belt's +2 slots remain represented by that relic-owned expansion) and Sozu only in owned relic state. A generated `PotionOffer` belongs to the current room/reward; it is not belt occupancy. Separately reset room-owned `AbstractRoom.blizzardPotionMod=0` at transition. | Carry offset, slots/capacity, Potion Belt and Sozu without duplication; clear completed Act1 offer rows rather than carrying them. Full belt does not prevent generation. Offset, modifier, future proposals and IDs remain private except normal legally held/claimed inventory. Exact appearance/claim/obtain/use and shop-purchase writers are mapped in §6.5. |
+| Question-room state | Reset Act2 binary32 history ramps to `F(.10),F(.03),F(.02)`; initialize `question_room_roll_ordinal=0`. The corresponding no-override 24-bit pushforward is Monster/Shop/Treasure/Event `1,677,722/503,316/335,545/14,260,633` over `16,777,216`; these are initial derived masses, not mutable ramp fields. Keep Tiny Chest/Juzu ownership and Tiny Chest counter in carried relic/player state. Full E25 transitions are in §6.5. | Ramps, ordinals, overrides and future rooms hidden. No reset on each `?` roll; update fields only at the exact E25 checkpoint. |
+| Room probabilities | Act2 map parameters from accepted map producer: exact rational Shop `5/100`, Rest `12/100`, Elite `8/100`, Event `22/100`, Monster residual; fixed-row exceptions are not ordinary bucket probabilities. Chest size 50/33/17; ordinary relic tier 50/33/17; colorless rare parameter .3; A0 card-upgrade .25 remain their separate producers. | Only realized Act2 map facts may be visible after legal Act2 observation; all parameters/candidates stay private at this Act1 terminal. |
+| One-time event history | Continue only the remaining source run-wide one-time event IDs; already consumed remain absent. Act2-specific eligible additions (including Designer, Duplicator, Knowing Skull, N'loth) are evaluated at their proper future event generation. | Hidden pool not exposed; revealed/history facts only. |
+| Native random state | Carry exact accepted RNG contract/seed-adapter/run identity/root/partition and current role-site states, including `run.map.draft`, `run.encounter`, `run.relic`, `run.card.acquire`, `run.event`, `run.potion`, `run.shop`, and `run.handoff` scopes as joined in §6.5. Act2 starts map-draft and question-room roll ordinals at0; rejected complete map drafts increment only their checked map ordinal. | Root/seed adapter/run key, keys, cursors, counters, hidden samples, rejected drafts, and diagnostics remain private; no fields projected into the Act1 final. |
+| Current phase | `Act2Ready`, no current Act2 combat/event/shop/reward child, no pending Act1 continuation, and no Act2 menu/candidate constructed or published. | Act1 task final is terminal with zero candidates; successor is initialized privately and not exposed as policy data. See §6. |
+
+The Act2 encounter-pool facts above are retained from merged E07 and baseline
+§7/§17. The source-only binary32 TheCity constructor tuple is separately identified
+in §6.3. The selected exact-rational map quota vector in `Room probabilities` is an
+accepted RNG/maps input, **not** a source constructor parameter or a source-fact
+attribution. None of these source facts impose source RNG parity. The source's two
+weak + first strong + twelve additional strong list is fifteen regular entries,
+not fourteen. The one-time events are not part of the 13 ordinary-event count.
+Boss-seen fully experienced branch shuffles its candidate list in source; native
+selection remains under the accepted independent RNG policy.
+
+## 6. Concrete owned records and delivery
+
+### 6.1 `TransitionCheckpointV1`
+
+This is a private run-owned checkpoint record, not a public profile and not a
+generic source-state snapshot:
+
+| Field | Domain / checkpoint owner | Reset or visibility |
+|---|---|---|
+| `phase` | `BossCombat`, `BossCombatRewards`, `BossTreasureEntry`, `BossRelicChoice`, `BossRelicChild`, `NextDungeonProceed`, `DungeonTransition`, `Act2Initialize`, `Act2Ready`, `EpisodeTerminal` | Monotone only along allowed run transitions; a committed terminal moves to `EpisodeTerminal`. Administrative pool `Faulted` is not a run phase or outcome. Private phase is not a feature except current phase's legal public projection. |
+| `run_key` | stable stream identity + episode ordinal, no slot/worker | Never changes in this episode; hidden. |
+| `act1_boss_id`, `boss_discovery_committed` | exact Act1 boss identity + boolean | Commit only at prebattle discovery hook. Retain even if later death. Internal/history projection obeys legitimate visibility. |
+| `reward_rows` | owned source-qualified reward identities/status and source parent | Built once; each claim/skip commits at its source checkpoint; clears/retains under the exact consumer, not list-empty heuristic. Hidden absent legal current screen. |
+| `boss_relic_offers` | three ordered consumed boss-pool identities and claim/skip/no-pick state | Hidden until boss choice; offered members remain consumed on skip. No alias to acquired relic identities. |
+| `continuation` | parent kind/identity, source ID, captured args, ordered selections, resume checkpoint, child status and once-only keys | Acyclic source-qualified ownership; clear on actual resume/completion. Never copied to successor after resolved handoff. |
+| `durable_mutation_prefix` | player/run-owned actual values: HP/maxHP/gold/deck/relics/counters/potions/keys/histories | Applied in place; no rollback on later death/fault; never reconstructed from rewards/logs. |
+| `handoff_effects` | actual source-qualified transitions/heal child IDs and resolved status | Every applicable effect resolves once; no all-heal assignment. Clear after consumer. |
+| `transition_state` | act/floor/room, Act2 map/queues/events/shrines/reward/shop/relic/potion pools and histories listed §5 | Reset only the named Act1-local families; carry only named run-owned fields. Hidden fields stay private. |
+| `terminal` | `None`, `ActualPlayerDeath`, `EmptyMasterDeckLoss`, `Act1CompleteAct2Ready` | Immutable run-owned gameplay outcome, committed at most once. Actual death and settled empty-master-deck loss each capture −1; ready success captures +1. Administrative pool fault is not a terminal variant and lives on the independent environment-pool axis. |
+
+Fields use checked source/native domains; transport must not narrow counters or
+introduce a generic arbitrary cap. Completion checkpoint and task-captured Act1
+final are detached before any vector replacement. `TransitionCheckpointV1` is not
+an importable restoration API; replay reconstructs from start and accepted choices.
+
+### 6.2 `SuccessorStateV1`
+
+The owned successor is an explicit product of these components, not “the entire
+dungeon object,” an opaque private blob, or an Act1 object graph:
+
+1. `PlayerCore`: character/rules identity, current/max HP, gold, persistent deck
+   entries `(instance_id, canonical_card_id, upgrade_count, actual persistent
+   misc only where that card law owns it, bottle flags)`, relic entries
+   `(canonical_relic_id,counter,used/charge state)`, potion capacity and each live
+   slot `(occupied,potion_id,potency)`, and acquired key bits. Other profile-wide
+   history and pool counters live only in the named `Progression` or `Act2Pools`
+   fields below; no unenumerated player counter bag is carried.
+2. `Progression`: act=2, next global floor, prior visited-room/reward/Neow/boss
+   history, independent Act1/Act2/Act3 boss-seen sets, remaining one-time event
+   identities, and current entry-node reference.
+3. `Act2Map`: topology/typed rooms/edges/burning marker/current empty node and
+   marker-to-buff pending status; valid map producer identity/version. No map
+   generation input seed or rejected drafts in observations.
+4. `Act2Pools`: encounter queue/history, three boss candidates/selection history,
+   ordinary event pool, six shrine pool, card reward/pity history, relic tier
+   pools/depletion, potion state, shop stock not yet generated (empty), question
+   room state, room probability inputs, and stable IDs. Future entries are
+   private and pools obey their own ownership.
+5. `NativeRandomProvenance`: accepted schema/site/domain versions and run-owned
+   opaque native random states required to continue exact deterministic replay.
+   Exact state layout is imported from reviewed RNG lane, not defined as source
+   cursors here and never exposed as policy information.
+6. `PhaseAndWork`: phase `Act2Ready`, current location at the legal empty entry
+   node, no Act1 continuation/action/screen, no Act2 room event/encounter entered,
+   and no Act2 menu/candidate constructed. The first Act2 action has not happened.
+
+Any content identity, counter, instance ID, map field, pool, history, or RNG state
+not in these named components does not cross the handoff by default. Add a field
+only with a source-backed owner and initialization/reset disposition. Player
+resources are not duplicated in combat overlay; stale transient objects do not
+survive. `SuccessorStateV1` is owned by the Rust run and inaccessible as a policy
+observation except for its permitted public projection.
+
+### 6.3 Finite construction, carry, and reset matrix
+
+This matrix makes the successor constructor auditable without claiming opaque
+source pools or rejected RNG proposals are public state. `Static` is immutable
+ruleset/content data, not a per-run depleted pool; `Rebuild` creates/reset the
+successor's run-owned instance; `Carry` preserves the same run-owned value/identity.
+Source anchors are static inspection of the pinned archive's
+`AbstractDungeon`/`TheCity` initialization and transition-setup bytecode. No class
+initializer or game runtime was executed.
+
+| Component / exact fields | Owner / input | Transition disposition | Initial value/domain at `Act2Ready` | Visibility |
+|---|---|---|---|---|
+| Player core: character/rules, HP/maxHP, gold, deck identities/card IDs/upgrades/misc/bottles, relic identities/counters/charges, potion slots/capacity, keys | Existing player/run | Carry post-boss committed values and same player identity; only selected normal transition healing mutates resources. | Exact post-effect values; never synthesize deck/relic/potion replacement. | Successor private. |
+| Progression: act, global floor, visited/reward/Neow history, three boss-seen sets, remaining one-time events, entry reference | Run owner | Carry run-owned histories; advance act/floor; install Act2 entry. Do not clear history on dungeon replacement. | `act=2`, first Act2 entry floor 17; prior committed history plus Act1 commits. | Private. |
+| Transition scratch: `pathX`, `pathY`, event/shrine lists, normal/elite encounter lists, boss list | Shared transition owner | Clear old lists and paths; TheCity/Act2 producer repopulates. | Empty during transition gap, then Act2-owned values before ready. | Private. |
+| Question history: `monster_ramp`, `shop_ramp`, `treasure_ramp`; question roll ordinal | E25 event producer + accepted `run.event` | Initialize each act's history once to binary32 `F(.10/.03/.02)` at transition setup; do not reset on each room roll. Increment question-room ordinal once per actual `?` roll. Apply the exact snapshot→24-bit cell draw→ordered writes→Tiny Chest→Juzu→history updates in §6.5. | Binary32 field semantics; initial derived grid tuple in §5.2. Tiny Chest counter belongs to carried relic instance and is not reset at Act boundary. | Ramps/snapshot/ordinal/private RNG hidden; no future room exposure. |
+| `AbstractRoom.blizzardPotionMod` | Shared transition owner | Explicitly set integer `0` at shared transition setup; does not refill player belt. | `0`. | Modifier private; owned belt only under normal observation. |
+| Source-only `TheCity` room-chance constructor tuple `(Shop,Rest,Treasure,Event,Elite)` | Static source provenance (`TheCity.initializeLevelSpecificChances`) | Record source fact only: binary32 `(.05,.12,0,.22,.08)`; these labels are semantic tuple positions, not asserted Java field identifiers, and values are **not stored as selected native map sampler fields**. | Source constructor fact; no native successor state member. | Not exposed or used as the native map quota vector. |
+| Selected native Act2 map quota vector | Accepted map ruleset/`run.map.draft` producer | Use exact rationals `Shop=5/100, Rest=12/100, Elite=8/100, Event=22/100`, Monster residual; derive integer quotas from actual Act2 graph counts per accepted map §4. No ordinary Treasure bucket (fixed-row chest remains). | Ruleset-owned sampler constants, distinct from source binary32 tuple above. | Parameters/draft private; only legally revealed map facts later. |
+| Non-map producer parameters | Chest, relic, card and potion producer owners respectively | Keep chest `50/33/17`, ordinary relic tier `50/33/17`, colorless rare `.3`, A0 card upgrade `.25` (`ascension<12`) on their named producer semantics; do not pass them into the map sampler. | Separate producer parameters/checkpoints, not `TheCity` map quota fields. | Hidden until the corresponding legal offer/room result. |
+| Normal/elite queues and boss candidates | Encounter producer + carried boss history | Clear Act1 lists; Act2 creates two weak, first strong, twelve more strong, ten elite entries; first-strong exclusions derive from actual Act2 weak result. First-unseen boss priority Champ→Automaton→Collector; all-seen ordering uses the accepted `run.encounter/setup.act2_boss_order/(act=2)/invocation=0` row detailed in §5.2. | E07 candidate/weight definitions §5.2; queue and candidate order private. | Private; do not project a hidden future boss. |
+| Ordinary events, repeatable shrines, remaining one-time events | Event producer / progression | Rebuild ordinary and shrine lists; carry live remaining one-time set without restoring consumed IDs; evaluate eligibility only at future selection. | 13 ordinary and six shrine IDs §5.2 plus exact remaining one-time history. | Private including order/future eligible subset. |
+| Card pools: common/uncommon/rare/colorless/curse; static source definitions | Card-content producer + reward-history owner | Clear/rebuild run-local rarity groups from character/content definitions; do not carry Act1 group depletion. Carry ordinary rarity-pity integer `b` unchanged across acts; initialize to5 only for a new run. | Five groups exist; actual ID membership awaits accepted catalog. Pity `b∈[-40,5]`; rare->5, common->`max(-40,b-1)`, uncommon unchanged, once per generated rarity result before identity retry. | Pools/history hidden; only generated offers shown. |
+| Legacy source card-rarity fields `cardBlizzStartOffset`, `cardBlizzRandomizer`, `cardBlizzGrowth`, `cardBlizzMaxOffset` | Source provenance only; selected native reward producer owns semantic `b` | Static bytecode shows `dungeonTransitionSetup` does not write these fields and full-run reset sets randomizer from start offset. They are not the selected native pity state; successor carries the accepted producer's `b`, not an assumed Java field mirror. | The four source fields are signed Java ints; native consumes the accepted `b` contract above. No source parity or numeric member law is inferred. | Private; no pity/cursor in final observation. |
+| Potion appearance and carried resources | Potion producer + carried player | Carry `PotionAppearanceOffset` unchanged across act; reset distinct room modifier `AbstractRoom.blizzardPotionMod=0`; retain belt/capacity and Sozu/relic state. | Run-start offset0; success subtract10, failure add10; no clamp/reset; claim/skip/use do not change it. Named potion sites/scopes in §6.5. | Belt visible normally; offset/modifier/catalog/site state hidden. |
+| Relic pool state: five roles; current order; rejection/offer ledger; owned exclusions | Run-owned relic history + accepted `run.relic` producer + player relics | Carry consumption ledger. At Act2 init shuffle canonical full pre-removal lists first, then remove owned and previously consumed IDs preserving surviving order. Each selector rejection consumes at its caller checkpoint; each offered identity consumes regardless of take/skip/no-pick. | Pre-removal counts Common/Uncommon/Rare/Shop/Boss =33/30/28/17/22. Front/end selector and caller-specific rejection/fallback law bind to accepted RNG §3.4. Exact literal member/predicate joins remain pending catalog/content route. | Pool arrays/ledger/order hidden; acquired relics visible normally. |
+| Shop visit, paid-purge history, stock/price | Shop/economy producer + progression | Carry `paid_purge_count` and gold; initialize `next_shop_visit_ordinal=0`. No active visit/phase/stock/restock at handoff. Allocate one visit at actual Merchant entry; initial stock is phase0; advance the visit-local restock phase only for an actual Courier replacement; successful-purchase ordinal commits only for an accepted purchase. | Purge `75+25*paid_purge_count`; exact E26 price and discount checkpoints in §6.5. | No stock/price/offers before legal visit; all visit/phase/history private. |
+| Act2 map, draft, burning marker, entry node | Accepted map producer | Build `MapDraftInput(mode=Act2Handoff,act=2,...)`; generate/reject whole drafts under exact role/site counters, retain only `ValidMap`; then install `(0,-1)` `EmptyRoom` without entering it. | Typed dimensions, fields, room codes, counters and validator bound in §6.5. | Whole successor map private at Act1 terminal; no seed/draft/cursor in final. |
+| Native random provenance | Accepted RNG producer | Carry exact run root/seed adapter/partition/RunKey and required `NativeRngState` values plus current semantic ordinals; exact Act2 roles/sites/scopes in §6.5. Never source Java objects/cursors. | Exact record fields and map/relic counter law in §6.5; unlisted producer state remains an explicit gap. | Root/seed/key/counters/site/scopes/rejected proposals private. |
+| Phase/work | Handoff owner | Ready only after required child and every named producer validator succeeds. | `Act2Ready`; no Act1 continuation/screen/action, Act2 room entry/menu/candidate/decision. | Act1 terminal projection has zero candidates and no successor fields. |
+
+Construction has a selected native order and a distinct source order as stated in
+§5.1. Under the native order, Act2 parameters and pool producers finish before the
+validated map and empty entry are installed; `Act2Ready` follows only after all
+components validate. Static inspection establishes the source superclass and
+subclass call sequence, not that each source initializer is a transition reset
+contract. Source `initializeCardPools` rebuilds run-local rarity groups, not
+immutable static card definitions. Regardless of any derived relic collection
+rebuild, the selected native run-owned consumed-offer ledger carries across the act
+boundary and is reapplied before offers. The potion modifier's actual transition
+reset value is zero; other potion-producer state is a separate named import.
+
+### 6.4 Concrete child and transition completion protocol
+
+This is the finite handoff-side interface. Content callback/site/effect values
+remain pending execution import; this protocol does not reimplement that lane.
+
+`ParentChildCheckpointV1` has exactly: `checkpoint_id`, `parent_id`, nullable
+`child_id`, `source_owner` (boss reward, boss relic, relic child, transition
+effect), `kind` (choice, automatic effect, reward row, nested child, transition
+effect), `requiredness` (mandatory-to-resume or optional), `status`, `commit_id`,
+nullable `result_code`, nullable `resume_checkpoint_id`, and `once_key`. IDs are
+episode-local, not content IDs. Statuses are `Pending`, `Offered`, `Committed`,
+`Skipped`, `NoChoice`, `Resolved`, `Resumed`, or terminal `Faulted`. `Committed`
+requires a commit ID; `Skipped` is legal only for optional/skippable work;
+`NoChoice` requires producer declaration; `Resolved` requires its producer result
+and every mandatory descendant resolved; `Resumed` requires exactly one parent
+resume at the named checkpoint. `once_key` is unique per effect/commit/resume;
+duplicate application/resume faults. Parent/child links are acyclic, and nested
+work names the suspended parent checkpoint.
+
+`ResolvedTransitionEffectsV1` has ordered `effects`, each with `effect_id`,
+`once_key`, `consumer_site`, `requiredness`, `status`, `commit_id`, `result_code`,
+and optional `child_checkpoint_id`, plus `next_act`, `successor_build_id`, and
+`producer_revision`. Statuses are `NotApplicable`, `Pending`, `Committed`,
+`Resolved`, `Faulted`. Applicable effects transition Pending -> Committed ->
+Resolved exactly once; nonapplicable effects are explicitly `NotApplicable`; child
+work must resolve before its effect resolves. Exact site/effect IDs, code set and
+payload/result codes are `PendingImport(execution producer revision)`, not
+invented. The accepted producer must provide an exhaustive finite set including
+transition heal/relic hooks and selected immediate causal effects; unknown
+applicable work blocks completion.
+
+The handoff may enter `DungeonTransition` only when each boss reward row has
+explicit `Committed`, `Skipped`, or producer-authorized `NoChoice`; obtains'
+children resolve; the chest has exactly three offered/consumed relic identities
+and explicit take/skip/no-pick; selected relic mandatory descendants resolve; and
+each suspended parent resumes exactly once. Optional descendants may be skipped;
+offered rows are not implicitly claimed. `Act2Ready` is true iff simultaneously:
+(a) no actual death or administrative fault has won task-terminal arbitration and
+the run remains live (a prior nonterminal room/combat escape does not terminate or
+invalidate the episode); (b) boss reward/chest
+predicates above hold; (c) mandatory child work is resolved and each suspended
+parent resumed once; (d) each applicable transition effect is resolved exactly
+once and all others are explicitly nonapplicable; (e) destination is Act2 with
+same carried player identity; (f) map, empty node, queues, event/shrine/card/
+potion/relic/shop/history and RNG components pass their producer validators; and
+(g) no Act1 screen/continuation/action/child/effect remains, and no Act2 room
+entry/menu/action has begun. Collection emptiness is neither necessary nor
+sufficient: optional rows can remain as resolved skip provenance; an empty
+collection missing a required result is not ready.
+
+Task-terminal outcomes are exclusive and set once: `ActualPlayerDeath` => −1,
+terminated; `EmptyMasterDeckLoss` => −1, terminated; `Act1CompleteAct2Ready` => +1,
+terminated. All are not truncated. `AdministrativeFault` is a separate pool stop,
+not a task outcome, reward or loss; it quiesces delivery and creates no fabricated
+success final. `None` means the task episode remains live. A room/combat
+escape is not in this episode terminal domain: it resolves at its producer's
+room/combat boundary with step reward 0, no task final, no task autoreset, and run
+continuation to later legal decisions. Do not create a task-terminal escape phase
+or outcome. Fault preserves committed prefix and does not fabricate a successor.
+This defines consumer record shape/predicate, not evidence that the execution
+producer has supplied its exact site/effect rows.
+
+### 6.5 Accepted RNG/map and Act2 semantic-state joins
+
+This subsection consumes the accepted bounded producer in main
+`35808a1b61a79566ec5a18cd50fea85ae60eadc0` (document SHA-256
+`e24d7f0667ccf6397a9ee84e5a1ccc72d40294f3c5cb9269f98b4f61d22447c1`) and its
+accepted PR36 Act2 boss-site amendment in main
+`fe18c4155496da6f54c8335d9de174f1f6265936` (canonical document SHA-256
+`1fa042e4bd68e8d799893fb61c9f614115167543ca1cfde5aae01b1103b93a7c`). The PR36
+route accepts the literal §2.2 row; its prior in-document proposal label is
+superseded for this consumer by that exact accepted amendment. This is a consumer
+binding, not source-runtime evidence. It does not import source Java RNG objects,
+source draw correlations, or unreviewed content-member rows.
+
+**Typed records and exact Act2 map projection.** The successor stores the accepted
+`RunRoot32[32]`, seed-adapter ID (`spire-lab-act1-seed-sha256-candidate1`,
+`spire-lab-act1-root32-candidate1`, or `spire-lab-act1-entropy32-candidate1`),
+RNG contract ID
+`spire-lab-act1-rng-hmac-sha256-v1`, partition (`train|selection|final|test`),
+canonical RunKey `a1:<32-lowercase-hex-stream-identity>:<canonical-u64-episode>`;
+and the immutable `NativeRngState` values needed for subsequent replay. Each
+`NativeRngState` is `(contract_id,partition,run_id,role_id,site_id,scope,key[32],
+next_word:u128)` with drawable cursor `0..2^64−1` and explicit exhausted endpoint
+`2^64`; all IDs are exact printable non-space ASCII (1..255 bytes). Role/site
+identity and scope are fields, not inferred from array position. `MapDraftInput`
+is `(mode:u8,act:u8,ruleset_id,run_id,draft_ordinal:u64,emerald_key_owned:bool,
+act4_enabled:bool)`; `MapMode` encodes `1=Act1Start`, `2=Act2Handoff`; for this
+handoff mode is2, act is2, and ruleset is `spire-lab-act2-map-candidate1`. Its
+dimensions are 7 columns, floors 0..14, plus
+boss `(3,15)`. `MapNode=(x:u8,y:u8,room_kind:u8,visited:bool,reachable:bool,
+burning_eligible:bool)`; room codes `1 Monster,2 Elite,3 Shop,4 Rest,5 Event,
+6 Treasure,7 Boss`. `MapEdge` has coordinate endpoints, unique and sorted by
+source then destination. `ValidMap=(mode,act,nodes,edges,fixed_rooms,burning_node?,
+start_nodes,boss_node,validator_version:u16=1)` with canonical sorted nodes/edges,
+fixed-row entries, sorted starts, and boss `(3,15)`. No RNG key, draft ordinal,
+rejected draft, or transcript is in `ValidMap`.
+`MapDraft` is the private candidate form carrying the candidate graph/room fields
+plus `draft_ordinal:u64` and relevant per-site `NativeRngState` handles; only
+successful full validation converts it to `ValidMap`.
+
+**Act2 map initialization transaction.** Begin `draft_ordinal=0`; independently
+derive role `run.map.draft` site streams for `map.topology`, `map.room_bucket`,
+and, only when eligible, `map.burning_elite`, each scoped `(act=2,draft_ordinal)`
+plus the site-specific subscopes in the accepted registry. Generate six distinct
+starts, route topology, exact-rational room quotas/assignment, fixed rows, and
+burning marker as specified by accepted map §4. Validate the complete draft,
+including ≥1 assigned Elite, fixed rows, branch/merge, reachability, edge/type
+constraints and canonical IDs. Invalid drafts are discarded wholly; checked
+u64-increment the ordinal and regenerate. No patching, cap, or partial-field carry.
+Retain only the first `ValidMap`; then create current node `(0,-1,EmptyRoom)`.
+The Act2 successor constructor order is therefore: establish accepted run identity
+and role derivation context; initialize/reset named Act2 semantic state below;
+construct and validate `MapDraft` until `ValidMap`; install empty node; validate
+whole `Act2Ready`. The map contract says no first Act2 decision/room entry occurs.
+
+**Concrete producer-to-successor state joins.** `Carry` means same run-owned
+semantic value, `Reset` is an explicit Act2-local initial value, `Derive` means
+rebuild only the named collection while preserving history. These states are not
+all encoded in RNG cursors; mechanics state and RNG state are distinct:
+
+| Accepted producer/state | Exact successor fields and operation | Initial/carry law and checkpoint | Visibility / unbound remainder |
+|---|---|---|---|
+| `run.map.draft` | Map input/output types and fields above; draft ordinal; `NativeRngState` per `run.map.draft` role/site. | Act2 mode, act2 ruleset, ordinal0; increment only for a wholly rejected complete draft. `map.topology`, `map.room_bucket`, `map.burning_elite` have distinct site IDs and draft scope. | Entire map private at Act1 terminal; later map visibility follows game rules. No draft/rejection/cursor exposed. |
+| `run.encounter` | Act2 encounter queue heads/contents and boss candidate/order state; per-site `NativeRngState` for `encounter.kind`, `encounter.composition`, `encounter.enemy_hp`, `encounter.opening`, plus the accepted constructor site `setup.act2_boss_order` scoped `(act=2)`. | Initialize the private Act2 queue from E07/§5.2: two weak, separately filtered first strong, twelve further strong, ten elite; use its Act2 candidates/weights/history rules. First-strong exclusion uses actual last Act2 weak result, never Act1. Room departure consumes queue head; Event combat does not. Boss constructor call uses invocation0 before `Act2Ready`: first-unseen priority Champ→Automaton→Collector, forced singleton duplication and no entropy; all-seen unbiased Fisher–Yates over ordered `(Automaton,Collector,Champ)`, then one list commit. BossRoom later consumes the current list head without another setup draw. Bind the exact accepted PR36 registry row at §5.2; Act1-only `setup.boss_order` and room-scoped `encounter.kind` are not substitutes. | Queues, future boss/encounter candidates, hidden selections and streams private. Accepted row identity/status and consumer binding are in §5.2/§6.5. |
+| `run.relic` | Per-role ordered pool arrays `Common,Uncommon,Rare,Shop,Boss`; run-owned consumed-ID history per role; separate RNG state for `relic.pool.init`, `relic.tier`, `relic.identity`, `relic.end`, `relic.screenless`, `relic.noncampfire`, `relic.neow`, `relic.shop`. | Pre-removal list counts 33/30/28/17/22. Canonical stable IDs -> shuffle full list -> remove current owned IDs and carried consumed IDs preserving order. A candidate removed by caller rejection commits to consumed history; generated offer consumes irrespective of take/skip/no-pick. Front/end selection consumes from array, not identity RNG. No-pick never restores. Each call uses accepted `(act,visit,site,invocation)` identity and caller-selected exact site/scope. Exact member sets, registration overlay, source aliases, selector callers, exclusions and finite `canSpawn` predicates are bound below. | Arrays/history/streams hidden. These are semantic lists and history, not a native property/codec schema; native representation remains separately unbound. |
+| `run.card.acquire` | Ordinary card-pity semantic integer `b`; rarity and identity are separate sites, with caller-qualified pairs for ordinary monster, elite, boss, colorless reward helper, Prayer Wheel second offer, Dream Catcher Rest offer, each Orrery offer, fifth-screen auto-card row, Neow-discarded auto-card row, and Tiny House reward-screen row. | Carry `b` across Act1→Act2. New-run `b=5`, range `[-40,5]`; generated rarity result applies once before identity retries: Rare sets5, Common `max(-40,b-1)`, Uncommon unchanged. Ordinary/elite/other thresholds and boss-forced-rare behavior follow accepted RNG §2/§3; identity retry stays at chosen rarity and excludes IDs already in same offer. Site scope `(act,source_event,site,invocation,slot)`. | Pity/site state hidden. Literal supported card IDs, aliases, upgrade laws remain accepted `.44/.46` I1 gap. Caller-specific counts/eligibility and exact candidate rows use those accepted catalog/content joins. |
+| `run.event` / `QuestionRoomState` | Separate binary32 ramp fields `(monster_ramp,shop_ramp,treasure_ramp)`; `question_room_roll_ordinal` is a checked semantic visit ordinal (native storage type/width remains schema-owner work); source-owned Tiny Chest counter remains in its carried relic instance; Juzu/Tiny Chest ownership read from carried relics. `NativeRngState` sites include `event.room.probability` and `event.room.override`; question roll ordinal maps to accepted `event_visit` scope. | Act2 initializes ramps to `F(.10),F(.03),F(.02)` and roll ordinal0. For each actual `?` entry, snapshot prior ramp values; compute `m=trunc(F(monster_ramp×100))`, `s=0` iff the room being left is ShopRoom, otherwise `trunc(F(shop_ramp×100))`, and `t=trunc(F(treasure_ramp×100))`. Draw `k∈[0,2^24)` once at `event.room.probability`; `cell=trunc(F(100×(k/2^24)))`. E25 later writes are ordered: start Event; A=`[0,min(100,m))` writes Monster; B=`[min(99,m),min(100,m+s))` writes Shop; C=`[min(99,m+s),min(100,m+s+t))` writes Treasure. Thus C wins B and B wins A, including cell-99 saturation. Increment Tiny Chest's carried counter once per roll; exactly4 resets it to0 and forces Treasure after the base draw. Then Juzu converts any remaining selected Monster to Event; scripted fights are unaffected. Commit that final room result once; an actual EventRoom's branch/ID are later separate event sites. Update ramps after overrides: Monster resets to `F(.10)` for a primitive Monster not replaced by Tiny Chest (including Juzu conversion), otherwise `F(old+F(.10))`; Shop resets to `F(.03)` iff final room is Shop, otherwise `F(old+F(.03))` (including a Shop-suppressed roll while leaving Shop); Treasure resets to `F(.02)` iff final room is Treasure (including Tiny Chest), otherwise `F(old+F(.02))`. Increment question-room roll ordinal once; no invalid action triggers another roll. `F` is IEEE binary32 rounding; the source tuple is separate from the initial 24-bit pushforward `(1_677_722,503_316,335_545,14_260_633)`. | Ramp fields/counters, snapshots, stream state and future outcomes hidden; carried relic counter is not duplicated/reset at Act boundary. E25 §3 supplies the complete mutation and precedence law, now joined here. |
+| `run.potion` + named caller owners | Run-owned `PotionAppearanceOffset:i32` semantic state; PlayerCore-owned ordered potion slots/live capacity and owned Sozu/Potion Belt relics; room/reward-owned `PotionOffer` rows; room-owned `blizzardPotionMod`. Sites: `potion.reward.appearance`, `potion.reward.identity`, `potion.shop.identity`, `potion.event.flat`, `potion.brew.combat`, `potion.brew.outside`, `potion.use.alchemize`, `potion.use.entropic_brew`. | Run starts offset0. On an actual appearance callback, chance is `40+offset` for Elite/Event, ordinary/boss only with no escape else0; White Beast→100, then ≥4 preexisting room reward rows→0 (last writer wins). Draw `0..99`, succeed iff `<chance`; on success commit one generated offer and offset−10, otherwise offset+10. Signed-i32 source arithmetic; no clamp/reset. Full belt does not suppress appearance. Only the appearance-result callback writes the offset—not identity selection/retry, claim, skip, obtain, use, or discard. `RewardItem.claim` with Sozu consumes the row without insertion; without Sozu, first-empty-slot obtain succeeds and consumes row, while full belt refuses and retains row. `ObtainPotionAction.update` and `ObtainPotionEffect.update` each check Sozu before ordinary obtain; generated proposals are not rerolled for Sozu/full capacity. Shop potion purchase has its distinct StorePotion ordering in the callback table below. Act transition carries offset/belt/relic owners; only room modifier resets0. Caller invocation/slot scopes remain separate from the offset field. | Carry offset/belt/capacity/relics; no active Act1 offers at Act2Ready. Publicly expose only legally held/claimed potions. Offset, reward rows before offer, streams and future identities hidden. No native width or callback mutation law is deferred; codec/property spelling is separate native-schema work. |
+| `run.shop` + source transaction owners | Run-owned `next_shop_visit_ordinal` and `paid_purge_count`; per-active-Merchant `visit_ordinal`, `phase_ordinal`, `successful_purchase_ordinal`, stock rows/slot prices, `purge_used`, displayed `purge_price`; current gold/deck/player relics remain PlayerCore-owned. Accepted sites `shop.card.stock`, `shop.relic.stock`, `shop.potion.stock`, `shop.price`, `shop.discount`, `shop.restock`, `shop.purge`, with nested typed card/relic/potion identity sites. | Act2 initializes next visit0 and no active visit/phase/purchase/stock. Entry allocates visit and commits next visit+1 once; phase0 is initial stock; only a successful Courier replacement transaction allocates next phase; successful purchase ordinal advances once at item-specific commit; paid purge count advances only in paid callback. Initial/replacement stock generation and price jitter call their named sites at `(act,shop_visit,phase,slot)`. `shop.price` samples source jitter; arithmetic/discount/payment are not additional RNG calls. `shop.discount` selects the one colored sale slot; discount/reprice applies deterministic E26 rounding. Paid removal is deterministic. Exact callbacks/formulas/checkpoints are tabled below. | Current stock/site/phase/slot/purchase ordinals/prices and inventory exclusions hidden; no stock or active phase at Act2Ready. No payment, refusal, claim, cancellation, or deterministic reprice invents a draw. Semantic advancement is fully named; native property encoding/width remains a separate schema concern. |
+| `run.handoff` | Boss reward/relic child sites `boss.reward.*`, `boss.relic.*`, transition site `transition.act2.map`; scope `(act,handoff_ordinal,site)`. | Boss rewards use caller-qualified card/relic sites; mandatory children finish before transition. Handoff ordinal is semantic/checkpoint-owned. Act2 map generation uses separate `run.map.draft` role/site/draft ordinal. Transition itself draws no word absent a named child site. | Handoff/child ordinal and reward state private; exact callback/effect mapping remains I3 producer binding. |
+
+**E25 question-room commit rows (finite state transition).** The selector snapshots
+the three old ramp fields before drawing, then commits the resolved room and history
+once; these are semantic state fields, not RNG cursor aliases:
+
+| Own state/result | Read/write and exact condition | Checkpoint / commit |
+|---|---|---|
+| `monster_ramp:binary32` | If primitive selection is Monster and Tiny Chest did not replace it, write `F(.10)` (Juzu conversion still resets); otherwise write `F(old+F(.10))`. Tiny-Chest-forced Treasure increments. | After base-cell writes, Tiny Chest override, then Juzu conversion; same question-room resolution commit. |
+| `shop_ramp:binary32` | If final resolved room is Shop, write `F(.03)`; otherwise `F(old+F(.03))`. Leaving-Shop suppression changes this roll's shop threshold to zero, not this update rule. | After overrides and final room resolution. |
+| `treasure_ramp:binary32` | If final resolved room is Treasure, write `F(.02)` (including Tiny Chest); otherwise `F(old+F(.02))`. | After overrides and final room resolution. |
+| Carried Tiny Chest counter | If owned, increment once per `?` roll; exactly4 writes0 and forces Treasure after the primitive result was consumed. It is not reset on Act transition. | In this same resolution, before Juzu tests the remaining selected room. |
+| `question_room_roll_ordinal` / `run.event` scope | Increment once per actual question-room roll as a checked semantic ordinal; native storage type/width remains schema-owner work. Bind that semantic visit to `(act,event_visit,site,invocation)`. Invalid external actions do not roll or increment. | Once with the resolved question-room commit; event branch/ID construction, if the result is Event, is a later independent site/checkpoint. |
+| Resolved room result | Starting Event, apply Monster A, then Shop B, then Treasure C writes; later matching interval overwrites earlier. Consume the one primitive `k` before Tiny Chest/Juzu; Juzu converts selected Monster to Event but does not alter scripted fights. | Commit exactly one final room result after overrides; no second roll for conversion or invalid input. |
+| Shared run RNG/replay | Root32, seed-adapter ID, contract ID, partition, RunKey, immutable role/site/scope/key/cursor state, rules/content/site descriptors, replay semantic decisions. Act2 roles are `run.map.draft`, `run.encounter`, `run.card.acquire`, `run.relic`, `run.event`, `run.potion`, `run.shop`, `run.combat`, and `run.handoff` where a named producer actually draws. | Exact IDs/frame/key/block/lane/cursor and checked episode/site caller ordinals from accepted RNG §§1–2. Derive streams by exact role/site/scope; no shared parent cursor. Lazy derivation is allowed for a site not yet called; do not fabricate an advanced cursor or eagerly consume a word. Retain current run identity at Act boundary; Act2 scopes use same RunKey, not new episode/reset identity. | All replay/RNG provenance private. No source Java cursor parity, hidden RNG projection, or reset of current episode identity at handoff. |
+
+**Relic membership and identity join (accepted E04 inventory + E18 mechanics + PR33 §3.4).**
+The member below is the constructor ID, not necessarily the displayed label. Sets are
+disjoint by tier; the Ironclad-red registration overlay is a subset of the applicable
+ordinary tier, not a second candidate or another-character pool. All ordinary IDs
+not in that overlay are shared-registration candidates. The 120 shared ordinary,
+10 Ironclad-red ordinary, 10 shared-special, and one Ironclad starter rows reconcile
+to the accepted 141-row inventory. No Shard/Note path imports another character's
+starter or exclusive relic pool.
+
+| Role | Exact constructor-ID set | Count / overlap and acquisition boundary |
+|---|---|---|
+| Common | `Akabeko`, `Anchor`, `Ancient Tea Set`, `Art of War`, `Bag of Marbles`, `Bag of Preparation`, `Blood Vial`, `Boot`, `Bronze Scales`, `Centennial Puzzle`, `CeramicFish`, `Dream Catcher`, `Happy Flower`, `Juzu Bracelet`, `Lantern`, `MawBank`, `MealTicket`, `Nunchaku`, `Oddly Smooth Stone`, `Omamori`, `Orichalcum`, `Pen Nib`, `Potion Belt`, `PreservedInsect`, `Red Skull`, `Regal Pillow`, `Smiling Mask`, `Strawberry`, `Tiny Chest`, `Toy Ornithopter`, `Vajra`, `War Paint`, `Whetstone` | 33; all candidates shared or Ironclad-red registered; no cross-tier overlap. |
+| Uncommon | `Blue Candle`, `Bottled Flame`, `Bottled Lightning`, `Bottled Tornado`, `Darkstone Periapt`, `Eternal Feather`, `Frozen Egg 2`, `Gremlin Horn`, `HornCleat`, `InkBottle`, `Kunai`, `Letter Opener`, `Matryoshka`, `Meat on the Bone`, `Mercury Hourglass`, `Molten Egg 2`, `Mummified Hand`, `Ornamental Fan`, `Pantograph`, `Paper Frog`, `Pear`, `Question Card`, `Self Forming Clay`, `Shuriken`, `Singing Bowl`, `StrikeDummy`, `Sundial`, `The Courier`, `Toxic Egg 2`, `White Beast Statue` | 30; no cross-tier overlap. |
+| Rare | `Bird Faced Urn`, `Calipers`, `CaptainsWheel`, `Champion Belt`, `Charon's Ashes`, `Dead Branch`, `Du-Vu Doll`, `FossilizedHelix`, `Gambling Chip`, `Ginger`, `Girya`, `Ice Cream`, `Incense Burner`, `Lizard Tail`, `Magic Flower`, `Mango`, `Old Coin`, `Peace Pipe`, `Pocketwatch`, `Prayer Wheel`, `Shovel`, `StoneCalendar`, `Thread and Needle`, `Torii`, `TungstenRod`, `Turnip`, `Unceasing Top`, `WingedGreaves` | 28; no cross-tier overlap. |
+| Boss | `Astrolabe`, `Black Blood`, `Black Star`, `Busted Crown`, `Calling Bell`, `Coffee Dripper`, `Cursed Key`, `Ectoplasm`, `Empty Cage`, `Fusion Hammer`, `Mark of Pain`, `Pandora's Box`, `Philosopher's Stone`, `Runic Cube`, `Runic Dome`, `Runic Pyramid`, `SacredBark`, `SlaversCollar`, `Snecko Eye`, `Sozu`, `Tiny House`, `Velvet Choker` | 22; no cross-tier overlap. |
+| Shop | `Brimstone`, `Cauldron`, `Chemical X`, `ClockworkSouvenir`, `DollysMirror`, `Frozen Eye`, `HandDrill`, `Lee's Waffle`, `Medical Kit`, `Membership Card`, `OrangePellets`, `Orrery`, `PrismaticShard`, `Sling`, `Strange Spoon`, `TheAbacus`, `Toolbox` | 17; no cross-tier overlap. |
+| Starter | `Burning Blood` | 1; Ironclad-red starting relic only. It is not a member of any random pool, so no starting relic identity leaves a role collection in the standard Ironclad profile. Neow boss swap removes Burning Blood from ownership before selection, which makes Black Blood's `requires Burning Blood` predicate false; it does not remove a Boss-pool member. |
+| Special | `CultistMask`, `FaceOfCleric`, `Golden Idol`, `GremlinMask`, `NeowsBlessing`, `NlothsMask`, `Odd Mushroom`, `Spirit Poop`, `SsserpentHead`, `WarpedTongs` | 10; source-fixed/event/Neow/Face Trader acquisition only, not ordinary random-tier members. |
+
+Display-label aliases (same row, no extra pool member): `Ceramic Fish`→`CeramicFish`,
+`Maw Bank`→`MawBank`, `Meal Ticket`→`MealTicket`, `Preserved Insect`→`PreservedInsect`,
+`The Boot`→`Boot`, `Frozen Egg`→`Frozen Egg 2`, `Horn Cleat`→`HornCleat`,
+`Ink Bottle`→`InkBottle`, `Molten Egg`→`Molten Egg 2`, `Paper Phrog`→`Paper Frog`,
+`Self-Forming Clay`→`Self Forming Clay`, `Strike Dummy`→`StrikeDummy`,
+`Toxic Egg`→`Toxic Egg 2`, `Bird-Faced Urn`→`Bird Faced Urn`,
+`Captain's Wheel`→`CaptainsWheel`, `Fossilized Helix`→`FossilizedHelix`,
+`Stone Calendar`→`StoneCalendar`, `Tungsten Rod`→`TungstenRod`,
+`Wing Boots`→`WingedGreaves` (class `WingBoots`), `Sacred Bark`→`SacredBark`,
+`Slaver's Collar`→`SlaversCollar`, `Clockwork Souvenir`→`ClockworkSouvenir`,
+`Dolly's Mirror`→`DollysMirror`, `Hand Drill`→`HandDrill`,
+`Orange Pellets`→`OrangePellets`, `Prismatic Shard`→`PrismaticShard`,
+`Sling of Courage`→`Sling`, `The Abacus`→`TheAbacus`,
+`Neow's Lament`→`NeowsBlessing`, `Warped Tongs`→`WarpedTongs`,
+`Face of Cleric`→`FaceOfCleric`, `Cultist Headpiece`→`CultistMask`,
+`Gremlin Visage`→`GremlinMask`, `N'loth's Hungry Face`→`NlothsMask`,
+`Ssserpent Head`→`SsserpentHead`. Each mapping is identity metadata, never a second
+candidate. `Circlet` and `Red
+Circlet` are fallback output identities only, outside the 141 authored IDs and all
+role arrays. Actual special sources: Neow's Lament (Neow), Golden Idol (Golden Idol
+event), Odd Mushroom (Hypnotizing Colored Mushrooms), Warped Tongs (Ominous Forge),
+Spirit Poop (Bonfire Spirits), and the five Face Trader faces Face of Cleric,
+Cultist Headpiece (`CultistMask`), Gremlin Visage (`GremlinMask`), N'loth's Hungry
+Face (`NlothsMask`), Ssserpent Head (`SsserpentHead`).
+
+The exact Ironclad-red overlay is `Burning Blood`, `Red Skull`, `Paper Frog`,
+`Self Forming Clay`, `Black Blood`, `Champion Belt`, `Charon's Ashes`, `Magic Flower`,
+`Mark of Pain`, `Runic Cube`, `Brimstone`. Of these, only Burning Blood is STARTER;
+the remaining ten remain in their ordinary tier sets. This is a registration fact,
+
+**Relic selection caller crosswalk.** In the following rows a normal selector consumes
+the front; end consumes the back except Boss, which consumes the front in both
+helpers. A rejected candidate is consumed. A `canSpawn=false` rejection from normal
+re-enters end at the originally requested tier; end rejection retries end at its
+requested tier. Depleted Common→Uncommon, Uncommon→Rare, Shop→Uncommon invokes
+normal selection for the promoted tier (including when depletion occurred in end).
+Empty Rare returns `Circlet`; empty Boss returns `Red Circlet`. The native selected
+model uses its canonical-ID full-list shuffle then post-shuffle ownership/depletion
+filter; it does not claim the source hash/set iteration or Java draw order.
+
+| Source/checkpoint | Requested role/tier and selector | Additional filter / result commit |
+|---|---|---|
+| Elite reward base relic | Common/Uncommon/Rare from `0..99`: 0–49/50–82/83–99; normal | Live `canSpawn`; consumed rejection/depletion and skip rules above. |
+| Ordinary chest base relic | Size-conditioned shared chest roll: Small 0–49 Common+gold, 50–74 Common/no gold, 75–99 Uncommon; Medium 0–34 Common+gold, 35–84 Uncommon, 85–99 Rare; Large 0–49 Uncommon+gold, 50–74 Uncommon, 75–99 Rare; normal | After ordered chest-open hooks, before chest-open-after hooks. Sapphire link applies only to this base row. |
+| Matryoshka extra nonboss chest relic | While counter>0, decrement first; strict Boolean 3/4 selects Common else Uncommon; normal | Separate extra offer/pool mutation from chest base and sapphire linkage; mark used at counter zero. |
+| Boss reward / Neow boss swap | Fixed Boss; normal | Boss front even if end-helper retry; Neow removes Burning Blood before candidate testing. |
+| Neow category 1/2 relic reward | Fixed Common / fixed Rare respectively; normal | No tier roll; live predicate; skip keeps consumed member. |
+| Campfire Dig (Shovel) | Common/Uncommon/Rare from 0–49/50–82/83–99; normal | One offer; no chest/key link; claim or skip after selection. |
+| Black Star extra reward | Common/Uncommon/Rare from 0–49/50–82/83–99; normal noncampfire | Only actual `MonsterRoomElite`, not EventRoom `eliteTrigger`; additionally consume/reject Peace Pipe, Shovel, Girya. |
+| Big Fish Box, Dead Adventurer successful-search relic token, Scrap Ooze, Wheel of Change relic result, We Meet Again sacrifice | Each source's own 0–99 tier draw Common 0–49, Uncommon 50–82, Rare 83–99; screenless normal | Consume/reject Bottled Flame, Bottled Lightning, Bottled Tornado, Whetstone and continue requested tier. Dead Adventurer consumes its once-shuffled GOLD/NOTHING/RELIC token before this; no token reroll. |
+| Dead Adventurer fight reward | Only if constructed event combat contains unconsumed RELIC token; 0–49/50–82/83–99 Common/Uncommon/Rare; normal | Distinct from successful-search screenless offer. |
+| Calling Bell continuation | One fixed Common, one fixed Uncommon, one fixed Rare offer after screen-down; screenless normal | Exactly three once-generated offers even if curse prevented; each has screenless filters and ordinary depletion/rejection/skip. |
+| Merchant initial/restock stock | Rows 0/1: 0–47 Common, 48–81 Uncommon, 82–99 Rare; row 2 fixed Shop; end | In ShopRoom consume/reject Old Coin, Smiling Mask, MawBank, The Courier plus live `canSpawn`. Stock generation consumes regardless of later purchase/refusal; purchase/payment/restock is separate. |
+
+The live base `canSpawn` exceptions are: Black Blood requires Burning Blood; Ectoplasm
+requires Act≤1; Bottled Flame/Lightning/Tornado require respectively a nonbasic
+permanent Attack/nonbasic permanent Skill/permanent Power; Girya, Peace Pipe, Shovel
+require floor<48 and fewer than two owned among those three; Ancient Tea Set, Ceramic
+Fish, Darkstone Periapt, Dream Catcher, Frozen Egg 2, Molten Egg 2, Toxic Egg 2, Juzu
+Bracelet, Meal Ticket, Meat on the Bone, Omamori, Potion Belt, Prayer Wheel, Question
+Card, Regal Pillow, Singing Bowl require floor≤48; Matryoshka and WingedGreaves
+floor≤40; Tiny Chest floor≤35; PreservedInsect floor≤52. The four Shop exclusions
+also have their own floor≤48 predicate. All other listed ordinary candidates inherit
+base `canSpawn=true`. Caller-specific screenless/noncampfire/ShopRoom exclusions are
+not universal membership deletions. The sources of every candidate rejection and
+selected/skip offer are distinct from ownership: track current ordered arrays and
+per-role consumed history; do not blanket-delete a consumed ID from all roles.
+Act1→Act2 carries these exact ordered arrays and histories unchanged: no reinitialize,
+reshuffle, or history reset. Initial owned-ID filtering and subsequent per-role
+consumption remain separate state. This is the accepted semantic advancement; exact
+native field/property/domain/visibility/codec/restoration schema remains the native
+owner's separate join.
+
+**Potion field-owner ↔ source-callback map (accepted PR33 §2/§3 + E26 §§2.3, 5.2, 7.2).** Run reward history, PlayerCore inventory/relic ownership, room reward rows, and room modifiers are distinct owners. A generated offer is not belt capacity or a held potion.
+
+| E26 producer/callback and site | Owner fields read before | Exact owned-field writes and commit checkpoint | Reverse field ownership / non-writers |
+|---|---|---|---|
+| `AbstractRoom.update` / `addPotionToRewards`; `MonsterRoomElite.dropReward`; `potion.reward.appearance` then `potion.reward.identity` on success | Run `PotionAppearanceOffset:i32`; actual room kind, escape result, White Beast ownership from PlayerCore relics, preexisting room reward-row count; room's live visit. | On an actual appearance callback: base chance `40+offset` for Elite/Event; Ordinary/Boss uses it only when no monster escaped, else base0. White Beast writes chance100; then `existingRewardRows>=4` writes0 and wins. Draw integer0..99; success iff draw<chance. At the appearance-result checkpoint, success appends one rarity-first offer through the separate identity site and writes signed-i32 `offset−10`; failure appends none and writes `offset+10`. No clamp/reset. The callback occurs after room-drop rewards and before reward-screen auto-card setup. Full belt does not gate offer construction. | Only this appearance-result callback writes `PotionAppearanceOffset`. Identity rejection/choice is a separate `run.potion` site; it does not re-update the offset. No appearance callback means no offset mutation. |
+| `RewardItem` potion claim | Room/reward-owned offered row; Sozu in PlayerCore relic ownership; PlayerCore potion slots in belt order. | Sozu branch reports claimed and removes the reward row without insertion. Otherwise call ordinary first-empty-slot `AbstractPlayer.obtainPotion`; on true insert into first `PotionSlot` and remove row; on false (full belt) return unclaimed and retain row. Offset is unchanged in either claim branch. | Sozu remains solely in relic ownership; no duplicate `hasSozu` field. Offer row and belt slot are not aliases. Neither claim path writes appearance offset. |
+| `ObtainPotionAction.update` / `ObtainPotionEffect.update` → `AbstractPlayer.obtainPotion` | The already-generated potion proposal; current Sozu ownership and live ordered belt slots/capacity. | Combat action checks Sozu first, otherwise attempts ordinary obtain. Outside effect checks Sozu, optionally attempts obtain, then marks itself done. Successful ordinary obtain replaces the first empty slot; full belt returns false. A failed Sozu/capacity obtain is not resampled. These effects do not update appearance offset or create an additional offer. | The ordinary obtain helper itself has no Sozu predicate; the two named callbacks own those checks. Existing potion identity/offer and current belt are separate fields. |
+| `StorePotion.purchasePotion` | Current store slot and captured displayed price; Sozu relic; gold; first-empty belt slot; Courier ownership; current shop visit/phase/purchase ordinal. | Reject Sozu first. Otherwise require sufficient gold and successful first-empty-slot obtain before payment/restock. If either fails, leave gold and stock untouched and do not advance purchase/restock ordinals or request replacement sites. On success insert potion, debit captured price, remove purchased stock, then commit one successful-purchase ordinal; if Courier replacement runs, allocate/commit its phase and generate the replacement after the purchase. | `potion_appearance_offset` is not read/written here. Sozu shop refusal differs from RewardItem claim (shop keeps potion stock/gold); no payment-only or claim-only RNG. Exact shop fields/scopes are below. |
+| Manual use, targeted-use cancellation, `canDiscard`/discard; potion identity helpers | PlayerCore potion slot and actual ordered relic hooks; no appearance history read is required by the outcome. | Valid use invokes potion payload then ordered `onUsePotion`, then destroys the consumed slot. Target cancellation does not use/destroy. Discard replaces slot with empty `PotionSlot` without use/payload/hooks. Identity selection appends the named offer but does not change offset. | Use, discard, target cancellation, claim, skip, and identity do not write `PotionAppearanceOffset`. Sozu does not prohibit using/discarding held potions. |
+| Act1→Act2 transition setup | Run offset; PlayerCore slots/capacity and owned Potion Belt/Sozu; completed room offer rows; room modifier. | Carry offset and all occupied/empty slots unchanged; do not re-equip/re-expand Potion Belt or refill/reset belt. Completed Act1 reward rows are not copied. Reset room-owned `AbstractRoom.blizzardPotionMod=0`. | Offset/slots/relics remain with their existing owners; room modifier is not a belt member or appearance offset. Act change is not an appearance-history reset. |
+
+**Shop field-owner ↔ source-callback and ordinal map (accepted PR33 §§2–3 + E26 §§1, 3.1–3.3).** Visit, generation phase, slot, purchase, and purge are distinct semantic checkpoints; they are not one opaque “shop transaction” counter.
+
+| Callback/phase | Exact field owner and before → after | RNG and commit/checkpoint |
+|---|---|---|
+| Act2 initialization / no active Merchant | Run `next_shop_visit_ordinal=0`, `paid_purge_count` carried, current gold carried; no `ShopVisitState`, stock, current item prices, phase, successful-purchase ordinal, or purge-used flag. | No shop sites or stock/price draws at Act2Ready. `purge_base` is derived as `75+25*paid_purge_count`; it is not charged or pre-priced until an actual visit. |
+| `Merchant` constructor / actual ShopRoom entry | Read run-owned next visit `v`; create `ShopVisitState(act,visit=v,phase=0,successful_purchase_ordinal=0,stock=empty,purge_used=false)`; write run `next_shop_visit_ordinal=v+1` once. | Allocate before `ShopScreen.initCards/initRelics/initPotions`. Initial stock generation is phase0; actual semantic scopes are `(act,shop_visit,phase,slot)`. Re-entry after leaving allocates the next visit; leaving itself does not increment. Visit ordinal exhaustion is a checked pre-generation failure, never wrap/reuse. |
+| `ShopScreen.initCards/initRelics/initPotions` initial phase | Shop-owned stock slots: colored Attack0/1, Skill0/1, Power0, ColorlessUncommon0, ColorlessRare0; relic0/1/2; potion0/1/2. Commit each generated item to its exact slot and attach its own current price. | Per slot phase0: `run.shop` typed `shop.card.stock` / `shop.relic.stock` / `shop.potion.stock` request; corresponding selected content identity/tier owner remains `run.card.acquire`, `run.relic`, or `run.potion` as registered. Each jittered initial price uses `run.shop/shop.price` at the same `(act,visit,0,slot)`. No inventory-wide ID or price bundle opaque import. |
+| Initial sale and discount passes | Sale selection writes one selected colored slot, then integer-divides that slot's pre-discount price by2. Existing item price fields update in place for each applicable pass. | One `shop.discount` draw selects uniformly from five colored slots before discounts. Courier then Membership Card each run the E26 deterministic `G(F(current_integer_price×factor))` pass in that order; the discount arithmetic itself draws nothing. No colorless sale. |
+| `StoreCard.purchaseCard` | Read selected current stock row, captured displayed price, gold, successful-purchase ordinal and Courier. On successful callback, schedule FastCard obtain, debit displayed price, remove/replace purchased stock; increment successful-purchase ordinal once at this successful purchase checkpoint. | Payment/claim do not draw. If Courier's actual replacement callback follows, allocate one next restock phase and use the typed card identity plus `shop.restock`/`shop.card.stock` and price sites for only the actual replacement request. Failed/cancelled purchase advances neither purchase nor phase ordinal. |
+| `StoreRelic.purchaseRelic` | Read the selected live relic slot and its current `StoreRelic.price` at callback entry; affordability is current gold ≥ that price. On success, debit that amount, install through `instantObtain(player, relic-list-size, true)` (which calls `onEquip` synchronously), run the card re-preview hooks, and continue the same source callback. The native purchase commit identity reserves the selected slot immediately when payment/install are accepted, so it is no longer selectable while any mandatory child from the relic remains unresolved. Reservation is not an extra player-facing cancel/refusal rule. Record source callback completion separately from native child status/resume: a source `onEquip` that opens a screen does not itself suspend this caller; do not replay payment/install/preview when the native parent resumes. At the source stock checkpoint, without Courier set the purchased `StoreRelic.isPurchased=true`; with Courier, replace that same slot's relic and current price with the generated/repriced replacement (the old purchased item is unavailable because the row now contains the replacement). Commit the successful-purchase ordinal exactly once for the accepted purchase. After all required child work resolves, resume the owning native parent once at `after_relic_purchase`; the existing reservation/commit identity prevents a second purchase, removal, replacement, or phase allocation. | Static source call order: affordability → debit → add to room relics → `instantObtain(...,true)`/synchronous `onEquip` → card preview hooks → optional Courier replacement generation and price assignment → no-Courier `isPurchased` write (or Courier slot replacement). The exact source availability write is therefore after `onEquip` and preview, and after Courier replacement when that branch runs. Native reservation makes the row unavailable earlier, at accepted payment, without claiming the source flag was written early. Purchase/payment/reprice do not themselves draw. Only an actual Courier replacement allocates the next visit-local phase once and invokes its relic restock/tier/identity/price sites for that slot. Membership's actual `applyDiscount` callback reprices current stock immediately and draws nothing. Captured callback price is the shop-owned current price; no displayed-price mismatch guard is added. |
+| `StorePotion.purchasePotion` | Exact branch and order are in the potion table: Sozu reject → affordability + first-empty obtain → insertion → debit → purchased-slot removal → successful-purchase ordinal. | Only a successful Courier replacement allocates the next phase and invokes `shop.restock`, the replacement potion slot request, `run.potion/potion.shop.identity`, and `shop.price`. Refusal/full belt/Sozu does not restock or draw. |
+| Courier restock phase | For one actual post-purchase replacement transaction, assign `phase=next_restock_phase` (initial stock already used phase0), then increment checked next phase once after replacement stock+price are committed. Slot is the exact replaced stock slot, not a newly selected random slot. | Use `shop.restock` and type-specific stock/identity/price sites only for actual generated replacements. Potion identity uses rarity-first 65/25/10 with repeats allowed and no appearance-offset update; replacement price uses E26 replacement pricing. A purchase without an actual Courier replacement does not advance phase. |
+| `ShopScreen.applyDiscount` / Membership/Courier reprice | Read owned discount relics and each current price; write item prices at the source pass checkpoint, sequentially with independent rounding. | No RNG in deterministic repricing. For ordinary item prices, Courier `.8` pass then Membership `.5` pass each uses `G(F(current_integer_price×factor))`. Initial prices use their `shop.price` jitter before these passes. Card replacement price is a distinct single-final-truncation expression; relic/potion replacement uses fresh jitter/`G` then separate discount passes. |
+| Purge price entry / repricing | Run-owned `paid_purge_count` gives base `75+25*n`; ShopVisitState owns current displayed `purge_price`; Smiling Mask ownership is read from PlayerCore. Initial shop entry sets base, then applies source-specific pricing: Mask→50; Membership recomputes from base with `G(F(base×.5))`; else Courier uses `G(F(base×.8))`. With both, initial base75 price is38 (not30). | Deterministic; no RNG. Buying Membership invokes its actual reprice pass. Purge price is a signed-i32 source amount; arithmetic stays in E26 order. |
+| `ShopScreen.purgeCard/updatePurge` selected callback | Opening/cancelling selection writes nothing. A successful paid purge debits the current shop-owned purge price, increments run-owned `paid_purge_count` exactly once, removes the selected card instance with removal/master-deck hooks, and writes `purge_used=true`; one paid removal per visit. | No RNG on selection, payment, count, or removal. After count increment derive `new_base=75+25*new_count`; next price is Mask→50, otherwise `G(F(F(new_base×.8)×.5))` with both relics, or the one applicable factor. At count1/base100 and both relics this is40. Cancellation/refusal commits none of these fields. |
+| Leave ShopRoom | Close active ShopVisitState/inventory; retain run `next_shop_visit_ordinal`, gold, paid purge history, deck and belt. | No draw/refund/restock or visit increment on leave. The next Merchant constructor allocates the next visit. |
+
+**Readiness and public projection assertions.** `Act2Ready` now requires exactly one accepted
+`ValidMap(mode=Act2Handoff,act=2,validator_version=1)` plus the empty entry node;
+map draft state is not a successor policy field. Required component validators
+check: ordered relic arrays contain no owned or previously consumed same-role ID;
+card pity is in `[-40,5]`; event numerators sum to `16,777,216` and are the exact
+Act2 tuple above; potion appearance offset is a signed-i32 semantic value, room
+modifier is0, and carried belt slots/capacity match PlayerCore relic ownership;
+shop has carried gold/paid-purge history and `next_shop_visit_ordinal=0`, but no
+active visit, stock, price, phase, purchase ordinal, or purge-used flag; all RNG state
+matches accepted contract/partition/RunKey and no cursor exceeds `2^64`. Any
+unlisted site required by Act2 producers is an initialization failure/open join,
+not a default-zero stream. Terminal Act1 `final_obs` excludes map, pool arrays,
+history numerators, appearance offset, shop ordinals, root/seed/key/counter/site
+state, and rejected proposals; successor remains detached and private.
+
+### 6.6 Phase visibility and cutoff
+
+Before `Act2Ready`, the policy may observe only the current Act1 decision data
+per A1C-REQ-033; no full profile object, Note ID, boss pool, hidden Act2 map,
+encounters/events, rewards, shop stock, RNG, seed, cursor, rejected drafts,
+transition checkpoint, diagnostic, or private instance identity. At terminal
+delivery, `final_obs` is an immutable detached snapshot of the completed task
+state; it contains no hidden Act2 successor fields. The successor remains owned
+privately for an explicitly supported follow-on continuation, but that is not
+provided by this Act1 task API unless a separate reviewed API defines it.
+
+Vector same-step autoreset owns two distinct values: retired Act1 `final_obs`,
+`reward=+1`, terminal outcome and episode identity; and new episode ordinary
+reset observation/identity. `final_obs` and attached profile/result records are
+deeply detached; reset/step/close or caller mutation cannot alter them. The next
+episode uses its configured independent profile, never an inherited Note. Single
+manual mode stays terminal with zero candidates until explicit reset. A post-
+dispatch administrative failure returns no successful batch/final/reset; it
+faults and quiesces the pool with actual commit provenance. Actual death produces
+−1 only once, `terminated=true,truncated=false`; escape, skip, no-pick, non-death
+fault or resource failure is not death and receives 0.
+
+The native retired-delivery owner also retains a detached `TerminalFinalV1`:
+`{run_identity, task_outcome, task_reward, terminated, truncated=false,
+final_observation, completed_successor: SuccessorStateV1}`. This is an owned
+historical final paired to the completed episode, not a pointer into the live slot,
+new episode, or caller memory. It remains stable across replacement/reset/close and
+is destroyed only with its owning detached delivery. `completed_successor` is
+native-private and is not projected into policy observation/info or an importable
+restoration API; it exists so the actual Act2-ready successor is retained rather
+than substituted with the reset episode. Vector finals retain one such value per
+retired terminal row in returned-row order. A fault produces no successful
+`TerminalFinalV1`; its diagnostic is not a successful final.
+
+### 6.7 Terminal outcome, detached delivery, reset and replay
+
+This section fixes the handoff-owned semantic contract independently of native wire
+codes. `EmptyMasterDeckLoss` is the accepted selected native policy, not source
+behavior. It is evaluated only after an accepted action's same causal root and all
+mandatory immediate descendants settle. The committed permanent master-deck
+instance count is the predicate: exactly zero loses; draw/discard/exhaust emptiness,
+a transient remove-before-replacement interval, a rejected action, or an unsettled
+root does not. No unrelated queue is drained and no future optional reward rescues a
+settled loss. The currently accepted y11 Toke route therefore ends at that root
+when it leaves zero permanent cards; the historical y12 prompt is not entered.
+
+The episode outcome and environment-pool delivery condition are orthogonal. The
+first is an immutable run-owned commit; the second reports whether the current pool
+operation can still deliver results. A post-commit output/encoding failure faults
+and quiesces the pool but cannot erase or rewrite a terminal outcome or its one
+reward-capture facts. A fault before any terminal commit leaves the outcome unset
+and likewise cannot fabricate loss/death/success, roll back committed mutations, or
+request reset. If delivery fails before ownership transfer, that operation returns
+no partial ordinary-success batch/final; an already returned detached result from
+an earlier operation remains stable. This is chronology, not a terminal-priority
+list:
+
+| Order / transition | Required predicate and commit | Forbidden result |
+|---|---|---|
+| Whole-batch preflight | Validate every addressed row, terminal/reset lifecycle, profile, seed, identity and capacity before dispatch. A rejected batch changes no run/pool slot, RNG, time, reward, outcome, identity ordinal or detached result. | Partial row dispatch, entropy/time charge, or terminal inferred from invalid input. |
+| Accepted root admission | Admit one action root only for a live episode; consume its decision provenance once. Resolve only that root and its immediate mandatory causal frontier. | New root after terminal commit; draining unrelated pending work. |
+| Actual HP death | If source death/rescue processing actually commits player death during the root, commit `ActualPlayerDeath` once and interrupt later gameplay descendants. Retain real HP/death state and already committed mutations. | Reclassifying as deck loss; post-death healing/resurrection or successful Act2 handoff. |
+| Settled root / deck predicate | Only if no actual death or earlier terminal and the root is fully settled, inspect permanent master-deck count. Zero commits `EmptyMasterDeckLoss`; positive count permits only otherwise-valid continuation. | Testing transient zero, counting combat piles, waiting for optional rewards, or admitting next root first. |
+| Successor commit | Only a live nonterminal run with boss rewards, mandatory child/effect work, parent resumes, Act2 producers and successor validators complete may commit `Act1CompleteAct2Ready` and +1 before any Act2 decision. | Success after prior terminal or pool fault; Act2 decision/action before cutoff. |
+| Terminal capture and delivery | Freeze one terminal capture from committed outcome and current episode-owned facts; detach observation, info and arrays before caller ownership transfer or configured vector replacement. | Second capture/reward, alias to mutable run/replacement state, or retroactive mutation of returned values. |
+| Fault before terminal commit | Record `AdministrativeFault` only on pool/operation axis and quiesce. | Gameplay terminal, reward, final success, automatic reset, retry or rollback. |
+| Fault after terminal commit | Preserve exact terminal kind, reward/flags/cause and capture count; record separate pool fault and quiesce. If current operation did not transfer a complete result, return no ordinary successful result from it. | Replacing terminal with fault/loss, recomputing reward, second delivery, reset or vector replacement caused by fault. |
+
+The typed overwrite guard is part of the join, not an English rule substituted for
+validation. Parse the producer's closed `terminal_overwrite_effect` enum as
+`None | Allow` and validate its target field. `None` rejects every mutation of an
+already committed `run_terminal` or `terminal_commit`. `Allow` is acceptable only
+for a separately named nonterminal projection field; `Allow` targeting either
+terminal field is an impossible state and rejects without changing the committed
+outcome. Unknown enum values also reject. Final enum codepoints and the actual
+producer field paths remain pending `.83`/`.87`; the validator must consume the
+actual parsed enum/target pair, never hardcode “no overwrite” while ignoring an
+`Allow` mutation.
+
+Concrete terminal output is an owned value with fields `retired_run_identity`,
+`retired_decision_generation`, `detached_terminal_observation`, `actual_hp`,
+`elapsed_time_us`, `terminal_outcome`, `reward`, `terminated`, `truncated`,
+`semantic_cause`, and `producer_bindings`. The observation is the frozen terminal
+Act1 projection with zero legal candidates and no successor, configured Note,
+profile or hidden Act2 fields. For `EmptyMasterDeckLoss`, preserve actual HP
+unchanged by this policy and do not invoke HP-death/rescue hooks; the cause is
+semantic and is not a guessed wire ID. For actual death, report the actual source
+death state. For ready success, the final remains the Act1 terminal projection and
+does not expose the private Act2 successor.
+
+The reward is −1 for either ordinary loss and +1 only for validated
+`Act1CompleteAct2Ready`; all three set `terminated=true`, `truncated=false`. Capture
+the reward once at outcome commit. A nonterminal accepted step has reward zero and
+both flags false. An administrative fault is not a reward row or fabricated final.
+This preserves a positive-HP empty-deck loss as distinct from death; it does not
+require positive HP when the permanent-deck predicate is checked, because an
+already committed actual death has earlier chronological ownership.
+
+In `SingleManual` mode, a terminal observation remains readable with zero candidates
+until an explicit reset request starts a new independent episode. That reset is
+administrative abandonment/episode replacement, not another action, death, loss or
+truncation. In configured `VectorSameStep` mode, capture and detach the retired
+episode final first, then initialize the replacement from that row's own fully
+resolved profile/seed request. The returned top-level observation/current identity
+describe the replacement; reward/end flags/final describe the retired episode.
+The submitted action is never applied to the replacement. No preceding Note,
+profile, boss history, time or terminal state is implicitly inherited. Invalid
+whole-batch reset/replacement preflight is neutral. A fault never causes reset or
+same-step replacement.
+
+Capture is an owned state transition, not a repeatable projection helper. Each of
+the three committed semantic outcomes initializes the same run-owned capture
+protocol, parameterized by the selected public `terminal_outcomes` row and commit
+input. The commit freezes kind, reward, flags, cause, actual HP and terminal
+projection from those inputs; it does not substitute the empty-deck-loss row for a
+death or ready-success row. A successful `CaptureTerminalResult` operation requires
+a committed immutable terminal outcome, that run's token still `Available`, delivery
+state `NotCaptured`, and a pool that is neither faulted nor closed. In one atomic
+transition it consumes the token, freezes the row-derived terminal output into a
+detached owned value and enters `CapturedDetached`; the reward-capture fact is
+derived from this successful token-consuming transition, not from a prefilled
+counter. A second capture attempt has no result and no reward and leaves all state
+unchanged. Transfer of the captured value to the caller happens once and moves it to
+`Transferred`. A post-commit fault before capture leaves the selected terminal
+commit and unused token intact but faults the pool, thereby blocking both capture
+and reset. A fault after capture but before transfer leaves the token consumed and
+detached internal capture intact, faults the pool and forbids retry/second transfer.
+A later fault after transfer preserves the already-returned detached value
+byte-for-byte and cannot recapture or reward. The detached info/result member layout
+remains an explicit native `.87` join; this rule defines lifetime/ownership, not a
+guessed schema.
+
+The `SingleManual` lifecycle has three distinct operations: terminal reads return a
+fresh detached copy of the same frozen zero-candidate terminal observation without
+consuming the capture token or recapturing reward; a step/action submitted while
+terminal rejects neutrally and cannot autoreset; explicit reset is the only path to
+a new episode, and requires a new run identity plus newly resolved profile. It
+initializes new episode time and decision generation, inherits no prior Note,
+profile, or history, and leaves every previously detached terminal value stable.
+`VectorSameStep` instead completes capture and transfer of the retired result before
+installing an independently resolved replacement; the response separates old final
+from new top-level observation/identity, never applies the retired action to the
+replacement, and rejects any old decision token against the new run identity.
+
+Task elapsed-time ownership is independent of wall-clock or host/worker time. At
+terminal commit, freeze the terminal capture's task elapsed value. If and only if
+the episode reaches valid `Act2Ready`, carry the selected running-clock state/value
+with the private successor as defined by the accepted time policy; an empty-deck
+loss and actual death have no successor clock to resume. Every independent reset
+starts its own episode clock from the selected initial value (zero), not from the
+retired episode. Exact native field/schema keys remain a pending join below.
+
+Replay is from-start only. Validate its complete versioned header and producer
+bindings before constructing a run; regenerate the profile, initial state, accepted
+actions through regenerated legal menus, root settlements and terminal boundary.
+Compare terminal kind, semantic cause, reward, terminated/truncated flags and
+detached terminal projection at the regenerated boundary. A terminal record is not
+an arbitrary live-state restore or a way to restart after terminal. A mismatch is a
+provenance-bearing replay error; it does not invent another gameplay outcome or
+mutate a prior detached delivery. Exact replay tag/code/schema IDs await reviewed
+native and execution imports.
+
+The following normative record is a machine-readable mirror of these semantic rules.
+Its strings name owner boundaries, not fabricated consumer integer/codebook IDs;
+the final enums, APIs and wire layouts must join through §7.
+
+```json task86-terminal-consumer-v1
+{
+  "schema": "Task86TerminalConsumerV1",
+  "terminal_outcomes": {
+    "ActualPlayerDeath": {"reward": -1, "terminated": true, "truncated": false, "hp_mutation": "source-death-only", "semantic_cause": "actual-player-death"},
+    "EmptyMasterDeckLoss": {"reward": -1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-actual-hp", "semantic_cause": "EmptyMasterDeckLoss"},
+    "Act1CompleteAct2Ready": {"reward": 1, "terminated": true, "truncated": false, "hp_mutation": "none-preserve-post-transition-hp", "semantic_cause": "Act1CompleteAct2Ready"}
+  },
+  "outcome_axis": {"owner": "episode-run", "immutable_after_commit": true},
+  "pool_axis": {"owner": "environment-pool", "states": ["Ready", "Operating", "Faulted", "Closed"], "fault_is_terminal_outcome": false, "rollback_on_fault": false, "reset_on_fault": false},
+  "overwrite_guard": {"field": "terminal_overwrite_effect", "closed_values": ["None", "Allow"], "None_terminal_target": "reject", "Allow_terminal_target": "reject", "Allow_nonterminal_projection_target": "producer-authorized-only", "unknown_value": "reject"},
+  "delivery": {
+    "record_fields": ["retired_run_identity", "retired_decision_generation", "detached_terminal_observation", "actual_hp", "elapsed_time_us", "terminal_outcome", "reward", "terminated", "truncated", "semantic_cause", "producer_bindings"],
+    "terminal_observation": "frozen-act1-projection-zero-candidates-no-successor-fields",
+    "single_manual": "retain-readable-terminal-until-explicit-independent-reset",
+    "vector_same_step": "capture-retired-final-before-independent-replacement;top-level-observation-is-replacement;submitted-action-never-applies-to-replacement",
+    "delivered_capture": "immutable-after-return",
+    "faulted_operation": "no-partial-normal-success-result-or-fabricated-final",
+    "earlier_delivered_capture": "remains-stable"
+  },
+  "capture_protocol": {
+    "state_owner": ["episode-run", "environment-pool"],
+    "state_fields": {
+      "run_outcome": {"type": "outcome-or-null", "initial": null},
+      "terminal_commit_identity": {"type": "string-or-null", "initial": null},
+      "capture_token": {"type": "capture-token", "initial": "Unavailable"},
+      "delivery_state": {"type": "delivery-state", "initial": "NotCaptured"},
+      "pool_state": {"type": "pool-state", "initial": "Operating"},
+      "live_terminal_result": {"type": "result-or-null", "initial": null},
+      "captured_result": {"type": "result-or-null", "initial": null},
+      "reward_capture_count": {"type": "integer", "initial": 0},
+      "transferred_results": {"type": "result-list", "initial": []}
+    },
+    "token_states": ["Available", "Consumed"],
+    "delivery_states": ["NotCaptured", "CapturedDetached", "Transferred", "FaultedAfterCapture"],
+    "capture_guard": {"requires": ["committed-terminal-outcome", "capture-token-Available", "delivery-NotCaptured", "pool-not-Faulted-or-Closed"], "successful_capture_consumes_token": true, "reward_capture_derived_from_transition": true},
+    "transitions": {
+      "commit_terminal": {"requires": {"run_outcome": null, "pool_not_faulted": true}, "sets": {"run_outcome": "$input.outcome", "terminal_commit_identity": "$input.commit_identity", "capture_token": "Available", "delivery_state": "NotCaptured", "captured_result": null, "reward_capture_count": 0}, "commit_result_from_outcome_row": true},
+      "capture_once": {"requires": {"run_outcome": "$input.outcome", "terminal_commit_identity": "$input.commit_identity", "capture_token": "Available", "delivery_state": "NotCaptured", "pool_not_faulted": true}, "sets": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "capture_result": true, "detach": true, "capture_reward": true},
+      "transfer_once": {"requires": {"capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"delivery_state": "Transferred"}, "transfer_capture": true}
+    },
+    "fault_transitions": {
+      "before_terminal_commit": {"requires": {"run_outcome": null}, "sets": {"pool_state": "Faulted", "delivery_state": "NotCaptured"}},
+      "after_commit_before_capture": {"requires": {"run_outcome": "$any-terminal-outcome", "capture_token": "Available", "delivery_state": "NotCaptured"}, "sets": {"pool_state": "Faulted"}},
+      "after_capture_before_transfer": {"requires": {"run_outcome": "$any-terminal-outcome", "capture_token": "Consumed", "delivery_state": "CapturedDetached"}, "sets": {"pool_state": "Faulted", "delivery_state": "FaultedAfterCapture"}},
+      "after_transfer": {"requires": {"capture_token": "Consumed", "delivery_state": "Transferred"}, "sets": {"pool_state": "Faulted"}, "preserve_transferred": true}
+    }
+  },
+  "lifecycle_modes": {
+    "SingleManual": {
+      "mode": "SingleManual",
+      "terminal_read": {"returns": "same-terminal-observation", "detached": true, "mutates": false, "capture": false, "reward_capture": false, "auto_reset": false},
+      "terminal_step": {"result": "reject-neutral", "mutates": false, "capture": false, "autoreset": false},
+      "explicit_reset": {"requires_fresh_identity_profile": true, "pool_must_not_be_faulted": true, "initializes_time": true, "time_value": 0, "initializes_generation": true, "generation_value": 0, "no_inherit": true, "preserve_old_detached_final": true}
+    },
+    "VectorSameStep": {
+      "mode": "VectorSameStep",
+      "capture_order": ["capture", "transfer", "replace"],
+      "replacement": {"requires_fresh_identity_profile": true, "initializes_time": true, "time_value": 0, "initializes_generation": true, "generation_value": 0, "apply_submitted_action": false, "preserve_old_final": true},
+      "stale_token": {"result": "reject-cross-run"}
+    }
+  },
+  "time": {"terminal_capture": "freeze-task-elapsed-value-at-terminal-commit", "act2_successor": "carry-selected-running-clock-and-value", "fresh_episode": "independent-clock-starts-at-zero", "owner": "episode-time-state;not-wall-clock"},
+  "replay": {"mode": "from-start-only", "validate_complete_header_before-construction": true, "regenerate_terminal_boundary": true, "verify_terminal_outcome_reward_flags_cause": true, "arbitrary_terminal_restore": false},
+  "chronology": [
+    "invalid-whole-batch-rejects-before-dispatch-with-no-state-rng-time-reward-or-slot-mutation",
+    "accepted-action-root-enters-and-settles-only-its-same-root-mandatory-immediate-work",
+    "committed-actual-player-death-interrupts-gameplay-work-and-commits-death-once",
+    "otherwise-fully-settled-root-checks-exact-permanent-master-deck-count-before-next-root-or-successor",
+    "zero-deck-commits-EmptyMasterDeckLoss-once-preserving-real-hp-and-without-death-hooks",
+    "nonzero-deck-may-continue-normal-act1-or-transition-if-all-other-predicates-hold",
+    "Act2Ready-commits-success-only-after-mandatory-rewards-children-effects-and-initialized-successor-validate-before-first-act2-decision",
+    "terminal-outcome-and-reward-capture-are-immutable-after-commit",
+    "fault-before-terminal-commit-means-terminal-none-pool-faulted-no-success-output-or-reset",
+    "fault-after-terminal-commit-preserves-terminal-and-reward-facts-pool-faulted-no-second-capture-or-reset",
+    "a-normal-output-capture-that-was-already-returned-remains-detached-and-stable-after-later-fault"
+  ],
+  "forbidden_combinations": [
+    "administrative-fault-as-game-terminal-or-loss",
+    "empty-deck-loss-with-hp-set-to-zero-or-death-rescue-hooks",
+    "empty-deck-loss-before-same-root-mandatory-replacement-settles",
+    "empty-combat-pile-as-empty-master-deck-loss",
+    "Act2Ready-or-positive-reward-after-any-prior-terminal",
+    "fault-triggered-reset-vector-replacement-retry-rollback-or-loss",
+    "two-terminal-commits-or-duplicate-terminal-reward-capture",
+    "terminal-reset-inherits-prior-profile-history-or-time",
+    "y12-event-prompt-after-y11-Toke-settles-to-empty-master-deck"
+  ],
+  "pending_producer_keys": {
+    "EXEC83": ["terminal.run_terminal", "terminal.terminal_commit.kind", "terminal.terminal_commit.source_root_id", "terminal.terminal_commit.commit_checkpoint", "terminal.terminal_commit.reward_delta", "terminal.terminal_commit.terminated", "terminal.terminal_commit.truncated", "terminal.terminal_commit.token_consumed", "terminal.operational_stop", "terminal.terminal_overwrite_effect", "terminal.permanent_master_deck_before_after", "terminal.mandatory_frontier_and_result_consume_count", "transition.mandatory_effect_and_child_completion_keys", "handoff.act2ready_pre_first_decision_checkpoint"],
+    "NATIVE87": ["task_terminal.cause_enum_and_wire_codebook", "task_terminal.result_and_flag_schema_keys", "delivery.detached_final_observation_and_info_schema_keys", "delivery.manual_reset_and_vector_same_step_api_keys", "time.elapsed_capture_and_successor_clock_field_keys", "replay.terminal_completion_tag_and_delivery_schema_keys", "descriptor.task_and_delivery_component_identity_keys"]
+  }
+}
+```
+
+## 7. Named imports and remaining joins
+
+These contracts are the handoff producer side; do not block on other authors, but
+do not claim final binding before main routes accepted revisions:
+
+* **Accepted RNG/map producer (consumed):** exact accepted revision is main
+  `35808a1b61a79566ec5a18cd50fea85ae60eadc0`, document SHA-256
+  `e24d7f0667ccf6397a9ee84e5a1ccc72d40294f3c5cb9269f98b4f61d22447c1`. §6.5
+  binds its exact seed/RunKey/`NativeRngState`, role/site registry, typed map
+  draft/output, Act2 scope/counter law, relic shuffle/depletion, ordinary card
+  pity, potion appearance history, shop purge/visit starts, question-room initial
+  grid and hidden-state boundary, plus the accepted PR36 Act2 constructor boss-order
+  row `run.encounter/setup.act2_boss_order/(act=2)/invocation=0`, including its
+  all-seen shuffle, first-unseen no-draw branch, single list commit and pre-ready
+  checkpoint. E25's binary32 ramp mutations, Shop suppression,
+  Tiny Chest/Juzu order, cell write precedence and result commit are joined in
+  §6.5. Remaining semantic residuals include relic literal catalog/member
+  predicates. Potion appearance/offer/Sozu/belt callbacks and shop visit/restock/
+  purchase/purge/price state checkpoints are joined in §6.5; native property
+  encoding remains a separate schema task. No source Java
+  cursor/correlation or `runSeed+200` parity is imported.
+* **Execution import (I):** exact accepted producer revision must instantiate
+  `ParentChildCheckpointV1` and `ResolvedTransitionEffectsV1` under §6.4, binding
+  the exhaustive legal site/effect/result-code set and mapping each content
+  callback's requiredness, commit, child, and resume into those fields. The record
+  shape, statuses, once-only rules, and `Act2Ready` predicate are fixed here;
+  concrete effect IDs/sites/payloads, callback-to-checkpoint rows, and producer
+  revision remain pending until an accepted execution result is main-routed. The
+  terminal join requires the actual `run_terminal`; `terminal_commit` kind,
+  `source_root_id`, commit checkpoint, reward delta, terminated/truncated and
+  token-consumed fields; independent `operational_stop`; typed
+  `terminal_overwrite_effect`; permanent-master-deck before/after and mandatory
+  frontier/result-consumption fields for the settled-root predicate; exact mandatory
+  effect/child completion keys; and the `Act2Ready` pre-first-decision checkpoint.
+  These are required semantic producer keys, not final IDs or already accepted
+  field bindings. Route each from the actual reviewed `.83` producer and validate
+  parsed overwrite enum plus target, so `Allow` cannot mutate a committed terminal.
+  This author does not reimplement every content callback or settle that lane's
+  causal mechanics.
+* **Native terminal/delivery import:** final `.87` must bind semantic outcomes to
+  the actual terminal-cause enum/codebook, result/reward/terminated/truncated
+  schema, detached final-observation/info and candidate-empty projection, explicit
+  single-manual reset and configured vector same-step API, task elapsed capture and
+  private successor-clock fields, replay terminal completion tag/delivery schema,
+  and task/delivery descriptor component identities. This public contract defines
+  values, ownership and ordering only. All native integer IDs, serialized member
+  names, widths, codebooks, versions and hashes remain pending the reviewed `.87`
+  producer; no code or wire identifier is invented here.
+* **Stable unresolved consumer slots:** the following names identify exact meaning
+  and owner-side join locations for main routing. They are not assertions that the
+  producer already uses this spelling, and are not wire IDs. A routed producer must
+  supply the exact source field/member/owner/codebook and an equality mapping for
+  every row; a spelling difference is recorded as an explicit alias, never silently
+  guessed.
+
+| Consumer slot | Required accepted producer pin | Two-way join that remains pending |
+|---|---|---|
+| `HAND.TerminalOutcome.EmptyMasterDeckLoss` | `.83` root-settlement + `.87` native terminal record | One accepted semantic outcome; exact native member/code resolves to the settled permanent-deck-zero commit, −1, terminated, not truncated, no HP-death mutation. |
+| `HAND.TerminalOutcome.ActualPlayerDeath` | `.83` death commit + `.87` native terminal record | Actual source death commit only; distinct from deck loss; −1, terminated, not truncated. |
+| `HAND.TerminalOutcome.Act1CompleteAct2Ready` | `.83` handoff commit + `.87` native terminal record | Validated initialized successor before first Act2 decision only; +1, terminated, not truncated; never after prior terminal/fault. |
+| `HAND.terminal_commit` | `.83` `run_terminal`/`terminal_commit` actual typed record | Compare kind, root, checkpoint, reward, flags and consumed token exactly once; no producer record omitted or extra consumer state. |
+| `HAND.terminal_overwrite_effect` | `.83` typed overwrite field + `.87` consumer validator binding | Parse closed `None/Allow` and target; reject terminal mutation for either value, reject unknown value, allow only producer-authorized nonterminal projection. |
+| `HAND.detached_final_delivery` | `.87` final/result/observation/info/delivery records | Retired identity/generation, terminal observation, reward/flags/cause and ownership match; zero candidates/no successor leak; detached before replacement; exact empty/full vector shapes. |
+| `HAND.reset_and_replacement` | `.87` reset mode/API and profile/time constructor records | SingleManual retains terminal until explicit reset; VectorSameStep captures final first and independently resolves replacement; no inherited Note/history/time or applied submitted action. |
+| `HAND.terminal_time` | `.87` task-time fields + `.83` terminal checkpoint | Capture/freeze exact episode elapsed value at terminal; carry only valid Act2Ready successor time; fresh episode starts at selected initial value. |
+| `HAND.from_start_terminal_replay` | `.87` replay header/tag/delivery schema + `.83` completion/root records | Validate whole header before construction; regenerate the same terminal boundary and compare cause/reward/flags/projection; no snapshot restoration. |
+
+Main must route the independently reviewed actual `.83` and `.87` commits/document
+hashes and their field/codebook rows before this integration can replace any pending
+slot. After routing, this owner performs a bounded final consumer join against those
+exact immutable pins and only then revises the broad `.45` completion claim. A
+symbolic slot, current native candidate, or this Task86 recheck alone does not close
+the final join.
+* **Catalog/numeric import (I):** exact legal stored-card ID aliases/upgrade
+  domains and source member/domain/read/write/overflow facts from `catalog-numeric`,
+  then routed into native contract dictionary. The profile grammar above specifies
+  semantic set/exclusions, but does not make a partial accepted card crosswalk a
+  full manifest.
+* **Native schema owner:** consumes `CreationProfileV1`, `TransitionCheckpointV1`,
+  `ParentChildCheckpointV1`, `ResolvedTransitionEffectsV1`, and `SuccessorStateV1`.
+  The required producer-to-native projection is: profile fields are validated
+  inputs only; checkpoint and successor are run-private; only the current legal
+  Act1 observation is policy-visible; terminal `final_obs` is detached Act1 state
+  with zero candidates and no successor/profile/Note hidden fields; successor
+  stays private for continuation. Exact native property names/types/widths,
+  visibility dictionary, packed encoding, codec/hash, API names, and restoration
+  format must be supplied by a concrete accepted native schema revision and remain
+  pending that handoff. This projection does not claim that revision exists.
+
+The open integration work is exact member/catalog joins, final native enum codes
+and packed projection, relic literal content predicates, accepted execution joins,
+the terminal/delivery/replay `.83`/`.87` joins above, and cross-lane consistency
+review. Map/RNG constructor, E07 first-unseen priority, E25 question history,
+potion callback/owner transitions, shop ordinals/commits/prices, relic depletion,
+the StoreRelic reservation/source-removal/Courier checkpoints, accepted Act2 boss
+constructor site, and named card/potion/shop/question initial states are now bound.
+Native property
+names/types/widths and codec remain schema-owner choices, not grounds to defer the
+semantic field advancement specified here. No true new product policy question remains
+for this bounded work. Any newly
+discovered product choice is routed to main with finite options and impact, not
+guessed here.
+
+## 8. Completion / non-completion ledger
+
+| Spec requirement | Concrete closure in this delivery | Still open / explicit nonclaim |
+|---|---|---|
+| A1C-REQ-028: task reward and successor cutoff | Exact phase/outcome/delivery chronology; +1 only after resolved initialized Act2 pre-first-decision; −1 actual death or settled empty permanent deck, with actual HP preserved for the latter; independent pool-fault axis; detached final, explicit reset/vector same-step and from-start replay boundaries. | Exact execution root/terminal/effect joins and native cause/API/schema/codebook/delivery/replay/time bindings; future T25/T33 unexecuted. |
+| A1C-REQ-029: profile/history | Exact `CreationProfileV1`, experienced preset, independent overrides/reset, fixed start, Note minimum record, discovery/Neow separation and no inheritance. | Literal complete card/upgrade manifest and native codec review; B11 not declared closed. |
+| B05 successor/children | Ordered checkpoints; concrete child/effect record fields, legal statuses, once-only resume/commit, necessary/sufficient `Act2Ready` predicate, and settled loss arbitration before next root/success. | Exact content callback/site/effect/result-code and terminal-root producer join from `.83`; no generic work-drain promise. |
+| B10 native state/visibility | Successor component construction/carry/reset matrix and required private/public projection; accepted typed RNG/map records and hidden boundary joined in §6.5; terminal detached delivery/reset/time/replay semantics in §6.7. | Exact native property/type/width dictionary, terminal codebook, packed codec/hash, API, time, replay delivery schema and final `.83`/`.87` cross-binding remain pending routed producer revisions. |
+| B11 stored profile | Versioned profile grammar, validation algorithm, exact manifest equality predicate/negative controls, independent reset. | Literal card/alias/upgrade/arithmetic rows remain pending accepted catalog/numeric producer receipt; no false local catalog. |
+| Act2 initialization | Source-anchored list resets and level values; accepted map/RNG record and PR36 `setup.act2_boss_order` constructor site; E07 encounter queue and first-unseen boss priority; relic depletion transaction law; card pity; full potion appearance/offer/Sozu/belt/shop/purge callback-to-field commits, StoreRelic stock reservation/source-removal/Courier checkpoints, and E25 question-room transition; hidden cutoff; potion modifier explicitly 0. | Relic literal member/caller predicates; accepted execution callback/child/resume mappings; exact native property/type/width/codec/API/restoration schema; no Act2 gameplay. |
+
+Future A1C-T01, T24, T25, T29, T31, T33 and T35 remain unexecuted acceptance
+cases; this is specification work, not gameplay evidence. Whole-spec independent
+review/human approval, reviewed implementation plan, and separate implementation
+start are still required.
