@@ -1,5 +1,15 @@
 # Toolchain and tested versions
 
+## Bounded combat environment status
+
+The existing native batching and single/vector Gymnasium slice passed a fresh
+offline run of 169 Rust workspace tests on this integration candidate. The retained
+167-test `tests/python/env` result used a previously built extension, not one freshly
+built from this integration candidate; exact-target extension and full-suite controller
+verification remain pending. The two retained required-CUDA readiness checks fail
+with CPU-capacity OOM; CUDA readiness is not certified. These checks do not claim
+original-runtime validation or full-run support.
+
 Exact versions resolved for phase 1a task 1 (including fix round 1). The
 lockfiles (`uv.lock`, `Cargo.lock`), `.python-version`, and
 `rust-toolchain.toml` are authoritative; this file documents what was

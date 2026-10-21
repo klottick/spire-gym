@@ -145,9 +145,13 @@ The user approved tested Gymnasium compatibility as part of the next batched
 combat environment/bindings milestone: thin single-environment and native-vector
 interfaces over the same Rust engine and public observation encoder, not a Python
 simulation or a Python loop over environments. Concrete interface/reset/action
-contracts still need a written specification, reviewed plan and separate start
-approval. Compatibility is a target, not an implemented or verified capability;
-framework-specific adapters are added only when a selected learner needs them.
+contracts were specified, reviewed and separately authorized for implementation.
+The supplied-entry combat slice now has native batching and tested single/vector
+Gymnasium facades with masked actions. This is a bounded interface implementation,
+not full-run support or a promise of compatibility with arbitrary learners, mask
+conventions or vector adapters; framework-specific adapters are added only when a
+selected learner needs them. Fresh exact-target extension and full-suite controller
+verification remain pending.
 
 The repository is now named **spire-gym** on GitHub under **klottick**. The user
 separately authorized public MIT-licensed repository creation and publication of
@@ -166,7 +170,8 @@ training, dependencies, original access, evidence promotion or cleanup.
    checks; shared semantic cases are not mechanical translation of rule code.
 3. Add native batching/public encodings and thin Python bindings, verifying
    ownership, replay, masking, reset/terminal semantics and hidden-information
-   boundaries.
+   boundaries. This milestone is implemented for the bounded supplied-entry
+   combat slice; it does not provide run-level environments or new gameplay content.
 4. Benchmark representative release builds and compare a first learner against
    random and fixed public-information heuristic baselines on held-out scenarios.
    Report learning curves against decisions and wall-clock time.
@@ -197,8 +202,8 @@ not a claim that the planned interfaces or full-game content already exist.
 | Narrow Python combat reference | Implemented and independently reviewed: supplied ready state, base/upgraded Strike/Defend/Bash, Burning Blood, one Cultist/Jaw Worm, necessary powers/piles/turns, owned project RNG and schema-2 replay |
 | Python verification | Reviewed reference baseline: 735 tests, including 52 whole-combat acceptance cases. Final minor-fix verification: 830 full-suite tests and all 95 differential tests pass, including above-CPython-threshold handles and isolated reveal execution. Native provenance correction and adapter fix are independently reviewed; historical failed exchanges remain retained. The unchanged default Python product engine still has its enormous-handle reveal conversion limit. Not original-runtime correctness evidence |
 | Original combat validation | Incomplete; the reference remains static-evidence-grounded, **not original-runtime validated** |
-| Narrow Rust combat core | User plan/start approval executed; supplied-entry combat, project RNG, public actions/views, snapshots, native acceptance and test-only differential harness implemented. Fresh controller workspace/release runs each pass 124 native tests; complete differential checkpoints agree, including both formerly failing fault cases. Task reviews, whole-slice review, final correction review and controller verification complete. **Source-grounded, not original-runtime validated**; no optimization/throughput claim |
-| Native environment pool/batched training interface | Not implemented |
+| Narrow Rust combat core | User plan/start approval executed; supplied-entry combat, project RNG, public actions/views, snapshots, native acceptance and test-only differential harness implemented. Historical core-handoff controller workspace/release runs each passed 124 native tests; complete differential checkpoints agreed, including both formerly failing fault cases. Task reviews, whole-slice review, final correction review and controller verification were complete for that core-only handoff, not the later batching/Gymnasium integration. **Source-grounded, not original-runtime validated**; no optimization/throughput claim |
+| Native environment pool/batched interface | Implemented for bounded supplied-entry Ironclad A0 combat with public observations, replay, native workers and single/vector Gymnasium facades. This integration candidate freshly passed 169 offline Rust workspace tests; the retained 167 environment Python tests used a previously built extension. Exact-target extension/full-suite controller verification pending. Not full-run support; required-CUDA readiness has two retained OOM failures |
 | Learning/training/evaluation system | Not implemented; no learned playing-strength or release simulator-throughput result claimed |
 | Linux capture readiness | Approved specification retained; helper/feasibility work deferred in favor of source-first Rust. A concrete capture consumer remains required if resumed |
 | Windows real capture adapter/platform gates | Incomplete/fail-closed; Linux readiness does not satisfy them |

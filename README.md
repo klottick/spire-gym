@@ -4,8 +4,9 @@ A headless Slay the Spire 1 simulation and machine-learning project. The end goa
 is an AI that plays StS and improves; the enabling product is an optimized,
 game-correct Rust simulator with native batching and Python learning code.
 
-Repository: [klottick/spire-gym](https://github.com/klottick/spire-gym). Gymnasium
-compatibility is the approved next interface direction, not yet implemented.
+Repository: [klottick/spire-gym](https://github.com/klottick/spire-gym). A bounded
+native batched combat environment and single/vector Gymnasium facades are implemented
+for supplied-entry Ironclad A0 encounters; this is not a full-run simulator.
 Existing `spire-lab` / `spire_lab` package and crate names remain unchanged.
 Moving ML training and experiments into a separate repository is deferred; the
 simulator, environment interfaces, correctness tests and examples belong here.
@@ -28,11 +29,21 @@ correction and arbitrary-size-handle adapter fix, Task-8 verification passes:
 95 differential tests, 830 full Python tests,
 and, after the final minor-fix wave, 124 native tests in each workspace/release run.
 Historical failed comparisons remain retained. Task reviews, whole-slice review,
-final correction review and fresh controller verification are complete.
-Native batching and the learning system are not implemented.
+final correction review and fresh controller verification are complete for that
+historical core-only handoff; they do not describe verification of the later
+batching/Gymnasium integration.
+Run-level simulation and the learning system are not implemented.
 No learned playing-strength or optimized simulator-throughput result
 is claimed. The Python reference and validation tools support those products;
 they are not the final production simulator or a separate infrastructure goal.
+
+The bounded combat/Gymnasium slice adds native scenarios, public numeric
+observations, masked actions, replay and single/vector facades. A fresh offline
+Rust workspace run on this integration candidate passed 169 tests; the retained
+167-test environment Python run used the previously built extension, so a fresh
+target-built extension and full-suite controller verification remain pending. Required-CUDA
+readiness has two retained CPU-capacity OOM failures; no CUDA readiness or
+original-runtime validation is claimed for this slice.
 
 The [ML-first design](docs/superpowers/specs/2026-10-11-spire-lab-ml-first-design.md)
 and [combat behavior plan](docs/superpowers/plans/2026-10-16-python-combat-behavior.md)
@@ -49,7 +60,8 @@ and its separately approved
 govern the current implementation, including the named native HMAC dependency.
 User plan/start approval was executed and the core-only handoff is verified.
 The core-only handoff preceded the separately authorized GitHub publication;
-publication does not promote original-runtime fidelity or implement Gymnasium support.
+neither that publication nor this bounded environment slice promotes
+original-runtime fidelity.
 The current selected workflow is
 Sol implementation with fresh independent reviews, not the historical worker
 selection in the [original 1a plan](docs/superpowers/plans/2026-10-11-spire-lab-1a.md).

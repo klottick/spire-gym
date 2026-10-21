@@ -4,6 +4,7 @@ mod entry_replay;
 mod rules_ai;
 mod resolution;
 mod actions_views;
+mod public_projection;
 mod piles;
 mod turns;
 mod whole_combat;

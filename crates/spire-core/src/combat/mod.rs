@@ -17,7 +17,7 @@ pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
     PowerState, PublicKnowledge, RestoreError, Scenario, Source, StepError, Transition,
     TransitionStatus};
 pub use engine::Combat;
-pub use view::{CardView, PlayerView, EnemyView, PublicView};
+pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection};
 pub use snapshot::{Divergence, Snapshot};
 
 #[cfg(test)]

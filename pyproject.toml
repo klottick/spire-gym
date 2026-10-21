@@ -9,6 +9,9 @@ dependencies = [
     "torch==2.14.1",
 ]
 
+[project.optional-dependencies]
+gymnasium = ["gymnasium==1.4.0"]
+
 [dependency-groups]
 dev = [
     "maturin==1.15.0",

@@ -1,0 +1,759 @@
+{
+  "descriptor": {
+    "schema_id": "spire-lab-combat-observation-v1",
+    "content_id": "spire-lab-combat-reference-v2",
+    "capacities": {
+      "hand": 10,
+      "enemy": 1,
+      "previous_intents": 2,
+      "candidates": 32
+    },
+    "action_space": {
+      "type": "Discrete",
+      "n": 32,
+      "start": 0
+    },
+    "array_layout": "owned_c_contiguous_native_endian_row_major_batch_prefix",
+    "history_order": "newest_first_excluding_current_terminal_retains_last_announced",
+    "power_absence": "known_zero",
+    "vocabularies": {
+      "card": [
+        "padding",
+        "strike",
+        "defend",
+        "bash"
+      ],
+      "count_kind": [
+        "strike",
+        "defend",
+        "bash"
+      ],
+      "upgrade": [
+        "base",
+        "upgraded"
+      ],
+      "enemy": [
+        "unknown_or_padding",
+        "cultist",
+        "jaw_worm"
+      ],
+      "intent": [
+        "unavailable",
+        "incantation",
+        "attack",
+        "chomp",
+        "thrash",
+        "bellow"
+      ],
+      "character": [
+        "unknown",
+        "ironclad"
+      ],
+      "outcome": [
+        "ongoing",
+        "victory",
+        "death"
+      ],
+      "action": [
+        "padding",
+        "end_turn",
+        "play_card"
+      ],
+      "power": [
+        "strength",
+        "ritual",
+        "vulnerable"
+      ],
+      "pile": [
+        "draw",
+        "discard",
+        "exhaust"
+      ],
+      "relic": [
+        "burning_blood"
+      ]
+    },
+    "tensors": [
+      {
+        "key": "player",
+        "dtype": "int32",
+        "shape": [
+          7
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "hp",
+          "max_hp",
+          "block",
+          "energy",
+          "energy_per_turn",
+          "draw_per_turn",
+          "turn"
+        ],
+        "units": [
+          "hit_points",
+          "hit_points",
+          "block_points",
+          "energy",
+          "energy",
+          "cards",
+          "turns"
+        ],
+        "axes": [
+          "field"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "player_powers",
+        "dtype": "int32",
+        "shape": [
+          3
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "strength",
+          "ritual",
+          "vulnerable"
+        ],
+        "units": [
+          "power_amount",
+          "power_amount",
+          "power_amount"
+        ],
+        "axes": [
+          "power"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "hand_kind",
+        "dtype": "int32",
+        "shape": [
+          10
+        ],
+        "low": 0,
+        "high": 3,
+        "fields": [
+          "kind"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "hand"
+        ],
+        "category": "card",
+        "mask": "hand_mask",
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "hand_upgraded",
+        "dtype": "int8",
+        "shape": [
+          10
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "upgraded"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "hand"
+        ],
+        "category": null,
+        "mask": "hand_mask",
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "hand_features",
+        "dtype": "int32",
+        "shape": [
+          10,
+          4
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "cost",
+          "printed_damage",
+          "printed_block",
+          "printed_vulnerable"
+        ],
+        "units": [
+          "energy",
+          "hit_points",
+          "block_points",
+          "power_amount"
+        ],
+        "axes": [
+          "hand",
+          "field"
+        ],
+        "category": null,
+        "mask": "hand_mask",
+        "padding": 0,
+        "semantics": "core_printed_stats_not_damage_prediction",
+        "space": "Box"
+      },
+      {
+        "key": "hand_mask",
+        "dtype": "int8",
+        "shape": [
+          10
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "occupied"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "hand"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "occupied_public_hand_rows",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "hand_playable",
+        "dtype": "int8",
+        "shape": [
+          10
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "playable"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "hand"
+        ],
+        "category": null,
+        "mask": "hand_mask",
+        "padding": 0,
+        "semantics": "card_occurs_in_core_legal_menu_zero_at_terminal",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "enemy_kind",
+        "dtype": "int32",
+        "shape": [
+          1
+        ],
+        "low": 0,
+        "high": 2,
+        "fields": [
+          "kind"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "enemy"
+        ],
+        "category": "enemy",
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "enemy",
+        "dtype": "int32",
+        "shape": [
+          1,
+          4
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "hp",
+          "max_hp",
+          "block",
+          "intent_damage"
+        ],
+        "units": [
+          "hit_points",
+          "hit_points",
+          "block_points",
+          "hit_points"
+        ],
+        "axes": [
+          "enemy",
+          "field"
+        ],
+        "category": null,
+        "mask": "enemy_damage_mask:intent_damage",
+        "padding": 0,
+        "semantics": "published_intent_damage_zero_if_unavailable",
+        "space": "Box"
+      },
+      {
+        "key": "enemy_powers",
+        "dtype": "int32",
+        "shape": [
+          1,
+          3
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "strength",
+          "ritual",
+          "vulnerable"
+        ],
+        "units": [
+          "power_amount",
+          "power_amount",
+          "power_amount"
+        ],
+        "axes": [
+          "enemy",
+          "power"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "enemy_intent",
+        "dtype": "int32",
+        "shape": [
+          1
+        ],
+        "low": 0,
+        "high": 5,
+        "fields": [
+          "intent"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "enemy"
+        ],
+        "category": "intent",
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "enemy_damage_mask",
+        "dtype": "int8",
+        "shape": [
+          1
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "damage_available"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "enemy"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "published_intent_damage_is_available",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "enemy_history",
+        "dtype": "int32",
+        "shape": [
+          1,
+          2
+        ],
+        "low": 0,
+        "high": 5,
+        "fields": [
+          "previous_intent"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "enemy",
+          "previous_intent"
+        ],
+        "category": "intent",
+        "mask": "enemy_history_mask",
+        "padding": 0,
+        "semantics": "newest_first_excluding_current_shift_once_per_completed_nonterminal_end_turn",
+        "space": "Box"
+      },
+      {
+        "key": "enemy_history_mask",
+        "dtype": "int8",
+        "shape": [
+          1,
+          2
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "observed"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "enemy",
+          "previous_intent"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "observed_previous_intents",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "deck_counts",
+        "dtype": "int32",
+        "shape": [
+          3,
+          2
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "count"
+        ],
+        "units": [
+          "cards"
+        ],
+        "axes": [
+          "count_kind",
+          "upgrade"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "constant_declared_permanent_deck_multiset",
+        "space": "Box"
+      },
+      {
+        "key": "pile_counts",
+        "dtype": "int32",
+        "shape": [
+          3,
+          3,
+          2
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "count"
+        ],
+        "units": [
+          "cards"
+        ],
+        "axes": [
+          "pile",
+          "count_kind",
+          "upgrade"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "draw_equals_deck_minus_hand_discard_exhaust_in_play",
+        "space": "Box"
+      },
+      {
+        "key": "in_play_counts",
+        "dtype": "int32",
+        "shape": [
+          3,
+          2
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "count"
+        ],
+        "units": [
+          "cards"
+        ],
+        "axes": [
+          "count_kind",
+          "upgrade"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "accepted_terminal_play_card_only_otherwise_zero",
+        "space": "Box"
+      },
+      {
+        "key": "relic_presence",
+        "dtype": "int8",
+        "shape": [
+          1
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "present"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "relic"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "burning_blood_always_one",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "context",
+        "dtype": "int32",
+        "shape": [
+          4
+        ],
+        "low": 0,
+        "high": [
+          1,
+          0,
+          1,
+          2
+        ],
+        "fields": [
+          "character",
+          "ascension",
+          "act",
+          "next_encounter"
+        ],
+        "units": [
+          "category",
+          "ascension_level",
+          "act_number",
+          "category"
+        ],
+        "axes": [
+          "field"
+        ],
+        "category": [
+          "character",
+          null,
+          null,
+          "enemy"
+        ],
+        "mask": "context_mask",
+        "padding": 0,
+        "semantics": "declared_public_context_only_default_1_0_0_0",
+        "space": "Box"
+      },
+      {
+        "key": "context_mask",
+        "dtype": "int8",
+        "shape": [
+          4
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "character",
+          "ascension",
+          "act",
+          "next_encounter"
+        ],
+        "units": [
+          "flag",
+          "flag",
+          "flag",
+          "flag"
+        ],
+        "axes": [
+          "field"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "default_1_1_0_0_optional_fields_known_only_if_declared",
+        "space": "MultiBinary"
+      },
+      {
+        "key": "outcome",
+        "dtype": "int32",
+        "shape": [
+          1
+        ],
+        "low": 0,
+        "high": 2,
+        "fields": [
+          "outcome"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "outcome"
+        ],
+        "category": "outcome",
+        "mask": null,
+        "padding": 0,
+        "semantics": "raw_public_values",
+        "space": "Box"
+      },
+      {
+        "key": "action_kind",
+        "dtype": "int32",
+        "shape": [
+          32
+        ],
+        "low": 0,
+        "high": 2,
+        "fields": [
+          "kind"
+        ],
+        "units": [
+          "category"
+        ],
+        "axes": [
+          "candidate"
+        ],
+        "category": "action",
+        "mask": "action_mask",
+        "padding": 0,
+        "semantics": "end_turn_then_public_hand_row_then_public_enemy_row",
+        "space": "Box"
+      },
+      {
+        "key": "action_source",
+        "dtype": "int32",
+        "shape": [
+          32
+        ],
+        "low": -1,
+        "high": 9,
+        "fields": [
+          "hand_row"
+        ],
+        "units": [
+          "row_index"
+        ],
+        "axes": [
+          "candidate"
+        ],
+        "category": null,
+        "mask": "action_mask",
+        "padding": -1,
+        "semantics": "minus_one_for_end_turn_or_padding",
+        "space": "Box"
+      },
+      {
+        "key": "action_target",
+        "dtype": "int32",
+        "shape": [
+          32
+        ],
+        "low": -1,
+        "high": 0,
+        "fields": [
+          "enemy_row"
+        ],
+        "units": [
+          "row_index"
+        ],
+        "axes": [
+          "candidate"
+        ],
+        "category": null,
+        "mask": "action_mask",
+        "padding": -1,
+        "semantics": "minus_one_for_untargeted_or_padding",
+        "space": "Box"
+      },
+      {
+        "key": "action_features",
+        "dtype": "int32",
+        "shape": [
+          32,
+          4
+        ],
+        "low": 0,
+        "high": 2147483647,
+        "fields": [
+          "cost",
+          "printed_damage",
+          "printed_block",
+          "printed_vulnerable"
+        ],
+        "units": [
+          "energy",
+          "hit_points",
+          "block_points",
+          "power_amount"
+        ],
+        "axes": [
+          "candidate",
+          "field"
+        ],
+        "category": null,
+        "mask": "action_mask",
+        "padding": 0,
+        "semantics": "core_printed_stats_zero_for_end_turn",
+        "space": "Box"
+      },
+      {
+        "key": "action_mask",
+        "dtype": "int8",
+        "shape": [
+          32
+        ],
+        "low": 0,
+        "high": 1,
+        "fields": [
+          "legal"
+        ],
+        "units": [
+          "flag"
+        ],
+        "axes": [
+          "candidate"
+        ],
+        "category": null,
+        "mask": null,
+        "padding": 0,
+        "semantics": "core_legal_candidates_empty_at_terminal",
+        "space": "MultiBinary"
+      }
+    ]
+  },
+  "canonical_json": "{\"action_space\":{\"n\":32,\"start\":0,\"type\":\"Discrete\"},\"array_layout\":\"owned_c_contiguous_native_endian_row_major_batch_prefix\",\"capacities\":{\"candidates\":32,\"enemy\":1,\"hand\":10,\"previous_intents\":2},\"content_id\":\"spire-lab-combat-reference-v2\",\"history_order\":\"newest_first_excluding_current_terminal_retains_last_announced\",\"power_absence\":\"known_zero\",\"schema_id\":\"spire-lab-combat-observation-v1\",\"tensors\":[{\"axes\":[\"field\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"hp\",\"max_hp\",\"block\",\"energy\",\"energy_per_turn\",\"draw_per_turn\",\"turn\"],\"high\":2147483647,\"key\":\"player\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[7],\"space\":\"Box\",\"units\":[\"hit_points\",\"hit_points\",\"block_points\",\"energy\",\"energy\",\"cards\",\"turns\"]},{\"axes\":[\"power\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"strength\",\"ritual\",\"vulnerable\"],\"high\":2147483647,\"key\":\"player_powers\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[3],\"space\":\"Box\",\"units\":[\"power_amount\",\"power_amount\",\"power_amount\"]},{\"axes\":[\"hand\"],\"category\":\"card\",\"dtype\":\"int32\",\"fields\":[\"kind\"],\"high\":3,\"key\":\"hand_kind\",\"low\":0,\"mask\":\"hand_mask\",\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[10],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"hand\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"upgraded\"],\"high\":1,\"key\":\"hand_upgraded\",\"low\":0,\"mask\":\"hand_mask\",\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[10],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"hand\",\"field\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"cost\",\"printed_damage\",\"printed_block\",\"printed_vulnerable\"],\"high\":2147483647,\"key\":\"hand_features\",\"low\":0,\"mask\":\"hand_mask\",\"padding\":0,\"semantics\":\"core_printed_stats_not_damage_prediction\",\"shape\":[10,4],\"space\":\"Box\",\"units\":[\"energy\",\"hit_points\",\"block_points\",\"power_amount\"]},{\"axes\":[\"hand\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"occupied\"],\"high\":1,\"key\":\"hand_mask\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"occupied_public_hand_rows\",\"shape\":[10],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"hand\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"playable\"],\"high\":1,\"key\":\"hand_playable\",\"low\":0,\"mask\":\"hand_mask\",\"padding\":0,\"semantics\":\"card_occurs_in_core_legal_menu_zero_at_terminal\",\"shape\":[10],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"enemy\"],\"category\":\"enemy\",\"dtype\":\"int32\",\"fields\":[\"kind\"],\"high\":2,\"key\":\"enemy_kind\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[1],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"enemy\",\"field\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"hp\",\"max_hp\",\"block\",\"intent_damage\"],\"high\":2147483647,\"key\":\"enemy\",\"low\":0,\"mask\":\"enemy_damage_mask:intent_damage\",\"padding\":0,\"semantics\":\"published_intent_damage_zero_if_unavailable\",\"shape\":[1,4],\"space\":\"Box\",\"units\":[\"hit_points\",\"hit_points\",\"block_points\",\"hit_points\"]},{\"axes\":[\"enemy\",\"power\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"strength\",\"ritual\",\"vulnerable\"],\"high\":2147483647,\"key\":\"enemy_powers\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[1,3],\"space\":\"Box\",\"units\":[\"power_amount\",\"power_amount\",\"power_amount\"]},{\"axes\":[\"enemy\"],\"category\":\"intent\",\"dtype\":\"int32\",\"fields\":[\"intent\"],\"high\":5,\"key\":\"enemy_intent\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[1],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"enemy\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"damage_available\"],\"high\":1,\"key\":\"enemy_damage_mask\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"published_intent_damage_is_available\",\"shape\":[1],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"enemy\",\"previous_intent\"],\"category\":\"intent\",\"dtype\":\"int32\",\"fields\":[\"previous_intent\"],\"high\":5,\"key\":\"enemy_history\",\"low\":0,\"mask\":\"enemy_history_mask\",\"padding\":0,\"semantics\":\"newest_first_excluding_current_shift_once_per_completed_nonterminal_end_turn\",\"shape\":[1,2],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"enemy\",\"previous_intent\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"observed\"],\"high\":1,\"key\":\"enemy_history_mask\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"observed_previous_intents\",\"shape\":[1,2],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"count_kind\",\"upgrade\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"count\"],\"high\":2147483647,\"key\":\"deck_counts\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"constant_declared_permanent_deck_multiset\",\"shape\":[3,2],\"space\":\"Box\",\"units\":[\"cards\"]},{\"axes\":[\"pile\",\"count_kind\",\"upgrade\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"count\"],\"high\":2147483647,\"key\":\"pile_counts\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"draw_equals_deck_minus_hand_discard_exhaust_in_play\",\"shape\":[3,3,2],\"space\":\"Box\",\"units\":[\"cards\"]},{\"axes\":[\"count_kind\",\"upgrade\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"count\"],\"high\":2147483647,\"key\":\"in_play_counts\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"accepted_terminal_play_card_only_otherwise_zero\",\"shape\":[3,2],\"space\":\"Box\",\"units\":[\"cards\"]},{\"axes\":[\"relic\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"present\"],\"high\":1,\"key\":\"relic_presence\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"burning_blood_always_one\",\"shape\":[1],\"space\":\"MultiBinary\",\"units\":[\"flag\"]},{\"axes\":[\"field\"],\"category\":[\"character\",null,null,\"enemy\"],\"dtype\":\"int32\",\"fields\":[\"character\",\"ascension\",\"act\",\"next_encounter\"],\"high\":[1,0,1,2],\"key\":\"context\",\"low\":0,\"mask\":\"context_mask\",\"padding\":0,\"semantics\":\"declared_public_context_only_default_1_0_0_0\",\"shape\":[4],\"space\":\"Box\",\"units\":[\"category\",\"ascension_level\",\"act_number\",\"category\"]},{\"axes\":[\"field\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"character\",\"ascension\",\"act\",\"next_encounter\"],\"high\":1,\"key\":\"context_mask\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"default_1_1_0_0_optional_fields_known_only_if_declared\",\"shape\":[4],\"space\":\"MultiBinary\",\"units\":[\"flag\",\"flag\",\"flag\",\"flag\"]},{\"axes\":[\"outcome\"],\"category\":\"outcome\",\"dtype\":\"int32\",\"fields\":[\"outcome\"],\"high\":2,\"key\":\"outcome\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"raw_public_values\",\"shape\":[1],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"candidate\"],\"category\":\"action\",\"dtype\":\"int32\",\"fields\":[\"kind\"],\"high\":2,\"key\":\"action_kind\",\"low\":0,\"mask\":\"action_mask\",\"padding\":0,\"semantics\":\"end_turn_then_public_hand_row_then_public_enemy_row\",\"shape\":[32],\"space\":\"Box\",\"units\":[\"category\"]},{\"axes\":[\"candidate\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"hand_row\"],\"high\":9,\"key\":\"action_source\",\"low\":-1,\"mask\":\"action_mask\",\"padding\":-1,\"semantics\":\"minus_one_for_end_turn_or_padding\",\"shape\":[32],\"space\":\"Box\",\"units\":[\"row_index\"]},{\"axes\":[\"candidate\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"enemy_row\"],\"high\":0,\"key\":\"action_target\",\"low\":-1,\"mask\":\"action_mask\",\"padding\":-1,\"semantics\":\"minus_one_for_untargeted_or_padding\",\"shape\":[32],\"space\":\"Box\",\"units\":[\"row_index\"]},{\"axes\":[\"candidate\",\"field\"],\"category\":null,\"dtype\":\"int32\",\"fields\":[\"cost\",\"printed_damage\",\"printed_block\",\"printed_vulnerable\"],\"high\":2147483647,\"key\":\"action_features\",\"low\":0,\"mask\":\"action_mask\",\"padding\":0,\"semantics\":\"core_printed_stats_zero_for_end_turn\",\"shape\":[32,4],\"space\":\"Box\",\"units\":[\"energy\",\"hit_points\",\"block_points\",\"power_amount\"]},{\"axes\":[\"candidate\"],\"category\":null,\"dtype\":\"int8\",\"fields\":[\"legal\"],\"high\":1,\"key\":\"action_mask\",\"low\":0,\"mask\":null,\"padding\":0,\"semantics\":\"core_legal_candidates_empty_at_terminal\",\"shape\":[32],\"space\":\"MultiBinary\",\"units\":[\"flag\"]}],\"vocabularies\":{\"action\":[\"padding\",\"end_turn\",\"play_card\"],\"card\":[\"padding\",\"strike\",\"defend\",\"bash\"],\"character\":[\"unknown\",\"ironclad\"],\"count_kind\":[\"strike\",\"defend\",\"bash\"],\"enemy\":[\"unknown_or_padding\",\"cultist\",\"jaw_worm\"],\"intent\":[\"unavailable\",\"incantation\",\"attack\",\"chomp\",\"thrash\",\"bellow\"],\"outcome\":[\"ongoing\",\"victory\",\"death\"],\"pile\":[\"draw\",\"discard\",\"exhaust\"],\"power\":[\"strength\",\"ritual\",\"vulnerable\"],\"relic\":[\"burning_blood\"],\"upgrade\":[\"base\",\"upgraded\"]}}",
+  "fingerprint": "8fd66d212259d2bdd27139988a772e1a6c223f8d65524f38c74174a0d0843357"
+}

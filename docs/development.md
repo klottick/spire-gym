@@ -5,14 +5,21 @@ that learns to play StS, enabled by an optimized, game-correct **headless Rust
 simulator**, native batching and Python learning. No playable client or rendering
 is part of this repository's product.
 
-Current state: the Rust/Python package foundation, device-readiness probe and narrow
-supplied-entry Python combat reference are implemented. The reference is a readable
+Current state: the Rust/Python package foundation, device-readiness probe, narrow
+supplied-entry Python combat reference and bounded native batched combat/Gymnasium
+interfaces are implemented. The reference is a readable
 correctness aid, not the production simulator or a Python optimization target;
 it is not original-runtime validated. Its final recorded implementation run passed
 735 Python tests. The narrow Rust combat engine and differential harness are also
-implemented and reviewed; the final recorded verification passed 124 native tests
-in each workspace/release run and 830 Python tests. Native batching, Gymnasium
-interfaces, models and learners are not implemented. The optimizer probe is only a
+implemented and reviewed; the final recorded core-handoff verification passed 124
+native tests in each workspace/release run and 830 Python tests. The bounded
+environment slice adds supplied-entry scenarios, public observations, native
+batching and single/vector Gymnasium facades. A fresh offline Rust workspace run
+on this integration candidate passed 169 tests. The retained 167-test environment
+Python run used a previously built extension; fresh exact-target extension/full-suite
+verification is pending. Required-CUDA readiness has two retained CPU-capacity OOM failures; CUDA
+readiness and original-runtime validation are not claimed. Models and learners are
+not implemented. The optimizer probe is only a
 tiny smoke computation, not a validated learning result or training pipeline.
 
 Validation/capture tools stay outside simulation and training execution. Neither

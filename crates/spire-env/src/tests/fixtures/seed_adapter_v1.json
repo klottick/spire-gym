@@ -1,0 +1,82 @@
+{
+  "adapter_id": "spire-lab-env-seed-sha256-v1",
+  "vectors": [
+    {
+      "integer_decimal": "0",
+      "bytes": [
+        0
+      ],
+      "root_hex": "8a6a0bce8cf499fb1b877f5e957171720a53c32591cdef846036edfd3f52dba3"
+    },
+    {
+      "integer_decimal": "1",
+      "bytes": [
+        1
+      ],
+      "root_hex": "e26f7bcfa9a2a3a931dbf8ec328af85e9bc9b3e7aef90a4e1be077d00684d984"
+    },
+    {
+      "integer_decimal": "255",
+      "bytes": [
+        255
+      ],
+      "root_hex": "d8f5e28ffb93c007c925877fb9b031b74a8af00e71f77eb90c6445341fedb4af"
+    },
+    {
+      "integer_decimal": "256",
+      "bytes": [
+        1,
+        0
+      ],
+      "root_hex": "2f8d27e8fe9f4aa4ad7af20531dd634c06ca941f60bc8fabc9dc18881d5856af"
+    },
+    {
+      "integer_decimal": "2037035976334486086268445688409378161051468393665936250636140449354381299763336706183397383",
+      "bytes": [
+        16,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7
+      ],
+      "root_hex": "74d5d3a64a9324408e6ff2814c7c67b4c5f9f7db7707a3b71dc5d5dd24fcaf4b"
+    }
+  ],
+  "episode_0_seed_1": {
+    "shuffle_key_hex": "62445a182c3366b31614663af050c69b7c3a7d99535f231b7a70098dbf120526",
+    "enemy_ai_key_hex": "1cf449555e7117661cc20cb51d1c38c8ff30bb8d50ddff81d9f3f5ab8566d726"
+  }
+}
