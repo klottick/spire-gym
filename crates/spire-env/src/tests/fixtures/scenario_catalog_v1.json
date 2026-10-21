@@ -1,0 +1,122 @@
+{
+  "descriptor": {
+    "schema_id": "spire-lab-scenario-catalog-v1",
+    "templates": [
+      {
+        "id": "starter-cultist-a0-v1",
+        "encounter": "cultist",
+        "player_hp": 80,
+        "player_max_hp": 80,
+        "energy_per_turn": 3,
+        "draw_per_turn": 5,
+        "enemy_hp": 52,
+        "hand": [
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "bash",
+            "upgraded": false
+          }
+        ],
+        "draw": [
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          }
+        ],
+        "context": {
+          "act": null,
+          "next_encounter": null
+        }
+      },
+      {
+        "id": "starter-jaw-worm-a0-v1",
+        "encounter": "jaw_worm",
+        "player_hp": 80,
+        "player_max_hp": 80,
+        "energy_per_turn": 3,
+        "draw_per_turn": 5,
+        "enemy_hp": 42,
+        "hand": [
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "bash",
+            "upgraded": false
+          }
+        ],
+        "draw": [
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "strike",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          },
+          {
+            "kind": "defend",
+            "upgraded": false
+          }
+        ],
+        "context": {
+          "act": null,
+          "next_encounter": null
+        }
+      }
+    ]
+  },
+  "fingerprint_hex": "bd18072cc4d7dad1b665b2081023828e7941b6a59516d7902278ad572dc1ddcd"
+}

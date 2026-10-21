@@ -16,6 +16,18 @@ pub const REVISION: &str = env!("SPIRE_REVISION");
 /// The Rust compiler version this crate was compiled with, e.g. `1.99.0`.
 pub const RUST_VERSION: &str = env!("SPIRE_RUST_VERSION");
 
+mod export_guard;
+#[cfg(test)]
+mod tests;
+#[cfg(feature = "extension")]
+mod config;
+#[cfg(feature = "extension")]
+mod env;
+#[cfg(feature = "extension")]
+mod errors;
+#[cfg(feature = "extension")]
+mod numeric;
+
 #[cfg(feature = "extension")]
 use pyo3::prelude::*;
 #[cfg(feature = "extension")]
@@ -37,5 +49,7 @@ fn build_info(py: Python) -> PyResult<Py<PyDict>> {
 #[pymodule]
 fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_info, m)?)?;
+    m.add_class::<env::NativeCombatPool>()?;
+    errors::register(m)?;
     Ok(())
 }

@@ -7,9 +7,10 @@ equivalence. Preserve this distinction in designs, tests and evaluation reports.
 
 **Decision date:** 2026-10-16
 
-**Status:** User-approved policy; Python randomness foundation and integration into
-the narrow headless combat reference are implemented/reviewed on 2026-10-16.
-Original-runtime combat validation and Rust parity remain incomplete. See
+**Status:** User-approved policy; the Python randomness foundation and narrow
+headless combat reference are implemented/reviewed, and the bounded Rust combat/
+environment slice implements project-owned randomness with reviewed parity tests.
+Original-runtime combat validation remains incomplete. See
 [repository scope](scope.md) for the Rust/learning goals this policy serves.
 
 ### Decision and rationale

@@ -1,4 +1,4 @@
-//! Detached public values; never inspect private random or future-AI state.
+//! Public values; never inspect private random or future-AI state.
 use super::*;
 use super::model::State;
 
@@ -20,6 +20,36 @@ pub struct PublicView {
     pub hand: Vec<CardView>, pub draw_count: usize, pub discard: Vec<CardView>, pub exhaust: Vec<CardView>,
     pub revealed_order: Vec<CardHandle>, pub outcome: Option<Outcome>,
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
+}
+
+/// Bounded public actor values and borrowed visible piles at a ready boundary.
+/// No draw order, reveal history, private lifecycle flags or future selections.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PublicProjection<'a> {
+    pub turn: u32, pub player: PlayerView, pub enemies: Vec<EnemyView>,
+    pub draw_per_turn: i32, pub draw_count: usize,
+    pub hand: &'a [CardInstance], pub discard: &'a [CardInstance], pub exhaust: &'a [CardInstance],
+    pub outcome: Option<Outcome>,
+    pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
+}
+
+impl Combat {
+    /// Read public values without copying visible piles or growing reveal history.
+    /// Decision and terminal boundaries use the same access checks as `public_view`.
+    pub fn public_projection(&self) -> Result<PublicProjection<'_>, AccessError> {
+        let state = &self.state;
+        ready(state)?;
+        Ok(PublicProjection { turn: state.turn, player: player(state), enemies: enemies(state),
+            draw_per_turn: state.player.draw_per_turn, draw_count: state.piles.draw.len(),
+            hand: &state.piles.hand, discard: &state.piles.discard, exhaust: &state.piles.exhaust,
+            outcome: state.outcome, hp_before_healing: state.hp_before_healing,
+            hp_after_cleanup: state.hp_after_cleanup })
+    }
+
+    /// Explicit diagnostic access to a detached first-fault summary, including while faulted.
+    pub fn fault_record(&self) -> Option<FaultRecord> {
+        self.state.fault.clone()
+    }
 }
 
 pub(super) fn ready(state: &State) -> Result<(), AccessError> {
@@ -62,15 +92,22 @@ fn cards(entries: &[CardInstance]) -> Vec<CardView> {
         card_id: c.card_id, upgraded: c.upgraded }).collect()
 }
 
+fn player(state: &State) -> PlayerView {
+    let p = &state.player;
+    PlayerView { hp: p.hp, max_hp: p.max_hp, block: p.block, energy: p.energy,
+        max_energy: p.max_energy, powers: powers(&p.powers) }
+}
+
+fn enemies(state: &State) -> Vec<EnemyView> {
+    state.enemies.iter().map(|e| EnemyView { instance_id: e.instance_id.clone(),
+        enemy_id: e.enemy_id, hp: e.hp, max_hp: e.max_hp, block: e.block,
+        powers: powers(&e.powers), intent_id: e.intent_id, intent_damage: e.intent_damage }).collect()
+}
+
 pub(super) fn public_view(state: &State) -> Result<PublicView, AccessError> {
     ready(state)?;
-    let p = &state.player;
     Ok(PublicView { content_id: state.content_id.clone(), turn: state.turn,
-        player: PlayerView { hp: p.hp, max_hp: p.max_hp, block: p.block, energy: p.energy,
-            max_energy: p.max_energy, powers: powers(&p.powers) },
-        enemies: state.enemies.iter().map(|e| EnemyView { instance_id: e.instance_id.clone(),
-            enemy_id: e.enemy_id, hp: e.hp, max_hp: e.max_hp, block: e.block,
-            powers: powers(&e.powers), intent_id: e.intent_id, intent_damage: e.intent_damage }).collect(),
+        player: player(state), enemies: enemies(state),
         hand: cards(&state.piles.hand), draw_count: state.piles.draw.len(),
         discard: cards(&state.piles.discard), exhaust: cards(&state.piles.exhaust),
         revealed_order: state.public.revealed_order.clone(), outcome: state.outcome,
