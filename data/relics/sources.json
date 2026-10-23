@@ -7,6 +7,16 @@
     "changes": "Normalized short descriptions, structured metadata, selected mechanics summaries and reconciliation with existing local research."
   },
   "sources": {
+    "local:m8-events": {
+      "kind": "local_research",
+      "local_path": "data/enemies/m8-static-findings.md",
+      "retrieved_at": "2026-10-23",
+      "grade": "owned_archive_static_findings_upstream_build_unverified",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "upstream_build_channel_verified": false,
+      "original_runtime_validated": false,
+      "supports": "Task10 named RedMask constructor/battle-start ordered group snapshot and player-source Weak1 through ordinary Artifact, and Tomb all-gold0/acquisition/result ordering; not broader pools, arbitrary callbacks, target-version provenance or original runtime."
+    },
     "wiki:Relics": {
       "kind": "wiki",
       "title": "Relics",

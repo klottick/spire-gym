@@ -620,7 +620,19 @@
       "key": "monster.awakened_one",
       "id": "AWAKENED_ONE",
       "game_id": "AwakenedOne",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-awakened",
+        "a0_hp": 300,
+        "positive_strength_retained": true,
+        "negative_strength_removed": true,
+        "explicit_phase_removals": ["Curiosity", "Unawakened", "Shackled"],
+        "sludge_void_destination": "bottom_draw",
+        "half_death_callbacks": "power onDeath and relic onMonsterDeath before the debuff/explicit-ID filter, without final encounter settlement",
+        "power_use_order": "unsuppressed Power-use callback queues boss Strength after the card's existing payload and before its UseCardAction disposition",
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Awakened One",
       "acts": [
         3
@@ -798,15 +810,16 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Curiosity: while present, each qualifying player Power card play grants the boss Strength1 (A19:2). It reacts to card-use callbacks, not each hit of an Attack.",
-        "Regenerate: at the end of its own turn, request heal10 (A19:15), subject to normal healing bounds. It is not healing once per player card or ordinary player Regeneration decay.",
-        "First depletion is half-death/phase transition, not room victory or an ordinary Fatal kill. Curiosity is removed and Rebirth selected; accumulated Strength remains.",
-        "Rebirth clears debuffs and restores HP, followed by Dark Echo. Full queue/power preservation beyond these documented facts is not runtime-verified.",
+        "Owned-static Curiosity: each qualifying unsuppressed Power card use queues Strength1 at A0 (A19:2), after that card's earlier queued payload; no per-hit/preview/in-hand trigger.",
+        "Owned-static Regenerate: at the end of its own turn request bounded heal10 at A0 (A19:15), only when not halfDead/dying/dead; amount does not decay. Not player Regen.",
+        "First depletion marks half-death and invokes source power/relic death callbacks before removing DEBUFF powers plus Curiosity/Unawakened/Shackled. Positive Strength remains; negative Strength is removed. This is not final room victory. ClearCardQueueAction clears cardQueue, not the ordinary actions queue or current card cleanup/healing.",
+        "Rebirth later clears halfDead and queues max-HP Heal then CanLose, with the same actor/retained powers; phase2 opens DarkEcho40. Sludge18 inserts one Void at BOTTOM draw: toBottom overrides randomSpot in this actual constructor call, so no random-position law follows. Exact full source runtime behavior remains unvalidated.",
         "Surviving Cultists flee after the final phase dies. They are not Minions: killing them earlier can qualify for Fatal effects."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-awakened",
         "wiki:awakened_one",
         "wiki:ascension"
       ],
@@ -2200,7 +2213,17 @@
       "key": "monster.dagger",
       "id": "DAGGER",
       "game_id": "Dagger",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-reptomancer",
+        "class_alias": "SnakeDagger",
+        "a0_hp_range": [20, 25],
+        "opening": "NORMAL_attack9_then_Wound1_discard",
+        "explosion_order": ["NORMAL_attack25", "HP_LOSS_self_captured_current_hp"],
+        "self_loss_capture": "takeTurn queue construction before the player-facing attack resolves",
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Dagger",
       "acts": [
         3
@@ -2272,12 +2295,13 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Minion; Wound then Explode with self-death. Explode is an Attack followed by lifecycle death, not unlimited repeatable damage.",
-        "Surviving Daggers do not prevent victory after Reptomancer dies. Fatal rewards do not apply to Minions."
+        "Owned-static Minion: Wound9 then Wound1 discard; next move NORMAL25 attack before self HP_LOSS equal to HP captured when its turn queue is built. This is not Exploder's suicide-first THORNS or a self-inflicted fixed25.",
+        "Reptomancer explicitly top-queues source suicides for other living grouped actors, including Daggers; no global Minion-ignore rule. A prepared-but-not-inserted Dagger is outside that scan and, in the qualified ordinary queued-state sequence, inserts afterward and prevents early victory. Generic Fatal/reward composition is not exhaustively qualified."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-reptomancer",
         "wiki:reptomancer",
         "wiki:ascension",
         "secondary:port"
@@ -2288,7 +2312,8 @@
       "key": "monster.darkling",
       "id": "DARKLING",
       "game_id": "Darkling",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {"source": "local:m8-darklings", "temporary_downing_callbacks": ["POWER_ON_DEATH", "RELIC_ON_MONSTER_DEATH"], "original_runtime_validated": false, "upstream_build_channel_verified": false},
       "name": "Darkling",
       "acts": [
         3
@@ -2400,7 +2425,7 @@
       "ai": {
         "opening": "All slots open with a fair Nip/Harden choice.",
         "history_and_state_rules": [
-          "Center slot cannot Chomp. Outer slots nominally Nip 30%, Chomp 40%, Harden 30%; no consecutive Harden/Chomp or third Nip. Death/regrowth overrides the ordinary selection."
+          "Owned-static opening0-49 Harden/50-99 Nip. Later0-39 selects Chomp only for outer identity not after Chomp, else reroll40-99;40-69 Harden unless newest Harden then Nip;70-99 Nip unless both newest Nip then reroll0-99. Half-dead roll selects Reincarnate. Not flat turn frequencies; upstream build/channel unverified."
         ],
         "ascension_changes": [
           "A17 Harden also grants 2 Strength. Slot identity, not current survivor numbering, governs Chomp eligibility."
@@ -2447,8 +2472,8 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "At zero HP an actor can become untargetable and half-dead with Regrowing selected, then Reincarnate restores half max HP; this is not a new random HP roll.",
-        "All Darklings must be simultaneously down to win. Temporary half-death does not itself grant Fatal rewards; final group death has its own normal kill arbitration."
+        "Owned-static zeroHP sets half-dead, invokes power onDeath and relic onMonsterDeath callbacks, then clears all powers. Regrowing spends one turn; Reincarnate heals floor(maxHP/2), clears half-dead, reapplies Life Link and invokes spawn callbacks; no new actor/HP/Nip constructor.",
+        "All Darklings must be simultaneously down to release final group death and combat settlement. Temporary callbacks are not room rewards or proof of every separate Fatal/card-kill callback."
       ],
       "variants": [
         {
@@ -2459,6 +2484,7 @@
       ],
       "local_a0": null,
       "citations": [
+        "local:m8-darklings",
         "wiki:darkling",
         "wiki:ascension"
       ],
@@ -2468,7 +2494,16 @@
       "key": "monster.deca",
       "id": "DECA",
       "game_id": "Deca",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-partners",
+        "group_buff_publication": "ALL_CURRENT_GROUP_MEMBERS_IN_ORDER",
+        "own_cycle_advance": "TAKE_TURN_PUBLICATION",
+        "block_skip_flags": ["isDying", "isDead"],
+        "strength_skip_flags": ["isDying", "halfDead", "isEscaping"],
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Deca",
       "acts": [
         3
@@ -2533,7 +2568,7 @@
       "ai": {
         "opening": "Beam.",
         "history_and_state_rules": [
-          "Alternate Beam and Square of Protection; independent of whether Donu survives."
+          "Owned-static own isAttacking starts true; getMove only reads it. Beam publication sets false, Square publication true; repeated selection without executing the move does not advance the cycle. Independent of whether Donu survives."
         ],
         "ascension_changes": [
           "A19 initial Artifact 3 rather than 2; Square also grants 3 Plated Armor to all enemies."
@@ -2543,11 +2578,14 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Artifact prevents debuffs one application at a time; Square buffs all living enemies, including self. The turn cycle persists after Donu dies."
+        "Artifact prevents DEBUFF applications one at a time; positive Strength and group Block do not consume it. Each boss starts its own Artifact2 at A0.",
+        "Owned-static Square publishes a Block16 action for EVERY current monster-list entry, in list order, including already dead entries. GainBlockAction execution skips isDying/isDead, not source death; no halfDead/isEscaping test appears in that guard. Ordinary pair has no escape/revival, and arbitrary foreign flag compositions remain unverified.",
+        "Killing one boss does not win or clear the ordinary queue while the other survives. Published buff work for a living target survives its source's death; the survivor's own cycle is not reset. Upstream build/channel unverified."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-partners",
         "wiki:donu_and_deca",
         "wiki:ascension"
       ],
@@ -2557,7 +2595,16 @@
       "key": "monster.donu",
       "id": "DONU",
       "game_id": "Donu",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-partners",
+        "group_buff_publication": "ALL_CURRENT_GROUP_MEMBERS_IN_ORDER",
+        "own_cycle_advance": "TAKE_TURN_PUBLICATION",
+        "block_skip_flags": ["isDying", "isDead"],
+        "strength_skip_flags": ["isDying", "halfDead", "isEscaping"],
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Donu",
       "acts": [
         3
@@ -2622,7 +2669,7 @@
       "ai": {
         "opening": "Circle of Power.",
         "history_and_state_rules": [
-          "Alternate Circle of Power and Beam; independent of whether Deca survives."
+          "Owned-static own isAttacking starts false; getMove only reads it. Circle publication sets true, Beam publication false; repeated selection without executing does not advance the cycle. Independent of whether Deca survives."
         ],
         "ascension_changes": [
           "A19 initial Artifact 3 rather than 2; ordinary Circle of Power remains +3 Strength to the group."
@@ -2632,11 +2679,14 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Circle buffs all living enemies, including self; cycle persists after Deca dies. Both main bosses, not one main boss and one Minion."
+        "Owned-static Circle publishes Strength3 for EVERY current monster-list entry, in list order. ApplyPowerAction checks target.isDeadOrEscaped at execution and again after callbacks; named helper checks isDying/halfDead/isEscaping, not directly isDead. Do not coalesce this with GainBlockAction's different flags.",
+        "Neither action cancels merely because its source died. Positive Strength is a BUFF, not prevented by Artifact2. Actual order is Deca then Donu, so opening Deca10x2 precedes DonuStrength3; subsequent attacks read live Strength.",
+        "Both separate bosses must be defeated for victory; neither death resets the survivor's own cycle or clears pending ordinary actions while a survivor remains. Upstream build/channel and arbitrary foreign flag combinations remain unverified."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-partners",
         "wiki:donu_and_deca",
         "wiki:ascension"
       ],
@@ -2713,9 +2763,10 @@
               }
             ],
             "basis": "documented fixed explosion amount; not asserted to be an ordinary Strength-scaled Attack base",
-            "modifier_scope": "Secondary port uses fixed30 DamagePlayer rather than ordinary attackPlayerHelper. Exact original damage-type/modifier/prevention interactions are not primary-checked here; ordinary Attack scaling must not be inferred."
+            "modifier_scope": "Owned-archive static finding: fixed30 THORNS does not use ordinary Strength/Weak/Vulnerable Attack scaling; Block still applies. Supersedes the secondary port's unresolved type and damage-before-suicide order. Other player-side prevention modifiers require their own paths; upstream build/channel unverified.",
+            "damage_type": "THORNS"
           },
-          "target": "player takes explosion damage; self then dies"
+          "target": "self-suicide queued first, then owner-attributed fixed30 THORNS damage to player"
         }
       ],
       "ai": {
@@ -2737,12 +2788,13 @@
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-shapes",
         "wiki:shapes",
         "wiki:ascension",
         "secondary:port"
       ],
       "uncertainties": [
-        "Explosion modifier behavior is not primary-checked here: the secondary port uses a fixed30 DamagePlayer path, not ordinary attackPlayerHelper scaling. Do not infer Strength/Weak/Vulnerable behavior from the normal Attack annotation. Player-side prevention/damage-type interactions remain separately unproved."
+        "Owned-archive ExplosivePower path closes fixed30 THORNS and self-suicide-before-damage ordering; other player-side prevention modifiers and terminal callback compositions remain qualified. Upstream build/channel and original-runtime behavior unverified."
       ]
     },
     {
@@ -2967,7 +3019,17 @@
       "key": "monster.giant_head",
       "id": "GIANT_HEAD",
       "game_id": "GiantHead",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-elites",
+        "a0_first_time_enemy_turn": 5,
+        "a0_time_bases": [30, 35, 40, 45, 50, 55, 60],
+        "countdown_clock": "getMove count5 to4 on initial selection; decrement each selection to0 for action5, then to-6 floor",
+        "slow_increment": "after the triggering card's queued payload via onAfterUseCard; no card-type filter; suppressed dontTriggerOnUseCard does not count",
+        "slow_arithmetic": "NORMAL floating receive multiplier1+0.1*amount in power-list order before the single final floor; reset0 at end-round without removal",
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Giant Head",
       "acts": [
         3
@@ -3048,9 +3110,9 @@
         }
       ],
       "ai": {
-        "opening": "Count/Glare fair choice.",
+        "opening": "Owned-static ticket0-49 Glare,50-99 Count during countdown; direct other-move redirect after two newest identical selections.",
         "history_and_state_rules": [
-          "During the opening countdown neither move occurs three times in succession; then It Is Time every turn, increasing its base damage to the cap."
+          "Owned-static count starts5 and decreases on getMove, including opener5→4. Four preparatory actions then Time on enemy action5. During preparation, two newest Glare force Count for its ticket band, two newest Count force Glare for its band; no extra reroll. Time base30,+5 per selected progression to60 cap at A0."
         ],
         "ascension_changes": [
           "A18 countdown shortens from four preparatory turns to three; It Is Time begins on turn 4 rather than 5."
@@ -3077,12 +3139,13 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Slow increases Attack damage received as cards are played within the turn and resets each turn. It is not permanent +10% per card for the combat.",
+    "Owned-static Slow starts0, counts any unsuppressed card only after its own queued payload, amplifies NORMAL with1+0.1*amount before the one final floor and resets0 at end-round without removal; THORNS/HP_LOSS excluded.",
         "It Is Time increases base damage by 5 per use to a capped base; live modifiers apply afterward."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-elites",
         "wiki:giant_head",
         "wiki:ascension"
       ],
@@ -4651,7 +4714,19 @@
       "key": "monster.nemesis",
       "id": "NEMESIS",
       "game_id": "Nemesis",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-elites",
+        "opening_integer_bands": ["0-49 TriAttack", "50-99 TriBurn"],
+        "later_integer_bands": ["0-29 Scythe proposal", "30-64 TriAttack proposal", "65-99 TriBurn proposal"],
+        "selection_state": "decrement cooldown on every getMove, including opener; selecting Scythe sets2. Named history/cooldown/secondary fair-coin branches are direct redirects, not renormalized frequencies.",
+        "first_protected_player_turn": 2,
+        "positive_hit_cap": 1,
+        "intangible_clock": "takeTurn queues absent-only Intangible1 after payload then RollMove; same round's group end callback clears justApplied, next round removes. No initial Intangible.",
+        "actual_hit_types": ["NORMAL", "THORNS including Lightning Orb/FirePotion", "HP_LOSS"],
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Nemesis",
       "acts": [
         3
@@ -4735,7 +4810,7 @@
       "ai": {
         "opening": "Fair Tri Burn/Tri Attack choice; no opening Scythe.",
         "history_and_state_rules": [
-          "Later approximate nominal Tri Burn 35%, Tri Attack 35%, Scythe 30%; no consecutive Burn/Scythe or third Tri Attack. These are approximate conditional proposals, not verified exact post-history masses."
+          "Owned-static initial proposal masses: Scythe30%,TriAttack35%,TriBurn35%. Cooldown decrements per selection and becomes2 on Scythe; last-move/two-newest-history and secondary fair coins redirect directly as detailed in local:m8-elites. Nominal weights are not exact post-history frequencies."
         ],
         "ascension_changes": [
           "A18 Tri Burn adds 5 Burns instead of 3. Intangible alternates by turn parity, not a random power roll."
@@ -4782,22 +4857,24 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Intangible alternates by turn; its damage limit is per hit, not per card, and interacts with damage modifiers. This reference does not establish every modifier ordering.",
+        "Owned-static absent-only Intangible1 is queued after each actual move when absent. Same-round end callback clears justApplied; following round removes, so player turn2 is first protected then alternate. Nemesis.damage caps positive output to1 before ordinary Block for all DamageInfo types, including HP_LOSS/THORNS/Lightning/FirePotion; zero stays0, no aggregate card cap. Direct HP mutation bypassing damage is not covered.",
         "Tri Burn inserts fixed Status cards into discard; it is not a random draw or permanent deck addition."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-elites",
         "wiki:nemesis",
         "wiki:ascension",
         "secondary:port"
       ],
       "uncertainties": [
-        "Wiki explicitly labels 35/35/30 approximate. Exact redirected and secondary-coin probabilities need focused corroboration before an exact sampler is claimed."
+        "Exact A0 owned-static redirects and ordinary scheduler edge are documented in local:m8-elites; archive upstream build/channel and original runtime remain unverified. Higher-Ascension rows retain their existing source grades; arbitrary skipped/interrupt turn paths are not inferred from ordinary scheduler closure."
       ]
     },
     {
       "key": "monster.orb_walker",
+      "static_qualification": {"source": "local:m8-shapes", "strength_up_phase": "END_ROUND", "original_runtime_validated": false, "upstream_build_channel_verified": false},
       "id": "ORB_WALKER",
       "game_id": "Orb Walker",
       "identity_status": "provisional_constructor_label_not_primary_checked",
@@ -4880,7 +4957,7 @@
       "ai": {
         "opening": "Ordinary Laser/Claw choice.",
         "history_and_state_rules": [
-          "Laser 60%, Claw 40%; either may occur at most twice consecutively. Strength Up triggers at the end of its own turn."
+          "Owned-static getMove: integer proposal0-39 selects Claw unless both newest moves are Claw, then Laser;40-99 selects Laser unless both newest are Laser, then Claw. Strength Up applies at end of round, not owner-end-turn. Upstream build/channel unverified."
         ],
         "ascension_changes": [
           "A17 Strength Up becomes 5 rather than 3."
@@ -4907,13 +4984,14 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Strength Up gains Strength at end of its own turn and does not decrement like player Ritual/Regeneration counters.",
+        "Owned-static GenericStrengthUpPower.atEndOfRound requests Strength at end of round without decrementing itself; earlier owner-end-turn wording is superseded.",
         "Laser adds one Burn to draw and another to discard; these are two destinations, not two Burns both in discard."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
         "wiki:orb_walker",
+        "local:m8-shapes",
         "wiki:ascension"
       ],
       "uncertainties": []
@@ -5280,7 +5358,19 @@
       "key": "monster.reptomancer",
       "id": "REPTOMANCER",
       "game_id": "Reptomancer",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-reptomancer",
+        "tracked_dagger_slots": 4,
+        "can_spawn_other_nondying_max": 3,
+        "a0_children_per_spawn": 1,
+        "initial_group_order": ["slot1_Dagger", "parent", "slot0_Dagger"],
+        "physical_order": ["slot3", "slot1", "parent", "slot2", "slot0"],
+        "ordinary_prepared_spawn_after_parent_cleanup": "inserts_and_keeps_combat_live",
+        "cleanup": "top-queued default SuicideAction(true) for other grouped nondead/nondying actors, reverse group death order; real callbacks, no DamageInfo fabrication",
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Reptomancer",
       "acts": [
         3
@@ -5370,7 +5460,7 @@
       "ai": {
         "opening": "Spawn Dagger, in a group already containing two Daggers.",
         "history_and_state_rules": [
-          "Later approximately equal proposals Snake Strike/Big Bite/Spawn; no consecutive Attack move or third Spawn. At four live Daggers a Spawn proposal becomes Snake Strike."
+          "Owned-static proposal0-32 Snake; if newest Snake, recursively redraw33-99 inclusive.33-65 Spawn unless newest2 bothSpawn or canSpawn false, then direct Snake.66-99 Big; if newestBig, recursively redraw0-65 inclusive. canSpawn counts ALL other non-dying actors≤3, not only Daggers; four tracked slots separately cap construction. Do not flatten to equal thirds or universal no-repeat rules."
         ],
         "ascension_changes": [
           "A18 summons 2 Daggers instead of 1 per Spawn, subject to the four-Dagger cap."
@@ -5401,18 +5491,19 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Starts with two Daggers and can maintain at most four. A Spawn proposal at cap is redirected rather than creating a fifth actor.",
-        "Daggers are Minions; killing Reptomancer ends the encounter without requiring their separate kills."
+        "Owned-static initial group order is leftslot1,parent,rightslot0. Track four source slots, scan0up for null/dead/escaped vacancies and construct A0one child before queued insertion; source positions and action order differ from array index. Ordinary live cap4Daggers also depends on other participant count.",
+        "Parent death top-queues callback-delivering suicides for other grouped living actors, later group actors first. It is not a global boss-HP/Minion victory predicate. An already-prepared SpawnMonsterAction has no parent-alive guard and the qualified ordinary sequence inserts it after cleanup before the empty-action-list room completion gate; it keeps combat live. Arbitrary mods/fault queues are outside this source claim."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-reptomancer",
         "wiki:reptomancer",
         "wiki:ascension",
         "secondary:port"
       ],
       "uncertainties": [
-        "Equal thirds are a wiki approximation, not a certified exact initial integer partition or post-restriction distribution."
+        "Exact A0 integer redirects, source slot/callback order and one ordinary pending-spawn/parent-death sequence are owned-static-qualified in local:m8-reptomancer; higher-Ascension rows retain existing citation grades. Archive upstream build/channel, original runtime, arbitrary queue mutations and a complete reward/Fatal pipeline remain unverified."
       ]
     },
     {
@@ -5484,7 +5575,7 @@
       "ai": {
         "opening": "Ordinary Attack/Daze choice.",
         "history_and_state_rules": [
-          "Attack 20%, Daze 80%; an Attack cannot be followed by another Attack."
+          "Owned-static getMove: proposal0-19 selects Attack only when newest move is not Attack; otherwise Daze. No reroll or renormalization. Upstream build/channel unverified."
         ],
         "ascension_changes": [
           "No further move change is established by the cited page; Daze inserts cards rather than discarding them."
@@ -5511,11 +5602,12 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Daze adds two Dazed to draw, not discard or permanent deck. Shape instances have independent AI/history."
+        "Daze adds two Dazed shuffled into draw, not discard or permanent deck. Shape instances have independent AI/history."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-shapes",
         "wiki:shapes",
         "wiki:ascension"
       ],
@@ -7036,7 +7128,7 @@
       "ai": {
         "opening": "Ordinary Attack/Buff Thorns fair proposal.",
         "history_and_state_rules": [
-          "Attack cannot repeat while buffing remains available; after six Buff Thorns uses, Attack is forced and may repeat."
+          "Owned-static getMove: before six executed buffs, proposal0-49 selects Attack only after non-Attack; otherwise Buff Thorns. After six buffs Attack is forced and may repeat. Upstream build/channel unverified."
         ],
         "ascension_changes": [
           "Initial Thorns 3 below A2, 4 at A2, 7 at A17; additional Buff Thorns remains +2."
@@ -7063,11 +7155,12 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Thorns is an on-damage reaction, not Guardian Sharp Hide on Attack play. Six Buff Thorns executions exhaust its buff allowance."
+        "Thorns is a qualifying per-hit callback even when fully blocked, not Guardian Sharp Hide on Attack play. Six Buff Thorns executions exhaust its allowance."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-shapes",
         "wiki:shapes",
         "wiki:ascension"
       ],
@@ -7077,7 +7170,8 @@
       "key": "monster.spire_growth",
       "id": "SPIRE_GROWTH",
       "game_id": "Serpent",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {"source": "local:m8-ordinary", "original_runtime_validated": false, "upstream_build_channel_verified": false},
       "name": "Spire Growth",
       "acts": [
         3
@@ -7167,7 +7261,7 @@
       "ai": {
         "opening": "Below A17 ordinary conditional Quick Tackle/Constrict proposal; high-ascension eligibility can force Constrict.",
         "history_and_state_rules": [
-          "If player already has Constricted or prior move was Constrict, replace Constrict branch with Smash; attacks cannot be used three times. Do not ignore live player debuff state."
+          "Owned A0 law: proposal0-49 Quick unless both newest Quick; otherwise actual Constricted absent and newest not Constrict selects Constrict; otherwise Smash unless both newest Smash, then Quick. Artifact prevention does not imply power presence."
         ],
         "ascension_changes": [
           "Wiki Constrict amount labels A2, but secondary references indicate A17-dependent selection; exact high-ascension amount/priority remains disputed and source-qualified."
@@ -7194,17 +7288,18 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Constricted causes end-of-player-turn damage and persists as a debuff until removed; it is not an extra normal Attack at enemy action time."
+    "Owned-static Constricted queues source-attributed THORNS at player end, still Blockable; no automatic decrement in that callback. Not an extra NORMAL enemy action. Other source-death/removal compositions remain qualified."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-ordinary",
         "wiki:spire_growth",
         "wiki:ascension",
         "secondary:port"
       ],
       "uncertainties": [
-        "Wiki marks Constricted12 atA2, secondary port atA17 and forces Constrict when eligible atA17. Payload/selection breakpoint remains disputed."
+        "Wiki marks Constricted12 atA2; owned static takeTurn/getMove instead corroborate A17 and eligible forced Constrict. This resolves owned bytes only; upstream build/channel and target-PCv2.3 applicability remain unverified."
       ]
     },
     {
@@ -8085,7 +8180,8 @@
       "key": "monster.the_maw",
       "id": "THE_MAW",
       "game_id": "Maw",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {"source": "local:m8-ordinary", "original_runtime_validated": false, "upstream_build_channel_verified": false},
       "name": "The Maw",
       "acts": [
         3
@@ -8209,11 +8305,12 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Nom Nom hit count uses current enemy-turn progression, not number of Nom Nom uses. Roar/Drool changes at A17 do not change its HP300."
+        "Owned-static internal turnCount starts1 and increments at each actual getMove; Nom hits floor(internalTurnCount/2), equivalent to ceil(selectedEnemyTurn/2) in ordinary sequence. Executed Roar sets its latch; reads/card count do not advance it. Roar/Drool A17 changes do not change HP300."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-ordinary",
         "wiki:the_maw",
         "wiki:ascension"
       ],
@@ -8223,7 +8320,16 @@
       "key": "monster.time_eater",
       "id": "TIME_EATER",
       "game_id": "TimeEater",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-time-eater",
+        "haste_threshold": "hp < max_hp / 2",
+        "haste_latch": "SELECTION",
+        "time_warp_callback": "ON_AFTER_USE_CARD",
+        "secondary_float_coin": {"true_outcomes": 11072963, "denominator": 16777216},
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Time Eater",
       "acts": [
         3
@@ -8323,7 +8429,8 @@
       "ai": {
         "opening": "Ordinary choice unless a half-HP transition takes priority.",
         "history_and_state_rules": [
-          "Nominal Reverberate 45%, Head Slam 35%, Ripple 20%; no third Reverberate or repeated Head Slam/Ripple. Below half HP Haste once replaces ordinary selection."
+          "Owned-static Haste priority is strict hp<max_hp/2; its one-use latch is spent at selection, not execution. Opener uses the ordinary selector.",
+          "Integer0-44 proposes Reverberate unless newest2 both Reverberate, then recursively redraw inclusive50-99;45-79 proposes Head Slam unless newest Head Slam, then float0.66f true chooses Reverberate, false Ripple;80-99 proposes Ripple unless newest Ripple, then recursively redraw inclusive0-74. No renormalized accepted-turn rates; secondary float has11072963 true outcomes out of16777216 under the qualified24-bit law."
         ],
         "ascension_changes": [
           "A19 Haste adds 32 Block, Head Slam adds 2 Slimed, Ripple also applies Frail. Time Warp's card counter persists across turns until its trigger."
@@ -8354,12 +8461,14 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Time Warp tracks played cards across turns; at12 it ends the player turn and grants Strength2 to the boss. Autoplay/repeats and pending effects need normal action-boundary semantics, not universal queue deletion.",
-        "Haste is a one-time half-HP response; cleanse/heal occur on its action. No extra relic/boss reward is granted merely because it healed."
+        "Owned-static Time Warp starts0 and increments onAfterUseCard after current payload/selection and before disposition; at exactly12 resets0, requests ordinary forced end and queues Strength2 for the encounter list. The counter persists across turns; no generic ordinary-action queue deletion. dontTriggerOnUseCard suppresses this callback; arbitrary autoplay and simultaneous-lethal arbitration remain qualified.",
+        "Haste action removes DEBUFF-classified powers, explicitly removes Shackled, then heals by halfMax-currentHP to reach228 at A0; no explicit Block clear. Selection already spent its latch. No extra reward from healing.",
+        "Head Slam applies Draw Reduction1: initial draw-size minus1, first end-round clears application grace, later callback reduces duration/removes and restores1; the real next start draw is reduced once. Upstream build/channel unverified."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-time-eater",
         "wiki:time_eater",
         "wiki:ascension"
       ],
@@ -8443,7 +8552,8 @@
       "key": "monster.transient",
       "id": "TRANSIENT",
       "game_id": "Transient",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {"source": "local:m8-ordinary", "shifting_measure": "POST_BLOCK_CALLBACK_BEFORE_HP_CLAMP", "expiry_order": ["ATTACK", "FADING_SUICIDE"], "original_runtime_validated": false, "upstream_build_channel_verified": false},
       "name": "Transient",
       "acts": [
         3
@@ -8491,7 +8601,7 @@
       "ai": {
         "opening": "Attack.",
         "history_and_state_rules": [
-          "Attack every turn until Fading expires; Shifting subtracts temporary Strength based on actual HP loss."
+          "Attack every turn until Fading expires; owned-static Shifting uses positive post-Block onAttacked callback damage before the HP clamp, not attempted damage or necessarily final clamped HP loss."
         ],
         "ascension_changes": [
           "A17 Fading grows from 5 to 6 turns, adding a turn of the escalating Attack rather than changing only the opener."
@@ -8501,12 +8611,13 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Shifting temporarily reduces Strength by actual HP lost, not pre-Block damage or Attack card count; temporary recovery is separate from the growing Attack base.",
+        "Owned-static Shifting queues negative Strength from positive post-Block callback damage before HP clamp, with Shackled restoration only when Artifact absent at callback; not a NORMAL-only rule. Owner-end-turn restores separately from the growing Attack base.",
         "Fading ends the encounter after five actions, six at A17. Survival completion is distinct from a player-attributed kill; self-expiry does not grant Fatal rewards."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-ordinary",
         "wiki:transient",
         "wiki:ascension"
       ],
@@ -8516,7 +8627,17 @@
       "key": "monster.writhing_mass",
       "id": "WRITHING_MASS",
       "game_id": "WrithingMass",
-      "identity_status": "provisional_constructor_label_not_primary_checked",
+      "identity_status": "owned_archive_static_constructor_label_build_unverified",
+      "static_qualification": {
+        "source": "local:m8-writhing",
+        "a0_block_attack": {"damage": 15, "block": 15, "basis": "damage_entry_base_not_modified_output"},
+        "a0_debuff_attack_damage": 10,
+        "opening_support": ["multi_hit", "block_attack", "debuff_attack"],
+        "opening_integer_bands": ["0-32 Multi", "33-65 Block", "66-99 Debuff"],
+        "secondary_float_coins": {"denominator": 16777216, "tenth_true_outcomes": 1677722, "two_fifths_true_outcomes": 6710887},
+        "original_runtime_validated": false,
+        "upstream_build_channel_verified": false
+      },
       "name": "Writhing Mass",
       "acts": [
         3
@@ -8654,19 +8775,19 @@
         }
       ],
       "ai": {
-        "opening": "Approximately equal Multi Hit, Big Hit, Debuff Attack according to wiki; another reference differs.",
+        "opening": "Owned-static proposal0-32 Multi Hit,33-65 Block Attack,66-99 Debuff Attack. Wiki's approximate Multi/Big/Debuff claim remains attributed below, not adopted as exact AI.",
         "history_and_state_rules": [
-          "Later nominal Parasite 10%, Block Attack 30%, Debuff Attack 20%, Multi Hit 30%, Big Hit 10%. No immediate repeat even on Reactive reroll; Parasite only once actually used. Repeat/once-only exclusions alter effective chances."
+          "Owned-static later proposal bands:0-9 Multi,10-19 Parasite,20-39 Debuff,40-69 Block,70-99 Big. Recursive redirects, last-selected history, execution-set Parasite-used and finite float coins are detailed in local:m8-writhing. Do not renormalize wiki nominal weights or infer a universal no-repeat rule; a direct Multi fallback can bypass it."
         ],
         "ascension_changes": [
-          "No extra A17 rule is asserted from an absent wiki clause. Initial support and exact rejection conditional laws remain disputed, not forced into thirds."
+          "Owned-static A0 selection is qualified; higher-Ascension payloads retain their cited grades. Block's source damage-entry base is15 atA0/16 atA2, contrary to an unconditional wiki Block16. Upstream build/channel remains unverified."
         ],
         "iid_turns": false,
         "nominal_choices": [
           {
             "ascension_min": 0,
             "ascension_max": 20,
-            "context": "wiki approximate opening support; disputed by secondary reference",
+            "context": "attributed wiki approximate opening support; contradicted by owned-static opening, not native oracle",
             "precision": "wiki_approximate",
             "choices": [
               {
@@ -8686,7 +8807,7 @@
           {
             "ascension_min": 0,
             "ascension_max": 20,
-            "context": "later proposals BEFORE last-move/Parasite restrictions",
+            "context": "attributed wiki later proposals BEFORE restrictions; differs from owned-static Multi10%/Big30%, not native oracle",
             "precision": "wiki_nominal",
             "choices": [
               {
@@ -8715,20 +8836,21 @@
         "probability_scope": "Conditional proposals or named branch steps only. Apply opening/phase/history/state/interrupt rules; do not flatten into IID rates or renormalize forbidden moves without an established law."
       },
       "lifecycle": [
-        "Reactive changes intent after qualifying attack damage, not any card play. Repeated hits can cause repeated rerolls and are not one atomic card-level roll.",
-        "Malleable begins at4, increases per qualifying hit within a turn, and resets its amount by turn. Damage/Block/reroll callback timing is not fully proved here.",
-        "Parasite is a permanent-deck Curse acquisition, not insertion into current combat piles; normal obtain prevention applies. Once-used state must not be set merely by selecting that intent."
+        "Owned-static Reactive requires positive nonlethal callback damage, nonnull attacker and neitherTHORNS norHP_LOSS; queues one bottom RollMove per qualifying hit, not one per card. Native Lightning Orb retains sourceTHORNS exclusions.",
+        "Malleable begins4; qualifying positive nonlethal NORMAL owned hits queue current Block then increment synchronously. Enemy resets at owner end-turn. Named TwinStrike queues both hits/cleanup before RollMove/Block4/RollMove/Block5; not a universal dynamically-generated-hit ordering rule.",
+        "Executed Parasite latches used before permanent obtain, not selection or current-combat pile insertion. Arbitrary prevention remains separately qualified; permanent removal lowers maxHP3 with floor1/currentHP clamp, not combat exhaustion."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
+        "local:m8-writhing",
         "wiki:writhing_mass",
         "wiki:ascension",
         "secondary:port"
       ],
       "uncertainties": [
-        "Wiki opening Multi/Big/Debuff support conflicts with secondary Multi/Block/Debuff support. Equal thirds is only a wiki approximation.",
-        "Post-exclusion transition law is not generally obtained by renormalizing the five nominal percentages; secondary branch redirects differ."
+        "Wiki opening Multi/Big/Debuff, later Multi30%/Big10%, universal no-repeat wording and fixedBlock16 are retained attributed claims, not exact owned-static AI/payload oracles. Owned-static counterparts are qualified in local:m8-writhing; upstream target-version applicability remains unverified.",
+        "Named callback/caller closure covers this setup and prequeued TwinStrike shape, not all dynamically-produced hits, arbitrary obtain prevention or original-runtime validation."
       ]
     }
   ]

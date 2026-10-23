@@ -812,8 +812,9 @@
         "EXPLODER",
         "SPIKER"
       ],
-      "formation": "Three ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each.",
+      "formation": "Three ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each. Named owned-static spawnShapes corroborates composition, not original RNG parity or upstream build provenance.",
       "citations": [
+        "local:m8-shapes",
         "local:acts23",
         "wiki:monsters"
       ]
@@ -859,8 +860,9 @@
         "EXPLODER",
         "SPIKER"
       ],
-      "formation": "Four ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each.",
+      "formation": "Four ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each. Named owned-static spawnShapes corroborates composition, not original RNG parity or upstream build provenance.",
       "citations": [
+        "local:m8-shapes",
         "local:acts23",
         "wiki:monsters"
       ]
@@ -892,8 +894,10 @@
         "EXPLODER",
         "SPIKER"
       ],
-      "formation": "Two independent equal-kind shape slots plus Spheric Guardian, not the shrinking six-member 3/4 Shapes pool. Exact factory order needs focused corroboration.",
+      "formation": "Owned-static factory order: independent uniform Spiker/Repulsor/Exploder, independent uniform Spiker/Repulsor/Exploder, then Spheric Guardian. Not the shrinking six-member 3/4 Shapes pool. Upstream build/channel unverified.",
+      "ordered_slots": ["INDEPENDENT_SHAPE", "INDEPENDENT_SHAPE", "SPHERIC_GUARDIAN"],
       "citations": [
+        "local:m8-shapes",
         "local:acts23",
         "wiki:monsters"
       ]
@@ -1032,6 +1036,7 @@
       ],
       "formation": "Deca then Donu; both are main bosses.",
       "citations": [
+        "local:m8-partners",
         "local:acts23",
         "wiki:bosses"
       ]

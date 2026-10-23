@@ -10,6 +10,9 @@ pub(crate) struct SpawnProgress {
 }
 
 pub(in crate::combat) fn initial_slots(actors:&[EnemyState])->BTreeMap<EnemyHandle,u8>{
+    if actors.iter().any(|a|a.enemy_id==ActorEnemyId::Full(EnemyId::Reptomancer)){
+        let mut next=0;return actors.iter().map(|a|{let slot=if a.enemy_id==ActorEnemyId::Full(EnemyId::Reptomancer){2}else{let slot=[1,4,3,0].get(next).copied().unwrap_or(9);next+=1;slot};(a.instance_id.clone(),slot)}).collect()
+    }
     if actors.iter().any(|a|a.enemy_id==ActorEnemyId::Full(EnemyId::BronzeAutomaton)){
         let mut next=0;return actors.iter().map(|a|{let slot=if a.enemy_id==ActorEnemyId::Full(EnemyId::BronzeAutomaton){1}else{let slot=if next==0{0}else{next+1};next+=1;slot};(a.instance_id.clone(),slot)}).collect()
     }
@@ -27,10 +30,12 @@ pub(in crate::combat) fn ordered_actors(state:&State)->Vec<&EnemyState>{
 }
 
 pub(in crate::combat) fn validate_request(state:&State,request:&SpawnRequest)->Result<(),InputError>{
-    let policy=state.enemies.iter().any(|e|e.instance_id==request.summoner&&e.life==ActorLife::Active&&e.hp>0&&match e.enemy_id{
+    let prepared_dagger=state.spawn_progress.as_ref().is_some_and(|p|p.request==*request&&p.request.species==EnemyId::Dagger&&p.prepared_child.is_some());
+    let policy=state.enemies.iter().any(|e|e.instance_id==request.summoner&&e.life==ActorLife::Active&&(e.hp>0||prepared_dagger)&&match e.enemy_id{
         ActorEnemyId::Full(EnemyId::GremlinLeader)=>request.slot<3&&gremlin_leader::is_small(request.species),
         ActorEnemyId::Full(EnemyId::Collector)=>request.slot<2&&request.species==EnemyId::TorchHead,
-        ActorEnemyId::Full(EnemyId::BronzeAutomaton)=>matches!(request.slot,0|2)&&request.species==EnemyId::BronzeOrb,_=>false,
+        ActorEnemyId::Full(EnemyId::BronzeAutomaton)=>matches!(request.slot,0|2)&&request.species==EnemyId::BronzeOrb,
+        ActorEnemyId::Full(EnemyId::Reptomancer)=>super::super::act3::reptomancer::tracked_slot(request.slot).is_some()&&request.species==EnemyId::Dagger,_=>false,
     });
     if !state.full_runtime||!policy{return Err(InputError::Invariant("unqualified summon producer/request".into()))}
     if ordered_actors(state).iter().any(|e|state.actor_slots.get(&e.instance_id)==Some(&request.slot)){
@@ -65,6 +70,7 @@ pub(in crate::combat) fn apply(state:&mut State,request:&SpawnRequest)->Result<(
 pub(in crate::combat) fn complete(state:&mut State)->Result<(),super::super::super::EffectError>{
     let progress=state.spawn_progress.as_ref().ok_or_else(||InputError::Invariant("summon continuation absent".into()))?;
     validate_request(state,&progress.request)?;
+    if progress.request.species==EnemyId::Dagger&&progress.prepared_child.is_some(){return commit_prepared(state)}
     let (lo,hi)=super::super::hp_range(progress.request.species,0);
     let (ticket,next)=rng::uniform_below(&progress.constructor_rng,(hi-lo+1) as u128)?;
     let hp=lo+ticket as i32;
@@ -74,13 +80,26 @@ pub(in crate::combat) fn complete(state:&mut State)->Result<(),super::super::sup
     progress.latest_child_rng=selected.stream.clone();
     let full_damage_entries=super::super::damage_bases(progress.request.species)?.into_iter().map(|(id,base)|(id,DamageEntry{base,output:base})).collect::<BTreeMap<_,_>>();
     let intent_damage=full_damage_entries.get(&selected.intent).map(|d|d.output);
-    // Both explicit producer policies above request Minion; neither species nor
+    // These qualified producer policies request Minion; neither species nor
     // the generic act of summoning implies this role for an unlisted producer.
     let mut full_powers=vec![power("minion",1)];if progress.request.species==EnemyId::GremlinMad{full_powers.push(power("angry",1));}
     let child=EnemyState{instance_id:EnemyHandle::parse(&format!("{}/spawn/{}",progress.request.summoner.as_str(),progress.ordinal))?,enemy_id:ActorEnemyId::Full(progress.request.species),hp,max_hp:hp,block:0,powers:vec![],full_powers,
         intent_id:ActorIntentId::Full(selected.intent),selected_move:ActorIntentId::Full(selected.intent),move_history:vec![ActorIntentId::Full(selected.intent)],damage_entries:Default::default(),full_damage_entries,
         full_ai_rng:Some(selected.stream),full_memory:Some(selected.memory),intent_damage,life:ActorLife::Active};
     progress.prepared_child=Some(child.clone());
+    if progress.request.species==EnemyId::Dagger{
+        let slot=super::super::act3::reptomancer::tracked_slot(progress.request.slot).ok_or_else(||InputError::Invariant("Dagger source position absent".into()))?;
+        let owner=progress.request.summoner.clone();
+        let Some(EnemyMemory::Reptomancer{slots,..})=state.enemies.iter_mut().find(|e|e.instance_id==owner).and_then(|e|e.full_memory.as_mut())else{return Err(InputError::Invariant("Dagger reservation owner absent".into()).into())};
+        slots.insert(slot,child.instance_id.clone());
+        state.pending.push_front(effect(Actor::Enemy(owner.clone()),Actor::Enemy(owner),EffectKind::CompleteSpawn));return Ok(())
+    }
+    commit_prepared(state)
+}
+
+fn commit_prepared(state:&mut State)->Result<(),super::super::super::EffectError>{
+    let progress=state.spawn_progress.as_ref().ok_or_else(||InputError::Invariant("prepared summon custody absent".into()))?;
+    let child=progress.prepared_child.clone().ok_or_else(||InputError::Invariant("prepared summon child absent".into()))?;
     let slot=progress.request.slot;
     let summoner=progress.request.summoner.clone();
     if state.enemies.len().checked_add(1).and_then(|n|u64::try_from(n).ok()).is_none()||ordered_actors(state).len()>=9{return Err(InputError::Unsupported("summon actor storage exhausted".into()).into())}

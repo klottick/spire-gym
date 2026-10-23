@@ -12,7 +12,7 @@
     "wiki_rows": 132,
     "wiki_pages": 125,
     "reference_extensions": 27,
-    "unresolved_constructor_ids": 26,
+    "unresolved_constructor_ids": 12,
     "owner_groups": {
       "PLAYER": 89,
       "ENEMY": 35,
@@ -84,6 +84,10 @@
       "id": "local",
       "grade": "retained public source-grounded findings, not original-runtime validation",
       "snapshots": [
+        {
+          "path": "data/enemies/m8-static-findings.md",
+          "sha256": "33491dcd9b38ad2280fba65ffcba6b5fb986a677bf7d2107180b4e7ee4cb8da7"
+        },
         {
           "path": "docs/research/2026-10-19-act1-complete-catalog-numeric.md",
           "sha256": "7c7f6421a77a18e024f06d90c0ea172dd5c441fdbe1e1a040a95fa4e5e8dcb8d"
@@ -5351,10 +5355,10 @@
     {
       "key": "power.reference.constricted",
       "id": "REFERENCE.CONSTRICTED",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Constricted",
+      "class_alias": "ConstrictedPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Constricted",
       "wiki_name": "Constricted",
       "owners": [
@@ -5364,7 +5368,7 @@
       "classification": {
         "reference_type": "DEBUFF",
         "effect_on_owner": "HARMFUL",
-        "basis": "community wiki classification, not independently constructor-verified"
+        "basis": "qualified annotation; consult citations/discrepancies"
       },
       "effect": "Take X damage at the end of your turn.",
       "stacking": {
@@ -5394,11 +5398,10 @@
         "effect": "Take X damage at the end of your turn."
       },
       "notes": [
-        "The player, not Spire Growth, carries the damage-producing debuff. Preserve actual damage/block/prevention and owner/removal linkage; the tooltip does not establish all source-death interactions."
+        "Player, not Growth, carries this DEBUFF. Owned-static atEndOfTurn requests inflictor-attributed THORNS damage equal to amount, still Blockable; no decrement in that callback. Not an enemy-turn NORMAL attack. Other source-death/removal compositions and upstream build/channel remain qualified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -5410,6 +5413,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Spire_Growth",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62984",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task3 ConstrictedPower constructor/atEndOfTurn and Growth.takeTurn",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -5420,10 +5429,10 @@
     {
       "key": "power.reference.curiosity",
       "id": "REFERENCE.CURIOSITY",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Curiosity",
+      "class_alias": "CuriosityPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Curiosity",
       "wiki_name": "Curiosity",
       "owners": [
@@ -5446,9 +5455,9 @@
       },
       "lifecycle": {
         "triggers": [
-          "DESCRIPTION_CARD_PLAY_RELATED"
+          "UNSUPPRESSED_POWER_USE"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "The wiki calls this ongoing within combat; explicit removal/cleansing and effect-specific hooks remain separate.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -5462,11 +5471,11 @@
         "cap_raw": "Integer limit",
         "effect": "Whenever you play a Power card, gains X Strength."
       },
-      "notes": [],
-      "discrepancies": [],
-      "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID."
+      "notes": [
+        "Owned-static onUseCard checks actual POWER type. UseCardAction construction suppresses callbacks for dontTriggerOnUseCard and queues boss Strength after the card's earlier queued payload, not per hit/hand/preview. A0amount1. First phase depletion explicitly removes this ID. Archive upstream build/channel unverified."
       ],
+      "discrepancies": [],
+      "uncertainties": [],
       "citations": [
         {
           "kind": "wiki",
@@ -5476,6 +5485,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Awakened_One",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/65809",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task7 CuriosityPower constructor/onUseCard and named player/UseCardAction dispatcher",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -5560,10 +5575,10 @@
     {
       "key": "power.reference.draw_reduction",
       "id": "REFERENCE.DRAW_REDUCTION",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Draw Reduction",
+      "class_alias": "DrawReductionPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Draw Reduction",
       "wiki_name": "Draw Reduction",
       "owners": [
@@ -5573,25 +5588,29 @@
       "classification": {
         "reference_type": "DEBUFF",
         "effect_on_owner": "HARMFUL",
-        "basis": "community wiki classification, not independently constructor-verified"
+        "basis": "qualified annotation; consult citations/discrepancies"
       },
       "effect": "Draw X less cards next turn.",
       "stacking": {
-        "mode": "intensity",
-        "amount_meaning": "Effect magnitude X; see the full effect and any additional state rather than assuming every scalar equals amount.",
+        "mode": "duration",
+        "amount_meaning": "Duration, not the number of cards subtracted from one draw: initial application reduces hand size by1 independently of amount.",
         "state": [
-          "amount; additional fields not enumerated by this summary"
+          "Duration",
+          "justApplied grace latch",
+          "One-card draw-size reduction while present"
         ],
         "caps": null
       },
       "lifecycle": {
         "triggers": [
-          "NEXT_PLAYER_DRAW_PHASE"
+          "INITIAL_APPLICATION",
+          "END_ROUND_AFTER_APPLICATION_GRACE",
+          "ON_REMOVE"
         ],
         "trigger_basis": "annotated finding at its stated grade",
-        "turn_progression": "The wiki indicates removal between turns but does not by itself establish the precise owner/phase.",
+        "turn_progression": "First atEndOfRound clears justApplied without reducing amount; subsequent callbacks reduce1. Real Head Slam1 therefore reduces the immediately upcoming start draw once.",
         "round_decay": null,
-        "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
+        "removal": "Owned-static onRemove restores one draw-size point, not the duration amount.",
         "reset": "Combat-scoped state. Resolve qualified victory/death effects before disposing of combat state; queueing is not proof of completion."
       },
       "source_owner_mentions": null,
@@ -5603,14 +5622,12 @@
         "effect": "Draw X less cards next turn."
       },
       "notes": [
-        "The Cargo row describes intensity reducing next-turn draw, while the broad Debuffs page describes one fewer draw for X turns. Preserve the disagreement instead of silently choosing a universal amount/duration law."
+        "The Cargo row describes intensity reducing next-turn draw, while the broad Debuffs page describes one fewer draw for X turns. Named owned-static constructor/application/end-round/removal paths establish one-card size reduction, grace then duration decay. Other draw replacement/modifier compositions and upstream build/channel remain unverified."
       ],
       "discrepancies": [
-        "Cargo calls Draw Reduction intensity/'Draw X less cards next turn'; Debuffs calls it duration/'Draw 1 less card for the next X turns'. Constructor/stack/lifecycle details remain unresolved here."
+        "Cargo calls Draw Reduction intensity/'Draw X less cards next turn'; Debuffs calls it duration/'Draw 1 less card for the next X turns'. Owned-static callbacks support the latter duration interpretation with an application-grace latch; retained wiki metadata is not silently rewritten."
       ],
-      "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID."
-      ],
+      "uncertainties": [],
       "citations": [
         {
           "kind": "wiki",
@@ -5620,6 +5637,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Time_Eater",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/56425",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task8 DrawReductionPower constructor/onInitialApplication/atEndOfRound/onRemove and next-start-draw caller",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         },
         {
           "kind": "wiki",
@@ -5639,10 +5662,10 @@
     {
       "key": "power.reference.explosive",
       "id": "REFERENCE.EXPLOSIVE",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Explosive",
+      "class_alias": "ExplosivePower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Explosive",
       "wiki_name": "Explosive",
       "owners": [
@@ -5654,7 +5677,7 @@
         "effect_on_owner": "MIXED",
         "basis": "community wiki classification, not independently constructor-verified"
       },
-      "effect": "Explodes after X turns, dealing some amount of damage.",
+      "effect": "Owned-static during-turn countdown: at1 while owner not dying, request self-suicide then fixed30 THORNS damage to player; otherwise reduce1. Other prevention composition and upstream build provenance unverified.",
       "stacking": {
         "mode": "duration",
         "amount_meaning": "Countdown; the explosion payload and enemy lifecycle are separate state.",
@@ -5666,9 +5689,9 @@
       },
       "lifecycle": {
         "triggers": [
-          "PASSIVE_OR_TRIGGER_NOT_SPECIFIED"
+          "OWNER_DURING_TURN"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -5683,11 +5706,10 @@
         "effect": "Explodes after X turns, dealing some amount of damage."
       },
       "notes": [
-        "Do not interpret the wiki's unspecified 'some amount' as zero damage. The Shapes/Exploder encounter owns its damage and suicide/settlement order."
+        "Owned-archive static finding: duringTurn at countdown1 while owner is not dying queues self-SuicideAction(true) before owner-attributed fixed30 THORNS damage to player; otherwise reduce1. Not an on-death explosion or ordinary Strength/Weak/Vulnerable Attack calculation. Other prevention compositions and upstream build/channel remain unverified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -5699,6 +5721,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Shapes",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62980",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task1 ExplosivePower constructor/duringTurn and SuicideAction",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -5709,10 +5737,10 @@
     {
       "key": "power.reference.fading",
       "id": "REFERENCE.FADING",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Fading",
+      "class_alias": "FadingPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Fading",
       "wiki_name": "Fading",
       "owners": [
@@ -5735,9 +5763,9 @@
       },
       "lifecycle": {
         "triggers": [
-          "PASSIVE_OR_TRIGGER_NOT_SPECIFIED"
+          "OWNER_DURING_TURN_AFTER_PAYLOAD"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -5752,11 +5780,10 @@
         "effect": "Dies in X turns."
       },
       "notes": [
-        "Its BUFF label does not imply practical benefit or permission for a generic debuff cleanse to remove it. Exact terminal and reward handling belongs to the encounter."
+        "Owned-static duringTurn reduces countdown, or at1 while owner not dying queues default self-SuicideAction. Named action-manager caller queues monster attack before this callback, so player-lethal fifth attack is Death before expiry, not successful survival. BUFF does not mean beneficial or generic debuff-cleanse eligible. Upstream build/channel unverified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -5768,6 +5795,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Transient",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62993",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task3 FadingPower.duringTurn and GameActionManager/AbstractCreature caller",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -5919,10 +5952,10 @@
     {
       "key": "power.reference.intangible_enemy",
       "id": "REFERENCE.INTANGIBLE_ENEMY",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Intangible",
+      "class_alias": "IntangiblePower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Intangible (enemy)",
       "wiki_name": "Intangible",
       "owners": [
@@ -5937,7 +5970,7 @@
       "effect": "Reduce ALL damage taken and HP loss to 1.",
       "stacking": {
         "mode": "duration",
-        "amount_meaning": "Enemy-side Intangible duration/state; the exact constructor ID is not supplied by the retained catalog.",
+        "amount_meaning": "Enemy-side duration plus justApplied state; absent initially for Nemesis, queued amount1 after an actual enemy move only if absent.",
         "state": [
           "amount; additional fields not enumerated by this summary"
         ],
@@ -5945,9 +5978,10 @@
       },
       "lifecycle": {
         "triggers": [
-          "PASSIVE_OR_TRIGGER_NOT_SPECIFIED"
+          "DAMAGE_FINAL_RECEIVE",
+          "OWNER_END_TURN"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "The wiki indicates decrementing; its precise hook/first-application behavior needs the named power's qualification.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -5962,12 +5996,10 @@
         "effect": "Reduce ALL damage taken and HP loss to 1."
       },
       "notes": [
-        "Nemesis alternates turns with Intangible. The public description does not establish that enemy expiry is the same callback as IntangiblePlayer's player end-round path."
+        "Owned-static IntangiblePower caps floating damage>1 at1 without a type filter. Nemesis.damage independently caps every positive DamageInfo output to1 before Block, including named HP_LOSS/Lightning THORNS/retaliation/FirePotion routes; zero unchanged. Same-round group end-turn callback clears justApplied, next round reduces/removes, yielding first protected player turn2 then alternating ordinary turns. This is not IntangiblePlayer's lifecycle or a direct-HP-mutation contract. Upstream build/channel unverified."
       ],
       "discrepancies": [],
-      "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID."
-      ],
+      "uncertainties": [],
       "citations": [
         {
           "kind": "wiki",
@@ -5982,6 +6014,12 @@
           "kind": "local_document",
           "path": "docs/research/2026-10-19-act1-transitive-execution-closure.md",
           "section": "section 5.2",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task5 IntangiblePower constructor/damage/turn callback, Nemesis.damage and ordinary group end scheduler closure",
           "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         },
         {
@@ -6081,10 +6119,10 @@
     {
       "key": "power.reference.life_link",
       "id": "REFERENCE.LIFE_LINK",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Life Link",
+      "class_alias": "RegrowPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Life Link",
       "wiki_name": "Life Link",
       "owners": [
@@ -6094,7 +6132,7 @@
       "classification": {
         "reference_type": "BUFF",
         "effect_on_owner": "BENEFICIAL",
-        "basis": "community wiki classification, not independently constructor-verified"
+        "basis": "qualified annotation; consult citations/discrepancies"
       },
       "effect": "If other Darklings are still alive, revives in 2 turns.",
       "stacking": {
@@ -6108,9 +6146,10 @@
       },
       "lifecycle": {
         "triggers": [
-          "PASSIVE_OR_TRIGGER_NOT_SPECIFIED"
+          "OWNER_HALF_DEATH",
+          "OWNER_REINCARNATION"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -6125,11 +6164,10 @@
         "effect": "If other Darklings are still alive, revives in 2 turns."
       },
       "notes": [
-        "Half-death and final group defeat are distinct. Fatal and rewards must not trigger on every temporary Darkling downing; a pending revive is not ordinary death followed by a fresh unrelated spawn."
+        "Owned-static Darkling downing invokes power onDeath/relic onMonsterDeath callbacks before clearing all powers, but does not settle the room. Regrowing then Reincarnate restores floor(maxHP/2), same actor and Nip; reapplies RegrowPower and invokes spawn callbacks. Separate Fatal/card-kill consumers and upstream build provenance remain qualified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6141,6 +6179,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Darkling",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62914",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task2 Darkling lifecycle and RegrowPower constructor",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6151,10 +6195,10 @@
     {
       "key": "power.reference.malleable",
       "id": "REFERENCE.MALLEABLE",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Malleable",
+      "class_alias": "MalleablePower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Malleable",
       "wiki_name": "Malleable",
       "owners": [
@@ -6179,7 +6223,7 @@
       "lifecycle": {
         "triggers": [
           "ON_ATTACK_DAMAGE_CALLBACK",
-          "OWNER_START_TURN"
+          "OWNER_END_TURN"
         ],
         "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
@@ -6196,11 +6240,10 @@
         "effect": "Upon receiving attack damage, gains X Block. Block gain increases as Malleable is triggered. Resets at the start of your turn."
       },
       "notes": [
-        "Its increasing within-turn Block response is not merely a permanent linear stack count. Exact qualifying hit predicate and reset checkpoint need the named owner path."
+        "Owned-static enemy callback requires nonnull attacker, NORMAL, positive damage strictly less than current HP. Queue current amount as Block at bottom, increment synchronously. Enemy resets to stored base at owner end-turn; player branch is end-round. Blocked/lethal hits excluded. Actual TwinStrike yields queued Block4 then5 after both earlier hits. Upstream build/channel unverified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6212,6 +6255,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Malleable",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/57486",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task4 MalleablePower constructor/onAttacked/atEndOfTurn and named caller closure",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6458,10 +6507,10 @@
     {
       "key": "power.reference.reactive",
       "id": "REFERENCE.REACTIVE",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Compulsive",
+      "class_alias": "ReactivePower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Reactive",
       "wiki_name": "Reactive",
       "owners": [
@@ -6501,11 +6550,10 @@
         "effect": "Upon receiving attack damage, changes its Intent."
       },
       "notes": [
-        "A qualifying Writhing Mass hit can change its live intent. Multi-hit attacks and subsequent choices must preserve the encounter's per-hit and history rules, not one reroll per card by assumption."
+        "Owned-static callback: nonnull attacker, neither THORNS nor HP_LOSS, positive damage strictly less than current HP; queue RollMove at bottom per qualifying hit. Fully blocked/lethal hits excluded. Native Lightning Orb retains source THORNS type. TwinStrike's earlier queued hits/cleanup precede appended reactions; do not extrapolate every dynamically produced hit. Upstream build/channel unverified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6517,6 +6565,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Writhing_Mass",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/57616",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task4 ReactivePower constructor/onAttacked and named damage/queue caller closure",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6527,10 +6581,10 @@
     {
       "key": "power.reference.regenerate",
       "id": "REFERENCE.REGENERATE",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Regenerate",
+      "class_alias": "RegenerateMonsterPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Regenerate",
       "wiki_name": "Regenerate",
       "owners": [
@@ -6569,13 +6623,13 @@
         "cap_raw": "",
         "effect": "At the end of its turn, heals X HP."
       },
-      "notes": [],
+      "notes": [
+        "Owned-static atEndOfTurn queues Heal(amount) only if owner is not halfDead/dying/dead, and neither decrements nor removes the amount. Awakened A0 starts10; first half-death cannot be healed by this callback. Distinct from the phase-change max-HP Heal and player Regen. Archive upstream build/channel unverified."
+      ],
       "discrepancies": [
         "The wiki table's BetweenTurns value 'Counter' must not import the player's decrementing Regen behavior into enemy regeneration."
       ],
-      "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID."
-      ],
+      "uncertainties": [],
       "citations": [
         {
           "kind": "wiki",
@@ -6591,6 +6645,12 @@
           "path": "docs/research/2026-10-19-act1-content-enemies.md",
           "section": "section 8 Burning Elite modifiers",
           "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task7 RegenerateMonsterPower constructor/atEndOfTurn and AwakenedOne phase ownership",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6601,10 +6661,10 @@
     {
       "key": "power.reference.shifting",
       "id": "REFERENCE.SHIFTING",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Shifting",
+      "class_alias": "ShiftingPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Shifting",
       "wiki_name": "Shifting",
       "owners": [
@@ -6616,7 +6676,7 @@
         "effect_on_owner": "HARMFUL",
         "basis": "community wiki classification, not independently constructor-verified"
       },
-      "effect": "Upon losing HP, loses that much Strength until the end of the turn.",
+      "effect": "Owned-static positive post-Block onAttacked callback damage queues temporary Strength loss; not necessarily final clamped HP lost. Restoration is separate Shackled state.",
       "stacking": {
         "mode": "nonstacking",
         "amount_meaning": "Presence/marker, not a linear magnitude; exact sentinel and duplicate-application behavior need qualification.",
@@ -6627,7 +6687,7 @@
       },
       "lifecycle": {
         "triggers": [
-          "ON_HP_LOSS"
+          "ON_POST_BLOCK_DAMAGE_CALLBACK"
         ],
         "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
@@ -6644,11 +6704,10 @@
         "effect": "Upon losing HP, loses that much Strength until the end of the turn."
       },
       "notes": [
-        "The Transient temporarily loses Strength proportional to HP lost; the restoration state is separate from its current Strength. Do not treat blocked nominal damage as HP loss."
+        "No NORMAL-only predicate. The callback precedes HP overkill clamp; fully blocked damage does not qualify. If Artifact is absent at callback, queue Shackled ahead of negative Strength; otherwise omit restoration and let Artifact prevent the loss. Owner-end-turn restoration is distinct from Transient's escalating base. Upstream build/channel unverified."
       ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6660,6 +6719,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Transient",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62993",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task3 ShiftingPower.onAttacked, AbstractMonster.damage and GainStrengthPower.atEndOfTurn",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6670,10 +6735,10 @@
     {
       "key": "power.reference.slow",
       "id": "REFERENCE.SLOW",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Slow",
+      "class_alias": "SlowPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Slow",
       "wiki_name": "Slow",
       "owners": [
@@ -6683,7 +6748,7 @@
       "classification": {
         "reference_type": "DEBUFF",
         "effect_on_owner": "HARMFUL",
-        "basis": "community wiki classification, not independently constructor-verified"
+        "basis": "qualified annotation; consult citations/discrepancies"
       },
       "effect": "Whenever you play a card, target receives 10% more damage from Attacks this turn. (Receives (X+10)% more damage)",
       "stacking": {
@@ -6696,9 +6761,11 @@
       },
       "lifecycle": {
         "triggers": [
-          "DESCRIPTION_CARD_PLAY_RELATED"
+          "AFTER_CARD_USE",
+          "NORMAL_DAMAGE_RECEIVE",
+          "END_OF_ROUND"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -6712,10 +6779,11 @@
         "cap_raw": "",
         "effect": "Whenever you play a card, target receives 10% more damage from Attacks this turn. (Receives (X+10)% more damage)"
       },
-      "notes": [],
+      "notes": [
+        "Starts0 and stays present. Unsuppressed onAfterUseCard queues +1 after the card's earlier payload, so no self-amplification or per-hit counting. NORMAL floating damage scales by1+0.1*amount in receive-power order before one final floor. End-round sets0; does not remove. THORNS/HP_LOSS excluded. Static finding, not original-runtime validation."
+      ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6727,6 +6795,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Giant_Head",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/57213",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task5 SlowPower constructor/onAfterUseCard/atDamageReceive/atEndOfRound and named card/damage caller closure",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6807,10 +6881,10 @@
     {
       "key": "power.reference.strength_up",
       "id": "REFERENCE.STRENGTH_UP",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Generic Strength Up Power",
+      "class_alias": "GenericStrengthUpPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Strength Up",
       "wiki_name": "Strength Up",
       "owners": [
@@ -6822,7 +6896,7 @@
         "effect_on_owner": "BENEFICIAL",
         "basis": "community wiki classification, not independently constructor-verified"
       },
-      "effect": "At the end of its turn, gains Strength.",
+      "effect": "Owned-static end-of-round callback requests Strength equal to this amount without decrementing itself; supersedes owner-end-turn wording. Upstream build provenance unverified.",
       "stacking": {
         "mode": "intensity",
         "amount_meaning": "Effect magnitude X; see the full effect and any additional state rather than assuming every scalar equals amount.",
@@ -6833,9 +6907,9 @@
       },
       "lifecycle": {
         "triggers": [
-          "DESCRIPTION_OWNER_END_TURN"
+          "END_ROUND"
         ],
-        "trigger_basis": "primary-description cues only, not source callback names",
+        "trigger_basis": "annotated finding at its stated grade",
         "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
@@ -6849,10 +6923,11 @@
         "cap_raw": "",
         "effect": "At the end of its turn, gains Strength."
       },
-      "notes": [],
+      "notes": [
+        "Owned-archive static finding: atEndOfRound queues Strength equal to this amount without decrementing it. Orb Walker applies3 belowA17 and5 thereafter, not an owner-end-turn trigger. Upstream build/channel unverified."
+      ],
       "discrepancies": [],
       "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
         "The primary table does not specify exact expiry/reset/removal timing."
       ],
       "citations": [
@@ -6864,6 +6939,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Orb_Walker",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62977",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task1 GenericStrengthUpPower constructor/atEndOfRound and OrbWalker.usePreBattleAction",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         }
       ],
       "evidence": {
@@ -6955,10 +7036,10 @@
     {
       "key": "power.reference.time_warp",
       "id": "REFERENCE.TIME_WARP",
-      "game_id": null,
-      "class_alias": null,
+      "game_id": "Time Warp",
+      "class_alias": "TimeWarpPower",
       "reference_extension": true,
-      "identity_grade": "unresolved_constructor_id",
+      "identity_grade": "documented_in_local_research",
       "name": "Time Warp",
       "wiki_name": "Time Warp",
       "owners": [
@@ -6982,10 +7063,10 @@
       },
       "lifecycle": {
         "triggers": [
-          "ON_PLAYER_CARD_PLAY"
+          "ON_AFTER_USE_CARD"
         ],
         "trigger_basis": "annotated finding at its stated grade",
-        "turn_progression": "Not specified by the primary summary; see the supporting page and qualified notes.",
+        "turn_progression": "Owned-static amount starts0, persists across turns, increments per unsuppressed onAfterUseCard, resets0 at exactly12 before the forced-end request and queued group Strength2.",
         "round_decay": null,
         "removal": "Effect-specific consumption, cleansing, explicit removal and combat settlement require their own qualified path; no universal removal rule inferred.",
         "reset": "Combat-scoped state. Resolve qualified victory/death effects before disposing of combat state; queueing is not proof of completion."
@@ -6999,13 +7080,10 @@
         "effect": "Whenever you play a certain number of cards, ends your turn and gains X Strength."
       },
       "notes": [
-        "The retained Buffs page explicitly describes a twelve-card threshold; the Time Eater power summary only says 'a certain number'. Preserve per-play counting and qualified forced-end-turn arbitration, including Vault/Omniscience exceptions; this is not an energy-payment limit."
+        "The retained Buffs page explicitly describes a twelve-card threshold; the Time Eater power summary only says 'a certain number'. Owned-static callback follows the current card's payload/selection but precedes its disposition. The early-end pipeline preserves ordinary actions and current-card cleanup, then uses the normal end-turn scheduler without another input opportunity; not a queue wipe. dontTriggerOnUseCard suppresses the callback; arbitrary autoplay, Vault/Omniscience and simultaneous-lethal compositions are not closed here. Upstream build/channel unverified."
       ],
       "discrepancies": [],
-      "uncertainties": [
-        "Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.",
-        "The primary table does not specify exact expiry/reset/removal timing."
-      ],
+      "uncertainties": [],
       "citations": [
         {
           "kind": "wiki",
@@ -7015,6 +7093,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Time_Eater",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/56425",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "data/enemies/m8-static-findings.md",
+          "section": "Task8 TimeWarpPower constructor/onAfterUseCard and named UseCardAction/early-end caller closure",
+          "grade": "retained source-grounded draft/local finding; unresolved composition fields not promoted"
         },
         {
           "kind": "wiki",

@@ -43,6 +43,9 @@ impl CardDefinition {
 }
 
 pub(crate) const CARDS: &[CardDefinition] = &[
+    supported(CardId::Inflame,CardColor::Red,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Void,CardColor::Status,CardRarity::Status,CardType::Status,NoteStorage::TemporaryOnly),
+    supported(CardId::Parasite,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
     supported(CardId::Strike, CardColor::Red, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::Defend, CardColor::Red, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
     card(CardId::Bash, CardColor::Red, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),

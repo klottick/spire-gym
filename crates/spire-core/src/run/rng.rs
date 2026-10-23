@@ -3,9 +3,10 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder }
+    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
+        Self::Act3Falling=>"run.act3.falling",
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -19,6 +20,7 @@ impl RunRngScope {
         Self::Act3BossOrder=>"run.act3.boss_order",
     } }
     pub fn parse(value:&str)->Result<Self,RunRngScopeError> { match value {
+        "run.act3.falling"=>Ok(Self::Act3Falling),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
@@ -32,6 +34,22 @@ impl RunRngScope {
         "run.act3.boss_order"=>Ok(Self::Act3BossOrder),
         _=>Err(RunRngScopeError::Unregistered(value.to_owned())),
     }}
+}
+
+#[cfg(test)]
+mod m8_falling_tests{
+    use super::*;
+    use crate::{content::{CardId,Character,EventId},run::*};
+    #[test]
+    fn m8_falling_scope_frontier_is_checked_before_event_publication(){
+        assert_eq!(RunRngScope::parse("run.act3.falling"),Ok(RunRngScope::Act3Falling));
+        let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
+        let mut run=Run::new_room_scenario(RunConfig{character:Character::Ironclad,ascension:0},profile,RunRng::new([7;32],Partition::Test,0),RoomScenario::M4Act1Prefix).unwrap();
+        let id=run.decision().unwrap().room.unwrap().choices.iter().find(|c|matches!(c.kind,RoomChoiceKind::NeowMaxHp{..})).unwrap().id;run.step(&GameAction::Choose(id)).unwrap();run.state.act=3;run.state.map.as_mut().unwrap().act=3;run.state.deck=vec![CardInstance{id:CardId::Strike,instance:1,upgrades:0}];
+        let semantic=vec![3,10,0,0];run.state.rng.counters.insert((RunRngScope::Act3Falling,semantic.clone()),u64::MAX);let frozen=run.clone();let mut next=run.next_choice;let token=next;
+        assert!(crate::run::rooms::events::act3::prepare(&run,EventId::Falling,NodeId(10),0,&mut next).is_err());assert!(run==frozen);assert_eq!(next,token);
+        run.state.rng.counters.insert((RunRngScope::Act3Falling,semantic.clone()),u64::MAX-1);let prepared=crate::run::rooms::events::act3::prepare(&run,EventId::Falling,NodeId(10),0,&mut next).unwrap();assert_eq!(prepared.rng.counters.get(&(RunRngScope::Act3Falling,semantic)),Some(&u64::MAX));
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)] pub enum RunRngScopeError { Unregistered(String) }
 
@@ -63,6 +81,16 @@ impl RunRng {
         assert!(bound>0,"bounded selection requires a nonzero domain");
         let zone=u64::MAX-(u64::MAX%bound);
         loop { let value=self.draw_scoped(scope,semantic); if value<zone { return (value%bound) as usize; } }
+    }
+    /// Checked draws for detached Falling preparation; do not reuse a saturated
+    /// ticket. Existing accepted scopes retain their established implementation.
+    pub(in crate::run) fn bounded_scoped_checked(&mut self,scope:RunRngScope,semantic:&[u64],bound:u64)->Result<usize,super::RunError>{
+        if bound==0{return Err(super::RunError::InvalidAction)}
+        let zone=u64::MAX-(u64::MAX%bound);
+        loop{
+            if self.counters.get(&(scope,semantic.to_vec()))==Some(&u64::MAX){return Err(super::RunError::Unsupported("run scoped RNG exhausted"))}
+            let value=self.draw_scoped(scope,semantic);if value<zone{return Ok((value%bound) as usize)}
+        }
     }
     /// Derive a native combat stream from the same run identity while keeping
     /// every actor's AI stream distinct from shuffle and peer actors.

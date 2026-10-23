@@ -60,6 +60,11 @@ Ironclad A0 Act 1 scope is **not promoted** to all-character, transitive,
 full-run or original-runtime validation. The remaining records do not acquire
 that evidence grade just because their identity appears in the catalog.
 
+Red Mask additionally has a separately scoped [M8 owned-static finding](../enemies/m8-static-findings.md)
+for battle-start membership/Weak/Artifact and Tomb payment/acquisition. It does
+not join or upgrade the historical141-record lane. The owned archive's upstream
+build/channel and original-runtime behavior remain unverified.
+
 The retained local boundary codes are: `X` execution/queue/terminal composition,
 `H` acquisition/continuations, `G` generation/history laws, `P` transitive payloads,
 `V` public-information integration, and `R` a traced local resource rule. `R`

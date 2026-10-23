@@ -21,8 +21,8 @@ ordinary recipients, **not** the sources applying them or arbitrary debug/mod
 compatibility. Hex and Constricted are carried by the player even though enemies
 apply them; Poison is normally carried by enemies.
 
-**Identity qualification:** 107 records have documented ID literals (the 106-key
-catalog plus the locally documented `Night Terror` family). **26 supplementary
+**Identity qualification:** 121 records have documented ID literals (the 106-key
+catalog, locally documented `Night Terror` and fourteen [M8 owned-static constructors](../enemies/m8-static-findings.md)). **12 supplementary
 records intentionally have `game_id: null`** because an exact constructor ID was
 not established by the retained public documentation. These are listed in the data,
 not silently guessed from names such as Flying, Regenerate, or Beat of Death.
@@ -116,8 +116,9 @@ Examples of distinctions retained in the records:
 - Wraith Form's signed recurring downside has an end-turn finding in the retained
   draft, contrary to the wiki's start-turn description. Retain Cards likewise has
   an end-turn selection finding despite the wiki's start-turn wording.
-- The wiki Draw Reduction intensity/duration accounts disagree and are not silently
-  converted into a single unqualified amount/expiry law.
+- The wiki Draw Reduction intensity/duration accounts disagree. Named owned-static
+  callbacks establish one-card size reduction with application grace then duration
+  decay; the discrepancy and unverified upstream build remain explicit.
 - Duplication's Cargo “Conserved” label and potion “This turn” tooltip conflict
   with the retained potion finding: qualifying uses consume charges, and end-round
   removes an already-zero power or reduces a positive amount by one. Neither
@@ -143,6 +144,12 @@ Vault's supporting revision is reused from the existing public card snapshot, as
 recorded in retrieval metadata.
 
 Existing authored public research is reused, not private archives/source:
+
+M8 additionally records targeted, user-authorized owned-archive static findings
+for Explosive/Generic Strength Up/Life Link/Constricted/Shifting/Fading/Reactive/Malleable/Slow/enemy Intangible/Curiosity/Regenerate/Time Warp/Draw Reduction identities
+and timing. The archive's upstream
+build/channel is unverified; these are not original-runtime or target-version proof.
+Only independently worded findings and citations are public, not private source.
 
 - [Exact catalog IDs/classes and direct source mentions, §2.9](../../docs/research/2026-10-19-act1-complete-catalog-numeric.md)
 - [Ironclad/shared effects](../../docs/research/2026-10-19-act1-content-red-colorless.md)
@@ -177,7 +184,7 @@ python3.12 data/powers/build_dataset.py --check
 python3.12 -m unittest discover -s tests/python -p 'test_power_reference*.py' -v
 ```
 
-The twelve focused checks protect source normalization/identity coverage and selected
+The focused checks protect source normalization/identity coverage and selected
 owner/classification/lifecycle distinctions, not the simulator's mechanics.
 `--check` performs an in-memory regeneration and byte-for-byte comparison.
 

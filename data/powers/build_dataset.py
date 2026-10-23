@@ -15,6 +15,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 CATALOG = "docs/research/2026-10-19-act1-complete-catalog-numeric.md"
 RESEARCH = {
+    "M8": "data/enemies/m8-static-findings.md",
     "RED": "docs/research/2026-10-19-act1-content-red-colorless.md",
     "SILENT": "docs/research/2026-10-19-act1-content-silent.md",
     "DEFECT": "docs/research/2026-10-19-act1-content-defect.md",

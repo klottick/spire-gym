@@ -93,7 +93,7 @@ fn rollout(mut run:Run,budget:usize,die:bool)->Result<Act2Report,String>{
 }
 
 type RouteMemo=BTreeMap<(NodeId,u8,bool,bool),Option<i32>>;
-fn path_score(map:&PublicMap,id:NodeId,ordinary:u8,elite:bool,event:bool,memo:&mut RouteMemo)->Option<i32>{
+pub(super) fn path_score(map:&PublicMap,id:NodeId,ordinary:u8,elite:bool,event:bool,memo:&mut RouteMemo)->Option<i32>{
     let key=(id,ordinary,elite,event);if let Some(score)=memo.get(&key){return *score}let n=map.nodes.iter().find(|n|n.id==id)?;
     let ordinary=if map.act==2&&n.kind==MapNodeKind::Monster{(ordinary+1).min(2)}else{ordinary};
     let elite=elite||n.kind==MapNodeKind::Elite;let event=event||map.act==2&&n.kind==MapNodeKind::Question;

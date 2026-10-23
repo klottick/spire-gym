@@ -7,6 +7,7 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     use crate::content::CardId::*;
     let upgraded = card.upgrades > 0;
     let result = match card.id {
+        Inflame=>{if target.is_some(){return Err(crate::run::RunError::InvalidAction)}(1,vec![(Some(PayloadTarget::Player),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if upgraded{3}else{2}})])},
         Bludgeon=>{
             let Some(target_id)=target else{return Err(crate::run::RunError::InvalidAction)};
             let damage=modified_damage(state,target_id,if upgraded{42}else{32})?;
@@ -159,10 +160,8 @@ fn modified_damage_for_enemy(state: &State, enemy: &super::super::model::EnemySt
     let strength = state.player.powers.iter().find(|p| p.id == PowerId::Strength)
         .map_or(0, |p| p.state.amount)
         + state.player_full_powers.iter().filter(|p| p.id.0 == "strength").map(|p| p.state.amount).sum::<i32>();
-    let vulnerable = enemy.powers.iter().any(|p| p.id == PowerId::Vulnerable && p.state.amount > 0)
-        || enemy.full_powers.iter().any(|p| p.id.0 == "vulnerable" && p.state.amount > 0);
     let weak = state.player_full_powers.iter().any(|p| p.id.0 == "weak" && p.state.amount > 0);
-    super::normal_damage(state, base, strength, weak, vulnerable)
+    super::normal_damage(state, base, strength, weak, enemy)
 }
 
 fn player_strength(state: &State) -> Result<i32, crate::run::RunError> {
@@ -178,10 +177,8 @@ fn modified_damage_with_strength(state: &State, target: u64, base: i32, strength
 {
     let enemy = state.enemies.get((target - 1) as usize)
         .filter(|enemy| enemy.hp > 0).ok_or(crate::run::RunError::InvalidAction)?;
-    let vulnerable = enemy.powers.iter().any(|p| p.id == PowerId::Vulnerable && p.state.amount > 0)
-        || enemy.full_powers.iter().any(|p| p.id.0 == "vulnerable" && p.state.amount > 0);
     let weak = state.player_full_powers.iter().any(|p| p.id.0 == "weak" && p.state.amount > 0);
-    super::normal_damage(state, base, strength, weak, vulnerable)
+    super::normal_damage(state, base, strength, weak, enemy)
 }
 
 fn has_strike_tag(id: crate::content::CardId) -> bool {

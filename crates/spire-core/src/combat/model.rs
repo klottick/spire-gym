@@ -178,10 +178,12 @@ pub struct FullCombatSetup {
 /// Full entry has typed actors/streams and never needs placeholder legacy rows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatEntry { pub setup: FullCombatSetup, pub opening_draw: usize, pub cards: Vec<super::card_state::LiveCard> }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(crate) struct PermanentCardGain{pub ordinal:u64,pub id:crate::content::CardId,pub upgrades:u32}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DamageEntry { pub base: i32, pub output: i32 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ActorLife { Active, Replaced, Escaped }
+pub enum ActorLife { Active, Replaced, Escaped, HalfDead }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyState {
@@ -264,7 +266,7 @@ pub enum DamagePayload {
 }
 /// Detached result from the single shared damage commit, not a second calculator.
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bool,pub hp_loss:bool,pub attempted:i32,pub blocked:i32,pub hp_lost:i32,pub hp_after:i32}
+pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bool,pub hp_loss:bool,pub thorns:bool,pub attempted:i32,pub blocked:i32,pub hp_lost:i32,pub hp_after:i32}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -275,7 +277,7 @@ pub enum EffectKind {
     FinishCard, Decision,
     Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
     DrawOne, AfterCardDrawn { card:CardHandle },
-    GainEnergy(i32),
+    GainEnergy(i32),LoseEnergy(i32),
     CreateCard { id: crate::content::CardId, destination: super::command::CardDestination, upgrades: u32 },
     CopyCard { source: CardHandle, destination: super::command::CardDestination },
     ExhaustHandCard { instance: super::CardInstanceId },
@@ -299,6 +301,13 @@ pub enum EffectKind {
     ChampCleanse,
     CollectorSuicide,
     AutomatonSuicide,
+    ShapeSuicide,ShapeDamageComplete,
+    RevivalHeal(i32),DarklingCollapse,DarklingRevive,DarklingsDefeat,
+    TransientFade,TransientRecover,MawNom{remaining:u32},
+    ObtainParasite,ResetMalleable,
+    ReptomancerSuicide,
+    AwakenedCollapse,AwakenedRebirth,AwakenedCanLose,
+    TimeWarpEndTurn,TimeEaterCleanse,
     CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -331,6 +340,9 @@ pub(super) struct State {
     pub spawn_ordinals:BTreeMap<EnemyHandle,u64>,
     pub spawn_progress:Option<super::enemies::act2::spawn::SpawnProgress>,
     pub stasis:BTreeMap<EnemyHandle,OwnedCard>,
+    pub permanent_gains:Vec<PermanentCardGain>,pub next_permanent_gain:u64,
+    pub played_powers:Vec<OwnedCard>,
+    pub pending_time_warp:Option<EnemyHandle>,
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {

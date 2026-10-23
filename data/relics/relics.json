@@ -7285,6 +7285,13 @@
       "id": "RED_MASK",
       "key": "relic.red_mask",
       "game_id": "Red Mask",
+      "static_qualification": {
+        "source": "local:m8-events",
+        "target_snapshot": "CURRENT_GROUP_IN_ORDER_AT_BATTLE_START",
+        "application": "PLAYER_SOURCE_WEAK1_ORDINARY_ARTIFACT",
+        "upstream_build_channel_verified": false,
+        "original_runtime_validated": false
+      },
       "name": "Red Mask",
       "tier": "SPECIAL",
       "characters": [
@@ -7308,7 +7315,8 @@
       "state_and_reset": "Apply 1 Weak to all initial enemies each combat; no persistent counter.",
       "notes": [
         "Enemy Artifact can block the debuff",
-        "Can also serve as a condition in Tomb of Lord Red Mask."
+        "Owned-static atBattleStart snapshots every current group entry in order and queues player-source Weak1; ordinary ApplyPower target guards and per-target Artifact apply. Later summons are not enumerated retroactively, and this is not a per-turn hook.",
+        "Owned-static Tomb: owned Mask enables222 gold; otherwise payment is ALL current gold, including0, before actual Red Mask acquisition and result/Leave. Preview is not obtain. Build/channel unverified; other event pools and original runtime remain unproven."
       ],
       "rng": {
         "kind": "none",
@@ -7316,6 +7324,7 @@
         "original_prng_parity_required": false
       },
       "citations": [
+        "local:m8-events",
         "wiki:RED_MASK",
         "wiki:Relics",
         "local:catalog",

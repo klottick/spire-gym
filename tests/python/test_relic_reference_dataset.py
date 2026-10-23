@@ -118,6 +118,16 @@ class RelicDatasetTests(unittest.TestCase):
         self.assertEqual(self.by_id["MARK_OF_PAIN"]["rng"]["kind"], "direct")
         self.assertTrue(self.by_id["MARK_OF_PAIN"]["uncertainties"])
 
+    def test_m8_red_mask_keeps_startup_snapshot_and_artifact_source_qualified(self):
+        record = self.by_id["RED_MASK"]
+        facts = record["static_qualification"]
+        self.assertEqual(facts["target_snapshot"], "CURRENT_GROUP_IN_ORDER_AT_BATTLE_START")
+        self.assertEqual(facts["application"], "PLAYER_SOURCE_WEAK1_ORDINARY_ARTIFACT")
+        self.assertFalse(facts["upstream_build_channel_verified"])
+        self.assertFalse(facts["original_runtime_validated"])
+        self.assertIn("local:m8-events", record["citations"])
+        self.assertIsNone(record["local_static"], "new finding must not upgrade the historical 141-record lane")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,10 @@
 use super::*;
 pub(in crate::run) fn screen(run:&Run,next:&mut u64)->Result<RoomView,RunError>{
     if uses_captured_act1(&run.state){
-        let later=(uses_captured_act2(&run.state)&&run.state.act==2)||run.state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).is_some_and(|p|p.shop_visits>0);
+        let later=(uses_captured_act2(&run.state)&&run.state.act==2)||(uses_captured_act3(&run.state)&&run.state.act==3)||run.state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).is_some_and(|p|p.shop_visits>0);
         let (card,price,potion,relic)=if later{(CardId::Clothesline,50,PotionId::StrengthPotion,RelicId::Anchor)}else{(CardId::IronWave,25,PotionId::FirePotion,RelicId::BloodVial)};
         let mut rows=vec![(RoomChoiceKind::Card{id:card,upgrades:0},Some(price)),(RoomChoiceKind::Potion(potion),Some(50))];
-        if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
+        if !run.state.relics.contains(&relic)||(uses_captured_act3(&run.state)&&run.state.act==3){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
         rows.extend([(RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().unwrap().purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }

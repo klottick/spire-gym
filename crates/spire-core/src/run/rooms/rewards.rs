@@ -3,7 +3,7 @@ use super::*;
 pub(crate) enum RewardReturn { Map,BossTreasure }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct CapturedRewards {pub cards:RoomView,pub return_to:RewardReturn}
-pub(in crate::run) struct PreparedRoomRewards {screen:RoomView,rng:RunRng,next:u64,captured:Option<CapturedRewards>,elite_cursor:Option<usize>,act2:bool}
+pub(in crate::run) struct PreparedRoomRewards {screen:RoomView,rng:RunRng,next:u64,captured:Option<CapturedRewards>,elite_cursor:Option<usize>,act:u8}
 pub(in crate::run) fn capture_elite_relic(start:usize,owned:&[RelicId])->Result<(RelicId,usize),RunError>{
     const RELICS:[RelicId;8]=[RelicId::Lantern,RelicId::Pear,RelicId::Mango,RelicId::MagicFlower,RelicId::ToyOrnithopter,RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial];
     let index=(start..RELICS.len()).find(|i|!owned.contains(&RELICS[*i])).ok_or(RunError::Unsupported("captured elite relic sequence exhausted"))?;
@@ -12,17 +12,17 @@ pub(in crate::run) fn capture_elite_relic(start:usize,owned:&[RelicId])->Result<
 pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
     if !matches!(run.state.active_combat.as_ref().map(|a|a.origin),Some(CombatOrigin::MapRoom{..}))||record.outcome!=crate::combat::Outcome::Victory{return Ok(None)}
     let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
-    let m5=uses_captured_act1(&run.state);let m6=uses_captured_act2(&run.state)&&run.state.act==2;let kind=match run.state.active_combat.as_ref().unwrap().origin{CombatOrigin::MapRoom{kind,..}=>kind,_=>unreachable!()};
+    let m5=uses_captured_act1(&run.state);let m6=uses_captured_act2(&run.state)&&run.state.act==2;let m8=uses_captured_act3(&run.state)&&run.state.act==3;let kind=match run.state.active_combat.as_ref().unwrap().origin{CombatOrigin::MapRoom{kind,..}=>kind,_=>unreachable!()};
     let mut rng=run.state.rng.clone();let mut semantic=vec![run.state.act as u64,node.0,record.visit];if m5{semantic.push(kind as u64);}
     let minimum=if m5{match kind{MapNodeKind::Elite=>25,MapNodeKind::Boss=>95,_=>10}}else{10};
     let gold=minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32;
-    let local=if m6{run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else{record.visit};
+    let local=if m8{run.state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else if m6{run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else{record.visit};
     let ordinal=(local%3) as usize;let potion=if m5{[PotionId::FirePotion,PotionId::StrengthPotion,PotionId::WeakPotion][ordinal]}else{PotionId::FirePotion};
     let mut rows=vec![(RoomChoiceKind::Gold(gold),None),(RoomChoiceKind::CardReward,None),(RoomChoiceKind::Potion(potion),None)];let mut elite_cursor=None;
     if m5&&kind==MapNodeKind::Elite {
         let owned=run.state.combat.as_ref().and_then(|c|c.item_context()).map_or(run.state.relics.as_slice(),|c|c.relics());
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-        let start=if m6{room.act2.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor};
+        let start=if m8{room.act3.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else if m6{room.act2.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor};
         let (relic,next)=capture_elite_relic(start,owned)?;
         rows.push((RoomChoiceKind::Relic(relic),None));elite_cursor=Some(next);
         if !run.state.keys[2]&&run.state.map.as_ref().unwrap().nodes.iter().any(|n|n.id==node&&n.burning){rows.push((RoomChoiceKind::Emerald,None));}
@@ -30,16 +30,15 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     rows.push((RoomChoiceKind::Proceed,None));
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
     let captured=if m5 {
-        let triple=if kind==MapNodeKind::Boss{[CardId::Bludgeon,CardId::Impervious,CardId::Offering]}else{[[CardId::IronWave,CardId::ShrugItOff,CardId::Anger],[CardId::Clothesline,CardId::PommelStrike,CardId::Disarm],[CardId::Cleave,CardId::TwinStrike,CardId::Thunderclap]][ordinal]};
+        let triple=if m8&&local==0&&kind==MapNodeKind::Monster{[CardId::Inflame,CardId::ShrugItOff,CardId::Anger]}else if kind==MapNodeKind::Boss{[CardId::Bludgeon,CardId::Impervious,CardId::Offering]}else{[[CardId::IronWave,CardId::ShrugItOff,CardId::Anger],[CardId::Clothesline,CardId::PommelStrike,CardId::Disarm],[CardId::Cleave,CardId::TwinStrike,CardId::Thunderclap]][ordinal]};
         let mut rows=triple.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},None)).collect::<Vec<_>>();rows.push((RoomChoiceKind::Skip,None));
         Some(CapturedRewards{cards:view(&mut next,RoomViewKind::CardReward,rows)?,return_to:if kind==MapNodeKind::Boss{RewardReturn::BossTreasure}else{RewardReturn::Map}})
     }else{None};
-    Ok(Some(PreparedRoomRewards{screen,rng,next,captured,elite_cursor,act2:m6}))
+    Ok(Some(PreparedRoomRewards{screen,rng,next,captured,elite_cursor,act:run.state.act}))
 }
 pub(in crate::run) fn commit_combat(run:&mut Run,prepared:PreparedRoomRewards){
     run.state.rng=prepared.rng;run.next_choice=prepared.next;let room=run.state.room_loop.as_mut().unwrap();room.screen=prepared.screen;room.active_rewards=prepared.captured;
-    if prepared.act2{if let Some(cursor)=prepared.elite_cursor{room.act2.as_mut().unwrap().elite_relic_cursor=cursor;}}
-    else if let Some(cursor)=prepared.elite_cursor{room.act1.as_mut().unwrap().elite_relic_cursor=cursor;}
+    if let Some(cursor)=prepared.elite_cursor{match prepared.act{3=>room.act3.as_mut().unwrap().elite_relic_cursor=cursor,2=>room.act2.as_mut().unwrap().elite_relic_cursor=cursor,_=>room.act1.as_mut().unwrap().elite_relic_cursor=cursor}}
 }
 fn claimed(run:&mut Run,id:ChoiceId){run.state.room_loop.as_mut().unwrap().screen.choices.iter_mut().find(|c|c.id==id).unwrap().status=RoomChoiceStatus::Claimed;}
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{

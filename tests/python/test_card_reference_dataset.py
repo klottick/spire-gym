@@ -27,7 +27,22 @@ class CardReferenceDatasetTests(unittest.TestCase):
         })
         for color, game_suffix in (("RED", "R"), ("GREEN", "G"), ("BLUE", "B"), ("PURPLE", "P")):
             for kind in ("STRIKE", "DEFEND"):
-                self.assertEqual(self.cards[f"{kind}_{color}"]["game_id"], f"{kind.title()}_{game_suffix}")
+                    self.assertEqual(self.cards[f"{kind}_{color}"]["game_id"], f"{kind.title()}_{game_suffix}")
+
+    def test_m8_parasite_static_removal_note_is_cited_without_runtime_promotion(self):
+        card = self.cards["PARASITE"]
+        self.assertIsNone(card["upgraded"])
+        self.assertTrue(any(r["path"] == "data/enemies/m8-static-findings.md" for r in card["local_research"]))
+        self.assertTrue(any("floor" in note.lower() and "max" in note.lower() for note in card["research_notes"]))
+        self.assertFalse(card["evidence"]["original_runtime_validated"])
+
+    def test_m8_inflame_void_disposition_draw_notes_keep_owned_static_citations(self):
+        for identity in ("INFLAME", "VOID"):
+            card = self.cards[identity]
+            self.assertTrue(any(r["path"] == "data/enemies/m8-static-findings.md" for r in card["local_research"]))
+            self.assertFalse(card["evidence"]["original_runtime_validated"])
+        self.assertIsNone(self.cards["VOID"]["upgraded"])
+        self.assertTrue(any("bottom" in note.lower() for note in self.cards["VOID"]["research_notes"]))
 
     def test_every_wiki_row_has_exactly_one_record_and_revision_citation(self):
         rows = json.loads((DATA / "sources/wiki-cards.json").read_text())

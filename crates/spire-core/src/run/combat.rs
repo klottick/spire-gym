@@ -6,7 +6,26 @@ use crate::{combat::{Combat, CombatEntry, CombatEntryFailure, PlayerState, CardI
 use std::collections::BTreeSet;
 use crate::combat::{CombatAction, CombatExit, CombatCardRef, Outcome};
 
-fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Option<u64>),RunError> {
+/// All allocation and membership checks precede any permanent Run mutation. The
+/// source journal remains readable after a native fault and is never consumed.
+fn prepare_gains(state:&RunState)->Result<Option<(Vec<CardInstance>,u64,u64)>,RunError>{
+    let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let journal=state.combat.as_ref().ok_or(RunError::InvalidAction)?.permanent_gains();
+    if journal.is_empty()&&active.applied_gain_ordinal==0&&active.acquired_instances.is_empty(){return Ok(None)}
+    let applied=usize::try_from(active.applied_gain_ordinal).map_err(|_|RunError::InvalidAction)?;
+    if applied>journal.len()||active.acquired_instances.len()!=applied||!state.relics.is_empty()||!state.potions.is_empty()||!state.relic_counters.is_empty(){return Err(RunError::InvalidAction)}
+    for (i,gain) in journal.iter().enumerate(){if gain.ordinal!=i as u64+1||gain.id!=CardId::Parasite||gain.upgrades!=0{return Err(RunError::InvalidAction)}}
+    let mut existing=BTreeSet::new();if state.deck.iter().any(|c|c.instance==0||!existing.insert(c.instance)){return Err(RunError::InvalidAction)}
+    let mut mapped=BTreeSet::new();for (gain,id) in journal[..applied].iter().zip(&active.acquired_instances){if !mapped.insert(*id)||!state.deck.iter().any(|c|c.instance==*id&&c.id==gain.id&&c.upgrades==gain.upgrades){return Err(RunError::InvalidAction)}}
+    if applied==journal.len(){return Ok(None)}
+    let pending=&journal[applied..];if state.deck.len().checked_add(pending.len()).is_none_or(|n|n>999){return Err(RunError::Unsupported("permanent deck capacity exhausted"))}
+    let count=u64::try_from(pending.len()).map_err(|_|RunError::InvalidAction)?;
+    let next=state.next_instance.checked_add(count).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+    let mut cards=Vec::with_capacity(pending.len());for (i,gain) in pending.iter().enumerate(){let instance=state.next_instance+i as u64;if instance==0||existing.contains(&instance){return Err(RunError::InvalidAction)}cards.push(CardInstance{instance,id:gain.id,upgrades:gain.upgrades});}
+    Ok(Some((cards,next,journal.last().unwrap().ordinal)))
+}
+
+fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Option<(u8,u64)>),RunError> {
     let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let settled=state.combat_progress.settled.checked_add(1).ok_or(RunError::Unsupported("settlement count exhausted"))?;
     if settled!=state.combat_progress.entered || active.visit!=state.combat_progress.settled
@@ -17,18 +36,19 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
         return Err(RunError::InvalidAction);
     }
     let mut seen=BTreeSet::new();
-    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.stasis) {
+    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.stasis).chain(&exit.played_powers) {
         if let CombatCardRef::Permanent(id)=card.origin {
-            if card.instance!=id || !seen.insert(id.0) || !state.deck.iter().any(|original|
+            if card.instance!=id || active.acquired_instances.contains(&id.0) || !seen.insert(id.0) || !state.deck.iter().any(|original|
                 original.instance==id.0 && original.id==card.id && original.upgrades==card.upgrades) {
                 return Err(RunError::Unsupported("permanent card exit mismatch"));
             }
         }
     }
-    if seen.len()!=state.deck.len() { return Err(RunError::Unsupported("permanent card missing from exit")); }
+    let originals=state.deck.iter().filter(|c|!active.acquired_instances.contains(&c.instance)).map(|c|c.instance).collect::<BTreeSet<_>>();
+    if seen!=originals { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    let act2_visits=if super::rooms::uses_captured_act2(state)&&state.act==2{Some(state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?)}else{None};
-    Ok((exit,record,settled,act2_visits))
+    let local_visits=if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else{None};
+    Ok((exit,record,settled,local_visits))
 }
 
 fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
@@ -36,7 +56,8 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         |EncounterId::LargeSlime|EncounterId::ThreeLouse|EncounterId::LotsOfSlimes|EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
     let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
-    if !m5&&!m6&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    let m8=super::rooms::uses_captured_act3(state)&&state.act==3&&matches!(encounter,EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::FourShapes|EncounterId::Maw|EncounterId::SphereAndTwoShapes|EncounterId::JawWormHorde|EncounterId::ThreeDarklings|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer);
+    if !m5&&!m6&&!m8&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
@@ -48,7 +69,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
             permanent_live_card(card.id,CardInstanceId(card.instance),card.upgrades)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
     })?;
-    if m5||m6 {
+    if m5||m6||m8 {
         if let Some(node)=state.map.as_ref().and_then(|map|map.current.and_then(|id|map.nodes.iter().find(|n|n.id==id)))
             .filter(|node|battle.elite_trigger&&node.burning) {
             use enemies::BurningBuff;
@@ -63,6 +84,13 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
 }
 
 impl Run {
+    pub(super) fn sync_permanent_gains(&mut self)->Result<(),RunError>{
+        let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
+        if let Some((cards,next,ordinal))=prepared{
+            let ids=cards.iter().map(|c|c.instance).collect::<Vec<_>>();self.state.deck.extend(cards);self.state.next_instance=next;
+            let active=self.state.active_combat.as_mut().unwrap();active.acquired_instances.extend(ids);active.applied_gain_ordinal=ordinal;
+        }Ok(())
+    }
     pub(super) fn combat_decision(&self) -> Result<PublicDecision,RunError> {
         let owner=self.state.combat.as_ref().ok_or(RunError::InvalidAction)?;
         let combat=owner.public_full()?;
@@ -82,17 +110,19 @@ impl Run {
         if self.state.terminal.is_some() { return Err(RunError::Terminal); }
         let combat=self.state.combat.as_mut().ok_or(RunError::InvalidAction)?;
         if !combat.legal_actions_full()?.contains(&action) { return Err(RunError::InvalidAction); }
-        if let Err(error)=combat.step_full(&action) {
+        let result=combat.step_full(&action);
+        if let Err(error)=&result {
             if let RunError::Faulted(fault)=&error {self.state.fault=Some(fault.clone());}
-            return Err(error);
         }
-        if combat.public_full()?.outcome.is_some() { return self.settle_combat(); }
+        self.sync_permanent_gains()?;result?;
+        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some() { return self.settle_combat(); }
         Ok(RunTransition {reward:0,terminal:None,committed_events:vec![]})
     }
 
     pub(super) fn settle_combat(&mut self) -> Result<RunTransition,RunError> {
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
-        let (mut exit,record,settled,act2_visits)=match prepare_settlement(&self.state) {
+        self.sync_permanent_gains()?;
+        let (mut exit,record,settled,local_visits)=match prepare_settlement(&self.state) {
             Ok(prepared)=>prepared,
             Err(RunError::Faulted(fault))=>{self.state.fault=Some(fault.clone());return Err(RunError::Faulted(fault));}
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat settlement validation failed"),"run.combat.settlement")),
@@ -112,7 +142,7 @@ impl Run {
         self.state.hp=exit.hp as u32;
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
-        if let Some(visits)=act2_visits{self.state.room_loop.as_mut().unwrap().act2.as_mut().unwrap().combat_visits=visits;}
+        if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();if act==3{room.act3.as_mut().unwrap().combat_visits=visits;}else{room.act2.as_mut().unwrap().combat_visits=visits;}}
         self.state.last_combat=Some(record.clone());
         self.state.active_combat=None;
         self.state.combat=None;
@@ -187,7 +217,7 @@ impl Run {
         let visit=self.state.combat_progress.entered;
         self.state.rng=rng;
         self.state.combat=Some(combat);
-        self.state.active_combat=Some(ActiveCombat {visit,encounter,origin});
+        self.state.active_combat=Some(ActiveCombat {visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
         if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}){
             let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),_=>None};
             if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}

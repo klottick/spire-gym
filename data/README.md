@@ -12,8 +12,8 @@ certificate**. Dataset coverage is broader than the simulator's accepted profile
 |---|---|---|---|
 | Cards | [Card guide](cards/README.md) | [cards.json](cards/cards.json) | 370 records: 367 physical kinds plus three Wish choices; printed quantities are not evaluated effects or complete scheduling rules |
 | Relics | [Relic guide](relics/README.md) | [relics.json](relics/relics.json) | 180 identities, including two fallbacks; 141 local findings retain their supporting-static/pending-review grade |
-| Enemies and encounters | [Enemy guide](enemies/README.md) | [enemies.json](enemies/enemies.json), [encounters.json](enemies/encounters.json) | 65 kinds, 196 moves, 67 encounter contexts; 40 constructor labels remain provisional; nominal chances are not exact AI samplers |
-| Powers / buffs / debuffs | [Power guide](powers/README.md) | [powers.json](powers/powers.json) | 133 records; 26 constructor IDs intentionally unresolved; recipients, technical classification and timing are distinct |
+| Enemies and encounters | [Enemy guide](enemies/README.md) | [enemies.json](enemies/enemies.json), [encounters.json](enemies/encounters.json) | 65 kinds, 196 moves, 67 encounter contexts; 27 constructor labels remain provisional after thirteen owned-static findings; nominal chances are not exact AI samplers |
+| Powers / buffs / debuffs | [Power guide](powers/README.md) | [powers.json](powers/powers.json) | 133 records; 12 constructor IDs intentionally unresolved after fourteen scoped owned-static findings; recipients, technical classification and timing are distinct |
 
 Each domain guide explains fields, citations, uncertainties, attribution and its
 offline checks. Source snapshots/manifests live alongside their records; do not
@@ -45,8 +45,8 @@ copy at the old path. Historical authored reports remain in
    new sources merely to start a milestone.
 
 The current product boundary is [M7's captured Ironclad A0 profile](../docs/milestones/m7-act2.md),
-ending at nonterminal/no-action Act3Ready. M8 is planning-only until its written
-plan is approved; the reference library does not authorize Act3 implementation.
+ending at nonterminal/no-action Act3Ready. M8 implementation is separately approved
+and active; reference coverage alone does not establish native Act3 support.
 Consult [AGENTS.md](../AGENTS.md) and the shared tracker for current ownership.
 
 ## Offline checks

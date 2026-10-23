@@ -56,6 +56,10 @@
       "grade": "draft/source-grounded, not original-runtime validated",
       "snapshots": [
         {
+          "path": "data/enemies/m8-static-findings.md",
+          "sha256": "33491dcd9b38ad2280fba65ffcba6b5fb986a677bf7d2107180b4e7ee4cb8da7"
+        },
+        {
           "path": "docs/research/2026-10-19-act1-content-defect.md",
           "sha256": "9f021c929fb7a40e50c87c87651ef09788ede2a5dc5374ff884d624f6e08f53b"
         },
@@ -14618,7 +14622,9 @@
       },
       "related_cards": [],
       "implementation_notes": [],
-      "research_notes": [],
+      "research_notes": [
+        "M8 owned-static: cost1 POWER, queues playerStrength2/3. Actual Power UseCardAction uses empower/Soul visual disposition, not discard/Exhaust. Native persistent census must retain the same permanent identity in an inactive resolved-Power zone; this note is not a second card store or original-runtime validation. Upstream build/channel unverified."
+      ],
       "discrepancies": [],
       "source": {
         "id": "sts-wiki",
@@ -14635,6 +14641,11 @@
           "path": "docs/research/2026-10-19-act1-content-red-colorless.md",
           "grade": "source-grounded author draft; unresolved composition fields retained",
           "scope": "Historical Ironclad A0 Act 1/off-color reachability study, not full-character run acceptance"
+        },
+        {
+          "path": "data/enemies/m8-static-findings.md",
+          "grade": "owned-archive static finding (task-local draft); upstream build/channel unverified, not original-runtime validation",
+          "scope": "Only named Inflame producer and ordinary Power-card use/disposition path"
         }
       ],
       "evidence": {
@@ -18364,7 +18375,9 @@
       "implementation_notes": [
         "Removal or transformation from the permanent deck causes max-HP loss; exhausting a combat copy does not."
       ],
-      "research_notes": [],
+      "research_notes": [
+        "M8 owned-static finding: permanent master-deck removal requests maxHP loss3, floor1, and clamps only excess current HP;88/88 becomes85/85,40/88 becomes40/85. Combat exhaustion is not this callback. Unplayable/non-upgradeable. Writhing's execution latch precedes permanent obtain; arbitrary prevention and upstream build/channel remain unverified."
+      ],
       "discrepancies": [],
       "source": {
         "id": "sts-wiki",
@@ -18381,6 +18394,11 @@
           "path": "docs/research/2026-10-19-act1-content-red-colorless.md",
           "grade": "source-grounded author draft; unresolved composition fields retained",
           "scope": "Historical Ironclad A0 Act 1/off-color reachability study, not full-character run acceptance"
+        },
+        {
+          "path": "data/enemies/m8-static-findings.md",
+          "grade": "owned-archive static finding (task-local draft); upstream build/channel unverified, not original-runtime validation",
+          "scope": "Only named Task4 Parasite obtain/removal and called max-HP path; not complete obtain-prevention composition"
         }
       ],
       "evidence": {
@@ -26600,7 +26618,9 @@
       },
       "related_cards": [],
       "implementation_notes": [],
-      "research_notes": [],
+      "research_notes": [
+        "M8 owned-static: unplayable(-2), Ethereal, no upgrade. Actual draw callback queues LoseEnergy1 clamped at0; creation/copy/hand insertion/reveal alone do not. Awakened Sludge's actual true,true,true insertion call sends Void to BOTTOM of draw because toBottom takes precedence over randomSpot. Not permanent deck acquisition. Upstream build/channel unverified."
+      ],
       "discrepancies": [],
       "source": {
         "id": "sts-wiki",
@@ -26617,6 +26637,11 @@
           "path": "docs/research/2026-10-19-act1-content-red-colorless.md",
           "grade": "source-grounded author draft; unresolved composition fields retained",
           "scope": "Historical Ironclad A0 Act 1/off-color reachability study, not full-character run acceptance"
+        },
+        {
+          "path": "data/enemies/m8-static-findings.md",
+          "grade": "owned-archive static finding (task-local draft); upstream build/channel unverified, not original-runtime validation",
+          "scope": "Only named Void constructor/draw/Ethereal and Awakened Sludge bottom insertion"
         }
       ],
       "evidence": {

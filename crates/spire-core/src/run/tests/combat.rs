@@ -85,6 +85,6 @@ fn m6_stasis_run_death_settlement_counts_living_orb_card_once() {
     for _ in 0..5{combat.step_full(&CombatAction::EndTurn).unwrap();if !combat.public_full().unwrap().stasis.is_empty(){break}}
     let public=combat.public_full().unwrap();assert_eq!(public.stasis.len(),1);assert_eq!(public.stasis[0].card.instance,CardInstanceId(1));assert!(public.enemies.iter().any(|e|e.instance_id==public.stasis[0].orb&&e.hp>0));
     combat.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::HpLoss(300))}],None).unwrap();assert_eq!(combat.exit().unwrap().stasis.len(),1);
-    let state=run.state_mut_for_test();state.combat=Some(combat);state.active_combat=Some(ActiveCombat{visit:0,encounter:EncounterId::BronzeAutomaton,origin:CombatOrigin::Authored});state.combat_progress=CombatProgress{entered:1,settled:0};
+    let state=run.state_mut_for_test();state.combat=Some(combat);state.active_combat=Some(ActiveCombat{visit:0,encounter:EncounterId::BronzeAutomaton,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});state.combat_progress=CombatProgress{entered:1,settled:0};
     let result=run.settle_combat().unwrap();assert_eq!(result.terminal,Some(RunTerminal::Death));assert_eq!(run.state().deck,deck);assert_eq!(run.state().last_combat.as_ref().unwrap().outcome,Outcome::Death);assert_eq!(run.state().combat_progress,CombatProgress{entered:1,settled:1});assert!(run.state().combat.is_none());
 }
