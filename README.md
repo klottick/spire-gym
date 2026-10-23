@@ -17,6 +17,9 @@ The [repository scope](docs/scope.md) records the current priorities, boundaries
 delivery path and implementation status. No human-playable client, graphics,
 animation, audio or interactive game UI is planned.
 
+See [performance measurements](docs/performance.md) for opt-in release benchmarks,
+versioned baseline comparisons and planned coverage for later gym milestones.
+
 ## Game-rule resources for contributors and AI agents
 
 Start with the **[reference library index](data/README.md)**:
