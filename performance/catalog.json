@@ -22,11 +22,11 @@
       "requires": ["M5"]
     },
     {
-      "id": "run.ironclad-a0.act2-prefix-champ", "version": 1, "status": "executable",
+      "id": "run.ironclad-a0.act2-prefix-champ", "version": 2, "status": "executable",
       "profile": "M6Act2Prefix", "character": "ironclad", "ascension": 0, "seed": 7,
-      "expected_contract_version": 1,
+      "expected_contract_version": 2,
       "creation": {"fixture": "m6-champ-icon", "policy": "m6-public-v1", "action_limit": 4096},
-      "expected": {"outcome": "Act2PrefixComplete", "act": 2, "floor": 26, "reward": 26, "accepted_actions": 399, "hp": 49, "terminal": null, "candidates": 0},
+      "expected": {"outcome": "Act2PrefixComplete", "act": 2, "floor": 26, "reward": 26, "accepted_actions": 397, "hp": 91, "terminal": null, "candidates": 0},
       "requires": ["M6"]
     }
   ],

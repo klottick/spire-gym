@@ -22,9 +22,9 @@ fn three_real_workloads_have_expected_endpoints() {
                 assert_eq!(endpoint["hp"], 95);
             }
             CaseId::Act2Prefix => {
-                assert_eq!(endpoint["accepted_actions"], 399);
+                assert_eq!(endpoint["accepted_actions"], 397);
                 assert_eq!(endpoint["outcome"], "Act2PrefixComplete");
-                assert_eq!(endpoint["hp"], 49);
+                assert_eq!(endpoint["hp"], 91);
                 assert_eq!(endpoint["floor"], 26);
                 assert_eq!(endpoint["reward"], 26);
                 assert_eq!(endpoint["candidates"], 0);

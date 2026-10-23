@@ -32,6 +32,60 @@ fn m6_mystic_heal_threshold_and_repeat_limit() {
 }
 
 #[test]
+fn m6_mystic_group_heal_combines_living_injuries_at_the_threshold() {
+    for swapped in [false, true] {
+        let mut e = entry();
+        if swapped {
+            e.setup.enemies.swap(0, 1);
+        }
+        let mut c = Combat::enter(e).unwrap();
+        let fighter = usize::from(swapped);
+        let mystic = 1 - fighter;
+
+        hit(&mut c, fighter, 7);
+        hit(&mut c, mystic, 8);
+        roll(&mut c, mystic);
+        assert_ne!(c.state.enemies[mystic].intent_id.as_str(), "mystic_heal");
+
+        hit(&mut c, fighter, 1);
+        let before = c.state.enemies[mystic].full_ai_rng.clone();
+        roll(&mut c, mystic);
+        assert_eq!(c.state.enemies[mystic].intent_id.as_str(), "mystic_heal",
+            "two injuries of 8 meet the group threshold even though neither reaches 16");
+        assert_eq!(c.state.enemies[mystic].full_ai_rng, before,
+            "forced healing does not consume an ordinary Attack/Buff draw");
+        act(&mut c, mystic);
+        for slot in [fighter, mystic] {
+            assert_eq!(c.state.enemies[slot].hp, c.state.enemies[slot].max_hp);
+        }
+
+        hit(&mut c, fighter, 100);
+        hit(&mut c, mystic, 15);
+        roll(&mut c, mystic);
+        assert_ne!(c.state.enemies[mystic].intent_id.as_str(), "mystic_heal",
+            "the dead partner's missing HP must not contribute");
+        hit(&mut c, mystic, 1);
+        roll(&mut c, mystic);
+        assert_eq!(c.state.enemies[mystic].intent_id.as_str(), "mystic_heal");
+    }
+}
+
+#[test]
+fn m6_mystic_group_heal_priority_respects_selected_move_history() {
+    let mut c = Combat::enter(entry()).unwrap();
+    hit(&mut c, 0, 15);
+    hit(&mut c, 1, 15);
+    for _ in 0..2 {
+        roll(&mut c, 1);
+        assert_eq!(c.state.enemies[1].intent_id.as_str(), "mystic_heal");
+    }
+    // These were selections, not executed heals: the group is still injured.
+    roll(&mut c, 1);
+    assert!(matches!(c.state.enemies[1].intent_id.as_str(), "mystic_attack" | "mystic_buff"),
+        "group-wide injury does not permit a third consecutive selected Heal");
+}
+
+#[test]
 fn m6_mystic_real_group_buff_and_attack_use_shared_strength_then_frail() {
     let mut c=Combat::enter(entry()).unwrap();stream(&mut c,1,33);roll(&mut c,1);assert_eq!(c.state.enemies[1].intent_id.as_str(),"mystic_buff");act(&mut c,1);
     assert_eq!((amount(&c,0,"strength"),amount(&c,1,"strength")),(2,2));stream(&mut c,1,23);roll(&mut c,1);assert_eq!(c.state.enemies[1].intent_id.as_str(),"mystic_attack");

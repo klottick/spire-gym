@@ -5,7 +5,9 @@ pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory
     let pair=match id {
         EnemyId::Centurion=>{let partner=context.actors.iter().any(|a|a.species==EnemyId::Mystic&&a.hp>0);("centurion_slash",if partner{"centurion_protect"}else{"centurion_fury"},65)},
         EnemyId::Mystic=>{
-            let hurt=context.actors.iter().any(|a|a.hp>0&&a.max_hp-a.hp>=16);
+            // The live context excludes inactive/escaped actors; dead actors add no deficit.
+            let hurt=context.actors.iter().filter(|a|a.hp>0)
+                .map(|a|i64::from(a.max_hp)-i64::from(a.hp)).sum::<i64>()>=16;
             if hurt&&!history.ends_with(&[FullIntentId::from_name("mystic_heal");2]){return Ok(MoveSelection{intent:FullIntentId::from_name("mystic_heal"),memory:memory.clone(),stream:stream.clone()})}
             ("mystic_attack","mystic_buff",60)
         },
