@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "target": {
+    "characters": ["ironclad", "silent", "defect", "watcher"],
+    "ascensions": [0, 20], "acts": [1, 4], "goal": "heart", "primary_ascension": 20
+  },
+  "cases": [
+    {
+      "id": "combat.ironclad-a0.jaw-worm", "version": 1, "status": "executable",
+      "profile": "m1-authored", "character": "ironclad", "ascension": 0, "seed": 7,
+      "expected_contract_version": 1,
+      "creation": {"fixture": "m1-jaw-worm", "policy": "m1-public-attack-v1", "action_limit": 4096},
+      "expected": {"outcome": "victory", "enemy_hp": 0, "candidates": 0},
+      "requires": ["M1"]
+    },
+    {
+      "id": "run.ironclad-a0.act1-guardian", "version": 1, "status": "executable",
+      "profile": "M5Act1Captured", "character": "ironclad", "ascension": 0, "seed": 7,
+      "expected_contract_version": 1,
+      "creation": {"fixture": "m5-guardian", "policy": "m5-public-v1", "action_limit": 4096},
+      "expected": {"outcome": "Act2Ready", "act": 2, "floor": 17, "reward": 17, "accepted_actions": 212, "hp": 95, "terminal": null, "candidates": 0},
+      "requires": ["M5"]
+    },
+    {
+      "id": "run.ironclad-a0.act2-prefix-champ", "version": 1, "status": "executable",
+      "profile": "M6Act2Prefix", "character": "ironclad", "ascension": 0, "seed": 7,
+      "expected_contract_version": 1,
+      "creation": {"fixture": "m6-champ-icon", "policy": "m6-public-v1", "action_limit": 4096},
+      "expected": {"outcome": "Act2PrefixComplete", "act": 2, "floor": 26, "reward": 26, "accepted_actions": 399, "hp": 49, "terminal": null, "candidates": 0},
+      "requires": ["M6"]
+    }
+  ],
+  "families": [
+    {"id": "combat", "status": "partial", "requires": ["all character mechanics and encounter alternatives"], "milestones": ["M1", "M2", "M6", "M8", "M11", "M16", "M21"]},
+    {"id": "runs", "status": "partial", "requires": ["complete Acts1-4 and Heart for all characters/A0-20"], "milestones": ["M7", "M9", "M10", "M15", "M20", "M25", "M33"]},
+    {"id": "decisions", "status": "partial", "requires": ["focused menus/selections and numeric encoding"], "milestones": ["M34"]},
+    {"id": "rooms", "status": "partial", "requires": ["isolated economy/event/key/settlement cases"], "milestones": ["M28"]},
+    {"id": "rng-replay", "status": "partial", "requires": ["isolated RNG/reset/replay cost"], "milestones": ["M34"]},
+    {"id": "batching", "status": "planned", "requires": ["mixed-character/A0/A20 serial/worker/reset/finals workloads"], "milestones": ["M35"]},
+    {"id": "python", "status": "planned", "requires": ["rebuilt raw binding/single/vector export workloads"], "milestones": ["M35"]},
+    {"id": "resources", "status": "planned", "requires": ["separate memory/allocation/capacity measurement"], "milestones": ["M36"]}
+  ]
+}
