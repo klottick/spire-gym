@@ -141,6 +141,14 @@ single aggregate score hiding a subsystem regression. Intentional gameplay,
 fixture/policy or endpoint changes require an explicit reviewed workload version
 and new baseline; an unchanged action count alone does not establish equal work.
 
+The Mystic group-healing correction advances `run.ironclad-a0.act2-prefix-champ`
+and its expected endpoint contract to **version 2**: the unchanged seed-7 fixture
+and public policy now complete in 397 actions with 91 HP, rather than version 1's
+399 actions/49 HP. The floor-26 boundary and reward 26 are unchanged. Keep the
+historical version-1 measurements; they are incompatible with version 2, not a
+measured speedup or regression. Collect a new version-2 baseline before comparing
+timings. No new timing result is claimed by this correctness fix.
+
 - Exit0: valid diagnostic report, or passing requested checks.
 - Exit1: requested slowdown budget exceeded, or `--strict` finds missing/
   incompatible rows. Added rows are reported, not compared against zero.
