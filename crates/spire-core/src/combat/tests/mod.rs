@@ -25,3 +25,4 @@ mod m6_summons;
 mod m6_elites;
 mod m6_bosses;
 mod m6_stasis;
+mod observe;

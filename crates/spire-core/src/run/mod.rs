@@ -4,6 +4,7 @@ mod profile;
 mod decision;
 mod engine;
 mod combat;
+mod observe;
 mod reward;
 mod mutations;
 mod rooms;

@@ -78,14 +78,17 @@ impl Run {
     }
 
     pub fn choose_combat(&mut self, action:CombatAction) -> Result<RunTransition,RunError> {
+        let observation_owner=std::ptr::from_ref(self) as usize;
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
         if self.state.terminal.is_some() { return Err(RunError::Terminal); }
         let combat=self.state.combat.as_mut().ok_or(RunError::InvalidAction)?;
         if !combat.legal_actions_full()?.contains(&action) { return Err(RunError::InvalidAction); }
+        let _observation=crate::combat::observe::bind_run(observation_owner,combat);
         if let Err(error)=combat.step_full(&action) {
             if let RunError::Faulted(fault)=&error {self.state.fault=Some(fault.clone());}
             return Err(error);
         }
+        crate::combat::observe::boundary(combat);
         if combat.public_full()?.outcome.is_some() { return self.settle_combat(); }
         Ok(RunTransition {reward:0,terminal:None,committed_events:vec![]})
     }
@@ -176,6 +179,7 @@ impl Run {
         let (entry,rng,battle)=prepare_entry(&self.state,encounter,origin)?;
         let mut items=Some(CombatItemContext::take_from_run(&mut self.state)
             .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle));
+        let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
             Ok(combat)=>(combat,None),
             Err(CombatEntryFailure::Rejected(error))=> {

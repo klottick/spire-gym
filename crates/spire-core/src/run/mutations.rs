@@ -25,7 +25,9 @@ pub(super) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     if state.max_hp==0||state.max_hp>999||state.hp>state.max_hp{return Err(RunError::InvalidAction)}
     let amount=i32::try_from(amount).map_err(|_|RunError::InvalidAction)?;
     let heal=crate::items::ordinary_heal_amount(&state.relics,amount).max(0) as u32;
-    if state.hp>0{state.hp=state.hp.saturating_add(heal).min(state.max_hp)}Ok(())
+    let before=state.hp;
+    if state.hp>0{state.hp=state.hp.saturating_add(heal).min(state.max_hp)}
+    crate::combat::observe::run_heal(state,before);Ok(())
 }
 pub(super) fn increase_max_hp(state:&mut RunState,amount:u32)->Result<(),RunError>{
     let max=state.max_hp.checked_add(amount).filter(|m|*m<=999).ok_or(RunError::Unsupported("maximum HP overflow"))?;

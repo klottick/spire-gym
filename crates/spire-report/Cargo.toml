@@ -1,0 +1,15 @@
+[package]
+name = "spire-report"
+description = "Optional offline, read-only reports for native Spire Gym recordings."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+spire-core = { path = "../spire-core" }
+spire-env = { path = "../spire-env" }
+serde_json = "=1.0.152"
+
+[[bench]]
+name = "disabled"
+harness = false

@@ -29,6 +29,7 @@ pub use pool::{AutoReset, CombatPool, DecisionRows, EpisodeInfo, PoolConfig, Poo
 pub use pool::PoolOperation;
 pub use diagnostics::{PoolDiagnostics, SlotDiagnostic};
 pub use replay::{EpisodeRecord, RecordStatus, ReplayBoundary, ReplayResult, RECORD_SCHEMA_ID, replay};
+pub use replay::{ReplayVisit,ReplayVisitKind,replay_observed};
 
 #[cfg(test)]
 mod tests;
