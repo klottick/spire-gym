@@ -137,6 +137,7 @@ fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
         super::command::CardDestination::Hand => state.piles.hand.push(owned),
         // Draw reads from the Vec tail (`pop`), so tail insertion is top-of-draw.
         super::command::CardDestination::Draw => state.piles.draw.push(owned),
+        super::command::CardDestination::BottomDraw=>state.piles.draw.insert(0,owned),
         super::command::CardDestination::Discard => state.piles.discard.push(owned),
         super::command::CardDestination::ShuffledDraw=>state.piles.draw.insert(position.unwrap(),owned),
     }
@@ -146,6 +147,7 @@ fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
 /// Actual-draw callback owns the just-moved identity before the remaining draw.
 pub(super) fn after_draw(state:&mut State,owner:&CardHandle)->Result<(),EffectError>{
     let card=state.piles.hand.iter().find(|c|c.handle()==*owner).and_then(OwnedCard::full).ok_or_else(||InputError::Invariant("draw callback card absent".into()))?;
+    if card.id==crate::content::CardId::Void{state.pending.push_front(Effect{source:Source::Card(owner.clone()),target:Some(Actor::Player),kind:EffectKind::LoseEnergy(1)});return Ok(())}
     if !state.player_full_powers.iter().any(|p|p.id.0=="confused"&&p.state.amount>0)||card.local.x_cost||super::cards::base_cost(state,card).is_none(){return Ok(())}
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Confused stream absent".into()))?;
     let (cost,next)=super::rng::uniform_below(stream,4)?;
@@ -169,7 +171,7 @@ pub(super) fn exhaust_owned_card(state: &mut State, card: OwnedCard) -> Result<(
 
 pub(super) fn discard_card(state: &mut State, card: &CardHandle, end_turn: bool) -> Result<(), InputError> {
     let exhaust = if end_turn {state.piles.hand.iter().find(|c|c.handle()==*card)
-        .and_then(OwnedCard::full).is_some_and(|live|live.id==crate::content::CardId::Dazed)}
+         .and_then(OwnedCard::full).is_some_and(|live|matches!(live.id,crate::content::CardId::Dazed|crate::content::CardId::Void))}
         else {state.in_play.as_ref().and_then(OwnedCard::full).map_or(false, |live| live.local.exhaust_on_finish)};
     let moved = if end_turn {
         let index = state.piles.hand.iter().position(|c| c.handle() == *card)

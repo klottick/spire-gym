@@ -1,0 +1,1874 @@
+{
+  "schema_version": 1,
+  "wiki_attribution": {
+    "contributors": "Slay the Spire Wiki contributors; see each revision-linked page and its history",
+    "license": "CC-BY-SA-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "changes": "Normalized short descriptions, structured metadata, selected mechanics summaries and reconciliation with existing local research."
+  },
+  "sources": {
+    "local:m8-events": {
+      "kind": "local_research",
+      "local_path": "data/enemies/m8-static-findings.md",
+      "retrieved_at": "2026-10-23",
+      "grade": "owned_archive_static_findings_upstream_build_unverified",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "upstream_build_channel_verified": false,
+      "original_runtime_validated": false,
+      "supports": "Task10 named RedMask constructor/battle-start ordered group snapshot and player-source Weak1 through ordinary Artifact, and Tomb all-gold0/acquisition/result ordering; not broader pools, arbitrary callbacks, target-version provenance or original runtime."
+    },
+    "wiki:Relics": {
+      "kind": "wiki",
+      "title": "Relics",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Relics&oldid=65888",
+      "revision_id": 65888,
+      "revision_timestamp": "2026-10-15T02:25:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2b536102bc102d312a4db4b557b307496b860c53107e28a184a3e55eada8516a",
+      "supports": "General acquisition restrictions, ordinary rarity distributions, floor cutoffs, fallback availability."
+    },
+    "archive:relics": {
+      "kind": "secondary_catalog",
+      "title": "Spire Archive StS1 relic endpoint",
+      "url": "https://spire-archive.com/api/sts1/relics?limit=300",
+      "retrieved_at": "2026-10-23",
+      "supports": "Discovery and independent catalog cross-check only; erroneous restrictions and malformed descriptions were not imported as truth."
+    },
+    "local:inventory": {
+      "kind": "local_research",
+      "title": "Act 1 relic inventory and source-hook reconciliation",
+      "local_path": "docs/research/2026-10-18-act1-relics-closure.md",
+      "retrieved_at": "2026-10-23",
+      "url": "https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/docs/research/2026-10-18-act1-relics-closure.md",
+      "content_sha256": "7358667719ec7919a049174ba819500963a2ff4dd3b2d23c79553fe6077cd524",
+      "supports": "Reconciled 141-candidate Act 1 identities/acquisition predicates; not all-character mechanics or original-runtime validation."
+    },
+    "local:mechanics": {
+      "kind": "local_research",
+      "title": "Act 1 relic primary rules and shared consumers",
+      "local_path": "docs/research/2026-10-19-act1-relic-mechanics.md",
+      "retrieved_at": "2026-10-23",
+      "url": "https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/docs/research/2026-10-19-act1-relic-mechanics.md",
+      "content_sha256": "45abfc62498e4277419bacced0e3ecf614149e38092d5f07bd0b8e464ee6b901",
+      "supports": "Supporting static primary rules for 141 relics; report explicitly pending independent review, with X/H/G/P/V/R composition limits retained."
+    },
+    "local:catalog": {
+      "kind": "local_research",
+      "title": "Act 1 source identity and numeric-domain joins",
+      "local_path": "docs/research/2026-10-19-act1-complete-catalog-numeric.md",
+      "retrieved_at": "2026-10-23",
+      "url": "https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/docs/research/2026-10-19-act1-complete-catalog-numeric.md",
+      "content_sha256": "7c7f6421a77a18e024f06d90c0ea172dd5c441fdbe1e1a040a95fa4e5e8dcb8d",
+      "supports": "178 registered constructor-ID/native-key mappings; scoped inventory, not full-game behavioral acceptance."
+    },
+    "local:rng-policy": {
+      "kind": "local_research",
+      "title": "Intentional deviations from the base game",
+      "local_path": "docs/intentional-deviations.md",
+      "retrieved_at": "2026-10-23",
+      "revision": "Working-copy snapshot; use local_path and content_sha256, not a claim that uncommitted policy text exists at a remote commit.",
+      "content_sha256": "355db1b21ca441366e1b6698a2279d83252a39a26773fdbadf67e24b2a8b4618",
+      "supports": "User-approved RNG-001 project policy; original PRNG/seed/call-consumption parity is not required."
+    },
+    "wiki:AKABEKO": {
+      "kind": "wiki",
+      "title": "Akabeko",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Akabeko&oldid=56309",
+      "revision_id": 56309,
+      "revision_timestamp": "2026-09-14T19:07:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ef91eb6c37d7e8badebfd481d794b3d960a74f92da5395fb472d2acb43afd12f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ART_OF_WAR": {
+      "kind": "wiki",
+      "title": "Art of War",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Art_of_War&oldid=56884",
+      "revision_id": 56884,
+      "revision_timestamp": "2026-09-17T08:57:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9f24291bd565fcf499aa85eb972bf3954ae20bd0c519dba5ec80407affcaf12a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BIRD_FACED_URN": {
+      "kind": "wiki",
+      "title": "Bird-Faced Urn",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bird-Faced_Urn&oldid=55648",
+      "revision_id": 55648,
+      "revision_timestamp": "2026-09-13T18:39:07Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "bfab7dc8c3a1835d4cd8e6125bbfbb0ddc4d71936c54e78c9c7176133383c100",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BLOODY_IDOL": {
+      "kind": "wiki",
+      "title": "Bloody Idol",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bloody_Idol&oldid=55657",
+      "revision_id": 55657,
+      "revision_timestamp": "2026-09-13T18:39:33Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9ce6378b0083e4e35719adf33e62213729c9e229fa36daccd02336ab7038e0f5",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BLUE_CANDLE": {
+      "kind": "wiki",
+      "title": "Blue Candle",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Blue_Candle&oldid=56905",
+      "revision_id": 56905,
+      "revision_timestamp": "2026-09-17T09:04:47Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "53273d9b67d6e9252ce9e89ede9340c9dc8f7f00d04eda825c7c14a4533390fa",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BRIMSTONE": {
+      "kind": "wiki",
+      "title": "Brimstone",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Brimstone&oldid=57734",
+      "revision_id": 57734,
+      "revision_timestamp": "2026-09-22T18:55:12Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "00c3cb5cf08781b760791668b22333b76fc9bef65072fd027361c408636581e4",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CALIPERS": {
+      "kind": "wiki",
+      "title": "Calipers",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Calipers&oldid=56924",
+      "revision_id": 56924,
+      "revision_timestamp": "2026-09-17T09:16:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e94b89c020e5d7321bd924ebcde9e68f1b2055a897ce341d1ead39ab73aeec9a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CAPTAINS_WHEEL": {
+      "kind": "wiki",
+      "title": "Captain's Wheel",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Captain%27s_Wheel&oldid=56927",
+      "revision_id": 56927,
+      "revision_timestamp": "2026-09-17T09:19:57Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3035f7618a6bd760f6fc687c88c222a47022a61233cf87782953a28d439d6a13",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CENTENNIAL_PUZZLE": {
+      "kind": "wiki",
+      "title": "Centennial Puzzle",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Centennial_Puzzle&oldid=56930",
+      "revision_id": 56930,
+      "revision_timestamp": "2026-09-17T09:26:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "01af24be3617444e6b55b311298600de3ade035120cf393679105a0c46b50e50",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CERAMIC_FISH": {
+      "kind": "wiki",
+      "title": "Ceramic Fish",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ceramic_Fish&oldid=57994",
+      "revision_id": 57994,
+      "revision_timestamp": "2026-09-23T22:22:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3ad2b6dc09d0627293a6c3c110817637a462afb4e1bcda7ea332a4cd5c4e4ffc",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CHAMPION_BELT": {
+      "kind": "wiki",
+      "title": "Champion Belt",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Champion_Belt&oldid=56329",
+      "revision_id": 56329,
+      "revision_timestamp": "2026-09-14T19:19:17Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9f49e1d6dd4a7f7304b8e486288303045035b20e2f275f2649aec394da6af7c3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CHARONS_ASHES": {
+      "kind": "wiki",
+      "title": "Charon's Ashes",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Charon%27s_Ashes&oldid=56330",
+      "revision_id": 56330,
+      "revision_timestamp": "2026-09-14T19:20:04Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0ec71b03e1fa69187bda9dee17287c411401510df3ef6a3f44df593a242bfaf3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CHEMICAL_X": {
+      "kind": "wiki",
+      "title": "Chemical X",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Chemical_X&oldid=56035",
+      "revision_id": 56035,
+      "revision_timestamp": "2026-09-13T19:37:10Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f261bb729dec8a578b32eca2d209072bde131a70efbdaabee95ae38e95aaaf2f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CLOAK_CLASP": {
+      "kind": "wiki",
+      "title": "Cloak Clasp",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cloak_Clasp&oldid=56939",
+      "revision_id": 56939,
+      "revision_timestamp": "2026-09-17T09:31:39Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ed1b8f1d6fdae557ccb4c1c8ecdb4c2aecaa26abce534ccc14fb206fc2a32371",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DARKSTONE_PERIAPT": {
+      "kind": "wiki",
+      "title": "Darkstone Periapt",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Darkstone_Periapt&oldid=58008",
+      "revision_id": 58008,
+      "revision_timestamp": "2026-09-23T22:32:02Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d41701574463037e049f5bdc093929effc7bcb24cfd503295100e8ecb42ba361",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DEAD_BRANCH": {
+      "kind": "wiki",
+      "title": "Dead Branch",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Dead_Branch&oldid=56961",
+      "revision_id": 56961,
+      "revision_timestamp": "2026-09-17T14:43:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "6ee410fb8f8be28557fef863f345d4dbba24fef12d924eba04e035597dd99d4c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DUALITY": {
+      "kind": "wiki",
+      "title": "Duality",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Duality&oldid=57164",
+      "revision_id": 57164,
+      "revision_timestamp": "2026-09-20T20:58:29Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2188849aa5e82992ce1797a09b36b5a23359374054c7bbfa380528df2ce0372c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ECTOPLASM": {
+      "kind": "wiki",
+      "title": "Ectoplasm",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ectoplasm&oldid=57166",
+      "revision_id": 57166,
+      "revision_timestamp": "2026-09-20T20:59:24Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "834f90df8f936ba0ec0d84bdf4267a382a234b693c3ba14890fb24af02592a33",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:EMOTION_CHIP": {
+      "kind": "wiki",
+      "title": "Emotion Chip",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Emotion_Chip&oldid=56358",
+      "revision_id": 56358,
+      "revision_timestamp": "2026-09-14T19:31:04Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e36a602534eebee60900c585b4d2aaf6667ccb204d89227f8c0796f11311c652",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FROZEN_CORE": {
+      "kind": "wiki",
+      "title": "Frozen Core",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Frozen_Core&oldid=57258",
+      "revision_id": 57258,
+      "revision_timestamp": "2026-09-21T01:35:25Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a6b7ab6ef1aed4b66c8e3d2ea19c2f5ed427a6cac61f691d3338ff55761001bf",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FROZEN_EYE": {
+      "kind": "wiki",
+      "title": "Frozen Eye",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Frozen_Eye&oldid=50958",
+      "revision_id": 50958,
+      "revision_timestamp": "2026-08-28T18:44:23Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9165bf04bc3542aeeec2f8472692b17157bbc9116fad8131818ffc1e57453438",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GAMBLING_CHIP": {
+      "kind": "wiki",
+      "title": "Gambling Chip",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gambling_Chip&oldid=57210",
+      "revision_id": 57210,
+      "revision_timestamp": "2026-09-20T21:17:15Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7a82cdda9308e03cce112fb52c8f30e550d7d389c1168f46ae94b06af6a7b1f8",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GINGER": {
+      "kind": "wiki",
+      "title": "Ginger",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ginger&oldid=57215",
+      "revision_id": 57215,
+      "revision_timestamp": "2026-09-20T21:19:08Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "56aa951ed08458b5aa906dcc078f61a7f8d350886d7c33430a4c8492372e6bbf",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GOLDEN_EYE": {
+      "kind": "wiki",
+      "title": "Golden Eye",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Golden_Eye&oldid=57220",
+      "revision_id": 57220,
+      "revision_timestamp": "2026-09-20T21:20:22Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "6a80435f2ab3ca7c532e739527c8ae0270861ac36f5294f43e1d67b0d8af8510",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GREMLIN_HORN": {
+      "kind": "wiki",
+      "title": "Gremlin Horn",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gremlin_Horn&oldid=57222",
+      "revision_id": 57222,
+      "revision_timestamp": "2026-09-20T21:20:51Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "efffc82592720e095a24e8b53bbfb0cc2a92f5a53bfbb6d651342371fc9c772d",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:HAND_DRILL": {
+      "kind": "wiki",
+      "title": "Hand Drill",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Hand_Drill&oldid=57227",
+      "revision_id": 57227,
+      "revision_timestamp": "2026-09-20T21:24:32Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "89c05af67b4369680dff551433613e81464906c2e76e14cb1dd1050ec77a4213",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:HAPPY_FLOWER": {
+      "kind": "wiki",
+      "title": "Happy Flower",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Happy_Flower&oldid=57228",
+      "revision_id": 57228,
+      "revision_timestamp": "2026-09-20T21:24:54Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1a005a2a49acd8e3272f202613bebb4764a8a1eafc4c47d27842e6fe31e46b48",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:HORN_CLEAT": {
+      "kind": "wiki",
+      "title": "Horn Cleat",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Horn_Cleat&oldid=57283",
+      "revision_id": 57283,
+      "revision_timestamp": "2026-09-21T11:16:07Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ab092bebda09f081c142b29fb15592cfaf6331239264e8c4a7210b9a8ba00799",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:HOVERING_KITE": {
+      "kind": "wiki",
+      "title": "Hovering Kite",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Hovering_Kite&oldid=57284",
+      "revision_id": 57284,
+      "revision_timestamp": "2026-09-21T11:16:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1124b8d619cea3fed4013d568bd5c37e6283f7d607dbd0bc56df2543a8162118",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ICE_CREAM": {
+      "kind": "wiki",
+      "title": "Ice Cream",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ice_Cream&oldid=56779",
+      "revision_id": 56779,
+      "revision_timestamp": "2026-09-16T23:00:01Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d623304a99797c4b58e741325da90db75b3ff8df7f643e0a8c4b65442d88193c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:INCENSE_BURNER": {
+      "kind": "wiki",
+      "title": "Incense Burner",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Incense_Burner&oldid=57288",
+      "revision_id": 57288,
+      "revision_timestamp": "2026-09-21T11:17:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "037aeda9586bc7768d161ec2ec2ecc13949a8f9d240b4c590e2819a2644ba354",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:INK_BOTTLE": {
+      "kind": "wiki",
+      "title": "Ink Bottle",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ink_Bottle&oldid=57463",
+      "revision_id": 57463,
+      "revision_timestamp": "2026-09-22T06:36:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9505727f63a4fd61b4ef11d11c868d3dcb24be4e6f93c0ac6e96c22600f3e058",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:INSERTER": {
+      "kind": "wiki",
+      "title": "Inserter",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Inserter&oldid=66765",
+      "revision_id": 66765,
+      "revision_timestamp": "2026-10-23T04:31:49Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "08dffa5a794627a0acc71db7e3c4f8fe475e0e6145190b59c6a58f2d6e59af0e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:KUNAI": {
+      "kind": "wiki",
+      "title": "Kunai",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Kunai&oldid=57470",
+      "revision_id": 57470,
+      "revision_timestamp": "2026-09-22T06:38:49Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f03e403da85058a88353b5c57199a70cf77617f0e1f057bd9a3e22e92dd4a80e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:LETTER_OPENER": {
+      "kind": "wiki",
+      "title": "Letter Opener",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Letter_Opener&oldid=55837",
+      "revision_id": 55837,
+      "revision_timestamp": "2026-09-13T18:47:44Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9c87364080e86a3bf04b3666299b4e9d55212f1dac804179503716bf541b17a1",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:LIZARD_TAIL": {
+      "kind": "wiki",
+      "title": "Lizard Tail",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Lizard_Tail&oldid=55842",
+      "revision_id": 55842,
+      "revision_timestamp": "2026-09-13T18:47:57Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "102ac95a1ba82ee7bdcda64a6180d27cad03b791285c5b97a487a371e08e217d",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MAGIC_FLOWER": {
+      "kind": "wiki",
+      "title": "Magic Flower",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Magic_Flower&oldid=55848",
+      "revision_id": 55848,
+      "revision_timestamp": "2026-09-13T18:48:14Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "6af838b32e41eb623b89f44e073973ad431401e910538464315ce8e7c5f8a264",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MARK_OF_THE_BLOOM": {
+      "kind": "wiki",
+      "title": "Mark of the Bloom",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mark_of_the_Bloom&oldid=51023",
+      "revision_id": 51023,
+      "revision_timestamp": "2026-08-28T19:00:58Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ee0b67f7836544196dede70b38d7c7b8539204738301464e83fa679f6fdf8801",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MEDICAL_KIT": {
+      "kind": "wiki",
+      "title": "Medical Kit",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Medical_Kit&oldid=57492",
+      "revision_id": 57492,
+      "revision_timestamp": "2026-09-22T06:47:55Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dafe0e21391e285e708bb99e63a1f8e2e117f17c1c26b175c3158e9e7125a664",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MELANGE": {
+      "kind": "wiki",
+      "title": "Melange",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Melange&oldid=57493",
+      "revision_id": 57493,
+      "revision_timestamp": "2026-09-22T06:48:08Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "94d77ca71ec887a88ff99add2b33611d8b73873b6a6587454dd5e6833e1bd5f4",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MERCURY_HOURGLASS": {
+      "kind": "wiki",
+      "title": "Mercury Hourglass",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mercury_Hourglass&oldid=58011",
+      "revision_id": 58011,
+      "revision_timestamp": "2026-09-23T22:32:56Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "50ceb5e052a47a0139fcc263459a05adee5660b86fff5d953906e7fd90abd9b3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MUMMIFIED_HAND": {
+      "kind": "wiki",
+      "title": "Mummified Hand",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mummified_Hand&oldid=57503",
+      "revision_id": 57503,
+      "revision_timestamp": "2026-09-22T06:50:57Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "369bd4ac8b9b8ccaefb0c1b76d69753ff70231fe9861a4660ecd09a9fb22d9bd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NECRONOMICON": {
+      "kind": "wiki",
+      "title": "Necronomicon",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Necronomicon&oldid=55867",
+      "revision_id": 55867,
+      "revision_timestamp": "2026-09-13T18:49:12Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "4f69108238dd6afff2298707781a50dbf623c0268380d31752d52e5e0e54ee8e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NILRYS_CODEX": {
+      "kind": "wiki",
+      "title": "Nilry's Codex",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Nilry%27s_Codex&oldid=51017",
+      "revision_id": 51017,
+      "revision_timestamp": "2026-08-28T19:00:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fa7fc270e9a2056f9dd5a543bb231960cd062fb7663fec19b5955200214f3d8e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NUNCHAKU": {
+      "kind": "wiki",
+      "title": "Nunchaku",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Nunchaku&oldid=57508",
+      "revision_id": 57508,
+      "revision_timestamp": "2026-09-22T06:52:50Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8f112a4b115b61ab49a9e6e05d915eca0fa6e7c15126a0919d9296b153324f16",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ODD_MUSHROOM": {
+      "kind": "wiki",
+      "title": "Odd Mushroom",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Odd_Mushroom&oldid=57509",
+      "revision_id": 57509,
+      "revision_timestamp": "2026-09-22T06:53:07Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fcdd2a80e9ce889ebab75e9c9ea2e6a1bc9eb0bd306db1cd8bc2a75eba95aa2d",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:OMAMORI": {
+      "kind": "wiki",
+      "title": "Omamori",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Omamori&oldid=57997",
+      "revision_id": 57997,
+      "revision_timestamp": "2026-09-23T22:26:17Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "14c86a24a033846f25474b5a91f62b708773f120864f8f2b205cb7809ace7c16",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ORANGE_PELLETS": {
+      "kind": "wiki",
+      "title": "Orange Pellets",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Orange_Pellets&oldid=64095",
+      "revision_id": 64095,
+      "revision_timestamp": "2026-10-11T04:55:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e7bb1025c6ad91d899d1c68395dcaa2bd1ceeb716591434770a4f05f248acc66",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ORICHALCUM": {
+      "kind": "wiki",
+      "title": "Orichalcum",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Orichalcum&oldid=57512",
+      "revision_id": 57512,
+      "revision_timestamp": "2026-09-22T06:53:57Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7373f217646cbb0a8efaa6b9e5ff9226e6911e052bbaccffd60109423e41258f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ORNAMENTAL_FAN": {
+      "kind": "wiki",
+      "title": "Ornamental Fan",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ornamental_Fan&oldid=57513",
+      "revision_id": 57513,
+      "revision_timestamp": "2026-09-22T06:54:09Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "06d7369b73056f03894a0faf9eef1b4aa83fc3bd3dc5efe68373eecd0553bf4b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PAPER_KRANE": {
+      "kind": "wiki",
+      "title": "Paper Krane",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Paper_Krane&oldid=56369",
+      "revision_id": 56369,
+      "revision_timestamp": "2026-09-14T19:39:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3eab65c8e8c1ffafd6f92aa4396ffc40999322453e1ec0aeae4fc4d21eab9c09",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PAPER_PHROG": {
+      "kind": "wiki",
+      "title": "Paper Phrog",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Paper_Phrog&oldid=60841",
+      "revision_id": 60841,
+      "revision_timestamp": "2026-09-27T07:07:36Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "4a4d8eb06cb4c41c541aeab81137a0a3a4fd5157835599d6fdd6bf99dba7f981",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PEN_NIB": {
+      "kind": "wiki",
+      "title": "Pen Nib",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pen_Nib&oldid=62905",
+      "revision_id": 62905,
+      "revision_timestamp": "2026-10-07T21:10:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "72b2b36824c09ff926025514091516a2ef13bf362359eeae156d6bee5fea64aa",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PHILOSOPHERS_STONE": {
+      "kind": "wiki",
+      "title": "Philosopher's Stone",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Philosopher%27s_Stone&oldid=57523",
+      "revision_id": 57523,
+      "revision_timestamp": "2026-09-22T06:56:58Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a70a99f89e47413d96bab198143648650aa9e579f140972af7253d813eda1b90",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:POCKETWATCH": {
+      "kind": "wiki",
+      "title": "Pocketwatch",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pocketwatch&oldid=57525",
+      "revision_id": 57525,
+      "revision_timestamp": "2026-09-22T06:57:36Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d11b1926c53b0ec176289ba225977f27e2be88ef660c447e6d7fe166bd633f34",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RED_SKULL": {
+      "kind": "wiki",
+      "title": "Red Skull",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Red_Skull&oldid=56326",
+      "revision_id": 56326,
+      "revision_timestamp": "2026-09-14T19:17:25Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ddd08396ccef504f2cba892b338ca06e28429699e70a7a703ae4c4a1530dc2de",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RUNIC_CUBE": {
+      "kind": "wiki",
+      "title": "Runic Cube",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Runic_Cube&oldid=56331",
+      "revision_id": 56331,
+      "revision_timestamp": "2026-09-14T19:20:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3b699547c604392ca12be18f5c310d536bac36b7ce65afadc2a4d84cee2a4491",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RUNIC_DOME": {
+      "kind": "wiki",
+      "title": "Runic Dome",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Runic_Dome&oldid=57550",
+      "revision_id": 57550,
+      "revision_timestamp": "2026-09-22T07:08:02Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e13ce98c4bd673f899d4baa9462177e62b32bc9b1a9a1e98659b29fe71f99d41",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RUNIC_PYRAMID": {
+      "kind": "wiki",
+      "title": "Runic Pyramid",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Runic_Pyramid&oldid=57581",
+      "revision_id": 57581,
+      "revision_timestamp": "2026-09-22T11:13:46Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "17d1ec7c425e26eafb00c803093c33bb6331568f34e65e9e20dbeadbb1e5e1dd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SACRED_BARK": {
+      "kind": "wiki",
+      "title": "Sacred Bark",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Sacred_Bark&oldid=50932",
+      "revision_id": 50932,
+      "revision_timestamp": "2026-08-28T18:37:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e038bf381930972e28edcc7de8b780753ffd60bff2d51031cbab157559b09dfa",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SELF_FORMING_CLAY": {
+      "kind": "wiki",
+      "title": "Self-Forming Clay",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Self-Forming_Clay&oldid=56328",
+      "revision_id": 56328,
+      "revision_timestamp": "2026-09-14T19:18:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0fbe4f5c465ff095c4b7ecbc7b3b92280f3cbbcf63ab64f00c651e8c25b46f51",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SHURIKEN": {
+      "kind": "wiki",
+      "title": "Shuriken",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Shuriken&oldid=57596",
+      "revision_id": 57596,
+      "revision_timestamp": "2026-09-22T11:18:04Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2584623ef446a9b360d91b8651a41ba641947f16696668b0c5cef938a49559f2",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SNECKO_EYE": {
+      "kind": "wiki",
+      "title": "Snecko Eye",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Snecko_Eye&oldid=57612",
+      "revision_id": 57612,
+      "revision_timestamp": "2026-09-22T11:25:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dabcb95e468dfa2d932196b1e242679c8cbb5290226f7bdd4a1a9d45f746e4df",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SNECKO_SKULL": {
+      "kind": "wiki",
+      "title": "Snecko Skull",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Snecko_Skull&oldid=56366",
+      "revision_id": 56366,
+      "revision_timestamp": "2026-09-14T19:37:52Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e9933408c5f8724bbe86e7548891a915e3ed8d1b9414fff698f1a2afe3ffe97c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SOZU": {
+      "kind": "wiki",
+      "title": "Sozu",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Sozu&oldid=57613",
+      "revision_id": 57613,
+      "revision_timestamp": "2026-09-22T11:25:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1009f4ce6aea5b010b6e8901d55adce7994a59925322b8228e4ab03cffa03c84",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:STONE_CALENDAR": {
+      "kind": "wiki",
+      "title": "Stone Calendar",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Stone_Calendar&oldid=55958",
+      "revision_id": 55958,
+      "revision_timestamp": "2026-09-13T18:53:52Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5bf2cfd44542670253f6f21c884a537addcce968d9b45062057740545c4cf014",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:STRANGE_SPOON": {
+      "kind": "wiki",
+      "title": "Strange Spoon",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Strange_Spoon&oldid=57685",
+      "revision_id": 57685,
+      "revision_timestamp": "2026-09-22T12:07:46Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "c70b8052c8cbb0d527232b5030cfed23c1c32da147e25929ae7cc43f947627cc",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:STRIKE_DUMMY": {
+      "kind": "wiki",
+      "title": "Strike Dummy",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Strike_Dummy&oldid=47652",
+      "revision_id": 47652,
+      "revision_timestamp": "2026-08-17T12:32:01Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "637c64088a89434daae3bcf44da9a8e872ec6cec2fe0b28c053d53baf76e1f1e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SUNDIAL": {
+      "kind": "wiki",
+      "title": "Sundial",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Sundial&oldid=57680",
+      "revision_id": 57680,
+      "revision_timestamp": "2026-09-22T12:06:32Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a255c2d198ec05f2ea3d227c0232d2ef45c6fab848907543a2aa239bca9a2b7b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:THE_ABACUS": {
+      "kind": "wiki",
+      "title": "The Abacus",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Abacus&oldid=57669",
+      "revision_id": 57669,
+      "revision_timestamp": "2026-09-22T12:03:55Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "423ca2f0f5631a22dbf329adf5d5738a4f0fbfaa91e887bb2c5624488b7ccf11",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:THE_BOOT": {
+      "kind": "wiki",
+      "title": "The Boot",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Boot&oldid=56068",
+      "revision_id": 56068,
+      "revision_timestamp": "2026-09-13T20:04:49Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b1b583055a2a3eb76e7229616e7e51403207ba325d0da9203524f6f915d48552",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:THE_SPECIMEN": {
+      "kind": "wiki",
+      "title": "The Specimen",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Specimen&oldid=57661",
+      "revision_id": 57661,
+      "revision_timestamp": "2026-09-22T11:59:57Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2ca2c9e95efd19f39164e1691b97bcd2d580c87f653956928e43b264f3d6d1e7",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TINGSHA": {
+      "kind": "wiki",
+      "title": "Tingsha",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Tingsha&oldid=57653",
+      "revision_id": 57653,
+      "revision_timestamp": "2026-09-22T11:36:40Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "55c0d29456964890fa5b64be380b29bdaf52b3f419adea91839a0ea013d0a892",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TOOLBOX": {
+      "kind": "wiki",
+      "title": "Toolbox",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Toolbox&oldid=57651",
+      "revision_id": 57651,
+      "revision_timestamp": "2026-09-22T11:36:09Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "49cc7d78fa55855c00588ee4d39eec8e44c3fd7e5f3aec40a9939a72b77fd5a9",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TORII": {
+      "kind": "wiki",
+      "title": "Torii",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Torii&oldid=55982",
+      "revision_id": 55982,
+      "revision_timestamp": "2026-09-13T18:55:10Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b42a461069ad0960d77f0c01aa465e6df4e5c1648d0fe9fe0db4a4599a1b4d18",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TOUGH_BANDAGES": {
+      "kind": "wiki",
+      "title": "Tough Bandages",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Tough_Bandages&oldid=57649",
+      "revision_id": 57649,
+      "revision_timestamp": "2026-09-22T11:35:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "bb489ad582183874dad7c471413751952d94f4a179a1a89a37df291d3b961b00",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TOY_ORNITHOPTER": {
+      "kind": "wiki",
+      "title": "Toy Ornithopter",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Toy_Ornithopter&oldid=50828",
+      "revision_id": 50828,
+      "revision_timestamp": "2026-08-28T17:38:21Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "32aa52a9e294508f5afd310ae6d2ab4293d97d57b103668957dc5328c9c310bf",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TUNGSTEN_ROD": {
+      "kind": "wiki",
+      "title": "Tungsten Rod",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Tungsten_Rod&oldid=55986",
+      "revision_id": 55986,
+      "revision_timestamp": "2026-09-13T18:55:25Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "23a4d2e118ccce5507be99d6771529f88f19e48fd4befb50cf08b61afc8989e9",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TURNIP": {
+      "kind": "wiki",
+      "title": "Turnip",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Turnip&oldid=56387",
+      "revision_id": 56387,
+      "revision_timestamp": "2026-09-14T20:10:19Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "248c1781d0faf7e12965cc4199877c42195ef61642eb4b28d75305eb6edcce57",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TWISTED_FUNNEL": {
+      "kind": "wiki",
+      "title": "Twisted Funnel",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Twisted_Funnel&oldid=57643",
+      "revision_id": 57643,
+      "revision_timestamp": "2026-09-22T11:33:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ba6addc310383666e1260bc90fa47b4dd2bd470360240af8345b3a6704d9a075",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:UNCEASING_TOP": {
+      "kind": "wiki",
+      "title": "Unceasing Top",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Unceasing_Top&oldid=56384",
+      "revision_id": 56384,
+      "revision_timestamp": "2026-09-14T20:08:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d6f0dc6327656cc1fab521d3cd360272b1ae496ed6c3c543cf9f388294797e45",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:VELVET_CHOKER": {
+      "kind": "wiki",
+      "title": "Velvet Choker",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Velvet_Choker&oldid=57640",
+      "revision_id": 57640,
+      "revision_timestamp": "2026-09-22T11:33:21Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a24ebb97cdae2fcf527941f9658c1c9c21abd314aae05d670299f259f5ded930",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:VIOLET_LOTUS": {
+      "kind": "wiki",
+      "title": "Violet Lotus",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Violet_Lotus&oldid=57638",
+      "revision_id": 57638,
+      "revision_timestamp": "2026-09-22T11:33:06Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "cb4d5ce66dec2680056da298a09af342b6d8c51b9ce27b763455a1dbc421c9bd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WARPED_TONGS": {
+      "kind": "wiki",
+      "title": "Warped Tongs",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Warped_Tongs&oldid=56776",
+      "revision_id": 56776,
+      "revision_timestamp": "2026-09-16T22:57:19Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "eb4464bb4840ac9ce1af050388661b4fe7684c797a0b240f4544ef3b6adccce1",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WRIST_BLADE": {
+      "kind": "wiki",
+      "title": "Wrist Blade",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Wrist_Blade&oldid=56048",
+      "revision_id": 56048,
+      "revision_timestamp": "2026-09-13T19:56:35Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "125a815cdf5efa6723654bab073013b35e984481ccdba49a91c6fe7cad020a6c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BLACK_BLOOD": {
+      "kind": "wiki",
+      "title": "Black Blood",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Black_Blood&oldid=55391",
+      "revision_id": 55391,
+      "revision_timestamp": "2026-09-13T18:08:59Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "84f8a8fdc159550127d84d75416ae709b649e09cb1d3c7b399db98e8ff8f89d0",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BURNING_BLOOD": {
+      "kind": "wiki",
+      "title": "Burning Blood",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Burning_Blood&oldid=50796",
+      "revision_id": 50796,
+      "revision_timestamp": "2026-08-28T17:17:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e7c75d3ee1c93559d8b5ffa975a28ca7f96dc4b72f738a47816ae8a0935c2570",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MEAT_ON_THE_BONE": {
+      "kind": "wiki",
+      "title": "Meat on the Bone",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Meat_on_the_Bone&oldid=58012",
+      "revision_id": 58012,
+      "revision_timestamp": "2026-09-23T22:33:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "248210395f5cb230fdae0ea1b5ad5bca8051311299a08b6be3043c94d078b152",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FACE_OF_CLERIC": {
+      "kind": "wiki",
+      "title": "Face of Cleric",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Face_of_Cleric&oldid=51008",
+      "revision_id": 51008,
+      "revision_timestamp": "2026-08-28T18:57:35Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dbfe7c40044bdab484520b9fd344f501f4eedce0f44f1af6531e6151ee43558b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ANCHOR": {
+      "kind": "wiki",
+      "title": "Anchor",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Anchor&oldid=56316",
+      "revision_id": 56316,
+      "revision_timestamp": "2026-09-14T19:10:49Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5a374fe479e2fd48bbf17062491062556ac0b9645ed398c0f2ccb42d51019b4a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ANCIENT_TEA_SET": {
+      "kind": "wiki",
+      "title": "Ancient Tea Set",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ancient_Tea_Set&oldid=57995",
+      "revision_id": 57995,
+      "revision_timestamp": "2026-09-23T22:22:47Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1c45aef310ea534c5fdbf2edac7e09af8562d5a63ab8793e859b539c25687abf",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BAG_OF_MARBLES": {
+      "kind": "wiki",
+      "title": "Bag of Marbles",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bag_of_Marbles&oldid=56889",
+      "revision_id": 56889,
+      "revision_timestamp": "2026-09-17T08:59:23Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a2754d004347428281d12be8f480281558c6bb1ccf2bc7334a2c040b3d6adf9d",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BAG_OF_PREPARATION": {
+      "kind": "wiki",
+      "title": "Bag of Preparation",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bag_of_Preparation&oldid=56890",
+      "revision_id": 56890,
+      "revision_timestamp": "2026-09-17T08:59:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d9bbc3cd3a2849ec7318120dc0b35d29f0d7674eaab508594754500f09aa3272",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BLOOD_VIAL": {
+      "kind": "wiki",
+      "title": "Blood Vial",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Blood_Vial&oldid=50805",
+      "revision_id": 50805,
+      "revision_timestamp": "2026-08-28T17:28:03Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2fcbd01a5cb4422ec5717ac147acd2f4ccbc625f4ec79177c598bf0266d5a094",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BOTTLED_FLAME": {
+      "kind": "wiki",
+      "title": "Bottled Flame",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bottled_Flame&oldid=58005",
+      "revision_id": 58005,
+      "revision_timestamp": "2026-09-23T22:30:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7f7ea460292664fa71d734d94f43e3c50226db3d78933a63354326a7d9b0b119",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BOTTLED_LIGHTNING": {
+      "kind": "wiki",
+      "title": "Bottled Lightning",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bottled_Lightning&oldid=58006",
+      "revision_id": 58006,
+      "revision_timestamp": "2026-09-23T22:30:46Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "189f4e129983ebb9d142438c0f3643751c78063927040ddcbe2f8b7c55fd5a90",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BOTTLED_TORNADO": {
+      "kind": "wiki",
+      "title": "Bottled Tornado",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bottled_Tornado&oldid=58007",
+      "revision_id": 58007,
+      "revision_timestamp": "2026-09-23T22:31:03Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0feb49b62df924ea8984c5639ed05ccf8176ab858d3f0881cbe001c51d9f3b2a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BRONZE_SCALES": {
+      "kind": "wiki",
+      "title": "Bronze Scales",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bronze_Scales&oldid=56915",
+      "revision_id": 56915,
+      "revision_timestamp": "2026-09-17T09:09:45Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "493c4ee863f0abdf8f282dd0852b9bf31541accc14f906eb86fdc2ab8a2ed7f4",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BUSTED_CROWN": {
+      "kind": "wiki",
+      "title": "Busted Crown",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Busted_Crown&oldid=56922",
+      "revision_id": 56922,
+      "revision_timestamp": "2026-09-17T09:13:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5c54fb3a267c293f7ab1abf91ed43679a6310c922a1dd2306859bfe642aa9bbc",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CLOCKWORK_SOUVENIR": {
+      "kind": "wiki",
+      "title": "Clockwork Souvenir",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Clockwork_Souvenir&oldid=56639",
+      "revision_id": 56639,
+      "revision_timestamp": "2026-09-16T09:42:09Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a9cc7c6e064324c2bd7cbf30115ddd4890baf88385e600e899ad8666082e0be6",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:COFFEE_DRIPPER": {
+      "kind": "wiki",
+      "title": "Coffee Dripper",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Coffee_Dripper&oldid=56941",
+      "revision_id": 56941,
+      "revision_timestamp": "2026-09-17T11:07:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "31d506702964eccf24e4db1ba2c339338d3cc9e91c8221401038ed25aa3d7049",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CRACKED_CORE": {
+      "kind": "wiki",
+      "title": "Cracked Core",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cracked_Core&oldid=57250",
+      "revision_id": 57250,
+      "revision_timestamp": "2026-09-21T01:12:24Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b989a16bf096a35a455dcef287135dd5de386f29a854064d4d460170dcc89cd0",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CURSED_KEY": {
+      "kind": "wiki",
+      "title": "Cursed Key",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cursed_Key&oldid=56954",
+      "revision_id": 56954,
+      "revision_timestamp": "2026-09-17T14:38:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e99506bff362b49d2f01f8166847abae096c5d7f434f8bdda1e454c03ac7b870",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DAMARU": {
+      "kind": "wiki",
+      "title": "Damaru",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Damaru&oldid=56956",
+      "revision_id": 56956,
+      "revision_timestamp": "2026-09-17T14:39:23Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a20d98d964f892c91b4dab3ea0f1f024686518c12e0457c87e054e5887a52ffd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DATA_DISK": {
+      "kind": "wiki",
+      "title": "Data Disk",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Data_Disk&oldid=56751",
+      "revision_id": 56751,
+      "revision_timestamp": "2026-09-16T22:45:47Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "041203139cfbe1247079b1cd17838bcc6e13a05f21ae48e2cb89a6a18119fde5",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DU_VU_DOLL": {
+      "kind": "wiki",
+      "title": "Du-Vu Doll",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Du-Vu_Doll&oldid=57163",
+      "revision_id": 57163,
+      "revision_timestamp": "2026-09-20T20:58:01Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "c383e4754da794c4228645060c31bf2f80409d1c478c09ddb9598cd38abb09df",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ENCHIRIDION": {
+      "kind": "wiki",
+      "title": "Enchiridion",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Enchiridion&oldid=57173",
+      "revision_id": 57173,
+      "revision_timestamp": "2026-09-20T21:02:15Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0d96946385d6bd7069f2c61e5107886f3dabe1602feb82ec6a498bc2de6e7d21",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FOSSILIZED_HELIX": {
+      "kind": "wiki",
+      "title": "Fossilized Helix",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Fossilized_Helix&oldid=57204",
+      "revision_id": 57204,
+      "revision_timestamp": "2026-09-20T21:14:45Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "bb5d92424fa8d0fa0385f1c9bd5e3ce5f6081d5b80b74bae5604575fb0dd6e22",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FUSION_HAMMER": {
+      "kind": "wiki",
+      "title": "Fusion Hammer",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Fusion_Hammer&oldid=57209",
+      "revision_id": 57209,
+      "revision_timestamp": "2026-09-20T21:17:03Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3c00c616879799c2059b50c9f6563f2cb86145766385adaf1881782f44e85a82",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GIRYA": {
+      "kind": "wiki",
+      "title": "Girya",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Girya&oldid=58018",
+      "revision_id": 58018,
+      "revision_timestamp": "2026-09-23T22:35:08Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ff467cecd6c1eeb1cf79d8a3ec72ce8ae6539187aa84bef2a4e2ce877810dec7",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GOLD_PLATED_CABLES": {
+      "kind": "wiki",
+      "title": "Gold-Plated Cables",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gold-Plated_Cables&oldid=56357",
+      "revision_id": 56357,
+      "revision_timestamp": "2026-09-14T19:30:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dbd50ffffc8443a1112c04b6ebdf120a655f188cf35953015eefaf26450a7fbc",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GREMLIN_VISAGE": {
+      "kind": "wiki",
+      "title": "Gremlin Visage",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gremlin_Visage&oldid=57224",
+      "revision_id": 57224,
+      "revision_timestamp": "2026-09-20T21:21:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3f7e6453a6d86ea8dba69362408a4cf8ab379c7b59831393ad98e328ee40aade",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:HOLY_WATER": {
+      "kind": "wiki",
+      "title": "Holy Water",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Holy_Water&oldid=66762",
+      "revision_id": 66762,
+      "revision_timestamp": "2026-10-23T04:30:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "02e6fac2a3a92c8f2d03619a24427e5265cb60ca4ee200dae9d4cfcd4bae76aa",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:LANTERN": {
+      "kind": "wiki",
+      "title": "Lantern",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Lantern&oldid=57473",
+      "revision_id": 57473,
+      "revision_timestamp": "2026-09-22T06:40:02Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "6e8490b0e4acd95716cfbaa10a4292c287866ca4c01749aa9173c46eefec0e0b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MARK_OF_PAIN": {
+      "kind": "wiki",
+      "title": "Mark of Pain",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mark_of_Pain&oldid=56333",
+      "revision_id": 56333,
+      "revision_timestamp": "2026-09-14T19:21:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0f65c55ec860516ac7f0ca460ac9ba6fdddbf2513d21a55055d8ad734a1f6b20",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MUTAGENIC_STRENGTH": {
+      "kind": "wiki",
+      "title": "Mutagenic Strength",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mutagenic_Strength&oldid=57504",
+      "revision_id": 57504,
+      "revision_timestamp": "2026-09-22T06:51:15Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7ca47f143343829b3547a3b9793deaa94deb5f1aa901af2f456d35c7d37a0f78",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NEOWS_LAMENT": {
+      "kind": "wiki",
+      "title": "Neow's Lament",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Neow%27s_Lament&oldid=55469",
+      "revision_id": 55469,
+      "revision_timestamp": "2026-09-13T18:16:45Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "12561b5f9bf496fca86306eee7dd7a80c1cddb292d6b2f5ca5d0200dba7b6478",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NINJA_SCROLL": {
+      "kind": "wiki",
+      "title": "Ninja Scroll",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ninja_Scroll&oldid=56371",
+      "revision_id": 56371,
+      "revision_timestamp": "2026-09-14T19:57:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "bedab7c7adf77520b886daa3c48a960045cdd395b4ec8785e97ba8d6eae969c0",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NUCLEAR_BATTERY": {
+      "kind": "wiki",
+      "title": "Nuclear Battery",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Nuclear_Battery&oldid=66764",
+      "revision_id": 66764,
+      "revision_timestamp": "2026-10-23T04:31:19Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fefeb2813987821a5a7dc8be86445cbdc9b44db0b798062b4fa0f472310d2dab",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ODDLY_SMOOTH_STONE": {
+      "kind": "wiki",
+      "title": "Oddly Smooth Stone",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Oddly_Smooth_Stone&oldid=57510",
+      "revision_id": 57510,
+      "revision_timestamp": "2026-09-22T06:53:21Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "85757b510c45cb1ab08ae6923b0b6c6288bdb6e1ae54db14d070c00e64c9c02e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PANTOGRAPH": {
+      "kind": "wiki",
+      "title": "Pantograph",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pantograph&oldid=55887",
+      "revision_id": 55887,
+      "revision_timestamp": "2026-09-13T18:50:11Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8a8d8bf9c09b106426ca5d0887a031e6d8b44e9f0fe597a1d088e11d4e2cd98b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PRESERVED_INSECT": {
+      "kind": "wiki",
+      "title": "Preserved Insect",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Preserved_Insect&oldid=57999",
+      "revision_id": 57999,
+      "revision_timestamp": "2026-09-23T22:26:56Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dc81422578aa8bfdf74376e9de626950967a75a4eef44b811e08d267aaaf6b26",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PURE_WATER": {
+      "kind": "wiki",
+      "title": "Pure Water",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pure_Water&oldid=66761",
+      "revision_id": 66761,
+      "revision_timestamp": "2026-10-23T04:29:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dfe716013d6f674aeacbccdf41d8d14287dac3d61b036f51c1590de47fa7999a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RED_MASK": {
+      "kind": "wiki",
+      "title": "Red Mask",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Red_Mask&oldid=57541",
+      "revision_id": 57541,
+      "revision_timestamp": "2026-09-22T07:04:34Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "df588a01987ad79cdd3d88ba9b2610cf1bf55560eeb1a957d505d0d4c0070aed",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RING_OF_THE_SERPENT": {
+      "kind": "wiki",
+      "title": "Ring of the Serpent",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ring_of_the_Serpent&oldid=56350",
+      "revision_id": 56350,
+      "revision_timestamp": "2026-09-14T19:28:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "70dddc1683243440a161ec52b8cecb6cbf0a499c94b507e0533c0b1a72611f02",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RING_OF_THE_SNAKE": {
+      "kind": "wiki",
+      "title": "Ring of the Snake",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ring_of_the_Snake&oldid=56348",
+      "revision_id": 56348,
+      "revision_timestamp": "2026-09-14T19:27:18Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b9a9f28b770bf8966a301f125a8a486a6fababadfadcce69a3400206ed3d3977",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RUNIC_CAPACITOR": {
+      "kind": "wiki",
+      "title": "Runic Capacitor",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Runic_Capacitor&oldid=62922",
+      "revision_id": 62922,
+      "revision_timestamp": "2026-10-08T17:50:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "088556b26c8d1ee1ca182a17c6d214f975e6e96c8dde9afb4529c05a861d73d8",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SLAVERS_COLLAR": {
+      "kind": "wiki",
+      "title": "Slaver's Collar",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Slaver%27s_Collar&oldid=57601",
+      "revision_id": 57601,
+      "revision_timestamp": "2026-09-22T11:19:40Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "4b48c74a4adb978fcd8f7f86dc01703cadc35b98ef629f8b0b270ed734dfa257",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SLING_OF_COURAGE": {
+      "kind": "wiki",
+      "title": "Sling of Courage",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Sling_of_Courage&oldid=62830",
+      "revision_id": 62830,
+      "revision_timestamp": "2026-10-07T05:55:12Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "37769ea72265e7aca59ba60e8623f933a2eac63ce474532e24fefda66deda00f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SYMBIOTIC_VIRUS": {
+      "kind": "wiki",
+      "title": "Symbiotic Virus",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Symbiotic_Virus&oldid=57677",
+      "revision_id": 57677,
+      "revision_timestamp": "2026-09-22T12:06:06Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8150eac53017e2d272f3ce928cebd4c160dca77a9af81066a70d71e30da7dfd3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TEARDROP_LOCKET": {
+      "kind": "wiki",
+      "title": "Teardrop Locket",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Teardrop_Locket&oldid=56620",
+      "revision_id": 56620,
+      "revision_timestamp": "2026-09-16T09:25:49Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "03b44d6f642f678b8c37ad41c3247c3d2a3ab093b37bba7082703abd67a4f7db",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:THREAD_AND_NEEDLE": {
+      "kind": "wiki",
+      "title": "Thread and Needle",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Thread_and_Needle&oldid=57656",
+      "revision_id": 57656,
+      "revision_timestamp": "2026-09-22T11:37:31Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "885cd9c3620a2acd9d846fe137fe5746a8b324870b5afdfbe2d734505168fae5",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:VAJRA": {
+      "kind": "wiki",
+      "title": "Vajra",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Vajra&oldid=57642",
+      "revision_id": 57642,
+      "revision_timestamp": "2026-09-22T11:33:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f6d9872faabc77202a6926a97b1ebb1294c534ada2e375f69036d49a5fb3296c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ASTROLABE": {
+      "kind": "wiki",
+      "title": "Astrolabe",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Astrolabe&oldid=56885",
+      "revision_id": 56885,
+      "revision_timestamp": "2026-09-17T08:57:48Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5d090432a15cf2536503471393f0403473a2a094e91e97633e205c13646c94bd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:BLACK_STAR": {
+      "kind": "wiki",
+      "title": "Black Star",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Black_Star&oldid=55650",
+      "revision_id": 55650,
+      "revision_timestamp": "2026-09-13T18:39:13Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "098f9c55b9383dbe4e3b12658da7d315ae0274d4df06864ab9e2fbac1543408c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CALLING_BELL": {
+      "kind": "wiki",
+      "title": "Calling Bell",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Calling_Bell&oldid=55678",
+      "revision_id": 55678,
+      "revision_timestamp": "2026-09-13T18:40:34Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7e2b9a15928f727f09ff8783d185d577c6c3fe475e111b36320ebeeebe3a72d7",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CAULDRON": {
+      "kind": "wiki",
+      "title": "Cauldron",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cauldron&oldid=50952",
+      "revision_id": 50952,
+      "revision_timestamp": "2026-08-28T18:43:22Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e7a73658c5f56fb36c8d79350693c79470ef525c9937e230d565196c27860e68",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CULTIST_HEADPIECE": {
+      "kind": "wiki",
+      "title": "Cultist Headpiece",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cultist_Headpiece&oldid=51007",
+      "revision_id": 51007,
+      "revision_timestamp": "2026-08-28T18:57:24Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b80dd2551819e64307754b689a31caac384223fd9175e6691bba4c281a01f8e2",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DOLLYS_MIRROR": {
+      "kind": "wiki",
+      "title": "Dolly's Mirror",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Dolly%27s_Mirror&oldid=57155",
+      "revision_id": 57155,
+      "revision_timestamp": "2026-09-20T20:53:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f572e07f2304a1673ee6fd369b96aaadaf054d10e7af48280c7eee0d2233a891",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:DREAM_CATCHER": {
+      "kind": "wiki",
+      "title": "Dream Catcher",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Dream_Catcher&oldid=57993",
+      "revision_id": 57993,
+      "revision_timestamp": "2026-09-23T22:22:14Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "693c42a81a54d86c980797e1b9517ed0d9919f1aa13533b05539fe7c5ae1490c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:EMPTY_CAGE": {
+      "kind": "wiki",
+      "title": "Empty Cage",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Empty_Cage&oldid=57170",
+      "revision_id": 57170,
+      "revision_timestamp": "2026-09-20T21:01:32Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fbfc2eac231f5180b60d08b98f0a0f25745371375d8c2a61ef90470380c2e863",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ETERNAL_FEATHER": {
+      "kind": "wiki",
+      "title": "Eternal Feather",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Eternal_Feather&oldid=57183",
+      "revision_id": 57183,
+      "revision_timestamp": "2026-09-20T21:07:28Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d2ffcc431106311b93c5793b98445de3dd842b02fc9567251bbb65a3ba1b287a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:FROZEN_EGG": {
+      "kind": "wiki",
+      "title": "Frozen Egg",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Frozen_Egg&oldid=58009",
+      "revision_id": 58009,
+      "revision_timestamp": "2026-09-23T22:32:19Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "98f52b466fc60616f266d476fe1776de9a269de8acbc153eef7210aece6f91b6",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:GOLDEN_IDOL": {
+      "kind": "wiki",
+      "title": "Golden Idol (Relic)",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Golden_Idol_%28Relic%29&oldid=51022",
+      "revision_id": 51022,
+      "revision_timestamp": "2026-08-28T19:00:44Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9d093dbbe82423ee2de6e120c93e4f57d5e7621d38b6e50d583531e7c47eb38a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:JUZU_BRACELET": {
+      "kind": "wiki",
+      "title": "Juzu Bracelet",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Juzu_Bracelet&oldid=57992",
+      "revision_id": 57992,
+      "revision_timestamp": "2026-09-23T22:22:02Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7db63b6d0d31532e8f0d22b661f7fc6278279a5af76644851564484253a145b9",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:LEES_WAFFLE": {
+      "kind": "wiki",
+      "title": "Lee's Waffle",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Lee%27s_Waffle&oldid=50962",
+      "revision_id": 50962,
+      "revision_timestamp": "2026-08-28T18:45:09Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "3409853377ba04e0c99cdf5ea3197f3169e004f88a7a6988d4085d0da1fffb47",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MANGO": {
+      "kind": "wiki",
+      "title": "Mango",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mango&oldid=50886",
+      "revision_id": 50886,
+      "revision_timestamp": "2026-08-28T18:15:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "32949a64dd8a3da57aa159543edbda21ff434debca9923b8b76a10f5d78a02f3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MATRYOSHKA": {
+      "kind": "wiki",
+      "title": "Matryoshka",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Matryoshka&oldid=58010",
+      "revision_id": 58010,
+      "revision_timestamp": "2026-09-23T22:32:38Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "62f5f5ec5170b3362c9cac41f5dfd936a374a9b92415bf4e4f9e99b0b29748ab",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MAW_BANK": {
+      "kind": "wiki",
+      "title": "Maw Bank",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Maw_Bank&oldid=57991",
+      "revision_id": 57991,
+      "revision_timestamp": "2026-09-23T22:21:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "cc9bc6198508ffd7b8465e18416521737d15f18beb989fecb09b1b7d71f5c3ba",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MEAL_TICKET": {
+      "kind": "wiki",
+      "title": "Meal Ticket",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Meal_Ticket&oldid=57996",
+      "revision_id": 57996,
+      "revision_timestamp": "2026-09-23T22:23:01Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "705f0848a4b3997aee6528f02da81b103aea47166725b9caae1e7347f57e3e5f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MEMBERSHIP_CARD": {
+      "kind": "wiki",
+      "title": "Membership Card",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Membership_Card&oldid=50965",
+      "revision_id": 50965,
+      "revision_timestamp": "2026-08-28T18:45:43Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a6fa7549911494fe5e03c07066310bf17e46a9346f87aa444693f155522c1880",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:MOLTEN_EGG": {
+      "kind": "wiki",
+      "title": "Molten Egg",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Molten_Egg&oldid=58013",
+      "revision_id": 58013,
+      "revision_timestamp": "2026-09-23T22:33:35Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "99f965caecbaa68a9023335ea3f21277885c520341c96e953299d17d7a44193c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NLOTHS_GIFT": {
+      "kind": "wiki",
+      "title": "N'loth's Gift",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=N%27loth%27s_Gift&oldid=51026",
+      "revision_id": 51026,
+      "revision_timestamp": "2026-08-28T19:01:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5c65b5330e2711f4c825d1a781d9ca1a6b51097ba01b28128c92263fe5f0565e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:NLOTHS_HUNGRY_FACE": {
+      "kind": "wiki",
+      "title": "N'loth's Hungry Face",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=N%27loth%27s_Hungry_Face&oldid=51027",
+      "revision_id": 51027,
+      "revision_timestamp": "2026-08-28T19:01:35Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b89f9715f4fa3ba7604bf411270aca61a7a3c0b1c723a96c19ac000d4bf0346c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:OLD_COIN": {
+      "kind": "wiki",
+      "title": "Old Coin",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Old_Coin&oldid=58019",
+      "revision_id": 58019,
+      "revision_timestamp": "2026-09-23T22:35:33Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "28958d9720b1871ab17ed44050355b219badc6def500d8538b1098a2076b7e0e",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:ORRERY": {
+      "kind": "wiki",
+      "title": "Orrery",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Orrery&oldid=57514",
+      "revision_id": 57514,
+      "revision_timestamp": "2026-09-22T06:54:17Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f4db0b1c30aab3d9cdcbbc75b7d1c17ba0b8d18cc89e750e01ea192021ddbe5c",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PANDORAS_BOX": {
+      "kind": "wiki",
+      "title": "Pandora's Box",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pandora%27s_Box&oldid=57517",
+      "revision_id": 57517,
+      "revision_timestamp": "2026-09-22T06:55:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "51fb1389d2030149cd4d8cc61a546a399a789c0b80ac3a2ed015be65cf8e3cfd",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PEACE_PIPE": {
+      "kind": "wiki",
+      "title": "Peace Pipe",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Peace_Pipe&oldid=58020",
+      "revision_id": 58020,
+      "revision_timestamp": "2026-09-23T22:35:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "92333de2cfcdde9cb75e4550e008c34def502577aed916e0bbc32b18ec54d6e5",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PEAR": {
+      "kind": "wiki",
+      "title": "Pear",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Pear&oldid=50855",
+      "revision_id": 50855,
+      "revision_timestamp": "2026-08-28T18:02:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e9a2be876f9fce5c87dcd07e0ea9993ed4af9598fb8116c00512d91cb6dd39dc",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:POTION_BELT": {
+      "kind": "wiki",
+      "title": "Potion Belt",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Potion_Belt&oldid=57998",
+      "revision_id": 57998,
+      "revision_timestamp": "2026-09-23T22:26:35Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a51ca5eb96dc4daec02bf7026b1d90497f89ffab0f1c226fdea68dbb196d03e4",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PRAYER_WHEEL": {
+      "kind": "wiki",
+      "title": "Prayer Wheel",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Prayer_Wheel&oldid=58021",
+      "revision_id": 58021,
+      "revision_timestamp": "2026-09-23T22:36:05Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "af4791f19ea31c8fcab52d46ca08549e60ece2f97567379dc6c6d61cc70142e9",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:PRISMATIC_SHARD": {
+      "kind": "wiki",
+      "title": "Prismatic Shard",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Prismatic_Shard&oldid=55908",
+      "revision_id": 55908,
+      "revision_timestamp": "2026-09-13T18:51:11Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fa692b0efe0a4ca4471f290f9827310e9ad84edfed62b01e0f6a083736680c35",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:QUESTION_CARD": {
+      "kind": "wiki",
+      "title": "Question Card",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Question_Card&oldid=58014",
+      "revision_id": 58014,
+      "revision_timestamp": "2026-09-23T22:33:50Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9d8aad92eb3c0ea16e046f2f83ac9da9135600637cb2116854ae05a25cf0ff3f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:REGAL_PILLOW": {
+      "kind": "wiki",
+      "title": "Regal Pillow",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Regal_Pillow&oldid=58001",
+      "revision_id": 58001,
+      "revision_timestamp": "2026-09-23T22:27:46Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8328a44a5aaa15ba91e007ebbeff2a3fe4cafc0e340e91466df0b8b07ca4c709",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SSSERPENT_HEAD": {
+      "kind": "wiki",
+      "title": "Ssserpent Head",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ssserpent_Head&oldid=51010",
+      "revision_id": 51010,
+      "revision_timestamp": "2026-08-28T18:58:18Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "fbeb3003c766193b7240eceaa0a780bc34d5971b689081fa12a18993678b3e8d",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SHOVEL": {
+      "kind": "wiki",
+      "title": "Shovel",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Shovel&oldid=58022",
+      "revision_id": 58022,
+      "revision_timestamp": "2026-09-23T22:36:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1637bb06760fa5be34f30deec25bac929af26a65cd1dd4649aefdf19c0ae6694",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SINGING_BOWL": {
+      "kind": "wiki",
+      "title": "Singing Bowl",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Singing_Bowl&oldid=58015",
+      "revision_id": 58015,
+      "revision_timestamp": "2026-09-23T22:34:12Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "98951977cd528913ec27bc8cc65e91e6cd8c314cd60a3423d8f66bfdf7bf2946",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SMILING_MASK": {
+      "kind": "wiki",
+      "title": "Smiling Mask",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Smiling_Mask&oldid=58002",
+      "revision_id": 58002,
+      "revision_timestamp": "2026-09-23T22:28:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "96af77010191333d66a3e315affc1a7deed93b6784c598b049930b92b51a4859",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:SPIRIT_POOP": {
+      "kind": "wiki",
+      "title": "Spirit Poop",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Spirit_Poop&oldid=51012",
+      "revision_id": 51012,
+      "revision_timestamp": "2026-08-28T18:59:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9af8487407d903849b7908be0f8b17dc84772b7ac2a254d54a4411a308be0a2f",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:STRAWBERRY": {
+      "kind": "wiki",
+      "title": "Strawberry",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Strawberry&oldid=50825",
+      "revision_id": 50825,
+      "revision_timestamp": "2026-08-28T17:37:30Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "81a76e17354e41223560ae679ef466e9d354e742fe65242e5df743f0013af8d4",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:THE_COURIER": {
+      "kind": "wiki",
+      "title": "The Courier",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Courier&oldid=58016",
+      "revision_id": 58016,
+      "revision_timestamp": "2026-09-23T22:34:33Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ee48a8b69f095de17dba1d33b184e7d8a688b54f66e927aab38b631d107daa76",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TINY_CHEST": {
+      "kind": "wiki",
+      "title": "Tiny Chest",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Tiny_Chest&oldid=58003",
+      "revision_id": 58003,
+      "revision_timestamp": "2026-09-23T22:28:36Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "704b13881888cab12f3f010fb88e9cddeaa41e84a93b21cf177a4ec7664e691b",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TINY_HOUSE": {
+      "kind": "wiki",
+      "title": "Tiny House",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Tiny_House&oldid=57652",
+      "revision_id": 57652,
+      "revision_timestamp": "2026-09-22T11:36:32Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7b90e26d53f957968a78e75b4aeaa91cd953fdefd7ec67df18d1202ccaf3ad42",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:TOXIC_EGG": {
+      "kind": "wiki",
+      "title": "Toxic Egg",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Toxic_Egg&oldid=58017",
+      "revision_id": 58017,
+      "revision_timestamp": "2026-09-23T22:34:50Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "64adb1462e684d5509f7d87bb3f5aafffb20c09f67c273b0cb6a40700a475d6a",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WAR_PAINT": {
+      "kind": "wiki",
+      "title": "War Paint",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=War_Paint&oldid=57633",
+      "revision_id": 57633,
+      "revision_timestamp": "2026-09-22T11:32:01Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d4cb0be749fc7379592d3e3112308cc836587e25931855e155882991162d2aed",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WHETSTONE": {
+      "kind": "wiki",
+      "title": "Whetstone",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Whetstone&oldid=58004",
+      "revision_id": 58004,
+      "revision_timestamp": "2026-09-23T22:29:29Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "11cd761f9b82b82e82b7616fa7218fa799cc236473a1a510a932cacab5227856",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WHITE_BEAST_STATUE": {
+      "kind": "wiki",
+      "title": "White Beast Statue",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=White_Beast_Statue&oldid=50862",
+      "revision_id": 50862,
+      "revision_timestamp": "2026-08-28T18:04:52Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ded402ffea13186a672bca5b7bd93e435a96e462d0fc38b5f1791af68870b695",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:WING_BOOTS": {
+      "kind": "wiki",
+      "title": "Wing Boots",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Wing_Boots&oldid=58023",
+      "revision_id": 58023,
+      "revision_timestamp": "2026-09-23T22:36:43Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f1577ece1c913acc17d2458591c1cca94c2d9c3d3efbc951a5321f21ad706e33",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:CIRCLET": {
+      "kind": "wiki",
+      "title": "Circlet",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Circlet&oldid=51001",
+      "revision_id": 51001,
+      "revision_timestamp": "2026-08-28T18:55:54Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "263a4efba29b6d36d8e48b5b3bcabc836edef1a21b96aadbf5b66498ced11793",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    },
+    "wiki:RED_CIRCLET": {
+      "kind": "wiki",
+      "title": "Red Circlet",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Red_Circlet&oldid=51003",
+      "revision_id": 51003,
+      "revision_timestamp": "2026-08-28T18:56:07Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dc7b46762fb7ad6e82969d2b214d8ca196e2530e7577459a69b052df5c9f07b3",
+      "supports": "Effect, character restriction, acquisition, and documented mechanics/interactions; current wiki revision, not a version-pinned game oracle."
+    }
+  }
+}

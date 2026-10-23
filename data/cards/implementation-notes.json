@@ -1,0 +1,107 @@
+{
+  "ALPHA": [
+    "Alpha creates Beta; Beta creates Omega. Upgrading Alpha adds Innate, not an upgraded Beta. Generated cards can be upgraded separately in combat."
+  ],
+  "BETA": [
+    "The upgrade reduces Beta's cost from 2 to 1; it still creates an unupgraded Omega unless another effect upgrades the generated card."
+  ],
+  "OMEGA": [
+    "Deals non-attack damage at the end of the player's turn. Strength, Vulnerable, and Double Damage do not modify this damage."
+  ],
+  "BECOME_ALMIGHTY": [
+    "Wish option, not a normal hand/deck card. Its upgrade state is inherited from Wish; Master Reality does not upgrade it."
+  ],
+  "LIVE_FOREVER": [
+    "Wish option, not a normal hand/deck card. Its upgrade state is inherited from Wish; Master Reality does not upgrade it."
+  ],
+  "FAME_AND_FORTUNE": [
+    "Wish option, not a normal hand/deck card. Its upgrade state is inherited from Wish; Master Reality does not upgrade it. Ectoplasm prevents the gold gain."
+  ],
+  "WISH": [
+    "Creates and immediately resolves a choice card without putting that card into hand or the deck. Upgrade Wish itself to improve the choices; Master Reality does not upgrade the choice."
+  ],
+  "BLASPHEMY": [
+    "Blasphemer applies 99999 HP loss at the start of the next player turn, rather than an unconditional death operation. The wiki reports Buffer, Intangible, and resurrection interactions.",
+    "Although detrimental, Blasphemer is treated as a positive buff for Artifact/Orange Pellets purposes. Entering another stance does not remove it."
+  ],
+  "BURN": [
+    "Burn+ exists but is not a normal player-upgrade target. Hexaghost creates/upgrades Burns through Inferno. Preserve the enemy-created upgraded state.",
+    "End-of-turn Burn damage can be blocked. Burn discards itself even when otherwise retained or kept by Runic Pyramid."
+  ],
+  "CLASH": [
+    "The all-Attack hand condition also matters for indirect/free plays. The wiki reports that Havoc still exhausts an unplayable Clash even though it is not played."
+  ],
+  "CONJURE_BLADE": [
+    "Store the generated Expunger's hit count when Conjure Blade resolves. Conjure Blade+ adds one hit; it does not upgrade Expunger's per-hit damage. Chemical X adds two hits.",
+    "Zero-hit Expungers are possible. Free/duplicated X-cost plays need to preserve the appropriate X value without necessarily consuming energy."
+  ],
+  "EXPUNGER": [
+    "Costs 1 energy, not X energy. X is a stored hit count inherited from Conjure Blade at creation, not the player's current energy. Its own upgrade changes damage per hit from 9 to 15."
+  ],
+  "CORRUPTION": [
+    "Skill cost replacement and exhaust-on-play are effects of the power. The Corruption power card itself does not exhaust. Additional copies do not stack the power."
+  ],
+  "DEVA_FORM": [
+    "Track both current energy gain and its growth. The first additional energy arrives on the next player turn. Upgrading removes Ethereal, not the growth mechanic."
+  ],
+  "DEUS_EX_MACHINA": [
+    "Exhausts itself when drawn, after creating Miracles. It is unplayable; the self-exhaust flag does not imply a normal on-play trigger."
+  ],
+  "DODGE_AND_ROLL": [
+    "The next-turn Block amount incorporates Dexterity and Frail when the card is played, not when that delayed Block is delivered."
+  ],
+  "ECHO_FORM": [
+    "The upgrade removes Ethereal. Multiple power stacks double the first corresponding number of cards, rather than repeatedly doubling only the first card.",
+    "Repeated X-cost plays reuse X. The repeated play counts toward card-play counters and triggers; other doubling effects do not recursively double that repeat."
+  ],
+  "ESTABLISHMENT": [
+    "Triggers on actual Retain, including retention granted by other cards. Runic Pyramid's prevention of discard is not Retain and does not by itself trigger Establishment."
+  ],
+  "FISSION": [
+    "Unupgraded Fission removes Orbs without their Evoke effects; Fission+ evokes them. Both variants gain energy and draw based on the Orbs removed/evoked."
+  ],
+  "GENETIC_ALGORITHM": [
+    "Block is persistent per-card state across combats, not always the printed starting value of 1. Playing the card permanently adds 2 Block, or 3 when upgraded.",
+    "Repeated plays can increase the value between plays. The wiki explicitly reports an Omniscience exception; verify its copy/persistence behavior before implementing that interaction."
+  ],
+  "LESSON_LEARNED": [
+    "Fatal upgrades the permanent deck, not merely a combat copy. Fatal excludes Minions, the Awakened One's first phase, and non-final Darkling kills."
+  ],
+  "NIGHTMARE": [
+    "Copies arrive next turn. Persistent cost/value changes can be copied; turn-only discounts expire rather than carrying over. Copies exceeding the hand limit go to the discard pile."
+  ],
+  "NORMALITY": [
+    "Enforces a card-play limit only while currently in hand. Removing/discarding it can permit further plays; drawing it after three plays immediately prevents additional plays. Duplicated and autoplayed cards count too."
+  ],
+  "OMNISCIENCE": [
+    "Chosen draw-pile cards play twice without their normal energy cost and are exhausted. X-cost plays use energy remaining after paying Omniscience without consuming it.",
+    "The wiki reports special ordering for Time Warp and chained Omniscience, but Normality and Velvet Choker remain hard play limits. Turn-ending chosen cards can interrupt the repeat/chain."
+  ],
+  "PARASITE": [
+    "Removal or transformation from the permanent deck causes max-HP loss; exhausting a combat copy does not."
+  ],
+  "PRESSURE_POINTS": [
+    "First apply Mark to one selected enemy, then cause all enemies to lose HP equal to their own Mark. This is not an Attack damage effect."
+  ],
+  "REGRET": [
+    "Snapshot hand size when End Turn is pressed, including Regret itself. End-of-turn draws do not enlarge this count. Regret discards itself before ordinary retention."
+  ],
+  "RITUAL_DAGGER": [
+    "Damage growth is persistent per individual card across combats. Upgrade increases Fatal growth from 3 to 5, not the initial 15 damage.",
+    "Fatal excludes Minions, the Awakened One's first phase, and non-final Darkling kills. Copies have independent future growth."
+  ],
+  "RUSHDOWN": [
+    "Entering Wrath from another stance triggers draw; trying to enter Wrath while already in Wrath does not. The stance-changing card is placed in its destination pile before the triggered draw, so it can be redrawn."
+  ],
+  "SANDS_OF_TIME": [
+    "The cost reduction is per-card combat state and triggers on Retain, not simply remaining in hand. Establishment can provide an additional reduction."
+  ],
+  "SEARING_BLOW": [
+    "The upgraded variant represents +1 only. Store an integer upgrade count n; base damage is 12 + n*(n+7)/2. Further in-combat upgrades also increase damage.",
+    "The wiki reports extra-upgrade quirks when generated under Master Reality; consult the Bugs section before implementing generation/copy interactions."
+  ],
+  "VAULT": [
+    "Ends the player turn and begins another player turn while skipping the enemy turn and end-of-round phase. Do not model this as a plain extra energy/draw action.",
+    "Player-turn end/start effects still occur, but enemy-turn/end-of-round effects are skipped. Blasphemer still triggers on the new player turn. A doubled Vault can end the turn before its second play."
+  ]
+}

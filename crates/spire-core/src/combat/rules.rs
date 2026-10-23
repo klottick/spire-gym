@@ -36,6 +36,12 @@ pub fn normal_damage_modifiers(base: i32, strength: i32, weak: bool,
 pub fn full_normal_damage_modifiers(base: i32, strength: i32, weak: bool,
     wrath: bool, vulnerable: bool) -> Result<i32, InputError>
 {
+    full_normal_damage_received(base,strength,weak,wrath,[if vulnerable{1.5f32}else{1.0f32}])
+}
+
+/// Receive powers preserve owner-list order on binary32 damage; floor only once.
+pub(super) fn full_normal_damage_received(base:i32,strength:i32,weak:bool,wrath:bool,
+    receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
     bounded(base, 10_004, "full base damage")?;
     if !(-999..=999).contains(&strength) {
         return Err(InputError::Unsupported("full Strength outside supported numeric surface".into()));
@@ -45,7 +51,7 @@ pub fn full_normal_damage_modifiers(base: i32, strength: i32, weak: bool,
     let mut value = total as f32;
     if weak { value *= 0.75f32; }
     if wrath { value *= 2.0f32; }
-    if vulnerable { value *= 1.5f32; }
+    for multiplier in receive {value*=multiplier;}
     bounded(value.floor() as i32, 30_012, "full modified damage")?;
     Ok(value.max(0.0).floor() as i32)
 }

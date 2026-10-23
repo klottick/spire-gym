@@ -47,7 +47,7 @@ pub(crate) fn native_combat(c:&CombatPublic,id:&str)->Result<Value,ReportError> 
     Ok(json!({"id":id,"turn":c.turn,"player":full_player(c),"inventory":c.inventory.as_ref().map(inventory_value),"enemies":c.enemies.iter().zip(&c.targets).map(|(e,(target,eligible))|json!({
         "ref":crate::actions::actor_ref(&Actor::Enemy(e.instance_id.clone()),id),"targetId":target.0.to_string(),"targetEligible":eligible,"logicalSlot":e.logical_slot,"monsterId":e.enemy_id.as_str(),"name":e.enemy_id.as_str(),
         "hp":e.hp,"maxHp":e.max_hp,"block":e.block,"statuses":e.powers.iter().map(|p|json!({"id":p.id.0,"amount":p.amount})).collect::<Vec<_>>(),
-        "lifeState":if e.replaced {"replaced"}else if e.escaped {"escaped"}else if e.hp<=0 {"defeated"}else{"alive"},
+        "lifeState":if e.replaced {"replaced"}else if e.escaped {"escaped"}else if e.half_dead {"half_dead"}else if e.hp<=0 {"defeated"}else{"alive"},
         "intent":if !e.replaced&&!e.escaped&&e.hp>0 {json!({"name":e.intent.as_str(),"damagePerHit":e.intent_damage,"hitCount":null})}else{Value::Null},"assetKey":format!("enemy/{}",e.enemy_id.as_str())})).collect::<Vec<_>>(),
         "hand":c.hand.iter().map(|c|live_card(c,id)).collect::<Vec<_>>(),
         "piles":{"draw":{"count":c.draw_count,"knownCards":null,"orderKnown":false},"discard":c.discard.iter().map(|c|live_card(c,id)).collect::<Vec<_>>(),"exhaust":c.exhaust.iter().map(|c|live_card(c,id)).collect::<Vec<_>>()},

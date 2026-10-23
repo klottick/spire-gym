@@ -1,0 +1,638 @@
+[
+  {
+    "key": "power.accuracy_power",
+    "game_id": "Accuracy",
+    "class_alias": "AccuracyPower",
+    "source_owners": "card; Accuracy, Shiv"
+  },
+  {
+    "key": "power.after_image_power",
+    "game_id": "After Image",
+    "class_alias": "AfterImagePower",
+    "source_owners": "card; AfterImage"
+  },
+  {
+    "key": "power.amplify_power",
+    "game_id": "Amplify",
+    "class_alias": "AmplifyPower",
+    "source_owners": "card; Amplify"
+  },
+  {
+    "key": "power.anger_power",
+    "game_id": "Anger",
+    "class_alias": "AngerPower",
+    "source_owners": "card, enemy; Anger, GremlinNob"
+  },
+  {
+    "key": "power.angry_power",
+    "game_id": "Angry",
+    "class_alias": "AngryPower",
+    "source_owners": "enemy; GremlinWarrior"
+  },
+  {
+    "key": "power.artifact_power",
+    "game_id": "Artifact",
+    "class_alias": "ArtifactPower",
+    "source_owners": "card, enemy, potion, relic; AncientPotion, ClockworkSouvenir, CoreSurge, DarkShackles, Panacea, PiercingWail, Sentry"
+  },
+  {
+    "key": "power.barricade_power",
+    "game_id": "Barricade",
+    "class_alias": "BarricadePower",
+    "source_owners": "card; Barricade"
+  },
+  {
+    "key": "power.berserk_power",
+    "game_id": "Berserk",
+    "class_alias": "BerserkPower",
+    "source_owners": "card; Berserk"
+  },
+  {
+    "key": "power.bias_power",
+    "game_id": "Bias",
+    "class_alias": "BiasPower",
+    "source_owners": "card; BiasedCognition"
+  },
+  {
+    "key": "power.blur_power",
+    "game_id": "Blur",
+    "class_alias": "BlurPower",
+    "source_owners": "card; Blur"
+  },
+  {
+    "key": "power.brutality_power",
+    "game_id": "Brutality",
+    "class_alias": "BrutalityPower",
+    "source_owners": "card; Brutality"
+  },
+  {
+    "key": "power.buffer_power",
+    "game_id": "Buffer",
+    "class_alias": "BufferPower",
+    "source_owners": "card, relic; Buffer, FossilizedHelix"
+  },
+  {
+    "key": "power.burst_power",
+    "game_id": "Burst",
+    "class_alias": "BurstPower",
+    "source_owners": "card; Burst"
+  },
+  {
+    "key": "power.choke_power",
+    "game_id": "Choked",
+    "class_alias": "ChokePower",
+    "source_owners": "card; Choke"
+  },
+  {
+    "key": "power.combust_power",
+    "game_id": "Combust",
+    "class_alias": "CombustPower",
+    "source_owners": "card; Combust"
+  },
+  {
+    "key": "power.confusion_power",
+    "game_id": "Confusion",
+    "class_alias": "ConfusionPower",
+    "source_owners": "relic; SneckoEye"
+  },
+  {
+    "key": "power.corpse_explosion_power",
+    "game_id": "CorpseExplosionPower",
+    "class_alias": "CorpseExplosionPower",
+    "source_owners": "card; CorpseExplosion"
+  },
+  {
+    "key": "power.corruption_power",
+    "game_id": "Corruption",
+    "class_alias": "CorruptionPower",
+    "source_owners": "card; Corruption"
+  },
+  {
+    "key": "power.creative_ai_power",
+    "game_id": "Creative AI",
+    "class_alias": "CreativeAIPower",
+    "source_owners": "card; CreativeAI"
+  },
+  {
+    "key": "power.curl_up_power",
+    "game_id": "Curl Up",
+    "class_alias": "CurlUpPower",
+    "source_owners": "enemy; LouseDefensive, LouseNormal"
+  },
+  {
+    "key": "power.dark_embrace_power",
+    "game_id": "Dark Embrace",
+    "class_alias": "DarkEmbracePower",
+    "source_owners": "card; DarkEmbrace"
+  },
+  {
+    "key": "power.demon_form_power",
+    "game_id": "Demon Form",
+    "class_alias": "DemonFormPower",
+    "source_owners": "card; DemonForm"
+  },
+  {
+    "key": "power.dexterity_power",
+    "game_id": "Dexterity",
+    "class_alias": "DexterityPower",
+    "source_owners": "card, enemy, potion, relic; DexterityPotion, Duality, Fasting, Footwork, Kunai, Lagavulin, OddlySmoothStone, Reprogram, SpeedPotion"
+  },
+  {
+    "key": "power.double_tap_power",
+    "game_id": "Double Tap",
+    "class_alias": "DoubleTapPower",
+    "source_owners": "card; DoubleTap"
+  },
+  {
+    "key": "power.draw_card_next_turn_power",
+    "game_id": "Draw Card",
+    "class_alias": "DrawCardNextTurnPower",
+    "source_owners": "card; Predator, SimmeringFury"
+  },
+  {
+    "key": "power.draw_power",
+    "game_id": "Draw",
+    "class_alias": "DrawPower",
+    "source_owners": "card; MachineLearning"
+  },
+  {
+    "key": "power.duplication_power",
+    "game_id": "DuplicationPower",
+    "class_alias": "DuplicationPower",
+    "source_owners": "potion; DuplicationPotion"
+  },
+  {
+    "key": "power.echo_power",
+    "game_id": "Echo Form",
+    "class_alias": "EchoPower",
+    "source_owners": "card; EchoForm"
+  },
+  {
+    "key": "power.electro_power",
+    "game_id": "Electro",
+    "class_alias": "ElectroPower",
+    "source_owners": "card; Electrodynamics"
+  },
+  {
+    "key": "power.energized_blue_power",
+    "game_id": "EnergizedBlue",
+    "class_alias": "EnergizedBluePower",
+    "source_owners": "card; ConserveBattery"
+  },
+  {
+    "key": "power.energized_power",
+    "game_id": "Energized",
+    "class_alias": "EnergizedPower",
+    "source_owners": "card; FlyingKnee, Outmaneuver"
+  },
+  {
+    "key": "power.entangle_power",
+    "game_id": "Entangled",
+    "class_alias": "EntanglePower",
+    "source_owners": "enemy; SlaverRed"
+  },
+  {
+    "key": "power.envenom_power",
+    "game_id": "Envenom",
+    "class_alias": "EnvenomPower",
+    "source_owners": "card; Envenom"
+  },
+  {
+    "key": "power.equilibrium_power",
+    "game_id": "Equilibrium",
+    "class_alias": "EquilibriumPower",
+    "source_owners": "card; Equilibrium"
+  },
+  {
+    "key": "power.evolve_power",
+    "game_id": "Evolve",
+    "class_alias": "EvolvePower",
+    "source_owners": "card; Evolve"
+  },
+  {
+    "key": "power.feel_no_pain_power",
+    "game_id": "Feel No Pain",
+    "class_alias": "FeelNoPainPower",
+    "source_owners": "card; FeelNoPain"
+  },
+  {
+    "key": "power.fire_breathing_power",
+    "game_id": "Fire Breathing",
+    "class_alias": "FireBreathingPower",
+    "source_owners": "card; FireBreathing"
+  },
+  {
+    "key": "power.flame_barrier_power",
+    "game_id": "Flame Barrier",
+    "class_alias": "FlameBarrierPower",
+    "source_owners": "card; FlameBarrier"
+  },
+  {
+    "key": "power.focus_power",
+    "game_id": "Focus",
+    "class_alias": "FocusPower",
+    "source_owners": "card, relic; BiasedCognition, Consume, DataDisk, Defragment, Hyperbeam, Reprogram"
+  },
+  {
+    "key": "power.frail_power",
+    "game_id": "Frail",
+    "class_alias": "FrailPower",
+    "source_owners": "card, enemy; GremlinFat, Shame, SpikeSlime_L, SpikeSlime_M"
+  },
+  {
+    "key": "power.gain_strength_power",
+    "game_id": "Shackled",
+    "class_alias": "GainStrengthPower",
+    "source_owners": "card; DarkShackles, PiercingWail"
+  },
+  {
+    "key": "power.heatsink_power",
+    "game_id": "Heatsink",
+    "class_alias": "HeatsinkPower",
+    "source_owners": "card; Heatsinks"
+  },
+  {
+    "key": "power.hello_power",
+    "game_id": "Hello",
+    "class_alias": "HelloPower",
+    "source_owners": "card; HelloWorld"
+  },
+  {
+    "key": "power.infinite_blades_power",
+    "game_id": "Infinite Blades",
+    "class_alias": "InfiniteBladesPower",
+    "source_owners": "card; InfiniteBlades"
+  },
+  {
+    "key": "power.intangible_player_power",
+    "game_id": "IntangiblePlayer",
+    "class_alias": "IntangiblePlayerPower",
+    "source_owners": "card, relic; Apparition, IncenseBurner, WraithForm"
+  },
+  {
+    "key": "power.juggernaut_power",
+    "game_id": "Juggernaut",
+    "class_alias": "JuggernautPower",
+    "source_owners": "card; Juggernaut"
+  },
+  {
+    "key": "power.lock_on_power",
+    "game_id": "Lockon",
+    "class_alias": "LockOnPower",
+    "source_owners": "card; LockOn"
+  },
+  {
+    "key": "power.loop_power",
+    "game_id": "Loop",
+    "class_alias": "LoopPower",
+    "source_owners": "card; Loop"
+  },
+  {
+    "key": "power.lose_dexterity_power",
+    "game_id": "DexLoss",
+    "class_alias": "LoseDexterityPower",
+    "source_owners": "potion, relic; Duality, SpeedPotion"
+  },
+  {
+    "key": "power.lose_strength_power",
+    "game_id": "Flex",
+    "class_alias": "LoseStrengthPower",
+    "source_owners": "card, potion, relic; Flex, MutagenicStrength, SteroidPotion"
+  },
+  {
+    "key": "power.magnetism_power",
+    "game_id": "Magnetism",
+    "class_alias": "MagnetismPower",
+    "source_owners": "card; Magnetism"
+  },
+  {
+    "key": "power.mayhem_power",
+    "game_id": "Mayhem",
+    "class_alias": "MayhemPower",
+    "source_owners": "card; Mayhem"
+  },
+  {
+    "key": "power.metallicize_power",
+    "game_id": "Metallicize",
+    "class_alias": "MetallicizePower",
+    "source_owners": "card, enemy, potion; HeartOfIron, Lagavulin, Metallicize"
+  },
+  {
+    "key": "power.mode_shift_power",
+    "game_id": "Mode Shift",
+    "class_alias": "ModeShiftPower",
+    "source_owners": "enemy; TheGuardian"
+  },
+  {
+    "key": "power.next_turn_block_power",
+    "game_id": "Next Turn Block",
+    "class_alias": "NextTurnBlockPower",
+    "source_owners": "card, relic; DodgeAndRoll, SelfFormingClay"
+  },
+  {
+    "key": "power.no_block_power",
+    "game_id": "NoBlockPower",
+    "class_alias": "NoBlockPower",
+    "source_owners": "card; PanicButton"
+  },
+  {
+    "key": "power.no_draw_power",
+    "game_id": "No Draw",
+    "class_alias": "NoDrawPower",
+    "source_owners": "card, relic; BattleTrance, BulletTime, UnceasingTop"
+  },
+  {
+    "key": "power.noxious_fumes_power",
+    "game_id": "Noxious Fumes",
+    "class_alias": "NoxiousFumesPower",
+    "source_owners": "card; NoxiousFumes"
+  },
+  {
+    "key": "power.panache_power",
+    "game_id": "Panache",
+    "class_alias": "PanachePower",
+    "source_owners": "card; Panache"
+  },
+  {
+    "key": "power.pen_nib_power",
+    "game_id": "Pen Nib",
+    "class_alias": "PenNibPower",
+    "source_owners": "relic; PenNib"
+  },
+  {
+    "key": "power.phantasmal_power",
+    "game_id": "Phantasmal",
+    "class_alias": "PhantasmalPower",
+    "source_owners": "card; PhantasmalKiller"
+  },
+  {
+    "key": "power.plated_armor_power",
+    "game_id": "Plated Armor",
+    "class_alias": "PlatedArmorPower",
+    "source_owners": "card, potion, relic; EssenceOfSteel, LiveForever, ThreadAndNeedle"
+  },
+  {
+    "key": "power.poison_power",
+    "game_id": "Poison",
+    "class_alias": "PoisonPower",
+    "source_owners": "card, enemy, relic; AcidSlime_L, AcidSlime_M, AcidSlime_S, CorpseExplosion, CripplingPoison, DeadlyPoison, PoisonedStab, SpikeSlime_L, SpikeSlime_M, SpikeSlime_S, TheSpecimen, TwistedFunnel"
+  },
+  {
+    "key": "power.rage_power",
+    "game_id": "Rage",
+    "class_alias": "RagePower",
+    "source_owners": "card; Rage"
+  },
+  {
+    "key": "power.rebound_power",
+    "game_id": "Rebound",
+    "class_alias": "ReboundPower",
+    "source_owners": "card; Rebound"
+  },
+  {
+    "key": "power.regen_power",
+    "game_id": "Regeneration",
+    "class_alias": "RegenPower",
+    "source_owners": "potion; RegenPotion"
+  },
+  {
+    "key": "power.repair_power",
+    "game_id": "Repair",
+    "class_alias": "RepairPower",
+    "source_owners": "card; SelfRepair"
+  },
+  {
+    "key": "power.retain_card_power",
+    "game_id": "Retain Cards",
+    "class_alias": "RetainCardPower",
+    "source_owners": "card; WellLaidPlans"
+  },
+  {
+    "key": "power.ritual_power",
+    "game_id": "Ritual",
+    "class_alias": "RitualPower",
+    "source_owners": "enemy, potion; Cultist, CultistPotion"
+  },
+  {
+    "key": "power.rupture_power",
+    "game_id": "Rupture",
+    "class_alias": "RupturePower",
+    "source_owners": "card; Rupture"
+  },
+  {
+    "key": "power.sadistic_power",
+    "game_id": "Sadistic",
+    "class_alias": "SadisticPower",
+    "source_owners": "card; SadisticNature"
+  },
+  {
+    "key": "power.sharp_hide_power",
+    "game_id": "Sharp Hide",
+    "class_alias": "SharpHidePower",
+    "source_owners": "enemy; TheGuardian"
+  },
+  {
+    "key": "power.split_power",
+    "game_id": "Split",
+    "class_alias": "SplitPower",
+    "source_owners": "enemy; AcidSlime_L, SlimeBoss, SpikeSlime_L"
+  },
+  {
+    "key": "power.spore_cloud_power",
+    "game_id": "Spore Cloud",
+    "class_alias": "SporeCloudPower",
+    "source_owners": "enemy; FungiBeast"
+  },
+  {
+    "key": "power.static_discharge_power",
+    "game_id": "StaticDischarge",
+    "class_alias": "StaticDischargePower",
+    "source_owners": "card; StaticDischarge"
+  },
+  {
+    "key": "power.storm_power",
+    "game_id": "Storm",
+    "class_alias": "StormPower",
+    "source_owners": "card; Storm"
+  },
+  {
+    "key": "power.strength_power",
+    "game_id": "Strength",
+    "class_alias": "StrengthPower",
+    "source_owners": "card, enemy, potion, relic; BecomeAlmighty, Brimstone, DarkShackles, Disarm, DuVuDoll, Fasting, Flex, FungiBeast, Girya, HeavyBlade, Hexaghost, Inflame, JAX, JawWorm, Lagavulin, LouseNormal, MutagenicStrength, PhilosopherStone, PiercingWail, RedSkull, Reprogram, Shuriken, Sling, SteroidPotion, StrengthPotion, Vajra"
+  },
+  {
+    "key": "power.the_bomb_power",
+    "game_id": "TheBomb",
+    "class_alias": "TheBombPower",
+    "source_owners": "card; TheBomb"
+  },
+  {
+    "key": "power.thievery_power",
+    "game_id": "Thievery",
+    "class_alias": "ThieveryPower",
+    "source_owners": "enemy; Looter"
+  },
+  {
+    "key": "power.thorns_power",
+    "game_id": "Thorns",
+    "class_alias": "ThornsPower",
+    "source_owners": "card, potion, relic; BronzeScales, Caltrops, LiquidBronze"
+  },
+  {
+    "key": "power.thousand_cuts_power",
+    "game_id": "Thousand Cuts",
+    "class_alias": "ThousandCutsPower",
+    "source_owners": "card; AThousandCuts"
+  },
+  {
+    "key": "power.tools_of_the_trade_power",
+    "game_id": "Tools Of The Trade",
+    "class_alias": "ToolsOfTheTradePower",
+    "source_owners": "card; ToolsOfTheTrade"
+  },
+  {
+    "key": "power.vulnerable_power",
+    "game_id": "Vulnerable",
+    "class_alias": "VulnerablePower",
+    "source_owners": "card, enemy, potion, relic; BagOfMarbles, Bash, BeamCell, Berserk, Dropkick, FearPotion, GremlinNob, HandDrill, Shockwave, SlaverRed, Terror, TheGuardian, ThunderClap, Trip, Uppercut"
+  },
+  {
+    "key": "power.watcher_battle_hymn_power",
+    "game_id": "BattleHymn",
+    "class_alias": "watcher.BattleHymnPower",
+    "source_owners": "card; BattleHymn"
+  },
+  {
+    "key": "power.watcher_block_return_power",
+    "game_id": "BlockReturnPower",
+    "class_alias": "watcher.BlockReturnPower",
+    "source_owners": "card; TalkToTheHand"
+  },
+  {
+    "key": "power.watcher_deva_power",
+    "game_id": "DevaForm",
+    "class_alias": "watcher.DevaPower",
+    "source_owners": "card; DevaForm"
+  },
+  {
+    "key": "power.watcher_devotion_power",
+    "game_id": "DevotionPower",
+    "class_alias": "watcher.DevotionPower",
+    "source_owners": "card; Devotion"
+  },
+  {
+    "key": "power.watcher_end_turn_death_power",
+    "game_id": "EndTurnDeath",
+    "class_alias": "watcher.EndTurnDeathPower",
+    "source_owners": "card; Blasphemy"
+  },
+  {
+    "key": "power.watcher_energy_down_power",
+    "game_id": "EnergyDownPower",
+    "class_alias": "watcher.EnergyDownPower",
+    "source_owners": "card; Fasting"
+  },
+  {
+    "key": "power.watcher_establishment_power",
+    "game_id": "EstablishmentPower",
+    "class_alias": "watcher.EstablishmentPower",
+    "source_owners": "card; Establishment"
+  },
+  {
+    "key": "power.watcher_foresight_power",
+    "game_id": "WireheadingPower",
+    "class_alias": "watcher.ForesightPower",
+    "source_owners": "card; Foresight"
+  },
+  {
+    "key": "power.watcher_free_attack_power",
+    "game_id": "FreeAttackPower",
+    "class_alias": "watcher.FreeAttackPower",
+    "source_owners": "card; Swivel"
+  },
+  {
+    "key": "power.watcher_like_water_power",
+    "game_id": "LikeWaterPower",
+    "class_alias": "watcher.LikeWaterPower",
+    "source_owners": "card; LikeWater"
+  },
+  {
+    "key": "power.watcher_mantra_power",
+    "game_id": "Mantra",
+    "class_alias": "watcher.MantraPower",
+    "source_owners": "card, relic; Damaru, Pray, Prostrate, Worship"
+  },
+  {
+    "key": "power.watcher_mark_power",
+    "game_id": "PathToVictoryPower",
+    "class_alias": "watcher.MarkPower",
+    "source_owners": "card; PressurePoints"
+  },
+  {
+    "key": "power.watcher_master_reality_power",
+    "game_id": "MasterRealityPower",
+    "class_alias": "watcher.MasterRealityPower",
+    "source_owners": "card; MasterReality"
+  },
+  {
+    "key": "power.watcher_mental_fortress_power",
+    "game_id": "Controlled",
+    "class_alias": "watcher.MentalFortressPower",
+    "source_owners": "card; MentalFortress"
+  },
+  {
+    "key": "power.watcher_nirvana_power",
+    "game_id": "Nirvana",
+    "class_alias": "watcher.NirvanaPower",
+    "source_owners": "card; Nirvana"
+  },
+  {
+    "key": "power.watcher_omega_power",
+    "game_id": "OmegaPower",
+    "class_alias": "watcher.OmegaPower",
+    "source_owners": "card; Omega"
+  },
+  {
+    "key": "power.watcher_rushdown_power",
+    "game_id": "Adaptation",
+    "class_alias": "watcher.RushdownPower",
+    "source_owners": "card; Rushdown"
+  },
+  {
+    "key": "power.watcher_study_power",
+    "game_id": "Study",
+    "class_alias": "watcher.StudyPower",
+    "source_owners": "card; Study"
+  },
+  {
+    "key": "power.watcher_vigor_power",
+    "game_id": "Vigor",
+    "class_alias": "watcher.VigorPower",
+    "source_owners": "card, relic; Akabeko, WreathOfFlame"
+  },
+  {
+    "key": "power.watcher_wave_of_the_hand_power",
+    "game_id": "WaveOfTheHandPower",
+    "class_alias": "watcher.WaveOfTheHandPower",
+    "source_owners": "card; WaveOfTheHand"
+  },
+  {
+    "key": "power.watcher_wrath_next_turn_power",
+    "game_id": "WrathNextTurnPower",
+    "class_alias": "watcher.WrathNextTurnPower",
+    "source_owners": "card; SimmeringFury"
+  },
+  {
+    "key": "power.weak_power",
+    "game_id": "Weakened",
+    "class_alias": "WeakPower",
+    "source_owners": "card, enemy, potion, relic; AcidSlime_L, AcidSlime_M, AcidSlime_S, Blind, ChampionsBelt, Clothesline, CripplingPoison, Doubt, GremlinFat, GremlinMask, HeelHook, Intimidate, LegSweep, LouseDefensive, Neutralize, RedMask, Shockwave, SlaverBlue, SuckerPunch, TheGuardian, Uppercut, WeakenPotion"
+  },
+  {
+    "key": "power.wraith_form_power",
+    "game_id": "Wraith Form v2",
+    "class_alias": "WraithFormPower",
+    "source_owners": "card; WraithForm"
+  }
+]

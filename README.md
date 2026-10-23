@@ -17,6 +17,20 @@ The [repository scope](docs/scope.md) records the current priorities, boundaries
 delivery path and implementation status. No human-playable client, graphics,
 animation, audio or interactive game UI is planned.
 
+See [performance measurements](docs/performance.md) for opt-in release benchmarks,
+versioned baseline comparisons and planned coverage for later gym milestones.
+
+## Game-rule resources for contributors and AI agents
+
+Start with the **[reference library index](data/README.md)**:
+[cards](data/cards/README.md), [relics](data/relics/README.md),
+[enemies and encounter rules](data/enemies/README.md), and
+[powers / buffs / debuffs](data/powers/README.md). Read each guide's citations,
+uncertainties and source grades before implementing mechanics or repeating research.
+These are offline references, **not implemented-content lists or runtime proof**.
+See [agent guidance](AGENTS.md) for current ownership and task constraints;
+the index lists standard-library offline checks that need no pytest or installs.
+
 ## Authored combat: M1–M3
 
 The approved [36-milestone roadmap](docs/superpowers/specs/2026-10-22-narrow-gym-milestones-design.md)
@@ -43,7 +57,9 @@ The final target remains **all four fully unlocked characters, Ascension 0–20,
 Acts 1–4 and the Heart, with all normally reachable content**; A20 is the primary
 final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
-M3 `.25`, M4 `.26`, M5 `.27` and M6 `.28` are accepted; M7 `.29` is planning-only next. Old
+M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
+declared profiles; M8 `.30`/`.30.2` are also accepted/closed at the captured
+Act3 mechanics/prefix scope. M9 planning is next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
@@ -91,6 +107,32 @@ stops at its unchanged no-action Act2Ready.
 cargo run -p spire-core --example m6_act2 --locked --offline -- --scenario all --seed 7
 ```
 
+The approved [M7 plan](docs/superpowers/plans/2026-10-23-m7-ironclad-act2.md)
+has an [accepted captured Act2 profile](docs/milestones/m7-act2.md) after one
+independent milestone review: actual normal-start boss/reward/chest alternatives
+and same-player Act3Ready, not Act3 gameplay. Genuine Death is a valid episode
+outcome, not a simulator error or claimed act completion. The preselected seed11
+completes all three alternatives; seed7 also records a natural Champ loss.
+
+```sh
+cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario all --seed 7
+cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario complete --seed 11
+```
+
+The [written M8 plan](docs/superpowers/plans/2026-10-23-m8-act3-mechanics.md)
+is complete and its [accepted runnable profile](docs/milestones/m8-act3.md)
+executes actual Act3 ordinary/elite/all3boss mechanics, Falling/Tomb/Red Mask and
+normal-start same-player paths through actual chest43. Seed11 completes Time Eater/
+Donu-Deca icon prefixes and retains a genuine Giant Head loss; all three seed7
+prefixes retain natural elite losses. No seed search or forced-win tuning. ONE fresh
+independent review found no findings; unchanged reviewed source and fresh checks
+establish scoped M8 acceptance. Full Act3 completion stays M9, now planning only.
+
+```sh
+cargo run -p spire-core --example m8_act3 --locked --offline -- --scenario all --seed 11
+cargo run -p spire-core --example m8_act3 --locked --offline -- --scenario prefix --seed 7
+```
+
 See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)
 and [the work-status snapshot](docs/work-status.md). Historical specs/plans retain
 their evidence and approval limits; they do not override the current repo boundary.
@@ -116,7 +158,7 @@ Historical failed comparisons remain retained. Task reviews, whole-slice review,
 final correction review and fresh controller verification are complete for that
 historical core-only handoff; they do not describe verification of the later
 batching/Gymnasium integration.
-Full-run simulation is not implemented; bounded M3–M5 Run profiles above are native.
+Full-run simulation is not implemented; bounded M3–M7 Run profiles above are native.
 The learning system is external, not
 an unfinished deliverable of this repository.
 No learned playing-strength or optimized simulator-throughput result
@@ -202,7 +244,9 @@ See [the design checklist](docs/design-process.md) for progress and decisions.
 
 ## License
 
-Project code is licensed under the [MIT License](LICENSE). Slay the Spire is owned
+Project code is licensed under the [MIT License](LICENSE). Wiki-derived reference
+data has separate [CC BY-SA attribution and licensing](data/README.md#licensing);
+the domain guides retain their specific notices. Slay the Spire is owned
 by Mega Crit; this license does not grant rights to the original game or its assets.
 Original game code, binaries, assets and private raw evidence are not distributed
 with this project.

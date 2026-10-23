@@ -1,0 +1,1223 @@
+{
+  "schema_version": 1,
+  "compiled_at": "2026-10-23",
+  "verification_level": "reference_not_runtime_verified",
+  "selection_rules": {
+    "separate_processes": "Encounter-family proposals, formation composition, HP/setup rolls, and per-enemy moves are distinct processes. enemy_ids is support including dependent actors, not an ordered initial actor list; formation supplies that distinction.",
+    "ordinary": "Act1 begins with3 weak encounters, Acts2/3 with2. Then use a separately filtered first-strong draw and later strong proposals. Ordinary queue appends reject the last two encounter families; elite queue appends reject only immediate repeats. These are not IID room rates. Event fights do not ordinarily consume these queues.",
+    "first_strong_exclusions": {
+      "act1": {
+        "2 Louse": [
+          "3 Louse"
+        ],
+        "Small Slimes": [
+          "Large Slime",
+          "Lots of Slimes"
+        ]
+      },
+      "act2": {
+        "Spheric Guardian": [
+          "Sentry and Sphere"
+        ],
+        "3 Byrds": [
+          "Chosen and Byrds"
+        ],
+        "Chosen": [
+          "Chosen and Byrds",
+          "Cultist and Chosen"
+        ]
+      },
+      "act3": {
+        "3 Darklings": [
+          "3 Darklings"
+        ],
+        "3 Shapes": [
+          "4 Shapes"
+        ],
+        "Orb Walker": [
+          "Orb Walker (not in strong pool; do not invent another exclusion)"
+        ]
+      }
+    },
+    "weights": "Relative weights are source proposals, not probabilities after history rejection. Act1 weak total8/strong16; Act2 weak10/strong29; Act3 weak6/strong8. Original binary32/grid normalization can differ from naive rational normalization; RNG-001 does not require original seed/cursor/coupling.",
+    "bosses": "Boss candidates are the three named families per Act1/2/3. Discovery history can force an unseen boss; fully unlocked does not imply all bosses seen. All-seen selection uses a shuffled candidate list, not ordinary elite-repeat rules. AtA20 Act3 fights two DISTINCT boss families sequentially; exact original seeded shuffle joint is not established here.",
+    "discovery_order": {
+      "act1": [
+        "The Guardian",
+        "Hexaghost",
+        "Slime Boss"
+      ],
+      "act2": [
+        "Champ",
+        "Automaton",
+        "Collector"
+      ],
+      "act3": [
+        "Awakened One",
+        "Donu and Deca",
+        "Time Eater"
+      ]
+    },
+    "burning_elite": "Marked room chooses one buff applied to every initial actor. Wiki Acts1–3 formulas: Strength(act+1), +25% maxHP, Metallicize(2*act+2), Regenerate(2*act+1). Local Act1 gives a uniform four-way choice and rounded bonus round(0.25*oldMaxHP), then heal that bonus. Higher-act application/rounding is community-only grade here. Offering the Emerald Key and actually obtaining it are separate operations.",
+    "visibility": "Static reference is public rules, not an observation encoder. Do not expose future encounter queues, hidden selected history or future move draws to an agent just because reference records describe them.",
+    "citations": [
+      "local:act1",
+      "local:acts23",
+      "wiki:monsters",
+      "wiki:elites",
+      "wiki:bosses",
+      "wiki:ascension",
+      "local:rng-policy"
+    ]
+  },
+  "reward_and_event_notes": [
+    {
+      "context": "ordinary room versus actor kind",
+      "rule": "Room/event owns rewards. A Sentry in a normal room is not an Elite-room reward merely because its enemy class scales atA3/A8/A18. Ordinary monsters generally10–20 gold/card reward/possible potion; Elite rooms generally25–35 gold/relic/card/possible potion. Full modifiers belong to economy/reward implementation.",
+      "citations": [
+        "wiki:monsters",
+        "wiki:elites",
+        "local:act1"
+      ]
+    },
+    {
+      "context": "Dead Adventurer",
+      "rule": "One event variant fixed by a uniform3-way selection in the localA0 record; Sentries/Nob/awake Lagavulin. Search ambush risks25/50/75% belowA15,35/60/85% atA15. Already searched gold/relic categories are removed from later rewards. eliteTrigger can enable Insect/Sling/Collar, not Black Star extra relic or burning-room buffs.",
+      "citations": [
+        "local:act1",
+        "wiki:dead_adventurer"
+      ]
+    },
+    {
+      "context": "Mushroom Lair",
+      "rule": "Three Fungi; localA0 rewards gold20–30 plus Odd Mushroom (Circlet if already owned). This is not the ordinary two-Fungi encounter and does not consume its queue.",
+      "citations": [
+        "local:act1",
+        "wiki:hypnotizing_colored_mushrooms"
+      ]
+    },
+    {
+      "context": "Colosseum",
+      "rule": "First fight has no rewards but normal combat-end effects still matter. Second is Taskmaster+Nob, gives explicit100 gold, rare relic, uncommon relic and ordinary card/possible-potion rewards; eliteTrigger applies selected relic effects but not Black Star reward-room logic.",
+      "citations": [
+        "local:acts23",
+        "wiki:the_colosseum"
+      ]
+    },
+    {
+      "context": "Masked Bandits",
+      "rule": "Pointy/Romeo/Bear fight gives25–35 gold and Red Mask (localA0 Circlet fallback if already owned), plus ordinary reward context. Not an Elite room.",
+      "citations": [
+        "local:acts23",
+        "wiki:masked_bandits"
+      ]
+    },
+    {
+      "context": "Mysterious Sphere",
+      "rule": "Two Orb Walkers give45–55 gold and rare relic with normal card/possible-potion rewards; not an Elite room.",
+      "citations": [
+        "local:acts23",
+        "wiki:mysterious_sphere"
+      ]
+    },
+    {
+      "context": "Mind Bloom War",
+      "rule": "One Act1 boss with event rewards, not the normal Act1 boss chest/rare-card path. Wiki gold50 belowA15,25 atA15, plus rare relic and normal combat rewards. Boss-entry relic interactions remain applicable; exact event settlement is not proved here.",
+      "citations": [
+        "local:acts23",
+        "wiki:mind_bloom",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "context": "Act-end bosses",
+      "rule": "Act1/2 ordinary boss reward stages differ from Act3/Heart. A20 adds a second distinct Act3 boss, not an extra Act1/2 boss. Minion kills do not create independent room reward sets. Do not apply an end-of-act transition heal between the A20 boss pair by analogy.",
+      "citations": [
+        "wiki:bosses",
+        "wiki:ascension"
+      ]
+    }
+  ],
+  "uncertainties": [
+    "Acts2/3 initial research is a supportingA0 draft; extrapolated all-ascension encounter availability is community-reference grade, not primary closure.",
+    "Exact slot order/selection law for several mixed groups and leader gremlin summons is not established here; preserve explicit omissions.",
+    "Historical source clock/Reaper-loss proposals are superseded. No timer audit or original game execution was performed."
+  ],
+  "encounters": [
+    {
+      "id": "act1.weak.cultist",
+      "act": 1,
+      "pool": "WEAK",
+      "factory_key": "Cultist",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "CULTIST"
+      ],
+      "formation": "One Cultist.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.weak.jaw_worm",
+      "act": 1,
+      "pool": "WEAK",
+      "factory_key": "Jaw Worm",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "JAW_WORM"
+      ],
+      "formation": "One ordinary, non-hard Jaw Worm.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.weak.2_louse",
+      "act": 1,
+      "pool": "WEAK",
+      "factory_key": "2 Louse",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "RED_LOUSE",
+        "GREEN_LOUSE"
+      ],
+      "formation": "Two ordered slots; independent fair red/green choice in each.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.weak.small_slimes",
+      "act": 1,
+      "pool": "WEAK",
+      "factory_key": "Small Slimes",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "SPIKE_SLIME_S",
+        "ACID_SLIME_M",
+        "ACID_SLIME_S",
+        "SPIKE_SLIME_M"
+      ],
+      "formation": "Fair choice: Spike(S) left + Acid(M) right, or Acid(S) left + Spike(M) right.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.blue_slaver",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Blue Slaver",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "BLUE_SLAVER"
+      ],
+      "formation": "One Blue Slaver.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.red_slaver",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Red Slaver",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "RED_SLAVER"
+      ],
+      "formation": "One Red Slaver.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.looter",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Looter",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "LOOTER"
+      ],
+      "formation": "One Looter.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.large_slime",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Large Slime",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "ACID_SLIME_L",
+        "SPIKE_SLIME_L"
+      ],
+      "formation": "Fair Acid(L)/Spike(L) choice; one actor.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.3_louse",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "3 Louse",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "RED_LOUSE",
+        "GREEN_LOUSE"
+      ],
+      "formation": "Three ordered independent fair-color slots.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.2_fungi_beasts",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "2 Fungi Beasts",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "FUNGI_BEAST"
+      ],
+      "formation": "Two independently initialized Fungi Beasts.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.gremlin_gang",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Gremlin Gang",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "MAD_GREMLIN",
+        "SNEAKY_GREMLIN",
+        "FAT_GREMLIN",
+        "SHIELD_GREMLIN",
+        "GREMLIN_WIZARD"
+      ],
+      "formation": "Four successive uniform remaining-member choices from Mad2/Sneaky2/Fat2/Shield1/Wizard1; no final shuffle; ordinary actors are not Minions.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.lots_of_slimes",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Lots of Slimes",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "SPIKE_SLIME_S",
+        "ACID_SLIME_S"
+      ],
+      "formation": "Five ordered without-replacement draws exhausting Spike(S)3/Acid(S)2; not five IID color rolls.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.exordium_thugs",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Exordium Thugs",
+      "relative_weight": "3/2",
+      "enemy_ids": [
+        "RED_LOUSE",
+        "GREEN_LOUSE",
+        "SPIKE_SLIME_M",
+        "ACID_SLIME_M",
+        "CULTIST",
+        "LOOTER",
+        "BLUE_SLAVER",
+        "RED_SLAVER"
+      ],
+      "formation": "Left: red Louse1/6, green Louse1/6, Spike(M)1/3, Acid(M)1/3. Right: Cultist1/3, Looter1/3, Blue Slaver1/6, Red Slaver1/6.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.strong.exordium_wildlife",
+      "act": 1,
+      "pool": "STRONG",
+      "factory_key": "Exordium Wildlife",
+      "relative_weight": "3/2",
+      "enemy_ids": [
+        "FUNGI_BEAST",
+        "JAW_WORM",
+        "RED_LOUSE",
+        "GREEN_LOUSE",
+        "SPIKE_SLIME_M",
+        "ACID_SLIME_M"
+      ],
+      "formation": "Left fair Fungi/Jaw; right red Louse1/6, green Louse1/6, Spike(M)1/3, Acid(M)1/3.",
+      "citations": [
+        "local:act1",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act1.elite.gremlin_nob",
+      "act": 1,
+      "pool": "ELITE",
+      "factory_key": "Gremlin Nob",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "GREMLIN_NOB"
+      ],
+      "formation": "One ordinary Vulnerable-enabled Nob.",
+      "citations": [
+        "local:act1",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act1.elite.lagavulin",
+      "act": 1,
+      "pool": "ELITE",
+      "factory_key": "Lagavulin",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "LAGAVULIN"
+      ],
+      "formation": "One sleeping Lagavulin.",
+      "citations": [
+        "local:act1",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act1.elite.3_sentries",
+      "act": 1,
+      "pool": "ELITE",
+      "factory_key": "3 Sentries",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "SENTRY"
+      ],
+      "formation": "Three ordered Sentries; initial Bolt/Beam/Bolt.",
+      "citations": [
+        "local:act1",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act1.boss.the_guardian",
+      "act": 1,
+      "pool": "BOSS",
+      "factory_key": "The Guardian",
+      "relative_weight": null,
+      "enemy_ids": [
+        "THE_GUARDIAN"
+      ],
+      "formation": "One Guardian; Mode Shift variant is phase state, not a second actor.",
+      "citations": [
+        "local:act1",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act1.boss.hexaghost",
+      "act": 1,
+      "pool": "BOSS",
+      "factory_key": "Hexaghost",
+      "relative_weight": null,
+      "enemy_ids": [
+        "HEXAGHOST"
+      ],
+      "formation": "One Hexaghost; its visual flames are not summoned monsters.",
+      "citations": [
+        "local:act1",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act1.boss.slime_boss",
+      "act": 1,
+      "pool": "BOSS",
+      "factory_key": "Slime Boss",
+      "relative_weight": null,
+      "enemy_ids": [
+        "SLIME_BOSS",
+        "ACID_SLIME_L",
+        "SPIKE_SLIME_L",
+        "ACID_SLIME_M",
+        "SPIKE_SLIME_M"
+      ],
+      "formation": "One Slime Boss initially; Split offspring are dependent actors, not separate encounter-pool entries.",
+      "citations": [
+        "local:act1",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act2.weak.spheric_guardian",
+      "act": 2,
+      "pool": "WEAK",
+      "factory_key": "Spheric Guardian",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "SPHERIC_GUARDIAN"
+      ],
+      "formation": "One Spheric Guardian.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.weak.chosen",
+      "act": 2,
+      "pool": "WEAK",
+      "factory_key": "Chosen",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "CHOSEN"
+      ],
+      "formation": "One Chosen.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.weak.shell_parasite",
+      "act": 2,
+      "pool": "WEAK",
+      "factory_key": "Shell Parasite",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "SHELLED_PARASITE"
+      ],
+      "formation": "One Shelled Parasite; factory key differs from display name.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.weak.3_byrds",
+      "act": 2,
+      "pool": "WEAK",
+      "factory_key": "3 Byrds",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "BYRD"
+      ],
+      "formation": "Three independent Byrds.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.weak.2_thieves",
+      "act": 2,
+      "pool": "WEAK",
+      "factory_key": "2 Thieves",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "LOOTER",
+        "MUGGER"
+      ],
+      "formation": "Looter left, Mugger right, with separate gold ledgers.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.chosen_and_byrds",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Chosen and Byrds",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "CHOSEN",
+        "BYRD"
+      ],
+      "formation": "One Chosen and one Byrd; plural factory label does not mean multiple Byrds. Relative action order not established by the cited local report.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.sentry_and_sphere",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Sentry and Sphere",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "SENTRY",
+        "SPHERIC_GUARDIAN"
+      ],
+      "formation": "One Sentry and one Spheric Guardian in a normal room; Sentry retains its Elite-class stats. Detailed slot/phase mapping not established here.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.snake_plant",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Snake Plant",
+      "relative_weight": "6",
+      "enemy_ids": [
+        "SNAKE_PLANT"
+      ],
+      "formation": "One Snake Plant.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.snecko",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Snecko",
+      "relative_weight": "4",
+      "enemy_ids": [
+        "SNECKO"
+      ],
+      "formation": "One Snecko.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.centurion_and_healer",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Centurion and Healer",
+      "relative_weight": "6",
+      "enemy_ids": [
+        "CENTURION",
+        "MYSTIC"
+      ],
+      "formation": "Centurion plus Mystic; source factory label uses Healer. Exact slot order is not asserted from the label alone.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.cultist_and_chosen",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Cultist and Chosen",
+      "relative_weight": "3",
+      "enemy_ids": [
+        "CULTIST",
+        "CHOSEN"
+      ],
+      "formation": "One Cultist and one Chosen. Exact slot order not established by the cited local report.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.3_cultists",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "3 Cultists",
+      "relative_weight": "3",
+      "enemy_ids": [
+        "CULTIST"
+      ],
+      "formation": "Three independently initialized Cultists.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.strong.shelled_parasite_and_fungi",
+      "act": 2,
+      "pool": "STRONG",
+      "factory_key": "Shelled Parasite and Fungi",
+      "relative_weight": "3",
+      "enemy_ids": [
+        "SHELLED_PARASITE",
+        "FUNGI_BEAST"
+      ],
+      "formation": "One Shelled Parasite and one Fungi Beast; exact slot order not established here.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act2.elite.gremlin_leader",
+      "act": 2,
+      "pool": "ELITE",
+      "factory_key": "Gremlin Leader",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "GREMLIN_LEADER",
+        "MAD_GREMLIN",
+        "SNEAKY_GREMLIN",
+        "FAT_GREMLIN",
+        "SHIELD_GREMLIN",
+        "GREMLIN_WIZARD"
+      ],
+      "formation": "Two generated small gremlins then Leader; generated gremlins are Minions. Initial/summon candidate weighting is not completely established here.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act2.elite.slavers",
+      "act": 2,
+      "pool": "ELITE",
+      "factory_key": "Slavers",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "BLUE_SLAVER",
+        "TASKMASTER",
+        "RED_SLAVER"
+      ],
+      "formation": "Blue Slaver, Taskmaster, Red Slaver in that order. Enemy-class scaling is not uniform across the group.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act2.elite.book_of_stabbing",
+      "act": 2,
+      "pool": "ELITE",
+      "factory_key": "Book of Stabbing",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "BOOK_OF_STABBING"
+      ],
+      "formation": "One Book of Stabbing.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act2.boss.automaton",
+      "act": 2,
+      "pool": "BOSS",
+      "factory_key": "Automaton",
+      "relative_weight": null,
+      "enemy_ids": [
+        "BRONZE_AUTOMATON",
+        "BRONZE_ORB"
+      ],
+      "formation": "One Bronze Automaton initially; its first move summons two Bronze Orb Minions.",
+      "citations": [
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act2.boss.collector",
+      "act": 2,
+      "pool": "BOSS",
+      "factory_key": "Collector",
+      "relative_weight": null,
+      "enemy_ids": [
+        "THE_COLLECTOR",
+        "TORCH_HEAD"
+      ],
+      "formation": "One Collector initially; first move summons two Torch Heads.",
+      "citations": [
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act2.boss.champ",
+      "act": 2,
+      "pool": "BOSS",
+      "factory_key": "Champ",
+      "relative_weight": null,
+      "enemy_ids": [
+        "THE_CHAMP"
+      ],
+      "formation": "One Champ.",
+      "citations": [
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act3.weak.3_darklings",
+      "act": 3,
+      "pool": "WEAK",
+      "factory_key": "3 Darklings",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "DARKLING"
+      ],
+      "formation": "Three ordered Darklings; center slot cannot Chomp. Same encounter family also appears in strong pool.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.weak.orb_walker",
+      "act": 3,
+      "pool": "WEAK",
+      "factory_key": "Orb Walker",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "ORB_WALKER"
+      ],
+      "formation": "One Orb Walker.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.weak.3_shapes",
+      "act": 3,
+      "pool": "WEAK",
+      "factory_key": "3 Shapes",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "REPULSOR",
+        "EXPLODER",
+        "SPIKER"
+      ],
+      "formation": "Three ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each. Named owned-static spawnShapes corroborates composition, not original RNG parity or upstream build provenance.",
+      "citations": [
+        "local:m8-shapes",
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.spire_growth",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Spire Growth",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "SPIRE_GROWTH"
+      ],
+      "formation": "One Spire Growth.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.transient",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Transient",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "TRANSIENT"
+      ],
+      "formation": "One Transient; surviving Fading is a distinct completion path from an attributed kill.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.4_shapes",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "4 Shapes",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "REPULSOR",
+        "EXPLODER",
+        "SPIKER"
+      ],
+      "formation": "Four ordered without-replacement slots from Repulsor2/Exploder2/Spiker2; maximum two of each. Named owned-static spawnShapes corroborates composition, not original RNG parity or upstream build provenance.",
+      "citations": [
+        "local:m8-shapes",
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.maw",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Maw",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "THE_MAW"
+      ],
+      "formation": "One Maw.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.sphere_and_2_shapes",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Sphere and 2 Shapes",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "SPHERIC_GUARDIAN",
+        "REPULSOR",
+        "EXPLODER",
+        "SPIKER"
+      ],
+      "formation": "Owned-static factory order: independent uniform Spiker/Repulsor/Exploder, independent uniform Spiker/Repulsor/Exploder, then Spheric Guardian. Not the shrinking six-member 3/4 Shapes pool. Upstream build/channel unverified.",
+      "ordered_slots": ["INDEPENDENT_SHAPE", "INDEPENDENT_SHAPE", "SPHERIC_GUARDIAN"],
+      "citations": [
+        "local:m8-shapes",
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.jaw_worm_horde",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Jaw Worm Horde",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "JAW_WORM"
+      ],
+      "formation": "Three hard-variant Jaw Worms with starting Bellow effects; independently initialized histories and non-forced openings.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.3_darklings",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "3 Darklings",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "DARKLING"
+      ],
+      "formation": "Same three-Darkling factory as weak pool; queue history compares encounter family, not this reference-record ID.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.strong.writhing_mass",
+      "act": 3,
+      "pool": "STRONG",
+      "factory_key": "Writhing Mass",
+      "relative_weight": "1",
+      "enemy_ids": [
+        "WRITHING_MASS"
+      ],
+      "formation": "One Writhing Mass.",
+      "citations": [
+        "local:acts23",
+        "wiki:monsters"
+      ]
+    },
+    {
+      "id": "act3.elite.giant_head",
+      "act": 3,
+      "pool": "ELITE",
+      "factory_key": "Giant Head",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "GIANT_HEAD"
+      ],
+      "formation": "One Giant Head.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act3.elite.nemesis",
+      "act": 3,
+      "pool": "ELITE",
+      "factory_key": "Nemesis",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "NEMESIS"
+      ],
+      "formation": "One Nemesis.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act3.elite.reptomancer",
+      "act": 3,
+      "pool": "ELITE",
+      "factory_key": "Reptomancer",
+      "relative_weight": "2",
+      "enemy_ids": [
+        "REPTOMANCER",
+        "DAGGER"
+      ],
+      "formation": "Reptomancer with two Dagger Minions initially; four-Dagger live cap. Detailed slot order not established here.",
+      "citations": [
+        "local:acts23",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act3.boss.awakened_one",
+      "act": 3,
+      "pool": "BOSS",
+      "factory_key": "Awakened One",
+      "relative_weight": null,
+      "enemy_ids": [
+        "CULTIST",
+        "AWAKENED_ONE"
+      ],
+      "formation": "Two Cultists then Awakened One; Cultists are not Minions.",
+      "citations": [
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act3.boss.time_eater",
+      "act": 3,
+      "pool": "BOSS",
+      "factory_key": "Time Eater",
+      "relative_weight": null,
+      "enemy_ids": [
+        "TIME_EATER"
+      ],
+      "formation": "One Time Eater.",
+      "citations": [
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act3.boss.donu_and_deca",
+      "act": 3,
+      "pool": "BOSS",
+      "factory_key": "Donu and Deca",
+      "relative_weight": null,
+      "enemy_ids": [
+        "DECA",
+        "DONU"
+      ],
+      "formation": "Deca then Donu; both are main bosses.",
+      "citations": [
+        "local:m8-partners",
+        "local:acts23",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act4.elite.shield_and_spear",
+      "act": 4,
+      "pool": "ELITE",
+      "factory_key": "Shield and Spear",
+      "relative_weight": null,
+      "enemy_ids": [
+        "SPIRE_SHIELD",
+        "SPIRE_SPEAR"
+      ],
+      "formation": "Shield left, player center, Spear right; Surrounded and facing/Back Attack state are encounter-owned.",
+      "citations": [
+        "wiki:spire_shield_and_spire_spear",
+        "wiki:corrupt_heart",
+        "wiki:elites"
+      ]
+    },
+    {
+      "id": "act4.boss.corrupt_heart",
+      "act": 4,
+      "pool": "BOSS",
+      "factory_key": "Corrupt Heart",
+      "relative_weight": null,
+      "enemy_ids": [
+        "CORRUPT_HEART"
+      ],
+      "formation": "One Corrupt Heart; reached only through the run's key/Act4 route, not automatic after every Act3 clear.",
+      "citations": [
+        "wiki:spire_shield_and_spire_spear",
+        "wiki:corrupt_heart",
+        "wiki:bosses"
+      ]
+    },
+    {
+      "id": "act1.event.dead_adventurer_sentries",
+      "act": 1,
+      "pool": "EVENT",
+      "factory_key": "Dead Adventurer Sentries",
+      "relative_weight": null,
+      "enemy_ids": [
+        "SENTRY"
+      ],
+      "formation": "Event-owned three Sentries, ordinary phase setup; does not consume elite queue.",
+      "citations": [
+        "local:act1",
+        "wiki:dead_adventurer"
+      ]
+    },
+    {
+      "id": "act1.event.dead_adventurer_nob",
+      "act": 1,
+      "pool": "EVENT",
+      "factory_key": "Dead Adventurer Nob",
+      "relative_weight": null,
+      "enemy_ids": [
+        "GREMLIN_NOB"
+      ],
+      "formation": "Event-owned ordinary Vulnerable-enabled Nob, not a new non-Vulnerable species.",
+      "citations": [
+        "local:act1",
+        "wiki:dead_adventurer"
+      ]
+    },
+    {
+      "id": "act1.event.lagavulin_event",
+      "act": 1,
+      "pool": "EVENT",
+      "factory_key": "Lagavulin Event",
+      "relative_weight": null,
+      "enemy_ids": [
+        "LAGAVULIN"
+      ],
+      "formation": "Awake Lagavulin, no intrinsic opening sleeping Block/Metallicize, Siphon first.",
+      "citations": [
+        "local:act1",
+        "wiki:dead_adventurer"
+      ]
+    },
+    {
+      "id": "act1.event.the_mushroom_lair",
+      "act": 1,
+      "pool": "EVENT",
+      "factory_key": "The Mushroom Lair",
+      "relative_weight": null,
+      "enemy_ids": [
+        "FUNGI_BEAST"
+      ],
+      "formation": "Three ordinary Fungi Beasts; not two. Odd Mushroom is loot, not a starting relic.",
+      "citations": [
+        "local:act1",
+        "wiki:hypnotizing_colored_mushrooms"
+      ]
+    },
+    {
+      "id": "act2.event.colosseum_slavers",
+      "act": 2,
+      "pool": "EVENT",
+      "factory_key": "Colosseum Slavers",
+      "relative_weight": null,
+      "enemy_ids": [
+        "BLUE_SLAVER",
+        "RED_SLAVER"
+      ],
+      "formation": "First event fight: Blue and Red Slaver; no combat rewards.",
+      "citations": [
+        "local:acts23",
+        "wiki:the_colosseum"
+      ]
+    },
+    {
+      "id": "act2.event.colosseum_nobs",
+      "act": 2,
+      "pool": "EVENT",
+      "factory_key": "Colosseum Nobs",
+      "relative_weight": null,
+      "enemy_ids": [
+        "TASKMASTER",
+        "GREMLIN_NOB"
+      ],
+      "formation": "Second fight: Taskmaster then ONE Gremlin Nob, not two Nobs. Event choice follows first fight.",
+      "citations": [
+        "local:acts23",
+        "wiki:the_colosseum"
+      ]
+    },
+    {
+      "id": "act2.event.masked_bandits",
+      "act": 2,
+      "pool": "EVENT",
+      "factory_key": "Masked Bandits",
+      "relative_weight": null,
+      "enemy_ids": [
+        "POINTY",
+        "ROMEO",
+        "BEAR"
+      ],
+      "formation": "Pointy, Romeo and Bear; not an Elite room. Relative slot/action order is not established by the cited summary alone.",
+      "citations": [
+        "local:acts23",
+        "wiki:masked_bandits"
+      ]
+    },
+    {
+      "id": "act3.event.double_orb_walker",
+      "act": 3,
+      "pool": "EVENT",
+      "factory_key": "Double Orb Walker",
+      "relative_weight": null,
+      "enemy_ids": [
+        "ORB_WALKER"
+      ],
+      "formation": "Two Orb Walkers. Do not substitute the obsolete same-name Mysterious Sphere factory containing an Orb Walker plus two shapes.",
+      "citations": [
+        "local:acts23",
+        "wiki:mysterious_sphere"
+      ]
+    },
+    {
+      "id": "act3.event.mind_bloom_war",
+      "act": 3,
+      "pool": "EVENT",
+      "factory_key": "Mind Bloom War",
+      "relative_weight": null,
+      "enemy_ids": [
+        "THE_GUARDIAN",
+        "HEXAGHOST",
+        "SLIME_BOSS",
+        "ACID_SLIME_L",
+        "SPIKE_SLIME_L",
+        "ACID_SLIME_M",
+        "SPIKE_SLIME_M"
+      ],
+      "formation": "One selected Act1 boss, with that boss's ordinary phases/dependents at current Ascension; event reward owner differs from an ordinary Act1 Boss room.",
+      "citations": [
+        "local:acts23",
+        "wiki:mind_bloom"
+      ]
+    }
+  ]
+}

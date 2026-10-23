@@ -1,0 +1,10 @@
+{
+  "retrieved_at": "2026-10-23T15:44:32.438379+00:00",
+  "query_url": "https://slaythespire.wiki.gg/api.php?action=cargoquery&tables=Powers&fields=_pageName,Link,Game,Name,Description,Stacks,Type,BetweenTurns,Cap&where=Game%3D%271%27&limit=500&order_by=Name&format=json",
+  "note": "Cargo and supporting page revisions were retrieved separately, not as a transaction.",
+  "reused_supporting_snapshot": {
+    "page": "Vault",
+    "path": "data/cards/sources/wiki-pages.json",
+    "note": "Existing public card-reference page revision reused; not refetched in this collection."
+  }
+}

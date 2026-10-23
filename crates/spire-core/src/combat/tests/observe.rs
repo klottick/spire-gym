@@ -6,6 +6,18 @@ use super::support::base_scenario;
 use crate::content::{CardId, EncounterId, Character, PotionId, RelicId};
 
 fn combat() -> Combat { Combat::new(&base_scenario()).unwrap() }
+
+#[test]
+fn observed_half_dead_retains_native_reviving_lifecycle() {
+    let mut c=Combat::enter(super::m8_shapes::entry(EncounterId::ThreeDarklings)).unwrap();
+    let actor=Actor::Enemy(c.state.enemies[0].instance_id.clone());let hp=c.state.enemies[0].hp;
+    let session=observe::Session::combat(&c);
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(actor.clone()),kind:EffectKind::Damage(DamagePayload::Fixed(hp))}],None).unwrap();
+    let observed=session.finish(());
+    assert!(c.public_full().unwrap().enemies[0].half_dead);assert!(c.public_full().unwrap().outcome.is_none());
+    let lifecycle=observed.effects.iter().find_map(|e|match &e.kind{ResolvedEffectKind::LifeChange{actor:a,after,..}if a==&actor=>Some(format!("{after:?}")),_=>None});
+    assert_eq!(lifecycle.as_deref(),Some("HalfDead"));
+}
 fn work(kind: EffectKind) -> Effect {
     Effect { source: Source::None, target: Some(Actor::Player), kind }
 }

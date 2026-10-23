@@ -11,11 +11,13 @@ pub enum CardId {
     DeadlyPoison, PoisonedStab, Catalyst,
     Bloodletting, BurningPact, Disarm,
     Bludgeon, Impervious, Offering,
-    AscendersBane, Miracle, Wound, Madness, Regret, Slimed, Dazed, Burn,
+    AscendersBane, Miracle, Wound, Madness, Regret, Slimed, Dazed, Burn, Parasite,Inflame,Void,
     Unknown(&'static str),
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
+        Self::Inflame=>"inflame",Self::Void=>"void",
+        Self::Parasite=>"parasite",
         Self::Dazed=>"dazed",Self::Burn=>"burn",
         Self::Bludgeon=>"bludgeon",Self::Impervious=>"impervious",Self::Offering=>"offering",
         Self::Strike => "strike", Self::Defend => "defend", Self::Bash => "bash",

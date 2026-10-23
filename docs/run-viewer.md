@@ -5,11 +5,12 @@ into a self-contained read-only HTML slideshow. It never executes gameplay while
 packaging or viewing. Existing gym interfaces and the `spire version` command are
 unchanged.
 
-Native capture uses the pinned accepted `5b1cd19` producer: supplied-entry Ironclad
-A0 combat replay, then the accepted **M6 captured-content run prefix through floor
-26**. It does not implement M7, full Act 2, standard content pools, later acts or
-Heart runs. The viewer adds observation, not gameplay. All work is currently
-uncommitted; integration into newer producer revisions is separate.
+Native capture covers supplied-entry Ironclad A0 combat replay and the accepted
+**M6 captured-content run prefix through floor 26**. Originally developed on
+`5b1cd19`, this viewer is now integrated with published `main` at `4874fb3`.
+The integration retains newer gameplay without extending the viewer's capture
+examples to M7/M8, full Act 2, standard content pools, later acts or Heart runs.
+The viewer adds observation, not gameplay.
 
 ## Capture a native recording
 
@@ -159,6 +160,9 @@ disabled. `SPIRE_REPORT_GENERATED_DIR` must contain `combat.html`, `run-prefix.h
 `death.html` and `unfinished.html`; generate/package the latter two using the death
 scenario and budget1. Without that variable, generated-report browser checks are
 explicitly skipped; fixture checks alone are not native-run evidence.
+The file-based tests honor `TMPDIR` when supplied; it must name an existing writable
+scratch directory. This permits verification without removing prior artifacts when
+the default `/tmp/opencode` quota is exhausted.
 
 Installed Playwright1.64.1 was located at
 `/home/klottick/repos/present-wishlist/frontend/node_modules/` for this session,
@@ -180,7 +184,7 @@ workload, not all gym throughput. Original-art verification remains unavailable
 until original images are explicitly supplied/prepared; tiny generated test images
 are not original-art evidence.
 
-The pinned native base has seven inherited core failures involving unfinished
+The integrated native producer has seven inherited core failures involving unfinished
 Poison/Catalyst/Artifact and Blue Slaver/Fungi drafts. The workspace is not green;
 these are not repaired or hidden by the report tests. Focused passing report or
 browser tests do not establish complete simulator support.

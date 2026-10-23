@@ -17,7 +17,7 @@ function document(overrides={}){
     catalog:{},frames:[frame(0),frame(1),frame(2)],capture:{status:'complete',reason:null},game:{outcome:null,boundary:null},...overrides};
 }
 function exported(report=document()){
-  const root=fs.mkdtempSync('/tmp/opencode/spire-report-browser-');roots.push(root);
+  const root=fs.mkdtempSync(path.join(process.env.TMPDIR||'/tmp/opencode','spire-report-browser-'));roots.push(root);
   const trace=path.join(root,'trace.jsonl');const output=path.join(root,'report.html');
   const records=[{record:'header',schemaId:report.schemaId,schemaVersion:report.schemaVersion,source:report.source,run:report.run}];
   if(Object.keys(report.catalog).length)records.push({record:'catalog',entries:report.catalog});

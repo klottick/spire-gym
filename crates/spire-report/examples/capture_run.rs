@@ -18,7 +18,7 @@ fn run()->Result<(),String> {
     let trace=trace.ok_or("missing --trace")?;
     let file=create_trace(&trace).map_err(|e|e.to_string())?;
     let mut writer=ReportWriter::new(file,json!({"record":"header","schemaId":"spire-report-v1","schemaVersion":1,
-        "source":{"kind":"run_prefix","profile":"accepted M6 Ironclad A0 captured-content prefix through floor26","producerRevision":"5b1cd19+viewer-uncommitted","contentId":spire_core::combat::CONTENT_ID,"evidenceGrade":"source-grounded; not original-runtime validated"},
+        "source":{"kind":"run_prefix","profile":"accepted M6 Ironclad A0 captured-content prefix through floor26","producerRevision":"4874fb3+run-viewer-pr44","contentId":spire_core::combat::CONTENT_ID,"evidenceGrade":"source-grounded; not original-runtime validated"},
         "run":{"character":"ironclad","ascension":0,"seed":{"encoding":"native u64 little-endian root prefix (not StS seed code)","value":seed.to_string()},
             "caller":{"kind":"unchanged native M6 public caller; separate from-start reproduction","budget":budget,"scenario":if death {"death"}else{"prefix"},"act2BossIcon":"Champ"}}})).map_err(|e|e.to_string())?;
     let(d,_)=run_driver::capture_source(seed,budget,death,&mut writer).map_err(|e|e.to_string())?;

@@ -69,7 +69,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
 /// defined at obtain time. RunState is the sole owner outside active combat.
 pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError> {
     if id==RelicId::BlackBlood{return replace_burning_blood(state)}
-    if matches!(id,RelicId::EmptyCage|RelicId::SlaversCollar)&&state.relics.contains(&id){return Err(RunError::InvalidAction)}
+    if matches!(id,RelicId::EmptyCage|RelicId::SlaversCollar|RelicId::RedMask)&&state.relics.contains(&id){return Err(RunError::InvalidAction)}
     if state.combat.is_some() { return Err(RunError::InvalidAction); }
     if crate::content::Catalog::standard().relic(id).is_none() {
         return Err(RunError::Registry("unknown relic"));
@@ -100,6 +100,11 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
     state.hp = hp;
     if max_hp_gain>0 {crate::combat::observe::run_heal(state,hp_before);}
     Ok(())
+}
+
+pub(super) fn battle_start_enemy_effects(context:&CombatItemContext,targets:&[crate::combat::EnemyHandle])->Vec<Effect>{
+    if !context.owns_relic(RelicId::RedMask){return vec![]}
+    targets.iter().map(|owner|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("weak"),amount:1}}).collect()
 }
 
 pub(super) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{

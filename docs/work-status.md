@@ -6,6 +6,90 @@ for the implemented interface. No models/training/learner checkpoints belong her
 
 ## Current workstream
 
+2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
+The isolated feature worktree remains at `ddd4df2` after separately authorized
+PR41 integration. Tasks1–11 implement the named Act3 mechanics, ownership/events and
+same-player actual chest43 prefix. Task12 public normal-start/replay checks and16
+supplied diagnostics execute; [accepted profile](milestones/m8-act3.md) records
+seed11 completions721/738actions (TimeEater/DonuDeca icons), real GiantHeadDeath711,
+and seed7 three genuine elite losses694/685/689. No forced-win tuning/seed search.
+The diagnostic exposed an actual last-actor Awakened HalfDead decision defect;
+focused card-collapse RED→GREEN preserves Rebirth without fabricated Victory.
+ONE fresh independent GPT6 Luna review found no findings; all462 reviewed public
+files were unchanged in both worktrees before fresh nativeM8 111/0/public56/0/
+M6native92/0/M7native16/0/consumers43/0/other30/0/reporting1/0/all8examples/bothseeds/
+budgets0/1/reference70/0/Pythonperf22/0/builders/diffcheck. Core647/7 retains
+exactly the same seven historical underlying failures, not a green workspace.
+M9 `.31` and planning-only `.31.1` are open/unassigned; no product start.
+Task-local owned-
+static findings retain unverified archive build/channel and no original-runtime
+validation;27 provisional enemy labels/12 unresolved power IDs remain. All M8 work
+is uncommitted; no new publication/install/cleanup authority.
+The dated planning snapshot below is history, not a new approval gate.
+
+2026-10-23 M8 written planning: user "Continue then" resumes the next deliverable
+after the two local snapshot commits. [Plan](superpowers/plans/2026-10-23-m8-act3-mechanics.md)
+prepared for user review: twelve native tasks for actual Act3 ordinary/elite/all3boss
+mechanics, required card/item ownership, Falling/Tomb events and same-player prefix
+through actual chest43. Full Act3 completion stays M9. Task-local source conflicts
+and approximate AI probabilities have explicit closure/stop rules, no inferred
+private audit. One isolated413-file current-HEAD Luna factual pass supplied code
+gaps, not review/acceptance; no builds/tests/product changes during planning.
+Planning `.30.1` blocked/unassigned for written-plan review; no implementation
+child/start, further commits/pushes/installs/cleanup or reference-data edits.
+
+2026-10-23 pre-M8 local snapshot: user requested current public work committed and
+reference discovery improved before planning M8. Accepted M7 is committed locally
+as `2d9a47e` on `feat/run-act2-prefix`. The follow-up reference/docs snapshot includes
+unchanged main-checkout `data/{cards,relics,enemies,powers}/` and five reference test
+files, plus a [library index](../data/README.md) and prominent agent/README links.
+No source-grade promotion, M8 implementation, push, merge to main, install or
+cleanup is implied. Original main-checkout files remain untouched; historical
+uncommitted/separate-library notes below are superseded by this dated snapshot.
+
+2026-10-23 M7 accepted/closed: ONE fresh independent GPT-6 Luna milestone review
+ses_e9600b926ffeS6qGIv2sdrojR5 found no Critical/Important/Minor issues. All380
+reviewed public files matched in both worktrees before fresh controller core534/7
+same exact underlyingold7/public50/0/M7internal16/0/M6native90/0/consumers43/0/
+other21/0/reporting1/0/all7examples/bothseeds/budgets0/1/diffcheck0. All six declined
+categories explicitly ruled; no broader/runtime/catalog/allseed/workspace-green
+acceptance. User-corrected natural ChampDeath remains valid gameplay, not a failure
+to tune away; actual all3boss completion uses already-planned seed11, no seed search.
+Native `.29.2`/outcome `.29` normally closed. [Accepted M7](milestones/m7-act2.md).
+Only administrative acceptance text changes afterward; product bytes fixed. M8
+`.30`/actual planning-only `.30.1` open/unassigned next, no product child/start or
+automatic source audit. Main data library remains separate read-only qualified
+reference input. No new commits/pushes/install/cleanup/original execution.
+
+2026-10-23 M7 Tasks1–5 implemented, Task6 verification/review next: user Continue
+approved the written plan, .29.1 closed and native .29.2 claimed normally. User then
+clarified that genuine Death is valid gameplay, not a requirement to tune every
+seed into victory. Updated [M7 profile](milestones/m7-act2.md): seed11 all3boss/
+reward/Act3Ready alternatives complete566/575/593actions; seed7 Automaton560 and
+Collector567 complete, Champ543actualDeath retained/tested/replayed. No search,
+game-value/resource changes or injected outcomes. CLI distinguishes valid losses
+from Act3 readiness, unfinished budgets and faults. M7public8/0/reporting1/0 and
+internal16/0; predecessor public42/0/nativeM6 90/0/consumers43/0, core534/7 exact
+underlyingold7 in last checkpoint. ONE fresh independent exact-snapshot review
+pending; no M7 acceptance, M8 start or new commits/pushes/install/cleanup.
+User reference-library handoff under main checkout data/{cards,relics,enemies,
+powers}/ is reference-only, with explicit conflicts/provisional IDs/nominal chances;
+no edits/wholesale port into this product worktree or reference test-count conflation.
+
+2026-10-23 M7 planning: user "Yes continue, let's plan m7" authorized the
+[written M7 plan](superpowers/plans/2026-10-23-m7-ironclad-act2.md), not product
+start. Planning `.29.1` returns blocked/unassigned for actual written-plan review.
+Six tasks propose the separate captured full Act2 path, real all3boss/reward/chest
+alternatives and same-player Act3Ready, preserving M5/M6 cutoffs. Boss33 then actual
+treasure34 credits34; resolved handoff adds0 and stops nonterminal/no-action at
+Act3Ready34. Third-act generated first35/boss50 is not gameplay coverage. Isolated
+Luna supplied public interfaces/facts in its own373-file materialized checkout,
+not review or acceptance. Card/relic information, speed-testing and general.review
+agents are coordinated as useful inputs, not duplicate whole-catalog/review gates.
+Published M1–M6 HEAD5b1cd19 is preserved; no new source/tests/builds/commits/pushes/
+installs/private lookups/cleanup. Prior verification counts below remain historical.
+Ledger `.superpowers/sdd/2026-10-23-m7-ironclad-act2/progress.md`.
+
 2026-10-23 M6 accepted: user "I approve" approved the actual written plan;
 `.28.1`, native `.28.2` and outcome `.28` are normally closed. Tasks1–11 now
 execute Spheric/Byrds/Flight, Chosen/Snecko/card pressure, paired Centurion/Mystic,

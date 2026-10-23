@@ -158,6 +158,8 @@ pub(crate) fn relic_hook_effects(context: &mut CombatItemContext, hook: Hook, hp
     relics::on_combat_hook(context, hook, hp)
 }
 
+pub(crate) fn battle_start_enemy_effects(context:&CombatItemContext,targets:&[EnemyHandle])->Vec<Effect>{relics::battle_start_enemy_effects(context,targets)}
+
 /// Validate and prepare a potion use without mutating the caller's item owner.
 /// The returned post-use slots are committed only alongside validated effects.
 pub(crate) fn potion_use_effects(context: &CombatItemContext, slot: usize,
@@ -174,7 +176,7 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
             | RelicId::PureWater | RelicId::BloodVial | RelicId::Anchor | RelicId::Lantern
             | RelicId::Strawberry | RelicId::Pear | RelicId::Mango | RelicId::SacredBark
             | RelicId::MarkOfBloom | RelicId::MagicFlower | RelicId::ToyOrnithopter | RelicId::NeowsLament
-            | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar) {
+            | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }

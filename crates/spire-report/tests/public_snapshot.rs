@@ -35,6 +35,33 @@ fn run_target_lifetimes() {
     assert!(described["targets"][0].as_str().unwrap().ends_with(d.combat.as_ref().unwrap().enemies[1].instance_id.as_str()));
     d.combat.as_mut().unwrap().targets.pop();assert!(describe_run_action(&d,&action,"combat-9").is_err());
 }
+
+#[test]
+fn run_snapshot_keeps_half_dead_distinct_from_permanent_defeat() {
+    let mut d=native::lethal().decision().unwrap();d.candidates.clear();let c=d.combat.as_mut().unwrap();
+    c.enemies[0].hp=0;c.enemies[0].half_dead=true;c.targets[0].1=false;
+    let state=run_snapshot(&d,None).unwrap();
+    assert_eq!(state["combat"]["enemies"][0]["lifeState"],"half_dead");
+    assert_eq!(state["combat"]["enemies"][0]["targetEligible"],false);
+}
+
+#[test]
+fn newer_public_room_variants_are_named_without_inventing_completion() {
+    let mut d=native::m4::run(7).decision().unwrap();d.candidates.clear();
+    for (kind,want) in [(RoomViewKind::Act3Ready,"act3_ready"),(RoomViewKind::Act3PrefixComplete,"act3_prefix_complete")] {
+        d.room=Some(RoomView{kind,choices:vec![]});let state=run_snapshot(&d,None).unwrap();
+        assert_eq!(state["screen"]["kind"],want);assert!(state["terminal"].is_null());
+    }
+    d.room=Some(RoomView{kind:RoomViewKind::Event(spire_core::content::EventId::Falling),choices:vec![
+        RoomChoiceView{id:ChoiceId(1),kind:RoomChoiceKind::FallingLose{card_type:spire_core::content::CardType::Attack,instance:Some(42)},status:RoomChoiceStatus::Offered,price:None},
+        RoomChoiceView{id:ChoiceId(2),kind:RoomChoiceKind::TombGold,status:RoomChoiceStatus::Offered,price:None},
+        RoomChoiceView{id:ChoiceId(3),kind:RoomChoiceKind::TombOfferGold,status:RoomChoiceStatus::Disabled,price:Some(99)},
+    ]});
+    let state=run_snapshot(&d,None).unwrap();let options=state["screen"]["options"].as_array().unwrap();
+    assert_eq!(options[0]["data"]["instance"],"42");assert_eq!(options[0]["data"]["cardType"],"attack");
+    assert_eq!(options[1]["label"],"Take gold");assert_eq!(options[2]["label"],"Offer gold");
+    assert_eq!(options[2]["status"],"disabled");assert_eq!(options[2]["data"]["price"],99);
+}
 #[test]
 fn run_public_map() {
     let mut run=native::m4::run(7);

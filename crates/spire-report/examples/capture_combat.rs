@@ -15,7 +15,7 @@ fn run()->Result<(),String> {
     let seed=seed.ok_or("missing --seed")?;let trace=trace.ok_or("missing --trace")?;
     let out=create_trace(&trace).map_err(|e|e.to_string())?;
     let mut writer=ReportWriter::new(out,json!({"record":"header","schemaId":"spire-report-v1","schemaVersion":1,
-        "source":{"kind":"combat_episode","profile":"starter-cultist-a0-v1 supplied entry","producerRevision":"5b1cd19+viewer-uncommitted","contentId":spire_core::combat::CONTENT_ID,"evidenceGrade":"source-grounded; not original-runtime validated"},
+        "source":{"kind":"combat_episode","profile":"starter-cultist-a0-v1 supplied entry","producerRevision":"4874fb3+run-viewer-pr44","contentId":spire_core::combat::CONTENT_ID,"evidenceGrade":"source-grounded; not original-runtime validated"},
         "run":{"character":"ironclad","ascension":0,"seed":{"encoding":"native env unsigned integer decimal","value":seed.to_string()},"caller":{"kind":"finite public-mask caller; isolated from-start replay"}}})).map_err(|e|e.to_string())?;
     let pool=CombatPool::new(Arc::new(ScenarioCatalog::starter()),PoolConfig {record_replay:true,..PoolConfig::default()}).map_err(|e|format!("{e:?}"))?;
     let mut tokens=pool.reset_batch(&[0],&[ResetRequest {seed:Some(IntegerSeed::from_be_bytes(&seed.to_be_bytes()).map_err(|e|format!("{e:?}"))?),scenario_id:None}]).map_err(|e|format!("{e:?}"))?.decisions.tokens;

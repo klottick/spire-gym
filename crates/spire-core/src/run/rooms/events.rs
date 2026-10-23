@@ -1,4 +1,5 @@
 use super::*;
+pub(in crate::run) mod act3;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct JoustProgress {pub node:NodeId,pub visit:u64,pub owner_bet:bool,pub post_cost:u32,pub winner:Option<bool>,pub payout_accepted:bool,pub complete:bool}
 pub(in crate::run) struct PreparedJoust {node:NodeId,visit:u64,owner_bet:bool,post_cost:u32,next:u64,screen:RoomView}
@@ -40,6 +41,7 @@ pub(in crate::run) fn drive_joust_payout(run:&mut Run)->Result<RunTransition,Run
     let room=run.state.room_loop.as_mut().unwrap();room.joust.as_mut().unwrap().complete=true;room.screen=screen;run.next_choice=next;Ok(empty_transition())
 }
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
+    if matches!(public(run)?.kind,RoomViewKind::Event(EventId::Falling|EventId::TombOfLordRedMask)){return act3::choose(run,id)}
     let screen=public(run)?;let row=screen.choices.into_iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered).ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind){
         (RoomViewKind::Event(EventId::Joust),RoomChoiceKind::JoustMurderer|RoomChoiceKind::JoustOwner)=>{

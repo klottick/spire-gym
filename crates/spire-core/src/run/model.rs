@@ -16,7 +16,8 @@ pub struct CombatProgress { pub entered:u64, pub settled:u64 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::EncounterId, pub outcome:crate::combat::Outcome }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin }
+pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin,
+    pub applied_gain_ordinal:u64,pub acquired_instances:Vec<u64> }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum CombatOrigin { Authored, MapRoom{node:super::NodeId,kind:MapNodeKind} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

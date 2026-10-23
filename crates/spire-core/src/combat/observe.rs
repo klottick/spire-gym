@@ -21,7 +21,7 @@ pub enum ResolvedEffectKind {
     CardMove { card:CardHandle, before:PublicZone, after:PublicZone },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PublicLife { Active, Defeated, Replaced, Escaped }
+pub enum PublicLife { Active, Defeated, Replaced, Escaped, HalfDead }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PublicZone { Unknown, Hand, Discard, Exhaust, InPlay, Stasis }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -149,7 +149,7 @@ pub(super) fn capture_boundary(combat:&Combat,kind:CombatBoundaryKind) {
 pub(super) struct Mark { actors:Vec<ActorMark>, energy:i32, cards:std::collections::BTreeMap<CardHandle,PublicZone> }
 struct ActorMark { actor:Actor, block:i32, powers:Vec<(FullPowerId,i32)>, life:PublicLife }
 fn life(hp:i32,life:ActorLife)->PublicLife {
-    match life { ActorLife::Replaced=>PublicLife::Replaced,ActorLife::Escaped=>PublicLife::Escaped,
+    match life { ActorLife::Replaced=>PublicLife::Replaced,ActorLife::Escaped=>PublicLife::Escaped,ActorLife::HalfDead=>PublicLife::HalfDead,
         ActorLife::Active if hp<=0=>PublicLife::Defeated,ActorLife::Active=>PublicLife::Active }
 }
 fn values(state:&State)->Mark {

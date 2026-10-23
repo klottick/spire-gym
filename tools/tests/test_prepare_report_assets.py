@@ -1,6 +1,7 @@
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,7 +16,7 @@ PNG = bytes.fromhex("89504e470d0a1a0a0000000d49484452000000010000000108060000001
 
 class PrepareAssetsTests(unittest.TestCase):
     def setUp(self):
-        self.temp = tempfile.TemporaryDirectory(prefix="spire-asset-test-", dir="/tmp/opencode")
+        self.temp = tempfile.TemporaryDirectory(prefix="spire-asset-test-", dir=os.environ.get("TMPDIR", "/tmp/opencode"))
         self.root = Path(self.temp.name)
         self.sources = self.root / "sources.json"
         self.sources.write_text(json.dumps({"card/bash": "https://example.invalid/Bash.png", "card/strike": "https://example.invalid/Strike.png"}))

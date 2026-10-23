@@ -7,7 +7,8 @@ pub struct Scratch(pub PathBuf);
 impl Scratch {
     pub fn new()->Self {
         loop {
-            let path=PathBuf::from("/tmp/opencode").join(format!("spire-report-test-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
+            let path=std::env::var_os("TMPDIR").map(PathBuf::from).unwrap_or_else(||PathBuf::from("/tmp/opencode"))
+                .join(format!("spire-report-test-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
             match fs::create_dir(&path) {Ok(())=>return Self(path),Err(e) if e.kind()==std::io::ErrorKind::AlreadyExists=>continue,Err(e)=>panic!("{e}")}
         }
     }

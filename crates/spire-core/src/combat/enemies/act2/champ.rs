@@ -41,13 +41,7 @@ pub(in crate::combat) fn cleanse(state:&mut State,owner:&EnemyHandle)->Result<()
     // positive IDs are not evidence of BUFF type, and must remain explicit faults.
     let mut removals=vec![];
     for power in &enemy.full_powers {
-        let harmful=match power.id.0 {
-            "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"=>true,
-            "strength"|"dexterity"=>power.state.amount<=0,
-            "metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"=>false,
-            "shackled"=>false, // Its separately queued literal removal is unconditional, independent of category.
-            id=>return Err(InputError::Unsupported(format!("Champ cleanse power category unavailable: {id}"))),
-        };if harmful{removals.push(power.id)}
+        let harmful=super::super::super::powers::cleanse_debuff(power).ok_or_else(||InputError::Unsupported(format!("Champ cleanse power category unavailable: {}",power.id.0)))?;if harmful{removals.push(power.id)}
     }
     let actor=Actor::Enemy(owner.clone());for id in removals.into_iter().rev(){state.pending.push_front(effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(id)));}Ok(())
 }

@@ -38,8 +38,9 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     state.player.energy = state.player.max_energy;
     for enemy in &mut state.enemies { enemy.intent_id = enemy.selected_move.clone(); }
     super::effects::refresh_enemy_values(state)?;
+    let reduction=i32::from(state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="draw_reduction"&&p.state.amount>0));
     state.pending.push_back(Effect { source: Source::Actor(Actor::Player),
-        target: Some(Actor::Player), kind: EffectKind::Draw(state.player.draw_per_turn) });
+        target: Some(Actor::Player), kind: EffectKind::Draw((state.player.draw_per_turn-reduction).max(0)) });
     if state.full_runtime {
         state.pending.push_back(Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player),
             kind: EffectKind::Hook(Hook::TurnStarted) });
@@ -94,8 +95,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="flight"){power.state.amount=3;}}
                 }
                 state.pending.push_back(work(EffectKind::EndRound));
-                let actors: Vec<_> = super::enemies::act2::spawn::ordered_actors(state).into_iter()
-                    .map(|e| e.instance_id.clone()).collect();
+                let mut scheduled=state.enemies.iter().filter(|e|e.life==super::ActorLife::HalfDead||(e.life==super::ActorLife::Active&&e.hp>0)).collect::<Vec<_>>();
+                scheduled.sort_by_key(|e|state.actor_slots.get(&e.instance_id).copied().unwrap_or(0));
+                let actors=scheduled.into_iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
                 for id in actors.into_iter().rev() {
                     state.pending.push_front(Effect { source: Source::None,
                         target: Some(Actor::Enemy(id)), kind: EffectKind::EnemyMove });
@@ -111,7 +113,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             } else { state.enemies[0].instance_id.clone() };
             let enemy = state.enemies.iter().find(|e| e.instance_id == enemy_id)
                 .ok_or_else(|| InputError::Invariant("enemy turn actor missing".into()))?;
-            if state.full_runtime && (enemy.life != super::ActorLife::Active || enemy.hp <= 0) {
+            if state.full_runtime && enemy.life!=super::ActorLife::HalfDead && (enemy.life != super::ActorLife::Active || enemy.hp <= 0) {
                 return Ok(());
             }
             let actor = Actor::Enemy(enemy.instance_id.clone());
@@ -165,7 +167,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 let id = owner.ok_or_else(|| InputError::Invariant("full move roll missing actor".into()))?;
                 let enemy = state.enemies.iter().find(|enemy| &enemy.instance_id == id)
                     .ok_or_else(|| InputError::Invariant("full move roll actor missing".into()))?;
-                if enemy.life != super::ActorLife::Active || enemy.hp <= 0 { return Ok(()); }
+                if enemy.life!=super::ActorLife::HalfDead && (enemy.life != super::ActorLife::Active || enemy.hp <= 0) { return Ok(()); }
                 enemy
             } else { &state.enemies[0] };
             if matches!(enemy.enemy_id,ActorEnemyId::Full(_)) {

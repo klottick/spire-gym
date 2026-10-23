@@ -4,12 +4,22 @@ use super::*;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct BossProgress {pub selected:Option<RelicId>,pub source_complete:bool,pub skip_parent:Option<RoomView>}
 
+fn source_floors(state:&RunState)->Result<(u32,u32),RunError>{
+    match state.act {
+        1 if uses_captured_act1(state)=>Ok((16,17)),
+        2 if is_m7(state)||is_m8(state)=>Ok((33,34)),
+        _=>Err(RunError::InvalidAction),
+    }
+}
+
 pub(super) fn enter_treasure(run:&mut Run)->Result<RunTransition,RunError>{
+    let (boss_floor,treasure_floor)=source_floors(&run.state)?;
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-    if !uses_captured_act1(&run.state)||run.state.act!=1||run.state.floor!=16||room.boss.is_some()||run.state.pending.is_some()||room.screen.kind!=RoomViewKind::Rewards||!room.active_rewards.as_ref().is_some_and(|r|r.return_to==rewards::RewardReturn::BossTreasure){return Err(RunError::InvalidAction)}
-    let event=CommittedEvent::FloorEntered{act:1,floor:17};reward::preflight(&run.state,std::slice::from_ref(&event))?;
+    if run.state.floor!=boss_floor||room.boss.is_some()||run.state.pending.is_some()||room.screen.kind!=RoomViewKind::Rewards||!room.active_rewards.as_ref().is_some_and(|r|r.return_to==rewards::RewardReturn::BossTreasure){return Err(RunError::InvalidAction)}
+    if !run.state.map.as_ref().is_some_and(|map|map.act==run.state.act&&map.current.is_some_and(|id|map.nodes.iter().any(|n|n.id==id&&n.floor==boss_floor&&n.kind==MapNodeKind::Boss&&n.visited))){return Err(RunError::InvalidAction)}
+    let event=CommittedEvent::FloorEntered{act:run.state.act,floor:treasure_floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::BossTreasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?;
-    run.state.floor=17;run.state.room="BossTreasure";run.state.history.rooms.push(VisitedRoom{act:1,floor:17,label:"BossTreasure"});
+    run.state.floor=treasure_floor;run.state.room="BossTreasure";run.state.history.rooms.push(VisitedRoom{act:run.state.act,floor:treasure_floor,label:"BossTreasure"});
     run.next_choice=next;let room=run.state.room_loop.as_mut().unwrap();room.screen=screen;room.active_rewards=None;room.reward_parent=None;room.boss=Some(BossProgress{selected:None,source_complete:false,skip_parent:None});
     let reward=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered)?;
@@ -25,7 +35,8 @@ fn warn(run:&mut Run)->Result<RunTransition,RunError>{
 }
 
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
-    if !uses_captured_act1(&run.state)||run.state.act!=1||run.state.floor!=17||run.state.pending.is_some(){return Err(RunError::InvalidAction)}
+    let (_,treasure_floor)=source_floors(&run.state)?;
+    if run.state.floor!=treasure_floor||run.state.pending.is_some(){return Err(RunError::InvalidAction)}
     let screen=public(run)?;let row=screen.choices.iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered&&c.price.is_none()).cloned().ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind.clone()){
         (RoomViewKind::BossTreasure,RoomChoiceKind::OpenChest)=>{
