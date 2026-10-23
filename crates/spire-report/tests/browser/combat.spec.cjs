@@ -62,6 +62,18 @@ test('multi_enemy_lifetimes_and_resolved_not_intent',async({page})=>{
   await expect(page.getByRole('complementary',{name:'Recorded resolution'})).toContainText('HP lost: 2');
 });
 
+test('terminal_death_does_not_advertise_survivor_intent_as_upcoming',async({page})=>{
+  const frame=combatFrame(0);frame.state.player.hp=0;frame.state.terminal='death';
+  frame.combatFinal=frame.state.combat;frame.combatFinal.outcome='death';frame.state.combat=null;
+  const doc=report([frame]);doc.game.outcome='death';
+  await page.goto(f.exported(doc));
+  const roster=page.getByRole('region',{name:'Recorded enemies'});
+  await expect(roster).toContainText('Louse');await expect(roster).toContainText('alive');
+  await expect(roster).not.toContainText('Upcoming intent');
+  await expect(roster).not.toContainText('Damage per hit');
+  await expect(page.getByRole('region',{name:'Recorded final summary'})).toContainText('Run death');
+});
+
 test('health_semantics_and_unknown_resources',async({page})=>{
   const frames=[combatFrame(0),combatFrame(1)];frames[1].state.player.hp=7;
   frames[1].effects=[{sequence:0,kind:'damage',source:null,target:'player',hpLost:7,incoming:7,absorbedBlock:0,overkill:0},

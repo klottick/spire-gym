@@ -10,6 +10,10 @@ spire-core = { path = "../spire-core" }
 spire-env = { path = "../spire-env" }
 serde_json = "=1.0.152"
 
+[target.'cfg(unix)'.dependencies]
+# Reuse the workspace's already locked OS bindings; no new package or download.
+libc = "=0.2.190"
+
 [[bench]]
 name = "disabled"
 harness = false

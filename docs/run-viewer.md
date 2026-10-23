@@ -99,8 +99,13 @@ follows destination symlinks; identical cached bytes may be reused.
 
 The manifest contains `schemaVersion:1`, `assets:{key:{path,source}}` and an
 `attribution` array. Paths are relative to the manifest directory. Traversal,
-absolute paths, escaping symlinks, nonregular files, active SVG and invalid passive
-image headers are rejected. PNG/JPEG/WebP inputs are limited to 16 MiB per image;
+absolute paths, symlinks in image paths (including in-directory links), nonregular
+files, active SVG and invalid passive image headers are rejected. On Unix, the
+manifest directory is pinned by an open handle; every image-path component is
+opened relative to that handle with no-follow semantics, so concurrent symlink
+replacement cannot redirect the read outside it. Optional local artwork attachment
+fails closed on non-Unix hosts; export without artwork remains available.
+PNG/JPEG/WebP inputs are limited to 16 MiB per image;
 header screening is not full image decoding or artwork-authenticity validation.
 Only referenced available images are embedded, deduplicated by exact bytes. Browser
 decode failures fall back to labels.

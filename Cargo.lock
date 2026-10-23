@@ -438,6 +438,7 @@ dependencies = [
 name = "spire-report"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "serde_json",
  "spire-core",
  "spire-env",

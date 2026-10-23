@@ -84,7 +84,7 @@
       const old=previous?.state.combat?.enemies?.find(item=>item.ref===enemy.ref);
       health(actor,enemy,sameCombat?old:null);
       for(const power of enemy.statuses??[])actor.append(text("p",typeof power==="string"?power:`${power.name??power.id}: ${known(power.amount)}`));
-      if(enemy.lifeState==="alive"&&enemy.hp>0){
+      if(combat.outcome==null&&frame.state.terminal==null&&enemy.lifeState==="alive"&&enemy.hp>0){
         actor.append(text("p",`Upcoming intent: ${known(enemy.intent?.name)}`));
         actor.append(text("p",`Damage per hit: ${known(enemy.intent?.damagePerHit)} · Hit count: ${known(enemy.intent?.hitCount)}`));
       }
