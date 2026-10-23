@@ -1,0 +1,5 @@
+{
+  "retrieved_at": "2026-10-23T15:14:42.236112+00:00",
+  "cargo_query_url": "https://slaythespire.wiki.gg/api.php?action=cargoquery&tables=Cards&fields=_pageName%2CLink%2CGame%2CName%2CColor%2CType%2CRarity%2CCost%2CCostPlus%2CDescription%2CNoUpgrade&where=Game%3D%271%27&limit=500&order_by=Name&format=json",
+  "note": "Cargo rows and page revisions are fetched separately; review changes together."
+}

@@ -1,0 +1,83 @@
+{
+  "ALL_FOR_ONE": {
+    "notes": [
+      "The Defect draft distinguishes mutable combat cost and freeToPlayOnce when retrieving discard instances. The printed 'cost 0' text is not a complete selector contract."
+    ]
+  },
+  "BODY_SLAM": {
+    "notes": [
+      "The red/colorless draft captures current Block at use and calculates target damage; Block is not consumed. Later same-play Block triggers do not contribute retroactively."
+    ]
+  },
+  "BOWLING_BASH": {
+    "notes": [
+      "The Watcher draft describes one hit per counted non-dead/non-escaped monster, all against the selected target, not a single multiplied-damage hit."
+    ]
+  },
+  "BRUTALITY": {
+    "notes": [
+      "The red/colorless draft describes the post-normal-draw hook as queuing draw before HP loss. Do not derive execution ordering solely from the printed card description."
+    ],
+    "discrepancies": [
+      {
+        "field": "printed_order_vs_execution_order",
+        "wiki_description": "At the start of your turn, lose 1 HP and draw 1 card.",
+        "local_research": "The red/colorless draft, section 2 rare R64, states draw 1, then HP loss 1.",
+        "resolution": "Both descriptions retained. The dataset does not qualify scheduler behavior or promote the draft's evidence grade."
+      }
+    ]
+  },
+  "DUALCAST": {
+    "notes": [
+      "The Defect draft describes invoking the front Orb once without removal and then once with removal. Do not treat the phrase 'Evoke twice' as removing two different Orbs."
+    ]
+  },
+  "FEED": {
+    "notes": [
+      "The red/colorless draft separates max-HP gain from the subsequent ordinary heal, which still goes through healing modifiers/prevention and caps. Current-HP gain is not unconditionally 3/4."
+    ]
+  },
+  "FTL": {
+    "notes": [
+      "The Defect draft describes FTLAction inserting conditional draw at queue top and damage at queue bottom. Its turn-count predicate is evaluated at follow-up time."
+    ],
+    "discrepancies": [
+      {
+        "field": "printed_order_vs_execution_order",
+        "wiki_description": "Damage is described before conditional draw.",
+        "local_research": "The Defect draft, section 4 FTL, states the follow-up inserts draw at top and damage at bottom, not damage-then-draw resolution.",
+        "resolution": "Both descriptions retained. The dataset does not qualify scheduler behavior or promote the draft's evidence grade."
+      }
+    ]
+  },
+  "HALT": {
+    "notes": [
+      "The Watcher draft specifies base Block 3/4 and an additional 9/14 component in Wrath, for unmodified totals 12/18. Apply each component's calculation as qualified there, then one gain, rather than treating 9/14 as the total."
+    ]
+  },
+  "LESSON_LEARNED": {
+    "notes": [
+      "The Watcher draft identifies a HEALING tag used to exclude this card from healing-excluding generators, despite its printed payload upgrading a deck card rather than directly healing."
+    ]
+  },
+  "PERSEVERANCE": {
+    "notes": [
+      "The Watcher draft treats Retain growth as instance-local combat Block. Upgrading after prior growth adds 2 Block and increases future growth by 1; it does not recalculate all historical growth."
+    ]
+  },
+  "SETUP": {
+    "notes": [
+      "The Silent draft distinguishes freeToPlayOnce from rewriting cost or costForTurn to zero. The grant checks positive mutable combat cost, not turn cost; X and unplayable sentinels do not receive it."
+    ]
+  },
+  "SPIRIT_SHIELD": {
+    "notes": [
+      "The Watcher draft counts hand instances other than the playing card, multiplies by 3/4, then applies Block modifiers once. Dexterity is not added once for every counted card."
+    ]
+  },
+  "WINDMILL_STRIKE": {
+    "notes": [
+      "The Watcher draft treats Retain growth as instance-local combat damage. Upgrading after prior growth adds 3 damage and increases future growth by 1, not a recalculation of prior Retain events."
+    ]
+  }
+}

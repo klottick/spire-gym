@@ -142,4 +142,7 @@ The fresh pre-M7 core baseline was518 passes with seven historical Poison/Cataly
 Artifact and BlueSlaver/TwoFungi failures; final core534/7 preserves the exact same
 underlying assertions/messages. No whole-workspace-green claim. M7 `.29`/`.29.2`
 are closed; M8 `.30`/planning-only `.30.1` are open/unassigned, no product start.
-All M7 changes remain uncommitted; no publication, install or cleanup is implied.
+The accepted M7 snapshot is now locally committed as `2d9a47e` under the user's
+separate pre-M8 commit request. The reference library is also available in this
+checkout; see [its index](../../data/README.md). These administrative snapshots
+do not change the reviewed simulator or imply a push, install or cleanup.

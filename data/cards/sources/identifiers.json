@@ -1,0 +1,2227 @@
+{
+  "source_url": "https://github.com/gamerpuppy/sts_lightspeed/blob/7476a81954020087da31d41d16fddf475746ec2d/include/constants/Cards.h",
+  "revision": "7476a81954020087da31d41d16fddf475746ec2d",
+  "scope": "Identifiers only; simulator metadata is not imported as mechanics authority.",
+  "records": [
+    {
+      "id": "ACCURACY",
+      "game_id": "Accuracy",
+      "name": "Accuracy",
+      "wiki_name": "Accuracy"
+    },
+    {
+      "id": "ACROBATICS",
+      "game_id": "Acrobatics",
+      "name": "Acrobatics",
+      "wiki_name": "Acrobatics"
+    },
+    {
+      "id": "ADRENALINE",
+      "game_id": "Adrenaline",
+      "name": "Adrenaline",
+      "wiki_name": "Adrenaline"
+    },
+    {
+      "id": "AFTER_IMAGE",
+      "game_id": "After Image",
+      "name": "After Image",
+      "wiki_name": "After Image"
+    },
+    {
+      "id": "AGGREGATE",
+      "game_id": "Aggregate",
+      "name": "Aggregate",
+      "wiki_name": "Aggregate"
+    },
+    {
+      "id": "ALCHEMIZE",
+      "game_id": "Venomology",
+      "name": "Alchemize",
+      "wiki_name": "Alchemize"
+    },
+    {
+      "id": "ALL_FOR_ONE",
+      "game_id": "All For One",
+      "name": "All for One",
+      "wiki_name": "All for One"
+    },
+    {
+      "id": "ALL_OUT_ATTACK",
+      "game_id": "All Out Attack",
+      "name": "All-Out Attack",
+      "wiki_name": "All-Out Attack"
+    },
+    {
+      "id": "ALPHA",
+      "game_id": "Alpha",
+      "name": "Alpha",
+      "wiki_name": "Alpha"
+    },
+    {
+      "id": "AMPLIFY",
+      "game_id": "Amplify",
+      "name": "Amplify",
+      "wiki_name": "Amplify"
+    },
+    {
+      "id": "ANGER",
+      "game_id": "Anger",
+      "name": "Anger",
+      "wiki_name": "Anger"
+    },
+    {
+      "id": "APOTHEOSIS",
+      "game_id": "Apotheosis",
+      "name": "Apotheosis",
+      "wiki_name": "Apotheosis"
+    },
+    {
+      "id": "APPARITION",
+      "game_id": "Ghostly",
+      "name": "Apparition",
+      "wiki_name": "Apparition"
+    },
+    {
+      "id": "ARMAMENTS",
+      "game_id": "Armaments",
+      "name": "Armaments",
+      "wiki_name": "Armaments"
+    },
+    {
+      "id": "ASCENDERS_BANE",
+      "game_id": "AscendersBane",
+      "name": "Ascender's Bane",
+      "wiki_name": "Ascender's Bane"
+    },
+    {
+      "id": "AUTO_SHIELDS",
+      "game_id": "Auto Shields",
+      "name": "Auto-Shields",
+      "wiki_name": "Auto-Shields"
+    },
+    {
+      "id": "A_THOUSAND_CUTS",
+      "game_id": "A Thousand Cuts",
+      "name": "A Thousand Cuts",
+      "wiki_name": "A Thousand Cuts"
+    },
+    {
+      "id": "BACKFLIP",
+      "game_id": "Backflip",
+      "name": "Backflip",
+      "wiki_name": "Backflip"
+    },
+    {
+      "id": "BACKSTAB",
+      "game_id": "Backstab",
+      "name": "Backstab",
+      "wiki_name": "Backstab"
+    },
+    {
+      "id": "BALL_LIGHTNING",
+      "game_id": "Ball Lightning",
+      "name": "Ball Lightning",
+      "wiki_name": "Ball Lightning"
+    },
+    {
+      "id": "BANDAGE_UP",
+      "game_id": "Bandage Up",
+      "name": "Bandage Up",
+      "wiki_name": "Bandage Up"
+    },
+    {
+      "id": "BANE",
+      "game_id": "Bane",
+      "name": "Bane",
+      "wiki_name": "Bane"
+    },
+    {
+      "id": "BARRAGE",
+      "game_id": "Barrage",
+      "name": "Barrage",
+      "wiki_name": "Barrage"
+    },
+    {
+      "id": "BARRICADE",
+      "game_id": "Barricade",
+      "name": "Barricade",
+      "wiki_name": "Barricade"
+    },
+    {
+      "id": "BASH",
+      "game_id": "Bash",
+      "name": "Bash",
+      "wiki_name": "Bash"
+    },
+    {
+      "id": "BATTLE_HYMN",
+      "game_id": "BattleHymn",
+      "name": "Battle Hymn",
+      "wiki_name": "Battle Hymn"
+    },
+    {
+      "id": "BATTLE_TRANCE",
+      "game_id": "Battle Trance",
+      "name": "Battle Trance",
+      "wiki_name": "Battle Trance"
+    },
+    {
+      "id": "BEAM_CELL",
+      "game_id": "Beam Cell",
+      "name": "Beam Cell",
+      "wiki_name": "Beam Cell"
+    },
+    {
+      "id": "BECOME_ALMIGHTY",
+      "game_id": "BecomeAlmighty",
+      "name": "Become Almighty",
+      "wiki_name": "Become Almighty"
+    },
+    {
+      "id": "BERSERK",
+      "game_id": "Berserk",
+      "name": "Berserk",
+      "wiki_name": "Berserk"
+    },
+    {
+      "id": "BETA",
+      "game_id": "Beta",
+      "name": "Beta",
+      "wiki_name": "Beta"
+    },
+    {
+      "id": "BIASED_COGNITION",
+      "game_id": "Biased Cognition",
+      "name": "Biased Cognition",
+      "wiki_name": "Biased Cognition"
+    },
+    {
+      "id": "BITE",
+      "game_id": "Bite",
+      "name": "Bite",
+      "wiki_name": "Bite"
+    },
+    {
+      "id": "BLADE_DANCE",
+      "game_id": "Blade Dance",
+      "name": "Blade Dance",
+      "wiki_name": "Blade Dance"
+    },
+    {
+      "id": "BLASPHEMY",
+      "game_id": "Blasphemy",
+      "name": "Blasphemy",
+      "wiki_name": "Blasphemy"
+    },
+    {
+      "id": "BLIND",
+      "game_id": "Blind",
+      "name": "Blind",
+      "wiki_name": "Blind"
+    },
+    {
+      "id": "BLIZZARD",
+      "game_id": "Blizzard",
+      "name": "Blizzard",
+      "wiki_name": "Blizzard"
+    },
+    {
+      "id": "BLOODLETTING",
+      "game_id": "Bloodletting",
+      "name": "Bloodletting",
+      "wiki_name": "Bloodletting"
+    },
+    {
+      "id": "BLOOD_FOR_BLOOD",
+      "game_id": "Blood for Blood",
+      "name": "Blood for Blood",
+      "wiki_name": "Blood for Blood"
+    },
+    {
+      "id": "BLUDGEON",
+      "game_id": "Bludgeon",
+      "name": "Bludgeon",
+      "wiki_name": "Bludgeon"
+    },
+    {
+      "id": "BLUR",
+      "game_id": "Blur",
+      "name": "Blur",
+      "wiki_name": "Blur"
+    },
+    {
+      "id": "BODY_SLAM",
+      "game_id": "Body Slam",
+      "name": "Body Slam",
+      "wiki_name": "Body Slam"
+    },
+    {
+      "id": "BOOT_SEQUENCE",
+      "game_id": "BootSequence",
+      "name": "Boot Sequence",
+      "wiki_name": "Boot Sequence"
+    },
+    {
+      "id": "BOUNCING_FLASK",
+      "game_id": "Bouncing Flask",
+      "name": "Bouncing Flask",
+      "wiki_name": "Bouncing Flask"
+    },
+    {
+      "id": "BOWLING_BASH",
+      "game_id": "BowlingBash",
+      "name": "Bowling Bash",
+      "wiki_name": "Bowling Bash"
+    },
+    {
+      "id": "BRILLIANCE",
+      "game_id": "Brilliance",
+      "name": "Brilliance",
+      "wiki_name": "Brilliance"
+    },
+    {
+      "id": "BRUTALITY",
+      "game_id": "Brutality",
+      "name": "Brutality",
+      "wiki_name": "Brutality"
+    },
+    {
+      "id": "BUFFER",
+      "game_id": "Buffer",
+      "name": "Buffer",
+      "wiki_name": "Buffer"
+    },
+    {
+      "id": "BULLET_TIME",
+      "game_id": "Bullet Time",
+      "name": "Bullet Time",
+      "wiki_name": "Bullet Time"
+    },
+    {
+      "id": "BULLSEYE",
+      "game_id": "Lockon",
+      "name": "Bullseye",
+      "wiki_name": "Bullseye"
+    },
+    {
+      "id": "BURN",
+      "game_id": "Burn",
+      "name": "Burn",
+      "wiki_name": "Burn"
+    },
+    {
+      "id": "BURNING_PACT",
+      "game_id": "Burning Pact",
+      "name": "Burning Pact",
+      "wiki_name": "Burning Pact"
+    },
+    {
+      "id": "BURST",
+      "game_id": "Burst",
+      "name": "Burst",
+      "wiki_name": "Burst"
+    },
+    {
+      "id": "CALCULATED_GAMBLE",
+      "game_id": "Calculated Gamble",
+      "name": "Calculated Gamble",
+      "wiki_name": "Calculated Gamble"
+    },
+    {
+      "id": "CALTROPS",
+      "game_id": "Caltrops",
+      "name": "Caltrops",
+      "wiki_name": "Caltrops"
+    },
+    {
+      "id": "CAPACITOR",
+      "game_id": "Capacitor",
+      "name": "Capacitor",
+      "wiki_name": "Capacitor"
+    },
+    {
+      "id": "CARNAGE",
+      "game_id": "Carnage",
+      "name": "Carnage",
+      "wiki_name": "Carnage"
+    },
+    {
+      "id": "CARVE_REALITY",
+      "game_id": "CarveReality",
+      "name": "Carve Reality",
+      "wiki_name": "Carve Reality"
+    },
+    {
+      "id": "CATALYST",
+      "game_id": "Catalyst",
+      "name": "Catalyst",
+      "wiki_name": "Catalyst"
+    },
+    {
+      "id": "CHAOS",
+      "game_id": "Chaos",
+      "name": "Chaos",
+      "wiki_name": "Chaos"
+    },
+    {
+      "id": "CHARGE_BATTERY",
+      "game_id": "Conserve Battery",
+      "name": "Charge Battery",
+      "wiki_name": "Charge Battery"
+    },
+    {
+      "id": "CHILL",
+      "game_id": "Chill",
+      "name": "Chill",
+      "wiki_name": "Chill"
+    },
+    {
+      "id": "CHOKE",
+      "game_id": "Choke",
+      "name": "Choke",
+      "wiki_name": "Choke"
+    },
+    {
+      "id": "CHRYSALIS",
+      "game_id": "Chrysalis",
+      "name": "Chrysalis",
+      "wiki_name": "Chrysalis"
+    },
+    {
+      "id": "CLASH",
+      "game_id": "Clash",
+      "name": "Clash",
+      "wiki_name": "Clash"
+    },
+    {
+      "id": "CLAW",
+      "game_id": "Gash",
+      "name": "Claw",
+      "wiki_name": "Claw"
+    },
+    {
+      "id": "CLEAVE",
+      "game_id": "Cleave",
+      "name": "Cleave",
+      "wiki_name": "Cleave"
+    },
+    {
+      "id": "CLOAK_AND_DAGGER",
+      "game_id": "Cloak And Dagger",
+      "name": "Cloak and Dagger",
+      "wiki_name": "Cloak and Dagger"
+    },
+    {
+      "id": "CLOTHESLINE",
+      "game_id": "Clothesline",
+      "name": "Clothesline",
+      "wiki_name": "Clothesline"
+    },
+    {
+      "id": "CLUMSY",
+      "game_id": "Clumsy",
+      "name": "Clumsy",
+      "wiki_name": "Clumsy"
+    },
+    {
+      "id": "COLD_SNAP",
+      "game_id": "Cold Snap",
+      "name": "Cold Snap",
+      "wiki_name": "Cold Snap"
+    },
+    {
+      "id": "COLLECT",
+      "game_id": "Collect",
+      "name": "Collect",
+      "wiki_name": "Collect"
+    },
+    {
+      "id": "COMBUST",
+      "game_id": "Combust",
+      "name": "Combust",
+      "wiki_name": "Combust"
+    },
+    {
+      "id": "COMPILE_DRIVER",
+      "game_id": "Compile Driver",
+      "name": "Compile Driver",
+      "wiki_name": "Compile Driver"
+    },
+    {
+      "id": "CONCENTRATE",
+      "game_id": "Concentrate",
+      "name": "Concentrate",
+      "wiki_name": "Concentrate"
+    },
+    {
+      "id": "CONCLUDE",
+      "game_id": "Conclude",
+      "name": "Conclude",
+      "wiki_name": "Conclude"
+    },
+    {
+      "id": "CONJURE_BLADE",
+      "game_id": "ConjureBlade",
+      "name": "Conjure Blade",
+      "wiki_name": "Conjure Blade"
+    },
+    {
+      "id": "CONSECRATE",
+      "game_id": "Consecrate",
+      "name": "Consecrate",
+      "wiki_name": "Consecrate"
+    },
+    {
+      "id": "CONSUME",
+      "game_id": "Consume",
+      "name": "Consume",
+      "wiki_name": "Consume"
+    },
+    {
+      "id": "COOLHEADED",
+      "game_id": "Coolheaded",
+      "name": "Coolheaded",
+      "wiki_name": "Coolheaded"
+    },
+    {
+      "id": "CORE_SURGE",
+      "game_id": "Core Surge",
+      "name": "Core Surge",
+      "wiki_name": "Core Surge"
+    },
+    {
+      "id": "CORPSE_EXPLOSION",
+      "game_id": "Corpse Explosion",
+      "name": "Corpse Explosion",
+      "wiki_name": "Corpse Explosion"
+    },
+    {
+      "id": "CORRUPTION",
+      "game_id": "Corruption",
+      "name": "Corruption",
+      "wiki_name": "Corruption"
+    },
+    {
+      "id": "CREATIVE_AI",
+      "game_id": "Creative AI",
+      "name": "Creative AI",
+      "wiki_name": "Creative AI"
+    },
+    {
+      "id": "CRESCENDO",
+      "game_id": "Crescendo",
+      "name": "Crescendo",
+      "wiki_name": "Crescendo"
+    },
+    {
+      "id": "CRIPPLING_CLOUD",
+      "game_id": "Crippling Poison",
+      "name": "Crippling Cloud",
+      "wiki_name": "Crippling Cloud"
+    },
+    {
+      "id": "CRUSH_JOINTS",
+      "game_id": "CrushJoints",
+      "name": "Crush Joints",
+      "wiki_name": "Crush Joints"
+    },
+    {
+      "id": "CURSE_OF_THE_BELL",
+      "game_id": "CurseOfTheBell",
+      "name": "Curse of the Bell",
+      "wiki_name": "Curse of the Bell"
+    },
+    {
+      "id": "CUT_THROUGH_FATE",
+      "game_id": "CutThroughFate",
+      "name": "Cut Through Fate",
+      "wiki_name": "Cut Through Fate"
+    },
+    {
+      "id": "DAGGER_SPRAY",
+      "game_id": "Dagger Spray",
+      "name": "Dagger Spray",
+      "wiki_name": "Dagger Spray"
+    },
+    {
+      "id": "DAGGER_THROW",
+      "game_id": "Dagger Throw",
+      "name": "Dagger Throw",
+      "wiki_name": "Dagger Throw"
+    },
+    {
+      "id": "DARKNESS",
+      "game_id": "Darkness",
+      "name": "Darkness",
+      "wiki_name": "Darkness"
+    },
+    {
+      "id": "DARK_EMBRACE",
+      "game_id": "Dark Embrace",
+      "name": "Dark Embrace",
+      "wiki_name": "Dark Embrace"
+    },
+    {
+      "id": "DARK_SHACKLES",
+      "game_id": "Dark Shackles",
+      "name": "Dark Shackles",
+      "wiki_name": "Dark Shackles"
+    },
+    {
+      "id": "DASH",
+      "game_id": "Dash",
+      "name": "Dash",
+      "wiki_name": "Dash"
+    },
+    {
+      "id": "DAZED",
+      "game_id": "Dazed",
+      "name": "Dazed",
+      "wiki_name": "Dazed"
+    },
+    {
+      "id": "DEADLY_POISON",
+      "game_id": "Deadly Poison",
+      "name": "Deadly Poison",
+      "wiki_name": "Deadly Poison"
+    },
+    {
+      "id": "DECAY",
+      "game_id": "Decay",
+      "name": "Decay",
+      "wiki_name": "Decay"
+    },
+    {
+      "id": "DECEIVE_REALITY",
+      "game_id": "DeceiveReality",
+      "name": "Deceive Reality",
+      "wiki_name": "Deceive Reality"
+    },
+    {
+      "id": "DEEP_BREATH",
+      "game_id": "Deep Breath",
+      "name": "Deep Breath",
+      "wiki_name": "Deep Breath"
+    },
+    {
+      "id": "DEFEND_BLUE",
+      "game_id": "Defend_B",
+      "name": "Defend",
+      "wiki_name": "Defend (Defect)"
+    },
+    {
+      "id": "DEFEND_GREEN",
+      "game_id": "Defend_G",
+      "name": "Defend",
+      "wiki_name": "Defend (Silent)"
+    },
+    {
+      "id": "DEFEND_PURPLE",
+      "game_id": "Defend_P",
+      "name": "Defend",
+      "wiki_name": "Defend (Watcher)"
+    },
+    {
+      "id": "DEFEND_RED",
+      "game_id": "Defend_R",
+      "name": "Defend",
+      "wiki_name": "Defend (Ironclad)"
+    },
+    {
+      "id": "DEFLECT",
+      "game_id": "Deflect",
+      "name": "Deflect",
+      "wiki_name": "Deflect"
+    },
+    {
+      "id": "DEFRAGMENT",
+      "game_id": "Defragment",
+      "name": "Defragment",
+      "wiki_name": "Defragment"
+    },
+    {
+      "id": "DEMON_FORM",
+      "game_id": "Demon Form",
+      "name": "Demon Form",
+      "wiki_name": "Demon Form"
+    },
+    {
+      "id": "DEUS_EX_MACHINA",
+      "game_id": "DeusExMachina",
+      "name": "Deus Ex Machina",
+      "wiki_name": "Deus Ex Machina"
+    },
+    {
+      "id": "DEVA_FORM",
+      "game_id": "DevaForm",
+      "name": "Deva Form",
+      "wiki_name": "Deva Form"
+    },
+    {
+      "id": "DEVOTION",
+      "game_id": "Devotion",
+      "name": "Devotion",
+      "wiki_name": "Devotion"
+    },
+    {
+      "id": "DIE_DIE_DIE",
+      "game_id": "Die Die Die",
+      "name": "Die Die Die",
+      "wiki_name": "Die Die Die"
+    },
+    {
+      "id": "DISARM",
+      "game_id": "Disarm",
+      "name": "Disarm",
+      "wiki_name": "Disarm"
+    },
+    {
+      "id": "DISCOVERY",
+      "game_id": "Discovery",
+      "name": "Discovery",
+      "wiki_name": "Discovery"
+    },
+    {
+      "id": "DISTRACTION",
+      "game_id": "Distraction",
+      "name": "Distraction",
+      "wiki_name": "Distraction"
+    },
+    {
+      "id": "DODGE_AND_ROLL",
+      "game_id": "Dodge and Roll",
+      "name": "Dodge and Roll",
+      "wiki_name": "Dodge and Roll"
+    },
+    {
+      "id": "DOOM_AND_GLOOM",
+      "game_id": "Doom and Gloom",
+      "name": "Doom and Gloom",
+      "wiki_name": "Doom and Gloom"
+    },
+    {
+      "id": "DOPPELGANGER",
+      "game_id": "Doppelganger",
+      "name": "Doppelganger",
+      "wiki_name": "Doppelganger"
+    },
+    {
+      "id": "DOUBLE_ENERGY",
+      "game_id": "Double Energy",
+      "name": "Double Energy",
+      "wiki_name": "Double Energy"
+    },
+    {
+      "id": "DOUBLE_TAP",
+      "game_id": "Double Tap",
+      "name": "Double Tap",
+      "wiki_name": "Double Tap"
+    },
+    {
+      "id": "DOUBT",
+      "game_id": "Doubt",
+      "name": "Doubt",
+      "wiki_name": "Doubt"
+    },
+    {
+      "id": "DRAMATIC_ENTRANCE",
+      "game_id": "Dramatic Entrance",
+      "name": "Dramatic Entrance",
+      "wiki_name": "Dramatic Entrance"
+    },
+    {
+      "id": "DROPKICK",
+      "game_id": "Dropkick",
+      "name": "Dropkick",
+      "wiki_name": "Dropkick"
+    },
+    {
+      "id": "DUALCAST",
+      "game_id": "Dualcast",
+      "name": "Dualcast",
+      "wiki_name": "Dualcast"
+    },
+    {
+      "id": "DUAL_WIELD",
+      "game_id": "Dual Wield",
+      "name": "Dual Wield",
+      "wiki_name": "Dual Wield"
+    },
+    {
+      "id": "ECHO_FORM",
+      "game_id": "Echo Form",
+      "name": "Echo Form",
+      "wiki_name": "Echo Form"
+    },
+    {
+      "id": "ELECTRODYNAMICS",
+      "game_id": "Electrodynamics",
+      "name": "Electrodynamics",
+      "wiki_name": "Electrodynamics"
+    },
+    {
+      "id": "EMPTY_BODY",
+      "game_id": "EmptyBody",
+      "name": "Empty Body",
+      "wiki_name": "Empty Body"
+    },
+    {
+      "id": "EMPTY_FIST",
+      "game_id": "EmptyFist",
+      "name": "Empty Fist",
+      "wiki_name": "Empty Fist"
+    },
+    {
+      "id": "EMPTY_MIND",
+      "game_id": "EmptyMind",
+      "name": "Empty Mind",
+      "wiki_name": "Empty Mind"
+    },
+    {
+      "id": "ENDLESS_AGONY",
+      "game_id": "Endless Agony",
+      "name": "Endless Agony",
+      "wiki_name": "Endless Agony"
+    },
+    {
+      "id": "ENLIGHTENMENT",
+      "game_id": "Enlightenment",
+      "name": "Enlightenment",
+      "wiki_name": "Enlightenment"
+    },
+    {
+      "id": "ENTRENCH",
+      "game_id": "Entrench",
+      "name": "Entrench",
+      "wiki_name": "Entrench"
+    },
+    {
+      "id": "ENVENOM",
+      "game_id": "Envenom",
+      "name": "Envenom",
+      "wiki_name": "Envenom"
+    },
+    {
+      "id": "EQUILIBRIUM",
+      "game_id": "Undo",
+      "name": "Equilibrium",
+      "wiki_name": "Equilibrium"
+    },
+    {
+      "id": "ERUPTION",
+      "game_id": "Eruption",
+      "name": "Eruption",
+      "wiki_name": "Eruption"
+    },
+    {
+      "id": "ESCAPE_PLAN",
+      "game_id": "Escape Plan",
+      "name": "Escape Plan",
+      "wiki_name": "Escape Plan"
+    },
+    {
+      "id": "ESTABLISHMENT",
+      "game_id": "Establishment",
+      "name": "Establishment",
+      "wiki_name": "Establishment"
+    },
+    {
+      "id": "EVALUATE",
+      "game_id": "Evaluate",
+      "name": "Evaluate",
+      "wiki_name": "Evaluate"
+    },
+    {
+      "id": "EVISCERATE",
+      "game_id": "Eviscerate",
+      "name": "Eviscerate",
+      "wiki_name": "Eviscerate"
+    },
+    {
+      "id": "EVOLVE",
+      "game_id": "Evolve",
+      "name": "Evolve",
+      "wiki_name": "Evolve"
+    },
+    {
+      "id": "EXHUME",
+      "game_id": "Exhume",
+      "name": "Exhume",
+      "wiki_name": "Exhume"
+    },
+    {
+      "id": "EXPERTISE",
+      "game_id": "Expertise",
+      "name": "Expertise",
+      "wiki_name": "Expertise"
+    },
+    {
+      "id": "EXPUNGER",
+      "game_id": "Expunger",
+      "name": "Expunger",
+      "wiki_name": "Expunger"
+    },
+    {
+      "id": "FAME_AND_FORTUNE",
+      "game_id": "FameAndFortune",
+      "name": "Fame and Fortune",
+      "wiki_name": "Fame and Fortune"
+    },
+    {
+      "id": "FASTING",
+      "game_id": "Fasting2",
+      "name": "Fasting",
+      "wiki_name": "Fasting"
+    },
+    {
+      "id": "FEAR_NO_EVIL",
+      "game_id": "FearNoEvil",
+      "name": "Fear No Evil",
+      "wiki_name": "Fear No Evil"
+    },
+    {
+      "id": "FEED",
+      "game_id": "Feed",
+      "name": "Feed",
+      "wiki_name": "Feed"
+    },
+    {
+      "id": "FEEL_NO_PAIN",
+      "game_id": "Feel No Pain",
+      "name": "Feel No Pain",
+      "wiki_name": "Feel No Pain"
+    },
+    {
+      "id": "FIEND_FIRE",
+      "game_id": "Fiend Fire",
+      "name": "Fiend Fire",
+      "wiki_name": "Fiend Fire"
+    },
+    {
+      "id": "FINESSE",
+      "game_id": "Finesse",
+      "name": "Finesse",
+      "wiki_name": "Finesse"
+    },
+    {
+      "id": "FINISHER",
+      "game_id": "Finisher",
+      "name": "Finisher",
+      "wiki_name": "Finisher"
+    },
+    {
+      "id": "FIRE_BREATHING",
+      "game_id": "Fire Breathing",
+      "name": "Fire Breathing",
+      "wiki_name": "Fire Breathing"
+    },
+    {
+      "id": "FISSION",
+      "game_id": "Fission",
+      "name": "Fission",
+      "wiki_name": "Fission"
+    },
+    {
+      "id": "FLAME_BARRIER",
+      "game_id": "Flame Barrier",
+      "name": "Flame Barrier",
+      "wiki_name": "Flame Barrier"
+    },
+    {
+      "id": "FLASH_OF_STEEL",
+      "game_id": "Flash of Steel",
+      "name": "Flash of Steel",
+      "wiki_name": "Flash of Steel"
+    },
+    {
+      "id": "FLECHETTES",
+      "game_id": "Flechettes",
+      "name": "Flechettes",
+      "wiki_name": "Flechettes"
+    },
+    {
+      "id": "FLEX",
+      "game_id": "Flex",
+      "name": "Flex",
+      "wiki_name": "Flex"
+    },
+    {
+      "id": "FLURRY_OF_BLOWS",
+      "game_id": "FlurryOfBlows",
+      "name": "Flurry of Blows",
+      "wiki_name": "Flurry of Blows"
+    },
+    {
+      "id": "FLYING_KNEE",
+      "game_id": "Flying Knee",
+      "name": "Flying Knee",
+      "wiki_name": "Flying Knee"
+    },
+    {
+      "id": "FLYING_SLEEVES",
+      "game_id": "FlyingSleeves",
+      "name": "Flying Sleeves",
+      "wiki_name": "Flying Sleeves"
+    },
+    {
+      "id": "FOLLOW_UP",
+      "game_id": "FollowUp",
+      "name": "Follow-Up",
+      "wiki_name": "Follow-Up"
+    },
+    {
+      "id": "FOOTWORK",
+      "game_id": "Footwork",
+      "name": "Footwork",
+      "wiki_name": "Footwork"
+    },
+    {
+      "id": "FORCE_FIELD",
+      "game_id": "Force Field",
+      "name": "Force Field",
+      "wiki_name": "Force Field"
+    },
+    {
+      "id": "FOREIGN_INFLUENCE",
+      "game_id": "ForeignInfluence",
+      "name": "Foreign Influence",
+      "wiki_name": "Foreign Influence"
+    },
+    {
+      "id": "FORESIGHT",
+      "game_id": "Wireheading",
+      "name": "Foresight",
+      "wiki_name": "Foresight"
+    },
+    {
+      "id": "FORETHOUGHT",
+      "game_id": "Forethought",
+      "name": "Forethought",
+      "wiki_name": "Forethought"
+    },
+    {
+      "id": "FTL",
+      "game_id": "FTL",
+      "name": "FTL",
+      "wiki_name": "FTL"
+    },
+    {
+      "id": "FUSION",
+      "game_id": "Fusion",
+      "name": "Fusion",
+      "wiki_name": "Fusion"
+    },
+    {
+      "id": "GENETIC_ALGORITHM",
+      "game_id": "Genetic Algorithm",
+      "name": "Genetic Algorithm",
+      "wiki_name": "Genetic Algorithm"
+    },
+    {
+      "id": "GHOSTLY_ARMOR",
+      "game_id": "Ghostly Armor",
+      "name": "Ghostly Armor",
+      "wiki_name": "Ghostly Armor"
+    },
+    {
+      "id": "GLACIER",
+      "game_id": "Glacier",
+      "name": "Glacier",
+      "wiki_name": "Glacier"
+    },
+    {
+      "id": "GLASS_KNIFE",
+      "game_id": "Glass Knife",
+      "name": "Glass Knife",
+      "wiki_name": "Glass Knife"
+    },
+    {
+      "id": "GOOD_INSTINCTS",
+      "game_id": "Good Instincts",
+      "name": "Good Instincts",
+      "wiki_name": "Good Instincts"
+    },
+    {
+      "id": "GO_FOR_THE_EYES",
+      "game_id": "Go for the Eyes",
+      "name": "Go for the Eyes",
+      "wiki_name": "Go for the Eyes"
+    },
+    {
+      "id": "GRAND_FINALE",
+      "game_id": "Grand Finale",
+      "name": "Grand Finale",
+      "wiki_name": "Grand Finale"
+    },
+    {
+      "id": "HALT",
+      "game_id": "Halt",
+      "name": "Halt",
+      "wiki_name": "Halt"
+    },
+    {
+      "id": "HAND_OF_GREED",
+      "game_id": "HandOfGreed",
+      "name": "Hand of Greed",
+      "wiki_name": "Hand of Greed"
+    },
+    {
+      "id": "HAVOC",
+      "game_id": "Havoc",
+      "name": "Havoc",
+      "wiki_name": "Havoc"
+    },
+    {
+      "id": "HEADBUTT",
+      "game_id": "Headbutt",
+      "name": "Headbutt",
+      "wiki_name": "Headbutt"
+    },
+    {
+      "id": "HEATSINKS",
+      "game_id": "Heatsinks",
+      "name": "Heatsinks",
+      "wiki_name": "Heatsinks"
+    },
+    {
+      "id": "HEAVY_BLADE",
+      "game_id": "Heavy Blade",
+      "name": "Heavy Blade",
+      "wiki_name": "Heavy Blade"
+    },
+    {
+      "id": "HEEL_HOOK",
+      "game_id": "Heel Hook",
+      "name": "Heel Hook",
+      "wiki_name": "Heel Hook"
+    },
+    {
+      "id": "HELLO_WORLD",
+      "game_id": "Hello World",
+      "name": "Hello World",
+      "wiki_name": "Hello World"
+    },
+    {
+      "id": "HEMOKINESIS",
+      "game_id": "Hemokinesis",
+      "name": "Hemokinesis",
+      "wiki_name": "Hemokinesis"
+    },
+    {
+      "id": "HOLOGRAM",
+      "game_id": "Hologram",
+      "name": "Hologram",
+      "wiki_name": "Hologram"
+    },
+    {
+      "id": "HYPERBEAM",
+      "game_id": "Hyperbeam",
+      "name": "Hyperbeam",
+      "wiki_name": "Hyperbeam"
+    },
+    {
+      "id": "IMMOLATE",
+      "game_id": "Immolate",
+      "name": "Immolate",
+      "wiki_name": "Immolate"
+    },
+    {
+      "id": "IMPATIENCE",
+      "game_id": "Impatience",
+      "name": "Impatience",
+      "wiki_name": "Impatience"
+    },
+    {
+      "id": "IMPERVIOUS",
+      "game_id": "Impervious",
+      "name": "Impervious",
+      "wiki_name": "Impervious"
+    },
+    {
+      "id": "INDIGNATION",
+      "game_id": "Indignation",
+      "name": "Indignation",
+      "wiki_name": "Indignation"
+    },
+    {
+      "id": "INFERNAL_BLADE",
+      "game_id": "Infernal Blade",
+      "name": "Infernal Blade",
+      "wiki_name": "Infernal Blade"
+    },
+    {
+      "id": "INFINITE_BLADES",
+      "game_id": "Infinite Blades",
+      "name": "Infinite Blades",
+      "wiki_name": "Infinite Blades"
+    },
+    {
+      "id": "INFLAME",
+      "game_id": "Inflame",
+      "name": "Inflame",
+      "wiki_name": "Inflame"
+    },
+    {
+      "id": "INJURY",
+      "game_id": "Injury",
+      "name": "Injury",
+      "wiki_name": "Injury"
+    },
+    {
+      "id": "INNER_PEACE",
+      "game_id": "InnerPeace",
+      "name": "Inner Peace",
+      "wiki_name": "Inner Peace"
+    },
+    {
+      "id": "INSIGHT",
+      "game_id": "Insight",
+      "name": "Insight",
+      "wiki_name": "Insight"
+    },
+    {
+      "id": "INTIMIDATE",
+      "game_id": "Intimidate",
+      "name": "Intimidate",
+      "wiki_name": "Intimidate"
+    },
+    {
+      "id": "IRON_WAVE",
+      "game_id": "Iron Wave",
+      "name": "Iron Wave",
+      "wiki_name": "Iron Wave"
+    },
+    {
+      "id": "JAX",
+      "game_id": "J.A.X.",
+      "name": "J.A.X.",
+      "wiki_name": "J.A.X."
+    },
+    {
+      "id": "JACK_OF_ALL_TRADES",
+      "game_id": "Jack Of All Trades",
+      "name": "Jack of All Trades",
+      "wiki_name": "Jack of All Trades"
+    },
+    {
+      "id": "JUDGMENT",
+      "game_id": "Judgement",
+      "name": "Judgment",
+      "wiki_name": "Judgment"
+    },
+    {
+      "id": "JUGGERNAUT",
+      "game_id": "Juggernaut",
+      "name": "Juggernaut",
+      "wiki_name": "Juggernaut"
+    },
+    {
+      "id": "JUST_LUCKY",
+      "game_id": "JustLucky",
+      "name": "Just Lucky",
+      "wiki_name": "Just Lucky"
+    },
+    {
+      "id": "LEAP",
+      "game_id": "Leap",
+      "name": "Leap",
+      "wiki_name": "Leap"
+    },
+    {
+      "id": "LEG_SWEEP",
+      "game_id": "Leg Sweep",
+      "name": "Leg Sweep",
+      "wiki_name": "Leg Sweep"
+    },
+    {
+      "id": "LESSON_LEARNED",
+      "game_id": "LessonLearned",
+      "name": "Lesson Learned",
+      "wiki_name": "Lesson Learned"
+    },
+    {
+      "id": "LIKE_WATER",
+      "game_id": "LikeWater",
+      "name": "Like Water",
+      "wiki_name": "Like Water"
+    },
+    {
+      "id": "LIMIT_BREAK",
+      "game_id": "Limit Break",
+      "name": "Limit Break",
+      "wiki_name": "Limit Break"
+    },
+    {
+      "id": "LIVE_FOREVER",
+      "game_id": "LiveForever",
+      "name": "Live Forever",
+      "wiki_name": "Live Forever"
+    },
+    {
+      "id": "LOOP",
+      "game_id": "Loop",
+      "name": "Loop",
+      "wiki_name": "Loop"
+    },
+    {
+      "id": "MACHINE_LEARNING",
+      "game_id": "Machine Learning",
+      "name": "Machine Learning",
+      "wiki_name": "Machine Learning"
+    },
+    {
+      "id": "MADNESS",
+      "game_id": "Madness",
+      "name": "Madness",
+      "wiki_name": "Madness"
+    },
+    {
+      "id": "MAGNETISM",
+      "game_id": "Magnetism",
+      "name": "Magnetism",
+      "wiki_name": "Magnetism"
+    },
+    {
+      "id": "MALAISE",
+      "game_id": "Malaise",
+      "name": "Malaise",
+      "wiki_name": "Malaise"
+    },
+    {
+      "id": "MASTERFUL_STAB",
+      "game_id": "Masterful Stab",
+      "name": "Masterful Stab",
+      "wiki_name": "Masterful Stab"
+    },
+    {
+      "id": "MASTER_OF_STRATEGY",
+      "game_id": "Master of Strategy",
+      "name": "Master of Strategy",
+      "wiki_name": "Master of Strategy"
+    },
+    {
+      "id": "MASTER_REALITY",
+      "game_id": "MasterReality",
+      "name": "Master Reality",
+      "wiki_name": "Master Reality"
+    },
+    {
+      "id": "MAYHEM",
+      "game_id": "Mayhem",
+      "name": "Mayhem",
+      "wiki_name": "Mayhem"
+    },
+    {
+      "id": "MEDITATE",
+      "game_id": "Meditate",
+      "name": "Meditate",
+      "wiki_name": "Meditate"
+    },
+    {
+      "id": "MELTER",
+      "game_id": "Melter",
+      "name": "Melter",
+      "wiki_name": "Melter"
+    },
+    {
+      "id": "MENTAL_FORTRESS",
+      "game_id": "MentalFortress",
+      "name": "Mental Fortress",
+      "wiki_name": "Mental Fortress"
+    },
+    {
+      "id": "METALLICIZE",
+      "game_id": "Metallicize",
+      "name": "Metallicize",
+      "wiki_name": "Metallicize"
+    },
+    {
+      "id": "METAMORPHOSIS",
+      "game_id": "Metamorphosis",
+      "name": "Metamorphosis",
+      "wiki_name": "Metamorphosis"
+    },
+    {
+      "id": "METEOR_STRIKE",
+      "game_id": "Meteor Strike",
+      "name": "Meteor Strike",
+      "wiki_name": "Meteor Strike"
+    },
+    {
+      "id": "MIND_BLAST",
+      "game_id": "Mind Blast",
+      "name": "Mind Blast",
+      "wiki_name": "Mind Blast"
+    },
+    {
+      "id": "MIRACLE",
+      "game_id": "Miracle",
+      "name": "Miracle",
+      "wiki_name": "Miracle"
+    },
+    {
+      "id": "MULTI_CAST",
+      "game_id": "Multi-Cast",
+      "name": "Multi-Cast",
+      "wiki_name": "Multi-Cast"
+    },
+    {
+      "id": "NECRONOMICURSE",
+      "game_id": "Necronomicurse",
+      "name": "Necronomicurse",
+      "wiki_name": "Necronomicurse"
+    },
+    {
+      "id": "NEUTRALIZE",
+      "game_id": "Neutralize",
+      "name": "Neutralize",
+      "wiki_name": "Neutralize"
+    },
+    {
+      "id": "NIGHTMARE",
+      "game_id": "Night Terror",
+      "name": "Nightmare",
+      "wiki_name": "Nightmare"
+    },
+    {
+      "id": "NIRVANA",
+      "game_id": "Nirvana",
+      "name": "Nirvana",
+      "wiki_name": "Nirvana"
+    },
+    {
+      "id": "NORMALITY",
+      "game_id": "Normality",
+      "name": "Normality",
+      "wiki_name": "Normality"
+    },
+    {
+      "id": "NOXIOUS_FUMES",
+      "game_id": "Noxious Fumes",
+      "name": "Noxious Fumes",
+      "wiki_name": "Noxious Fumes"
+    },
+    {
+      "id": "OFFERING",
+      "game_id": "Offering",
+      "name": "Offering",
+      "wiki_name": "Offering"
+    },
+    {
+      "id": "OMEGA",
+      "game_id": "Omega",
+      "name": "Omega",
+      "wiki_name": "Omega"
+    },
+    {
+      "id": "OMNISCIENCE",
+      "game_id": "Omniscience",
+      "name": "Omniscience",
+      "wiki_name": "Omniscience"
+    },
+    {
+      "id": "OUTMANEUVER",
+      "game_id": "Outmaneuver",
+      "name": "Outmaneuver",
+      "wiki_name": "Outmaneuver"
+    },
+    {
+      "id": "OVERCLOCK",
+      "game_id": "Steam Power",
+      "name": "Overclock",
+      "wiki_name": "Overclock"
+    },
+    {
+      "id": "PAIN",
+      "game_id": "Pain",
+      "name": "Pain",
+      "wiki_name": "Pain"
+    },
+    {
+      "id": "PANACEA",
+      "game_id": "Panacea",
+      "name": "Panacea",
+      "wiki_name": "Panacea"
+    },
+    {
+      "id": "PANACHE",
+      "game_id": "Panache",
+      "name": "Panache",
+      "wiki_name": "Panache"
+    },
+    {
+      "id": "PANIC_BUTTON",
+      "game_id": "PanicButton",
+      "name": "Panic Button",
+      "wiki_name": "Panic Button"
+    },
+    {
+      "id": "PARASITE",
+      "game_id": "Parasite",
+      "name": "Parasite",
+      "wiki_name": "Parasite"
+    },
+    {
+      "id": "PERFECTED_STRIKE",
+      "game_id": "Perfected Strike",
+      "name": "Perfected Strike",
+      "wiki_name": "Perfected Strike"
+    },
+    {
+      "id": "PERSEVERANCE",
+      "game_id": "Perseverance",
+      "name": "Perseverance",
+      "wiki_name": "Perseverance"
+    },
+    {
+      "id": "PHANTASMAL_KILLER",
+      "game_id": "Phantasmal Killer",
+      "name": "Phantasmal Killer",
+      "wiki_name": "Phantasmal Killer"
+    },
+    {
+      "id": "PIERCING_WAIL",
+      "game_id": "PiercingWail",
+      "name": "Piercing Wail",
+      "wiki_name": "Piercing Wail"
+    },
+    {
+      "id": "POISONED_STAB",
+      "game_id": "Poisoned Stab",
+      "name": "Poisoned Stab",
+      "wiki_name": "Poisoned Stab"
+    },
+    {
+      "id": "POMMEL_STRIKE",
+      "game_id": "Pommel Strike",
+      "name": "Pommel Strike",
+      "wiki_name": "Pommel Strike"
+    },
+    {
+      "id": "POWER_THROUGH",
+      "game_id": "Power Through",
+      "name": "Power Through",
+      "wiki_name": "Power Through"
+    },
+    {
+      "id": "PRAY",
+      "game_id": "Pray",
+      "name": "Pray",
+      "wiki_name": "Pray"
+    },
+    {
+      "id": "PREDATOR",
+      "game_id": "Predator",
+      "name": "Predator",
+      "wiki_name": "Predator"
+    },
+    {
+      "id": "PREPARED",
+      "game_id": "Prepared",
+      "name": "Prepared",
+      "wiki_name": "Prepared"
+    },
+    {
+      "id": "PRESSURE_POINTS",
+      "game_id": "PathToVictory",
+      "name": "Pressure Points",
+      "wiki_name": "Pressure Points"
+    },
+    {
+      "id": "PRIDE",
+      "game_id": "Pride",
+      "name": "Pride",
+      "wiki_name": "Pride"
+    },
+    {
+      "id": "PROSTRATE",
+      "game_id": "Prostrate",
+      "name": "Prostrate",
+      "wiki_name": "Prostrate"
+    },
+    {
+      "id": "PROTECT",
+      "game_id": "Protect",
+      "name": "Protect",
+      "wiki_name": "Protect"
+    },
+    {
+      "id": "PUMMEL",
+      "game_id": "Pummel",
+      "name": "Pummel",
+      "wiki_name": "Pummel"
+    },
+    {
+      "id": "PURITY",
+      "game_id": "Purity",
+      "name": "Purity",
+      "wiki_name": "Purity"
+    },
+    {
+      "id": "QUICK_SLASH",
+      "game_id": "Quick Slash",
+      "name": "Quick Slash",
+      "wiki_name": "Quick Slash"
+    },
+    {
+      "id": "RAGE",
+      "game_id": "Rage",
+      "name": "Rage",
+      "wiki_name": "Rage"
+    },
+    {
+      "id": "RAGNAROK",
+      "game_id": "Ragnarok",
+      "name": "Ragnarok",
+      "wiki_name": "Ragnarok"
+    },
+    {
+      "id": "RAINBOW",
+      "game_id": "Rainbow",
+      "name": "Rainbow",
+      "wiki_name": "Rainbow"
+    },
+    {
+      "id": "RAMPAGE",
+      "game_id": "Rampage",
+      "name": "Rampage",
+      "wiki_name": "Rampage"
+    },
+    {
+      "id": "REACH_HEAVEN",
+      "game_id": "ReachHeaven",
+      "name": "Reach Heaven",
+      "wiki_name": "Reach Heaven"
+    },
+    {
+      "id": "REAPER",
+      "game_id": "Reaper",
+      "name": "Reaper",
+      "wiki_name": "Reaper"
+    },
+    {
+      "id": "REBOOT",
+      "game_id": "Reboot",
+      "name": "Reboot",
+      "wiki_name": "Reboot"
+    },
+    {
+      "id": "REBOUND",
+      "game_id": "Rebound",
+      "name": "Rebound",
+      "wiki_name": "Rebound"
+    },
+    {
+      "id": "RECKLESS_CHARGE",
+      "game_id": "Reckless Charge",
+      "name": "Reckless Charge",
+      "wiki_name": "Reckless Charge"
+    },
+    {
+      "id": "RECURSION",
+      "game_id": "Redo",
+      "name": "Recursion",
+      "wiki_name": "Recursion"
+    },
+    {
+      "id": "RECYCLE",
+      "game_id": "Recycle",
+      "name": "Recycle",
+      "wiki_name": "Recycle"
+    },
+    {
+      "id": "REFLEX",
+      "game_id": "Reflex",
+      "name": "Reflex",
+      "wiki_name": "Reflex"
+    },
+    {
+      "id": "REGRET",
+      "game_id": "Regret",
+      "name": "Regret",
+      "wiki_name": "Regret"
+    },
+    {
+      "id": "REINFORCED_BODY",
+      "game_id": "Reinforced Body",
+      "name": "Reinforced Body",
+      "wiki_name": "Reinforced Body"
+    },
+    {
+      "id": "REPROGRAM",
+      "game_id": "Reprogram",
+      "name": "Reprogram",
+      "wiki_name": "Reprogram"
+    },
+    {
+      "id": "RIDDLE_WITH_HOLES",
+      "game_id": "Riddle With Holes",
+      "name": "Riddle with Holes",
+      "wiki_name": "Riddle with Holes"
+    },
+    {
+      "id": "RIP_AND_TEAR",
+      "game_id": "Rip and Tear",
+      "name": "Rip and Tear",
+      "wiki_name": "Rip and Tear"
+    },
+    {
+      "id": "RITUAL_DAGGER",
+      "game_id": "RitualDagger",
+      "name": "Ritual Dagger",
+      "wiki_name": "Ritual Dagger"
+    },
+    {
+      "id": "RUPTURE",
+      "game_id": "Rupture",
+      "name": "Rupture",
+      "wiki_name": "Rupture"
+    },
+    {
+      "id": "RUSHDOWN",
+      "game_id": "Adaptation",
+      "name": "Rushdown",
+      "wiki_name": "Rushdown"
+    },
+    {
+      "id": "SADISTIC_NATURE",
+      "game_id": "Sadistic Nature",
+      "name": "Sadistic Nature",
+      "wiki_name": "Sadistic Nature"
+    },
+    {
+      "id": "SAFETY",
+      "game_id": "Safety",
+      "name": "Safety",
+      "wiki_name": "Safety"
+    },
+    {
+      "id": "SANCTITY",
+      "game_id": "Sanctity",
+      "name": "Sanctity",
+      "wiki_name": "Sanctity"
+    },
+    {
+      "id": "SANDS_OF_TIME",
+      "game_id": "SandsOfTime",
+      "name": "Sands of Time",
+      "wiki_name": "Sands of Time"
+    },
+    {
+      "id": "SASH_WHIP",
+      "game_id": "SashWhip",
+      "name": "Sash Whip",
+      "wiki_name": "Sash Whip"
+    },
+    {
+      "id": "SCRAPE",
+      "game_id": "Scrape",
+      "name": "Scrape",
+      "wiki_name": "Scrape"
+    },
+    {
+      "id": "SCRAWL",
+      "game_id": "Scrawl",
+      "name": "Scrawl",
+      "wiki_name": "Scrawl"
+    },
+    {
+      "id": "SEARING_BLOW",
+      "game_id": "Searing Blow",
+      "name": "Searing Blow",
+      "wiki_name": "Searing Blow"
+    },
+    {
+      "id": "SECOND_WIND",
+      "game_id": "Second Wind",
+      "name": "Second Wind",
+      "wiki_name": "Second Wind"
+    },
+    {
+      "id": "SECRET_TECHNIQUE",
+      "game_id": "Secret Technique",
+      "name": "Secret Technique",
+      "wiki_name": "Secret Technique"
+    },
+    {
+      "id": "SECRET_WEAPON",
+      "game_id": "Secret Weapon",
+      "name": "Secret Weapon",
+      "wiki_name": "Secret Weapon"
+    },
+    {
+      "id": "SEEING_RED",
+      "game_id": "Seeing Red",
+      "name": "Seeing Red",
+      "wiki_name": "Seeing Red"
+    },
+    {
+      "id": "SEEK",
+      "game_id": "Seek",
+      "name": "Seek",
+      "wiki_name": "Seek"
+    },
+    {
+      "id": "SELF_REPAIR",
+      "game_id": "Self Repair",
+      "name": "Self Repair",
+      "wiki_name": "Self Repair"
+    },
+    {
+      "id": "SENTINEL",
+      "game_id": "Sentinel",
+      "name": "Sentinel",
+      "wiki_name": "Sentinel"
+    },
+    {
+      "id": "SETUP",
+      "game_id": "Setup",
+      "name": "Setup",
+      "wiki_name": "Setup"
+    },
+    {
+      "id": "SEVER_SOUL",
+      "game_id": "Sever Soul",
+      "name": "Sever Soul",
+      "wiki_name": "Sever Soul"
+    },
+    {
+      "id": "SHAME",
+      "game_id": "Shame",
+      "name": "Shame",
+      "wiki_name": "Shame"
+    },
+    {
+      "id": "SHIV",
+      "game_id": "Shiv",
+      "name": "Shiv",
+      "wiki_name": "Shiv"
+    },
+    {
+      "id": "SHOCKWAVE",
+      "game_id": "Shockwave",
+      "name": "Shockwave",
+      "wiki_name": "Shockwave"
+    },
+    {
+      "id": "SHRUG_IT_OFF",
+      "game_id": "Shrug It Off",
+      "name": "Shrug It Off",
+      "wiki_name": "Shrug It Off"
+    },
+    {
+      "id": "SIGNATURE_MOVE",
+      "game_id": "SignatureMove",
+      "name": "Signature Move",
+      "wiki_name": "Signature Move"
+    },
+    {
+      "id": "SIMMERING_FURY",
+      "game_id": "Vengeance",
+      "name": "Simmering Fury",
+      "wiki_name": "Simmering Fury"
+    },
+    {
+      "id": "SKEWER",
+      "game_id": "Skewer",
+      "name": "Skewer",
+      "wiki_name": "Skewer"
+    },
+    {
+      "id": "SKIM",
+      "game_id": "Skim",
+      "name": "Skim",
+      "wiki_name": "Skim"
+    },
+    {
+      "id": "SLICE",
+      "game_id": "Slice",
+      "name": "Slice",
+      "wiki_name": "Slice"
+    },
+    {
+      "id": "SLIMED",
+      "game_id": "Slimed",
+      "name": "Slimed",
+      "wiki_name": "Slimed"
+    },
+    {
+      "id": "SMITE",
+      "game_id": "Smite",
+      "name": "Smite",
+      "wiki_name": "Smite"
+    },
+    {
+      "id": "SNEAKY_STRIKE",
+      "game_id": "Underhanded Strike",
+      "name": "Sneaky Strike",
+      "wiki_name": "Sneaky Strike"
+    },
+    {
+      "id": "SPIRIT_SHIELD",
+      "game_id": "SpiritShield",
+      "name": "Spirit Shield",
+      "wiki_name": "Spirit Shield"
+    },
+    {
+      "id": "SPOT_WEAKNESS",
+      "game_id": "Spot Weakness",
+      "name": "Spot Weakness",
+      "wiki_name": "Spot Weakness"
+    },
+    {
+      "id": "STACK",
+      "game_id": "Stack",
+      "name": "Stack",
+      "wiki_name": "Stack"
+    },
+    {
+      "id": "STATIC_DISCHARGE",
+      "game_id": "Static Discharge",
+      "name": "Static Discharge",
+      "wiki_name": "Static Discharge"
+    },
+    {
+      "id": "STEAM_BARRIER",
+      "game_id": "Steam",
+      "name": "Steam Barrier",
+      "wiki_name": "Steam Barrier"
+    },
+    {
+      "id": "STORM",
+      "game_id": "Storm",
+      "name": "Storm",
+      "wiki_name": "Storm"
+    },
+    {
+      "id": "STORM_OF_STEEL",
+      "game_id": "Storm of Steel",
+      "name": "Storm of Steel",
+      "wiki_name": "Storm of Steel"
+    },
+    {
+      "id": "STREAMLINE",
+      "game_id": "Streamline",
+      "name": "Streamline",
+      "wiki_name": "Streamline"
+    },
+    {
+      "id": "STRIKE_BLUE",
+      "game_id": "Strike_B",
+      "name": "Strike",
+      "wiki_name": "Strike (Defect)"
+    },
+    {
+      "id": "STRIKE_GREEN",
+      "game_id": "Strike_G",
+      "name": "Strike",
+      "wiki_name": "Strike (Silent)"
+    },
+    {
+      "id": "STRIKE_PURPLE",
+      "game_id": "Strike_P",
+      "name": "Strike",
+      "wiki_name": "Strike (Watcher)"
+    },
+    {
+      "id": "STRIKE_RED",
+      "game_id": "Strike_R",
+      "name": "Strike",
+      "wiki_name": "Strike (Ironclad)"
+    },
+    {
+      "id": "STUDY",
+      "game_id": "Study",
+      "name": "Study",
+      "wiki_name": "Study"
+    },
+    {
+      "id": "SUCKER_PUNCH",
+      "game_id": "Sucker Punch",
+      "name": "Sucker Punch",
+      "wiki_name": "Sucker Punch"
+    },
+    {
+      "id": "SUNDER",
+      "game_id": "Sunder",
+      "name": "Sunder",
+      "wiki_name": "Sunder"
+    },
+    {
+      "id": "SURVIVOR",
+      "game_id": "Survivor",
+      "name": "Survivor",
+      "wiki_name": "Survivor"
+    },
+    {
+      "id": "SWEEPING_BEAM",
+      "game_id": "Sweeping Beam",
+      "name": "Sweeping Beam",
+      "wiki_name": "Sweeping Beam"
+    },
+    {
+      "id": "SWIFT_STRIKE",
+      "game_id": "Swift Strike",
+      "name": "Swift Strike",
+      "wiki_name": "Swift Strike"
+    },
+    {
+      "id": "SWIVEL",
+      "game_id": "Swivel",
+      "name": "Swivel",
+      "wiki_name": "Swivel"
+    },
+    {
+      "id": "SWORD_BOOMERANG",
+      "game_id": "Sword Boomerang",
+      "name": "Sword Boomerang",
+      "wiki_name": "Sword Boomerang"
+    },
+    {
+      "id": "TACTICIAN",
+      "game_id": "Tactician",
+      "name": "Tactician",
+      "wiki_name": "Tactician"
+    },
+    {
+      "id": "TALK_TO_THE_HAND",
+      "game_id": "TalkToTheHand",
+      "name": "Talk to the Hand",
+      "wiki_name": "Talk to the Hand"
+    },
+    {
+      "id": "TANTRUM",
+      "game_id": "Tantrum",
+      "name": "Tantrum",
+      "wiki_name": "Tantrum"
+    },
+    {
+      "id": "TEMPEST",
+      "game_id": "Tempest",
+      "name": "Tempest",
+      "wiki_name": "Tempest"
+    },
+    {
+      "id": "TERROR",
+      "game_id": "Terror",
+      "name": "Terror",
+      "wiki_name": "Terror"
+    },
+    {
+      "id": "THE_BOMB",
+      "game_id": "The Bomb",
+      "name": "The Bomb",
+      "wiki_name": "The Bomb"
+    },
+    {
+      "id": "THINKING_AHEAD",
+      "game_id": "Thinking Ahead",
+      "name": "Thinking Ahead",
+      "wiki_name": "Thinking Ahead"
+    },
+    {
+      "id": "THIRD_EYE",
+      "game_id": "ThirdEye",
+      "name": "Third Eye",
+      "wiki_name": "Third Eye"
+    },
+    {
+      "id": "THROUGH_VIOLENCE",
+      "game_id": "ThroughViolence",
+      "name": "Through Violence",
+      "wiki_name": "Through Violence"
+    },
+    {
+      "id": "THUNDERCLAP",
+      "game_id": "Thunderclap",
+      "name": "Thunderclap",
+      "wiki_name": "Thunderclap"
+    },
+    {
+      "id": "THUNDER_STRIKE",
+      "game_id": "Thunder Strike",
+      "name": "Thunder Strike",
+      "wiki_name": "Thunder Strike"
+    },
+    {
+      "id": "TOOLS_OF_THE_TRADE",
+      "game_id": "Tools of the Trade",
+      "name": "Tools of the Trade",
+      "wiki_name": "Tools of the Trade"
+    },
+    {
+      "id": "TRANQUILITY",
+      "game_id": "ClearTheMind",
+      "name": "Tranquility",
+      "wiki_name": "Tranquility"
+    },
+    {
+      "id": "TRANSMUTATION",
+      "game_id": "Transmutation",
+      "name": "Transmutation",
+      "wiki_name": "Transmutation"
+    },
+    {
+      "id": "TRIP",
+      "game_id": "Trip",
+      "name": "Trip",
+      "wiki_name": "Trip"
+    },
+    {
+      "id": "TRUE_GRIT",
+      "game_id": "True Grit",
+      "name": "True Grit",
+      "wiki_name": "True Grit"
+    },
+    {
+      "id": "TURBO",
+      "game_id": "Turbo",
+      "name": "TURBO",
+      "wiki_name": "TURBO"
+    },
+    {
+      "id": "TWIN_STRIKE",
+      "game_id": "Twin Strike",
+      "name": "Twin Strike",
+      "wiki_name": "Twin Strike"
+    },
+    {
+      "id": "UNLOAD",
+      "game_id": "Unload",
+      "name": "Unload",
+      "wiki_name": "Unload"
+    },
+    {
+      "id": "UPPERCUT",
+      "game_id": "Uppercut",
+      "name": "Uppercut",
+      "wiki_name": "Uppercut"
+    },
+    {
+      "id": "VAULT",
+      "game_id": "Vault",
+      "name": "Vault",
+      "wiki_name": "Vault"
+    },
+    {
+      "id": "VIGILANCE",
+      "game_id": "Vigilance",
+      "name": "Vigilance",
+      "wiki_name": "Vigilance"
+    },
+    {
+      "id": "VIOLENCE",
+      "game_id": "Violence",
+      "name": "Violence",
+      "wiki_name": "Violence"
+    },
+    {
+      "id": "VOID",
+      "game_id": "Void",
+      "name": "Void",
+      "wiki_name": "Void"
+    },
+    {
+      "id": "WALLOP",
+      "game_id": "Wallop",
+      "name": "Wallop",
+      "wiki_name": "Wallop"
+    },
+    {
+      "id": "WARCRY",
+      "game_id": "Warcry",
+      "name": "Warcry",
+      "wiki_name": "Warcry"
+    },
+    {
+      "id": "WAVE_OF_THE_HAND",
+      "game_id": "WaveOfTheHand",
+      "name": "Wave of the Hand",
+      "wiki_name": "Wave of the Hand"
+    },
+    {
+      "id": "WEAVE",
+      "game_id": "Weave",
+      "name": "Weave",
+      "wiki_name": "Weave"
+    },
+    {
+      "id": "WELL_LAID_PLANS",
+      "game_id": "Well Laid Plans",
+      "name": "Well-Laid Plans",
+      "wiki_name": "Well-Laid Plans"
+    },
+    {
+      "id": "WHEEL_KICK",
+      "game_id": "WheelKick",
+      "name": "Wheel Kick",
+      "wiki_name": "Wheel Kick"
+    },
+    {
+      "id": "WHIRLWIND",
+      "game_id": "Whirlwind",
+      "name": "Whirlwind",
+      "wiki_name": "Whirlwind"
+    },
+    {
+      "id": "WHITE_NOISE",
+      "game_id": "White Noise",
+      "name": "White Noise",
+      "wiki_name": "White Noise"
+    },
+    {
+      "id": "WILD_STRIKE",
+      "game_id": "Wild Strike",
+      "name": "Wild Strike",
+      "wiki_name": "Wild Strike"
+    },
+    {
+      "id": "WINDMILL_STRIKE",
+      "game_id": "WindmillStrike",
+      "name": "Windmill Strike",
+      "wiki_name": "Windmill Strike"
+    },
+    {
+      "id": "WISH",
+      "game_id": "Wish",
+      "name": "Wish",
+      "wiki_name": "Wish"
+    },
+    {
+      "id": "WORSHIP",
+      "game_id": "Worship",
+      "name": "Worship",
+      "wiki_name": "Worship"
+    },
+    {
+      "id": "WOUND",
+      "game_id": "Wound",
+      "name": "Wound",
+      "wiki_name": "Wound"
+    },
+    {
+      "id": "WRAITH_FORM",
+      "game_id": "Wraith Form v2",
+      "name": "Wraith Form",
+      "wiki_name": "Wraith Form"
+    },
+    {
+      "id": "WREATH_OF_FLAME",
+      "game_id": "WreathOfFlame",
+      "name": "Wreath of Flame",
+      "wiki_name": "Wreath of Flame"
+    },
+    {
+      "id": "WRITHE",
+      "game_id": "Writhe",
+      "name": "Writhe",
+      "wiki_name": "Writhe"
+    },
+    {
+      "id": "ZAP",
+      "game_id": "Zap",
+      "name": "Zap",
+      "wiki_name": "Zap"
+    }
+  ]
+}

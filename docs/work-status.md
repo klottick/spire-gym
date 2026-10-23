@@ -6,6 +6,15 @@ for the implemented interface. No models/training/learner checkpoints belong her
 
 ## Current workstream
 
+2026-10-23 pre-M8 local snapshot: user requested current public work committed and
+reference discovery improved before planning M8. Accepted M7 is committed locally
+as `2d9a47e` on `feat/run-act2-prefix`. The follow-up reference/docs snapshot includes
+unchanged main-checkout `data/{cards,relics,enemies,powers}/` and five reference test
+files, plus a [library index](../data/README.md) and prominent agent/README links.
+No source-grade promotion, M8 implementation, push, merge to main, install or
+cleanup is implied. Original main-checkout files remain untouched; historical
+uncommitted/separate-library notes below are superseded by this dated snapshot.
+
 2026-10-23 M7 accepted/closed: ONE fresh independent GPT-6 Luna milestone review
 ses_e9600b926ffeS6qGIv2sdrojR5 found no Critical/Important/Minor issues. All380
 reviewed public files matched in both worktrees before fresh controller core534/7

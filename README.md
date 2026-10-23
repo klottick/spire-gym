@@ -17,6 +17,17 @@ The [repository scope](docs/scope.md) records the current priorities, boundaries
 delivery path and implementation status. No human-playable client, graphics,
 animation, audio or interactive game UI is planned.
 
+## Game-rule resources for contributors and AI agents
+
+Start with the **[reference library index](data/README.md)**:
+[cards](data/cards/README.md), [relics](data/relics/README.md),
+[enemies and encounter rules](data/enemies/README.md), and
+[powers / buffs / debuffs](data/powers/README.md). Read each guide's citations,
+uncertainties and source grades before implementing mechanics or repeating research.
+These are offline references, **not implemented-content lists or runtime proof**.
+See [agent guidance](AGENTS.md) for current ownership and task constraints;
+the index lists standard-library offline checks that need no pytest or installs.
+
 ## Authored combat: M1–M3
 
 The approved [36-milestone roadmap](docs/superpowers/specs/2026-10-22-narrow-gym-milestones-design.md)
@@ -129,7 +140,7 @@ Historical failed comparisons remain retained. Task reviews, whole-slice review,
 final correction review and fresh controller verification are complete for that
 historical core-only handoff; they do not describe verification of the later
 batching/Gymnasium integration.
-Full-run simulation is not implemented; bounded M3–M5 Run profiles above are native.
+Full-run simulation is not implemented; bounded M3–M7 Run profiles above are native.
 The learning system is external, not
 an unfinished deliverable of this repository.
 No learned playing-strength or optimized simulator-throughput result
@@ -215,7 +226,9 @@ See [the design checklist](docs/design-process.md) for progress and decisions.
 
 ## License
 
-Project code is licensed under the [MIT License](LICENSE). Slay the Spire is owned
+Project code is licensed under the [MIT License](LICENSE). Wiki-derived reference
+data has separate [CC BY-SA attribution and licensing](data/README.md#licensing);
+the domain guides retain their specific notices. Slay the Spire is owned
 by Mega Crit; this license does not grant rights to the original game or its assets.
 Original game code, binaries, assets and private raw evidence are not distributed
 with this project.

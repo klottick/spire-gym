@@ -1,0 +1,560 @@
+{
+  "power.artifact_power": {
+    "amount": "Number of debuff applications that may be prevented, not debuff magnitude or turns.",
+    "triggers": ["ON_DEBUFF_APPLICATION"],
+    "removal": "A qualifying application consumes one charge; remove when charges are spent. It does not cleanse preexisting debuffs.",
+    "notes": ["ApplyPowerAction prevention is per application and depends on technical power type. Named relic prevention and source callbacks have distinct checkpoints; direct addPower is not the same path."],
+    "research": ["TRANSITIVE:section 3", "SILENT:section 7 Application and Poison"]
+  },
+  "power.strength_power": {
+    "type": "SIGN_DEPENDENT",
+    "benefit": "SIGN_DEPENDENT",
+    "amount": "Signed additive attack-damage modifier; negative Strength is distinct from the delayed Flex/Shackled powers.",
+    "caps": {"minimum": -999, "maximum": 999, "basis": "ENEMIES:Numeric and random domains"},
+    "triggers": ["ATTACK_DAMAGE_CALCULATION"],
+    "notes": ["Application sign/type and changes of an existing signed amount are not the same as a separate Strength Down identity. Do not universally apply Strength to HP loss, orb damage or triggered THORNS damage."],
+    "research": ["ENEMIES:Numeric and random domains", "SILENT:section 7 Application and Poison"]
+  },
+  "power.dexterity_power": {
+    "type": "SIGN_DEPENDENT",
+    "benefit": "SIGN_DEPENDENT",
+    "amount": "Signed modifier to calculated card Block, not every source of Block.",
+    "triggers": ["CARD_BLOCK_CALCULATION"],
+    "notes": ["Raw power, relic and Frost Block do not automatically receive the card Block calculation. Dexterity Down/DexLoss is a separate delayed-loss power."],
+    "research": ["RED:section 5 Block", "DEFECT:section 5.1"]
+  },
+  "power.focus_power": {
+    "type": "SIGN_DEPENDENT",
+    "benefit": "SIGN_DEPENDENT",
+    "amount": "Signed modifier to Lightning/Frost values and future Dark growth; Plasma is unaffected.",
+    "triggers": ["ORB_VALUE_CALCULATION"],
+    "notes": ["Changing Focus does not retroactively change a Dark Orb's already accumulated damage."],
+    "research": ["DEFECT:section 5.1"]
+  },
+  "power.weak_power": {
+    "amount": "Remaining duration, not the percentage reduction.",
+    "notes": ["The ordinary attack multiplier is 0.75. Paper Krane can change the enemy-side reduction. Do not apply this indiscriminately to HP loss or triggered non-Attack damage.", "Initial-application timing, source-monster flags, player/enemy clocks and reapplication require their qualified lifecycle; 'duration' alone does not define when to decrement."],
+    "research": ["RED:section 8", "DEFECT:section 5.1"]
+  },
+  "power.vulnerable_power": {
+    "amount": "Remaining duration, not the damage multiplier.",
+    "notes": ["Ordinary Attack damage is multiplied by 1.5. Odd Mushroom and Paper Phrog alter appropriate player/enemy cases. Modifiers and rounding are not a single integer addition.", "Do not treat orb, Poison or all triggered damage as Attacks."],
+    "research": ["WATCHER:section 8.1", "DEFECT:section 5.1"]
+  },
+  "power.frail_power": {
+    "amount": "Remaining duration, not the percentage Block penalty.",
+    "triggers": ["CARD_BLOCK_CALCULATION"],
+    "notes": ["Ordinary calculated card Block is reduced by 25%; raw power/relic/orb Block is not automatically modified. Turnip and Artifact have application-prevention roles."],
+    "research": ["RED:section 5 Block", "DEFECT:section 5.1"]
+  },
+  "power.poison_power": {
+    "amount": "Captured HP-loss payload for the next tick; the current stack is reduced by one after delivery.",
+    "triggers": ["OWNER_START_TURN"],
+    "turn_progression": "Queue captured-amount HP loss at the afflicted creature's start-turn; the loss action then reduces the currently present Poison by one.",
+    "removal": "Reduction removes the current Poison at zero. Prevention, replacement, dead/battle-ending guards and terminal interruption remain distinct.",
+    "notes": ["Poison is HP_LOSS, not an Attack and not Block-reduced. Its afflicted-owner clock is different from Noxious Fumes' player post-draw application clock.", "Catalyst requests another application based on action-time Poison; it is not an unconditional direct multiplication of a field."],
+    "research": ["SILENT:section 7 Application and Poison"]
+  },
+  "power.noxious_fumes_power": {
+    "triggers": ["PLAYER_POST_DRAW"],
+    "turn_progression": "At player post-draw start-turn, request the stacked amount of Poison separately on eligible enemies.",
+    "notes": ["Not the same event as the enemy's own Poison tick. The draft includes a monsters-basically-dead guard."],
+    "research": ["SILENT:sections 4 and 7"]
+  },
+  "power.gain_strength_power": {
+    "type": "DEBUFF",
+    "benefit": "BENEFICIAL",
+    "amount": "Signed Strength restoration amount, stored separately from the preceding Strength loss.",
+    "caps": {"minimum": -999, "maximum": 999, "basis": "RED:section 5 Temporary Strength"},
+    "triggers": ["OWNER_END_TURN"],
+    "removal": "At the affected creature's end-turn request Strength restoration and self-removal; cleansing/prevention can break loss/restoration symmetry.",
+    "notes": ["Shackled is technically a DEBUFF despite restoring Strength. Piercing Wail/Dark Shackles have source-specific Artifact-presence capture rules; do not rebuild eligibility after earlier queued applications."],
+    "research": ["SILENT:section 7", "RED:section 5 Temporary Strength"]
+  },
+  "power.lose_strength_power": {
+    "amount": "Strength to lose later, not the creature's current signed Strength.",
+    "triggers": ["OWNER_END_TURN"],
+    "removal": "Request the delayed Strength loss and removal at its qualified end-turn checkpoint.",
+    "notes": ["Flex's immediate Strength gain and the delayed expiry debuff are separate applications. Preventing/cleansing the latter need not undo the former."],
+    "research": ["RED:section 5 Temporary Strength"]
+  },
+  "power.lose_dexterity_power": {
+    "amount": "Dexterity to lose at the delayed end-turn checkpoint; not current negative Dexterity.",
+    "triggers": ["OWNER_END_TURN"],
+    "notes": ["Keep the temporary gain and its expiry application separate. The exact mixed-relic/copy/end-turn arbitration is not certified by the tooltip."],
+    "research": ["TRANSITIVE:section 3"]
+  },
+  "power.watcher_end_turn_death_power": {
+    "type": "BUFF",
+    "benefit": "HARMFUL",
+    "stacking": "nonstacking",
+    "amount": "Nonstacking marker, documented amount -1; not a duration or unconditional defeat instruction.",
+    "effect": "At the next player start-turn, request 99,999 player-owned HP loss and self-removal. This still enters actual prevention/rescue machinery.",
+    "triggers": ["PLAYER_START_TURN"],
+    "removal": "Self-removal is requested by the start-turn callback. A debuff cleanse is not permission to remove this BUFF.",
+    "notes": ["Artifact does not prevent its BUFF application. Intangible, Buffer and rescue interact at damage-time boundaries, not merely when Blasphemy was played."],
+    "research": ["WATCHER:section 8.3"],
+    "discrepancies": ["The wiki table labels Blasphemer Debuff. The existing Watcher draft explicitly reports EndTurnDeath inherits BUFF; practical harm and technical classification differ."]
+  },
+  "power.watcher_block_return_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "effect": "When the afflicted enemy receives a qualifying attack callback, request the stacked Block amount for the player, not for the enemy carrying this power.",
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK"],
+    "notes": ["The documented callback excludes THORNS/HP_LOSS, requires a nonnull different damage owner, and does not require positive unblocked damage. A fully blocked qualifying hit can request Block."],
+    "research": ["WATCHER:section 8.2"],
+    "discrepancies": ["The wiki table labels Block Return Buff. The Watcher draft explicitly identifies the enemy-carried power as a stacking DEBUFF."]
+  },
+  "power.choke_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "effect": "When the player uses a card, request the stacked amount of HP loss from the afflicted enemy carrying Choked.",
+    "triggers": ["ON_CARD_USE", "OWNER_START_TURN"],
+    "removal": "The affected creature's start-turn callback requests removal; not a universal 'remove every temporary power at player end-turn' rule.",
+    "research": ["SILENT:section 7"],
+    "discrepancies": ["The wiki table labels Choked Buff; the Silent draft identifies Choked as a separate DEBUFF application."]
+  },
+  "power.corpse_explosion_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "amount": "Multiplier of the owner's max HP captured at its qualifying death callback, not its current Poison or remaining HP.",
+    "triggers": ["OWNER_DEATH"],
+    "notes": ["The documented callback uses null-owner THORNS damage and a monsters-basically-dead guard. Applying/cleansing Poison is independent of Corpse Explosion. Do not guarantee that every queued chained explosion survives terminal pruning."],
+    "research": ["SILENT:section 7"],
+    "discrepancies": ["The wiki table labels Corpse Explosion Buff; the Silent draft identifies its separate DEBUFF application."]
+  },
+  "power.watcher_energy_down_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "triggers": ["PLAYER_ENERGY_RECHARGE"],
+    "amount": "Energy-loss intensity, separate from Fasting's Strength and Dexterity grants.",
+    "research": ["WATCHER:sections 4 and 8.2"],
+    "discrepancies": ["The wiki table labels Fasting Buff. The Watcher draft describes its EnergyDownPower as a separately preventable debuff, not the two preceding stat buffs."]
+  },
+  "power.no_block_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "triggers": ["CARD_BLOCK_CALCULATION"],
+    "notes": ["Panic Button's power suppresses calculated Block from cards, not raw power/orb/relic Block or Entrench's direct doubling path."],
+    "research": ["RED:section 3 Panic Button"],
+    "extra_wiki": ["Debuffs"],
+    "discrepancies": ["The Cargo table labels No Block Buff, while the wiki Debuffs page lists it as a debuff. Keep this source disagreement explicit; classification is not original-runtime validated."]
+  },
+  "power.wraith_form_power": {
+    "type": "DEBUFF",
+    "benefit": "HARMFUL",
+    "amount": "Signed amount, initially -1, controlling a recurring Dexterity change; separate from Intangible's duration.",
+    "effect": "At the affected creature's end-turn, request Dexterity change equal to the signed Wraith Form amount.",
+    "triggers": ["OWNER_END_TURN"],
+    "removal": "Intangible expiring does not remove this independently installed downside. Debuff prevention/cleansing applies separately.",
+    "research": ["SILENT:section 7 Separate delayed lifetimes"],
+    "discrepancies": ["The wiki table describes start-turn loss; the retained Silent draft describes an end-turn callback and signed negative amount. The draft's source grade is preserved, not promoted."]
+  },
+  "power.intangible_player_power": {
+    "amount": "Remaining player-side duration, not the damage ceiling.",
+    "triggers": ["FINAL_DAMAGE_RECEIVE_MODIFIER", "PLAYER_END_ROUND"],
+    "turn_progression": "The Silent draft reports player end-round reduction/removal; priority 75 on the final-receive modifier.",
+    "notes": ["Values above 1 are reduced to 1 on the documented path. Damage-time presence and other modifier order matter. Do not merge this ID or its lifecycle with the enemy variant."],
+    "research": ["SILENT:section 7", "WATCHER:section 8.3"]
+  },
+  "power.reference.intangible_enemy": {
+    "amount": "Enemy-side Intangible duration/state; the exact constructor ID is not supplied by the retained catalog.",
+    "notes": ["Nemesis alternates turns with Intangible. The public description does not establish that enemy expiry is the same callback as IntangiblePlayer's player end-round path."],
+    "extra_wiki": ["Nemesis"],
+    "research": ["TRANSITIVE:section 5.2"]
+  },
+  "power.regen_power": {
+    "stacking": "intensity_and_duration",
+    "amount": "Player healing for the next eligible tick, reduced by one per turn.",
+    "triggers": ["PLAYER_END_TURN"],
+    "turn_progression": "Request player healing and reduce the current Regen amount by one; healing modifiers/prevention remain separate.",
+    "removal": "Remove when its diminishing amount is spent; not the constant enemy regeneration lifecycle."
+  },
+  "power.reference.regenerate": {
+    "stacking": "intensity",
+    "amount": "Enemy HP healing per eligible end-turn; not a decreasing count of future turns.",
+    "triggers": ["OWNER_END_TURN"],
+    "turn_progression": "Queue healing for a qualifying living/non-half-dead enemy without decrementing the regeneration amount.",
+    "research": ["ENEMIES:section 8 Burning Elite modifiers"],
+    "discrepancies": ["The wiki table's BetweenTurns value 'Counter' must not import the player's decrementing Regen behavior into enemy regeneration."]
+  },
+  "power.reference.nightmare": {
+    "game_id": "Night Terror",
+    "class_alias": "NightmarePower",
+    "stacking": "independent_instances",
+    "amount": "Number of copies from this power's independently captured card template.",
+    "state": ["Selected stat-equivalent card template", "Per-installation copy amount"],
+    "triggers": ["PLAYER_START_TURN"],
+    "removal": "Start-turn requests template creation and removal; do not collapse different selected templates into one matching-ID intensity.",
+    "notes": ["The Silent draft explicitly excludes Night Terror from ordinary matching-ID stacking. A documented ID family is not permission to merge distinct live power objects."],
+    "research": ["SILENT:sections 7 and 8"],
+    "discrepancies": ["The wiki's generic Intensity label does not describe the separate selected-template instances reported in the local draft."]
+  },
+  "power.the_bomb_power": {
+    "stacking": "independent_instances",
+    "amount": "Countdown, initially 3; damage payload is a separate captured 40/50 value.",
+    "state": ["Per-cast identity", "Countdown", "Captured damage payload"],
+    "triggers": ["PLAYER_END_TURN"],
+    "removal": "Reduce each independently aged bomb; its final eligible callback requests detonation/removal. Do not merge ages or replace an earlier payload.",
+    "notes": ["The catalog literal TheBomb is a family identity, not proof that every live instance uses that exact unsuffixed string."],
+    "research": ["RED:section 5 Bomb"],
+    "discrepancies": ["The wiki label 'Does not stack' must not be read as discarding extra casts; both the page and local draft describe separate bombs."]
+  },
+  "power.duplication_power": {
+    "stacking": "charges",
+    "amount": "Remaining repeat charges, consumed on qualifying card use and also subject to the retained end-of-round decay finding.",
+    "triggers": ["ON_NONPURGE_CARD_USE", "END_ROUND"],
+    "round_decay": {"phase": "END_ROUND", "reduction": 1, "remove_if_already_zero": true},
+    "turn_progression": "The retained potion draft reports end-of-round removal when already zero, otherwise reduction by one. Do not substitute either indefinite conservation or unconditional end-turn removal.",
+    "removal": "Qualifying non-purge card uses consume charges; the local end-of-round path also removes/reduces. Detailed queue/reduction composition retains its existing evidence limits.",
+    "notes": ["The public potion tooltip says 'This turn', while the source-grounded local draft explicitly rejects unconditional end-turn removal. With multiple charges, a one-charge round reduction is not a blanket expiry of all unused charges."],
+    "research": ["POTIONS:section 5 Duplication Potion", "RED:section 5 Double Tap/repeats"],
+    "discrepancies": ["Cargo BetweenTurns='Conserved' omits round decay; the captured Duplication Potion description says 'This turn'. The retained potion draft instead documents charge consumption plus end-of-round removal-if-zero/otherwise-reduce-one. All accounts remain explicit at their stated grades."]
+  },
+  "power.watcher_deva_power": {
+    "amount": "Growth increment, separate from the next energy gain.",
+    "state": ["Increment a, initially 1", "Next gain g, initially 1"],
+    "triggers": ["PLAYER_ENERGY_RECHARGE"],
+    "turn_progression": "Grant g, then increase g by a. An additional stack increases a by the stack amount and g by 1, not necessarily by that amount.",
+    "research": ["WATCHER:section 8.2"]
+  },
+  "power.reference.collect": {
+    "stacking": "duration",
+    "amount": "Remaining upgraded-Miracle recharge deliveries, not Miracles per delivery.",
+    "caps": {"minimum": null, "maximum": 999, "basis": "WATCHER:section 7.2"},
+    "triggers": ["PLAYER_ENERGY_RECHARGE"],
+    "turn_progression": "Request one Miracle+ per recharge, then reduce duration or remove when duration is at most 1.",
+    "research": ["WATCHER:section 7.2"]
+  },
+  "power.panache_power": {
+    "amount": "Damage intensity; a separate counter starts/resets at five qualifying card uses.",
+    "state": ["Damage intensity", "Remaining card-use counter"],
+    "triggers": ["ON_CARD_USE", "PLAYER_START_TURN"],
+    "notes": ["An installing Panache does not count its own earlier use retrospectively. Stacking increases damage without resetting the remaining counter; start-turn resets it to five."],
+    "research": ["RED:section 5 Panache"]
+  },
+  "power.combust_power": {
+    "benefit": "MIXED",
+    "effect": "At player end-turn, request grouped self HP loss, then non-Attack damage to all enemies, with separate self-loss and damage amounts.",
+    "amount": "Damage intensity; self-loss has its own counter increased by each stack call.",
+    "state": ["Damage intensity", "Self-loss units"],
+    "triggers": ["PLAYER_END_TURN"],
+    "notes": ["One base plus one upgraded installation gives self-loss 2 and damage 12 in the local draft; it is not one HP per damage point."],
+    "research": ["RED:section 5 Combust/Rupture"],
+    "discrepancies": ["The wiki table says lose X HP and leaves damage unquantified. The retained local finding separates the two stored quantities."]
+  },
+  "power.brutality_power": {
+    "benefit": "MIXED",
+    "triggers": ["PLAYER_POST_DRAW"],
+    "notes": ["The red/colorless draft describes queued draw before HP loss. Printed wording is not execution order."],
+    "research": ["RED:sections 2 and 5"],
+    "discrepancies": ["The wiki description lists HP loss before draw; the retained draft describes queued draw then HP loss."]
+  },
+  "power.demon_form_power": {
+    "triggers": ["PLAYER_POST_DRAW"],
+    "research": ["RED:section 5 Start/end hooks"]
+  },
+  "power.berserk_power": {
+    "triggers": ["PLAYER_START_TURN_PRE_DRAW"],
+    "research": ["RED:section 5 Start/end hooks"]
+  },
+  "power.metallicize_power": {
+    "triggers": ["OWNER_PRE_END_TURN_CARDS"],
+    "notes": ["Raw power Block, not card Block. The player-side retained hook precedes end-turn card payloads; do not infer one universal player/enemy scheduler from that finding."],
+    "research": ["RED:section 5"]
+  },
+  "power.mayhem_power": {
+    "benefit": "CONTEXTUAL",
+    "triggers": ["PLAYER_START_TURN_PRE_DRAW"],
+    "notes": ["The early hook queues deferred wrappers and nested top-card plays. Hook timing does not prove every child completes before normal draw. Free/autoplay is not a universal legality bypass."],
+    "research": ["RED:section 5", "TRANSITIVE:section 4"]
+  },
+  "power.magnetism_power": {
+    "triggers": ["PLAYER_START_TURN_PRE_DRAW"],
+    "notes": ["Use qualified actual-character/healing-filter generator laws, not an inferred uniform draw over every colorless card. RNG-001 applies."],
+    "research": ["RED:sections 5 and 6"]
+  },
+  "power.thorns_power": {
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK"],
+    "notes": ["The retained callback excludes THORNS/HP_LOSS, requires a nonnull different attacker, and does not require positive unblocked damage. Fully blocked qualifying attacks still retaliate. This is per hit, unlike Sharp Hide's Attack-card use trigger."],
+    "research": ["SILENT:section 7 Play and damage callbacks"]
+  },
+  "power.sharp_hide_power": {
+    "triggers": ["ON_ATTACK_CARD_PLAY"],
+    "notes": ["A multi-hit Attack is one Attack-card play for Sharp Hide, not one trigger per damage hit. Guardian's state transition owns power installation/removal."],
+    "research": ["ENEMIES:sections 2 and 5"]
+  },
+  "power.flame_barrier_power": {
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK", "PLAYER_START_TURN"],
+    "removal": "The retained next-player-start hook queues removal, not current-player-end removal.",
+    "notes": ["Requires a nonnull damage owner other than the power owner and a type other than THORNS/HP_LOSS."],
+    "research": ["RED:section 2 Flame Barrier"]
+  },
+  "power.static_discharge_power": {
+    "effect": "A qualifying on-attacked callback with positive damageAmount requests separate Lightning channels; final HP actually lost can be changed later.",
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK"],
+    "notes": ["The local predicate requires positive callback damage, a nonnull different owner, and neither THORNS nor HP_LOSS. Later Tungsten Rod/loss changes need not retroactively cancel that trigger."],
+    "research": ["DEFECT:section 5.1"]
+  },
+  "power.envenom_power": {
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK"],
+    "notes": ["The retained predicate requires positive damageAmount, NORMAL damage and a target different from the power owner; separate hits remain separate callbacks."],
+    "research": ["SILENT:section 7 Play and damage callbacks"]
+  },
+  "power.after_image_power": {
+    "triggers": ["ON_CARD_USE"],
+    "notes": ["This is not the same hook as Thousand Cuts' after-card-played callback. Its Block is raw power Block."],
+    "research": ["SILENT:section 7"]
+  },
+  "power.thousand_cuts_power": {
+    "triggers": ["AFTER_CARD_PLAYED"],
+    "notes": ["Requests non-Attack/THORNS all-enemy damage, not another Attack play."],
+    "research": ["SILENT:sections 5 and 7"]
+  },
+  "power.rupture_power": {
+    "triggers": ["POSITIVE_HP_LOSS_NOTIFICATION"],
+    "notes": ["The retained predicate uses positive loss and damage owner==player. Printed 'from a card' is not a complete causal-ancestry test; triggering once per HP point is incorrect."],
+    "research": ["RED:section 5 Combust/Rupture"]
+  },
+  "power.retain_card_power": {
+    "effect": "At the player's retention checkpoint, allow up to the stacked amount of selected cards to be retained.",
+    "triggers": ["PLAYER_END_TURN_RETENTION"],
+    "research": ["SILENT:section 6"],
+    "discrepancies": ["The wiki power description says start of turn. The card description and retained Silent retention finding describe end-turn selection, not a new start-turn choice."]
+  },
+  "power.energized_power": {
+    "amount": "Additional energy at the next qualified recharge; not turns of energy gain.",
+    "caps": {"minimum": null, "maximum": 999, "basis": "SILENT:section 7 Separate delayed lifetimes"},
+    "triggers": ["PLAYER_ENERGY_RECHARGE"],
+    "removal": "Gain the stored amount synchronously at recharge, then request removal.",
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.energized_blue_power": {
+    "triggers": ["PLAYER_ENERGY_RECHARGE"],
+    "notes": ["Separate ID from Energized; the common display concept is not permission to merge power identities."],
+    "research": ["DEFECT:sections 2 and 3"]
+  },
+  "power.draw_card_next_turn_power": {
+    "triggers": ["PLAYER_POST_DRAW"],
+    "removal": "Append the additional draw request and self-removal at the qualified post-draw hook.",
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.next_turn_block_power": {
+    "triggers": ["PLAYER_START_TURN"],
+    "notes": ["Dodge and Roll captures calculated card Block at play time. Do not reapply next-turn Dexterity/Frail to that captured amount."],
+    "removal": "Request the stored Block and then removal at start-turn.",
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.tools_of_the_trade_power": {
+    "triggers": ["PLAYER_POST_DRAW"],
+    "notes": ["Request stacked draw, then stacked selected discard; not multiple independent selections solely because the power stacked."],
+    "research": ["SILENT:sections 5 and 7"]
+  },
+  "power.phantasmal_power": {
+    "triggers": ["PLAYER_START_TURN"],
+    "notes": ["Requests a separate Double Damage power and reduces its own amount. Delayed Phantasmal and active Double Damage are not one power/lifetime."],
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.reference.double_damage": {
+    "amount": "Duration; attacks multiply by two once, not by two repeatedly for every stack.",
+    "triggers": ["NORMAL_DAMAGE_CALCULATION", "PLAYER_END_ROUND"],
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.blur_power": {
+    "amount": "Duration; turn-start Block clearing tests presence rather than multiplying Block by the stack.",
+    "triggers": ["PLAYER_BLOCK_CLEAR_CHECK", "PLAYER_END_ROUND"],
+    "research": ["SILENT:section 7 Separate delayed lifetimes"]
+  },
+  "power.lock_on_power": {
+    "amount": "Duration; the orb-damage multiplier remains 1.5 regardless of stack count.",
+    "triggers": ["ORB_DAMAGE_CALCULATION", "END_ROUND"],
+    "notes": ["Reapplications add duration on the ordinary path. Do not apply the Attack-specific Strength/Weak/Vulnerable/stance calculation to orb damage."],
+    "research": ["DEFECT:section 5.1"]
+  },
+  "power.watcher_like_water_power": {
+    "caps": {"minimum": null, "maximum": 999, "basis": "WATCHER:sections 4 and 8.1"},
+    "triggers": ["PLAYER_PRE_END_TURN_CARDS"],
+    "notes": ["Check Calm at the qualified hook; this is raw power Block, not card Block."],
+    "research": ["WATCHER:sections 4 and 8.1"]
+  },
+  "power.watcher_mantra_power": {
+    "stacking": "threshold_counter",
+    "amount": "Progress toward the Divinity threshold of 10; separate from combat-total Mantra gained for Brilliance.",
+    "state": ["Current progress", "Separate combat-total accumulator belongs to combat history"],
+    "triggers": ["MANTRA_APPLICATION"],
+    "notes": ["The Watcher draft describes special large/no-existing-Mantra application paths. Do not infer unbounded repeated Divinity entries from one large application or treat 10 as a universal cap on combat history."],
+    "research": ["WATCHER:sections 4 and 8"]
+  },
+  "power.watcher_mark_power": {
+    "triggers": ["PRESSURE_POINTS_MARK_TRIGGER"],
+    "notes": ["Afflicted enemies each lose HP equal to their own Mark. Artifact can block the new selected application without preventing already-existing Marks elsewhere from triggering. This is HP_LOSS, not Attack damage."],
+    "research": ["WATCHER:section 8.2"]
+  },
+  "power.watcher_establishment_power": {
+    "triggers": ["PLAYER_END_TURN_RETENTION"],
+    "notes": ["The local action selects eligible hand instances with retain/selfRetain at execution. Runic Pyramid merely preventing discard is not itself Retain."],
+    "research": ["WATCHER:sections 4 and 6"]
+  },
+  "power.watcher_mental_fortress_power": {
+    "triggers": ["ACTUAL_STANCE_CHANGE"],
+    "notes": ["Request raw Block only for an actual stance transition; requesting the stance already active does not establish a change."],
+    "research": ["WATCHER:section 4"]
+  },
+  "power.watcher_rushdown_power": {
+    "triggers": ["ACTUAL_ENTRY_INTO_WRATH"],
+    "research": ["WATCHER:section 4"]
+  },
+  "power.watcher_nirvana_power": {
+    "triggers": ["ON_SCRY_NOTIFICATION"],
+    "notes": ["The draft permits the notification before an empty-pile return; 'discarded at least one card' is not the predicate."],
+    "research": ["WATCHER:section 4"]
+  },
+  "power.watcher_free_attack_power": {
+    "stacking": "charges",
+    "triggers": ["NONPURGE_ATTACK_USE"],
+    "removal": "Consume the qualifying entitlement when used; the Watcher draft reports no automatic turn-end expiry.",
+    "notes": ["A free entitlement is distinct from setting numeric turn/combat cost to zero, especially for X-cost cards."],
+    "research": ["WATCHER:section 4", "DEFECT:section 6.1"]
+  },
+  "power.reference.surrounded": {
+    "type": "UNKNOWN",
+    "benefit": "HARMFUL",
+    "effect": "Player-side orientation/encounter indicator for the Shield/Spear fight. The supporting enemy page says this indicator does not itself add another damage bonus; keep the enemy Back Attack multiplier separate.",
+    "triggers": ["TARGETED_CARD_OR_POTION_ORIENTATION_CHANGE"],
+    "extra_wiki": ["Spire Shield and Spire Spear", "Module:Powers/data"],
+    "notes": ["Do not multiply incoming damage twice by implementing both a player Surrounded bonus and an enemy Back Attack bonus. Exact technical power type/constructor ID remain unverified in this dataset."],
+    "discrepancies": ["The generic module says receive 50% more damage; the enemy page explicitly calls Surrounded a telegraph rather than a second damage modifier."]
+  },
+  "power.reference.back_attack": {
+    "amount": "Conditional rear-attack multiplier/state, not a linear damage bonus per stack.",
+    "notes": ["Spire Shield/Spear orientation controls the condition. Treat the player-side Surrounded indicator separately, not as an additional multiplier."],
+    "extra_wiki": ["Spire Shield and Spire Spear"]
+  },
+  "power.reference.beat_of_death": {
+    "triggers": ["ON_PLAYER_CARD_PLAY"],
+    "notes": ["The Heart's public page reports initial amount 1, or 2 at A19+, and later increases during its pattern. These are source-qualified scenario values, not one immutable amount for all encounters.", "Preserve actual damage/prevention and death ordering; do not pre-debit hypothetical damage merely because an action is legal."]
+  },
+  "power.reference.invincible": {
+    "stacking": "stateful",
+    "amount": "Remaining HP-loss quota for the relevant turn, distinct from the configured reset quota.",
+    "state": ["Current remaining quota", "Configured per-turn reset quota"],
+    "triggers": ["HP_LOSS_LIMIT_CHECK", "ENEMY_TURN_RESET"],
+    "notes": ["The Heart page reports 300 HP per turn, or 200 at A19+. Vault skips the enemy turn/end-of-round phase, so do not assume every new player turn resets this quota."],
+    "extra_wiki": ["Vault"]
+  },
+  "power.reference.flying": {
+    "stacking": "stateful",
+    "amount": "Remaining qualifying hits to knock down flight, not the reduction percentage.",
+    "state": ["Remaining knockdown hits", "Reset flight-hit threshold", "Flight/grounded state"],
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK", "ENEMY_TURN_RESET"],
+    "notes": ["The Byrd page reports threshold 3, or 4 at A17+, and 50% Attack damage reduction. Indirect damage bypasses flight; grounded state changes the enemy's action sequence. Vault does not reset the counter."]
+  },
+  "power.reference.time_warp": {
+    "stacking": "stateful",
+    "state": ["Card-play counter", "Strength-gain payload"],
+    "triggers": ["ON_PLAYER_CARD_PLAY"],
+    "notes": ["The retained Buffs page explicitly describes a twelve-card threshold; the Time Eater power summary only says 'a certain number'. Preserve per-play counting and qualified forced-end-turn arbitration, including Vault/Omniscience exceptions; this is not an energy-payment limit."],
+    "extra_wiki": ["Buffs"]
+  },
+  "power.reference.minion": {
+    "amount": "Encounter-role marker, not remaining turns or HP.",
+    "notes": ["Minion matters for Fatal exclusions. Encounter-specific death, queued suicide, escape and parent-cleanup behavior must not be replaced with a universal 'abandon combat' operation.", "Awakened One's accompanying Cultists are not Minions merely because they flee after the boss dies."],
+    "extra_wiki": ["Awakened One"],
+    "research": ["WATCHER:section 8.2 Lesson Learned", "TRANSITIVE:section 5.2"]
+  },
+  "power.ritual_power": {
+    "triggers": ["OWNER_END_ROUND"],
+    "notes": ["The scoped Cultist finding suppresses its first end-of-round occurrence. Do not grant the first Dark Strike advance Strength or infer one identical first-application flag for every player/enemy producer."],
+    "research": ["ENEMIES:section 4"]
+  },
+  "power.reference.stasis": {
+    "stacking": "stateful",
+    "state": ["Stolen card instance/identity", "Source enemy instance"],
+    "triggers": ["OWNER_DEATH"],
+    "notes": ["Store the actual stolen card, not only its display name. Return-to-hand, overflow, actual-draw notifications and encounter settlement require the implementation's qualified lifecycle, not a generic new-card grant."]
+  },
+  "power.reference.shifting": {
+    "benefit": "HARMFUL",
+    "triggers": ["ON_HP_LOSS"],
+    "notes": ["The Transient temporarily loses Strength proportional to HP lost; the restoration state is separate from its current Strength. Do not treat blocked nominal damage as HP loss."]
+  },
+  "power.reference.fading": {
+    "benefit": "HARMFUL",
+    "amount": "Remaining countdown to the Transient's exit/death behavior, not a beneficial damage intensity.",
+    "notes": ["Its BUFF label does not imply practical benefit or permission for a generic debuff cleanse to remove it. Exact terminal and reward handling belongs to the encounter."]
+  },
+  "power.reference.painful_stabs": {
+    "triggers": ["DAMAGE_CALLBACK_REQUIRING_QUALIFICATION"],
+    "notes": ["The wiki's 'attack damage' summary is not a complete damage-owner/type predicate. Do not infer a universal HP_LOSS exclusion or one Wound per damage point without a qualified callback finding."],
+    "uncertainties": ["Exact source-attribution and damage-type/positive-loss predicate is not established by the retrieved tooltip."]
+  },
+  "power.reference.reactive": {
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK"],
+    "notes": ["A qualifying Writhing Mass hit can change its live intent. Multi-hit attacks and subsequent choices must preserve the encounter's per-hit and history rules, not one reroll per card by assumption."]
+  },
+  "power.reference.draw_reduction": {
+    "triggers": ["NEXT_PLAYER_DRAW_PHASE"],
+    "notes": ["The Cargo row describes intensity reducing next-turn draw, while the broad Debuffs page describes one fewer draw for X turns. Preserve the disagreement instead of silently choosing a universal amount/duration law."],
+    "extra_wiki": ["Debuffs"],
+    "discrepancies": ["Cargo calls Draw Reduction intensity/'Draw X less cards next turn'; Debuffs calls it duration/'Draw 1 less card for the next X turns'. Constructor/stack/lifecycle details remain unresolved here."]
+  },
+  "power.reference.hex": {
+    "triggers": ["ON_NONATTACK_CARD_PLAY"],
+    "notes": ["The player carries this enemy-applied debuff. It creates Dazed; created/moved cards are not automatically actual draws."]
+  },
+  "power.reference.constricted": {
+    "triggers": ["PLAYER_END_TURN"],
+    "notes": ["The player, not Spire Growth, carries the damage-producing debuff. Preserve actual damage/block/prevention and owner/removal linkage; the tooltip does not establish all source-death interactions."]
+  },
+  "power.reference.explosive": {
+    "benefit": "MIXED",
+    "amount": "Countdown; the explosion payload and enemy lifecycle are separate state.",
+    "state": ["Countdown", "Captured/configured damage payload"],
+    "notes": ["Do not interpret the wiki's unspecified 'some amount' as zero damage. The Shapes/Exploder encounter owns its damage and suicide/settlement order."]
+  },
+  "power.reference.life_link": {
+    "stacking": "stateful",
+    "state": ["Darkling half-dead/revive state", "Other linked actors' live state"],
+    "notes": ["Half-death and final group defeat are distinct. Fatal and rewards must not trigger on every temporary Darkling downing; a pending revive is not ordinary death followed by a fresh unrelated spawn."]
+  },
+  "power.reference.malleable": {
+    "stacking": "stateful",
+    "state": ["Current Block response", "Per-turn reset value"],
+    "triggers": ["ON_ATTACK_DAMAGE_CALLBACK", "OWNER_START_TURN"],
+    "notes": ["Its increasing within-turn Block response is not merely a permanent linear stack count. Exact qualifying hit predicate and reset checkpoint need the named owner path."]
+  },
+  "power.mode_shift_power": {
+    "stacking": "stateful",
+    "state": ["Guardian threshold", "Accumulated loss", "Mode/transition latch"],
+    "notes": ["Guardian tracks a quota and queues a mode transition/Block gain. Crossing the threshold is not permission to replace every later move synchronously or lose subsequent hit callbacks."],
+    "research": ["ENEMIES:section 5"]
+  },
+  "power.spore_cloud_power": {
+    "triggers": ["OWNER_DEATH"],
+    "notes": ["The Fungi Beast finding checks battle-ending/group state and may suppress a final-enemy cloud. It is not a post-fight debuff grant after every Fungi death."],
+    "research": ["ENEMIES:section 4"]
+  },
+  "power.no_draw_power": {
+    "triggers": ["DRAW_PERMISSION_CHECK"],
+    "notes": ["Prevents actual additional draws; it does not forbid creation/retrieval into hand or cancel already requested unrelated shuffles."],
+    "research": ["RED:sections 2 and 6"]
+  },
+  "power.corruption_power": {
+    "stacking": "nonstacking",
+    "triggers": ["SKILL_COST_OR_PAYMENT_CHECK", "SKILL_USE_CLEANUP"],
+    "notes": ["Skill free-payment/cost treatment and exhaust-on-use are separate from turning every negative cost into zero. Status/Curse cards retain their own types; the power itself leaving play is not Exhaust."],
+    "research": ["RED:sections 2 and 5", "DEFECT:section 6.1"]
+  },
+  "power.echo_power": {
+    "state": ["Doubling intensity", "cardsDoubledThisTurn"],
+    "triggers": ["ON_NONPURGE_CARD_USE", "PLAYER_START_TURN"],
+    "notes": ["Separate repeat count/history and original captured X are required. Do not recursively repeat purge copies or double only the first card forever regardless of stacked intensity."],
+    "research": ["DEFECT:section 6.2"]
+  },
+  "power.watcher_master_reality_power": {
+    "stacking": "nonstacking",
+    "triggers": ["ROUTE_SPECIFIC_CARD_CREATION"],
+    "notes": ["Offers, chosen copies, hand actions, overflow and animation/stored objects have different upgrade checkpoints. Do not replace the qualified routes with one universal constructor upgrade; Wish's option callbacks are not physical acquired cards."],
+    "research": ["RED:section 6 Master Reality", "WATCHER:section 7"]
+  }
+}

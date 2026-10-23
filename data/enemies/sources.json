@@ -1,0 +1,591 @@
+{
+  "schema_version": 1,
+  "wiki_attribution": {
+    "contributors": "Slay the Spire Wiki contributors; see individual pinned pages and revision histories",
+    "license": "CC-BY-SA-4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+    "changes": "Normalized short move/power descriptions, structured stats, independently summarized patterns and explicit reconciliation/conflict notes."
+  },
+  "sources": {
+    "wiki:cultist": {
+      "kind": "wiki",
+      "title": "Cultist",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Cultist&oldid=56342",
+      "revision_id": 56342,
+      "revision_timestamp": "2026-09-14T19:24:52Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "aeef173005088bf6c147bc030fa4700137fe9dd9bf9450cc6cfec5bad8b279e3",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:jaw_worm": {
+      "kind": "wiki",
+      "title": "Jaw Worm",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Jaw_Worm&oldid=62868",
+      "revision_id": 62868,
+      "revision_timestamp": "2026-10-07T20:02:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ae9111988f4ea5b9da2e52272344884e23bcd7a91c774c7ed5e147aca11be9a0",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:slime_boss": {
+      "kind": "wiki",
+      "title": "Slime Boss",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Slime_Boss&oldid=58828",
+      "revision_id": 58828,
+      "revision_timestamp": "2026-09-25T19:46:39Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "257cf606bafcb612c629e06e14f04bbc0dfe3975807deedd068f5daa6049f074",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:gremlin_nob": {
+      "kind": "wiki",
+      "title": "Gremlin Nob",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gremlin_Nob&oldid=56364",
+      "revision_id": 56364,
+      "revision_timestamp": "2026-09-14T19:37:05Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "4c7349d92abe692dd0254bcfdbfe15d31104ba577bfaba061816aa2bf9fa17c5",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:orbs": {
+      "kind": "wiki",
+      "title": "Orbs",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Orbs&oldid=62939",
+      "revision_id": 62939,
+      "revision_timestamp": "2026-10-08T19:32:24Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "f17fe42a5ed731439b7dce5f88601c08e8fed4ae1e0e2cba242722f24acecc7a",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:louses": {
+      "kind": "wiki",
+      "title": "Louses",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Louses&oldid=62971",
+      "revision_id": 62971,
+      "revision_timestamp": "2026-10-08T20:54:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ceca250e8705bf5589b575827eb06a2de0c71d056bbb9290199479267a1250f5",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:slimes": {
+      "kind": "wiki",
+      "title": "Slimes",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Slimes&oldid=62982",
+      "revision_id": 62982,
+      "revision_timestamp": "2026-10-08T20:58:18Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "6e63da363ca460571a8c06ee1e528cdebecc3750381c94e8a65c2d8fa3520c97",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:hexaghost": {
+      "kind": "wiki",
+      "title": "Hexaghost",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Hexaghost&oldid=58821",
+      "revision_id": 58821,
+      "revision_timestamp": "2026-09-25T19:45:58Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "94cec0845074726345cb60df4610266e44ca66d44235e321723c2e76c2f6f620",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:the_guardian": {
+      "kind": "wiki",
+      "title": "The Guardian",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Guardian&oldid=62990",
+      "revision_id": 62990,
+      "revision_timestamp": "2026-10-08T21:01:27Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8fbbfe075d4b9a4b0f53dab05d7d9aae55420f90c63c446271131c31fbe8e910",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:chosen": {
+      "kind": "wiki",
+      "title": "Chosen",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Chosen&oldid=62965",
+      "revision_id": 62965,
+      "revision_timestamp": "2026-10-08T20:51:50Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "ead07e2b0b4d3f944a0907b00b225970a3b904cbcfea40a0786d6c167c24f18b",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:sentry": {
+      "kind": "wiki",
+      "title": "Sentry",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Sentry&oldid=58817",
+      "revision_id": 58817,
+      "revision_timestamp": "2026-09-25T19:45:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "092a9741493901304961372728c4d353f4674a4b85926b7cd025c92f27a5dbe9",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:slavers": {
+      "kind": "wiki",
+      "title": "Slavers",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Slavers&oldid=61769",
+      "revision_id": 61769,
+      "revision_timestamp": "2026-10-01T16:59:03Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2f45c55beb4563408aee188f87e7bca297aeb7ccf0af6979f65f5c33cd5d1213",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:bronze_automaton": {
+      "kind": "wiki",
+      "title": "Bronze Automaton",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bronze_Automaton&oldid=62961",
+      "revision_id": 62961,
+      "revision_timestamp": "2026-10-08T20:50:36Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8e05011ca77804b60aca9f72c80d91bf92b8481d4e3f9ea7d011d20d4aa9f5ff",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:fungi_beast": {
+      "kind": "wiki",
+      "title": "Fungi Beast",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Fungi_Beast&oldid=57207",
+      "revision_id": 57207,
+      "revision_timestamp": "2026-09-20T21:15:47Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "17ae7688ce3c13d978fff4806c1c63973f123614e7d5c16b776664a062d3f7d9",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:centurion_and_mystic": {
+      "kind": "wiki",
+      "title": "Centurion and Mystic",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Centurion_and_Mystic&oldid=61750",
+      "revision_id": 61750,
+      "revision_timestamp": "2026-10-01T16:49:43Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "8e5182f5eedf2c526d90eae1a23ac03bbd12b49ac14112393a5ad4d9bec02184",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:byrd": {
+      "kind": "wiki",
+      "title": "Byrd",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Byrd&oldid=58831",
+      "revision_id": 58831,
+      "revision_timestamp": "2026-09-25T19:48:06Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2e893bbe7dff8963836743bfa4c039037788237d0408cd3d665e032b183ad03d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:gremlins": {
+      "kind": "wiki",
+      "title": "Gremlins",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gremlins&oldid=61757",
+      "revision_id": 61757,
+      "revision_timestamp": "2026-10-01T16:53:03Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a11ef65351b3d8083a78485443ae6142570c9caeda65f277a121a894161f7bf4",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:gremlin_leader": {
+      "kind": "wiki",
+      "title": "Gremlin Leader",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Gremlin_Leader&oldid=57223",
+      "revision_id": 57223,
+      "revision_timestamp": "2026-09-20T21:21:34Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "b762f43c5451dc8fa56948e1e92732008aaab205bfc7e9bc89c12f8fa152e3d5",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:thieves": {
+      "kind": "wiki",
+      "title": "Thieves",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Thieves&oldid=62991",
+      "revision_id": 62991,
+      "revision_timestamp": "2026-10-08T21:02:02Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "0948f559ded4b6fe8500ec9ce7ec0c3d2fe4a85c3e2dae30edc893ac47942c0d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:lagavulin": {
+      "kind": "wiki",
+      "title": "Lagavulin",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Lagavulin&oldid=57471",
+      "revision_id": 57471,
+      "revision_timestamp": "2026-09-22T06:39:34Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "42b3b660bd1afde49804a22ae5c0f128fff47f0e01c97fa7f229a70d9cfd7f47",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:book_of_stabbing": {
+      "kind": "wiki",
+      "title": "Book of Stabbing",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Book_of_Stabbing&oldid=62960",
+      "revision_id": 62960,
+      "revision_timestamp": "2026-10-08T20:50:19Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d454bd6e05166daa2e024fc945a01fe8aeee9f83074d727a4b963926459ceb02",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:masked_bandits": {
+      "kind": "wiki",
+      "title": "Masked Bandits",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Masked_Bandits&oldid=61762",
+      "revision_id": 61762,
+      "revision_timestamp": "2026-10-01T16:55:53Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "202741c6765a808825f84e1e3d4d46f94e4df6ee961741b3ba194b6043039331",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:time_eater": {
+      "kind": "wiki",
+      "title": "Time Eater",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Time_Eater&oldid=56425",
+      "revision_id": 56425,
+      "revision_timestamp": "2026-09-14T20:34:05Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "562c1cf95457e18310550de32f14aa5bbd3f1b658720857eaa6501654b3741a3",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:shelled_parasite": {
+      "kind": "wiki",
+      "title": "Shelled Parasite",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Shelled_Parasite&oldid=57595",
+      "revision_id": 57595,
+      "revision_timestamp": "2026-09-22T11:17:51Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9ab6b44a940117fb8de5385357ef139ea3de4593effae5820ed87761c9459d1d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:snecko": {
+      "kind": "wiki",
+      "title": "Snecko",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Snecko&oldid=62983",
+      "revision_id": 62983,
+      "revision_timestamp": "2026-10-08T20:58:56Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "157b6fd9ba317e2ab0d0d16f923f0b2a245b3dc8298d5e0dd3a69ddc6769b86b",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:orb_walker": {
+      "kind": "wiki",
+      "title": "Orb Walker",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Orb_Walker&oldid=62977",
+      "revision_id": 62977,
+      "revision_timestamp": "2026-10-08T20:56:05Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d60e7b8851d56526cacc8d7e6dc2a2d08b0e223663da83734516f261598e412a",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:taskmaster": {
+      "kind": "wiki",
+      "title": "Taskmaster",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Taskmaster&oldid=57673",
+      "revision_id": 57673,
+      "revision_timestamp": "2026-09-22T12:04:51Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "de825d622d1df93fc85f9ee1c8f43eb09e5a2552d8ca1eaa494a390caa225116",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:giant_head": {
+      "kind": "wiki",
+      "title": "Giant Head",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Giant_Head&oldid=57213",
+      "revision_id": 57213,
+      "revision_timestamp": "2026-09-20T21:18:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a7666bda303a13d5999d4e5957b8cef296046deafd183f82aeea34542bfa66e2",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:nemesis": {
+      "kind": "wiki",
+      "title": "Nemesis",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Nemesis&oldid=58816",
+      "revision_id": 58816,
+      "revision_timestamp": "2026-09-25T19:45:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "166c011c5bd1a0cfa378193ca3ab7f879ac3dcb4887b9efd62f9fb91757284f4",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:reptomancer": {
+      "kind": "wiki",
+      "title": "Reptomancer",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Reptomancer&oldid=61766",
+      "revision_id": 61766,
+      "revision_timestamp": "2026-10-01T16:57:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d7f0bd2890dd74a92189ac885c68deb67731df73e2bcb4dd90147ef70594f1ee",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:spire_shield_and_spire_spear": {
+      "kind": "wiki",
+      "title": "Spire Shield and Spire Spear",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Spire_Shield_and_Spire_Spear&oldid=62988",
+      "revision_id": 62988,
+      "revision_timestamp": "2026-10-08T21:00:55Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "24ff54391ef9566ffb58cc70c53d127892987fadb802a0ede76eb4612f5ba86d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:spheric_guardian": {
+      "kind": "wiki",
+      "title": "Spheric Guardian",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Spheric_Guardian&oldid=58851",
+      "revision_id": 58851,
+      "revision_timestamp": "2026-09-25T19:51:39Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "1d638dc045cd87a6a0b6527ff8439d984bf8e49a41ac506b76650d463a1fbd19",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:the_collector": {
+      "kind": "wiki",
+      "title": "The Collector",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Collector&oldid=58813",
+      "revision_id": 58813,
+      "revision_timestamp": "2026-09-25T19:44:45Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "43ad5a4b5f0d2b1d985b8dcf6192ca6388f05febfb340958dfa2e0140ad0746d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:the_champ": {
+      "kind": "wiki",
+      "title": "The Champ",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Champ&oldid=58829",
+      "revision_id": 58829,
+      "revision_timestamp": "2026-09-25T19:46:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "c4b81b276ba26c59e72ee014de6fb271b4909ef3ea08ccb3bfee9f9537ed97d6",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:awakened_one": {
+      "kind": "wiki",
+      "title": "Awakened One",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Awakened_One&oldid=65809",
+      "revision_id": 65809,
+      "revision_timestamp": "2026-10-14T17:01:07Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "13ebd56eb2501b02e6fdba1c55079d60fd830bcbd16baecfb9f4f5ce03ccaf6e",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:donu_and_deca": {
+      "kind": "wiki",
+      "title": "Donu and Deca",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Donu_and_Deca&oldid=61752",
+      "revision_id": 61752,
+      "revision_timestamp": "2026-10-01T16:50:43Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "05105de5211d31279a627ddcd36a839afc882e868d97cb3a491741e4161a5a10",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:corrupt_heart": {
+      "kind": "wiki",
+      "title": "Corrupt Heart",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Corrupt_Heart&oldid=56949",
+      "revision_id": 56949,
+      "revision_timestamp": "2026-09-17T14:36:26Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "82eddc4b8d153e48b9f89345c512796da25cec6f0ac0fdc19e20c6eab68c2c6d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:snake_plant": {
+      "kind": "wiki",
+      "title": "Snake Plant",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Snake_Plant&oldid=57608",
+      "revision_id": 57608,
+      "revision_timestamp": "2026-09-22T11:24:39Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "5dbd872eefec3508b70d381c2d6a2cf04b6b684c476870f3650964fc5c03ff81",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:darkling": {
+      "kind": "wiki",
+      "title": "Darkling",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Darkling&oldid=62914",
+      "revision_id": 62914,
+      "revision_timestamp": "2026-10-08T07:47:52Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "caa87ffba402fae08dc42bcf9c468539e465e2fe2b548dfcf1d5eac74392b896",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:shapes": {
+      "kind": "wiki",
+      "title": "Shapes",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Shapes&oldid=62980",
+      "revision_id": 62980,
+      "revision_timestamp": "2026-10-08T20:57:37Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "7812fda1029f79b4b64fc1071c810811a9378c657494fe2709e0b2ba84a84a1f",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:the_maw": {
+      "kind": "wiki",
+      "title": "The Maw",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Maw&oldid=57665",
+      "revision_id": 57665,
+      "revision_timestamp": "2026-09-22T12:02:00Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "2401f2afcc1c9cdd3c9d008b6a84aa9e14f0436b09b5a61ad01a4b35f2f1d8c2",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:spire_growth": {
+      "kind": "wiki",
+      "title": "Spire Growth",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Spire_Growth&oldid=62984",
+      "revision_id": 62984,
+      "revision_timestamp": "2026-10-08T20:59:20Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "c3fc9b316c635f1e6d2294d1dd239aefac9c84dca504d1c88171d9ec425e547b",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:transient": {
+      "kind": "wiki",
+      "title": "Transient",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Transient&oldid=62993",
+      "revision_id": 62993,
+      "revision_timestamp": "2026-10-08T21:02:23Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "28fb339e0da2f0561f278152e71231bb620115da8bda04204d5aaf07045cb2fd",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:writhing_mass": {
+      "kind": "wiki",
+      "title": "Writhing Mass",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Writhing_Mass&oldid=57616",
+      "revision_id": 57616,
+      "revision_timestamp": "2026-09-22T11:27:25Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "e57b515a6f74f1929cec81a5f2a4703cb1eed5cd1dc1589f45cefcfc880288cb",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:monsters": {
+      "kind": "wiki",
+      "title": "Monsters",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Monsters&oldid=55759",
+      "revision_id": 55759,
+      "revision_timestamp": "2026-09-13T18:44:16Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "9121e492116dfe1eecb31c077a57cad9ae98769634cf4d9fe0a9c4a1de28aa07",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:ascension": {
+      "kind": "wiki",
+      "title": "Ascension",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Ascension&oldid=65844",
+      "revision_id": 65844,
+      "revision_timestamp": "2026-10-14T19:37:30Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "a009600a866f3bb2d89178d2acd7a96fcec9460d0d330ffe4db65947c4fde89b",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:elites": {
+      "kind": "wiki",
+      "title": "Elites",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Elites&oldid=66763",
+      "revision_id": 66763,
+      "revision_timestamp": "2026-10-23T04:30:42Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "4041662861638512b515b0cf9b264d36721d3d315c1a351d913448c59db16317",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:bosses": {
+      "kind": "wiki",
+      "title": "Bosses",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Bosses&oldid=66760",
+      "revision_id": 66760,
+      "revision_timestamp": "2026-10-23T04:28:36Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "501c75a0c403839b482003d9b131293f0a170ff28f3a814cba779df9384f0f03",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "wiki:the_ending": {
+      "kind": "wiki",
+      "title": "The Ending",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Ending&oldid=49486",
+      "revision_id": 49486,
+      "revision_timestamp": "2026-08-24T10:57:41Z",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "d559e277ac40022bd7ed09b7beac5a461ad74cb7f6f21d499967fc739880365d",
+      "supports": "Enemy stats, payloads, powers, conditional pattern descriptions or encounter/ascension context; community documentation, not version-pinned runtime evidence."
+    },
+    "local:act1": {
+      "kind": "local_research",
+      "title": "2026-10-19-act1-content-enemies",
+      "local_path": "docs/research/2026-10-19-act1-content-enemies.md",
+      "retrieved_at": "2026-10-23",
+      "revision": "Local public document snapshot; no claim that current working-copy text is committed remotely.",
+      "content_sha256": "43639cd7f25f8cf506472f503c99492a11dee9caad36ed73977d59a3bef589e2",
+      "supports": "25 local Ironclad A0 Act1 records, conditional AI/reactions and encounter rules. Retained static/selected-reviewed findings; original-runtime and transitive composition remain unproved."
+    },
+    "local:acts23": {
+      "kind": "local_research",
+      "title": "2026-10-18-ironclad-a0-acts23-research",
+      "local_path": "docs/research/2026-10-18-ironclad-a0-acts23-research.md",
+      "retrieved_at": "2026-10-23",
+      "revision": "Local public document snapshot; no claim that current working-copy text is committed remotely.",
+      "content_sha256": "87cf5c67047f14e90a4c98fe0105b00dbda56324821d96e4ef49cba05172f4bd",
+      "supports": "Initial supporting research draft: A0 encounter pools, queue histories and selected formations, not enemy-mechanics closure. Historical clock proposal is superseded by TIME-001."
+    },
+    "local:catalog": {
+      "kind": "local_research",
+      "title": "2026-10-19-act1-complete-catalog-numeric",
+      "local_path": "docs/research/2026-10-19-act1-complete-catalog-numeric.md",
+      "retrieved_at": "2026-10-23",
+      "revision": "Local public document snapshot; no claim that current working-copy text is committed remotely.",
+      "content_sha256": "7c7f6421a77a18e024f06d90c0ea172dd5c441fdbe1e1a040a95fa4e5e8dcb8d",
+      "supports": "25 existing canonical monster keys and exact IDs; identity only, not full-game behavior acceptance."
+    },
+    "local:rng-policy": {
+      "kind": "local_research",
+      "title": "intentional-deviations",
+      "local_path": "docs/intentional-deviations.md",
+      "retrieved_at": "2026-10-23",
+      "revision": "Local public document snapshot; no claim that current working-copy text is committed remotely.",
+      "content_sha256": "355db1b21ca441366e1b6698a2279d83252a39a26773fdbadf67e24b2a8b4618",
+      "supports": "Current RNG-001 project randomness policy, not original seed/cursor fidelity."
+    },
+    "secondary:port": {
+      "kind": "secondary_implementation",
+      "title": "sts_lightspeed_all_characters selected monster rules",
+      "revision": "7476a81954020087da31d41d16fddf475746ec2d",
+      "url": "https://github.com/klottick/sts_lightspeed_all_characters/blob/7476a81954020087da31d41d16fddf475746ec2d/src/combat/MonsterSpecific.cpp",
+      "retrieved_at": "2026-10-23",
+      "content_sha256": "dc91053589a0ad7fd46236efcf0728d0e504ebea1bbd3b8bc120a88026efd161",
+      "supports": "Bounded corroboration/conflict check only: HP-family thresholds, Acid(S)/Louse/Byrd missing AI, Heart late buffs, Mystic/RedSlaver/SnakePlant/SpireGrowth/WrithingMass disagreements, fixed Exploder explosion path and calculated-output Shield Smash Block. This port contains known errors and is not an oracle."
+    },
+    "wiki:dead_adventurer": {
+      "kind": "wiki",
+      "title": "Dead Adventurer",
+      "revision_id": 55412,
+      "revision_timestamp": "2026-09-13T18:10:44Z",
+      "retrieved_at": "2026-10-23",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Dead_Adventurer&oldid=55412",
+      "supports": "Event-owned combat formation, variant, ascension and reward distinctions; not a complete event/economy implementation."
+    },
+    "wiki:hypnotizing_colored_mushrooms": {
+      "kind": "wiki",
+      "title": "Hypnotizing Colored Mushrooms",
+      "revision_id": 54553,
+      "revision_timestamp": "2026-09-07T16:29:29Z",
+      "retrieved_at": "2026-10-23",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Hypnotizing_Colored_Mushrooms&oldid=54553",
+      "supports": "Event-owned combat formation, variant, ascension and reward distinctions; not a complete event/economy implementation."
+    },
+    "wiki:the_colosseum": {
+      "kind": "wiki",
+      "title": "The Colosseum",
+      "revision_id": 65091,
+      "revision_timestamp": "2026-10-12T17:09:21Z",
+      "retrieved_at": "2026-10-23",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=The_Colosseum&oldid=65091",
+      "supports": "Event-owned combat formation, variant, ascension and reward distinctions; not a complete event/economy implementation."
+    },
+    "wiki:mysterious_sphere": {
+      "kind": "wiki",
+      "title": "Mysterious Sphere",
+      "revision_id": 55467,
+      "revision_timestamp": "2026-09-13T18:16:39Z",
+      "retrieved_at": "2026-10-23",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mysterious_Sphere&oldid=55467",
+      "supports": "Event-owned combat formation, variant, ascension and reward distinctions; not a complete event/economy implementation."
+    },
+    "wiki:mind_bloom": {
+      "kind": "wiki",
+      "title": "Mind Bloom",
+      "revision_id": 55444,
+      "revision_timestamp": "2026-09-13T18:15:12Z",
+      "retrieved_at": "2026-10-23",
+      "url": "https://slaythespire.wiki.gg/w/index.php?title=Mind_Bloom&oldid=55444",
+      "supports": "Event-owned combat formation, variant, ascension and reward distinctions; not a complete event/economy implementation."
+    }
+  }
+}

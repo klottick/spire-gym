@@ -1,5 +1,26 @@
 # Spire Gym: current agent guidance
 
+## Start here: game-rule resources
+
+- Read the [reference library index](data/README.md) before new mechanics research:
+  [cards](data/cards/README.md), [relics](data/relics/README.md),
+  [enemies / encounters](data/enemies/README.md) and [powers](data/powers/README.md).
+  These resources are now tracked on this branch alongside their offline checks
+  in `tests/python/test_*reference*.py`; no separate checkout is needed to use them.
+- Read the relevant domain guide and record's citations/uncertainties, then check
+  native code and `docs/milestones/` for actual supported behavior. Reference rows,
+  catalog keys and integrity tests are NOT implemented mechanics or runtime proof.
+  Preserve provisional/null identities, source grades/conflicts and conditional AI
+  rules; retain RNG-001/TIME-001 and hidden-information boundaries.
+- Use existing references instead of duplicate research; do not create alternate
+  dataset paths. Relic files now live in `data/relics/`, not `docs/research/relics/`.
+  Coordinate before editing worker-owned resources; no new audit/install authority.
+- Dataset attribution is separate: wiki-derived data is CC BY-SA 4.0 as documented
+  per domain; project builders/tests remain MIT. Do not apply MIT to wiki snapshots.
+- Offline reference checks (no pytest/network/install):
+  `python3.12 -B -m unittest discover -s tests/python -p 'test_*reference*.py' -v`.
+  Card/power builders support `--check`; see `data/README.md` for commands/limits.
+
 ## User-requested pre-M8 commits (2026-10-23)
 
 The user requested committing current public work and improving agent discovery
@@ -9,6 +30,12 @@ and tests from the main checkout. It supersedes older no-new-commit notes only
 for this request. No push, merge to main, installation, cleanup, private-source
 audit or M8 implementation is authorized. Preserve original main-checkout files,
 all worktrees, historical failures and ignored evidence; do not `git add .`.
+
+M7 is locally committed as `2d9a47e`; the reference snapshot and discovery docs
+are included in the follow-up commit. Earlier uncommitted/separate-main-library
+notes below describe history, not the current checkout. This bounded request is
+not continuing commit/push authority. M8 `.30.1` remains planning-only; no product
+child/start. Next deliverable is one written M8 plan for user review.
 
 ## M7 accepted / M8 planning next (2026-10-23)
 
