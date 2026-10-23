@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust }
+    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
@@ -16,6 +16,7 @@ impl RunRngScope {
         Self::BurningEliteBuff=>"run.combat.burning_elite.buff",
         Self::Act2BossOrder=>"run.act2.boss_order",
         Self::Act2Joust=>"run.act2.joust",
+        Self::Act3BossOrder=>"run.act3.boss_order",
     } }
     pub fn parse(value:&str)->Result<Self,RunRngScopeError> { match value {
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
@@ -28,6 +29,7 @@ impl RunRngScope {
         "run.combat.burning_elite.buff"=>Ok(Self::BurningEliteBuff),
         "run.act2.boss_order"=>Ok(Self::Act2BossOrder),
         "run.act2.joust"=>Ok(Self::Act2Joust),
+        "run.act3.boss_order"=>Ok(Self::Act3BossOrder),
         _=>Err(RunRngScopeError::Unregistered(value.to_owned())),
     }}
 }

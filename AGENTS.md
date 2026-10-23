@@ -1,5 +1,108 @@
 # Spire Gym: current agent guidance
 
+## User-requested pre-M8 commits (2026-10-23)
+
+The user requested committing current public work and improving agent discovery
+of the new reference library before M8. This authorizes bounded LOCAL snapshot
+commits on `feat/run-act2-prefix`, including unchanged public reference datasets
+and tests from the main checkout. It supersedes older no-new-commit notes only
+for this request. No push, merge to main, installation, cleanup, private-source
+audit or M8 implementation is authorized. Preserve original main-checkout files,
+all worktrees, historical failures and ignored evidence; do not `git add .`.
+
+## M7 accepted / M8 planning next (2026-10-23)
+
+M7 `.29.2`/`.29` normally closed after ONE fresh independent GPT6 Luna review
+ses_e9600b926ffeS6qGIv2sdrojR5 found no Critical/Important/Minor findings. All380
+reviewed public files unchanged in BOTH worktrees, fresh core534/7 EXACT same
+underlyingold7/public50/0/M7internal16/0/M6native90/0/consumers43/0/other21/0/
+reporting1/0/all7examples/bothseeds/budgets0/1/diffcheck0. Only administrative
+acceptance text changes afterward; reviewed source/tests/policies remain fixed.
+User explicitly corrected genuine Death as valid gameplay, NOT simulator failure:
+keep seed7ChampDeath543/floor33/reward32, Automaton560/Collector567 complete;
+already-planned seed11all3 complete566/575/593, floor34/HP105/reward34. No search,
+seed/value/resource edits or further tuning to force seed7 win. Real all3boss/
+reward/chest→same-player Act3Ready34 noactions/nonterminal, not Act3 gameplay.
+M5Act2Ready/M6floor26 unchanged. Accepted profile docs/milestones/m7-act2.md.
+Six review exclusions explicitly ruled: original parity, wider roadmap, unsupported
+handlers/flags/pools, historical drafts, exhaustive profile space, reference/perf
+lanes. Main data/{cards,relics,enemies,powers} library stays qualified/read-only,
+not ported/edited or counted as product proof. M8 `.30`/actual planning-only
+`.30.1` OPEN/UNASSIGNED; no M8 product child/code/start. Native integration/useful
+isolated Luna assistance/ONE milestone review retained. Next work is ONE M8 written
+plan for user review, no automatic implementation. M7 source remains uncommitted
+at publishedHEAD5b1cd19; no new commit/push/install/private audit/original execution/
+cleanup authority. All worktrees/evidence/old7 retained. Ledger
+`.superpowers/sdd/2026-10-23-m7-ironclad-act2/progress.md`.
+
+## M7 user outcome correction / final review next (2026-10-23)
+
+User clarified "It makes sense they would die, that's not a real failure
+necessarily. The game is hard". Genuine Death is valid gameplay, not a simulator
+failure. Written M7 acceptance explicitly corrected: preselected seed11 actual
+all3boss/reward/Act3Ready completions566/575/593actions; seed7 Automaton560/
+Collector567 complete, natural ChampDeath543/floor33/reward32 retained/tested/replayed.
+No seed search/value/resource changes; no more policy tuning to force seed7 win.
+Natural Death CLI exits0 with NOT-completion label; budgets0/1/faults remain errors.
+Tasks1–5 implemented: M7internal16/0/public8/0/example reporting1/0; fresh core534/7
+same exact underlyingold7, predecessor public42/0/nativeM6 90/0/consumers43/0.
+ONE independent isolated milestone review/Task6 remains pending; no M7 acceptance
+or M8 product start. Native .29.2 still owns execution, no new commits/pushes.
+User-started reference library is NOW in main checkout data/{cards,relics,enemies,
+powers}/ plus reference tests, not integrated into this worktree. Read/use qualified
+facts as needed, no overlapping edits. Enemy agent reports final5findings corrected,
+18enemy/46reference/169Rust checks; those are reference-author reports, NOT M7 tests
+or source acceptance. Known conflicts/40 provisional labels/nominal AI retain
+limits. No new assignment from reference-only notices, private audit/installs/original
+execution/cleanup. Preserve every worktree/uncommitted source and old7drafts.
+
+## M7 approved / native execution active (2026-10-23)
+
+User "Continue" after delivered M7 plan, followed by interrupted-response recovery
+"Continue from where you left off", approved proceeding with the actual written
+`docs/superpowers/plans/2026-10-23-m7-ironclad-act2.md`. Planning .29.1 normally
+closed; implementation .29.2 normally claimed by native actor
+opencode-session-recovery-20261021-v1. Six tasks now authorized; Task1 captured
+M7/late Act2 continuation4/0, Task2 real all3boss entry/cleanup/fault3/0, Task3
+second boss reward/chest/selection5/0, Task4 same-player Act3 initialization4/0.
+These are focused internal diagnostics, NOT normal-start/full-act acceptance.
+Actual boss33/treasure34/Act3Ready34, old M5/M6 cutoffs unchanged. Public native
+rollout/replay/Death/budget Task5 and ONE milestone review Task6 next. Fresh baseline
+core518/7 and Tasks1–3 core530/7 exact same underlyingold7, old public42/0,
+nativeM6 90/0, consumers43/0/other21/0/all6examples. Counts are snapshot evidence.
+Dataset ses_e96b4b085ffeQA26lR34dNK2WH allocated spire-erz, actor
+opencode-relic-dataset-20261023-v1, NEW docs/research/relics/ in user-selected
+spire-lab checkout only, independent of M7. No edits to those worker files here.
+Native owner/isolated Luna public-code assistance/ONE final milestone review;
+all worktrees/source/evidence preserved. No new commit/push/install/cleanup or
+original/private-source audit authority; M6-only static grant not expanded.
+Ledger `.superpowers/sdd/2026-10-23-m7-ironclad-act2/progress.md`.
+
+## M7 written-plan review gate (2026-10-23)
+
+User "Yes continue, let's plan m7" authorized planning only. Written plan:
+`docs/superpowers/plans/2026-10-23-m7-ironclad-act2.md`; planning spire-dxo.29.1
+returns blocked/unassigned for actual user review, no M7 product child/start.
+Six native tasks: separate captured M7/full Act2 topology, actual map-selected
+all3boss entry/settlement, source rewards/second boss chest, same-player Act3
+initialization, normal-start public/replay/loss evidence and ONE final review.
+Act2 boss33/actual treasure34/Act3Ready34, no actions/nonterminal/no readiness bonus;
+future Act3 first35/boss50 not playable here. Preserve M5Act2Ready/M6floor26.
+Keep existing95–105boss gold/rare triple and three captured boss-relic rows with
+owned/ineligible rows Disabled, no unsupported refill/standard-pool claim.
+Native integration/isolated Luna6 larger-reading assistance/one final milestone
+review remain selected. Planning assistant ses_e96a8d648ffeoFMYK9b2FsU4P7 used its
+own materialized373-file checkout and unique reserved target, no builds/edits;
+facts/interfaces only, not review. Reuse user-started card/relic, speed-test and
+`general.review` reports as needed, without duplicate research/overlapping work.
+Prior M6 private static-lookup grant is NOT M7 authority; name any actual new
+source blocker before asking for separately bounded access. No product/tests/
+builds/new commits/pushes/installs/original execution/cleanup during planning.
+Published HEAD5b1cd19 on feat/run-act2-prefix includes accepted M1–M6; the earlier
+bounded publication is complete, not continuing commit/push authority. Preserve
+seven historical core failures/evidence/worktrees. Ledger:
+`.superpowers/sdd/2026-10-23-m7-ironclad-act2/progress.md`.
+
 ## User-requested snapshot commit and push (2026-10-23)
 
 User explicitly requested "Conventional commit and push what you have so far".

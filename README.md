@@ -43,7 +43,8 @@ The final target remains **all four fully unlocked characters, Ascension 0–20,
 Acts 1–4 and the Heart, with all normally reachable content**; A20 is the primary
 final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
-M3 `.25`, M4 `.26`, M5 `.27` and M6 `.28` are accepted; M7 `.29` is planning-only next. Old
+M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
+declared profiles; M8 `.30` is planning-only next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
@@ -89,6 +90,18 @@ stops at its unchanged no-action Act2Ready.
 
 ```sh
 cargo run -p spire-core --example m6_act2 --locked --offline -- --scenario all --seed 7
+```
+
+The approved [M7 plan](docs/superpowers/plans/2026-10-23-m7-ironclad-act2.md)
+has an [accepted captured Act2 profile](docs/milestones/m7-act2.md) after one
+independent milestone review: actual normal-start boss/reward/chest alternatives
+and same-player Act3Ready, not Act3 gameplay. Genuine Death is a valid episode
+outcome, not a simulator error or claimed act completion. The preselected seed11
+completes all three alternatives; seed7 also records a natural Champ loss.
+
+```sh
+cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario all --seed 7
+cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario complete --seed 11
 ```
 
 See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)

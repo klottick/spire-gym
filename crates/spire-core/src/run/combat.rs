@@ -27,7 +27,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     }
     if seen.len()!=state.deck.len() { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    let act2_visits=if super::rooms::is_m6(state)&&state.act==2{Some(state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?)}else{None};
+    let act2_visits=if super::rooms::uses_captured_act2(state)&&state.act==2{Some(state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?)}else{None};
     Ok((exit,record,settled,act2_visits))
 }
 
@@ -35,7 +35,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
     let m5=super::rooms::uses_captured_act1(state)&&state.act==1&&matches!(encounter,EncounterId::Cultist|EncounterId::JawWorm|EncounterId::TwoLouse|EncounterId::SmallSlimes
         |EncounterId::LargeSlime|EncounterId::ThreeLouse|EncounterId::LotsOfSlimes|EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
-    let m6=super::rooms::is_m6(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
+    let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
     if !m5&&!m6&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }

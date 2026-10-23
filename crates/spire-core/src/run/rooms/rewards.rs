@@ -12,7 +12,7 @@ pub(in crate::run) fn capture_elite_relic(start:usize,owned:&[RelicId])->Result<
 pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
     if !matches!(run.state.active_combat.as_ref().map(|a|a.origin),Some(CombatOrigin::MapRoom{..}))||record.outcome!=crate::combat::Outcome::Victory{return Ok(None)}
     let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
-    let m5=uses_captured_act1(&run.state);let m6=is_m6(&run.state)&&run.state.act==2;let kind=match run.state.active_combat.as_ref().unwrap().origin{CombatOrigin::MapRoom{kind,..}=>kind,_=>unreachable!()};
+    let m5=uses_captured_act1(&run.state);let m6=uses_captured_act2(&run.state)&&run.state.act==2;let kind=match run.state.active_combat.as_ref().unwrap().origin{CombatOrigin::MapRoom{kind,..}=>kind,_=>unreachable!()};
     let mut rng=run.state.rng.clone();let mut semantic=vec![run.state.act as u64,node.0,record.visit];if m5{semantic.push(kind as u64);}
     let minimum=if m5{match kind{MapNodeKind::Elite=>25,MapNodeKind::Boss=>95,_=>10}}else{10};
     let gold=minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32;

@@ -8,7 +8,13 @@ supersedes broad family-wave scheduling, not final scope. The user approved the
 and native single-owner start. M1 authored Ironclad A0 combat with damage/Block/
 Weak/Vulnerable is accepted, not a normal run. Beads M1–36 are
 `spire-dxo.23`–`.58`; M1 `.23`/`.23.1`, M2 `.24`/`.24.1`/`.24.2` and M3
-`.25`/`.25.1`/`.25.2`, M4 `.26`, M5 `.27` and M6 `.28` are closed. M7 `.29` is planning-only next. The
+`.25`/`.25.1`/`.25.2`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are closed.
+M7's approved [written plan](superpowers/plans/2026-10-23-m7-ironclad-act2.md) has
+an [accepted captured Act2 profile](milestones/m7-act2.md) after ONE independent
+milestone review. M8 `.30`/`.30.1` are planning-only/open/unassigned, not product
+start. Natural Death is a valid episode outcome, not
+a simulator failure; all three actual boss/reward/handoff paths complete on the
+already planned seed11 while seed7 retains its natural Champ loss. The
 [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
 is user-approved; the [M2 authored combat profile](milestones/m2-combat.md) is
 accepted after integrated verification and isolated review, not full-run or

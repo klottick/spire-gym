@@ -12,3 +12,6 @@ mod m5_rewards;
 mod m5_transition;
 mod m6_events;
 mod m6_rooms;
+mod m7_rooms;
+mod m7_rewards;
+mod m7_transition;
