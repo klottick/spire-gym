@@ -6,6 +6,7 @@ use super::model::{Actor, State};
 pub enum Hook {
     CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStarted, TurnEnded,
     CardPlayed, CardDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
+    ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

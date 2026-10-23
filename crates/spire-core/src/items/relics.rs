@@ -20,6 +20,14 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
     let mut work = super::RelicHookWork::default();
     if hook == Hook::CombatStarted {
         context.lantern_armed = context.owns_relic(RelicId::Lantern);
+        if context.owns_relic(RelicId::NeowsLament) {
+            if let Some(counter)=context.counters.get_mut(&RelicId::NeowsLament) {
+                if *counter>0 {
+                    *counter=if *counter==1{-2}else{*counter-1};
+                    work.top.push(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::NeowsLament});
+                }
+            }
+        }
     }
     if hook == Hook::TurnStarted && context.lantern_armed {
         context.lantern_armed = false;
@@ -69,7 +77,7 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
         _ => 0,
     };
     if state.hp > state.max_hp { return Err(RunError::InvalidAction); }
-    let max_hp = state.max_hp.checked_add(max_hp_gain)
+    let max_hp = state.max_hp.checked_add(max_hp_gain).filter(|max|*max<=999)
         .ok_or(RunError::Unsupported("maximum HP overflow"))?;
     let hp = if state.hp == 0 {
         // increaseMaxHp still raises the ceiling, while the delegated heal
@@ -82,6 +90,7 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
     };
 
     state.relics.push(id);
+    if id==RelicId::NeowsLament{state.relic_counters.insert(id,3);}
     state.max_hp = max_hp;
     state.hp = hp;
     Ok(())

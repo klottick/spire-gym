@@ -7,8 +7,9 @@ supersedes broad family-wave scheduling, not final scope. The user approved the
 [migration/M1 execution plan](superpowers/plans/2026-10-22-roadmap-migration-and-m1-combat.md)
 and native single-owner start. M1 authored Ironclad A0 combat with damage/Block/
 Weak/Vulnerable is accepted, not a normal run. Beads M1–36 are
-`spire-dxo.23`–`.58`; M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed.
-M3 `.25`/planning-only `.25.1` identify the next outcome/planning handoff. The
+`spire-dxo.23`–`.58`; M1 `.23`/`.23.1`, M2 `.24`/`.24.1`/`.24.2` and M3
+`.25`/`.25.1`/`.25.2` are closed. M4 `.26`/planning-only `.26.1` identify the
+next outcome/planning handoff. The
 [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
 is user-approved; the [M2 authored combat profile](milestones/m2-combat.md) is
 accepted after integrated verification and isolated review, not full-run or
@@ -16,6 +17,19 @@ workspace-green acceptance. Only the next milestone is
 decomposed. Old unfinished components remain coverage umbrellas, not early gates.
 All four characters/A0–20/Acts1–4/Heart and normally reachable content remain the
 final target; intermediate profiles state their limitations explicitly.
+
+The [M3 implementation plan](superpowers/plans/2026-10-23-m3-persistent-combat-run.md)
+is user-approved; [its authored consecutive-fight profile](milestones/m3-run.md)
+is accepted after isolated review with no findings. It connects real fights/resource
+settlement, not Neow/map/reward progression or complete content.
+
+The [M4 implementation plan](superpowers/plans/2026-10-23-m4-act1-room-loop.md)
+is user-approved; its [accepted room-loop profile](milestones/m4-rooms.md) connects actual
+standard starting resources and a named authored nine-floor route/offer profile
+to real Neow/map/combat/reward/shop/shrine/campfire/treasure decisions. Normal
+random offer/pool generation remains explicitly incomplete. One isolated Luna6
+milestone review found no issues; accepted M4 is not Act1/boss acceptance. M5
+normal-start-through-Act1 planning is next.
 
 The runnable [M1 demonstration](milestones/m1-combat.md) documents its exact
 four-card/three-enemy fixture profile, public action API, observed outcomes and

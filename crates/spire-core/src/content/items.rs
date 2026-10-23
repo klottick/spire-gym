@@ -6,6 +6,7 @@ pub struct RelicDefinition { pub id: RelicId, pub definition_only: bool }
 pub struct PotionDefinition { pub id: PotionId, pub definition_only: bool }
 
 pub(crate) const RELICS: &[RelicDefinition] = &[
+    RelicDefinition { id: RelicId::NeowsLament, definition_only: false },
     RelicDefinition { id: RelicId::BurningBlood, definition_only: true },
     RelicDefinition { id: RelicId::RingOfTheSnake, definition_only: true },
     RelicDefinition { id: RelicId::CrackedCore, definition_only: true },

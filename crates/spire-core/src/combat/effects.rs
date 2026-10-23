@@ -143,6 +143,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     .map_err(|_| InputError::Invariant("healing overflow".into()))?;
             }
         }
+        EffectKind::NeowsLament=>{
+            for enemy in state.enemies.iter_mut().filter(|e|e.hp>0&&e.life==super::ActorLife::Active){enemy.hp=1;}
+        }
         EffectKind::IncreaseMaxHpThenHeal(n) => {
             // Commit the max-HP child first, then schedule the ordinary Heal
             // as the next queue item with the same effect owner.

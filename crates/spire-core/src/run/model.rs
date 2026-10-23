@@ -4,6 +4,21 @@ use super::{Candidate, ChoiceId, Key, RunRng};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CardInstance { pub id:CardId, pub instance:u64, pub upgrades:u32 }
+/// Explicit supplied run resources, not a normal Neow start or snapshot restore.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthoredRunStart {
+    pub hp:u32, pub max_hp:u32, pub gold:u32, pub deck:Vec<CardInstance>,
+    pub relics:Vec<RelicId>, pub potions:Vec<Option<PotionId>>,
+    pub relic_counters:BTreeMap<RelicId,i32>,
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CombatProgress { pub entered:u64, pub settled:u64 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::EncounterId, pub outcome:crate::combat::Outcome }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) enum CombatOrigin { Authored, MapRoom(super::NodeId) }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunTerminal { HeartVictory, Death, EmptyDeck, Act3NoKeys }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,9 +28,10 @@ pub struct RunFault { pub kind:RunFaultKind, pub checkpoint:&'static str, pub co
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunError { InvalidAscension(u8), InvalidAction, Unsupported(&'static str), Registry(&'static str), Terminal, Faulted(RunFault) }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum CommittedEvent { FloorEntered { act:u8, floor:u32 }, KeyAcquired(Key), Ended(RunTerminal) }
+pub enum CommittedEvent { FloorEntered { act:u8, floor:u32 }, KeyAcquired(Key), Ended(RunTerminal),
+    CombatEntered { visit:u64, encounter:crate::content::EncounterId }, CombatFinished(CombatRecord) }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RunTransition { pub terminal:Option<RunTerminal>, pub committed_events:Vec<CommittedEvent> }
+pub struct RunTransition { pub reward:i32, pub terminal:Option<RunTerminal>, pub committed_events:Vec<CommittedEvent> }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NeowReward { ThreeCards, RandomRare, RemoveOne, UpgradeOne, TransformOne, ThreeUncommonColorless,
@@ -34,7 +50,10 @@ pub struct SelectionCandidate { pub id:super::SelectionId, pub card:CardInstance
 pub struct PendingSelection { pub candidates:Vec<SelectionCandidate>, pub required:usize,
     pub selected:Vec<CardInstance>, pub empty_rule:EmptySelectionRule }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ContinuationTarget { ResumeDecision(Candidate), NeowConsequence { parent:Candidate, offer:NeowOffer } }
+pub enum ContinuationTarget { ResumeDecision(Candidate), NeowConsequence { parent:Candidate, offer:NeowOffer },
+    Room {node:super::NodeId,choice:ChoiceId,operation:RoomSelectionOperation} }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingContinuation { pub parent:ContinuationTarget, pub selection:PendingSelection, pub resumed:bool }
 
@@ -70,6 +89,10 @@ pub struct RunHistory { pub rooms:Vec<VisitedRoom>, pub events:Vec<CommittedEven
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunState {
+    pub(crate) room_loop:Option<super::rooms::RoomLoop>,
+    pub(crate) reward_ledger:super::reward::RunRewardLedger,
+    pub(crate) authored_combat:bool, pub(crate) combat_progress:CombatProgress,
+    pub(crate) active_combat:Option<ActiveCombat>, pub(crate) last_combat:Option<CombatRecord>,
     pub character:Character, pub ascension:u8, pub hp:u32, pub max_hp:u32, pub gold:u32,
     pub deck:Vec<CardInstance>, pub relics:Vec<RelicId>, pub potions:Vec<Option<PotionId>>,
     pub keys:[bool;3], pub act:u8, pub floor:u32, pub room:&'static str,

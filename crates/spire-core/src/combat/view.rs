@@ -32,6 +32,7 @@ pub struct SelectionView {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatInventoryView {
+    pub relic_counters:Vec<crate::items::RelicCounterView>,
     pub relics: Vec<crate::content::RelicId>, pub potions: Vec<Option<crate::content::PotionId>>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]

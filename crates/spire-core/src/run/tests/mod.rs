@@ -1,4 +1,9 @@
 mod creation;
+mod combat;
 mod decisions;
 mod rng;
 mod world;
+mod reward;
+mod rooms;
+mod room_rewards;
+mod room_services;

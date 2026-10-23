@@ -6,6 +6,68 @@ for the implemented interface. No models/training/learner checkpoints belong her
 
 ## Current workstream
 
+2026-10-23 user-requested precommit follow-up: two additional independent GPT-6
+Luna reviewers examined the combined accepted M3/M4 uncommitted snapshot in
+separate materialized worktrees/unique build directories. Both returned no
+findings/declined judgments and ready-to-commit at the declared scope. All328
+reviewed public files were unchanged in controller AND both reviewer worktrees;
+fresh run58/0/shared10/0/public32/0, core374/7 EXACT old failures/messages,
+consumers43/0/other21/0/all4examples/diffcheck verified. No product fixes needed.
+The user explicitly authorized a Conventional Commit of this M3/M4 snapshot,
+not a push, dependency change, cleanup or M5 product start. Review/commit task
+`.26.3`; evidence `.superpowers/sdd/2026-10-23-m34-precommit/`.
+
+2026-10-23 M4 accepted: ONE independent GPT-6 Luna milestone review returned no
+findings/declined judgments; all328 reviewed public files unchanged in BOTH
+controller/review worktrees. Fresh run58/0/shared10/0/publicM1–M4 32/0/diffcheck;
+integrated core374/7 has EXACT seven pre-M4 failure names/messages, consumers43/0/
+other21/0/all4examples pass. `.26.2` and `.26` normally closed. Scope is the
+[authored nine-floor room prefix](milestones/m4-rooms.md) on standard resources,
+not normal random pools/Act1 boss/full runs. M5 `.27` activated and planning-only
+`.27.1` created open/unassigned with acceptedM4 prerequisite; no M5 code start.
+No commits/installs/cleanup, Python-extension refresh or original-runtime claim.
+The following candidate/review-wait notes are historical execution chronology.
+
+2026-10-23 M4 implementation: user approved the written plan ("Yes. Please do it")
+and requested concurrent Luna6 assistance. Planning `.26.1` closed; native actor
+normally claimed implementation `.26.2`. One read-only Luna6 assistant mapped
+API/tool-call coordination in its own materialized worktree. The
+[room-loop candidate](milestones/m4-rooms.md) executes genuine standard-resource
+Neow→map→three native fights/nine floors, real captured loot, merchants/shrines/
+campfire/chest, persistent Lament and selected reward deltas. Public route55actions/
+95HP/deck13/reward9; keys reward19, native death0HP/reward0. One final isolated
+milestone review still required; no current M4 acceptance/full random-pool/boss/
+full-run/green-workspace/Python-refresh/original-runtime claim. Ledger records
+observed RED→GREEN, ownership changes and exact fresh checks. No commits/installs.
+
+2026-10-23 M4 planning: user "looks good, lets continue" resumed the roadmap;
+native owner normally claimed actual `.26.1` and wrote/self-reviewed the
+[M4 implementation plan](superpowers/plans/2026-10-23-m4-act1-room-loop.md).
+It connects true starting resources to an explicitly named authored nine-floor
+route/captured offers, not a reduced standard random pool or M3 resource bypass.
+Both short-Neow options, persistent Lament, real rooms/fights, source-specific
+selection/payment/claims and selected reward policy have exact interfaces/tests.
+Planning `.26.1` normally released blocked/unassigned awaiting user written-plan
+review; native method retained. No M4 product
+edits, runtime builds/tests, agents, installs or new commits; accepted uncommitted
+M3 sources remain unchanged.
+
+2026-10-23 M3: user approved the [written plan](superpowers/plans/2026-10-23-m3-persistent-combat-run.md)
+("yes"); planning `.25.1` closed, actual implementation `.25.2` normally claimed
+by native actor. The [authored persistent combat candidate](milestones/m3-run.md)
+is integrated: two real fights HP40→45→66, exact permanent IDs/upgrades/gold,
+actual potion consumption/entry and one-shot settlement, combat-local cleanup,
+retained faults and real enemy death. M1/M2/M3 public28/0, internal3/0/shared10/0,
+consumers43/0/other21/0. Core349/7 exactly matches baseline's seven old failure
+names/messages; all three examples run. One final isolated milestone review
+returned no findings/declined judgments. All208 reviewed files unchanged; fresh
+public28/0+internal3/0+shared10/0/diffcheck verified before normal `.25.2`/`.25`
+acceptance/closure. M4 `.26` activated, actual planning-only `.26.1` created open/
+unassigned; no M4 product start. No normal-start/full-run/green-workspace/family/
+original-runtime acceptance. No installs/new commits/cleanup/Python rebuild.
+Prior user-authorized commit29278a4 holds the foundation/
+M1/M2 baseline; M3 changes remain uncommitted.
+
 2026-10-23: user approved the [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md).
 Planning `.24.1` closed; native actor claimed actual implementation `.24.2` under
 M2 `.24`. Shared powers/card Block/HP-loss, public potion/selection ownership and

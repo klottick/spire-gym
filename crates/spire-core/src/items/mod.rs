@@ -8,10 +8,17 @@ mod tests;
 
 use crate::{combat::{Combat, Effect, EnemyHandle, Hook}, content::{PotionId, RelicId}, run::{RunError, RunState}};
 
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct RelicCounterView {pub relic:RelicId,pub value:i32}
+pub(crate) fn visible_counters(counters:&std::collections::BTreeMap<RelicId,i32>)->Vec<RelicCounterView>{
+    counters.get(&RelicId::NeowsLament).map(|value|RelicCounterView{relic:RelicId::NeowsLament,value:*value}).into_iter().collect()
+}
+
 /// Item ownership is transferred into active full combat and returned with its
 /// exit payload. Outside combat, RunState remains the permanent authority.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CombatItemContext {
+    counters: std::collections::BTreeMap<RelicId,i32>,
     relics: Vec<RelicId>,
     potions: Vec<Option<PotionId>>,
     lantern_armed: bool,
@@ -30,29 +37,34 @@ impl RelicHookWork {
 
 impl CombatItemContext {
     pub fn new(relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Self {
-        Self { relics, potions, lantern_armed: false, heal_room: NativeHealRoom::default() }
+        let mut counters=std::collections::BTreeMap::new();
+        if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
+        Self { counters, relics, potions, lantern_armed: false, heal_room: NativeHealRoom::default() }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { relics: std::mem::take(&mut state.relics),
+        Self { counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
 
     /// Return active ownership once without replacing another live inventory.
     pub(crate) fn return_to_run(self, state: &mut RunState) -> Result<(), RunError> {
-        if !state.relics.is_empty() || !state.potions.is_empty() {
+        if !state.relics.is_empty() || !state.potions.is_empty() || !state.relic_counters.is_empty() {
             return Err(RunError::InvalidAction);
         }
         state.relics = self.relics;
         state.potions = self.potions;
+        state.relic_counters=self.counters;
         Ok(())
     }
 
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
     pub(crate) fn relics(&self) -> &[RelicId] { &self.relics }
     pub(crate) fn potions(&self) -> &[Option<PotionId>] { &self.potions }
+    pub(crate) fn counters(&self)->&std::collections::BTreeMap<RelicId,i32>{&self.counters}
+    pub(crate) fn with_counters(mut self,counters:std::collections::BTreeMap<RelicId,i32>)->Self{self.counters=counters;self}
     pub(crate) fn heal_room(&self) -> NativeHealRoom { self.heal_room }
 
     pub(crate) fn with_native_room(mut self, phase: PotionRoomPhase,
@@ -62,7 +74,7 @@ impl CombatItemContext {
     }
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { relics: self.relics.clone(), potions, lantern_armed: self.lantern_armed,
+        Self { counters:self.counters.clone(),relics: self.relics.clone(), potions, lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
 }
@@ -148,11 +160,12 @@ pub(crate) fn potion_use_effects(context: &CombatItemContext, slot: usize,
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(), RunError> {
+    if context.owns_relic(RelicId::NeowsLament)&&!matches!(context.counters.get(&RelicId::NeowsLament),Some(1..=3)|Some(-2)){return Err(RunError::InvalidAction)}
     for id in &context.relics {
         if !matches!(id, RelicId::BurningBlood | RelicId::RingOfTheSnake | RelicId::CrackedCore
             | RelicId::PureWater | RelicId::BloodVial | RelicId::Anchor | RelicId::Lantern
             | RelicId::Strawberry | RelicId::Pear | RelicId::Mango | RelicId::SacredBark
-            | RelicId::MarkOfBloom | RelicId::MagicFlower | RelicId::ToyOrnithopter) {
+            | RelicId::MarkOfBloom | RelicId::MagicFlower | RelicId::ToyOrnithopter | RelicId::NeowsLament) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }
@@ -198,6 +211,11 @@ pub(crate) fn use_combat_potion(combat: &mut Combat, slot: usize,
 /// This deliberately does not create a public action or advance room progression.
 pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
     turn_ended: bool, we_meet_again: bool) -> Result<(), RunError> {
+    let (hp,max_hp,potions)=prepare_run_potion(state,slot,turn_ended,we_meet_again)?;
+    state.hp=hp;state.max_hp=max_hp;state.potions=potions;Ok(())
+}
+
+pub(crate) fn prepare_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->Result<(u32,u32,Vec<Option<PotionId>>),RunError>{
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
     if state.terminal.is_some() { return Err(RunError::Terminal); }
     if state.combat.is_some() { return Err(RunError::InvalidAction); }
@@ -231,8 +249,5 @@ pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
         let heal = ordinary_heal_amount(owned.relics(), 5) as u32;
         if hp > 0 { hp = hp.saturating_add(heal).min(max_hp); }
     }
-    state.hp = hp;
-    state.max_hp = max_hp;
-    state.potions = prepared.potions;
-    Ok(())
+    Ok((hp,max_hp,prepared.potions))
 }

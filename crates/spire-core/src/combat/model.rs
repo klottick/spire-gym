@@ -260,7 +260,7 @@ pub enum DamagePayload {
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
-    Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), ApplyPower { id: PowerId, amount: i32 },
+    Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), NeowsLament, ApplyPower { id: PowerId, amount: i32 },
     ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId),
     ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
     FinishCard, Decision,

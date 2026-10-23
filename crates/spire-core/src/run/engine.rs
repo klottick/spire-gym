@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
-use crate::{combat::command::CombatAction, content::{Catalog, Character, CardId}};
+use crate::content::{Catalog, Character, CardId};
 use super::*;
 
-#[derive(Clone, PartialEq, Eq)] pub struct Run { state:RunState, candidates:Vec<Candidate>, next_choice:u64 }
+#[derive(Clone, PartialEq, Eq)] pub struct Run { pub(super) state:RunState, pub(super) candidates:Vec<Candidate>, pub(super) next_choice:u64 }
 impl Run {
     pub fn new(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Self,RunError>{
         if config.ascension>20{return Err(RunError::InvalidAscension(config.ascension));}
@@ -18,7 +18,8 @@ impl Run {
         let mut deck=Vec::new();let mut id=1;
         for card in starter{deck.push(CardInstance{id:*card,instance:id,upgrades:0});id+=1;}
         if config.ascension>=10{deck.push(CardInstance{id:CardId::AscendersBane,instance:id,upgrades:0});}
-        let state=RunState{character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
+        let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
+            character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
             potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
             neow_eligible:profile.neow_eligible,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),relic_counters:BTreeMap::new(),combat:None,selected_neow:None,fault:None,last_selection:None,
@@ -59,15 +60,19 @@ impl Run {
     #[cfg(test)] pub(crate) fn state_mut_for_test(&mut self)->&mut RunState{&mut self.state}
     pub fn decision(&self)->Result<PublicDecision,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
+        if self.state.combat.is_some() { return self.combat_decision(); }
         let objects=self.state.deck.iter().map(|c|PublicObject{instance:c.instance,id:c.id,upgrades:c.upgrades}).collect();
-        let candidates=if self.state.terminal.is_some(){vec![]}else{self.candidates.clone()};
+        let candidates=if self.state.terminal.is_some(){vec![]}else if self.state.room_loop.is_some(){super::rooms::candidates(self)?}else{self.candidates.clone()};
         let offers=candidates.iter().filter_map(|c|c.neow_offer.clone()).collect();
         let selection=self.state.pending.as_ref().map(|p|PublicSelection{required:p.selection.required,selected_count:p.selection.selected.len(),eligible:p.selection.candidates.iter().map(|c|PublicObject{instance:c.card.instance,id:c.card.id,upgrades:c.card.upgrades}).collect()});
-        Ok(PublicDecision{act:self.state.act,floor:self.state.floor,player:PublicPlayer{character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
+        Ok(PublicDecision{room:self.state.room_loop.as_ref().map(|_|super::rooms::public(self)).transpose()?,reward_total:self.state.reward_ledger.total,combat:None,combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone(),act:self.state.act,floor:self.state.floor,player:PublicPlayer{relic_counters:crate::items::visible_counters(&self.state.relic_counters),character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
     }
     pub fn step(&mut self,action:&GameAction)->Result<RunTransition,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
+        if let GameAction::Combat(action)=action { return self.choose_combat(action.clone()); }
+        if self.state.combat.is_some() { return Err(RunError::InvalidAction); }
+        if self.state.room_loop.is_some() {return super::rooms::step(self,action);}
         if !self.candidates.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction);}
         match action{
             GameAction::Choose(id)=>{
@@ -82,7 +87,8 @@ impl Run {
             _=>Err(self.retain_fault(RunFaultKind::UnsupportedBoundary("unwired run action"),"run.step.unsupported")),
         }
     }
-    fn select(&mut self,id:SelectionId)->Result<RunTransition,RunError>{
+    pub(super) fn select(&mut self,id:SelectionId)->Result<RunTransition,RunError>{
+        if self.state.pending.as_ref().is_some_and(|p|matches!(p.parent,ContinuationTarget::Room{..})){return super::rooms::selection::select(self,id)}
         let pending=self.state.pending.as_ref().ok_or(RunError::InvalidAction)?;
         let captured=pending.selection.candidates.iter().find(|c|c.id==id).cloned().ok_or(RunError::InvalidAction)?;
         if !self.state.deck.iter().any(|card|card==&captured.card){return Err(RunError::InvalidAction);}
@@ -97,17 +103,17 @@ impl Run {
                     EmptySelectionRule::Fault=>return Err(self.retain_fault(RunFaultKind::Invariant("selection exhausted before required count"),"run.selection.exhausted")),
                 }
             }else{self.resume_parent()?;}
-        }else{self.publish_selection_candidates();}
-        Ok(RunTransition{terminal:None,committed_events:vec![]})
+        }else{self.publish_selection_candidates()?;}
+        Ok(RunTransition{reward:0,terminal:None,committed_events:vec![]})
     }
-    fn publish_selection_candidates(&mut self){
+    fn publish_selection_candidates(&mut self)->Result<(),RunError>{
         let selection_ids=self.state.pending.as_ref().map(|p|p.selection.candidates.iter().map(|x|x.id).collect::<Vec<_>>()).unwrap_or_default();
-        self.candidates.clear();for selection_id in selection_ids{
-            let id=self.next_choice();
+        let mut next=self.next_choice;let mut candidates=vec![];for selection_id in selection_ids{
+            let id=super::rooms::token(&mut next)?;
             let captured=self.state.pending.as_ref().and_then(|p|p.selection.candidates.iter().find(|c|c.id==selection_id)).unwrap();
             let card=&captured.card;
-            self.candidates.push(Candidate{id,action:GameAction::Select(selection_id),label:"Select captured instance",neow_offer:None,object:Some(PublicObject{instance:card.instance,id:card.id,upgrades:card.upgrades})});
-        }
+            candidates.push(Candidate{id,action:GameAction::Select(selection_id),label:"Select captured instance",neow_offer:None,object:Some(PublicObject{instance:card.instance,id:card.id,upgrades:card.upgrades})});
+        }self.next_choice=next;self.candidates=candidates;Ok(())
     }
     fn resume_parent(&mut self)->Result<(),RunError>{
         let Some(mut pending)=self.state.pending.take()else{return Err(RunError::InvalidAction)};
@@ -117,6 +123,7 @@ impl Run {
         let (parent_id,target)=match pending.parent{
             ContinuationTarget::ResumeDecision(parent)=>(parent.id,Some(parent)),
             ContinuationTarget::NeowConsequence{parent,offer}=>(parent.id,{self.state.selected_neow=Some(offer);None}),
+            ContinuationTarget::Room{..}=>return Err(RunError::InvalidAction),
         };
         self.state.last_resumed_parent=Some(parent_id);
         self.state.resume_count=self.state.resume_count.saturating_add(1);
@@ -134,9 +141,9 @@ impl Run {
         }else{
             self.resume_parent()?;
         }
-        Ok(RunTransition{terminal:None,committed_events:vec![]})
+        Ok(RunTransition{reward:0,terminal:None,committed_events:vec![]})
     }
-    fn retain_fault(&mut self,kind:RunFaultKind,checkpoint:&'static str)->RunError{
+    pub(super) fn retain_fault(&mut self,kind:RunFaultKind,checkpoint:&'static str)->RunError{
         if self.state.fault.is_none(){self.state.fault=Some(RunFault{kind,checkpoint,committed_events:self.state.history.events.clone()});}
         RunError::Faulted(self.state.fault.clone().unwrap())
     }
@@ -147,29 +154,26 @@ impl Run {
         if candidates.iter().any(|c|!self.state.deck.iter().any(|card|card==&c.card)){return Err(RunError::InvalidAction)}
         self.state.pending=Some(PendingContinuation{parent,selection:PendingSelection{candidates,required,selected:vec![],empty_rule},resumed:false});
         if self.state.pending.as_ref().is_some_and(|p|p.selection.candidates.is_empty()||p.selection.required==0){self.drive_automatic().map(|_|())}
-        else{self.publish_selection_candidates();Ok(())}
+        else{self.publish_selection_candidates()?;Ok(())}
     }
     pub(crate) fn commit_event(&mut self,event:CommittedEvent)->Result<(),RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
-        self.state.history.events.push(event);Ok(())
+        super::reward::commit(&mut self.state,&[event])?;Ok(())
     }
     pub(crate) fn commit_terminal(&mut self,terminal:RunTerminal)->Result<RunTransition,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
+        let event=CommittedEvent::Ended(terminal);
+        let reward=super::reward::commit(&mut self.state,std::slice::from_ref(&event))?;
         self.state.terminal=Some(terminal);self.candidates.clear();
-        let event=CommittedEvent::Ended(terminal);self.state.history.events.push(event.clone());
-        Ok(RunTransition{terminal:Some(terminal),committed_events:vec![event]})
+        Ok(RunTransition{reward,terminal:Some(terminal),committed_events:vec![event]})
     }
     pub fn remove_card(&mut self,id:u64)->Result<CardInstance,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
+        if self.state.combat.is_some() || self.state.room_loop.is_some() { return Err(RunError::InvalidAction); }
         let at=self.state.deck.iter().position(|c|c.instance==id).ok_or(RunError::InvalidAction)?;Ok(self.state.deck.remove(at))
-    }
-    pub fn choose_combat(&mut self,_action:CombatAction)->Result<RunTransition,RunError>{
-        if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
-        if self.state.terminal.is_some(){return Err(RunError::Terminal);}
-        Err(self.retain_fault(RunFaultKind::UnsupportedBoundary("Task3 combat bridge"),"run.combat"))
     }
 
     #[cfg(test)] pub(crate) fn install_pending_selection_for_test(&mut self,parent:Candidate,instances:Vec<u64>,required:usize,empty_rule:EmptySelectionRule){

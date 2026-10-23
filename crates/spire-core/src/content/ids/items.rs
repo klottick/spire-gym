@@ -1,11 +1,11 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RelicId { BurningBlood, RingOfTheSnake, CrackedCore, PureWater, BloodVial, Anchor, Lantern,
-    Strawberry, Pear, Mango, SacredBark, MarkOfBloom, MagicFlower, ToyOrnithopter, Unknown(&'static str) }
+    Strawberry, Pear, Mango, SacredBark, MarkOfBloom, MagicFlower, ToyOrnithopter, NeowsLament, Unknown(&'static str) }
 impl RelicId { pub const fn as_str(self) -> &'static str { match self {
     Self::BurningBlood => "burning_blood", Self::RingOfTheSnake => "ring_of_the_snake", Self::CrackedCore => "cracked_core", Self::PureWater => "pure_water",
     Self::BloodVial => "blood_vial", Self::Anchor => "anchor", Self::Lantern => "lantern",
     Self::Strawberry => "strawberry", Self::Pear => "pear", Self::Mango => "mango", Self::SacredBark => "sacred_bark", Self::MarkOfBloom => "mark_of_bloom",
-    Self::MagicFlower => "magic_flower", Self::ToyOrnithopter => "toy_ornithopter", Self::Unknown(s) => s
+    Self::MagicFlower => "magic_flower", Self::ToyOrnithopter => "toy_ornithopter", Self::NeowsLament=>"neows_lament", Self::Unknown(s) => s
 }}}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PotionId { FirePotion, BloodPotion, FruitJuice, BlockPotion, EnergyPotion, StrengthPotion,

@@ -43,6 +43,7 @@ pub(super) fn effect(e: &Effect) -> Value {
                 super::super::command::CardDestination::Discard => "discard" } })),
         EffectKind::Heal(n)=> ("heal",json!({"amount":n})),
         EffectKind::IncreaseMaxHpThenHeal(n)=> ("increase_max_hp_then_heal",json!({"amount":n})),
+        EffectKind::NeowsLament=>("neows_lament",json!({})),
         EffectKind::ApplyPower{id,amount}=>("apply_power",json!({"power_id":id.as_str(),"amount":amount})),
         EffectKind::ReducePower{id,amount}=>("reduce_power",json!({"power_id":id.as_str(),"amount":amount})),
         EffectKind::RemovePower(id)=>("remove_power",json!({"power_id":id.as_str()})),

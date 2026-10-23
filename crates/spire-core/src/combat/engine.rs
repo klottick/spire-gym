@@ -701,7 +701,7 @@ impl Combat {
         Ok(CombatPublic { content_id: self.state.content_id.clone(), turn: self.state.turn,
             player: super::view::full_player(&self.state), enemies: super::view::full_enemies(&self.state),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
-                relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
+                relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
             character: super::view::CharacterCombatView { stance: self.state.character.stance,
                 orbs: self.state.character.orb_slots.clone(), focus: self.state.character.focus },
             hand: cards(&self.state.piles.hand)?, draw_count: self.state.piles.draw.len(),
@@ -1002,6 +1002,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::GainBlock(n) => require(*n >= 0 && (state.full_runtime || *n <= 1007), "block payload bounds")?,
         EffectKind::Heal(n) => require((0..=999).contains(n)
             && effect.target == Some(Actor::Player), "player healing bounds/target")?,
+        EffectKind::NeowsLament=>require(state.full_runtime&&effect.source==Source::None&&effect.target==Some(Actor::Player),"Lament mode/source/target")?,
         EffectKind::IncreaseMaxHpThenHeal(n) => require(state.full_runtime && (1..=10).contains(n)
             && effect.source == Source::Actor(Actor::Player)
             && effect.target == Some(Actor::Player)

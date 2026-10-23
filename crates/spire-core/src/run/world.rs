@@ -169,7 +169,7 @@ fn resolve_question(state: &mut RunState, leaving_shop: bool) -> Result<MapNodeK
 /// Enter a connected node. Illegal moves are rejected without mutation or RNG
 /// consumption. Legal entry commits traversal and one floor event before the
 /// room owner is invoked; unsupported constructors retain that progress as fault.
-pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunError> {
+pub(super) fn preflight_move(state:&RunState,target:NodeId)->Result<super::MapNode,RunError>{
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
     if state.terminal.is_some() { return Err(RunError::Terminal); }
     let map = state.map.as_ref().ok_or(RunError::InvalidAction)?;
@@ -185,7 +185,13 @@ pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunE
         None => target_node.y == 0,
     };
     if !legal { return Err(RunError::InvalidAction); }
+    Ok(target_node)
+}
 
+pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunError> {
+    let target_node=preflight_move(state,target)?;
+
+    super::reward::preflight(state,&[CommittedEvent::FloorEntered{act:state.act,floor:target_node.floor}])?;
     let mut kind = target_node.kind;
     let resolving_question = kind == MapNodeKind::Question;
     if resolving_question {
@@ -218,8 +224,8 @@ pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunE
     state.act = map.act;
     state.room = kind.label();
     let event = CommittedEvent::FloorEntered { act: map.act, floor: node.floor };
-    state.history.events.push(event.clone());
     state.history.rooms.push(super::VisitedRoom { act: map.act, floor: node.floor, label: kind.label() });
+    super::reward::commit(state,&[event])?;
 
     let fault_boundary = match kind {
         MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss => "Task6 encounter constructor/combat bridge",

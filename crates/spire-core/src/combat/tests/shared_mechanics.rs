@@ -211,3 +211,61 @@ fn selected_forced_and_finish_exhaustion_notify_once_for_the_actual_owned_identi
         assert_eq!(combat.public_full().unwrap().exhaust[0].instance, CardInstanceId(1));
     }
 }
+
+#[test]
+fn run_bridge_retains_accepted_potion_fault_and_consumed_inventory() {
+    use crate::{content::{Character,PotionId},run::{self,Run,RunConfig,RunRng}};
+    let start=run::AuthoredRunStart {hp:40,max_hp:80,gold:123,
+        deck:[CardId::Strike,CardId::Defend,CardId::Bash].into_iter().enumerate()
+            .map(|(i,id)|run::CardInstance {instance:i as u64+1,id,upgrades:0}).collect(),
+        relics:vec![],potions:vec![Some(PotionId::SwiftPotion),None,None],relic_counters:Default::default()};
+    let mut run=Run::from_authored_combat(RunConfig {character:Character::Ironclad,ascension:0},
+        start,RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
+    run.enter_combat(crate::content::EncounterId::JawWorm).unwrap();
+    for action in [CombatAction::PlayCard {instance:2,target:None},CombatAction::PlayCard {instance:1,target:Some(TargetId(1))}] {
+        run.choose_combat(action).unwrap();
+    }
+    let combat=run.state_mut_for_test().combat.as_mut().unwrap();
+    let stream=&combat.state.rng.shuffle;
+    combat.state.rng.shuffle=rng::StreamState::new(stream.id().clone(),*stream.key(),1_u128<<64).unwrap();
+    assert!(engine::validate_runtime(&combat.state).is_ok());
+    let action=CombatAction::UsePotion {slot:0,target:None};
+    let error=run.choose_combat(action.clone()).unwrap_err();
+    let combat=run.state().combat.as_ref().unwrap();
+    assert_eq!(combat.item_context().unwrap().potions(),&[None,None,None]);
+    let crate::run::RunError::Faulted(fault)=&error else {panic!("retained fault expected")};
+    let crate::run::RunFaultKind::Combat(packet)=&fault.kind else {panic!("native packet expected")};
+    assert_eq!(packet.attempted_action,Some(action.clone()));
+    assert_eq!(packet.current.as_ref().unwrap().kind,EffectKind::Recycle);
+    let before=run.clone();
+    assert_eq!(run.choose_combat(action),Err(error));
+    assert_eq!(run,before);
+}
+
+#[test]
+fn successive_same_encounter_run_visits_have_distinct_streams_and_preserve_counter_storage() {
+    use crate::{content::{Character,PotionId,RelicId,EncounterId},run::{self,Run,RunConfig,RunRng}};
+    let mut counters=std::collections::BTreeMap::new(); counters.insert(RelicId::BurningBlood,7);
+    let start=run::AuthoredRunStart {hp:40,max_hp:80,gold:123,
+        deck:vec![run::CardInstance {instance:1,id:CardId::Strike,upgrades:1}],
+        relics:vec![RelicId::BurningBlood],potions:vec![Some(PotionId::FirePotion),Some(PotionId::FirePotion),None],
+        relic_counters:counters.clone()};
+    let mut run=Run::from_authored_combat(RunConfig {character:Character::Ironclad,ascension:0},start,
+        RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
+    run.enter_combat(EncounterId::JawWorm).unwrap();
+    let first=run.state().combat.as_ref().unwrap().state.rng.shuffle.id().clone();
+    let before=run.clone();
+    assert_eq!(run.enter_combat(EncounterId::JawWorm),Err(crate::run::RunError::InvalidAction));
+    assert_eq!(run,before);
+    for action in [CombatAction::PlayCard {instance:1,target:Some(TargetId(1))},
+        CombatAction::UsePotion {slot:0,target:Some(TargetId(1))},CombatAction::UsePotion {slot:1,target:Some(TargetId(1))}] {
+        run.choose_combat(action).unwrap();
+    }
+    assert_eq!(run.state().relic_counters,counters);
+    assert_eq!(run.state().combat_progress,crate::run::CombatProgress {entered:1,settled:1});
+    run.enter_combat(EncounterId::JawWorm).unwrap();
+    let second=run.state().combat.as_ref().unwrap().state.rng.shuffle.id();
+    assert_ne!(&first,second);
+    assert!(run.state().relic_counters.is_empty());
+    assert_eq!(run.state().combat.as_ref().unwrap().item_context().unwrap().counters(),&counters);
+}

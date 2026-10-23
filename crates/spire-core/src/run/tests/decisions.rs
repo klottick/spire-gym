@@ -66,7 +66,7 @@ fn zero_eligible_selection_auto_resumes_parent_without_deadlock() {
     let mut run=run();
     let parent=Candidate::internal_test_parent(ChoiceId(88));
     run.install_empty_selection_for_test(parent.clone());
-    assert_eq!(run.step(&GameAction::Confirm),Ok(RunTransition{terminal:None,committed_events:vec![]}));
+    assert_eq!(run.step(&GameAction::Confirm),Ok(RunTransition{reward:0,terminal:None,committed_events:vec![]}));
     assert_eq!(run.decision().unwrap().candidates,vec![parent.clone()]);
     assert_eq!(run.state().last_resumed_parent,Some(parent.id));
     assert_eq!(run.state().resume_count,1);

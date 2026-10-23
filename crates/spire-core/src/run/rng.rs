@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup }
+    MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
@@ -11,6 +11,7 @@ impl RunRngScope {
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
         Self::MapBurningElite=>"run.map.burning_elite", Self::MapEncounter=>"run.map.encounter",
         Self::MapQuestionRoom=>"run.map.question_room", Self::CombatEnemySetup=>"run.combat.enemy.setup",
+        Self::CombatGoldReward=>"run.reward.gold",
     } }
     pub fn parse(value:&str)->Result<Self,RunRngScopeError> { match value {
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
@@ -18,6 +19,7 @@ impl RunRngScope {
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
         "run.map.burning_elite"=>Ok(Self::MapBurningElite), "run.map.encounter"=>Ok(Self::MapEncounter),
         "run.map.question_room"=>Ok(Self::MapQuestionRoom), "run.combat.enemy.setup"=>Ok(Self::CombatEnemySetup),
+        "run.reward.gold"=>Ok(Self::CombatGoldReward),
         _=>Err(RunRngScopeError::Unregistered(value.to_owned())),
     }}
 }

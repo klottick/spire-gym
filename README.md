@@ -17,7 +17,7 @@ The [repository scope](docs/scope.md) records the current priorities, boundaries
 delivery path and implementation status. No human-playable client, graphics,
 animation, audio or interactive game UI is planned.
 
-## Authored combat: M1 and M2
+## Authored combat: M1–M3
 
 The approved [36-milestone roadmap](docs/superpowers/specs/2026-10-22-narrow-gym-milestones-design.md)
 starts with **authored Ironclad A0 combat: damage, Block, Weak and Vulnerable**.
@@ -43,11 +43,32 @@ The final target remains **all four fully unlocked characters, Ascension 0–20,
 Acts 1–4 and the Heart, with all normally reachable content**; A20 is the primary
 final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
-M3 `.25` and planning-only `.25.1` are next, with no M3 product start implied. Old
+M3 `.25`/`.25.1`/`.25.2` are closed; M4 `.26`/planning `.26.1` are next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
 verification platform. Full runs and complete content are not implemented.
+
+The [M3 plan](docs/superpowers/plans/2026-10-23-m3-persistent-combat-run.md) is
+user-approved. Its [accepted persistent combat profile](docs/milestones/m3-run.md) runs
+two real fights with resource/identity preservation and one-shot settlement.
+One isolated milestone review found no issues; core349/7 retains exactly seven
+old draft failures. This is not normal-start or full-run acceptance.
+
+```sh
+cargo run -p spire-core --example m3_run --locked --offline -- --scenario all --seed 7
+```
+
+The user-approved [M4 room-loop plan](docs/superpowers/plans/2026-10-23-m4-act1-room-loop.md)
+now has an [accepted runnable profile](docs/milestones/m4-rooms.md): real normal-start
+resources, Neow and room consequences on an explicitly authored nine-floor route
+with captured offers—not smaller standard random pools or Act1/boss completion.
+One isolated GPT-6 Luna review found no issues; seven unchanged draft failures
+remain. M5 is next for planning, not product implementation.
+
+```sh
+cargo run -p spire-core --example m4_rooms --locked --offline -- --scenario all --seed 7
+```
 
 See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)
 and [the work-status snapshot](docs/work-status.md). Historical specs/plans retain

@@ -1,5 +1,38 @@
 # Spire Gym: current agent guidance
 
+## User-requested M3/M4 precommit review (2026-10-23)
+
+User explicitly requested additional reviewers, scoped fixes and a Conventional
+Commit of the accepted M3/M4 snapshot. Two independent GPT6 Luna reviewers in
+separate materialized worktrees/unique targets found no findings/declined judgments
+and are ready to commit; no product fixes required. Controller verified all328
+reviewed public files unchanged in all THREE worktrees, then fresh run58/0,
+shared10/0/public32/0/core374/7 EXACT old7/consumers43/0/other21/0/all4examples/
+diffcheck. Task spire-dxo.26.3 and ledger
+`.superpowers/sdd/2026-10-23-m34-precommit/` record this explicit additional-review/
+commit authority; it supersedes earlier no-new-commit and one-review-only notes
+for this bounded request. No push/installs/cleanup/M5 product start authorized.
+
+## M4 accepted / M5 planning next (2026-10-23)
+
+User approved the M4 plan with "Yes. Please do it" and requested concurrent Luna6
+tool-coordination assistance. Planning spire-dxo.26.1 is closed; implementation
+spire-dxo.26.2 was normally claimed and closed by opencode-session-recovery-20261021-v1.
+This supersedes the written-plan-wait notes below. Accepted profile:
+`docs/milestones/m4-rooms.md`; plan unchanged in scope. Real standard resources,
+authored nine-floor route/captured offers, actual room/native combat effects and
+selected reward deltas, NOT standard random pools/Act1 boss/full runs. One
+isolated GPT6 Luna milestone review ses_e9961b2fbffecU4ZunQsm457EY found no
+findings/declined judgments; all328 reviewed files unchanged in BOTH worktrees,
+fresh run58/0/shared10/0/public32/0/diffcheck. Core374/7 EXACT same seven old
+failure names/messages, consumers43/0/other21/0/all4examples pass. `.26.2`/`.26`
+normally closed. M5 `.27`/planning-only `.27.1` open/unassigned next; no M5
+product start. Luna6 read-only coordinator used
+native m4-luna-assistant-20261023 and unique target/jobs2, no product edits.
+Controller integrates source. Ledger:
+`.superpowers/sdd/2026-10-23-m4-act1-room-loop/progress.md`.
+No new commits, installs or cleanup authority. Preserve accepted M3 and all drafts.
+
 ## Approved replanning and new execution constraints (2026-10-22)
 
 - The user approved the36-milestone roadmap in
@@ -22,8 +55,27 @@
   potion consumer passes after the approved invalid-Chomp-override fixture fix.
   Consumers43/0, other integrations21/0 and both examples pass; no workspace-green,
   family/full-run/Python-extension/original-runtime acceptance. Profile:
-  `docs/milestones/m2-combat.md`. M3 `.25` and actual `.25.1` are open/unassigned
-  for just-in-time planning, not product start. Native actor remains
+  `docs/milestones/m2-combat.md`. User approved M3 plan
+  `docs/superpowers/plans/2026-10-23-m3-persistent-combat-run.md` ("yes"); planning
+  `.25`/`.25.1`/`.25.2` now accepted/closed after ONE independent GPT-6 Luna
+  milestone review in its own materialized worktree found no issues/declined
+  judgments. All208 reviewed public files unchanged and fresh public28/0,
+  internal3/0/shared10/0/diffcheck verified. Final core349/7 exact
+  old seven failures/messages; consumers43/0/other21/0 and all three examples pass.
+  M4 `.26` is open; planning `.26.1` is blocked/unassigned awaiting written-plan
+  review (details below), not product start.
+  No normal-start/full-run/green-workspace/family/original-runtime acceptance. Profile:
+  `docs/milestones/m3-run.md`. Ledger:
+  `.superpowers/sdd/2026-10-23-m3-persistent-combat-run/progress.md`.
+  User requested continuation; M4 planning `.26.1` now delivers
+  `docs/superpowers/plans/2026-10-23-m4-act1-room-loop.md` for written-plan review.
+  Named authored route/offers with true starting resources, not reduced standard
+  random pools. Native single-owner execution retained after approval; no M4
+  product start. Planning ledger:
+  `.superpowers/sdd/2026-10-23-m4-act1-room-loop/progress.md`.
+  User's specific preceding conventional-commit request produced29278a4 containing
+  the public simulator/M1/M2 source; older bare-HEAD/uncommitted-source notes below
+  are history. No blanket new commit/cleanup authority. Native actor remains
   `opencode-session-recovery-20261021-v1`. M2 execution ledger:
   `.superpowers/sdd/2026-10-23-m2-shared-combat-mechanics/progress.md`.
   User permits concurrent GPT-6 Luna fresh eyes, with mandatory separate source
