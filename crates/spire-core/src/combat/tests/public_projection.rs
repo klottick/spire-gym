@@ -20,9 +20,9 @@ fn assert_matches(combat: &Combat) {
     assert_eq!(p.hp_before_healing, v.hp_before_healing);
     assert_eq!(p.hp_after_cleanup, v.hp_after_cleanup);
     for (borrowed, detached, storage) in [
-        (p.hand, &v.hand, &combat.state.piles.hand),
-        (p.discard, &v.discard, &combat.state.piles.discard),
-        (p.exhaust, &v.exhaust, &combat.state.piles.exhaust),
+        (p.hand, &v.hand, &combat.legacy_cache.hand),
+        (p.discard, &v.discard, &combat.legacy_cache.discard),
+        (p.exhaust, &v.exhaust, &combat.legacy_cache.exhaust),
     ] {
         assert_eq!(borrowed.as_ptr(), storage.as_ptr());
         assert_eq!(borrowed.len(), storage.len());
@@ -76,7 +76,7 @@ fn projection_matches_public_values_without_history() {
     assert!(p.hand.is_empty());
     assert_eq!(ids(p.discard), ["3"]);
     assert_eq!(ids(p.exhaust), ["2"]);
-    assert_eq!(victory.state.in_play.as_ref().unwrap().instance_id.as_str(), "1");
+    assert_eq!(victory.state.in_play.as_ref().unwrap().handle().as_str(), "1");
 
     let mut death = Combat::new(&base_scenario()).unwrap();
     death.state.phase = Phase::EnemyTurn;
@@ -109,8 +109,8 @@ fn projection_hides_private_changes_and_does_not_copy_reveals() {
         vec!["different".into()]).unwrap(), [21; 32], 18).unwrap();
     b.state.rng.enemy_ai = StreamState::new(StreamId::new(Domain::CombatEnemyAi,
         vec!["different".into(), "private".into()]).unwrap(), [22; 32], 33).unwrap();
-    b.state.enemies[0].selected_move = MoveId::Attack;
-    b.state.enemies[0].move_history.push(MoveId::Attack);
+    b.state.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
+    b.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
     b.state.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().output = 9;
     b.state.player.powers[0].state.skip_first = true;
     b.state.player.powers[0].state.monster_source_grace = true;

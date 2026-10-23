@@ -10,4 +10,7 @@
 //! `:protocol` project under `validation/windows-mod`, which must produce
 //! files this module accepts.
 pub mod combat;
+pub mod content;
+pub mod items;
 pub mod trace;
+pub mod run;

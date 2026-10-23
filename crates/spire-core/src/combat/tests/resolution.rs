@@ -36,9 +36,9 @@ fn prepend_keeps_current_owner() {
 #[test]
 fn damage_reference_refresh() {
     let mut c = combat();
-    c.state.enemies[0].intent_id = MoveId::Attack;
-    c.state.enemies[0].selected_move = MoveId::Attack;
-    c.state.enemies[0].move_history.push(MoveId::Attack);
+    c.state.enemies[0].intent_id = ActorIntentId::Legacy(MoveId::Attack);
+    c.state.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
+    c.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
     let e = enemy(&c);
     let mut attack = work(Some(Actor::Player), EffectKind::Damage(DamagePayload::EnemyMove(MoveId::Attack)));
     attack.source = Source::Actor(e.clone());

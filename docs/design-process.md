@@ -1,6 +1,25 @@
 # Design process
 
-## Current scope and status (2026-10-17)
+## Current scope and tracking (2026-10-22)
+
+This repo delivers the gym for external ML consumers, not models, training or
+learner checkpoints. Current priority is the usable gym PoC in Beads `spire-dxo`;
+`spire-dxo.1` defines its exact gameplay path and runnable acceptance checks.
+Read [scope](scope.md), [work status](work-status.md) and [agent guidance](../AGENTS.md)
+before selecting work. Existing Rust combat/native batching/Gymnasium are already
+merged; do not treat them as future scaffolding or reimplement them.
+
+Use Beads as the authoritative task tracker. Historical checklists below record
+past decisions, not a second live board. Broad source/spec and custom-verifier
+work is backlog/deferred; paused workers and historical review/model selections
+are not active assignments. New product scope still needs its narrow design/plan/
+start decisions, not completion of every historical research task.
+
+## Historical scope and status (2026-10-17)
+
+The remaining sections are preserved historical context. Their descriptions of
+in-repo ML work, unimplemented native batching and selected worker models are
+superseded by the current scope/status above; they do not authorize new work.
 
 The [repository scope](scope.md) is the current concise overview. The user reaffirmed
 the goal order: **AI playing StS and improving → optimized, game-correct headless

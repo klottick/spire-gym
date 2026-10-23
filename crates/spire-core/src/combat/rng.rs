@@ -10,6 +10,9 @@ pub enum Domain {
     CombatShuffle,
     CombatEnemyHp,
     CombatEnemyAi,
+    RunCombatShuffle,
+    RunCombatEnemyAi,
+    RunCombatCardRandom,
 }
 
 impl Domain {
@@ -18,6 +21,9 @@ impl Domain {
             Self::CombatShuffle => "combat.shuffle",
             Self::CombatEnemyHp => "combat.enemy.hp",
             Self::CombatEnemyAi => "combat.enemy.ai",
+            Self::RunCombatShuffle => "run.combat.shuffle",
+            Self::RunCombatEnemyAi => "run.combat.enemy.ai",
+            Self::RunCombatCardRandom => "run.combat.card.random",
         }
     }
 }
@@ -50,8 +56,8 @@ pub struct StreamId {
 impl StreamId {
     pub fn new(domain: Domain, scope: Vec<String>) -> Result<Self, RngError> {
         let arity = match domain {
-            Domain::CombatShuffle => 1,
-            Domain::CombatEnemyHp | Domain::CombatEnemyAi => 2,
+            Domain::CombatShuffle | Domain::RunCombatShuffle | Domain::RunCombatCardRandom => 1,
+            Domain::CombatEnemyHp | Domain::CombatEnemyAi | Domain::RunCombatEnemyAi => 2,
         };
         if scope.len() != arity {
             return Err(RngError::Invalid("incorrect domain scope arity".into()));
@@ -121,7 +127,7 @@ fn validate_field(field: &str) -> Result<(), RngError> {
     Ok(())
 }
 
-pub(super) fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
+pub(crate) fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
     // HMAC accepts keys of every length; this constructor cannot reject one.
     let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key length");
     mac.update(message);

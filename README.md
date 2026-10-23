@@ -1,19 +1,61 @@
 # Spire Gym
 
-A headless Slay the Spire 1 simulation and machine-learning project. The end goal
-is an AI that plays StS and improves; the enabling product is an optimized,
-game-correct Rust simulator with native batching and Python learning code.
+A headless Slay the Spire 1 gym for external machine-learning consumers: a Rust
+simulator, native batching, thin Python bindings and Gymnasium interfaces.
+**Models, optimizers, training loops, learner checkpoints and ML experiments are
+outside this repository's scope.**
 
 Repository: [klottick/spire-gym](https://github.com/klottick/spire-gym). A bounded
 native batched combat environment and single/vector Gymnasium facades are implemented
 for supplied-entry Ironclad A0 encounters; this is not a full-run simulator.
 Existing `spire-lab` / `spire_lab` package and crate names remain unchanged.
-Moving ML training and experiments into a separate repository is deferred; the
-simulator, environment interfaces, correctness tests and examples belong here.
+The simulator, environment interfaces, correctness tests, performance checks and
+small random/scripted rollout examples belong here. External learners use those
+interfaces; a learned-agent benchmark is not required to deliver the gym.
 
 The [repository scope](docs/scope.md) records the current priorities, boundaries,
 delivery path and implementation status. No human-playable client, graphics,
 animation, audio or interactive game UI is planned.
+
+## Authored combat: M1 and M2
+
+The approved [36-milestone roadmap](docs/superpowers/specs/2026-10-22-narrow-gym-milestones-design.md)
+starts with **authored Ironclad A0 combat: damage, Block, Weak and Vulnerable**.
+The user approved native execution of the [migration/M1 plan](docs/superpowers/plans/2026-10-22-roadmap-migration-and-m1-combat.md).
+Reuse the existing simulator rather than restarting it. M1 is not a normal run;
+later milestones incrementally connect fights, rooms, acts and characters.
+
+M1 is accepted after one isolated independent review. The
+[M2 implementation plan](docs/superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
+is user-approved. The [accepted M2 profile](docs/milestones/m2-combat.md) adds shared
+stats/Artifact/Frail, HP loss, public potion/selection actions and real Ironclad
+producers after integrated verification and one isolated review with no findings.
+Seven unchanged draft failures remain; this is not a green-workspace/full-run claim.
+
+Run the [M1 combat demonstration](docs/milestones/m1-combat.md):
+
+```sh
+cargo run -p spire-core --example m1_combat --locked --offline -- --scenario all --seed 7
+cargo run -p spire-core --example m2_combat --locked --offline -- --scenario all --seed 7
+```
+
+The final target remains **all four fully unlocked characters, Ascension 0–20,
+Acts 1–4 and the Heart, with all normally reachable content**; A20 is the primary
+final performance workload. Beads `spire-dxo` remains the parent. Milestones
+M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
+M3 `.25` and planning-only `.25.1` are next, with no M3 product start implied. Old
+unfinished components retain their scope and history as coverage umbrellas,
+not blockers requiring every content family before the first usable milestone.
+Use fast deterministic behavior tests and focused regressions, not a custom
+verification platform. Full runs and complete content are not implemented.
+
+See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)
+and [the work-status snapshot](docs/work-status.md). Historical specs/plans retain
+their evidence and approval limits; they do not override the current repo boundary.
+The earlier [full-run design](docs/superpowers/specs/2026-10-22-full-run-gym-poc-design.md)
+and [component plan](docs/superpowers/plans/2026-10-22-full-run-gym-poc.md) retain
+their implementation history; the progressive roadmap controls current scheduling.
+Portal's time condition is assumed satisfied under TIME-001; no clock or wait action.
 
 ## Status
 
@@ -32,7 +74,8 @@ Historical failed comparisons remain retained. Task reviews, whole-slice review,
 final correction review and fresh controller verification are complete for that
 historical core-only handoff; they do not describe verification of the later
 batching/Gymnasium integration.
-Run-level simulation and the learning system are not implemented.
+Run-level simulation is not implemented. The learning system is external, not
+an unfinished deliverable of this repository.
 No learned playing-strength or optimized simulator-throughput result
 is claimed. The Python reference and validation tools support those products;
 they are not the final production simulator or a separate infrastructure goal.
@@ -63,25 +106,24 @@ User plan/start approval was executed and the core-only handoff is verified.
 The core-only handoff preceded the separately authorized GitHub publication;
 neither that publication nor this bounded environment slice promotes
 original-runtime fidelity.
-The current selected workflow is
-Sol implementation with fresh independent reviews, not the historical worker
-selection in the [original 1a plan](docs/superpowers/plans/2026-10-11-spire-lab-1a.md).
+Historical worker/model selections are not live assignments. Beads and the
+[agent guidance](AGENTS.md) govern current work; paused subagents are not resumed
+automatically by an old plan or an open research issue.
 
 ## Confirmed goals
 
-- Prioritize efficient ML training: learning progress on held-out scenarios per
-  unit of wall-clock time, backed by game-correct simulation.
+- Provide a usable, deterministic, game-correct gym for external ML consumers.
 - Build and profile the game-correct simulator in Rust; learning Rust remains a
-  secondary benefit. Native batching and thin bindings serve the training path.
-- Use Python for model training, baselines, evaluation and experiments; the readable
-  Python combat reference is an intermediate correctness aid, not a performance target.
+  secondary benefit. Measure representative environment throughput and resource use.
+- Use Python for thin interfaces, tests and rollout examples; the readable Python
+  combat reference is an offline correctness aid, not a second production engine.
 - Develop a simulation tool for learning to play Slay the Spire.
 - Make Heart victory the ultimate agent goal; report Act 3 completion separately.
 - Plan the design and implementation before building the application.
 
-## Confirmed roadmap
+## Historical long-term roadmap
 
-1. Act 1-ready Ironclad combat simulation and training (the starting milestone).
+1. Explicitly scoped Ironclad combat environments (the implemented starting slice).
 2. Act 1 Ironclad runs.
 3. Full-game Ironclad runs including keys, Act 4, and the Heart.
 4. Full-game Ironclad across Ascension 0–20, targeting Heart victory.
@@ -90,31 +132,28 @@ selection in the [original 1a plan](docs/superpowers/plans/2026-10-11-spire-lab-
 7. Support Daily run modifiers under their original mode rules, without
    requiring Heart access where the mode does not permit it.
 
-Detailed content coverage and acceptance criteria are scoped per phase.
-The initial slice remains 1a (starter cards versus Cultist/Jaw Worm), not the
-entire roadmap: reviewed mechanics → independent Rust slice → batching/bindings and release
-benchmarks → a measured learner-versus-baseline comparison → expanded content.
-Phase 1 will support explicitly scoped Act 1 combat scenarios; complete
-Ironclad combat through the Heart is not a prerequisite for phase 2.
+This older progression is retained as history; the approved36-milestone roadmap
+above governs selected delivery. Daily/custom modes are outside that selected
+standard-run scope. The legacy environment remains the supplied-entry starter
+slice; M1's broader authored combat profile is documented separately.
 
 ## Approved architectural direction
 
 - Rust-native game-specific core with a batched numeric interface to Python.
-- [Separate combat and run-level policies initially](docs/scope.md#approved-two-level-learning-direction-2026-10-17),
-  backed by one authoritative Rust simulator. Run-level training delegates fights
-  to the same detailed combat engine, not an approximate second simulator.
-- Python handles ML training/evaluation; its combat reference is only a correctness
-  aid. Shared model representations or a unified policy remain later experiments.
-- Train and evaluate agents using player-visible information, not hidden RNG
-  state or unseen future outcomes.
-- Start with a small, validated end-to-end training slice, then expand content.
+- One authoritative Rust simulator for combat and future run-level transitions,
+  not an approximate second simulator for between-combat decisions.
+- Python provides interfaces; policy/model design and training are external. The
+  [historical two-level policy direction](docs/scope.md#approved-two-level-learning-direction-2026-10-17)
+  is consumer context, not in-repo ML implementation work.
+- Expose player-visible information, not hidden RNG state or unseen future outcomes.
+- Deliver a runnable gym vertical slice, then expand supported content.
 - Use existing simulators as references, not unquestioned correctness oracles.
 - Keep game fidelity, deterministic replay, and measurable training throughput
   central to the design.
 
-The written design, including concrete contracts, pilot defaults, and acceptance
-procedures, is approved. Later narrow specifications and reviewed plans govern
-their own execution; scope approval is not blanket implementation authorization.
+Historical written designs govern their implemented slices. New narrow designs
+and plans govern their own execution; scope approval and this administrative
+cleanup are not blanket product-implementation authorization.
 
 See [the design checklist](docs/design-process.md) for progress and decisions.
 

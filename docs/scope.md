@@ -1,11 +1,57 @@
 # Repository scope and current direction
 
-Scope reaffirmed by the user on 2026-10-16, with the learning-direction amendment
-approved on 2026-10-17 below. This is the current project overview;
-the [approved ML-first design](superpowers/specs/2026-10-11-spire-lab-ml-first-design.md)
-and subsequent approved narrow specifications supply the detailed contracts.
-Historical plans/reports retain their original statuses and evidence limitations;
-this overview does not retroactively accept them or authorize new execution.
+## Current repository boundary and priority (2026-10-22)
+
+**Approved progressive delivery:** the [36-milestone roadmap](superpowers/specs/2026-10-22-narrow-gym-milestones-design.md)
+supersedes broad family-wave scheduling, not final scope. The user approved the
+[migration/M1 execution plan](superpowers/plans/2026-10-22-roadmap-migration-and-m1-combat.md)
+and native single-owner start. M1 authored Ironclad A0 combat with damage/Block/
+Weak/Vulnerable is accepted, not a normal run. Beads M1–36 are
+`spire-dxo.23`–`.58`; M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed.
+M3 `.25`/planning-only `.25.1` identify the next outcome/planning handoff. The
+[M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
+is user-approved; the [M2 authored combat profile](milestones/m2-combat.md) is
+accepted after integrated verification and isolated review, not full-run or
+workspace-green acceptance. Only the next milestone is
+decomposed. Old unfinished components remain coverage umbrellas, not early gates.
+All four characters/A0–20/Acts1–4/Heart and normally reachable content remain the
+final target; intermediate profiles state their limitations explicitly.
+
+The runnable [M1 demonstration](milestones/m1-combat.md) documents its exact
+four-card/three-enemy fixture profile, public action API, observed outcomes and
+known pre-existing draft failures. It does not establish normal-run support.
+
+**This repository delivers the gym, not ML code.** It owns the headless Rust
+simulator, environment/batching layer, thin Python/Gymnasium interfaces, replay,
+correctness tests, representative performance checks and small scripted/random
+rollout examples. Models, optimizers, training loops, learner checkpoints and ML
+experiments belong outside this repository. Earlier ML-first documents are
+historical context; their in-repo training requirements are superseded.
+
+The user selected a **full-run gym PoC through Acts 1–4 and the Heart**, rather
+than a separately accepted Act 1-only release. It must provide seeded reset,
+public observations, legal actions/masks, stepping, rewards/termination, replay
+and native batching across the run lifecycle. The user selected all four standard
+fully unlocked characters and all Ascension 0–20, A20-primary, not a reduced
+Ironclad/A0 profile. Include all normally reachable content, including shared and
+off-color acquisition paths. Reuse current combat/batching and qualified research.
+The full-run written design and implementation plan are user-approved; explicit
+start authority is recorded in closed `spire-dxo.3`. Workspace setup precedes code
+edits. User-approved TIME-001 assumes Portal's time condition satisfied while
+retaining other eligibility and random selection, without a clock or wait action.
+
+Beads `spire-dxo`/`spire-dxo.1` track the PoC/scope. `spire-8jm` remains the broader
+four-character, Acts 1–4, A0–20/A20-primary specification backlog. The custom
+selector verifier and inactive standing worker/reviewer claims are deferred.
+Completing a generic verification engine or the entire research backlog must not
+replace the next runnable gym milestone. Keep unknown mechanics and unsupported
+content explicit; deferral is not acceptance or permission to invent behavior.
+
+Historical plans/reports retain their evidence, approvals and failures. Existing
+implemented contracts still apply; no original-runtime, publication, dependency
+change or new product-implementation approval is inferred. See
+[work status](work-status.md) for the administrative handoff and
+[environment usage](combat-environments.md) for the implemented API.
 
 ## Approved source-first sequencing amendment (2026-10-16)
 
@@ -37,16 +83,16 @@ all historical evidence and qualifications without retroactive repair.
 
 ## Goals, in priority order
 
-1. **An AI that plays Slay the Spire and improves.** The ultimate objective is
-   Heart victory across the approved progression. Measure held-out playing strength
-   gained per wall-clock hour, not only implemented content, optimizer activity or
-   environment steps per second. Report Act 3 completion separately from Heart
-   victory and simulator performance separately from original-game transfer.
-2. **An optimized, game-correct Rust StS simulator enabling that learning.** Build a
-   Rust-native, game-specific core, native batched environments and thin Python
-   bindings. Profile and benchmark representative release workloads; optimize the
-   actual simulation/encoding/inference/training bottlenecks rather than presumed
-   ones. High throughput alone is not evidence that an agent has learned.
+1. **A usable gym for external ML consumers.** Deliver complete supported episodes
+   with reliable observations/actions/masks, rewards/terminal outcomes, reset and
+   replay, thin bindings and native batching. A runnable interface and focused
+   correctness checks, not a trained agent, establish the gym milestone.
+2. **An optimized, game-correct Rust simulator.** Keep one authoritative engine;
+   profile representative release simulation/encoding/batching workloads and state
+   the content, resource and fidelity limits of any result. Long-term coverage is
+   four characters, Acts 1–4 and Ascension 0–20, with A20 the performance target and
+   Heart victory distinct from Act 3 completion. Coverage and throughput do not
+   prove original-game fidelity or learned playing strength.
 3. **Only the supporting tools needed for those goals.** A readable Python combat
    reference reduces mechanics risk during Rust development; original-game
    comparisons later validate fidelity. They are not competing production
@@ -59,8 +105,8 @@ all historical evidence and qualifications without retroactive repair.
   no renderer, Python interpreter, tensor-library or training dependency.
 - **Rust environment layer:** scenarios, public observations, legal actions and
   native batching. Keep hot-path work native, not a Python call per effect.
-- **Thin bindings and Python learning:** numeric batch interchange, models,
-  rollout/training, baselines, evaluation and experiment configuration.
+- **Thin bindings and Python interfaces:** numeric batch interchange, Gymnasium
+  facades and small rollout examples. Models/training/evaluation are external.
 - **Separate offline validation:** original observations, reviewed semantic
   comparison cases and diagnostics; not a runtime dependency of training.
 
@@ -77,6 +123,13 @@ gameplay dependencies and project replay under the approved
 target. Do not describe the changed joint random process as identical to the game.
 
 ## Approved two-level learning direction (2026-10-17)
+
+**Historical external-consumer context, not current repository deliverables.**
+The policy/checkpoint/training discussion in this section is retained as history.
+The 2026-10-22 boundary above supersedes any requirement to implement ML here.
+The gym-facing principle remains one authoritative detailed Rust engine and a
+player-visible-information boundary. No external learner implementation or new
+callback/training interface is approved by retaining this section.
 
 The user approved **separate combat and run-level policies initially, backed by
 one authoritative Rust simulator**, toward one system that can play the full game.
@@ -157,35 +210,40 @@ readiness-test failures as main (995 passed), not a fully green suite.
 The repository is now named **spire-gym** on GitHub under **klottick**. The user
 separately authorized public MIT-licensed repository creation and publication of
 the relevant authored files. Local directories, existing package/crate names and
-historical documents need not be renamed. A later repository split may move ML
-training, experiments and checkpoints out while retaining the Rust simulator,
-environment/bindings, correctness tests and examples here; no migration is started.
+historical documents need not be renamed. ML training, experiments and learner
+checkpoints are now explicitly outside this repository's scope, not a deferred
+repository-split decision. Existing readiness smoke code and pinned dependencies
+are retained unchanged; this boundary clarification is not dependency-removal or
+code-migration authorization.
 This administrative publication does not authorize new simulation implementation,
 training, dependencies, original access, evidence promotion or cleanup.
 
 ## Delivery path
 
-1. Design and plan the source-first narrow Rust combat slice from the reviewed
-   mechanics and completed Python reference, then obtain implementation approval.
-2. Independently author that Rust combat slice and differential
-   checks; shared semantic cases are not mechanical translation of rule code.
-3. Add native batching/public encodings and thin Python bindings, verifying
-   ownership, replay, masking, reset/terminal semantics and hidden-information
-   boundaries. This milestone is implemented for the bounded supplied-entry
-   combat slice; it does not provide run-level environments or new gameplay content.
-4. Benchmark representative release builds and compare a first learner against
-   random and fixed public-information heuristic baselines on held-out scenarios.
-   Report learning curves against decisions and wall-clock time.
-5. Expand through the approved roadmap using correctness and learning results.
+1. Reuse the implemented Rust combat core, native batching and Gymnasium facades;
+   do not rebuild already merged functionality or mistake historical dirty copies
+   for unmerged product work.
+2. Specify the smallest useful gym PoC gameplay path and runnable acceptance checks.
+   Identify actual missing content/transitions/interfaces, reusing accepted facts
+   at their existing grade. Resolve only ambiguities that affect that milestone.
+3. Obtain the narrow design/plan/start decisions and implement the selected path
+   with focused correctness, hidden-information, lifecycle/replay and integration
+   tests. Do not require a custom semantic-verification platform to proceed.
+4. Demonstrate complete supported rollouts and batching from an external-style
+   caller; measure representative release performance when scoped. Learner training,
+   learned-strength evaluation and training checkpoints are not gym deliverables.
+5. Expand the supported game content toward the long-term roadmap, preserving
+   explicit unsupported behavior and fidelity limitations.
 
 Perform original-game comparisons as a later fidelity-promotion milestone under
 separately approved capture scope. They remain necessary for validated-fidelity and
 original-game-transfer claims, not for starting Rust. Each later implementation or
 training milestone still requires its own reviewed plan and start approval.
 
-The first learning loop is deliberately narrow: Ironclad A0 starter cards against
-Cultist/Jaw Worm. Do not wait for a full-game engine to start the first supported
-training slice, or label that slice unrestricted StS mastery. Existing design,
+The existing gym slice is deliberately narrow: supplied-entry Ironclad A0 starter
+cards against Cultist/Jaw Worm. It is not full-run support or unrestricted StS.
+The next PoC must add useful gym capability beyond merely renaming this existing
+slice; exact scope and acceptance remain in `spire-dxo.1`. Existing design,
 plan/start and evidence approvals still apply to each actual implementation step.
 
 Content progression remains combat → Act 1 Ironclad → full-game/Heart Ironclad →
@@ -205,7 +263,7 @@ not a claim that the planned interfaces or full-game content already exist.
 | Original combat validation | Incomplete; the reference remains static-evidence-grounded, **not original-runtime validated** |
 | Narrow Rust combat core | User plan/start approval executed; supplied-entry combat, project RNG, public actions/views, snapshots, native acceptance and test-only differential harness implemented. Historical core-handoff controller workspace/release runs each passed 124 native tests; complete differential checkpoints agreed, including both formerly failing fault cases. Task reviews, whole-slice review, final correction review and controller verification were complete for that core-only handoff, not the later batching/Gymnasium integration. **Source-grounded, not original-runtime validated**; no optimization/throughput claim |
 | Native environment pool/batched interface | Implemented for bounded supplied-entry Ironclad A0 combat with public observations, replay, native workers and single/vector Gymnasium facades. Fresh verification passed 169 offline Rust workspace tests and all 167 environment Python tests with a newly built candidate-revision extension. Full Python:995 passed and the same two baseline readiness-test failures as main, not fully green. Historical CUDA allocation OOMs are separate; neither CUDA readiness nor full-run support is claimed |
-| Learning/training/evaluation system | Not implemented; no learned playing-strength or release simulator-throughput result claimed |
+| Learning/training/evaluation system | External; not an unfinished repository deliverable. No learned playing-strength claim |
 | Linux capture readiness | Approved specification retained; helper/feasibility work deferred in favor of source-first Rust. A concrete capture consumer remains required if resumed |
 | Windows real capture adapter/platform gates | Incomplete/fail-closed; Linux readiness does not satisfy them |
 

@@ -1,11 +1,13 @@
 //! Bounded authored interchange. Compiled only under combat::tests, never a CLI.
 use super::super::*;
+use super::super::model::OwnedCard;
 use super::super::rng::StreamState;
 use serde_json::{json, Value};
 use super::differential_decode as decode;
 
 pub(super) const SCHEMA: &str = "spire-lab-combat-diff-v1";
-pub(super) fn card(c: &CardInstance) -> Value {
+pub(super) fn card(owned: &OwnedCard) -> Value {
+    let c = owned.legacy().expect("legacy differential fixture owns only legacy cards");
     json!({"instance_id":c.instance_id.as_str(),"card_id":c.card_id.as_str(),"upgraded":c.upgraded})
 }
 fn powers(p: &[PowerEntry]) -> Value {
@@ -17,14 +19,36 @@ fn stream(s: &StreamState) -> Value {
         "key_hex":s.key().iter().map(|b| format!("{b:02x}")).collect::<String>(),"word_index":s.word_index().to_string()})
 }
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
-fn effect(e: &Effect) -> Value {
+pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
         EffectKind::Damage(DamagePayload::Fixed(n))=>("damage",json!({"amount":n})),
+        EffectKind::Damage(DamagePayload::Orb(n))=>("orb_damage",json!({"amount":n})),
+        EffectKind::Damage(DamagePayload::Thorns(n))=>("thorns_damage",json!({"amount":n})),
+        EffectKind::Damage(DamagePayload::HpLoss(n))=>("hp_loss",json!({"amount":n})),
+        EffectKind::ExhaustHandCard { instance } => ("exhaust_hand_card", json!({"instance":instance.0})),
         EffectKind::Damage(DamagePayload::EnemyMove(m))=>("damage",json!({"move":m.as_str()})),
+        EffectKind::Damage(DamagePayload::FullEnemyMove(m))=>("damage",json!({"full_move":m.as_str()})),
         EffectKind::GainBlock(n)=>("gain_block",json!({"amount":n})),
+        EffectKind::GainEnergy(n)=>("gain_energy",json!({"amount":n})),
+        EffectKind::CreateCard { id, destination, upgrades } => ("create_card", json!({
+            "card_id":id.as_str(), "destination":match destination {
+                super::super::command::CardDestination::Hand => "hand",
+                super::super::command::CardDestination::Draw => "draw",
+                super::super::command::CardDestination::Discard => "discard" },
+            "upgrades":upgrades })),
+        EffectKind::CopyCard { source, destination } => ("copy_card", json!({
+            "source":source.as_str(), "destination":match destination {
+                super::super::command::CardDestination::Hand => "hand",
+                super::super::command::CardDestination::Draw => "draw",
+                super::super::command::CardDestination::Discard => "discard" } })),
+        EffectKind::Heal(n)=> ("heal",json!({"amount":n})),
+        EffectKind::IncreaseMaxHpThenHeal(n)=> ("increase_max_hp_then_heal",json!({"amount":n})),
         EffectKind::ApplyPower{id,amount}=>("apply_power",json!({"power_id":id.as_str(),"amount":amount})),
         EffectKind::ReducePower{id,amount}=>("reduce_power",json!({"power_id":id.as_str(),"amount":amount})),
         EffectKind::RemovePower(id)=>("remove_power",json!({"power_id":id.as_str()})),
+        EffectKind::ApplyFullPower{id,amount}=>("apply_full_power",json!({"power_id":id.0,"amount":amount})),
+        EffectKind::ReduceFullPower{id,amount}=>("reduce_full_power",json!({"power_id":id.0,"amount":amount})),
+        EffectKind::RemoveFullPower(id)=>("remove_full_power",json!({"power_id":id.0})),
         EffectKind::Terminal(o)=>("terminal",json!({"outcome":outcome(*o)})),
         EffectKind::Draw(n)=>("draw",json!({"amount":n})),
         EffectKind::FinishCard=>("finish_card",json!({})), EffectKind::Decision=>("decision",json!({})),
@@ -32,16 +56,52 @@ fn effect(e: &Effect) -> Value {
         EffectKind::EndPlayerTurn=>("end_player_turn",json!({})), EffectKind::MonsterStart=>("monster_start",json!({})),
         EffectKind::EnemyMove=>("enemy_move",json!({})), EffectKind::RollMove=>("roll_move",json!({})),
         EffectKind::EndRound=>("end_round",json!({})),
+        EffectKind::StartNextPlayer=>("start_next_player",json!({})),
+        EffectKind::SelectCard { candidates, empty } => ("select_card", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"empty":format!("{empty:?}")})),
+        EffectKind::SelectCards { candidates, required, disposition, empty } => ("select_cards", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
+        EffectKind::SelectHandCardsAfterDraw { required, disposition, empty } => ("select_hand_after_draw", json!({"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
+        EffectKind::Hook(hook) => ("hook", json!({"hook":format!("{hook:?}")})),
+        EffectKind::ReplaceEnemy { parent, children } => ("replace_enemy", json!({
+            "parent": parent.as_str(), "children": children.iter().map(|id| id.as_str()).collect::<Vec<_>>() })),
+        EffectKind::CardContinuation(continuation) => ("card_continuation", match continuation {
+            super::super::cards::DefectContinuation::GoForTheEyesWeak { amount } => json!({"go_for_the_eyes_weak":{"amount":amount}}),
+            super::super::cards::DefectContinuation::BarrageStart { damage } => json!({"barrage_start":{"damage":damage}}),
+            super::super::cards::DefectContinuation::BarrageNext { damage, remaining } => json!({"barrage_next":{"damage":damage,"remaining":remaining}}),
+            super::super::cards::DefectContinuation::CompileDriverDraw => json!({"compile_driver_draw":true}),
+        }),
+        EffectKind::Character(action) => ("character", match *action {
+            super::super::characters::CharacterEffect::Stance(stance) => json!({"stance":match stance {
+                super::super::characters::Stance::Neutral => "neutral",
+                super::super::characters::Stance::Wrath => "wrath",
+                super::super::characters::Stance::Calm => "calm" }}),
+            super::super::characters::CharacterEffect::Channel(orb) => json!({"channel":match orb {
+                super::super::characters::OrbKind::Lightning => "lightning",
+                super::super::characters::OrbKind::Frost => "frost" }}),
+            super::super::characters::CharacterEffect::EvokeFront { remove } => json!({"evoke_front":{"remove":remove}}),
+            super::super::characters::CharacterEffect::EvokeAt { index } => json!({"evoke_at":{"index":index}}),
+            super::super::characters::CharacterEffect::EndTurn => json!({"end_turn_orbs":true}),
+        }),
     };
     let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Actor(a)=>json!({"actor":actor(a)})};
     json!({"kind":kind,"source":source,"target":e.target.as_ref().map(actor),"payload":payload})
 }
 fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Outcome::Death=>"death"} }
-fn phase(p: Phase) -> &'static str { match p {Phase::Decision=>"decision",Phase::PlayerAction=>"player_action",
+fn phase(p: Phase) -> &'static str { match p {Phase::Decision=>"decision",Phase::Selection=>"selection",Phase::PlayerAction=>"player_action",
     Phase::EnemyTurn=>"enemy_turn",Phase::RoundEnd=>"round_end",Phase::PlayerStart=>"player_start",Phase::Terminal=>"terminal"} }
 fn fault(f: &FaultRecord) -> Value {
     let kind=match f.kind {FaultKind::Unsupported=>"unsupported",FaultKind::Invariant=>"invariant",FaultKind::EffectGuard=>"effect_guard",FaultKind::RngExhausted=>"rng_exhausted"};
     json!({"kind":kind,"resolved_effects":f.resolved_effects})
+}
+fn combat_action(a: &CombatAction) -> Value { match a {
+    CombatAction::PlayCard { instance, target } => json!({"play_card":{"instance":instance,"target":target.map(|t|t.0)}}),
+    CombatAction::SelectCard { instance } => json!({"select_card":{"instance":instance}}),
+    CombatAction::UsePotion { slot, target } => json!({"use_potion":{"slot":slot,"target":target.map(|id|id.0)}}),
+    CombatAction::EndTurn => json!("end_turn"),
+} }
+fn selection_capture(s: &super::super::model::PendingSelection) -> Value {
+    json!({"parent":s.parent.as_str(),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
+        "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"required":s.required,
+        "disposition":format!("{:?}",s.disposition),"empty":format!("{:?}",s.empty)})
 }
 pub(super) fn encode_checkpoint(c: &Combat) -> Value {
     let s=&c.state; let p=&s.player;
@@ -59,7 +119,13 @@ pub(super) fn encode_checkpoint(c: &Combat) -> Value {
         "rng":{"contract_id":s.rng.contract_id,"shuffle":stream(&s.rng.shuffle),"enemy_ai":stream(&s.rng.enemy_ai),"enemy_instance_id":s.rng.enemy_instance_id.as_str()},
         "pending":s.pending.iter().map(effect).collect::<Vec<_>>(),"current":s.current.as_ref().map(effect),"in_play":s.in_play.as_ref().map(card),
         "resolved_effects":s.resolved_effects,"public":{"revealed_order":s.public.revealed_order.iter().map(|id|id.as_str()).collect::<Vec<_>>()},
-        "outcome":s.outcome.map(outcome),"fault":s.fault.as_ref().map(fault),"hp_before_healing":s.hp_before_healing,"hp_after_cleanup":s.hp_after_cleanup})
+        "outcome":s.outcome.map(outcome),"fault":s.fault.as_ref().map(fault),
+        "attempted_action":s.attempted_action.as_ref().map(combat_action),
+        "fault_selection":s.fault_selection.as_ref().map(selection_capture),
+        "item_context":s.item_context.as_ref().map(|items| json!({
+            "relics":items.relics().iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+            "potions":items.potions().iter().map(|id|id.map(|id|id.as_str())).collect::<Vec<_>>() })),
+        "hp_before_healing":s.hp_before_healing,"hp_after_cleanup":s.hp_after_cleanup})
 }
 pub(super) fn action(a: &Action) -> Value { match a {
     Action::EndTurn=>json!({"kind":"end_turn"}),
@@ -109,7 +175,7 @@ fn protocol() {
     match (std::env::var_os("SPIRE_COMBAT_DIFF_REQUEST"),std::env::var_os("SPIRE_COMBAT_DIFF_RESPONSE")) {
         (None,None)=>{let c=Combat::new(&super::whole_combat::scenario(EnemyKind::Cultist)).unwrap();
             let r=record(&c,0,None); assert_eq!(r["state"]["resolved_effects"],0);
-            let expected=["content_id","phase","turn","player","enemies","piles","card_ids_issued","rng","pending","current","in_play","resolved_effects","public","outcome","fault","hp_before_healing","hp_after_cleanup"];
+            let expected=["content_id","phase","turn","player","enemies","piles","card_ids_issued","rng","pending","current","in_play","resolved_effects","public","outcome","fault","attempted_action","fault_selection","item_context","hp_before_healing","hp_after_cleanup"];
             assert_eq!(r["state"].as_object().unwrap().keys().map(String::as_str).collect::<std::collections::BTreeSet<_>>(),expected.into_iter().collect());
             assert_eq!(r["public"]["player"]["hp"],40); assert_eq!(r["legal"].as_array().unwrap().len(),4);},
         (Some(input),Some(output))=>{
@@ -128,4 +194,26 @@ fn protocol() {
         },
         _=>panic!("both interchange paths are required"),
     }
+}
+
+#[test]
+fn thorns_payload_keeps_a_distinct_differential_diagnostic() {
+    let thorns = Effect { source: Source::Actor(Actor::Player),
+        target: Some(Actor::Enemy(EnemyHandle::parse("enemy-1").unwrap())),
+        kind: EffectKind::Damage(DamagePayload::Thorns(40)) };
+    let encoded = effect(&thorns);
+    assert_eq!(encoded["kind"], "thorns_damage");
+    assert_eq!(encoded["payload"]["amount"], 40);
+    assert_eq!(encoded["source"]["actor"], "player");
+}
+
+
+#[test]
+fn max_hp_then_heal_has_a_distinct_differential_diagnostic() {
+    let fruit = Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player),
+        kind: EffectKind::IncreaseMaxHpThenHeal(10) };
+    let encoded = effect(&fruit);
+    assert_eq!(encoded["kind"], "increase_max_hp_then_heal");
+    assert_eq!(encoded["payload"]["amount"], 10);
+    assert_eq!(encoded["source"]["actor"], "player");
 }

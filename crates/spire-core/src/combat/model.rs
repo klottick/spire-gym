@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use super::content::*;
 use super::rng::{RngError, StreamState};
+use crate::content::EnemyId;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CardHandle(String);
@@ -38,6 +39,59 @@ pub struct CardInstance { pub instance_id: CardHandle, pub card_id: CardKind, pu
 pub struct PowerState { pub amount: i32, pub skip_first: bool, pub monster_source_grace: bool }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PowerEntry { pub id: PowerId, pub state: PowerState }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum FullIntentId { Incantation, Attack, Chomp, Thrash, Bellow, Bite, Grow, SpitWeb,
+    GremlinNobSkullBash, GremlinNobBullRush,
+    AcidTackle, AcidSpit, AcidLick, AcidSplit,
+    SpikeTackle, SpikeFlameTackle, SpikeLick, SpikeSplit,
+    SlimeBossSticky, SlimeBossPrepSlam, SlimeBossSlam, SlimeBossSplit,
+    Unknown(&'static str) }
+impl FullIntentId {
+    pub fn from_name(id: &'static str) -> Self { match id {
+        "incantation" => Self::Incantation, "attack" => Self::Attack, "chomp" => Self::Chomp,
+        "thrash" => Self::Thrash, "bellow" => Self::Bellow, "bite" => Self::Bite,
+        "grow" => Self::Grow, "spit_web" => Self::SpitWeb,
+        "skull_bash" => Self::GremlinNobSkullBash, "bull_rush" => Self::GremlinNobBullRush,
+        "acid_tackle" => Self::AcidTackle, "acid_spit" => Self::AcidSpit,
+        "acid_lick" => Self::AcidLick, "acid_split" => Self::AcidSplit,
+        "spike_tackle" => Self::SpikeTackle, "spike_flame_tackle" => Self::SpikeFlameTackle,
+        "spike_lick" => Self::SpikeLick, "spike_split" => Self::SpikeSplit,
+        "sticky" => Self::SlimeBossSticky, "prep_slam" => Self::SlimeBossPrepSlam,
+        "slam" => Self::SlimeBossSlam, "split" => Self::SlimeBossSplit,
+        _ => Self::Unknown(id),
+    } }
+    pub const fn as_str(self) -> &'static str { match self {
+    Self::Incantation => "incantation", Self::Attack => "attack", Self::Chomp => "chomp",
+    Self::Thrash => "thrash", Self::Bellow => "bellow", Self::Bite => "bite",
+        Self::Grow => "grow", Self::SpitWeb => "spit_web",
+        Self::GremlinNobSkullBash => "skull_bash", Self::GremlinNobBullRush => "bull_rush",
+        Self::AcidTackle => "acid_tackle", Self::AcidSpit => "acid_spit",
+        Self::AcidLick => "acid_lick", Self::AcidSplit => "acid_split",
+        Self::SpikeTackle => "spike_tackle", Self::SpikeFlameTackle => "spike_flame_tackle",
+        Self::SpikeLick => "spike_lick", Self::SpikeSplit => "spike_split",
+        Self::SlimeBossSticky => "sticky", Self::SlimeBossPrepSlam => "prep_slam",
+        Self::SlimeBossSlam => "slam", Self::SlimeBossSplit => "split",
+        Self::Unknown(id) => id,
+    } }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct FullPowerId(pub &'static str);
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullPowerEntry { pub id: FullPowerId, pub state: PowerState }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActorEnemyId { Legacy(EnemyKind), Full(EnemyId) }
+impl ActorEnemyId {
+    pub fn legacy(&self) -> Option<EnemyKind> { if let Self::Legacy(id) = self { Some(*id) } else { None } }
+    pub fn as_str(&self) -> &'static str { match self { Self::Legacy(id) => id.as_str(), Self::Full(id) => id.as_str() } }
+}
+impl PartialEq<EnemyKind> for ActorEnemyId { fn eq(&self, other: &EnemyKind) -> bool { self.legacy() == Some(*other) } }
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ActorIntentId { Legacy(MoveId), Full(FullIntentId) }
+impl ActorIntentId {
+    pub fn legacy(&self) -> Option<MoveId> { if let Self::Legacy(id) = self { Some(*id) } else { None } }
+    pub fn as_str(&self) -> &'static str { match self { Self::Legacy(id) => id.as_str(), Self::Full(id) => id.as_str() } }
+}
+impl PartialEq<MoveId> for ActorIntentId { fn eq(&self, other: &MoveId) -> bool { self.legacy() == Some(*other) } }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PlayerState {
     pub hp: i32, pub max_hp: i32, pub block: i32, pub energy: i32,
@@ -53,6 +107,48 @@ pub struct Piles {
     pub hand: Vec<CardInstance>, pub draw: Vec<CardInstance>,
     pub discard: Vec<CardInstance>, pub exhaust: Vec<CardInstance>,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum OwnedCard { Legacy(CardInstance), Full(super::card_state::LiveCard) }
+
+impl OwnedCard {
+    pub(super) fn handle(&self) -> CardHandle {
+        match self {
+            Self::Legacy(card) => card.instance_id.clone(),
+            Self::Full(card) => super::card_state::handle(card.instance),
+        }
+    }
+    pub(super) fn legacy(&self) -> Option<&CardInstance> {
+        if let Self::Legacy(card) = self { Some(card) } else { None }
+    }
+    pub(super) fn full(&self) -> Option<&super::card_state::LiveCard> {
+        if let Self::Full(card) = self { Some(card) } else { None }
+    }
+    pub(super) fn full_mut(&mut self) -> Option<&mut super::card_state::LiveCard> {
+        if let Self::Full(card) = self { Some(card) } else { None }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(super) struct OwnedPiles {
+    pub hand: Vec<OwnedCard>, pub draw: Vec<OwnedCard>,
+    pub discard: Vec<OwnedCard>, pub exhaust: Vec<OwnedCard>,
+}
+impl OwnedPiles {
+    pub(super) fn from_legacy(piles: &Piles) -> Self {
+        let wrap = |pile: &[CardInstance]| pile.iter().cloned().map(OwnedCard::Legacy).collect();
+        Self { hand: wrap(&piles.hand), draw: wrap(&piles.draw),
+            discard: wrap(&piles.discard), exhaust: wrap(&piles.exhaust) }
+    }
+    pub(super) fn legacy_projection(&self) -> Option<Piles> {
+        let project = |pile: &[OwnedCard]| pile.iter().map(|card| card.legacy().cloned()).collect::<Option<Vec<_>>>();
+        Some(Piles { hand: project(&self.hand)?, draw: project(&self.draw)?,
+            discard: project(&self.discard)?, exhaust: project(&self.exhaust)? })
+    }
+    pub(super) fn all<'a>(&'a self, in_play: Option<&'a OwnedCard>) -> impl Iterator<Item=&'a OwnedCard> {
+        self.hand.iter().chain(&self.draw).chain(&self.discard).chain(&self.exhaust).chain(in_play)
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatRng {
     pub contract_id: String, pub shuffle: StreamState, pub enemy_ai: StreamState,
@@ -63,24 +159,68 @@ pub struct Scenario {
     pub encounter_id: EnemyKind, pub player: PlayerState, pub enemies: Vec<EnemySetup>,
     pub piles: Piles, pub rng: CombatRng,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullEnemySetup {
+    pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub ascension: u8,
+    pub profile: super::enemies::EnemyProfile, pub hp: i32, pub max_hp: i32,
+    pub block: i32, pub intent: FullIntentId, pub powers: Vec<FullPowerEntry>, pub ai_rng: StreamState,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FullCombatSetup {
+    pub player: PlayerState, pub player_powers: Vec<FullPowerEntry>,
+    pub character: crate::content::Character, pub card_rng: StreamState,
+    pub shuffle_rng: StreamState, pub enemies: Vec<FullEnemySetup>,
+    /// Per-actor selected bases produced by encounter setup, keyed by ordered formation slot and intent.
+    pub enemy_damage_bases: BTreeMap<(u32, FullIntentId), i32>,
+}
+/// Full entry has typed actors/streams and never needs placeholder legacy rows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CombatEntry { pub setup: FullCombatSetup, pub opening_draw: usize, pub cards: Vec<super::card_state::LiveCard> }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DamageEntry { pub base: i32, pub output: i32 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorLife { Active, Replaced }
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyState {
-    pub instance_id: EnemyHandle, pub enemy_id: EnemyKind, pub hp: i32, pub max_hp: i32,
-    pub block: i32, pub powers: Vec<PowerEntry>, pub intent_id: MoveId, pub move_history: Vec<MoveId>,
-    pub selected_move: MoveId, pub damage_entries: BTreeMap<MoveId, DamageEntry>, pub intent_damage: Option<i32>,
+    pub instance_id: EnemyHandle, pub enemy_id: ActorEnemyId, pub hp: i32, pub max_hp: i32,
+    pub block: i32, pub powers: Vec<PowerEntry>, pub full_powers: Vec<FullPowerEntry>,
+    pub intent_id: ActorIntentId, pub move_history: Vec<ActorIntentId>,
+    pub selected_move: ActorIntentId, pub damage_entries: BTreeMap<MoveId, DamageEntry>,
+    pub full_damage_entries: BTreeMap<FullIntentId, DamageEntry>, pub full_ai_rng: Option<StreamState>,
+    pub full_memory: Option<super::enemies::EnemyMemory>,
+    pub intent_damage: Option<i32>,
+    pub life: ActorLife,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnemyReplacementDiagnostics {
+    pub parent: EnemyHandle,
+    pub next_child: usize,
+    pub prepared_children: Vec<EnemyHandle>,
+    pub latest_child_cursor: Option<u128>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Phase { Decision, PlayerAction, EnemyTurn, RoundEnd, PlayerStart, Terminal }
+pub enum Phase { Decision, Selection, PlayerAction, EnemyTurn, RoundEnd, PlayerStart, Terminal }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Outcome { Victory, Death }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TransitionStatus { Decision, Terminal, Fault }
+pub enum TransitionStatus { Decision, Selection, Terminal, Fault }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FaultKind { Unsupported, Invariant, EffectGuard, RngExhausted }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FaultRecord { pub kind: FaultKind, pub message: String, pub resolved_effects: u32 }
+/// Lossless native diagnostics attached to the shared run fault boundary.
+/// Contains only attempted/queued work, never private RNG stream state.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CombatFault {
+    pub record: FaultRecord,
+    pub current: Option<Effect>,
+    pub pending: VecDeque<Effect>,
+    pub attempted_action: Option<super::CombatAction>,
+    pub selection: Option<PendingSelection>,
+    pub replacement_progress: Option<EnemyReplacementDiagnostics>,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InputError { Invariant(String), Unsupported(String) }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -108,27 +248,65 @@ pub enum Actor { Player, Enemy(EnemyHandle) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source { None, Card(CardHandle), Actor(Actor) }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum DamagePayload { Fixed(i32), EnemyMove(MoveId) }
+pub enum DamagePayload {
+    Fixed(i32), Orb(i32),
+    /// Player-owned THORNS damage; distinct from NORMAL attack damage and HP_LOSS.
+    Thorns(i32),
+    /// HP_LOSS bypasses Block and NORMAL-only modifiers/triggers.
+    HpLoss(i32),
+    EnemyMove(MoveId), FullEnemyMove(FullIntentId),
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
-    Damage(DamagePayload), GainBlock(i32), ApplyPower { id: PowerId, amount: i32 },
-    ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId), FinishCard, Decision,
-    Terminal(Outcome), Draw(i32), Recycle, DiscardHand, EndPlayerTurn, MonsterStart,
-    EnemyMove, RollMove, EndRound,
+    Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), ApplyPower { id: PowerId, amount: i32 },
+    ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId),
+    ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
+    FinishCard, Decision,
+    Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
+    GainEnergy(i32),
+    CreateCard { id: crate::content::CardId, destination: super::command::CardDestination, upgrades: u32 },
+    CopyCard { source: CardHandle, destination: super::command::CardDestination },
+    ExhaustHandCard { instance: super::CardInstanceId },
+    SelectCard { candidates: Vec<CardHandle>, empty: super::selection::EmptySelection },
+    SelectCards { candidates: Vec<CardHandle>, required: usize,
+        disposition: super::selection::SelectionDisposition, empty: super::selection::EmptySelection },
+    /// Capture the current hand only when this queued effect executes (after preceding draws).
+    SelectHandCardsAfterDraw { required: usize,
+        disposition: super::selection::SelectionDisposition, empty: super::selection::EmptySelection },
+    Hook(super::hooks::Hook), EndPlayerTurn, MonsterStart,
+    EnemyMove, RollMove, EndRound, StartNextPlayer,
+    Character(super::characters::CharacterEffect),
+    CardContinuation(super::cards::DefectContinuation),
+    ReplaceEnemy { parent: EnemyHandle, children: Vec<EnemyId> },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle> }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PendingSelection { pub parent: CardHandle, pub candidates: Vec<CardHandle>,
+    pub selected: Vec<CardHandle>, pub required: usize,
+    pub disposition: super::selection::SelectionDisposition, pub empty: super::selection::EmptySelection }
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct State {
     pub content_id: String, pub phase: Phase, pub turn: u32, pub player: PlayerState,
-    pub enemies: Vec<EnemyState>, pub piles: Piles, pub card_ids_issued: BTreeSet<CardHandle>,
+    pub enemies: Vec<EnemyState>, pub piles: OwnedPiles, pub card_ids_issued: BTreeSet<CardHandle>,
     pub rng: CombatRng, pub pending: VecDeque<Effect>, pub current: Option<Effect>,
-    pub in_play: Option<CardInstance>, pub resolved_effects: u32, pub public: PublicKnowledge,
+    pub in_play: Option<OwnedCard>, pub resolved_effects: u32, pub public: PublicKnowledge,
     pub outcome: Option<Outcome>, pub fault: Option<FaultRecord>,
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
+    pub full_runtime: bool,
+    pub pending_selection: Option<PendingSelection>,
+    pub hook_events: Vec<super::hooks::HookEvent>,
+    pub attempted_action: Option<super::CombatAction>,
+    pub fault_selection: Option<PendingSelection>,
+    pub player_full_powers: Vec<FullPowerEntry>,
+    pub character: super::characters::CharacterState,
+    pub card_rng: Option<StreamState>,
+    pub item_context: Option<crate::items::CombatItemContext>,
+    pub replacement_progress: Option<super::enemies::ReplacementProgress>,
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {

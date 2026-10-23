@@ -1,4 +1,5 @@
 use super::super::*;
+use super::super::model::OwnedCard;
 use super::super::{effects, engine};
 use super::super::rng::StreamState;
 use super::support::base_scenario;
@@ -30,14 +31,14 @@ fn dispatch(c: &mut Combat) {
     assert!(c.state.current.is_none());
     let owners = c.state.piles.hand.iter().chain(&c.state.piles.draw)
         .chain(&c.state.piles.discard).chain(&c.state.piles.exhaust)
-        .chain(c.state.in_play.iter()).map(|card| card.instance_id.clone()).collect::<Vec<_>>();
+        .chain(c.state.in_play.iter()).map(OwnedCard::handle).collect::<Vec<_>>();
     let unique = owners.iter().cloned().collect::<std::collections::BTreeSet<_>>();
     assert_eq!(owners.len(), unique.len());
     assert_eq!(unique, c.state.card_ids_issued);
 }
 fn select_published(c: &mut Combat, id: MoveId) {
     let e = &mut c.state.enemies[0];
-    e.selected_move = id; e.intent_id = id; e.move_history.push(id);
+    e.selected_move = ActorIntentId::Legacy(id); e.intent_id = ActorIntentId::Legacy(id); e.move_history.push(ActorIntentId::Legacy(id));
     effects::refresh_enemy_values(&mut c.state).unwrap();
 }
 
@@ -104,8 +105,8 @@ fn next_player_construction_before_ritual_payload() {
     let mut c = Combat::new(&s).unwrap();
     c.state.player.energy = 0; c.state.player.block = 17;
     c.state.enemies[0].powers.push(power(PowerId::Ritual, 3, false, false));
-    c.state.enemies[0].selected_move = MoveId::Attack;
-    c.state.enemies[0].move_history.push(MoveId::Attack);
+    c.state.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
+    c.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
     queue(&mut c, EffectKind::EndRound);
     dispatch(&mut c);
     assert_eq!((c.state.phase, c.state.turn, c.state.player.energy, c.state.player.block), (Phase::PlayerStart, 2, 3, 0));
@@ -124,7 +125,7 @@ fn next_player_construction_before_ritual_payload() {
     assert_eq!(engine::resolve(&mut c.state).status, TransitionStatus::Decision);
     assert_eq!(engine::resolve(&mut restored.state).status, TransitionStatus::Decision);
     assert_eq!(c.snapshot(), restored.snapshot());
-    assert_eq!(c.state.piles.hand.iter().map(|c| c.instance_id.as_str()).collect::<Vec<_>>(), ["1", "3", "2"]);
+    assert_eq!(c.state.piles.hand.iter().map(|c| c.handle().as_str().to_owned()).collect::<Vec<_>>(), ["1", "3", "2"]);
     assert_eq!(c.state.public.revealed_order.iter().map(|id| id.as_str()).collect::<Vec<_>>(), ["3", "2"]);
 }
 
@@ -237,7 +238,7 @@ fn fallback_exhaustion_preserves_prior_turn_damage() {
     assert_eq!(c.state.rng.shuffle, shuffle);
     assert_eq!(c.state.enemies[0].move_history, [MoveId::Chomp]);
     assert_eq!(c.state.enemies[0].selected_move, MoveId::Chomp);
-    assert_eq!((c.state.enemies[0].intent_id, c.state.enemies[0].intent_damage), (MoveId::Chomp, Some(11)));
+    assert_eq!((c.state.enemies[0].intent_id.clone(), c.state.enemies[0].intent_damage), (ActorIntentId::Legacy(MoveId::Chomp), Some(11)));
     assert!(c.state.piles.hand.is_empty());
     assert_eq!(c.state.piles.discard, piles.hand.into_iter().rev().collect::<Vec<_>>());
     assert_eq!(c.state.outcome, None);
@@ -270,9 +271,10 @@ fn forced_fallback_error_uses_selection_installation_boundary() {
     // Test-only interruption at the selection call: same selector and result owner,
     // then the same resolver error installation; no product RNG substitution.
     c.state.current = c.state.pending.pop_front(); c.state.resolved_effects += 1;
-    let result = rules::select(EnemyKind::JawWorm, &c.state.enemies[0].move_history, &mut draws)
+    let history = c.state.enemies[0].move_history.iter().map(|id| id.legacy().unwrap()).collect::<Vec<_>>();
+    let result = rules::select(EnemyKind::JawWorm, &history, &mut draws)
         .map(|id| (id, draws.latest.clone()));
-    let error = turns::install_selection(&mut c.state, result).unwrap_err();
+    let error = turns::install_selection(&mut c.state, None, result).unwrap_err();
     engine::retain_error(&mut c.state, error);
     assert_eq!(draws.coins, 1);
     assert_eq!(c.state.current, Some(Effect {
@@ -297,7 +299,7 @@ fn end_player_prepends_and_round_hooks_append_in_insertion_order() {
     assert_eq!(kinds(&c), [EffectKind::DiscardHand, EffectKind::MonsterStart, EffectKind::GainBlock(0)]);
     assert_eq!(c.state.pending.back(), Some(&tail));
     dispatch(&mut c);
-    assert_eq!(c.state.piles.discard.iter().map(|c| c.instance_id.as_str()).collect::<Vec<_>>(), ["3", "2", "1"]);
+    assert_eq!(c.state.piles.discard.iter().map(|c| c.handle().as_str().to_owned()).collect::<Vec<_>>(), ["3", "2", "1"]);
     c.state.pending.clear();
     c.state.player.powers.push(power(PowerId::Vulnerable, 2, false, false));
     c.state.enemies[0].powers = vec![power(PowerId::Vulnerable, 2, false, false), power(PowerId::Ritual, 3, false, false)];

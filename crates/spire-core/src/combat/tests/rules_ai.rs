@@ -58,6 +58,45 @@ fn arithmetic_rejects_outside_bounded_surface() {
 }
 
 #[test]
+fn full_native_damage_and_absorption_cover_the_admitted_surface() {
+    assert_eq!(full_normal_damage_modifiers(10_004, 0, false, true, true), Ok(30_012));
+    assert_eq!(full_normal_damage_modifiers(10_004, 0, true, true, true), Ok(22_509));
+    assert_eq!(full_normal_damage_modifiers(35, -999, false, false, false), Ok(0));
+    assert_eq!(full_hp_and_block_after_damage(40, 7, 2_014), Ok((0, 0)));
+    assert_eq!(full_hp_and_block_after_damage(0, 999, 30_012), Ok((0, 0)));
+    assert_eq!(hp_and_block_after_damage(40, 7, 2_014).is_err(), true,
+        "legacy helper preserves its 1,515 cap");
+}
+
+#[test]
+fn full_native_damage_rejects_values_outside_its_admitted_surface() {
+    assert!(full_normal_damage_modifiers(10_005, 0, false, false, false).is_err());
+    assert!(full_normal_damage_modifiers(10_004, 1, false, false, false).is_err());
+    assert!(full_normal_damage_modifiers(-1, 0, false, false, false).is_err());
+    assert!(full_hp_and_block_after_damage(40, 0, 30_013).is_err());
+    assert!(full_hp_and_block_after_damage(40, 0, -1).is_err());
+}
+
+#[test]
+fn full_native_block_add_accepts_card_values_and_clamps_at_cap() {
+    assert_eq!(full_block_after_add(0, 11), Ok(11));
+    assert_eq!(full_block_after_add(0, 12), Ok(12));
+    assert_eq!(full_block_after_add(995, 12), Ok(999));
+    assert_eq!(full_block_after_add(999, 1007), Ok(999));
+    assert_eq!(full_block_after_add(0, 1008), Ok(999), "M2 calculated gains may exceed the old raw-payload bound");
+    assert_eq!(full_block_after_add(999, i32::MAX), Ok(999), "wide addition must not overflow");
+}
+
+#[test]
+fn full_native_block_add_rejects_invalid_bounds_without_changing_legacy_helper() {
+    for (current, amount) in [(-1, 1), (1000, 0), (0, -1)] {
+        assert!(full_block_after_add(current, amount).is_err(), "{current}, {amount}");
+    }
+    assert_eq!(block_after_add(0, 8), Ok(8));
+    assert!(block_after_add(0, 11).is_err(), "legacy helper retains its <=8 contract");
+}
+
+#[test]
 fn exact_history_laws() {
     // Independent acceptance rows; denominator is divisible by all fallback denominators.
     let common = 100_u128 * 8388608;

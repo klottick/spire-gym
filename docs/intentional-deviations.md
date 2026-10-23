@@ -81,3 +81,26 @@ snapshots, with 735 tests passing in its final implementation verification. The
 opaque schema-1 RNG slot is rejected rather than retained. These historical test
 results establish authored behavior/replay, not original-runtime validation or
 learned playing strength; independently authored Rust parity remains future work.
+
+## TIME-001 — Secret Portal's elapsed-time requirement is assumed satisfied
+
+**Decision date:** 2026-10-22. **Status:** user-approved full-run gym policy;
+implementation remains subject to the full-run plan/start gate.
+
+Treat Secret Portal's original 800-second run-playtime requirement as always
+satisfied. The selected gym models ordinary play, not competitive speedrunning;
+this narrow eligibility simplification is intentional, not elapsed-time parity.
+
+Keep Act 3 and all other ordinary eligibility, event-pool/history and random
+selection rules. Eligible does not mean guaranteed: do not force the event,
+restore it after consumption, or expose its future selection. Accepting still
+routes to the actual boss fight; declining remains available. Keys, A20's second
+Act 3 boss, rewards and terminal rules are unchanged.
+
+No run clock, frame simulation, wait action, elapsed-time feature or host-speed
+dependency is required for this policy. Focused event tests must cover the assumed
+time condition and unchanged non-time eligibility; existing replay/batch checks
+protect independence from caller delay and worker scheduling. Retain historical
+source/time findings unchanged; they describe the original rule, not this gym
+choice. No product code or original-runtime-validation claim follows from recording
+the decision.

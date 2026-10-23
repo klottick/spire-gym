@@ -1,12 +1,13 @@
 use super::super::*;
+use super::super::model::OwnedCard;
 use super::super::{engine, model::State};
 use super::super::rng::StreamState;
 use super::support::base_scenario;
 use std::collections::BTreeSet;
 
 fn work(kind: EffectKind) -> Effect { Effect { source: Source::None, target: None, kind } }
-fn ids(cards: &[CardInstance]) -> Vec<&str> {
-    cards.iter().map(|c| c.instance_id.as_str()).collect()
+fn ids(cards: &[OwnedCard]) -> Vec<String> {
+    cards.iter().map(|c| c.handle().as_str().to_owned()).collect()
 }
 fn combat(hand: &[i32], draw: &[i32], discard: &[i32]) -> Combat {
     let card = |id: &i32| CardInstance { instance_id: CardHandle::parse(&id.to_string()).unwrap(),
@@ -21,7 +22,7 @@ fn combat(hand: &[i32], draw: &[i32], discard: &[i32]) -> Combat {
 }
 fn owners(state: &State) {
     let all: Vec<_> = state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard)
-        .chain(&state.piles.exhaust).chain(state.in_play.iter()).map(|c| c.instance_id.clone()).collect();
+        .chain(&state.piles.exhaust).chain(state.in_play.iter()).map(OwnedCard::handle).collect();
     let unique: BTreeSet<_> = all.iter().cloned().collect();
     assert_eq!(all.len(), unique.len());
     assert_eq!(unique, state.card_ids_issued);
@@ -47,7 +48,7 @@ fn draw_uses_end_and_preserves_owners() {
     dispatch(&mut c);
     assert_eq!(ids(&c.state.piles.hand), ["3", "2", "1"]);
     assert!(c.state.piles.draw.is_empty());
-    assert_eq!(c.state.in_play.as_ref().unwrap().instance_id.as_str(), "4");
+    assert_eq!(c.state.in_play.as_ref().unwrap().handle().as_str(), "4");
     assert_eq!(c.state.public.revealed_order.iter().map(CardHandle::as_str).collect::<Vec<_>>(), ["3", "2", "1"]);
     dispatch(&mut c);
     assert_eq!(ids(&c.state.piles.discard), ["4"]);

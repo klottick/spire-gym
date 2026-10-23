@@ -105,6 +105,30 @@ fn opaque_handles_are_lossless() {
 }
 
 #[test]
+fn wide_signed_decimal_legacy_handle_survives_entry_step_and_snapshot() {
+    let negative = "-1267650600228229401496703205376";
+    let positive = "1267650600228229401496703205376";
+    let mut scenario = base_scenario();
+    scenario.piles.hand[0].instance_id = CardHandle::parse(negative).unwrap();
+    scenario.piles.hand[1].instance_id = CardHandle::parse(positive).unwrap();
+    let mut combat = Combat::new(&scenario).unwrap();
+    assert_eq!(combat.state.piles.hand[0].legacy().unwrap().instance_id.as_str(), negative);
+    assert_eq!(combat.state.piles.hand[1].legacy().unwrap().instance_id.as_str(), positive);
+    combat.step(&Action::PlayCard {
+        card_instance_id: CardHandle::parse(negative).unwrap(),
+        target_id: Some(scenario.enemies[0].instance_id.clone()),
+    }).unwrap();
+    combat.step(&Action::PlayCard {
+        card_instance_id: CardHandle::parse(positive).unwrap(), target_id: None,
+    }).unwrap();
+    assert_eq!(combat.state.piles.discard[0].handle().as_str(), negative);
+    assert_eq!(combat.state.piles.discard[1].handle().as_str(), positive);
+    let restored = Combat::restore(&combat.snapshot()).unwrap();
+    assert_eq!(restored.state.piles.discard[0].handle().as_str(), negative);
+    assert_eq!(restored.state.piles.discard[1].handle().as_str(), positive);
+}
+
+#[test]
 fn entry_and_restore_are_detached() {
     let mut scenario = base_scenario();
     let mut live = Combat::new(&scenario).unwrap();
@@ -113,7 +137,7 @@ fn entry_and_restore_are_detached() {
     let mut restored = Combat::restore(&captured).unwrap();
     scenario.player.hp = 1; scenario.piles.hand.clear(); scenario.enemies[0].move_history.clear();
     assert_eq!(live.snapshot(), baseline);
-    live.state.player.hp = 2; live.state.piles.hand.swap(0, 1); live.state.enemies[0].move_history.push(MoveId::Attack);
+    live.state.player.hp = 2; live.state.piles.hand.swap(0, 1); live.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
     assert_eq!(restored.snapshot(), baseline);
     restored.state.player.hp = 3; restored.state.piles.draw.push(restored.state.piles.hand.remove(0));
     assert_eq!(captured, baseline);
@@ -150,15 +174,15 @@ fn busy_snapshot_preserves_all_fields() {
     s.player.powers.push(power(PowerId::Vulnerable, i32::MAX, false, false));
     s.enemies[0].powers.push(power(PowerId::Ritual, 3, true, false));
     s.enemies[0].powers.push(power(PowerId::Vulnerable, 2, false, true));
-    s.enemies[0].selected_move = MoveId::Attack;
-    s.enemies[0].move_history.push(MoveId::Attack);
-    s.public.revealed_order.push(s.piles.hand[0].instance_id.clone());
+    s.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
+    s.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
+    s.public.revealed_order.push(s.piles.hand[0].handle());
     s.rng.shuffle = stream(Domain::CombatShuffle, &["combat-plan-1"]);
     s.rng.enemy_ai = StreamState::new(StreamId::new(Domain::CombatEnemyAi,
         vec!["combat-plan-1".into(), "enemy-scope-1".into()]).unwrap(), [29; 32], 31).unwrap();
-    s.pending.push_back(Effect { source: Source::Card(s.in_play.as_ref().unwrap().instance_id.clone()),
+    s.pending.push_back(Effect { source: Source::Card(s.in_play.as_ref().unwrap().handle()),
         target: Some(Actor::Enemy(s.enemies[0].instance_id.clone())), kind: EffectKind::Damage(DamagePayload::Fixed(6)) });
-    s.pending.push_back(Effect { source: Source::Card(s.in_play.as_ref().unwrap().instance_id.clone()),
+    s.pending.push_back(Effect { source: Source::Card(s.in_play.as_ref().unwrap().handle()),
         target: None, kind: EffectKind::FinishCard });
     s.pending.push_back(effect(EffectKind::Decision));
     let snapshot = live.snapshot();
@@ -185,7 +209,7 @@ fn runtime_bounds_ownership_and_lifecycle() {
         Box::new(|s| s.card_ids_issued.clear()),
         Box::new(|s| s.piles.draw.push(s.piles.hand[0].clone())),
         Box::new(|s| s.public.revealed_order.push(CardHandle::parse("999").unwrap())),
-        Box::new(|s| s.enemies[0].selected_move = MoveId::Chomp),
+        Box::new(|s| s.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Chomp)),
         Box::new(|s| s.enemies[0].move_history.clear()),
         Box::new(|s| s.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().output = 1516),
         Box::new(|s| s.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().base = 7),
@@ -307,7 +331,7 @@ fn every_state_component_participates_in_comparison() {
     check!(current, |s: &mut super::super::model::State| s.current = Some(effect(EffectKind::Draw(1))));
     check!(in_play, |s: &mut super::super::model::State| s.in_play = Some(s.piles.hand[0].clone()));
     check!(resolved_effects, |s: &mut super::super::model::State| s.resolved_effects = 2);
-    check!(public, |s: &mut super::super::model::State| s.public.revealed_order.push(s.piles.hand[0].instance_id.clone()));
+    check!(public, |s: &mut super::super::model::State| s.public.revealed_order.push(s.piles.hand[0].handle()));
     check!(outcome, |s: &mut super::super::model::State| s.outcome = Some(Outcome::Victory));
     check!(fault, |s: &mut super::super::model::State| s.fault = Some(FaultRecord { kind: FaultKind::Invariant, message: "first".into(), resolved_effects: 0 }));
     check!(hp_before_healing, |s: &mut super::super::model::State| s.hp_before_healing = Some(40));
@@ -335,7 +359,7 @@ fn busy_effect_targets_and_power_owners_are_validated() {
     busy.state.phase = Phase::PlayerAction;
     busy.state.in_play = Some(busy.state.piles.hand.remove(0));
     let enemy = Actor::Enemy(busy.state.enemies[0].instance_id.clone());
-    let card = Source::Card(busy.state.in_play.as_ref().unwrap().instance_id.clone());
+    let card = Source::Card(busy.state.in_play.as_ref().unwrap().handle());
     let mut work = vec![
         Effect { source: card.clone(), target: Some(enemy.clone()), kind: EffectKind::Damage(DamagePayload::Fixed(1515)) },
         Effect { source: Source::Actor(enemy.clone()), target: Some(Actor::Player), kind: EffectKind::Damage(DamagePayload::EnemyMove(MoveId::Attack)) },
@@ -388,7 +412,7 @@ fn runtime_numeric_edges_and_stream_sentinel() {
         Box::new(|s| s.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().output = -1),
         Box::new(|s| s.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().output = 7),
         Box::new(|s| s.enemies[0].powers.push(power(PowerId::Ritual, 3, true, true))),
-        Box::new(|s| s.enemies[0].move_history.extend([MoveId::Incantation])),
+        Box::new(|s| s.enemies[0].move_history.extend([ActorIntentId::Legacy(MoveId::Incantation)])),
         Box::new(|s| s.player.powers.push(power(PowerId::Vulnerable, 0, false, false))),
         Box::new(|s| s.resolved_effects = 100001),
     ];
@@ -447,9 +471,9 @@ fn busy_continuations_cannot_hide_incomplete_ownership_or_intent() {
             2 => bad.state.pending.push_back(effect(EffectKind::Terminal(Outcome::Victory))),
             3 => bad.state.enemies[0].intent_damage = Some(6),
             _ => {
-                bad.state.enemies[0].intent_id = MoveId::Attack;
-                bad.state.enemies[0].selected_move = MoveId::Attack;
-                bad.state.enemies[0].move_history.push(MoveId::Attack);
+                bad.state.enemies[0].intent_id = ActorIntentId::Legacy(MoveId::Attack);
+                bad.state.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
+                bad.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
                 bad.state.enemies[0].intent_damage = None;
             }
         }
@@ -457,7 +481,7 @@ fn busy_continuations_cannot_hide_incomplete_ownership_or_intent() {
     }
     busy.state.in_play = Some(busy.state.piles.hand.remove(0));
     busy.state.pending.push_front(Effect {
-        source: Source::Card(busy.state.in_play.as_ref().unwrap().instance_id.clone()),
+        source: Source::Card(busy.state.in_play.as_ref().unwrap().handle()),
         target: None, kind: EffectKind::FinishCard });
     assert!(Combat::restore(&busy).is_ok());
 }
@@ -510,7 +534,7 @@ fn matching_finish_card_resumes_all_card_rows_to_real_step_outcomes() {
         // Independently authored card schedule, then real dispatches and restores.
         let mut live = Combat::new(&scenario).unwrap();
         live.state.phase = Phase::PlayerAction;
-        let index = live.state.piles.hand.iter().position(|c| c.instance_id == handle).unwrap();
+        let index = live.state.piles.hand.iter().position(|c| c.handle() == handle).unwrap();
         live.state.in_play = Some(live.state.piles.hand.remove(index));
         live.state.player.energy -= cost;
         let source = Source::Card(handle.clone());
@@ -539,7 +563,7 @@ fn matching_finish_card_resumes_all_card_rows_to_real_step_outcomes() {
         assert_eq!(live.state.player.energy, 3 - cost);
         assert_eq!(live.state.resolved_effects, dispatches);
         assert!(live.state.in_play.is_none());
-        assert_eq!(live.state.piles.discard[0].instance_id, handle);
+        assert_eq!(live.state.piles.discard[0].handle(), handle);
         assert_eq!(live.state.fault, None);
     }
 }

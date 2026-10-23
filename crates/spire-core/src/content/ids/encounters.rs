@@ -1,0 +1,42 @@
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum EnemyId {
+    Cultist, JawWorm, GremlinNob, LouseRed, LouseGreen,
+    AcidSlimeS, AcidSlimeM, AcidSlimeL, SpikeSlimeS, SpikeSlimeM, SpikeSlimeL, SlimeBoss,
+    Unknown(&'static str),
+}
+impl EnemyId { pub const fn as_str(self) -> &'static str { match self {
+    Self::Cultist => "cultist", Self::JawWorm => "jaw_worm", Self::GremlinNob => "gremlin_nob",
+    Self::LouseRed => "fuzzy_louse_normal", Self::LouseGreen => "fuzzy_louse_defensive",
+    Self::AcidSlimeS => "acid_slime_s", Self::AcidSlimeM => "acid_slime_m", Self::AcidSlimeL => "acid_slime_l",
+    Self::SpikeSlimeS => "spike_slime_s", Self::SpikeSlimeM => "spike_slime_m", Self::SpikeSlimeL => "spike_slime_l",
+    Self::SlimeBoss => "slime_boss",
+    Self::Unknown(s) => s,
+} } }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum EncounterId {
+    Cultist, JawWorm, TwoLouse, SmallSlimes, BlueSlaver, RedSlaver, Looter, LargeSlime,
+    ThreeLouse, TwoFungiBeasts, GremlinGang, LotsOfSlimes, ExordiumThugs, ExordiumWildlife,
+    GremlinNob, Lagavulin, ThreeSentries, Guardian, Hexaghost, SlimeBoss,
+    SphericGuardian, Chosen, ShelledParasite, ThreeByrds, TwoThieves, ChosenAndByrds,
+    SentryAndSphere, SnakePlant, Snecko, CenturionAndHealer, CultistAndChosen, ThreeCultists,
+    ShelledParasiteAndFungi, GremlinLeader, Slavers, BookOfStabbing, BronzeAutomaton, Collector, Champ,
+    ThreeDarklings, OrbWalker, ThreeShapes, SpireGrowth, Transient, FourShapes, Maw,
+    SphereAndTwoShapes, JawWormHorde, WrithingMass, GiantHead, Nemesis, Reptomancer,
+    AwakenedOne, TimeEater, DonuAndDeca, Unknown(&'static str)
+}
+impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
+    Self::Cultist=>"cultist", Self::JawWorm=>"jaw_worm", Self::TwoLouse=>"two_louse", Self::SmallSlimes=>"small_slimes",
+    Self::BlueSlaver=>"blue_slaver", Self::RedSlaver=>"red_slaver", Self::Looter=>"looter", Self::LargeSlime=>"large_slime",
+    Self::ThreeLouse=>"three_louse", Self::TwoFungiBeasts=>"two_fungi_beasts", Self::GremlinGang=>"gremlin_gang", Self::LotsOfSlimes=>"lots_of_slimes",
+    Self::ExordiumThugs=>"exordium_thugs", Self::ExordiumWildlife=>"exordium_wildlife", Self::GremlinNob=>"gremlin_nob", Self::Lagavulin=>"lagavulin",
+    Self::ThreeSentries=>"three_sentries", Self::Guardian=>"guardian", Self::Hexaghost=>"hexaghost", Self::SlimeBoss=>"slime_boss",
+    Self::SphericGuardian=>"spheric_guardian", Self::Chosen=>"chosen", Self::ShelledParasite=>"shelled_parasite", Self::ThreeByrds=>"three_byrds",
+    Self::TwoThieves=>"two_thieves", Self::ChosenAndByrds=>"chosen_and_byrds", Self::SentryAndSphere=>"sentry_and_sphere", Self::SnakePlant=>"snake_plant",
+    Self::Snecko=>"snecko", Self::CenturionAndHealer=>"centurion_and_healer", Self::CultistAndChosen=>"cultist_and_chosen", Self::ThreeCultists=>"three_cultists",
+    Self::ShelledParasiteAndFungi=>"shelled_parasite_and_fungi", Self::GremlinLeader=>"gremlin_leader", Self::Slavers=>"slavers", Self::BookOfStabbing=>"book_of_stabbing",
+    Self::BronzeAutomaton=>"bronze_automaton", Self::Collector=>"collector", Self::Champ=>"champ", Self::ThreeDarklings=>"three_darklings",
+    Self::OrbWalker=>"orb_walker", Self::ThreeShapes=>"three_shapes", Self::SpireGrowth=>"spire_growth", Self::Transient=>"transient", Self::FourShapes=>"four_shapes",
+    Self::Maw=>"maw", Self::SphereAndTwoShapes=>"sphere_and_two_shapes", Self::JawWormHorde=>"jaw_worm_horde", Self::WrithingMass=>"writhing_mass",
+    Self::GiantHead=>"giant_head", Self::Nemesis=>"nemesis", Self::Reptomancer=>"reptomancer", Self::AwakenedOne=>"awakened_one",
+    Self::TimeEater=>"time_eater", Self::DonuAndDeca=>"donu_and_deca", Self::Unknown(s)=>s,
+} } }

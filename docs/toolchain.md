@@ -2,6 +2,12 @@
 
 ## Bounded combat environment status
 
+The counts below are retained verification records, not a rerun during the
+2026-10-22 documentation/tracker cleanup. Current scope is the gym for external
+ML consumers; model/training code is outside this repo. Existing tensor/device
+smoke dependencies remain pinned and unchanged. CUDA is not a gym prerequisite;
+the readiness-test isolation follow-up remains `spire-vhh`.
+
 The existing native batching and single/vector Gymnasium slice passed a fresh
 offline run of 169 Rust workspace tests. Controller verification with a freshly
 built candidate-revision extension passed all 167 `tests/python/env` tests. The
@@ -49,8 +55,8 @@ actually tested.
 | Crate | Version | Notes |
 | --- | --- | --- |
 | pyo3 | 0.29.3 | extension binding, `pyo3/extension-module` in extension builds |
-| rust-numpy (`numpy`) | 0.29.0 | optional, extension-feature only; requires `pyo3 ^0.29` (compatible with the locked 0.29.3) and targets the NumPy 2.x runtime (2.5.4); not used by code yet |
-| spire-core / spire-env / spire-python / spire-cli | 0.1.0 (workspace) | documentation-only scaffolds except the binding metadata |
+| rust-numpy (`numpy`) | 0.29.0 | optional, extension-feature only; requires `pyo3 ^0.29` (compatible with the locked 0.29.3) and targets the NumPy 2.x runtime (2.5.4); used by native numeric environment bindings |
+| spire-core / spire-env / spire-python / spire-cli | 0.1.0 (workspace) | narrow combat core, native environment/batching, bindings and developer CLI are implemented; not full-run support |
 
 ## Test evidence (fix round 1, on CPython 3.12.15)
 

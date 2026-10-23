@@ -1,9 +1,9 @@
 # Development setup
 
-See [repository scope](scope.md) for the goals and current delivery path: an AI
-that learns to play StS, enabled by an optimized, game-correct **headless Rust
-simulator**, native batching and Python learning. No playable client or rendering
-is part of this repository's product.
+See [repository scope](scope.md) for the current delivery path: a usable headless
+gym with a Rust simulator, native batching and thin Python/Gymnasium interfaces
+for external ML consumers. Models, training, learner checkpoints and experiments
+are outside this repo. No playable client or rendering is part of the product.
 
 Current state: the Rust/Python package foundation, device-readiness probe, narrow
 supplied-entry Python combat reference and bounded native batched combat/Gymnasium
@@ -20,9 +20,10 @@ extension passed all 167 environment Python tests; the full Python suite had 995
 passes and the same two baseline readiness-test failures as main. Those CPU-only
 failures are separate from historical required-CUDA checks that failed with CUDA
 allocation OOMs. A fully green suite, CUDA readiness and original-runtime validation
-are not claimed. Models and learners are
-not implemented. The optimizer probe is only a
-tiny smoke computation, not a validated learning result or training pipeline.
+are not claimed. Models and learners are external, not planned in-repo work.
+The existing optimizer probe is retained historical device-readiness smoke code,
+not a training pipeline or a gym prerequisite. No dependencies were removed as
+part of this scope correction.
 
 Validation/capture tools stay outside simulation and training execution. Neither
 requires a running original game or an active Windows connection. The approved
@@ -34,7 +35,10 @@ granted by Python/Rust agreement.
 
 ## Environment
 
-- Linux workstation (development and training host).
+- Linux workstation (gym development/test host; external learners may use it too).
+- Rust simulation and the gym do not require CUDA. Existing optional device checks
+  are separate from environment correctness; a failing CUDA probe is not itself a
+  simulator failure. The known readiness-test isolation issue is `spire-vhh`.
 - Network access is required for first dependency downloads only; all later
   builds are reproducible from the lockfiles (`uv.lock`, `Cargo.lock`).
 - No system-wide installs: toolchains land in user-local locations
@@ -91,7 +95,7 @@ uv run --no-sync pytest tests/python/test_readiness.py -q
 # Run the Rust test suite (links without a Python interpreter)
 cargo test --workspace --locked
 
-# Device readiness (real computation; requires a working GPU)
+# Optional historical device-readiness probe (real computation; requires a GPU)
 uv run --no-sync python -m spire_lab.readiness --require-cuda
 
 # CLI version smoke check
@@ -123,9 +127,12 @@ uv sync --locked --dev          # re-verify the venv against the new lock
 uv run --no-sync maturin develop --release --locked
 ```
 
-After such a change, rebuild the extension and rerun the full suites and the
-real CUDA readiness probe before committing, and update
-[toolchain.md](toolchain.md).
+After such a change, rebuild the extension and rerun the affected/full suites,
+then update [toolchain.md](toolchain.md). Device/CUDA checks are relevant only when
+the scoped change affects that tooling; do not add a GPU gate to ordinary gym
+work. Keep the known readiness-test failures explicit rather than calling a
+qualified test result fully green. Dependency changes and commits need their own
+authority; this guide is not permission to install or publish.
 
 ## Build configuration notes
 
@@ -135,17 +142,18 @@ real CUDA readiness probe before committing, and update
   `extension` feature for extension builds.
 - `spire-python` keeps PyO3 and rust-numpy behind the non-default `extension`
   feature so `cargo test --workspace` compiles and links with only the Rust
-  toolchain. rust-numpy 0.29.0 is resolved for this baseline and is not used
-  by code yet (prepared for later batched numeric outputs).
+  toolchain. The binding's numeric module uses rust-numpy for the implemented
+  native environment buffers; it is not merely a future batching dependency.
 - `crates/spire-python/build.rs` records the git revision (or
   `SPIRE_REVISION`, or `unknown`) and the Rust compiler version at build
   time, and watches the resolved git `HEAD` plus the branch ref inputs so
   incremental rebuilds refresh the revision after commit/checkout without
   `cargo clean`; `_native.build_info()` exposes the values.
 - Crates: `spire-core` (Python-independent simulation core) <- `spire-env`
-  (environment abstractions) <- `spire-python` (bindings) / `spire-cli`
-  (developer CLI). The core contains trace-reader tooling and the narrow combat
-  simulator; the environment crate remains scaffolding. No game state enters the
-  device-readiness probe.
+  (implemented bounded native environments/batching) <- `spire-python` (bindings)
+  / `spire-cli` (developer CLI). The core contains trace-reader tooling and the
+  narrow combat simulator; `python/spire_lab/gymnasium` provides the facades.
+  No game state enters the device-readiness probe. See
+  [environment usage](combat-environments.md) for the existing rollout example.
 
 See [toolchain.md](toolchain.md) for the exact resolved version matrix.

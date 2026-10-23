@@ -1,0 +1,42 @@
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum CardId {
+    Strike, Defend, Bash, StrikeGreen, DefendGreen, Neutralize, Survivor,
+    StrikeBlue, DefendBlue, Zap, Dualcast, StrikePurple, DefendPurple,
+    Eruption, Vigilance, Anger, IronWave, Cleave, PommelStrike, ShrugItOff, TwinStrike,
+    Backflip, DaggerThrow, Deflect, QuickSlash, CloakAndDagger, Shiv,
+    Clothesline, HeavyBlade, PerfectedStrike, Thunderclap,
+    BallLightning, ColdSnap, Coolheaded, Leap,
+    Consecrate, EmptyBody, EmptyFist, EmptyMind,
+    BeamCell, GoForTheEyes, Barrage, CompileDriver, SweepingBeam,
+    DeadlyPoison, PoisonedStab, Catalyst,
+    Bloodletting, BurningPact, Disarm,
+    AscendersBane, Miracle, Wound, Madness, Regret, Slimed,
+    Unknown(&'static str),
+}
+impl CardId {
+    pub const fn as_str(self) -> &'static str { match self {
+        Self::Strike => "strike", Self::Defend => "defend", Self::Bash => "bash",
+        Self::StrikeGreen => "strike_g", Self::DefendGreen => "defend_g", Self::Neutralize => "neutralize", Self::Survivor => "survivor",
+        Self::StrikeBlue => "strike_b", Self::DefendBlue => "defend_b", Self::Zap => "zap", Self::Dualcast => "dualcast",
+        Self::StrikePurple => "strike_p", Self::DefendPurple => "defend_p", Self::Eruption => "eruption", Self::Vigilance => "vigilance",
+        Self::Anger => "anger", Self::IronWave => "iron_wave", Self::Cleave => "cleave",
+        Self::PommelStrike => "pommel_strike", Self::ShrugItOff => "shrug_it_off", Self::TwinStrike => "twin_strike",
+        Self::Backflip => "backflip", Self::DaggerThrow => "dagger_throw", Self::Deflect => "deflect",
+        Self::QuickSlash => "quick_slash", Self::CloakAndDagger => "cloak_and_dagger", Self::Shiv => "shiv",
+        Self::Clothesline => "clothesline", Self::HeavyBlade => "heavy_blade",
+        Self::PerfectedStrike => "perfected_strike", Self::Thunderclap => "thunderclap",
+        Self::BallLightning => "ball_lightning", Self::ColdSnap => "cold_snap",
+        Self::Coolheaded => "coolheaded", Self::Leap => "leap",
+        Self::Consecrate => "consecrate", Self::EmptyBody => "empty_body",
+        Self::EmptyFist => "empty_fist", Self::EmptyMind => "empty_mind",
+        Self::BeamCell => "beam_cell", Self::GoForTheEyes => "go_for_the_eyes",
+        Self::Barrage => "barrage", Self::CompileDriver => "compile_driver",
+        Self::SweepingBeam => "sweeping_beam",
+        Self::DeadlyPoison => "deadly_poison", Self::PoisonedStab => "poisoned_stab",
+        Self::Catalyst => "catalyst",
+        Self::Bloodletting => "bloodletting", Self::BurningPact => "burning_pact", Self::Disarm => "disarm",
+        Self::AscendersBane => "ascenders_bane", Self::Miracle => "miracle", Self::Wound => "wound",
+        Self::Madness => "madness", Self::Regret => "regret", Self::Slimed => "slimed",
+        Self::Unknown(value) => value,
+    }}
+}

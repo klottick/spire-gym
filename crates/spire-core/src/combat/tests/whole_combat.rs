@@ -18,7 +18,7 @@ fn ownership(c: &Combat, s: &Scenario) {
     let expected: std::collections::BTreeMap<_,_> = s.piles.hand.iter().chain(&s.piles.draw).map(|c| (c.instance_id.clone(), c.clone())).collect();
     let cards: Vec<_> = c.state.piles.hand.iter().chain(&c.state.piles.draw).chain(&c.state.piles.discard).chain(&c.state.piles.exhaust).chain(c.state.in_play.iter()).collect();
     assert_eq!(cards.len(), expected.len());
-    assert_eq!(cards.into_iter().map(|c| (c.instance_id.clone(), c.clone())).collect::<std::collections::BTreeMap<_,_>>(), expected);
+    assert_eq!(cards.into_iter().map(|c| (c.handle(), c.legacy().unwrap().clone())).collect::<std::collections::BTreeMap<_,_>>(), expected);
     assert_eq!(c.state.card_ids_issued, expected.keys().cloned().collect());
 }
 #[test]
@@ -27,7 +27,7 @@ fn two_turn_victories() {
         let s = scenario(enemy); let mut c = Combat::new(&s).unwrap();
         for a in &actions()[..2] { c.step(a).unwrap(); } assert_eq!(c.state.enemies[0].hp, hp1);
         c.step(&Action::EndTurn).unwrap();
-        assert_eq!(c.state.piles.hand.iter().map(|c| c.instance_id.as_str()).collect::<Vec<_>>(), ["1","3","2"]);
+        assert_eq!(c.state.piles.hand.iter().map(|c| c.handle().as_str().to_owned()).collect::<Vec<_>>(), ["1","3","2"]);
         assert_eq!((c.state.rng.shuffle.word_index(),c.state.rng.enemy_ai.word_index()),(2,ai));
         c.step(&play("1")).unwrap(); assert_eq!(c.state.enemies[0].hp,hp2);
         assert_eq!(c.step(&play("2")).unwrap().status,TransitionStatus::Terminal);
@@ -64,8 +64,8 @@ fn whole_combat_safe_points_and_independent_snapshot_baselines() {
             match &action {
                 Action::EndTurn => c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::EndPlayerTurn}),
                 Action::PlayCard{card_instance_id,..} => {
-                    let i=c.state.piles.hand.iter().position(|c| &c.instance_id==card_instance_id).unwrap();
-                    let card=c.state.piles.hand.remove(i); let bash=card.card_id==CardKind::Bash;
+                    let i=c.state.piles.hand.iter().position(|c| c.handle()==*card_instance_id).unwrap();
+                    let card=c.state.piles.hand.remove(i); let bash=card.legacy().unwrap().card_id==CardKind::Bash;
                     c.state.player.energy-=if bash {2} else {1}; c.state.in_play=Some(card);
                     let target=Some(Actor::Enemy(c.state.enemies[0].instance_id.clone()));
                     let vulnerable=c.state.enemies[0].powers.iter().any(|p|p.id==PowerId::Vulnerable);

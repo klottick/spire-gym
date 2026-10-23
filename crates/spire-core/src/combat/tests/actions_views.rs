@@ -1,5 +1,6 @@
 use super::super::*;
 use super::super::{engine, model, piles};
+use super::super::model::OwnedCard;
 use super::super::rng::{Domain, StreamId, StreamState};
 use super::support::base_scenario;
 
@@ -24,7 +25,7 @@ fn bash_then_strike_order() {
     assert_eq!(c.state.enemies[0].powers[0].state.amount, 2);
     assert_eq!(c.step(&play(&c, "2", true)).unwrap().status, TransitionStatus::Decision);
     assert_eq!((c.state.enemies[0].hp, c.state.player.energy), (31, 0));
-    assert_eq!(c.state.piles.discard.iter().map(|c| c.instance_id.as_str()).collect::<Vec<_>>(), ["1", "2"]);
+    assert_eq!(c.state.piles.discard.iter().map(|c| c.handle().as_str().to_owned()).collect::<Vec<_>>(), ["1", "2"]);
     assert!(c.state.in_play.is_none());
     assert_eq!(c.state.rng, rng);
     assert!(Combat::restore(&c.snapshot()).is_ok());
@@ -109,8 +110,8 @@ fn public_hidden_state_noninterference() {
         vec!["different".into()]).unwrap(), [21; 32], 18).unwrap();
     b.state.rng.enemy_ai = StreamState::new(StreamId::new(Domain::CombatEnemyAi,
         vec!["different".into(), "private".into()]).unwrap(), [22; 32], 33).unwrap();
-    b.state.enemies[0].move_history.push(MoveId::Attack);
-    b.state.enemies[0].selected_move = MoveId::Attack;
+    b.state.enemies[0].move_history.push(ActorIntentId::Legacy(MoveId::Attack));
+    b.state.enemies[0].selected_move = ActorIntentId::Legacy(MoveId::Attack);
     b.state.enemies[0].damage_entries.get_mut(&MoveId::Attack).unwrap().output = 9;
     assert_eq!(a.public_view(), b.public_view());
     assert_eq!(a.legal_actions(), b.legal_actions());
@@ -153,7 +154,7 @@ fn burning_blood_terminal_checkpoints() {
         assert_eq!(c.state.piles.hand, hand);
         assert_eq!(c.state.player.block, 7);
         assert_eq!(c.state.player.energy, 2);
-        assert_eq!(c.state.in_play.as_ref().unwrap().instance_id.as_str(), "1");
+        assert_eq!(c.state.in_play.as_ref().unwrap().handle().as_str(), "1");
         assert!(c.state.piles.discard.is_empty());
         assert!(c.state.pending.is_empty() && c.state.current.is_none());
         assert_eq!(c.state.rng, rng);
@@ -194,7 +195,7 @@ fn end_turn_schedules_and_resets_only_accepted_budget() {
     assert_eq!((c.state.turn, c.state.player.hp), (2, 40));
     let owned = c.state.piles.hand.iter().chain(&c.state.piles.draw)
         .chain(&c.state.piles.discard).chain(&c.state.piles.exhaust)
-        .map(|card| card.instance_id.clone()).collect::<std::collections::BTreeSet<_>>();
+        .map(OwnedCard::handle).collect::<std::collections::BTreeSet<_>>();
     assert_eq!(owned, before.state.card_ids_issued);
     assert!(c.state.in_play.is_none());
 }
@@ -204,7 +205,7 @@ fn discard_membership_is_immediate_and_checked() {
     let mut c = combat();
     let id = CardHandle::parse("2").unwrap();
     piles::discard_card(&mut c.state, &id, true).unwrap();
-    assert_eq!(c.state.piles.discard[0].instance_id, id);
+    assert_eq!(c.state.piles.discard[0].handle(), id);
     assert_eq!(c.state.piles.hand.len(), 2);
     let before = c.snapshot();
     assert!(piles::discard_card(&mut c.state, &id, true).is_err());
@@ -262,7 +263,7 @@ fn lethal_bash_prunes_vulnerable_and_keeps_all_other_piles() {
     assert_eq!(c.state.piles.exhaust, before.state.piles.exhaust);
     assert_eq!(c.state.piles.draw, before.state.piles.draw);
     assert_eq!(c.state.player.block, 5);
-    assert_eq!(c.state.in_play.as_ref().unwrap().instance_id.as_str(), "3");
+        assert_eq!(c.state.in_play.as_ref().unwrap().handle().as_str(), "3");
     assert!(Combat::restore(&c.snapshot()).is_ok());
 }
 

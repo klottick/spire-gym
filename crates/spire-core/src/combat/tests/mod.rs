@@ -10,3 +10,8 @@ mod turns;
 mod whole_combat;
 mod differential;
 mod differential_decode;
+mod full_runtime;
+mod full_enemies;
+mod full_cards;
+mod selection;
+mod shared_mechanics;
