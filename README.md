@@ -43,7 +43,7 @@ The final target remains **all four fully unlocked characters, Ascension 0–20,
 Acts 1–4 and the Heart, with all normally reachable content**; A20 is the primary
 final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
-M3 `.25`/`.25.1`/`.25.2` are closed; M4 `.26`/planning `.26.1` are next. Old
+M3 `.25`, M4 `.26`, M5 `.27` and M6 `.28` are accepted; M7 `.29` is planning-only next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
@@ -64,10 +64,31 @@ now has an [accepted runnable profile](docs/milestones/m4-rooms.md): real normal
 resources, Neow and room consequences on an explicitly authored nine-floor route
 with captured offers—not smaller standard random pools or Act1/boss completion.
 One isolated GPT-6 Luna review found no issues; seven unchanged draft failures
-remain. M5 is next for planning, not product implementation.
+remain. M5 implementation is described below.
 
 ```sh
 cargo run -p spire-core --example m4_rooms --locked --offline -- --scenario all --seed 7
+```
+
+The [M5 implementation plan](docs/superpowers/plans/2026-10-23-m5-ironclad-act1.md)
+is user-approved. Its [accepted runnable profile](docs/milestones/m5-act1.md) completes
+real public standard-resource paths through the entire generated map, all three
+elite/boss alternatives, captured rewards and same-player nonterminal Act2Ready.
+One isolated GPT-6 Luna milestone review found no issues. Standard pools/full Neow/Act2 gameplay
+remain incomplete; seven unchanged draft failures remain, not workspace green.
+
+```sh
+cargo run -p spire-core --example m5_act1 --locked --offline -- --scenario all --seed 7
+```
+
+The [M6 plan](docs/superpowers/plans/2026-10-23-m6-act2-mechanics.md) is approved
+and its [runnable profile](docs/milestones/m6-act2.md) now executes real Act2
+mechanics/events and same-player public paths through floor26. One isolated Luna
+review found no issues at this accepted scope. Full Act2 progression remains M7, and M5 still
+stops at its unchanged no-action Act2Ready.
+
+```sh
+cargo run -p spire-core --example m6_act2 --locked --offline -- --scenario all --seed 7
 ```
 
 See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)
@@ -95,7 +116,8 @@ Historical failed comparisons remain retained. Task reviews, whole-slice review,
 final correction review and fresh controller verification are complete for that
 historical core-only handoff; they do not describe verification of the later
 batching/Gymnasium integration.
-Run-level simulation is not implemented. The learning system is external, not
+Full-run simulation is not implemented; bounded M3–M5 Run profiles above are native.
+The learning system is external, not
 an unfinished deliverable of this repository.
 No learned playing-strength or optimized simulator-throughput result
 is claimed. The Python reference and validation tools support those products;

@@ -10,11 +10,14 @@ pub enum CardId {
     BeamCell, GoForTheEyes, Barrage, CompileDriver, SweepingBeam,
     DeadlyPoison, PoisonedStab, Catalyst,
     Bloodletting, BurningPact, Disarm,
-    AscendersBane, Miracle, Wound, Madness, Regret, Slimed,
+    Bludgeon, Impervious, Offering,
+    AscendersBane, Miracle, Wound, Madness, Regret, Slimed, Dazed, Burn,
     Unknown(&'static str),
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
+        Self::Dazed=>"dazed",Self::Burn=>"burn",
+        Self::Bludgeon=>"bludgeon",Self::Impervious=>"impervious",Self::Offering=>"offering",
         Self::Strike => "strike", Self::Defend => "defend", Self::Bash => "bash",
         Self::StrikeGreen => "strike_g", Self::DefendGreen => "defend_g", Self::Neutralize => "neutralize", Self::Survivor => "survivor",
         Self::StrikeBlue => "strike_b", Self::DefendBlue => "defend_b", Self::Zap => "zap", Self::Dualcast => "dualcast",

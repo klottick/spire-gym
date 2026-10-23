@@ -1,7 +1,8 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RelicId { BurningBlood, RingOfTheSnake, CrackedCore, PureWater, BloodVial, Anchor, Lantern,
-    Strawberry, Pear, Mango, SacredBark, MarkOfBloom, MagicFlower, ToyOrnithopter, NeowsLament, Unknown(&'static str) }
+    Strawberry, Pear, Mango, SacredBark, MarkOfBloom, MagicFlower, ToyOrnithopter, NeowsLament, BlackBlood, EmptyCage, SlaversCollar, Unknown(&'static str) }
 impl RelicId { pub const fn as_str(self) -> &'static str { match self {
+    Self::BlackBlood=>"black_blood",Self::EmptyCage=>"empty_cage",Self::SlaversCollar=>"slavers_collar",
     Self::BurningBlood => "burning_blood", Self::RingOfTheSnake => "ring_of_the_snake", Self::CrackedCore => "cracked_core", Self::PureWater => "pure_water",
     Self::BloodVial => "blood_vial", Self::Anchor => "anchor", Self::Lantern => "lantern",
     Self::Strawberry => "strawberry", Self::Pear => "pear", Self::Mango => "mango", Self::SacredBark => "sacred_bark", Self::MarkOfBloom => "mark_of_bloom",

@@ -7,8 +7,9 @@ use crate::{
 use super::CombatItemContext;
 
 pub(super) fn on_run_hook(state: &mut RunState, hook: Hook) -> Result<(), RunError> {
-    if hook == Hook::CombatSettled && state.hp > 0 && state.relics.contains(&RelicId::BurningBlood) {
-        let heal = super::ordinary_heal_amount(&state.relics, 6).max(0) as u32;
+    if hook == Hook::CombatSettled && state.hp > 0 && (state.relics.contains(&RelicId::BurningBlood)||state.relics.contains(&RelicId::BlackBlood)) {
+        let base=if state.relics.contains(&RelicId::BlackBlood){12}else{6};
+        let heal = super::ordinary_heal_amount(&state.relics, base).max(0) as u32;
         state.hp = state.hp.saturating_add(heal).min(state.max_hp);
     }
     Ok(())
@@ -50,7 +51,8 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
                     destination: crate::combat::CardDestination::Hand,
                     upgrades: 0,
                 }),
-                (Hook::CombatSettled, RelicId::BurningBlood) if hp > 0 => Some(EffectKind::Heal(6)),
+                (Hook::CombatSettled, RelicId::BurningBlood) if hp > 0&&!context.owns_relic(RelicId::BlackBlood) => Some(EffectKind::Heal(6)),
+                (Hook::CombatSettled, RelicId::BlackBlood) if hp>0=>Some(EffectKind::Heal(12)),
                 _ => None,
             };
             if let Some(kind) = kind {
@@ -66,6 +68,8 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
 /// Apply the native acquisition/equipment child for relics whose effect is
 /// defined at obtain time. RunState is the sole owner outside active combat.
 pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError> {
+    if id==RelicId::BlackBlood{return replace_burning_blood(state)}
+    if matches!(id,RelicId::EmptyCage|RelicId::SlaversCollar)&&state.relics.contains(&id){return Err(RunError::InvalidAction)}
     if state.combat.is_some() { return Err(RunError::InvalidAction); }
     if crate::content::Catalog::standard().relic(id).is_none() {
         return Err(RunError::Registry("unknown relic"));
@@ -94,4 +98,9 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
     state.max_hp = max_hp;
     state.hp = hp;
     Ok(())
+}
+
+pub(super) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{
+    if state.combat.is_some()||state.relics.first()!=Some(&RelicId::BurningBlood)||state.relics.contains(&RelicId::BlackBlood){return Err(RunError::InvalidAction)}
+    state.relics[0]=RelicId::BlackBlood;state.relic_counters.remove(&RelicId::BurningBlood);Ok(())
 }

@@ -65,7 +65,7 @@ impl Run {
         let candidates=if self.state.terminal.is_some(){vec![]}else if self.state.room_loop.is_some(){super::rooms::candidates(self)?}else{self.candidates.clone()};
         let offers=candidates.iter().filter_map(|c|c.neow_offer.clone()).collect();
         let selection=self.state.pending.as_ref().map(|p|PublicSelection{required:p.selection.required,selected_count:p.selection.selected.len(),eligible:p.selection.candidates.iter().map(|c|PublicObject{instance:c.card.instance,id:c.card.id,upgrades:c.card.upgrades}).collect()});
-        Ok(PublicDecision{room:self.state.room_loop.as_ref().map(|_|super::rooms::public(self)).transpose()?,reward_total:self.state.reward_ledger.total,combat:None,combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone(),act:self.state.act,floor:self.state.floor,player:PublicPlayer{relic_counters:crate::items::visible_counters(&self.state.relic_counters),character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
+        Ok(PublicDecision{content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room:self.state.room_loop.as_ref().map(|_|super::rooms::public(self)).transpose()?,reward_total:self.state.reward_ledger.total,combat:None,combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone(),act:self.state.act,floor:self.state.floor,player:PublicPlayer{relic_counters:crate::items::visible_counters(&self.state.relic_counters),character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
     }
     pub fn step(&mut self,action:&GameAction)->Result<RunTransition,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
@@ -106,7 +106,7 @@ impl Run {
         }else{self.publish_selection_candidates()?;}
         Ok(RunTransition{reward:0,terminal:None,committed_events:vec![]})
     }
-    fn publish_selection_candidates(&mut self)->Result<(),RunError>{
+    pub(super) fn publish_selection_candidates(&mut self)->Result<(),RunError>{
         let selection_ids=self.state.pending.as_ref().map(|p|p.selection.candidates.iter().map(|x|x.id).collect::<Vec<_>>()).unwrap_or_default();
         let mut next=self.next_choice;let mut candidates=vec![];for selection_id in selection_ids{
             let id=super::rooms::token(&mut next)?;

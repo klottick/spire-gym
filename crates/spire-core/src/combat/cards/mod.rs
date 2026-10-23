@@ -96,6 +96,9 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         .find(|(_, card)| card.handle() == handle)
         .ok_or(crate::run::RunError::InvalidAction)?;
     let card = owned.full().ok_or(crate::run::RunError::InvalidAction)?;
+    if combat.state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
+        &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound){return Err(crate::run::RunError::InvalidAction);}
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
@@ -148,6 +151,15 @@ pub fn resolve(combat: &mut Combat, action: &CombatAction) -> Result<(), crate::
 
 #[derive(Clone)]
 enum PayloadTarget { Player, SelectedEnemy, Enemy(EnemyHandle) }
+
+/// Obtain price from the same read-only payload producer as actual play, not a second table.
+pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound){return None}
+    payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)
+}
+pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
+    if card.local.x_cost{return None}super::card_state::effective_cost(card,base_cost(state,card)?).ok()
+}
 
 fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     -> Result<(i32, Vec<(Option<PayloadTarget>, EffectKind)>), crate::run::RunError>

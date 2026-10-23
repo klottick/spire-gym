@@ -31,7 +31,7 @@ fn lament_starts_every_initial_actor_at_one_hp_and_keeps_maximum() {
     let mut r=run();choose(&mut r,RoomChoiceKind::NeowLament);
     assert_eq!(r.state.relic_counters.get(&RelicId::NeowsLament),Some(&3));
     // A valid native Two Louse entry supplements the normal-resource public route.
-    r.enter_owned(crate::content::EncounterId::TwoLouse,super::super::CombatOrigin::MapRoom(NodeId(45))).unwrap();
+    r.enter_owned(crate::content::EncounterId::TwoLouse,super::super::CombatOrigin::MapRoom{node:NodeId(45),kind:MapNodeKind::Monster}).unwrap();
     let d=r.decision().unwrap();let c=d.combat.unwrap();
     assert_eq!(c.enemies.len(),2);assert!(c.enemies.iter().all(|e|e.hp==1&&e.max_hp>1));
     assert!(r.state.relic_counters.is_empty(),"active inventory has one counter owner");
@@ -43,7 +43,7 @@ fn lament_counter_returns_expires_and_potion_use_never_resets_it() {
     let mut r=run();choose(&mut r,RoomChoiceKind::NeowLament);
     r.step(&GameAction::Move(NodeId(2))).unwrap();
     for expected in [2,1,-2,-2] {
-        if r.state.combat.is_none(){r.enter_owned(EncounterId::Cultist,super::super::CombatOrigin::MapRoom(NodeId(2))).unwrap();}
+        if r.state.combat.is_none(){r.enter_owned(EncounterId::Cultist,super::super::CombatOrigin::MapRoom{node:NodeId(2),kind:MapNodeKind::Monster}).unwrap();}
         let d=r.decision().unwrap();assert_eq!(d.player.relic_counters[0].value,expected);
         if expected==-2&&r.state.combat_progress.entered==4{assert!(d.combat.unwrap().enemies[0].hp>1);break}
         assert_eq!(d.combat.as_ref().unwrap().enemies[0].hp,1);

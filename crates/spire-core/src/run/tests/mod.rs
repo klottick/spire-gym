@@ -7,3 +7,8 @@ mod reward;
 mod rooms;
 mod room_rewards;
 mod room_services;
+mod m5_act1;
+mod m5_rewards;
+mod m5_transition;
+mod m6_events;
+mod m6_rooms;

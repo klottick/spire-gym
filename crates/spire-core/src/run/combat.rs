@@ -6,7 +6,7 @@ use crate::{combat::{Combat, CombatEntry, CombatEntryFailure, PlayerState, CardI
 use std::collections::BTreeSet;
 use crate::combat::{CombatAction, CombatExit, CombatCardRef, Outcome};
 
-fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64),RunError> {
+fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Option<u64>),RunError> {
     let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let settled=state.combat_progress.settled.checked_add(1).ok_or(RunError::Unsupported("settlement count exhausted"))?;
     if settled!=state.combat_progress.entered || active.visit!=state.combat_progress.settled
@@ -17,7 +17,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64),R
         return Err(RunError::InvalidAction);
     }
     let mut seen=BTreeSet::new();
-    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()) {
+    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.stasis) {
         if let CombatCardRef::Permanent(id)=card.origin {
             if card.instance!=id || !seen.insert(id.0) || !state.deck.iter().any(|original|
                 original.instance==id.0 && original.id==card.id && original.upgrades==card.upgrades) {
@@ -27,22 +27,39 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64),R
     }
     if seen.len()!=state.deck.len() { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    Ok((exit,record,settled))
+    let act2_visits=if super::rooms::is_m6(state)&&state.act==2{Some(state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?)}else{None};
+    Ok((exit,record,settled,act2_visits))
 }
 
-fn prepare_entry(state:&RunState, encounter:EncounterId) -> Result<(CombatEntry,RunRng),RunError> {
-    if !matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
+    let m5=super::rooms::uses_captured_act1(state)&&state.act==1&&matches!(encounter,EncounterId::Cultist|EncounterId::JawWorm|EncounterId::TwoLouse|EncounterId::SmallSlimes
+        |EncounterId::LargeSlime|EncounterId::ThreeLouse|EncounterId::LotsOfSlimes|EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries
+        |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
+    let m6=super::rooms::is_m6(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
+    if !m5&&!m6&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let entry=enemies::setup(encounter,state.act,state.ascension,&mut rng,SetupContext {
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}),boss:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}),burning:None};
+    let mut entry=enemies::setup(encounter,state.act,state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
         character:state.character,cards:state.deck.iter().map(|card|
             permanent_live_card(card.id,CardInstanceId(card.instance),card.upgrades)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
     })?;
-    Ok((entry,rng))
+    if m5||m6 {
+        if let Some(node)=state.map.as_ref().and_then(|map|map.current.and_then(|id|map.nodes.iter().find(|n|n.id==id)))
+            .filter(|node|battle.elite_trigger&&node.burning) {
+            use enemies::BurningBuff;
+            let buff=match rng.bounded_scoped(RunRngScope::BurningEliteBuff,&[state.act as u64,node.id.0,state.combat_progress.entered],4) {
+                0=>BurningBuff::Strength,1=>BurningBuff::MaxHp,2=>BurningBuff::Metallicize,_=>BurningBuff::Regeneration,
+            };
+            enemies::apply_burning_buff(&mut entry,buff)?;
+            battle.burning=Some(buff);
+        }
+    }
+    Ok((entry,rng,battle))
 }
 
 impl Run {
@@ -55,7 +72,7 @@ impl Run {
         }).collect();
         let player=PublicPlayer {relic_counters:inventory.relic_counters.clone(),character:self.state.character,hp:combat.player.hp as u32,max_hp:combat.player.max_hp as u32,
             gold:self.state.gold,relics:inventory.relics.clone(),potions:inventory.potions.clone(),keys:self.state.keys};
-        Ok(PublicDecision {room:self.state.room_loop.as_ref().map(|_|RoomView{kind:RoomViewKind::Combat,choices:vec![]}),reward_total:self.state.reward_ledger.total,act:self.state.act,floor:self.state.floor,player,objects:self.state.deck.iter().map(|c|
+        Ok(PublicDecision {content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room:self.state.room_loop.as_ref().map(|_|RoomView{kind:RoomViewKind::Combat,choices:vec![]}),reward_total:self.state.reward_ledger.total,act:self.state.act,floor:self.state.floor,player,objects:self.state.deck.iter().map(|c|
             PublicObject {instance:c.instance,id:c.id,upgrades:c.upgrades}).collect(),candidates,offers:vec![],selection:None,
             terminal:self.state.terminal,combat:Some(combat),combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone()})
     }
@@ -75,7 +92,7 @@ impl Run {
 
     pub(super) fn settle_combat(&mut self) -> Result<RunTransition,RunError> {
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
-        let (mut exit,record,settled)=match prepare_settlement(&self.state) {
+        let (mut exit,record,settled,act2_visits)=match prepare_settlement(&self.state) {
             Ok(prepared)=>prepared,
             Err(RunError::Faulted(fault))=>{self.state.fault=Some(fault.clone());return Err(RunError::Faulted(fault));}
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat settlement validation failed"),"run.combat.settlement")),
@@ -95,6 +112,7 @@ impl Run {
         self.state.hp=exit.hp as u32;
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
+        if let Some(visits)=act2_visits{self.state.room_loop.as_mut().unwrap().act2.as_mut().unwrap().combat_visits=visits;}
         self.state.last_combat=Some(record.clone());
         self.state.active_combat=None;
         self.state.combat=None;
@@ -155,9 +173,9 @@ impl Run {
         if self.state.combat.is_some() || self.state.active_combat.is_some()
             || self.state.pending.is_some() { return Err(RunError::InvalidAction); }
         let entered=self.state.combat_progress.entered.checked_add(1).ok_or(RunError::Unsupported("combat visit exhausted"))?;
-        let (entry,rng)=prepare_entry(&self.state,encounter)?;
+        let (entry,rng,battle)=prepare_entry(&self.state,encounter,origin)?;
         let mut items=Some(CombatItemContext::take_from_run(&mut self.state)
-            .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()));
+            .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle));
         let (combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
             Ok(combat)=>(combat,None),
             Err(CombatEntryFailure::Rejected(error))=> {
@@ -170,6 +188,10 @@ impl Run {
         self.state.rng=rng;
         self.state.combat=Some(combat);
         self.state.active_combat=Some(ActiveCombat {visit,encounter,origin});
+        if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}){
+            let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),_=>None};
+            if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}
+        }
         self.state.combat_progress.entered=entered;
         self.candidates.clear();
         let event=CommittedEvent::CombatEntered {visit,encounter};

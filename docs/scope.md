@@ -8,8 +8,7 @@ supersedes broad family-wave scheduling, not final scope. The user approved the
 and native single-owner start. M1 authored Ironclad A0 combat with damage/Block/
 Weak/Vulnerable is accepted, not a normal run. Beads M1–36 are
 `spire-dxo.23`–`.58`; M1 `.23`/`.23.1`, M2 `.24`/`.24.1`/`.24.2` and M3
-`.25`/`.25.1`/`.25.2` are closed. M4 `.26`/planning-only `.26.1` identify the
-next outcome/planning handoff. The
+`.25`/`.25.1`/`.25.2`, M4 `.26`, M5 `.27` and M6 `.28` are closed. M7 `.29` is planning-only next. The
 [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
 is user-approved; the [M2 authored combat profile](milestones/m2-combat.md) is
 accepted after integrated verification and isolated review, not full-run or
@@ -29,7 +28,29 @@ standard starting resources and a named authored nine-floor route/offer profile
 to real Neow/map/combat/reward/shop/shrine/campfire/treasure decisions. Normal
 random offer/pool generation remains explicitly incomplete. One isolated Luna6
 milestone review found no issues; accepted M4 is not Act1/boss acceptance. M5
-normal-start-through-Act1 planning is next.
+normal-start-through-Act1 implementation follows the approved plan.
+
+The [M5 written plan](superpowers/plans/2026-10-23-m5-ironclad-act1.md) was approved
+with "I approve the plan". Its [accepted native profile](milestones/m5-act1.md)
+executes full generated-map/public standard-resource paths through all three
+elite/boss alternatives, real rewards/relic children and same-run Act2Ready.
+One isolated GPT-6 Luna milestone review found no issues; final core428/7 retains
+exactly seven old draft failures. M6 planning `.28.1` is now closed after approval.
+Act2Ready is nonterminal with no actions
+or success bonus, not complete random pools/Act2 gameplay/full-run acceptance.
+No new commit, install or cleanup authority is implied.
+
+The [M6 plan](superpowers/plans/2026-10-23-m6-act2-mechanics.md) is user-approved:
+concrete ordinary/all-three-elite/all-three-boss mechanics, actual
+summon/card-custody/event effects and a generated-map prefix through floor26.
+M5 remains unchanged; M7 retains complete Act2 progression. `.28.1` is closed;
+native implementation `.28.2` is accepted/closed after one isolated milestone review.
+The [M6 runnable profile](milestones/m6-act2.md) records three normal-start seed7
+and three seed11 early-prefix completions, real encounters/events/loot and separate
+six-encounter diagnostics. Independent review found no issues at the declared scope. Its floor26 cutoff
+is nonterminal/no-action/no-bonus, not a full Act2 or standard-pool success claim.
+M7 planning-only `.29.1` is open/unassigned; no M7 product code/start is authorized
+until its actual written plan is reviewed. No commit/install/cleanup authority.
 
 The runnable [M1 demonstration](milestones/m1-combat.md) documents its exact
 four-card/three-enemy fixture profile, public action API, observed outcomes and

@@ -20,7 +20,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let credited=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered)?;
     if let Some(e)=encounter {
-        let mut t=match run.enter_owned(e,CombatOrigin::MapRoom(target)) {Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("room combat entry failed"),"run.room.combat"))};
+        let mut t=match run.enter_owned(e,CombatOrigin::MapRoom{node:target,kind}) {Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("room combat entry failed"),"run.room.combat"))};
         t.committed_events.insert(0,event);t.reward+=credited;return Ok(t)
     }
     let mut next=run.next_choice;

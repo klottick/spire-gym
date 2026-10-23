@@ -70,6 +70,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 }
             };
             let full_runtime = state.full_runtime;
+            let damage=if full_runtime{super::enemies::act2::modify_incoming_damage(state,target,payload,damage)?}else{damage};
             let (hp, block) = match target {
                 Actor::Player => (&mut state.player.hp, &mut state.player.block),
                 Actor::Enemy(id) => {
@@ -78,6 +79,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 }
             };
             let hp_before = *hp;
+            let block_before=*block;
             let (next_hp, next_block) = if matches!(payload, DamagePayload::HpLoss(_)) {
                 ((i64::from(hp_before) - i64::from(damage)).max(0) as i32, *block)
             } else if full_runtime {
@@ -87,6 +89,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             };
             *hp = next_hp;
             *block = next_block;
+            if full_runtime {
+                let result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
+                super::enemies::act2::after_damage(state,&result)?;
+            }
             if let Actor::Enemy(id) = target {
                 // Only these native payload kinds are NORMAL for Curl Up.
                 // Orb and typed THORNS damage retain their distinct exclusions.
@@ -95,17 +101,27 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 super::enemies::on_hit(state, id, &effect.source, normal_damage, hp_before, hp_before - next_hp);
             }
             if next_hp == 0 {
+                if state.full_runtime&&hp_before>0&&matches!(target,Actor::Enemy(_)){
+                    // Accepted multi-hit work stops on this actual corpse even
+                    // when other actors keep combat live. Keep unrelated hits,
+                    // earned healing and FinishCard; never relax stale admission.
+                    state.pending.retain(|queued|queued.target.as_ref()!=Some(target)||!matches!(queued.kind,EffectKind::Damage(_)));
+                }
                 let outcome = match target {
                     Actor::Player => Some(Outcome::Death),
-                    Actor::Enemy(_) if state.enemies.iter().all(|e| e.hp == 0) => Some(Outcome::Victory),
+                    Actor::Enemy(_) if super::enemies::act2::combat_victory_ready(state) => Some(Outcome::Victory),
                     Actor::Enemy(_) => None,
                 };
                 if let Some(outcome) = outcome {
+                    if state.full_runtime&&outcome==Outcome::Victory {
+                        super::enemies::act2::queue_victory(state,&effect.source);
+                    }else{
                     state.pending.push_front(Effect { source: effect.source.clone(), target: None,
                         kind: EffectKind::Terminal(outcome) });
                     if state.full_runtime {
                         state.pending.push_front(Effect { source: effect.source.clone(), target: None,
                             kind: EffectKind::Hook(Hook::CombatSettled) });
+                    }
                     }
                 }
                 if state.full_runtime {
@@ -131,6 +147,11 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             };
         }
         EffectKind::Heal(n) => {
+            if let Some(Actor::Enemy(owner))=&effect.target {
+                let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).expect("validated heal owner");
+                if enemy.life==super::ActorLife::Active&&enemy.hp>0 {enemy.hp=(i64::from(enemy.hp)+i64::from(*n)).min(i64::from(enemy.max_hp)) as i32;}
+                return Ok(());
+            }
             if state.player.hp > 0 {
                 let amount = if state.full_runtime {
                     crate::items::ordinary_heal_amount_in_room(
@@ -200,6 +221,31 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             super::cards::apply_defect_continuation(state, effect, continuation)?,
         EffectKind::ReplaceEnemy { parent, children } =>
             super::enemies::apply_replacement(state, parent, children)?,
+        EffectKind::GuardianChange(change)=>super::enemies::guardian::apply(state,effect,*change)?,
+        EffectKind::HexaghostBurn(gate)=>super::enemies::hexaghost::apply(state,effect,*gate)?,
+        EffectKind::GroundByrd=>super::enemies::act2::flight::ground(state,effect)?,
+        EffectKind::SpawnEnemy(request)=>super::enemies::act2::spawn::apply(state,request)?,
+        EffectKind::CompleteSpawn=>super::enemies::act2::spawn::complete(state)?,
+        EffectKind::CaptureStasis{orb}=>super::enemies::act2::stasis::capture(state,orb)?,
+        EffectKind::ReleaseStasis{orb}=>super::enemies::act2::stasis::release(state,orb)?,
+        EffectKind::ChampCleanse=>{
+            let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Champ cleanse owner absent".into()).into())};super::enemies::act2::champ::cleanse(state,owner)?;
+        },
+        EffectKind::CollectorSuicide|EffectKind::AutomatonSuicide=>{
+            let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("boss suicide target absent".into()).into())};super::enemies::act2::suicide(state,owner);
+        },
+        EffectKind::BookStab{remaining}=>{
+            let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Book stab owner absent".into()).into())};super::enemies::act2::book::stab(state,owner,*remaining);
+        },
+        EffectKind::RallyGremlins{..}|EffectKind::ProtectGremlin|EffectKind::SetEnemyMove{..}|EffectKind::EscapeEnemy=>{
+            let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Gremlin continuation owner absent".into()).into())};
+            match effect.kind {
+                EffectKind::RallyGremlins{remaining}=>super::enemies::act2::gremlin_leader::rally(state,owner,remaining)?,
+                EffectKind::ProtectGremlin=>super::enemies::act2::gremlin_leader::protect(state,owner)?,
+                EffectKind::SetEnemyMove{intent}=>super::enemies::act2::gremlin_leader::set_move(state,owner,intent)?,
+                EffectKind::EscapeEnemy=>super::enemies::act2::gremlin_leader::escape(state,owner),_=>unreachable!(),
+            }
+        },
         EffectKind::Decision => {
             if !state.pending.is_empty() || state.in_play.is_some() || state.player.hp <= 0
                 || state.enemies.iter().all(|e| e.hp <= 0) || state.outcome.is_some() {
@@ -270,8 +316,14 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         }
         EffectKind::Hook(hook) => {
             if state.full_runtime {
-                super::hooks::dispatch(state, *hook, &effect.source)?;
+                super::hooks::dispatch(state, *hook, &effect.source,effect.target.as_ref())?;
                 let hp = state.player.hp;
+                if *hook==Hook::CombatSettled&&hp>0 {
+                    if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
+                        state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;
+                        items.collar_activated=false;
+                    }
+                }
                 let work = if let Some(context) = state.item_context.as_mut() {
                     crate::items::relic_hook_effects(context, *hook, hp)
                 } else {
@@ -290,7 +342,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     source: effect.source.clone(), target: effect.target.clone() });
             }
         }
-        EffectKind::Draw(_) | EffectKind::Recycle | EffectKind::DiscardHand
+        EffectKind::Draw(_) | EffectKind::DrawOne | EffectKind::AfterCardDrawn{..} | EffectKind::Recycle | EffectKind::DiscardHand
         | EffectKind::CreateCard { .. } | EffectKind::CopyCard { .. } | EffectKind::ExhaustHandCard { .. } => {
             super::piles::apply_effect(state, effect)?;
         }

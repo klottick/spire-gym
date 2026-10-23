@@ -18,7 +18,7 @@ pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::Encounter
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum CombatOrigin { Authored, MapRoom(super::NodeId) }
+pub(crate) enum CombatOrigin { Authored, MapRoom{node:super::NodeId,kind:MapNodeKind} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunTerminal { HeartVictory, Death, EmptyDeck, Act3NoKeys }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -29,6 +29,7 @@ pub struct RunFault { pub kind:RunFaultKind, pub checkpoint:&'static str, pub co
 pub enum RunError { InvalidAscension(u8), InvalidAction, Unsupported(&'static str), Registry(&'static str), Terminal, Faulted(RunFault) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommittedEvent { FloorEntered { act:u8, floor:u32 }, KeyAcquired(Key), Ended(RunTerminal),
+    ActAdvanced{from:u8,to:u8},
     CombatEntered { visit:u64, encounter:crate::content::EncounterId }, CombatFinished(CombatRecord) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunTransition { pub reward:i32, pub terminal:Option<RunTerminal>, pub committed_events:Vec<CommittedEvent> }
@@ -53,9 +54,11 @@ pub struct PendingSelection { pub candidates:Vec<SelectionCandidate>, pub requir
 pub enum ContinuationTarget { ResumeDecision(Candidate), NeowConsequence { parent:Candidate, offer:NeowOffer },
     Room {node:super::NodeId,choice:ChoiceId,operation:RoomSelectionOperation} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove}
+pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove,AncientElegance,EmptyCage}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingContinuation { pub parent:ContinuationTarget, pub selection:PendingSelection, pub resumed:bool }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(crate) struct ActTransition {pub from:u8,pub to:u8,pub floor:u32,pub reset_applied:bool,pub heal_applied:bool,pub initialized:bool}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -74,6 +77,7 @@ pub struct MapNode {
 }
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct RunMap {
+    pub(crate) boss_icon:Option<crate::content::EncounterId>,
     pub(crate) act:u8, pub(crate) draft_ordinal:u64, pub(crate) nodes:Vec<MapNode>,
     pub(crate) current:Option<super::NodeId>, pub(crate) winged_moves:u8,
     pub(crate) encounter_history:Vec<crate::content::EncounterId>,

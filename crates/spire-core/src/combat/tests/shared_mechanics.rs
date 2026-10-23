@@ -10,7 +10,7 @@ pub(super) fn entry() -> CombatEntry {
             player_powers: vec![], character: Character::Ironclad,
             shuffle_rng: full_stream(rng::Domain::RunCombatShuffle, vec!["m2-rules"]),
             card_rng: full_stream(rng::Domain::RunCombatCardRandom, vec!["m2-rules"]),
-            enemies: vec![FullEnemySetup {
+            enemies: vec![FullEnemySetup { initial_memory:None,
                 instance_id: EnemyHandle::parse("enemy-1").unwrap(), enemy_id: EnemyId::JawWorm,
                 ascension: 0, profile: enemies::EnemyProfile::Standard, hp: 42, max_hp: 42,
                 block: 0, powers: vec![], intent: FullIntentId::Chomp,
@@ -268,4 +268,59 @@ fn successive_same_encounter_run_visits_have_distinct_streams_and_preserve_count
     assert_ne!(&first,second);
     assert!(run.state().relic_counters.is_empty());
     assert_eq!(run.state().combat.as_ref().unwrap().item_context().unwrap().counters(),&counters);
+}
+
+#[test]
+fn m5_bludgeon_rewards_use_real_cost_and_base_or_upgraded_damage() {
+    for (upgrade,damage) in [(0,32),(1,42)] {
+        let mut e=super::m5_elites::entry(crate::content::EncounterId::Cultist);e.cards[0]=permanent_live_card(CardId::Bludgeon,CardInstanceId(1),upgrade);
+        let hp=e.setup.enemies[0].hp;let mut c=Combat::enter(e).unwrap();
+        c.step_full(&CombatAction::PlayCard{instance:1,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.energy,0);assert_eq!(c.state.enemies[0].hp,hp-damage);
+    }
+}
+
+#[test]
+fn m5_impervious_rewards_share_card_block_and_exhaust_once() {
+    for (upgrade,modified,want) in [(0,false,30),(1,false,40),(0,true,24),(1,true,31)] {
+        let mut e=super::m5_elites::entry(crate::content::EncounterId::Cultist);e.cards[0]=permanent_live_card(CardId::Impervious,CardInstanceId(1),upgrade);
+        let mut c=Combat::enter(e).unwrap();if modified{apply(&mut c,Actor::Player,"dexterity",2);apply(&mut c,Actor::Player,"frail",1);}
+        c.step_full(&CombatAction::PlayCard{instance:1,target:None}).unwrap();assert_eq!((c.state.player.block,c.state.player.energy),(want,1));assert_eq!(c.state.piles.exhaust.len(),1);
+        assert_eq!(c.state.hook_events.iter().filter(|e|e.hook==Hook::CardExhausted).count(),1);
+    }
+}
+
+#[test]
+fn m5_offering_rewards_pay_hp_before_energy_draw_and_lethal_payment_prunes_children() {
+    for (hp,upgrade,draw) in [(40,0,3),(40,1,5),(6,0,0)] {
+        let mut e=entry();e.setup.player.hp=hp;e.opening_draw=1;e.cards=(1..=9).map(|i|permanent_live_card(CardId::Offering,CardInstanceId(i),upgrade)).collect();
+        let mut c=Combat::enter(e).unwrap();let instance=c.public_full().unwrap().hand[0].instance.0;
+        c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::GainBlock(7)}],None).unwrap();
+        c.step_full(&CombatAction::PlayCard{instance,target:None}).unwrap();assert_eq!((c.state.player.hp,c.state.player.block),(hp-6,7));assert_eq!(c.state.piles.hand.len(),draw);
+        assert_eq!(c.state.player.energy,if hp==6{3}else{5});assert_eq!(c.state.piles.exhaust.len(),usize::from(hp>6));
+        if hp==6{assert_eq!(c.state.outcome,Some(Outcome::Death));assert!(c.state.in_play.is_some());}
+    }
+}
+
+#[test]
+fn m5_black_blood_native_victory_heals_twelve_instead_of_six() {
+    use crate::{content::RelicId,items::CombatItemContext};
+    for (blood,want) in [(RelicId::BurningBlood,46),(RelicId::BlackBlood,52)] {
+        let mut e=super::m5_elites::entry(crate::content::EncounterId::Cultist);e.setup.player.hp=40;
+        let mut items=Some(CombatItemContext::new(vec![blood,RelicId::NeowsLament],vec![]));let mut c=Combat::enter_with_item_context(e,&mut items).unwrap();
+        c.step_full(&CombatAction::PlayCard{instance:1,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.hp,want);assert_eq!(c.state.outcome,Some(Outcome::Victory));
+    }
+}
+
+#[test]
+fn m5_collar_prepares_temporary_master_energy_by_source_and_cleans_up_on_victory() {
+    use crate::{content::RelicId,items::{CombatItemContext,NativeBattleContext}};
+    for (elite_trigger,boss,want) in [(false,false,3),(true,false,4),(false,true,4)] {
+        let mut e=super::m5_elites::entry(crate::content::EncounterId::Cultist);e.cards=vec![permanent_live_card(CardId::Defend,CardInstanceId(1),0),permanent_live_card(CardId::Strike,CardInstanceId(2),0)];e.opening_draw=2;e.setup.player.draw_per_turn=2;
+        let mut items=Some(CombatItemContext::new(vec![RelicId::SlaversCollar,RelicId::NeowsLament],vec![]).with_battle_context(NativeBattleContext{elite_trigger,boss,burning:None}));
+        let mut c=Combat::enter_with_item_context(e,&mut items).unwrap();assert_eq!((c.state.player.max_energy,c.state.player.energy),(want,want));assert_eq!(c.item_context().unwrap().collar_activated,want==4);
+        c.step_full(&CombatAction::PlayCard{instance:1,target:None}).unwrap();c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.player.energy,want);
+        c.step_full(&CombatAction::PlayCard{instance:2,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.max_energy,3);assert!(!c.item_context().unwrap().collar_activated);
+        let mut inventory=c.exit().unwrap().item_context.map(|items|items.with_battle_context(NativeBattleContext::default()));
+        let next=Combat::enter_with_item_context(super::m5_elites::entry(crate::content::EncounterId::Cultist),&mut inventory).unwrap();assert_eq!((next.state.player.max_energy,next.state.player.energy),(3,3));
+    }
 }

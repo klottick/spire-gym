@@ -7,6 +7,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         _=>return Err(RunError::Unsupported("Lament pending")),
     }
     run.state.selected_neow=run.candidates.iter().find(|c|c.id==id).and_then(|c|c.neow_offer.clone());
-    run.state.map=Some(profile::map());run.state.room="Map";run.candidates.clear();
+    if uses_captured_act1(&run.state){act1::start(run)?;}else{run.state.map=Some(profile::map());}
+    run.state.room="Map";run.candidates.clear();
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind:RoomViewKind::Map,choices:vec![]};Ok(empty_transition())
 }

@@ -7,6 +7,20 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     use crate::content::CardId::*;
     let upgraded = card.upgrades > 0;
     let result = match card.id {
+        Bludgeon=>{
+            let Some(target_id)=target else{return Err(crate::run::RunError::InvalidAction)};
+            let damage=modified_damage(state,target_id,if upgraded{42}else{32})?;
+            (3,vec![(Some(PayloadTarget::SelectedEnemy),EffectKind::Damage(DamagePayload::Fixed(damage)))])
+        },
+        Impervious=>{
+            if target.is_some(){return Err(crate::run::RunError::InvalidAction)}
+            (2,vec![(Some(PayloadTarget::Player),EffectKind::GainBlock(modified_block(state,if upgraded{40}else{30})?))])
+        },
+        Offering=>{
+            if target.is_some(){return Err(crate::run::RunError::InvalidAction)}
+            (0,vec![(Some(PayloadTarget::Player),EffectKind::Damage(DamagePayload::HpLoss(6))),
+                (Some(PayloadTarget::Player),EffectKind::GainEnergy(2)),(None,EffectKind::Draw(if upgraded{5}else{3}))])
+        },
         Bloodletting => {
             if target.is_some() { return Err(crate::run::RunError::InvalidAction); }
             (0, vec![

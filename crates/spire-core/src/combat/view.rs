@@ -24,7 +24,9 @@ pub struct PublicView {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiveCardView { pub instance: CardInstanceId, pub id: crate::content::CardId,
-    pub origin: CombatCardRef, pub upgrades: u32 }
+    pub origin: CombatCardRef, pub upgrades: u32, pub effective_cost:Option<i32> }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct StasisCardView {pub orb:EnemyHandle,pub card:LiveCardView}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SelectionView {
     pub candidates: Vec<LiveCardView>, pub required: usize,
@@ -37,6 +39,7 @@ pub struct CombatInventoryView {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatPublic {
+    pub stasis:Vec<StasisCardView>,
     pub content_id: String, pub turn: u32, pub player: FullPlayerView, pub enemies: Vec<FullEnemyView>,
     pub character: CharacterCombatView,
     pub hand: Vec<LiveCardView>, pub draw_count: usize, pub discard: Vec<LiveCardView>,
@@ -57,13 +60,14 @@ pub struct FullPlayerView {
 pub struct FullEnemyView {
     pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub hp: i32, pub max_hp: i32,
     pub block: i32, pub powers: Vec<FullPowerView>, pub intent: super::FullIntentId,
-    pub intent_damage: Option<i32>, pub replaced: bool,
+    pub intent_damage: Option<i32>, pub replaced: bool, pub escaped:bool, pub logical_slot:u8,
 }
 
 /// Native combat-to-run handoff. It contains only actual full-run cards and
 /// persistent combat result/resource values; run settlement remains a later owner.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatExit {
+    pub stasis:Vec<LiveCard>,
     pub hp: i32, pub max_hp: i32, pub block: i32, pub energy: i32,
     pub outcome: Outcome, pub hand: Vec<LiveCard>, pub draw: Vec<LiveCard>,
     pub discard: Vec<LiveCard>, pub exhaust: Vec<LiveCard>, pub in_play: Option<LiveCard>,
@@ -130,6 +134,7 @@ pub(super) fn full_enemies(state: &State) -> Vec<FullEnemyView> {
         intent: match e.intent_id { super::ActorIntentId::Full(id) => id,
             super::ActorIntentId::Legacy(id) => super::FullIntentId::from_name(id.as_str()) },
         intent_damage: e.intent_damage, replaced: e.life == super::ActorLife::Replaced,
+        escaped:e.life==super::ActorLife::Escaped,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
     }).collect()
 }
 

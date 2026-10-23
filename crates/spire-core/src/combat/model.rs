@@ -162,6 +162,7 @@ pub struct Scenario {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FullEnemySetup {
+    pub initial_memory:Option<super::enemies::EnemyMemory>,
     pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub ascension: u8,
     pub profile: super::enemies::EnemyProfile, pub hp: i32, pub max_hp: i32,
     pub block: i32, pub intent: FullIntentId, pub powers: Vec<FullPowerEntry>, pub ai_rng: StreamState,
@@ -180,7 +181,7 @@ pub struct CombatEntry { pub setup: FullCombatSetup, pub opening_draw: usize, pu
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DamageEntry { pub base: i32, pub output: i32 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ActorLife { Active, Replaced }
+pub enum ActorLife { Active, Replaced, Escaped }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyState {
@@ -200,6 +201,10 @@ pub struct EnemyReplacementDiagnostics {
     pub prepared_children: Vec<EnemyHandle>,
     pub latest_child_cursor: Option<u128>,
 }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct SpawnRequest {pub summoner:EnemyHandle,pub slot:u8,pub species:EnemyId}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct EnemySpawnDiagnostics {pub request:SpawnRequest,pub ordinal:u64,pub prepared_child:Option<EnemyHandle>,pub constructor_cursor:u128,pub latest_child_cursor:u128}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase { Decision, Selection, PlayerAction, EnemyTurn, RoundEnd, PlayerStart, Terminal }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -220,6 +225,7 @@ pub struct CombatFault {
     pub attempted_action: Option<super::CombatAction>,
     pub selection: Option<PendingSelection>,
     pub replacement_progress: Option<EnemyReplacementDiagnostics>,
+    pub spawn_progress:Option<EnemySpawnDiagnostics>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InputError { Invariant(String), Unsupported(String) }
@@ -256,6 +262,9 @@ pub enum DamagePayload {
     HpLoss(i32),
     EnemyMove(MoveId), FullEnemyMove(FullIntentId),
 }
+/// Detached result from the single shared damage commit, not a second calculator.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bool,pub hp_loss:bool,pub attempted:i32,pub blocked:i32,pub hp_lost:i32,pub hp_after:i32}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -265,6 +274,7 @@ pub enum EffectKind {
     ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
     FinishCard, Decision,
     Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
+    DrawOne, AfterCardDrawn { card:CardHandle },
     GainEnergy(i32),
     CreateCard { id: crate::content::CardId, destination: super::command::CardDestination, upgrades: u32 },
     CopyCard { source: CardHandle, destination: super::command::CardDestination },
@@ -280,6 +290,16 @@ pub enum EffectKind {
     Character(super::characters::CharacterEffect),
     CardContinuation(super::cards::DefectContinuation),
     ReplaceEnemy { parent: EnemyHandle, children: Vec<EnemyId> },
+    GuardianChange(super::enemies::GuardianEffect),
+    HexaghostBurn(super::enemies::HexaghostEffect),
+    GroundByrd,
+    SpawnEnemy(SpawnRequest), CompleteSpawn,
+    RallyGremlins { remaining:u8 }, ProtectGremlin, SetEnemyMove { intent:FullIntentId }, EscapeEnemy,
+    BookStab { remaining:u32 },
+    ChampCleanse,
+    CollectorSuicide,
+    AutomatonSuicide,
+    CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle> }
@@ -307,6 +327,10 @@ pub(super) struct State {
     pub card_rng: Option<StreamState>,
     pub item_context: Option<crate::items::CombatItemContext>,
     pub replacement_progress: Option<super::enemies::ReplacementProgress>,
+    pub actor_slots:BTreeMap<EnemyHandle,u8>,
+    pub spawn_ordinals:BTreeMap<EnemyHandle,u64>,
+    pub spawn_progress:Option<super::enemies::act2::spawn::SpawnProgress>,
+    pub stasis:BTreeMap<EnemyHandle,OwnedCard>,
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {

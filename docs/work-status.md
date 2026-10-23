@@ -6,6 +6,94 @@ for the implemented interface. No models/training/learner checkpoints belong her
 
 ## Current workstream
 
+2026-10-23 M6 accepted: user "I approve" approved the actual written plan;
+`.28.1`, native `.28.2` and outcome `.28` are normally closed. Tasks1–11 now
+execute Spheric/Byrds/Flight, Chosen/Snecko/card pressure, paired Centurion/Mystic,
+real Leader/all5small/staged summons/escape, Slavers/Book, Champ phase/cleanse and
+Collector/TorchHeads and Automaton/Orbs/actor-owned Stasis with actual queued-death
+callbacks, same-ID return and permanent-card exit/Run census, plus actual Ancient
+Writing/Joust persistent branches. Source Joust eligibility is>=50, not public>50;
+paid bet/Continue winner/result payout/complete are separate checkpoints.
+M6 alone now continues same accepted Act2 map through floor26 with actual source
+loot and no-bonus/nonterminal cutoff; M5 Act2Ready stays no-action. Focused7/0+9/0+
+5/0+14/0+7/0+8/0+8/0+9/0+1/0+1/0+8/0+11/0; latest nativeM6 90/0/core518/7 same underlying baseline failure
+names/messages (new absent optional spawn diagnostic is transparently normalized,
+not byte-identical full Debug output), public42/0/other21/0/consumers43/0/diffcheck0.
+Existing Barrage table extended to5/10occupied/sparse10 without
+mechanic changes. Task11 public6/0 now proves three seed7 normal-start prefixes
+through actual Act2 ordinary/each elite/event/chest and exact replay; seed11 also
+finishes all3icons. Actual source Slaver's Collar resolves elite energy pressure,
+not seed/value changes; earlier real policy losses remain ledgered. CLIallseed7,
+prefixseed11, all6examples and unfinishedbudget0/1 checks execute. These do not
+establish complete Act2 progression. ONE independent GPT-6 Luna review found
+no findings. Four declined categories were explicitly evaluated as scoped limits,
+not silently dropped. All372 reviewed public bytes matched in both worktrees;
+fresh controller core518/7 (same underlyingold7), public42/0/native90/0/consumers
+43/0/other21/0/all6examples/diffcheck0 before administrative acceptance updates.
+M7 `.29` is active for planning only; actual `.29.1` is open/unassigned, no product
+child/code/start. The accepted profile is [M6](milestones/m6-act2.md).
+User expanded earlier Flight-only STATIC grant
+to unresolved NAMED approved-M6 mechanics/immediate callers only; no original
+execution, new tooling, whole-archive extraction/audit or public private artifacts.
+Larger read-only passes use isolated Luna6 assistance, not overlapping source
+implementation or per-task reviews. Prior plan-wait notes below
+are history. Ledger `.superpowers/sdd/2026-10-23-m6-act2-mechanics/progress.md`.
+
+2026-10-23 M6 planning: user "Okay, then let's continue" authorized the next
+written plan, not product start. Native owner normally claimed `.28.1` and wrote/
+self-reviewed [M6 Act2 mechanics](superpowers/plans/2026-10-23-m6-act2-mechanics.md).
+Proposed concrete ordinary/elite/all3boss mechanics, actual summons/Stasis/card
+pressure, persistent AncientWriting/Joust and same-player generated-map prefix
+through26, distinct from M7's full Act2 episode. Existing M5 no-action Act2Ready
+is unchanged. One isolated explicitly materialized346-file Luna6 read-only
+assistant supplied bounded fact/interface gaps, not a final review. Plan records
+provisional public facts/task-local qualification rather than claiming old Acts23
+research proved enemy AI. `.28.1` returns blocked/unassigned for written-plan
+review; no implementation child/product edits/builds/tests/commits/installs/cleanup.
+All M5 verification counts below are accepted prior evidence, NOT M6 reruns.
+
+2026-10-23 M5 scoped acceptance: ONE fresh independent GPT-6 Luna review
+`ses_e98dcd1beffernDEPv7qzL3I2H` returned no findings/declined judgments and accepted
+the declared profile. Controller verified all346 reviewed public files unchanged
+in BOTH worktrees, then fresh core428/7 EXACT baseline seven names/messages,
+public36/0/M5-focused54/0/consumers43/0/other21/0/diffcheck0; all5examples and
+seed11 route passed. Warm workspace.161s/build.01s/core execution.14s. `.27.2`/
+`.27` closed normally; M6 `.28` activated and actual planning-only `.28.1` open/
+unassigned with accepted M5 prerequisite. No M6 product start, full random pools,
+Act2 gameplay, whole-workspace green, Python-refresh or original-runtime claim.
+Worktrees/source/history retained; no new commits/pushes/installs/cleanup. The
+candidate/wait notes below are historical; [accepted M5 profile](milestones/m5-act1.md)
+is the runnable contract.
+
+2026-10-23 M5 implementation candidate: user approved the written plan ("I approve
+the plan"); `.27.1` closed and native owner normally claimed `.27.2`. Tasks1–6
+and public Task7 paths now run: full generated map/declared captured content,
+actual elite/Guardian/Hexaghost/SlimeBoss mechanics, classified loot/rares/boss
+relic children and same-player nonterminal Act2Ready. Seed7 Guardian212actions/
+95HP/reward17, Hexaghost171/87/17, Slime223/80/32(all keys), native death10/0/0;
+seed11 Guardian250/95/17. Each success has one real elite and exact public replay.
+Pre-review core428/7 exactly retains baseline names/messages, public36/0,
+M5-focused54/0/consumers43/0/other21/0/all5examples. One independent isolated
+milestone review remains; no M5 acceptance/whole-workspace green/M6 product start,
+commit/install/cleanup/Python-refresh/original-runtime claim. Scope/outcomes:
+[M5 candidate](milestones/m5-act1.md). Execution ledger records actual RED→GREEN,
+single-owner integration and read-only Luna6 assistance. Earlier planning notes
+below are historical chronology, not a new approval gate.
+
+2026-10-23 M5 planning: user "please do so"/"continue" authorized the next
+written plan; native actor normally claimed `.27.1` and wrote/self-reviewed
+[M5 Ironclad through Act1](superpowers/plans/2026-10-23-m5-ironclad-act1.md).
+Full generated-map topology plus explicit captured-content profile, all three
+elite/boss alternatives, room-classified rewards/real rares and boss relic
+children, and source-ordered same-run Act2 initialization. Act2Ready is a
+nonterminal checkpoint with no bonus/first Act2 action; not the old Act1-only
+terminal contract. Planning `.27.1` normally released blocked/unassigned awaiting
+written-plan review before M5 code. One Luna6
+read-only assistant supplied bounded fact locators in its own worktree; its
+initial stale-base absence report was corrected after explicit328-file baseline
+materialization. HEAD da5bc14 contains accepted M1–M4; no product edits/builds/
+tests/installs/new commits. Planning ledger records checks and safe release.
+
 2026-10-23 user-requested precommit follow-up: two additional independent GPT-6
 Luna reviewers examined the combined accepted M3/M4 uncommitted snapshot in
 separate materialized worktrees/unique build directories. Both returned no

@@ -6,6 +6,18 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
     super::engine::validate_effect(effect, state)?;
     match &effect.kind {
         EffectKind::Draw(requested) => {
+            if state.full_runtime {
+                let room=10usize.checked_sub(state.piles.hand.len()).ok_or_else(||InputError::Invariant("hand exceeds cap".into()))?;
+                let count=(*requested as usize).min(room).min(state.piles.draw.len()+state.piles.discard.len());
+                if count==0{return Ok(())}
+                if state.piles.draw.is_empty(){
+                    state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::Draw(count as i32)});
+                    state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::Recycle});
+                }else{
+                    if count>1{state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::Draw(count as i32-1)});}
+                    state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::DrawOne});
+                }return Ok(())
+            }
             let room = 10usize.checked_sub(state.piles.hand.len())
                 .ok_or_else(|| InputError::Invariant("hand exceeds cap".into()))?;
             // Read sizes at dispatch, not when this work was constructed. Total
@@ -48,6 +60,15 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 discard_card(state, &id, true)?;
             }
         }
+        EffectKind::DrawOne=>{
+            let card=state.piles.draw.pop().ok_or_else(||InputError::Invariant("draw-one owner absent".into()))?;let handle=card.handle();
+            state.public.revealed_order.push(handle.clone());state.piles.hand.push(card);
+            state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::AfterCardDrawn{card:handle}});
+        },
+        EffectKind::AfterCardDrawn{card}=>{
+            after_draw(state,card)?;
+            state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::Hook(Hook::CardDrawn)});
+        },
         EffectKind::CreateCard { id, destination, upgrades } => {
             let instance = next_generated_instance(state)?;
             let card = super::card_state::generated(*id, instance, *upgrades)
@@ -95,17 +116,21 @@ fn next_generated_instance(state: &State) -> Result<super::CardInstanceId, Input
 }
 
 fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
-    requested: super::command::CardDestination) -> Result<(), InputError> {
+    requested: super::command::CardDestination) -> Result<(), EffectError> {
     let instance = card.instance;
     let handle = super::card_state::handle(instance);
     if !state.full_runtime || state.card_ids_issued.len() >= 999
         || state.card_ids_issued.contains(&handle) {
-        return Err(InputError::Invariant("generated card issuance precondition".into()));
+        return Err(InputError::Invariant("generated card issuance precondition".into()).into());
     }
     let destination = if requested == super::command::CardDestination::Hand
         && state.piles.hand.len() >= 10 {
         super::command::CardDestination::Discard
     } else { requested };
+    let position=if destination==super::command::CardDestination::ShuffledDraw {
+        let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("generated insertion stream absent".into()))?;
+        let (position,next)=super::rng::uniform_below(stream,(state.piles.draw.len()+1) as u128)?;state.card_rng=Some(next);Some(position as usize)
+    }else{None};
     let owned = OwnedCard::Full(card);
     state.card_ids_issued.insert(handle);
     match destination {
@@ -113,8 +138,19 @@ fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
         // Draw reads from the Vec tail (`pop`), so tail insertion is top-of-draw.
         super::command::CardDestination::Draw => state.piles.draw.push(owned),
         super::command::CardDestination::Discard => state.piles.discard.push(owned),
+        super::command::CardDestination::ShuffledDraw=>state.piles.draw.insert(position.unwrap(),owned),
     }
     Ok(())
+}
+
+/// Actual-draw callback owns the just-moved identity before the remaining draw.
+pub(super) fn after_draw(state:&mut State,owner:&CardHandle)->Result<(),EffectError>{
+    let card=state.piles.hand.iter().find(|c|c.handle()==*owner).and_then(OwnedCard::full).ok_or_else(||InputError::Invariant("draw callback card absent".into()))?;
+    if !state.player_full_powers.iter().any(|p|p.id.0=="confused"&&p.state.amount>0)||card.local.x_cost||super::cards::base_cost(state,card).is_none(){return Ok(())}
+    let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Confused stream absent".into()))?;
+    let (cost,next)=super::rng::uniform_below(stream,4)?;
+    let local=&mut state.piles.hand.iter_mut().find(|c|c.handle()==*owner).unwrap().full_mut().unwrap().local;
+    local.randomized_cost=Some(cost as i32);local.temporary_cost=0;state.card_rng=Some(next);Ok(())
 }
 
 /// Callers validate before detaching. Ownership is committed before notifying;
@@ -132,8 +168,9 @@ pub(super) fn exhaust_owned_card(state: &mut State, card: OwnedCard) -> Result<(
 }
 
 pub(super) fn discard_card(state: &mut State, card: &CardHandle, end_turn: bool) -> Result<(), InputError> {
-    let exhaust = !end_turn && state.in_play.as_ref().and_then(OwnedCard::full)
-        .map_or(false, |live| live.local.exhaust_on_finish);
+    let exhaust = if end_turn {state.piles.hand.iter().find(|c|c.handle()==*card)
+        .and_then(OwnedCard::full).is_some_and(|live|live.id==crate::content::CardId::Dazed)}
+        else {state.in_play.as_ref().and_then(OwnedCard::full).map_or(false, |live| live.local.exhaust_on_finish)};
     let moved = if end_turn {
         let index = state.piles.hand.iter().position(|c| c.handle() == *card)
             .ok_or_else(|| InputError::Invariant("discard hand owner missing".into()))?;

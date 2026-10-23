@@ -1,10 +1,25 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EnemyId {
-    Cultist, JawWorm, GremlinNob, LouseRed, LouseGreen,
+    Cultist, JawWorm, GremlinNob, Lagavulin, Sentry, Guardian, Hexaghost, LouseRed, LouseGreen,
     AcidSlimeS, AcidSlimeM, AcidSlimeL, SpikeSlimeS, SpikeSlimeM, SpikeSlimeL, SlimeBoss,
+    SphericGuardian, Byrd, Chosen, Snecko, Centurion, Mystic,
+    GremlinLeader,GremlinMad,GremlinSneaky,GremlinFat,GremlinShield,GremlinWizard,
+    SlaverBlue,Taskmaster,SlaverRed,BookOfStabbing,
+    Champ,Collector,TorchHead,BronzeAutomaton,BronzeOrb,
     Unknown(&'static str),
 }
 impl EnemyId { pub const fn as_str(self) -> &'static str { match self {
+    Self::SphericGuardian=>"spheric_guardian",Self::Byrd=>"byrd",
+    Self::Chosen=>"chosen",Self::Snecko=>"snecko",
+    Self::Centurion=>"centurion",Self::Mystic=>"mystic",
+    Self::GremlinLeader=>"gremlin_leader",Self::GremlinMad=>"gremlin_mad",Self::GremlinSneaky=>"gremlin_sneaky",Self::GremlinFat=>"gremlin_fat",Self::GremlinShield=>"gremlin_shield",Self::GremlinWizard=>"gremlin_wizard",
+    Self::SlaverBlue=>"slaver_blue",Self::Taskmaster=>"taskmaster",Self::SlaverRed=>"slaver_red",Self::BookOfStabbing=>"book_of_stabbing",
+    Self::Champ=>"champ",
+    Self::Collector=>"collector",Self::TorchHead=>"torch_head",
+    Self::BronzeAutomaton=>"bronze_automaton",Self::BronzeOrb=>"bronze_orb",
+    Self::Lagavulin=>"lagavulin",Self::Sentry=>"sentry",
+    Self::Guardian=>"guardian",
+    Self::Hexaghost=>"hexaghost",
     Self::Cultist => "cultist", Self::JawWorm => "jaw_worm", Self::GremlinNob => "gremlin_nob",
     Self::LouseRed => "fuzzy_louse_normal", Self::LouseGreen => "fuzzy_louse_defensive",
     Self::AcidSlimeS => "acid_slime_s", Self::AcidSlimeM => "acid_slime_m", Self::AcidSlimeL => "acid_slime_l",

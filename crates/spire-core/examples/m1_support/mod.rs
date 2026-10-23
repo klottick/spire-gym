@@ -38,7 +38,7 @@ pub fn fixture(enemy: EnemyId, seed: u64) -> CombatEntry {
             player_powers: vec![], character: Character::Ironclad,
             card_rng: stream(seed, Domain::RunCombatCardRandom, None),
             shuffle_rng: stream(seed, Domain::RunCombatShuffle, None),
-            enemies: vec![FullEnemySetup {
+            enemies: vec![FullEnemySetup { initial_memory:None,
                 instance_id: EnemyHandle::parse("m1-enemy").unwrap(), enemy_id: enemy,
                 ascension: 0, profile: EnemyProfile::Standard, hp, max_hp: hp,
                 block: 0, intent, powers,

@@ -6,6 +6,7 @@ use crate::{combat::{CardInstanceId, CombatCardRef}, content::CardId};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CombatCardData {
+    pub randomized_cost: Option<i32>,
     pub temporary_cost: i32,
     pub free_play: bool,
     pub x_cost: bool,
@@ -48,22 +49,29 @@ pub(super) fn legacy_kind(id: CardId) -> Option<CardKind> {
 pub(super) fn payment(card: &LiveCard, energy: i32, base_cost: i32) -> Result<Payment, InputError> {
     if card.local.free_play { return Ok(Payment { remaining_energy: energy, paid: 0 }); }
     if card.local.x_cost { return Ok(Payment { remaining_energy: 0, paid: energy }); }
-    let cost = base_cost.checked_add(card.local.temporary_cost)
-        .ok_or_else(|| InputError::Invariant("temporary card cost overflow".into()))?;
-    if cost < 0 { return Err(InputError::Invariant("negative effective card cost".into())); }
+    let cost = effective_cost(card,base_cost)?;
     if energy < cost { return Err(InputError::Unsupported("insufficient energy".into())); }
     Ok(Payment { remaining_energy: energy - cost, paid: cost })
 }
 
+pub(super) fn effective_cost(card:&LiveCard,base_cost:i32)->Result<i32,InputError>{
+    if card.local.free_play{return Ok(0)}
+    let cost = card.local.randomized_cost.unwrap_or(base_cost).checked_add(card.local.temporary_cost)
+        .ok_or_else(|| InputError::Invariant("temporary card cost overflow".into()))?;
+    if cost < 0 { return Err(InputError::Invariant("negative effective card cost".into())); }
+    Ok(cost)
+}
+
 pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCard {
     LiveCard { instance, id, origin: CombatCardRef::Permanent(instance),
-        upgrades, local: CombatCardData { exhaust_on_finish: id == CardId::Disarm, ..CombatCardData::default() } }
+        upgrades, local: CombatCardData { exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering), ..CombatCardData::default() } }
 }
 
 /// Build a temporary native card with its actual use/disposition state.
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     let exhaust_on_finish = match id {
         CardId::Miracle | CardId::Slimed | CardId::Shiv => true,
+        CardId::Dazed | CardId::Burn | CardId::Wound => false,
         _ => return None,
     };
     Some(LiveCard { instance, id, origin: CombatCardRef::CombatLocal(instance.0), upgrades,

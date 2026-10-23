@@ -15,12 +15,15 @@ pub struct HookEvent { pub hook: Hook, pub source: Source, pub target: Option<Ac
 /// Execute the finite native behaviors owned by the combat foundation.
 /// Producers enqueue this as ordinary effect work; failures leave it as the
 /// resolver's current effect and therefore preserve first-fault provenance.
-pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source) -> Result<(), EffectError> {
+pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Option<&Actor>) -> Result<(), EffectError> {
     if !state.full_runtime { return Ok(()); }
 
     let mut work = Vec::new();
+    if hook==Hook::Death{super::enemies::act2::stasis::on_death(state,target);}
     if hook == Hook::CardPlayed {
         work.extend(super::enemies::gremlin_nob_card_played_work(state, source)?);
+        super::enemies::guardian::card_played(state,source)?;
+        super::enemies::act2::chosen_snecko::card_played(state,source)?;
     }
     if hook == Hook::TurnEnded {
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
@@ -42,6 +45,8 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
         let kind = match power.id.0 {
             "ritual" if power.state.skip_first => { power.state.skip_first = false; None }
             "ritual" => Some(EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: power.state.amount }),
+            "metallicize"=>Some(EffectKind::GainBlock(power.state.amount)),
+            "regeneration" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "vulnerable" | "weak" | "frail" if power.state.monster_source_grace => { power.state.monster_source_grace = false; None }
             "vulnerable" | "weak" | "frail" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),
             _ => None,

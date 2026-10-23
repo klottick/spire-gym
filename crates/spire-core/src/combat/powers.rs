@@ -69,7 +69,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         EffectKind::ReduceFullPower { id, amount } => (id, -amount, false),
         EffectKind::ReducePower { id, amount } => (FullPowerId(id.as_str()), -amount, false),
         EffectKind::RemoveFullPower(id) => {
+            let target=effect.target.as_ref().unwrap();
+            let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
             remove(state, effect.target.as_ref().unwrap(), id);
+            if flight{super::enemies::act2::flight::on_removed(state,target);}
             return super::effects::refresh_enemy_values(state);
         }
         EffectKind::RemovePower(id) => {
@@ -85,7 +88,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled") && delta > 0)
         || (matches!(id.0, "strength" | "dexterity") && delta < 0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
     if application && debuff && artifact > 0 {
@@ -97,6 +100,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
     let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
     let next = match id.0 {
         "strength" => sum.clamp(-999, 999),
+        "mode_shift"=>sum.max(0),
+        "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,
         "dexterity" => return Err(InputError::Unsupported("Dexterity outside supported native surface".into())),
         _ if sum <= 999 => sum.max(0),

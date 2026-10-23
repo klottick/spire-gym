@@ -17,7 +17,7 @@ fn full_entry(character: crate::content::Character, opening_draw: usize, count: 
         player_powers: vec![], character,
         shuffle_rng: StreamState::new(shuffle_id, [21; 32], 0).unwrap(),
         card_rng: StreamState::new(card_stream_id, [23; 32], 0).unwrap(),
-        enemies: vec![FullEnemySetup { instance_id: EnemyHandle::parse("enemy-1").unwrap(), ascension: 0, profile: crate::combat::enemies::EnemyProfile::Standard,
+        enemies: vec![FullEnemySetup { initial_memory:None, instance_id: EnemyHandle::parse("enemy-1").unwrap(), ascension: 0, profile: crate::combat::enemies::EnemyProfile::Standard,
             enemy_id: EnemyId::Cultist, hp: 30, max_hp: 48, block: 0,
             intent: FullIntentId::Incantation, powers: vec![],
             ai_rng: StreamState::new(ai_id, [22; 32], 0).unwrap() }],
@@ -722,7 +722,7 @@ fn entered_combat_with_card(player_hp: i32, enemy_hp: i32, card_id: CardId) -> C
             max_energy: 3, draw_per_turn: 5, powers: vec![] },
         player_powers: vec![], character: crate::content::Character::Ironclad,
         shuffle_rng: shuffle, card_rng,
-        enemies: vec![FullEnemySetup { instance_id: crate::combat::EnemyHandle::parse("enemy-1").unwrap(), ascension: 0, profile: crate::combat::enemies::EnemyProfile::Standard,
+        enemies: vec![FullEnemySetup { initial_memory:None, instance_id: crate::combat::EnemyHandle::parse("enemy-1").unwrap(), ascension: 0, profile: crate::combat::enemies::EnemyProfile::Standard,
             enemy_id: EnemyId::Cultist, hp: enemy_hp, max_hp: 48, block: 0, intent: FullIntentId::Incantation,
             powers: vec![], ai_rng: ai }],
     };

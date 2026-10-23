@@ -183,7 +183,10 @@ fn defect_barrage_repeats_one_captured_hit_per_occupied_orb() {
         (1, 6, vec![None, None, None]),
         (1, 6, vec![Some(OrbKind::Lightning), None, None]),
         (0, 4, vec![Some(OrbKind::Frost), None, Some(OrbKind::Lightning)]),
-        (1, 6, vec![Some(OrbKind::Frost), Some(OrbKind::Frost), Some(OrbKind::Lightning)])] {
+        (1, 6, vec![Some(OrbKind::Frost), Some(OrbKind::Frost), Some(OrbKind::Lightning)]),
+        (0, 4, vec![Some(OrbKind::Frost);5]),
+        (0, 4, vec![Some(OrbKind::Frost);10]),
+        (1, 6, vec![Some(OrbKind::Frost),None,Some(OrbKind::Frost),None,Some(OrbKind::Frost),None,None,Some(OrbKind::Frost),None,Some(OrbKind::Frost)])] {
         let mut combat = with_defect_card(crate::content::CardId::Barrage, upgrades);
         combat.state.character.orb_slots = orbs;
         combat.state.enemies[0].block = 5;
@@ -240,6 +243,7 @@ fn defect_sweeping_beam_hits_all_living_enemies_then_draws() {
             super::super::rng::Domain::RunCombatEnemyAi, vec!["run-combat-1", "enemy-scope-2"]));
         second.hp = 50;
         second.max_hp = 50;
+        combat.state.actor_slots.insert(second.instance_id.clone(),1);
         combat.state.enemies.push(second);
         let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
         let draw_order = arrange_draw_fixture(&mut combat, instance);
@@ -567,6 +571,7 @@ fn thunderclap_hits_each_living_enemy_before_applying_vulnerable() {
             super::super::rng::Domain::RunCombatEnemyAi, vec!["run-combat-1", "enemy-scope-2"]));
         second.hp = 50;
         second.max_hp = 50;
+        combat.state.actor_slots.insert(second.instance_id.clone(),1);
         combat.state.enemies.push(second);
         let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
         let prepared = super::super::cards::prepare(&combat, &CombatAction::PlayCard { instance, target: None }).unwrap();
@@ -983,6 +988,7 @@ fn cleave_hits_each_living_enemy_with_upgraded_damage() {
         super::super::rng::Domain::RunCombatEnemyAi, vec!["run-combat-1", "enemy-scope-2"]));
     second.hp = 50;
     second.max_hp = 50;
+    combat.state.actor_slots.insert(second.instance_id.clone(),1);
     combat.state.enemies.push(second);
     let cleave = combat.state.piles.hand[0].full().unwrap().instance.0;
     combat.step_full(&CombatAction::PlayCard { instance: cleave, target: None }).unwrap();
@@ -1108,6 +1114,7 @@ fn cleave_base_deals_eight_to_each_enemy() {
     second.instance_id = EnemyHandle::parse("second-enemy").unwrap();
     second.full_ai_rng = Some(super::full_runtime::full_stream(
         super::super::rng::Domain::RunCombatEnemyAi, vec!["run-combat-1", "enemy-scope-2"]));
+    combat.state.actor_slots.insert(second.instance_id.clone(),1);
     combat.state.enemies.push(second);
     let cleave = combat.state.piles.hand[0].full().unwrap().instance.0;
     combat.step_full(&CombatAction::PlayCard { instance: cleave, target: None }).unwrap();
@@ -1382,6 +1389,7 @@ fn watcher_consecrate_hits_each_living_enemy_without_a_target() {
             super::super::rng::Domain::RunCombatEnemyAi, vec!["run-combat-1", "enemy-scope-2"]));
         second.hp = 50;
         second.max_hp = 50;
+        combat.state.actor_slots.insert(second.instance_id.clone(),1);
         combat.state.enemies.push(second);
         let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
         let prepared = super::super::cards::prepare(&combat, &CombatAction::PlayCard {

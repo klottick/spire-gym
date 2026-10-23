@@ -31,6 +31,7 @@ pub struct PublicMapNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicMap {
+    pub boss:Option<crate::content::EncounterId>,
     pub act: u8,
     pub nodes: Vec<PublicMapNode>,
     pub current: Option<super::NodeId>,
@@ -46,7 +47,7 @@ pub(crate) fn public_view(map: &RunMap) -> PublicMap {
         PublicMapNode { id: node.id, floor: node.floor, x: node.x, y: node.y, kind: node.kind,
             resolved_room, edges: node.edges.clone(), visited: node.visited, revealed: node.revealed, burning }
     }).collect();
-    PublicMap { act: map.act, nodes, current: map.current, winged_moves: map.winged_moves }
+    PublicMap { boss:map.boss_icon,act: map.act, nodes, current: map.current, winged_moves: map.winged_moves }
 }
 
 impl ActMap {
@@ -236,7 +237,7 @@ fn generate_draft(act: u8, draft: u64, rng: &mut RunRng, eligibility: MapEligibi
         kind: MapNodeKind::Boss, hidden_kind: None, visited: false, revealed: false,
         encounter: None, burning: false });
     nodes.sort_by_key(|n| (n.y, n.x));
-    Ok(Some(RunMap { act, draft_ordinal: draft, nodes, current: None, winged_moves: 0, encounter_history: Vec::new(),
+    Ok(Some(RunMap { boss_icon:None,act, draft_ordinal: draft, nodes, current: None, winged_moves: 0, encounter_history: Vec::new(),
         regular_encounter_history: Vec::new(), elite_encounter_history: Vec::new(),
         question_ramps: [0x3DCCCCCD, 0x3CF5C28F, 0x3CA3D70A], question_roll_ordinal: 0 }))
 }

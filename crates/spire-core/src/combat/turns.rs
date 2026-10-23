@@ -74,21 +74,27 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::EndPlayerTurn => {
             state.phase = Phase::EnemyTurn;
             state.pending.push_front(work(EffectKind::MonsterStart));
+            if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="entangled"){
+                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("entangled"))});
+            }
             if state.full_runtime {
                 state.pending.push_front(Effect { source: Source::Actor(Actor::Player),
                     target: Some(Actor::Player),
                     kind: EffectKind::Character(super::characters::CharacterEffect::EndTurn) });
             }
             state.pending.push_front(work(EffectKind::DiscardHand));
+            if state.full_runtime {for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}}
         }
         EffectKind::MonsterStart => {
             state.phase = Phase::EnemyTurn;
             if state.full_runtime {
                 for enemy in state.enemies.iter_mut().filter(|enemy|
-                    enemy.life == super::ActorLife::Active && enemy.hp > 0) { enemy.block = 0; }
+                    enemy.life == super::ActorLife::Active && enemy.hp > 0) {
+                    if !enemy.full_powers.iter().any(|p|p.id.0=="barricade"&&p.state.amount>0){enemy.block=0;}
+                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="flight"){power.state.amount=3;}}
+                }
                 state.pending.push_back(work(EffectKind::EndRound));
-                let actors: Vec<_> = state.enemies.iter().filter(|e|
-                    e.life == super::ActorLife::Active && e.hp > 0)
+                let actors: Vec<_> = super::enemies::act2::spawn::ordered_actors(state).into_iter()
                     .map(|e| e.instance_id.clone()).collect();
                 for id in actors.into_iter().rev() {
                     state.pending.push_front(Effect { source: Source::None,
@@ -157,25 +163,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 if enemy.life != super::ActorLife::Active || enemy.hp <= 0 { return Ok(()); }
                 enemy
             } else { &state.enemies[0] };
-            if let ActorEnemyId::Full(enemy_id) = &enemy.enemy_id {
-                let history = enemy.move_history.iter().map(|id| match id {
-                    ActorIntentId::Full(full) => Some(*full), ActorIntentId::Legacy(_) => None,
-                }).collect::<Option<Vec<_>>>().ok_or_else(|| InputError::Unsupported("mixed full enemy move history".into()))?;
-                let memory = enemy.full_memory.as_ref().ok_or_else(|| InputError::Invariant("full enemy memory missing".into()))?;
-                let stream = enemy.full_ai_rng.as_ref()
-                    .ok_or_else(|| InputError::Invariant("full enemy AI stream missing".into()))?;
-                let selected = super::enemies::select_move(*enemy_id, &history, memory, stream)
-                    .map_err(|error| match error {
-                        super::enemies::SelectError::Invalid(error) => EffectError::Invalid(error),
-                        super::enemies::SelectError::Random(error) => EffectError::Random(error),
-                    })?;
-                let actor = state.enemies.iter_mut().find(|e| Some(&e.instance_id) == owner)
-                    .ok_or_else(|| InputError::Invariant("full move selection actor missing".into()))?;
-                actor.selected_move = ActorIntentId::Full(selected.intent);
-                actor.intent_id = ActorIntentId::Full(selected.intent);
-                actor.move_history.push(ActorIntentId::Full(selected.intent));
-                actor.full_ai_rng = Some(selected.stream);
-                actor.full_memory = Some(selected.memory);
+            if matches!(enemy.enemy_id,ActorEnemyId::Full(_)) {
+                let owner=owner.ok_or_else(||InputError::Invariant("full move selection actor missing".into()))?;
+                super::enemies::act2::roll_move(state,owner)?;
             } else {
                 let enemy = if state.full_runtime {
                     let id = owner.ok_or_else(|| InputError::Invariant("full move roll missing actor".into()))?;

@@ -1,5 +1,169 @@
 # Spire Gym: current agent guidance
 
+## User-requested snapshot commit and push (2026-10-23)
+
+User explicitly requested "Conventional commit and push what you have so far".
+This authorizes one bounded publication of the accepted M5/M6 public snapshot,
+including the existing unpublished M1–M4 ancestor commits, on new remote branch
+`feat/run-act2-prefix`. Do not alter main, force-push, create a PR, publish ignored
+evidence/private artifacts, clean worktrees or infer M7 product authority. Earlier
+no-commit/no-push notes remain the default outside this specific user request.
+Preserve the seven known historical core failures and all uncommitted evidence.
+
+## M6 accepted / M7 planning next (2026-10-23)
+
+M6 Tasks1–11 accepted/closed as `.28.2`/`.28` after ONE fresh independent GPT6 Luna
+review ses_e96e8c73fffeaIGNDzDVIEvZ7B found no findings. Four declined categories
+were explicitly ruled in M6 ledger: no original-runtime/Java parity, no wider
+roadmap acceptance, unsupported Reaper/unrepresented flags remain unsupported,
+and seven exact underlying historical core drafts retained. All372 reviewed public
+files unchanged in BOTH worktrees; fresh core518/7 same underlyingold7 (only absent
+spawn diagnostic normalized), public42/0 inclM6 6/0/native90/0/consumers43/0/other
+21/0/all6examples/diffcheck0. Seed7 threeicons399/386/378actions HP49/87/95, seed11
+418/417/416 HP76/99/105, allfloor26/reward26/nonterminal. Actual Slaver's Collar is
+earned, no seed/value/injection changes. Accepted profile `docs/milestones/m6-act2.md`.
+M5 Act2Ready/M4 unchanged. Only administrative acceptance text changes afterward;
+all reviewed product bytes/source/worktrees remain preserved/uncommitted. M7 `.29`
+activated and planning-only `.29.1` open/unassigned, no M7 product child/start.
+Next write ONE M7 plan for user review; no automatic code authorization. Keep native
+integration/isolated Luna6 larger-reading assistance/ONE milestone review. No
+commits/pushes/installs/original execution/cleanup. Prior execution notes below are
+history, not fresh pending work. Ledger `.superpowers/sdd/2026-10-23-m6-act2-mechanics/progress.md`.
+
+## M6 approved / native execution active (2026-10-23)
+
+User "I approve" approved the actual written M6 plan. Planning .28.1 normally
+unblocked/claimed/closed; implementation spire-dxo.28.2 normally claimed by
+opencode-session-recovery-20261021-v1. Native controller remains this isolated
+detached worktree, preserving accepted uncommitted M5. Fresh baseline core428/7
+with the same seven draft failure names, consumers43/0/integrations57/0. Eleven
+tasks in `docs/superpowers/plans/2026-10-23-m6-act2-mechanics.md` now authorized;
+Tasks1–3 Spheric/Byrds/Flight, Chosen/Snecko/Hex/Confused/Wound and actual paired
+Centurion/Mystic live-context AI/initial-memory transfer now complete, focused
+7/0+9/0+5/0; Task4 real GremlinLeader/all5small bodies/staged summons/escape now
+complete14/0; Task5 actual ordered Slavers/Book/Entangle/PainfulStabs now complete
+7/0; Task6 actual Champ live threshold/cleanse/phase/payloads complete8/0,
+Task7 Collector/TorchHeads/actual source queued-suicide cleanup complete8/0;
+Task8 actual Automaton/Orb/Stasis/census/return complete9/0+1/0+1/0;
+Task9 real AncientWriting/Joust branches complete8/0;
+Task10 same-run Act2 prefix/source loot/cutoff complete11/0;
+current Task11 native90/0/core518/7 SAME underlying old7 names/messages (new optional
+spawn_progress:None in Debug is explicitly normalized/ledgered, not byte-identical
+outer Debug). Stable targets/logical slots/history>27/partial-child RNG and guard
+faults preserved; no fabricated add deaths or parent replacement.
+consumers43/0/integrations57/0. Existing Barrage table now covers5/10occupied and
+sparse10 as user required, no mechanic change. Task11 final review next; isolated Luna6 supplied
+Champ payload/cleanse/integration facts, not review. Shared live RollMove now
+refreshes canonical damage at publication (real Champ direct-roll RED fixed).
+Unknown cleanse categories fail closed before removals; source-qualified signed
+stats/Poison and explicit Shackled removal do not wipe real buffs. User asks
+that larger read-only file passes use Luna; keep native edits/integration here.
+PainfulStabs source correction: owner-attributed HP_LOSS is NOT excluded, unlike
+THORNS; actual native Book attacks remain NORMAL. Ruling/facts in ledger.
+Task7 source correction: Collector actually queues zero-gold SuicideAction(...,
+true) deaths with power/relic callbacks; group predicates do NOT ignore Minions.
+Written Task7/ledger corrected before bodies. Shared readiness waits for actual
+deaths/escapes/replacements, pending adds do not attack after boss death, and
+accepted player healing is retained. Reaper itself remains unsupported (no CardId
+or handler); no Reaper/card-pool acceptance inferred from generic healing test.
+Do not extrapolate Collector cleanup to Automaton/Stasis before Task8 qualification.
+Task8 independently qualified Automaton SuicideAction(true), actor-owned Stasis
+same-ID return before settlement/no draw callback/full-hand discard and Death-exit
+Run permanent census. Orb getMove uses integer≥25 one-use selection, ≥70 Support;
+actual lastTwoMoves means BOTH newest equal, not any among last2 (realRED fixed).
+Native HMAC streams/canonical tied ID order, not original RNG/cursor parity.
+Task9 qualified AncientWriting alias BackToBasics: starter Strike/Defend tags,
+one captured removable-card callback; no eligible source skips selector. Joust
+getShrine caller proves gold>=50 (49disabled/50eligible), correcting public>50.
+Actual paid wager→Continue draws winner→result pays gross→complete opens map;
+plan and ledger corrected. Native tickets29/30 (roots100/12) cover both bets,
+gold50 and retained source/winner on accepted coordinator invariant fault.
+Task10 M6 alone continues same accepted Act2 map through18–26, preserving M5's
+Act2Ready and M4 route. Real source loot/elite roles/act-local counters/pre-move
+versus accepted-transfer faults covered. Inherited chest Proceed may skip optional
+loot; actual no-bonus/nonterminal cutoff only after source Proceed, never merely
+floor26. Real Death counts at ONE Run settlement owner, not Victory rewards only.
+Task11 normal-start public paths/examples/privacy and ONE final review unfinished;
+do not claim M6 accepted from supplied room diagnostics.
+Task11 public6/0/native90/0/core518/7 same underlyingold7, consumers43/0/other21/0/
+allpublic42/0/diffcheck0. Seed7 normal threeicons finish399/386/378actions HP49/87/95;
+seed11 finish418/417/416actions HP76/99/105, allfloor26/reward26/nonterminal.
+ActualDeath/budgets and all6 supplied diagnostics pass; all6examples execute.
+Public episode found real nonfinal TwinStrike first-hit kill fault; focusedRED
+fixed shared lethal queue pruning only later Damage to corpse, not FinishCard/
+healing/otheractors. Earlier real Leader policy losses are preserved in ledger;
+Luna architecture diagnosis led to real-entry survivalRED→GREEN/consistent public
+priorities and genuine offered Slaver's Collar choice for actual elite energy.
+No easierseed/value changes/injection/near-end fixture substituted for normalrun.
+ONE fresh independent milestone review being prepared; no Task11done/M6acceptance/
+M7start yet. Same old assistant supplied facts/diagnosis only, never final review.
+User initially allowed
+Flight-only static lookup, then explicitly chose "Allow M6-scoped lookups" for
+remaining unresolved NAMED approved-plan enemy/event/action/power methods only.
+Static read-only existing tools/archive; no original execution, installs, new
+verification tooling, whole-archive extraction or wider audit/artifact publication.
+preserve Task-local fact qualification/TDD/isolated Luna6 assistance/ONE milestone
+review. Ledger `.superpowers/sdd/2026-10-23-m6-act2-mechanics/progress.md`.
+No commits/pushes/installs/cleanup/original execution. Earlier plan-wait notes
+below are history; do not re-ask scope/method/worktree approval.
+
+## M6 written-plan review gate (2026-10-23)
+
+User "Okay, then let's continue" resumed the approved roadmap after accepted M5.
+Planning spire-dxo.28.1 was normally claimed by native actor
+opencode-session-recovery-20261021-v1; written plan:
+`docs/superpowers/plans/2026-10-23-m6-act2-mechanics.md`. It proposes concrete
+Act2 ordinary/elite/all3boss mechanics, summons/Stasis/card-pressure owners,
+AncientWriting/Joust and a same-player generated-map prefix through floor26;
+full Act2 path remains M7. M5 Act2Ready contract unchanged. Planning-only task
+returns blocked/unassigned awaiting THIS written-plan review; no M6 product
+child/code/builds/tests/start. One isolated materialized346-file Luna6 assistant
+ses_e97a0f6daffeRv4164MI1vWiX5 returned read-only facts/interface gaps, not review.
+Public references/provisional Orb facts are distinguished from task-local source
+qualification; no private audit or historical clock proposal resumed. Ledger:
+`.superpowers/sdd/2026-10-23-m6-act2-mechanics/progress.md`.
+Preserve native execution/isolated Luna6 assistance/ONE milestone review after
+approval; accepted M5 uncommitted source and all worktrees remain intact. No new
+commits, installs, cleanup or M7 product authority. Use absolute file:/// Paseo links.
+
+## M5 accepted / M6 planning next (2026-10-23)
+
+User approved the written M5 plan ("I approve the plan"). Planning .27.1 closed;
+implementation spire-dxo.27.2 and outcome .27 normally closed after acceptance by
+native actor opencode-session-recovery-20261021-v1.
+Tasks1–6 full map/native bridge, elites/bosses/rewards/relic children and same-run
+nonterminal Act2Ready now integrated; fresh core428/7 exact old7,
+consumers43/0; Task7 public36/0/M5-focused54/0/other21/0/all5examples now pass.
+Real seed7 all3boss/all3elite completions17/17/32 and seed11 Guardian17 execute
+with public-only policy, plus native death/budgets/replay. Accepted profile:
+`docs/milestones/m5-act1.md`. ONE fresh GPT6 Luna review ses_e98dcd1beffernDEPv7qzL3I2H
+found no findings/declined judgments and accepted the scoped profile; controller
+verified all346 reviewed public files unchanged in BOTH worktrees and fresh
+core428/7 EXACT old7/public36/0/focused54/0/consumers43/0/other21/0/diffcheck.
+M6 .28 activated and actual planning-only .28.1 open/unassigned, no product start.
+No complete standard pools/Act2 gameplay/full-run/whole-workspace-green claim.
+Fresh pre-M5 core374/7 retains
+the exact old7 drafts; current progress/RED→GREEN/rulings in
+`.superpowers/sdd/2026-10-23-m5-ironclad-act1/progress.md`.
+User controls OpenCode with Paseo: use absolute `file:///home/...` Markdown links
+for server documents rather than workspace-relative links/terminal-only advice.
+Preserve native integration/isolated Luna6 assistant and ONE final review.
+No M5 commit/install/push/cleanup authority; older plan-wait notes below are history.
+
+## M5 written-plan review gate (2026-10-23)
+
+User requested M5 planning ("please do so", then "continue"). Written plan:
+`docs/superpowers/plans/2026-10-23-m5-ironclad-act1.md`; planning spire-dxo.27.1
+is blocked/unassigned awaiting written-plan review, not product start. Full generated map plus explicitly
+captured content, real all3elite/all3boss alternatives/rewards and same-run
+nonterminal Act2Ready; no complete standard-pool/Act2 gameplay claim. Preserve
+native execution, isolated Luna6 assistance and one final milestone review after
+approval. Baseline HEAD da5bc14 now contains accepted M1–M4, superseding older
+uncommitted-source notes. Native-created worker worktrees MUST be explicitly
+materialized/verified: creation alone may use an older base. Planning ledger:
+`.superpowers/sdd/2026-10-23-m5-ironclad-act1/progress.md`.
+No M5 code/implementation child/builds/tests/new commits/installs/cleanup yet.
+
 ## User-requested M3/M4 precommit review (2026-10-23)
 
 User explicitly requested additional reviewers, scoped fixes and a Conventional

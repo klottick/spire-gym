@@ -60,7 +60,8 @@ fn valid_full_powers(powers: &[super::FullPowerEntry]) -> bool {
     let mut ids = BTreeSet::new();
     powers.iter().all(|p| (if matches!(p.id.0, "strength" | "dexterity") {
             (-999..=999).contains(&p.state.amount) && p.state.amount != 0
-        } else { (1..=999).contains(&p.state.amount) }) && ids.insert(p.id)
+        } else if p.id.0=="mode_shift" {p.state.amount>0}
+        else { (1..=999).contains(&p.state.amount) }) && ids.insert(p.id)
         && (!p.state.skip_first || p.id.0 == "ritual")
         && (!p.state.monster_source_grace || matches!(p.id.0, "vulnerable" | "weak" | "frail")))
 }
@@ -110,10 +111,10 @@ fn owned_cards<'a>(piles: &'a OwnedPiles, in_play: Option<&'a OwnedCard>) -> imp
     piles.all(in_play)
 }
 
-fn validate_cards(piles: &OwnedPiles, in_play: Option<&OwnedCard>) -> Result<BTreeSet<CardHandle>, InputError> {
+fn validate_cards<'a>(piles: &'a OwnedPiles, in_play: Option<&'a OwnedCard>,held:impl Iterator<Item=&'a OwnedCard>) -> Result<BTreeSet<CardHandle>, InputError> {
     require(piles.hand.len() <= 10, "hand cap")?;
     let mut issued = BTreeSet::new();
-    for card in owned_cards(piles, in_play) {
+    for card in owned_cards(piles, in_play).chain(held) {
         require(issued.insert(card.handle()), "duplicate card ownership")?;
     }
     require((1..=999).contains(&issued.len()), "deck bounds")?;
@@ -148,7 +149,7 @@ pub(super) fn validate_scenario_mode(scenario: &Scenario, full: bool) -> Result<
     }
     if !full {
         let owned = OwnedPiles::from_legacy(&scenario.piles);
-        validate_cards(&owned, None)?;
+        validate_cards(&owned, None,std::iter::empty())?;
     }
     validate_rng(&scenario.rng, &scenario.enemies[0].instance_id, full)
 }
@@ -395,6 +396,7 @@ impl Combat {
                     crate::content::EnemyId::Cultist | crate::content::EnemyId::JawWorm
                         | crate::content::EnemyId::GremlinNob))
                 || !enemy.profile.valid_for(enemy.enemy_id)
+                || enemy.initial_memory.as_ref().is_some_and(|memory|!memory.valid_for(enemy.enemy_id)||memory.ascension()!=enemy.ascension)
                 || enemy.ai_rng.id().domain() != Domain::RunCombatEnemyAi
                 || enemy.ai_rng.id().scope().len() != 2
                 || enemy.ai_rng.id().scope()[0] != setup.shuffle_rng.id().scope()[0]
@@ -403,10 +405,19 @@ impl Combat {
             }
             ai_streams.push(enemy.ai_rng.id().clone());
         }
+        if setup.enemies.iter().any(|e|e.enemy_id==crate::content::EnemyId::GremlinLeader)
+            && (setup.enemies.len()>4||setup.enemies.iter().filter(|e|e.enemy_id==crate::content::EnemyId::GremlinLeader).count()!=1
+                ||setup.enemies.iter().any(|e|e.enemy_id!=crate::content::EnemyId::GremlinLeader&&!super::enemies::act2::gremlin_leader::is_small(e.enemy_id))){
+            return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
+        }
         let first = setup.enemies.first().unwrap();
         let rng = super::model::CombatRng { contract_id: RNG_CONTRACT_ID.into(),
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let mut combat = Self::build_full(setup, rng);
+        super::enemies::act2::collector::validate_slots(&combat.state)
+            .map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;
+        super::enemies::act2::stasis::validate_custody(&combat.state)
+            .map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;
         let prebattle = combat.state.enemies.iter().try_fold(Vec::new(), |mut work, actor| {
             work.extend(super::enemies::prebattle_work(actor).map_err(|_|
                 CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("invalid enemy prebattle setup")))?);
@@ -432,6 +443,14 @@ impl Combat {
             .map_err(|_| CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("full combat shuffle failed")))?;
         combat.state.rng.shuffle = next;
         combat.state.piles.draw = shuffled;
+        // Collar's temporary master-energy change belongs to beforeEnergyPrep,
+        // not equip or a recurring turn-energy action. Reject overflow before transfer.
+        let collar=item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::SlaversCollar)&&(items.battle.elite_trigger||items.battle.boss));
+        let master=combat.state.player.max_energy.checked_add(i32::from(collar)).filter(|n|*n<=999)
+            .ok_or(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("Collar master energy overflow")))?;
+        combat.state.item_context=item_context.take();
+        if let Some(items)=combat.state.item_context.as_mut(){items.collar_activated=collar;}
+        combat.state.player.max_energy=master;
         let count = entry.opening_draw.min(combat.state.piles.draw.len());
         for _ in 0..count {
             let card = combat.state.piles.draw.pop().expect("count bounded by draw size");
@@ -440,7 +459,6 @@ impl Combat {
         }
         combat.state.player.energy = combat.state.player.max_energy;
         combat.state.pending.extend(prebattle);
-        combat.state.item_context = item_context.take();
         combat.state.pending.push_back(Effect { source: Source::None, target: None,
             kind: EffectKind::Hook(Hook::CombatStarted) });
         // The opening decision follows the first turn-start checkpoint. This
@@ -685,20 +703,21 @@ impl Combat {
         }
         let cards = |pile: &[OwnedCard]| -> Result<Vec<LiveCardView>, crate::run::RunError> {
             pile.iter().map(|card| card.full().map(|live| LiveCardView { instance: live.instance,
-                id: live.id, origin: live.origin.clone(), upgrades: live.upgrades })
+                id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live) })
                 .ok_or(crate::run::RunError::InvalidAction)).collect()
         };
         let selection = if let Some(pending) = &self.state.pending_selection {
             let candidates = pending.candidates.iter().map(|id| self.state.piles.all(self.state.in_play.as_ref())
                 .find(|card| card.handle() == *id).and_then(OwnedCard::full)
                 .map(|live| LiveCardView { instance: live.instance, id: live.id,
-                    origin: live.origin.clone(), upgrades: live.upgrades }).ok_or(crate::run::RunError::InvalidAction))
+                    origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live) }).ok_or(crate::run::RunError::InvalidAction))
                 .collect::<Result<Vec<_>, _>>()?;
             let selected = pending.selected.iter().map(|id| id.as_str().parse::<u64>()
                 .map(CardInstanceId).map_err(|_| crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>, _>>()?;
             Some(SelectionView { candidates, required: pending.required, selected, disposition: pending.disposition })
         } else { None };
         Ok(CombatPublic { content_id: self.state.content_id.clone(), turn: self.state.turn,
+            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             player: super::view::full_player(&self.state), enemies: super::view::full_enemies(&self.state),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
                 relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
@@ -709,7 +728,7 @@ impl Combat {
             outcome: self.state.outcome, hp_before_healing: self.state.hp_before_healing,
             hp_after_cleanup: self.state.hp_after_cleanup,
             targets: self.state.enemies.iter().enumerate().map(|(i, e)|
-                (TargetId((i + 1) as u64), e.hp > 0)).collect(), selection })
+                (TargetId((i + 1) as u64), e.life==ActorLife::Active&&e.hp > 0)).collect(), selection })
     }
 
     /// Export the settled full-combat state for a native run owner. This does
@@ -726,6 +745,7 @@ impl Combat {
             .ok_or(crate::run::RunError::Unsupported("legacy in-play card in full combat exit")))
             .transpose()?;
         Ok(CombatExit { hp: self.state.player.hp, max_hp: self.state.player.max_hp,
+            stasis:self.state.stasis.values().map(|card|card.full().cloned().ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             block: self.state.player.block, energy: self.state.player.energy, outcome,
             item_context: self.state.item_context.clone(),
             hand: export(&self.state.piles.hand)?, draw: export(&self.state.piles.draw)?,
@@ -761,12 +781,12 @@ impl Combat {
             pending_selection: None, hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
              character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-             card_rng: None, replacement_progress: None } }
+             card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new() } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
         let damage_bases = setup.enemy_damage_bases;
-        let enemies = setup.enemies.into_iter().enumerate().map(|(slot, e)| {
+        let enemies:Vec<_> = setup.enemies.into_iter().enumerate().map(|(slot, e)| {
             let mut full_damage_entries = supported_full_damage(e.enemy_id, e.ascension);
             if matches!(e.enemy_id, crate::content::EnemyId::LouseRed | crate::content::EnemyId::LouseGreen) {
                 if let Some(base) = damage_bases.get(&(slot as u32, super::FullIntentId::Bite)) {
@@ -780,9 +800,10 @@ impl Combat {
                 move_history: vec![ActorIntentId::Full(e.intent.clone())], selected_move: ActorIntentId::Full(e.intent),
                 damage_entries: BTreeMap::new(), full_damage_entries,
                 full_ai_rng: Some(e.ai_rng),
-                full_memory: super::enemies::EnemyMemory::for_profile(e.enemy_id, e.ascension, e.profile).ok(), intent_damage,
+                full_memory: e.initial_memory.or_else(||super::enemies::EnemyMemory::for_profile(e.enemy_id, e.ascension, e.profile).ok()), intent_damage,
                 life: super::ActorLife::Active }
         }).collect();
+        let actor_slots=super::enemies::act2::spawn::initial_slots(&enemies);
         Self { legacy_cache: Piles { hand: vec![], draw: vec![], discard: vec![], exhaust: vec![] },
             state: State { content_id: CONTENT_ID.into(), phase: Phase::Decision, turn: 1,
                 player: setup.player, enemies, piles: OwnedPiles::default(), card_ids_issued: BTreeSet::new(),
@@ -792,7 +813,7 @@ impl Combat {
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers: setup.player_powers, item_context: None,
                 character: super::characters::CharacterState::for_character(setup.character),
-                card_rng: Some(setup.card_rng), replacement_progress: None } }
+                card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new() } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {
@@ -822,6 +843,7 @@ fn retained_fault(state: &State) -> crate::run::RunError {
         current: state.current.clone(), pending: state.pending.clone(),
         attempted_action: state.attempted_action.clone(),
         selection: state.pending_selection.clone().or_else(|| state.fault_selection.clone()),
+        spawn_progress:state.spawn_progress.as_ref().map(|p|super::EnemySpawnDiagnostics{request:p.request.clone(),ordinal:p.ordinal,prepared_child:p.prepared_child.as_ref().map(|e|e.instance_id.clone()),constructor_cursor:p.constructor_rng.word_index(),latest_child_cursor:p.latest_child_rng.word_index()}),
         replacement_progress: state.replacement_progress.as_ref().map(|progress|
             super::model::EnemyReplacementDiagnostics {
                 parent: progress.parent.clone(), next_child: progress.next_child,
@@ -899,10 +921,26 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::Damage(DamagePayload::HpLoss(n)) => require(state.full_runtime && (0..=999).contains(n), "HP_LOSS mode/bounds")?,
         EffectKind::Damage(DamagePayload::Thorns(n)) => {
             require(state.full_runtime && (0..=1515).contains(n), "THORNS payload mode/bounds")?;
-            require(matches!(&effect.source, Source::Actor(Actor::Player)), "THORNS source must be player")?;
-            require(matches!(&effect.target, Some(Actor::Enemy(_))), "THORNS target must be enemy")?;
+            let burn = match &effect.source {
+                Source::Card(owner) => state.piles.hand.iter().any(|card| card.handle()==*owner
+                    && card.full().is_some_and(|c| c.id==crate::content::CardId::Burn)),
+                _=>false,
+            };
+            require((burn && effect.target==Some(Actor::Player))
+                || (matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Guardian)&&e.full_powers.iter().any(|p|p.id.0=="sharp_hide")))&&effect.target==Some(Actor::Player))
+                || (effect.source==Source::Actor(Actor::Player) && matches!(&effect.target,Some(Actor::Enemy(_)))),
+                "THORNS source/target must be player retaliation, Sharp Hide or held Burn")?;
         }
         EffectKind::Character(_) => require(matches!(effect.target.as_ref(), Some(Actor::Player)), "character effect target")?,
+        EffectKind::GuardianChange(_) => {
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Guardian))),"Guardian change source/target")?;
+        },
+        EffectKind::HexaghostBurn(_) => {
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Hexaghost))),"Hexaghost gate source/target")?;
+        },
+        EffectKind::GroundByrd=>{
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd))),"Byrd ground source/target")?;
+        },
         EffectKind::CardContinuation(continuation) => {
             let owner_matches = matches!((&effect.source, &state.in_play),
                 (Source::Card(owner), Some(card)) if owner == &card.handle());
@@ -987,6 +1025,28 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     "replacement continuation matches current request")?;
             }
         }
+        EffectKind::CollectorSuicide|EffectKind::AutomatonSuicide=>{
+            let species=if effect.kind==EffectKind::CollectorSuicide{crate::content::EnemyId::Collector}else{crate::content::EnemyId::BronzeAutomaton};
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source!=target&&state.enemies.iter().any(|e|e.instance_id==*source&&e.enemy_id==ActorEnemyId::Full(species)&&e.hp==0)),"qualified boss death suicide source/target")?;
+        },
+        EffectKind::CaptureStasis{orb}=>require(state.full_runtime&&!state.stasis.contains_key(orb)&&effect.source==Source::Actor(Actor::Enemy(orb.clone()))&&effect.target==Some(Actor::Enemy(orb.clone()))&&state.enemies.iter().any(|e|e.instance_id==*orb&&e.hp>0&&e.life==ActorLife::Active&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::BronzeOrb)&&e.intent_id.as_str()=="orb_stasis"),"Stasis capture producer/custody")?,
+        EffectKind::ReleaseStasis{orb}=>require(state.full_runtime&&state.stasis.contains_key(orb)&&effect.source==Source::Actor(Actor::Enemy(orb.clone()))&&effect.target==Some(Actor::Enemy(orb.clone()))&&state.enemies.iter().any(|e|e.instance_id==*orb&&e.hp==0&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::BronzeOrb)),"Stasis return death/custody")?,
+        EffectKind::ChampCleanse=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Champ)&&e.life==ActorLife::Active&&e.hp>0)),"Champ cleanse source/target")?,
+        EffectKind::BookStab{remaining}=>require(state.full_runtime&&(1..=i32::MAX as u32).contains(remaining)&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::BookOfStabbing)&&e.life==ActorLife::Active&&e.hp>0)),"Book stab producer/count")?,
+        EffectKind::SpawnEnemy(request)=>{
+            require(effect.source==Source::Actor(Actor::Enemy(request.summoner.clone()))&&effect.target.is_none()&&state.spawn_progress.is_none(),"summon request custody/source")?;
+            super::enemies::act2::spawn::validate_request(state,request)?;
+        },
+        EffectKind::CompleteSpawn=>{
+            let progress=state.spawn_progress.as_ref().ok_or_else(||InputError::Invariant("summon continuation custody absent".into()))?;
+            require(effect.source==Source::Actor(Actor::Enemy(progress.request.summoner.clone()))&&effect.target==Some(Actor::Enemy(progress.request.summoner.clone())),"summon continuation source/target")?;
+            super::enemies::act2::spawn::validate_request(state,&progress.request)?;
+        },
+        EffectKind::RallyGremlins{remaining}=>require(state.full_runtime&&(1..=2).contains(remaining)&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinLeader)&&e.life==super::ActorLife::Active&&e.hp>0)),"Rally producer/count")?,
+        EffectKind::ProtectGremlin=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinShield)&&e.life==super::ActorLife::Active&&e.hp>0)),"Shield Protect producer")?,
+        EffectKind::SetEnemyMove{intent}=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&match (&e.enemy_id,intent.as_str()){
+            (ActorEnemyId::Full(crate::content::EnemyId::GremlinMad),"gremlin_scratch")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinSneaky),"gremlin_puncture")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinShield),"gremlin_protect"|"gremlin_bash")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinWizard),"gremlin_charge"|"gremlin_blast")|(ActorEnemyId::Full(crate::content::EnemyId::TorchHead),"torch_attack")=>true,_=>false})),"deterministic actor SetMove producer/intent")?,
+        EffectKind::EscapeEnemy=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source!=target&&state.enemies.iter().any(|e|e.instance_id==*source&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinLeader)&&e.hp==0)),"Leader death escape source")?,
         EffectKind::Damage(DamagePayload::FullEnemyMove(id)) => {
             let owner = match &effect.source { Source::Actor(Actor::Enemy(id)) => id,
                 _ => return Err(InputError::Unsupported("full enemy move without typed enemy source".into())) };
@@ -1001,7 +1061,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         }
         EffectKind::GainBlock(n) => require(*n >= 0 && (state.full_runtime || *n <= 1007), "block payload bounds")?,
         EffectKind::Heal(n) => require((0..=999).contains(n)
-            && effect.target == Some(Actor::Player), "player healing bounds/target")?,
+            && (effect.target == Some(Actor::Player) || (state.full_runtime&&matches!(effect.target,Some(Actor::Enemy(_))))), "healing bounds/target")?,
         EffectKind::NeowsLament=>require(state.full_runtime&&effect.source==Source::None&&effect.target==Some(Actor::Player),"Lament mode/source/target")?,
         EffectKind::IncreaseMaxHpThenHeal(n) => require(state.full_runtime && (1..=10).contains(n)
             && effect.source == Source::Actor(Actor::Player)
@@ -1009,6 +1069,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             && state.player.max_hp.checked_add(*n).is_some_and(|max| max <= 999),
             "native max-HP increase/queued heal mode/source/target/bounds")?,
         EffectKind::Draw(n) => require((0..=10).contains(n), "draw payload bounds")?,
+        EffectKind::DrawOne=>require(state.full_runtime&&state.piles.hand.len()<10&&!state.piles.draw.is_empty(),"native draw-one membership/cap")?,
+        EffectKind::AfterCardDrawn{card}=>require(state.full_runtime&&effect.target==Some(Actor::Player)&&state.piles.hand.iter().any(|c|c.handle()==*card),"native on-draw identity/target")?,
         EffectKind::GainEnergy(n) => {
             require(state.full_runtime && (1..=4).contains(n)
                 && effect.target == Some(Actor::Player), "native energy payload bounds/target")?;
@@ -1020,6 +1082,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             let supported = matches!((*id, *upgrades),
                 (crate::content::CardId::Miracle, 0 | 1)
                     | (crate::content::CardId::Slimed, 0)
+                    | (crate::content::CardId::Dazed, 0)
+                    | (crate::content::CardId::Wound, 0)
+                    | (crate::content::CardId::Burn, 0 | 1)
                     | (crate::content::CardId::Shiv, 0));
             require(state.full_runtime && supported && state.card_ids_issued.len() < 999
                 && effect.target == Some(Actor::Player),
@@ -1055,7 +1120,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             }
         }
         EffectKind::ApplyFullPower { id, amount } => require(state.full_runtime &&
-            (if matches!(id.0, "strength" | "dexterity") { (-1002..=1002).contains(amount) && *amount != 0 }
+            (if id.0=="mode_shift"{*amount>0}
+                else if matches!(id.0, "strength" | "dexterity") { (-1002..=1002).contains(amount) && *amount != 0 }
                 else { (1..=1002).contains(amount) }), "full power payload bounds")?,
         EffectKind::ReduceFullPower { amount, .. } =>
             require(state.full_runtime && (1..=1002).contains(amount), "full power reduction bounds")?,
@@ -1083,8 +1149,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             }, "captured selection requires current in-play parent")?;
         }
         EffectKind::Terminal(outcome) => require(match outcome {
-            Outcome::Victory => state.enemies.iter().all(|e|
-                e.life != super::ActorLife::Active || e.hp == 0) && state.player.hp > 0,
+            Outcome::Victory => super::enemies::act2::combat_victory_ready(state) && state.player.hp > 0,
             Outcome::Death => state.player.hp == 0 && state.enemies.iter().any(|e|
                 e.life == super::ActorLife::Active && e.hp > 0),
         }, "terminal payload actors")?,
@@ -1113,13 +1178,25 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
         else { state.card_rng.is_none() }, "card random stream mode/domain")?;
     validate_powers(&state.player.powers, None, state, &Actor::Player)?;
     require(valid_runtime_full_powers(&state.player_full_powers, state, &Actor::Player), "full player powers")?;
+    super::enemies::act2::collector::validate_slots(state)?;
+    super::enemies::act2::stasis::validate_custody(state)?;
     require(if state.full_runtime {
-        (1..=27).contains(&state.enemies.len())
+        !state.enemies.is_empty() && u64::try_from(state.enemies.len()).is_ok()
             && state.enemies.iter().filter(|enemy|
                 enemy.life == super::ActorLife::Active && enemy.hp > 0).count() <= 9
             && (state.phase == Phase::Terminal || state.enemies.iter().any(|enemy|
                 enemy.life == super::ActorLife::Active && enemy.hp > 0))
     } else { state.enemies.len() == 1 }, "runtime active/stored enemy count")?;
+    if state.full_runtime {
+        let mut handles=BTreeSet::new();let mut live_slots=BTreeSet::new();
+        require(state.actor_slots.len()==state.enemies.len(),"logical slot membership")?;
+        for enemy in &state.enemies {
+            let slot=state.actor_slots.get(&enemy.instance_id).ok_or_else(||InputError::Invariant("actor logical slot missing".into()))?;
+            require(handles.insert(&enemy.instance_id)&&*slot<9,"unique stored actor/logical slot bounds")?;
+            if enemy.life==super::ActorLife::Active&&enemy.hp>0{require(live_slots.insert(slot),"unique living logical slots")?;}
+        }
+        require(state.spawn_progress.is_none(),"unfinished summon cannot reach a ready boundary")?;
+    }
     for e in &state.enemies {
         require((0..=e.max_hp).contains(&e.hp) && (0..=999).contains(&e.block), "enemy bounds")?;
         match &e.enemy_id {
@@ -1148,11 +1225,16 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                 require(state.full_runtime && (1..=999).contains(&e.max_hp), "full enemy identity/HP")?;
                 require(e.powers.is_empty() && e.damage_entries.is_empty()
                     && e.full_ai_rng.is_some(), "full-only actor stream ownership")?;
-                require(e.life == super::ActorLife::Active || e.hp == 0,
+                require(e.life != super::ActorLife::Replaced || e.hp == 0,
                     "replaced actor is retired at zero HP")?;
                 if matches!(e.enemy_id, ActorEnemyId::Full(crate::content::EnemyId::Cultist | crate::content::EnemyId::JawWorm
                     | crate::content::EnemyId::GremlinNob | crate::content::EnemyId::LouseRed
-                    | crate::content::EnemyId::LouseGreen | crate::content::EnemyId::SlimeBoss)) {
+                    | crate::content::EnemyId::LouseGreen | crate::content::EnemyId::SlimeBoss
+                    | crate::content::EnemyId::Lagavulin | crate::content::EnemyId::Sentry | crate::content::EnemyId::Guardian | crate::content::EnemyId::Hexaghost
+                    | crate::content::EnemyId::SphericGuardian | crate::content::EnemyId::Byrd | crate::content::EnemyId::Chosen | crate::content::EnemyId::Snecko
+                    | crate::content::EnemyId::Centurion | crate::content::EnemyId::Mystic
+                    | crate::content::EnemyId::GremlinLeader | crate::content::EnemyId::GremlinMad | crate::content::EnemyId::GremlinSneaky | crate::content::EnemyId::GremlinFat | crate::content::EnemyId::GremlinShield | crate::content::EnemyId::GremlinWizard
+                    | crate::content::EnemyId::SlaverBlue | crate::content::EnemyId::Taskmaster | crate::content::EnemyId::SlaverRed | crate::content::EnemyId::BookOfStabbing | crate::content::EnemyId::Champ | crate::content::EnemyId::Collector | crate::content::EnemyId::TorchHead | crate::content::EnemyId::BronzeAutomaton | crate::content::EnemyId::BronzeOrb)) {
                     require(e.full_memory.as_ref().is_some_and(|memory| memory.valid_for(*enemy_id)),
                         "supported full actor memory/configuration")?;
                 }
@@ -1168,12 +1250,14 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     let entry = e.full_damage_entries.get(&id).ok_or_else(|| InputError::Invariant("missing full damage entry".into()))?;
                     let louse_bite = matches!(enemy_id, crate::content::EnemyId::LouseRed | crate::content::EnemyId::LouseGreen)
                         && id == super::FullIntentId::Bite;
-                    require((if louse_bite { (5..=7).contains(&entry.base) } else { entry.base == base.base })
-                        && (0..=1515).contains(&entry.output), "full damage bounds")?;
+                    let divider=if *enemy_id==crate::content::EnemyId::Hexaghost&&id.as_str()=="divider"{match e.full_memory {Some(super::EnemyMemory::Hexaghost{divider_base,..})=>Some(divider_base.unwrap_or(1)),_=>None}}else{None};
+                    require((if louse_bite { (5..=7).contains(&entry.base) } else { entry.base == divider.unwrap_or(base.base) })
+                        && (0..=30_012).contains(&entry.output), "full damage bounds")?;
                 }
             }
         }
-        require(e.intent_damage.map_or(true, |n| (0..=1515).contains(&n)), "intent damage bounds")?;
+        let maximum=if state.full_runtime{30_012}else{1515};
+        require(e.intent_damage.map_or(true, |n| (0..=maximum).contains(&n)), "intent damage bounds")?;
         let has_damage = match &e.intent_id {
             ActorIntentId::Legacy(id) => e.damage_entries.contains_key(id),
             ActorIntentId::Full(id) => e.full_damage_entries.contains_key(id),
@@ -1181,10 +1265,10 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
         require(e.intent_damage.is_some() == has_damage, "published intent damage shape")?;
     }
     validate_rng(&state.rng, &state.enemies[0].instance_id, state.full_runtime)?;
-    let owned = validate_cards(&state.piles, state.in_play.as_ref())?;
+    let owned = validate_cards(&state.piles, state.in_play.as_ref(),state.stasis.values())?;
     require(owned.len() == state.card_ids_issued.len()
         && owned.iter().all(|id| state.card_ids_issued.contains(id)), "issued card ownership completeness")?;
-    for card in state.piles.all(state.in_play.as_ref()) {
+    for card in state.piles.all(state.in_play.as_ref()).chain(state.stasis.values()) {
         if let Some(live) = card.full() {
             require(state.full_runtime && super::card_state::handle(live.instance) == card.handle(),
                 "full card instance identity/mode")?;
@@ -1225,7 +1309,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
             require(state.hp_after_cleanup == Some(state.player.hp), "terminal cleanup HP")?;
             match state.outcome {
                 Some(Outcome::Victory) => {
-                    require(state.enemies.iter().all(|e| e.life != super::ActorLife::Active || e.hp == 0)
+                    require(super::enemies::act2::combat_victory_ready(state)
                         && state.player.hp > 0, "victory actors")?;
                     let before = state.hp_before_healing.ok_or_else(|| InputError::Invariant("missing prehealing HP".into()))?;
                     require((1..=state.player.max_hp).contains(&before)
@@ -1251,8 +1335,8 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                 require(state.pending.iter().any(|w| matches!(&w.kind,
                     EffectKind::FinishCard | EffectKind::Terminal(_))), "in-play continuation missing")?;
             }
-            if state.player.hp == 0 || state.enemies.iter().all(|e| e.hp == 0) {
-                require(!(state.player.hp == 0 && state.enemies.iter().all(|e| e.hp == 0)), "unsupported simultaneous lethality")?;
+            if state.player.hp == 0 || super::enemies::act2::combat_victory_ready(state) {
+                require(!(state.player.hp == 0 && super::enemies::act2::combat_victory_ready(state)), "unsupported simultaneous lethality")?;
                 let outcome = if state.player.hp == 0 { Outcome::Death } else { Outcome::Victory };
                 require(state.pending.iter().any(|w| w.kind == EffectKind::Terminal(outcome)), "lethal pending terminal work")?;
             }
@@ -1292,6 +1376,18 @@ pub(super) fn retain_error(state: &mut State, error: EffectError) {
         EffectError::Invalid(InputError::Invariant(message)) |
         EffectError::Random(RngError::Invalid(message)) => (FaultKind::Invariant, message),
         EffectError::Random(RngError::Exhausted { state: latest }) => {
+            let mut summon_owned=false;
+            if let Some(progress)=state.spawn_progress.as_mut(){
+                for owned in [&mut progress.constructor_rng,&mut progress.latest_child_rng]{
+                    if owned.id()==latest.id()&&owned.key()==latest.key()&&latest.word_index()>=owned.word_index(){*owned=latest.clone();summon_owned=true;break;}
+                }
+            }
+            if summon_owned{mark_fault(state,FaultKind::RngExhausted,"owned summon child stream exhausted".into());return;}
+            if let Some(stream)=state.card_rng.as_mut().filter(|stream|stream.id()==latest.id()){
+                if stream.key()==latest.key()&&latest.word_index()>=stream.word_index(){
+                    *stream=latest;mark_fault(state,FaultKind::RngExhausted,"owned full card-random stream exhausted".into());return;
+                }
+            }
             if let Some(progress) = state.replacement_progress.as_mut() {
                 if let Some(owned) = progress.latest_child_rng.as_mut().filter(|owned|
                     owned.id() == latest.id() && owned.key() == latest.key()

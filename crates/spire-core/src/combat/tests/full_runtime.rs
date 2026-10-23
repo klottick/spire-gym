@@ -385,7 +385,7 @@ fn full_native_actor_identity_intent_powers_and_ai_owners_are_typed() {
         player: scenario.player.clone(),
         player_powers: vec![FullPowerEntry { id: FullPowerId("intangible"), state: PowerState { amount: 2, skip_first: false, monster_source_grace: false } }],
         shuffle_rng: full_stream(Domain::RunCombatShuffle, vec!["run-combat-1"]),
-        enemies: vec![FullEnemySetup {
+        enemies: vec![FullEnemySetup { initial_memory:None,
             instance_id: EnemyHandle::parse("native-enemy-a").unwrap(),
             enemy_id: crate::content::EnemyId::Unknown("spire_guardian"), ascension: 0, profile: super::super::enemies::EnemyProfile::Standard,
             hp: 30, max_hp: 30, block: 0,
@@ -540,7 +540,7 @@ fn full_entry_owns_generic_card_ids_without_legacy_pile_rows() {
     let ready = combat.public_full().unwrap();
     assert_eq!(ready.hand, vec![LiveCardView { instance: CardInstanceId(9001),
         id: crate::content::CardId::Unknown("unwired_runtime_fixture"),
-        origin: CombatCardRef::CombatLocal(77), upgrades: 3 }]);
+        origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None }]);
     assert_eq!(combat.state.piles.draw.len(), 0);
     let owned = &combat.state.piles.hand[0];
     assert!(matches!(owned, OwnedCard::Full(_)), "full ID has no legacy pile row");
@@ -606,7 +606,7 @@ fn full_setup(scenario: &Scenario) -> FullCombatSetup {
         shuffle_rng: scenario.rng.shuffle.clone(), enemies: scenario.enemies.iter().enumerate().map(|(i,e)| {
             let ai_rng = if i == 0 { scenario.rng.enemy_ai.clone() } else {
                 full_stream(Domain::RunCombatEnemyAi, vec!["run-combat-1", if i == 1 { "enemy-scope-2" } else { "enemy-scope-3" }]) };
-            FullEnemySetup { instance_id: e.instance_id.clone(), ascension: 0, profile: super::super::enemies::EnemyProfile::Standard,
+            FullEnemySetup { initial_memory:None, instance_id: e.instance_id.clone(), ascension: 0, profile: super::super::enemies::EnemyProfile::Standard,
                 enemy_id: match e.enemy_id { EnemyKind::Cultist => crate::content::EnemyId::Cultist,
                     EnemyKind::JawWorm => crate::content::EnemyId::JawWorm },
                 hp: e.hp, max_hp: e.max_hp, block: e.block,

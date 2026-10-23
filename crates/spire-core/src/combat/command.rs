@@ -16,7 +16,7 @@ pub enum CombatAction {
 pub struct CardInstanceId(pub u64);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CardDestination { Hand, Draw, Discard }
+pub enum CardDestination { Hand, Draw, Discard, ShuffledDraw }
 pub type GeneratedCardDestination = CardDestination;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

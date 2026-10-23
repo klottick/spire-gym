@@ -72,3 +72,19 @@ fn settlement_conflict_retains_terminal_owner_and_opaque_counters() {
     assert_eq!(run.choose_combat(CombatAction::EndTurn),Err(error));
     assert_eq!(run,before);
 }
+
+#[test]
+fn m6_stasis_run_death_settlement_counts_living_orb_card_once() {
+    let mut start=support::start();start.deck=vec![CardInstance{instance:1,id:CardId::Disarm,upgrades:1}];start.relics.clear();start.potions=vec![None;3];
+    let mut run=Run::from_authored_combat(support::config(),start,support::rng(41)).unwrap();let deck=run.state().deck.clone();
+    let entry=enemies::setup(EncounterId::BronzeAutomaton,2,0,&mut RunRng::new([41;32],crate::combat::rng::Partition::Test,0),enemies::SetupContext{
+        player:PlayerState{hp:200,max_hp:200,block:0,energy:3,max_energy:3,draw_per_turn:1,powers:vec![]},player_powers:vec![],character:crate::content::Character::Ironclad,
+        cards:vec![permanent_live_card(CardId::Disarm,CardInstanceId(1),1)],opening_draw:0,encounter_visit:0,
+    }).unwrap();
+    let mut items=Some(crate::items::CombatItemContext::take_from_run(run.state_mut_for_test()));let mut combat=Combat::enter_with_item_context(entry,&mut items).unwrap();assert!(items.is_none());
+    for _ in 0..5{combat.step_full(&CombatAction::EndTurn).unwrap();if !combat.public_full().unwrap().stasis.is_empty(){break}}
+    let public=combat.public_full().unwrap();assert_eq!(public.stasis.len(),1);assert_eq!(public.stasis[0].card.instance,CardInstanceId(1));assert!(public.enemies.iter().any(|e|e.instance_id==public.stasis[0].orb&&e.hp>0));
+    combat.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::HpLoss(300))}],None).unwrap();assert_eq!(combat.exit().unwrap().stasis.len(),1);
+    let state=run.state_mut_for_test();state.combat=Some(combat);state.active_combat=Some(ActiveCombat{visit:0,encounter:EncounterId::BronzeAutomaton,origin:CombatOrigin::Authored});state.combat_progress=CombatProgress{entered:1,settled:0};
+    let result=run.settle_combat().unwrap();assert_eq!(result.terminal,Some(RunTerminal::Death));assert_eq!(run.state().deck,deck);assert_eq!(run.state().last_combat.as_ref().unwrap().outcome,Outcome::Death);assert_eq!(run.state().combat_progress,CombatProgress{entered:1,settled:1});assert!(run.state().combat.is_none());
+}

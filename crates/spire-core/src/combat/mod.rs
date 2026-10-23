@@ -11,6 +11,7 @@ mod effects;
 mod powers;
 mod piles;
 mod turns;
+mod status;
 mod card_state;
 mod characters;
 pub mod cards;
@@ -22,13 +23,13 @@ pub mod snapshot;
 pub use content::*;
 pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
     ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind,
-    EnemyHandle, EnemySetup, EnemyState, EnemyReplacementDiagnostics,
+    EnemyHandle, EnemySetup, EnemyState, EnemyReplacementDiagnostics, SpawnRequest, EnemySpawnDiagnostics,
     CombatEntry, CombatFault, FaultKind, FaultRecord, FullCombatSetup, FullEnemySetup, FullIntentId, FullPowerEntry, FullPowerId, InputError, Outcome, Phase, Piles, PlayerState, PowerEntry,
     PowerState, PublicKnowledge, RestoreError, Scenario, Source, StepError, Transition,
     TransitionStatus};
 pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
-pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, SelectionView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView};
+pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView};
 pub use card_state::{permanent as permanent_live_card, CombatCardData, LiveCard};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, Stance};
 pub use cards::resolve;
