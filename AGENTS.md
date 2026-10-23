@@ -1,5 +1,32 @@
 # Spire Gym: current agent guidance
 
+## Local preservation cleanup (2026-10-23)
+
+The user approved a bounded local cleanup: preserve the handoff and this pointer
+in a documentation commit on `docs/m8-session-handoff-20261023`, fast-forward local
+`main` to merged `origin/main`, and locally ignore known tracker/evidence files.
+Earlier references to these two documents being uncommitted describe the handoff
+snapshot, not their later preservation commit. All worktrees, existing branches,
+stash and evidence remain preserved. No push, deletion, M9 implementation or
+continuing commit/merge authority is implied by this completed cleanup request.
+
+## Session handoff / M8 merged (2026-10-23)
+
+Read `docs/handoffs/2026-10-23-m8-merged-m9-session-handoff.md` FIRST for continuation.
+PR42 is MERGED4874fb398128c142bd56f10a12e6fca939a88f93 after user-requested THREE
+fresh independent GPT6Luna PR reviewers all found no findings. FeatureHEAD2b5637b
+has EXACT merged tree; current branch feat/m8-act3-mechanics, source committed/
+pushed, controller clean BEFORE handoff docs. Older “M8 UNCOMMITTED”/ddd4df2/
+review-pending notes below are superseded historical state, NOT missing work.
+.30/.30.2/.62 closed; M9 .31/.31.1 OPEN/UNASSIGNED, PLANNING ONLY. No M9 plan/code/
+implementation child/start yet. Next deliver ONE written M9 plan for user review.
+Current user requests handoff to a DIFFERENT session: this document+AGENTS pointer
+are intentionally local uncommitted docs, preserve/carry them rather than discard.
+No renewed commit/push/merge/install/private-audit/cleanup authority. Maincheckout,
+all branches/worktrees/stasha6daee8/evidence preserved; old7 and genuine losses
+unchanged. Outgoing publication actor's tasks closed; new session uses normally
+allocated actor/claim, never impersonation/force/reclaim or repeat M8 reviews.
+
 ## User-requested M8 PR / three Luna reviews (2026-10-23)
 
 User explicitly requests a PR for these accepted M8 changes, followed by THREE
