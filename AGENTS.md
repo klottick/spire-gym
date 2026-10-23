@@ -1,5 +1,167 @@
 # Spire Gym: current agent guidance
 
+## User-requested M8 PR / three Luna reviews (2026-10-23)
+
+User explicitly requests a PR for these accepted M8 changes, followed by THREE
+DIFFERENT fresh GPT6 Luna reviewers, and work towards merging. Bounded authority
+supersedes older no-M8-publication/one-review-only notes for this follow-up:
+Conventional Commit of public M8 snapshot, new feature branch/push/PR, three
+dedicated read-only materialized/hashverified worktrees and unique build targets,
+native scoped fixes/TDD and normal merge only after review/check/mergeability
+gates. No force pushes, blanket cleanup/installs/private publication or M9 product
+start. Preserve main checkout, every worktree/stash/evidence and historical seven
+failures/genuine losses. Native controller owns all edits and integration.
+Shared task `spire-dxo.62`, actor `opencode-session-recovery-20261021-v1`.
+
+## M8 accepted / M9 planning next (2026-10-23)
+
+M8 `.30.2`/`.30` normally closed after ONE fresh independent GPT6 Luna review
+ses_e952da62bffeTLac42Fw88P0XH found no Critical/Important/Minor findings and
+all five focus classes satisfied. Six declined categories explicitly controller-
+ruled in ledger. All462 reviewed public files unchanged in BOTH worktrees before
+fresh core647/7 EXACTsame underlyinghistorical7/nativeM8 111/0/publicM1–M8 56/0/
+M6native92/0/M7native16/0/consumers43/0/other30/0/reporting1/0/all8examples/
+bothplannedseeds/budgets0/1/invalidargs/reference70/0/Pythonperf22/0/bothbuilders/
+diffcheck0. Only administrative acceptance text changes afterward; product/tests/
+data/policies remain fixed. Accepted profile `docs/milestones/m8-act3.md`.
+Actual normalstart seed11 Time/Donu icon prefixes721/738 atchest43/reward43,
+HeadDeath711/floor41/reward40; seed7 actual3eliteDeaths694/685/689 floor40/reward39
+preserved/replayed. No forced-win tuning/seedsearch/resourceinjection. All16supplied
+diagnostics separately labelled, not normalrun proof. Actual chest43 sourceProceed
+is nonterminal/noactions/no readinessbonus/no44; fullAct3completion remains M9.
+M5/M6/M7 endpoints unchanged; no fullstandardpool/othercharacter/A0–20/Act4Heart/
+JavaParity/workspacegreen acceptance.27provisional enemy/12nullpowerIDs remain;
+ownedarchive upstreambuild/channel UNVERIFIED, no originalruntime claim.
+M9 `.31` activated and actual planning-only `.31.1` open/unassigned; next deliver
+ONE written M9 plan for user review, no automatic product child/code/start.
+Preserve native integration/useful isolated Luna assistance/ONE milestone review
+after written-plan approval. Controller stays this feature worktree atddd4df2,
+all M8 UNCOMMITTED; no new commit/push/merge/install/privateaudit/originalexecution/
+cleanup authority. Keep all worktrees, stasha6daee8 and evidence intact.
+Ledger `.superpowers/sdd/2026-10-23-m8-act3-mechanics/progress.md`.
+
+## M8 approved / native execution active (2026-10-23)
+
+User "I approve it" approves the delivered M8 written plan; `.30.1` closed
+normally and native implementation `.30.2` claimed. Execute twelve tasks in
+`docs/superpowers/plans/2026-10-23-m8-act3-mechanics.md`, with TDD and ONE final
+milestone review. Preserve prior profiles, real losses and task-local source
+qualification; no blanket new private lookup/commits/push/install/cleanup grant.
+User subsequently explicitly allows resolving data/* gaps and updating affected
+records after lookup. Task-local existing-tool static inspection only, no original
+execution/installs/whole-archive audit/private-source publication. Owned archive
+cfad868…8173 upstream build/channel is UNVERIFIED, not proven PCv2.3. Separate6Luna
+read-only reference audit is informational, not a new implementation assignment or
+product acceptance; do not automatically apply unrelated findings. Tasks1/2 now
+native17/0: Shapes/OrbWalker and real Darkling HalfDead/Regrowing/Reincarnate/all-down;
+fresh core551/7 SAME historical7/public50/0/M6 90/0/consumers43/0/reference55/0.
+Task-local data/citations updated;39provisional enemy/23nullpower IDs remain.
+Task3 Growth/Transient/Maw now native7/0: actual Constricted, Shifting/Shackled,
+Fading fifth-attack-before-self-death, Maw selected-turn Nom; full M8native24/0,
+core558/7 SAMEold7/public50/0/M6native90/0/consumers43/0/reference57/0/bothbuilders.
+Task-local data36provisional enemy/20nullpower IDs. Next Task4 Writhing/Parasite;
+no milestone acceptance yet. Separate spire-h45 actoropencode-relic-dataset-20261023-v1
+owns Mystic fix/tests/applicability/review/PR in act12-audit-fixes-20261023. Do not
+edit partners.rs or m6_partners tests; their focused publication authority does
+not authorize M8 commits/pushes/PR or merging anything into this worktree.
+User "integrate after its merged shortly" subsequently authorizes normal PR41
+integration after merge. Confirmed GitHubMERGED ddd4df2, fetched and fast-forwarded
+THIS featureworktree from9fa436c through PR40+PR41. Saved README overlap reconciled,
+418 preexisting M8/unaffected blobs bytepreserved; no stash operation/newcommit/
+push/main edits. Fresh core560/7 SAMEold7/M8native24/0/M6native92/0/public50/0/
+consumers43/0/other30/0/reference57/0/Pythonperf22/0/bothbuilders. HEAD nowddd4df2;
+Task4 continues with all uncommitted M8 preserved. ONE final milestone review.
+Task4 now nativeWrithing9/0+Runacquisition7/0: real reactions/conditional AI,
+permanent Parasite journal/Run sync before decisions or later faults, checked
+allocation/ack, exact-origin census and real subsequent paid purge/no upgrade.
+Source correction: owned A0 Block attack15+base-backedBlock15 (not plan/wiki16),
+Debuff10; corrected assistant transposition preserved in ledger. NativeOrb keeps
+original Lightning THORNS exclusions. Fresh M8 40/0/core576/7 SAMEold7/public50/0/
+M6native92/0/consumers43/0/other30/0/reference60/0/Pythonperf22/0/bothbuilders.
+Task-local data35provisional enemy/18nullpower IDs; upstream owned build/channel
+still UNVERIFIED. Task5 now nativeelite11/0: real Head countdown/Slow after-use/
+one-floor arithmetic and Nemesis exact redirects/absent-only Intangible callback
+schedule/per-hit all-type cap including actual FirePotion. Supplied Head dynamic
+preview/canonical validation and elite memory/intent pre-entry regressions fixed.
+Fresh M8 51/0/core587/7 SAMEold7/public50/0/M6native92/0/consumers43/0/other30/0/
+reference62/0/Pythonperf22/0/bothbuilders.33provisional enemy/16nullpowerIDs remain;
+owned upstream build/channel UNVERIFIED. Task6 now nativeReptomancer10/0:
+source initial/physical vs trackedslots, real conditionalAI, Dagger9+Wound then
+25-before-selfHPLOSS, callback-delivering top cleanup; prepared-but-uninserted
+child actually survives parent cleanup/acks/keeps combat live in named ordinary
+queue case. Existing spawn custody extended, constructor/prepared-ack faults
+retain owner/child/cursors; no globalMinionignore/fabricatedWin. Fresh M8 61/0/
+core597/7 SAMEold7/public50/0/M6native92/0/consumers43/0/other30/0/reference63/0/
+Pythonperf22/0/bothbuilders.31provisional enemy/16nullpowerIDs remain;
+owned upstream build/channel UNVERIFIED. Task7 now nativeAwakened/Card10/0+
+RunPowerCensus1/0: real First/Rebirth/Second, callbacks/typed debuff cleanse/
+positiveStrength retention/negative removal, stagedfullheal/forcedEcho/final
+Cultist escape; actual Inflame owned inactive Powerzone on public/exit/Runcensus,
+Void actualdrawclamp/Ethereal and Sludge BOTTOM insertion (notrandom). Assistant's
+inverted filter reading corrected by controller before any native oracle.
+Fresh M8 72/0/core608/7 SAMEold7/public50/0/M6native92/0/consumers43/0/other30/0/
+reference66/0/Pythonperf22/0/bothbuilders.30provisional enemy/14nullpowerIDs remain;
+owned upstream build/channel UNVERIFIED. Task8 now nativeTimeEater10/0: real
+after-use counter/persistent12-card reset/owned barrier and ordinary forcedEndTurn,
+current multi-hit/payment/draw/selection/disposition preserved, retained before/
+after-barrier faults and sequential terminal priority. Strict selected Haste/
+typedcleanse/deltaheal, exact recursiveAI/finite0.66f and DrawReduction grace/decay
+with base1->0draw. Fresh M8 82/0/core618/7 SAMEold7/public50/0/M6native92/0/
+consumers43/0/other30/0/reference68/0/Pythonperf22/0/bothbuilders/diffcheck0.
+29provisional enemy/12nullpowerIDs remain; upstream build/channel UNVERIFIED.
+Task9 now nativepair6/0: independent execution-advanced flags, actual Deca-first
+10x2/Dazed2/Block16 and DonuStrength3/10x2, full-list buff publication then
+action-specific target guards; queued survivor buffs survive source death, no
+ally-death reset or early settlement. Fresh M8 88/0/core624/7 SAMEold7/public50/0/
+M6native92/0/consumers43/0/other30/0/reference69/0/Pythonperf22/0/bothbuilders/
+diffcheck0.27provisional enemy/12nullpowerIDs remain. Task10 now nativeevents9/0+
+RNGfrontier1/0: detached fixed Falling instances/disabled types/real removal,
+Tomb0/allgold-before-actualRedMask/owned222/resultLeave and accepted retained
+remove/grant/publication faults. Real initial-group RedMask Weak1 via Artifact,
+no later-summon/per-turn repeat; checked scoped Falling RNG frontier. Source facts
+qualified first, original bottled flags/event pools/EmptyDeck game parity not
+claimed. Fresh M8 98/0/core634/7 SAMEold7/public50/0/M6native92/0/consumers43/0/
+other30/0/reference70/0/Pythonperf22/0/bothbuilders/diffcheck0. Task11 now native
+rooms12/0: M8-only same-player Act3 Map34/allgenerated35-43/sourcecaptures and
+actual chest43Proceed cutoff; separate Act3 settlement/reward/elite counters,
+Falling detached before move, actual burning/Collar/owned/exhausted captures,
+Death/custody/pending upstreamCage and predecessor endpoints preserved. Fresh
+M8 110/0/core646/7 SAMEold7/public50/0/M6native92/0/consumers43/0/other30/0/
+reference70/0/Pythonperf22/0/bothbuilders/diffcheck0. Task12 active: public normal
+prefix/replay and16supplied diagnostics execute. Seed11 Time/Donu prefixes721/738,
+naturalGiantHeadDeath711;seed7 actualall3eliteDeaths694/685/689 preserved. Public
+diagnostic found real lone AwakenedHalfDead decision bug; focused nativeRED→GREEN
+now permits its actual Rebirth. Final full matrix/profile/ONE fresh independent
+review pending; no M8 acceptance. No policy tuning after these natural losses.
+ONE final milestone review pending, not M8 acceptance.
+Controller remains this isolated feature worktree, not a new main editing workspace.
+User-requested Luna stash assessment is independent read-only task `.61`, session
+`ses_e95d29f76ffeVhqzrac8S7GJvU`, dedicated verified413-file committed-main worktree.
+It recommends per-file disposition of stasha6daee8, never applies/pops/drops it or
+edits main/this source/refs/Beads; it is not the milestone reviewer. No overlapping
+implementation or inferred stash deletion. Ledger:
+`.superpowers/sdd/2026-10-23-m8-act3-mechanics/progress.md`.
+
+## M8 written-plan review gate (2026-10-23)
+
+User "Continue then" after pre-M8 commits resumes PLANNING ONLY. Written plan:
+`docs/superpowers/plans/2026-10-23-m8-act3-mechanics.md`. Twelve native tasks:
+real Act3 ordinary/elite/all3boss mechanics, revival/interrupt/permanent-acquisition
+ownership, Inflame/Void/Parasite/RedMask, Falling/Tomb events and same-player
+normal-start Act3 prefix through actual chest43. M9 retains full Act3 completion;
+M5/M6/M7 cutoffs unchanged. Natural losses remain valid; no easier-seed search,
+value/resource edits or forced-win tuning. Explicitly close named task-local source
+uncertainties before fixing an oracle/body; nominal references are not exact AI.
+No blanket private lookup/audit grant; prior M6 authority is not extended.
+Planning `.30.1` blocked/unassigned for THIS written-plan user review; no M8 product
+child/code/build/test/start. Preserve selected native integration, useful isolated
+Luna assistance and ONE final milestone review after approval. Planning assistant
+`ses_e95e622d3ffe4w3MfohmxLtgpP` used a dedicated verified413-file current-HEAD
+checkout, read-only/no builds; factual gaps, NOT acceptance review. Current HEAD
+`9fa436c` contains committed M7/reference snapshots; no new commit/push/install/
+cleanup authority. All source/data/tests unchanged during planning. Ledger:
+`.superpowers/sdd/2026-10-23-m8-act3-mechanics/progress.md`.
+
 ## Start here: game-rule resources
 
 - Read the [reference library index](data/README.md) before new mechanics research:

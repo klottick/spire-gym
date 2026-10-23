@@ -14,9 +14,9 @@ No game code, binaries, assets, dependencies or private evidence are included.
   including event combats, formation/composition rules, relative selection weights,
   queue exclusions, boss discovery, A20 double boss and burning-elite distinctions.
 - [`sources.json`](sources.json): revision-pinned community pages, qualified local
-  research, and a bounded secondary-port cross-check with explicit disagreements.
+  research, bounded secondary-port cross-checks and [M8 task-local static findings](m8-static-findings.md).
 - [`test_enemy_reference_dataset.py`](../../tests/python/test_enemy_reference_dataset.py):
-  18 small offline checks of reference integrity and selected numeric distinctions.
+  Small offline checks of reference integrity and selected numeric distinctions.
 
 The roster includes bosses, summons, bandits, both Louse colors and all Slime
 sizes. Hard Jaw Worm, awake event Lagavulin, center/outer Darkling and
@@ -30,7 +30,7 @@ Blue/Red Slavers retain normal-enemy scaling beside Elite-class Taskmaster.
 | Field | Meaning |
 |---|---|
 | `key`, `id` | Stable reference key and uppercase convenience label; not native enum IDs |
-| `game_id`, `identity_status` | Existing 25 primary-catalog IDs, or **provisional** constructor labels for the other 40 |
+| `game_id`, `identity_status` | 25 primary-catalog IDs, thirteen owned-static IDs with unverified upstream build, and 27 **provisional** constructor labels |
 | `acts`, `category` | Reachable act contexts and ordinary actor class; not room/reward classification |
 | `hp.bands` | Inclusive Ascension and ordinary inclusive HP ranges; split-created HP overrides normal rolls |
 | `starting_state` | Intrinsic ordinary setup; contextual variants and room/relic effects are separate |
@@ -50,8 +50,10 @@ classes; Bronze Orb and Torch Head follow their parent boss's A9 family, with
 secondary rather than primary corroboration here. Damage bases exclude Strength,
 Weak/Vulnerable, Flying, Back Attack and other live modifiers. A range for Louse
 Bite or Darkling Nip is rolled once per actor, not each hit or turn.
-Exploder's fixed explosion is explicitly distinguished from ordinary Attack
-scaling; its exact original modifier behavior remains qualified. Shield Smash's
+Exploder's owned-static fixed30 THORNS/self-suicide-before-damage path is distinguished
+from ordinary Attack scaling; other prevention interactions and the owned archive's
+upstream build/channel remain unverified. Orb Walker growth is end-of-round in
+those bytes, not owner-end-turn. Shield Smash's
 pre-A18 Block uses calculated attack output rather than actual player HP loss
 according to the cited secondary port, not newly established primary evidence.
 
@@ -102,8 +104,9 @@ are retained, not promoted to all-character/all-Ascension/runtime acceptance.
 The [Acts2/3 report](../../docs/research/2026-10-18-ironclad-a0-acts23-research.md)
 is an initial supporting A0 draft establishing selected encounter rules, not
 later-act enemy-mechanics closure. Existing 25 public keys/IDs are preserved.
-The 40 additional constructor labels need identity qualification before use in a
-native serialization contract; species coverage does not prove their exact IDs.
+Of 40 additional constructor labels, Darkling/Growth/Transient/Maw/Writhing/Head/
+Nemesis/Reptomancer/Dagger/AwakenedOne/TimeEater/Deca/Donu now have named owned-static findings;27 remain provisional. Neither establishes upstream build provenance or native
+serialization compatibility merely from species coverage.
 
 Wiki revisions freeze the retrieved community claims, **not the v2.3 executable**.
 Several pages are marked under construction. The secondary implementation is a
@@ -114,11 +117,16 @@ imported. Concrete disagreements remain visible:
 - Snake Plant: A17 fixed-cycle claim versus a conflicting secondary repeat rule.
 - Spire Growth: Constricted12 at wiki A2 versus secondary A17, plus A17 priority.
 - Taskmaster: first Wound increase at wiki A2 versus secondary Elite A3.
-- Writhing Mass: initial Big Hit versus Block Attack support and later redirects.
+- Writhing Mass: attributed wiki opening/later weights and fixedBlock16 differ from
+  named owned-static opening/redirects and A0 base-backed Block15. The owned-byte
+  law is documented; upstream build/channel and arbitrary callback compositions
+  remain unverified, not silently promoted to target-PCv2.3 truth.
 - Louses/Acid(S)/Byrd: missing or ambiguous wiki AI has secondary-qualified
   supplements rather than an invented primary claim.
-- Nemesis, Gremlin Leader and Reptomancer: approximate/rounded chances do not
-  establish every effective conditional probability.
+- Nemesis: exact A0 owned-static cooldown/history/fair-coin redirects are now
+  documented in local:m8-elites; nominal weights still are not effective rates.
+  Reptomancer's A0 integer/history/live-count redirects are also now documented;
+  Gremlin Leader's rounded reference chances retain their reference-only limits.
 
 Other limits include mixed-formation slot order, exact leader/summon composition,
 some card/power callback/terminal ordering and Stasis return edge cases. Empty

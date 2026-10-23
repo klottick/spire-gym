@@ -107,6 +107,78 @@ class PowerReferenceTests(unittest.TestCase):
         power = self.powers["power.reference.time_warp"]
         self.assertIn("Buffs", {c.get("page") for c in power["citations"]})
 
+    def test_m8_explosive_and_strength_up_have_scoped_static_identity_and_clocks(self):
+        explosive = self.powers["power.reference.explosive"]
+        growth = self.powers["power.reference.strength_up"]
+        self.assertEqual(explosive["game_id"], "Explosive")
+        self.assertEqual(growth["game_id"], "Generic Strength Up Power")
+        self.assertIn("OWNER_DURING_TURN", explosive["lifecycle"]["triggers"])
+        self.assertIn("END_ROUND", growth["lifecycle"]["triggers"])
+        for power in (explosive, growth):
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+            self.assertTrue(any(c.get("path") == "data/enemies/m8-static-findings.md" for c in power["citations"]))
+
+    def test_m8_life_link_retains_source_callbacks_without_room_settlement(self):
+        power = self.powers["power.reference.life_link"]
+        self.assertEqual(power["game_id"], "Life Link")
+        self.assertEqual(power["class_alias"], "RegrowPower")
+        self.assertIn("OWNER_HALF_DEATH", power["lifecycle"]["triggers"])
+        self.assertTrue(any("callbacks" in note.lower() for note in power["notes"]))
+        self.assertFalse(power["evidence"]["original_runtime_validated"])
+
+    def test_m8_ordinary_power_ids_and_callback_clocks_are_owned_static_only(self):
+        for key, game_id, trigger in [("constricted", "Constricted", "PLAYER_END_TURN"), ("shifting", "Shifting", "ON_POST_BLOCK_DAMAGE_CALLBACK"), ("fading", "Fading", "OWNER_DURING_TURN_AFTER_PAYLOAD")]:
+            power = self.powers["power.reference." + key]
+            self.assertEqual(power["game_id"], game_id)
+            self.assertIn(trigger, power["lifecycle"]["triggers"])
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+
+    def test_m8_writhing_power_ids_and_enemy_malleable_reset_are_source_qualified(self):
+        reactive = self.powers["power.reference.reactive"]
+        malleable = self.powers["power.reference.malleable"]
+        self.assertEqual(reactive["game_id"], "Compulsive")
+        self.assertEqual(malleable["game_id"], "Malleable")
+        self.assertIn("OWNER_END_TURN", malleable["lifecycle"]["triggers"])
+        for power in (reactive, malleable):
+            self.assertTrue(any(c.get("path") == "data/enemies/m8-static-findings.md" for c in power["citations"]))
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+
+    def test_m8_elite_power_ids_and_callback_contracts_are_owned_static_only(self):
+        slow = self.powers["power.reference.slow"]
+        intangible = self.powers["power.reference.intangible_enemy"]
+        self.assertEqual(slow["game_id"], "Slow")
+        self.assertEqual(intangible["game_id"], "Intangible")
+        self.assertIn("AFTER_CARD_USE", slow["lifecycle"]["triggers"])
+        self.assertIn("OWNER_END_TURN", intangible["lifecycle"]["triggers"])
+        for power in (slow, intangible):
+            self.assertTrue(any(c.get("path") == "data/enemies/m8-static-findings.md" for c in power["citations"]))
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+
+    def test_m8_time_powers_keep_counter_and_draw_grace_distinct(self):
+        for key, game_id, trigger in [
+            ("time_warp", "Time Warp", "ON_AFTER_USE_CARD"),
+            ("draw_reduction", "Draw Reduction", "END_ROUND_AFTER_APPLICATION_GRACE"),
+        ]:
+            power = self.powers["power.reference." + key]
+            self.assertEqual(power["game_id"], game_id)
+            self.assertIn(trigger, power["lifecycle"]["triggers"])
+            self.assertTrue(any(c.get("path") == "data/enemies/m8-static-findings.md" for c in power["citations"]))
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+        draw = self.powers["power.reference.draw_reduction"]
+        self.assertEqual(draw["stacking"]["mode"], "duration")
+        self.assertTrue(draw["discrepancies"])
+
+    def test_m8_awakened_power_constructor_ids_and_turn_predicates_are_qualified(self):
+        curiosity = self.powers["power.reference.curiosity"]
+        regenerate = self.powers["power.reference.regenerate"]
+        self.assertEqual(curiosity["game_id"], "Curiosity")
+        self.assertEqual(regenerate["game_id"], "Regenerate")
+        self.assertIn("UNSUPPRESSED_POWER_USE", curiosity["lifecycle"]["triggers"])
+        self.assertIn("OWNER_END_TURN", regenerate["lifecycle"]["triggers"])
+        for power in (curiosity, regenerate):
+            self.assertTrue(any(c.get("path") == "data/enemies/m8-static-findings.md" for c in power["citations"]))
+            self.assertFalse(power["evidence"]["original_runtime_validated"])
+
     def test_all_records_have_usable_information_and_versioned_sources(self):
         pages = {p["title"]: p for p in json.loads((DATA / "sources/wiki-pages.json").read_text())}
         for power in self.powers.values():

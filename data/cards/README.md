@@ -95,6 +95,14 @@ Existing local research is reused without re-running private source work:
 - [Defect/orbs](../../docs/research/2026-10-19-act1-content-defect.md)
 - [Watcher/dependent specials/Wish](../../docs/research/2026-10-19-act1-content-watcher.md)
 
+Parasite, Inflame and Void additionally have targeted, user-authorized [M8 owned-static findings](../enemies/m8-static-findings.md)
+for permanent obtain/removal, Power disposition and actual draw/Ethereal behavior.
+The owned archive's upstream build/
+channel is unverified. Its task-local citation is a qualified draft, not original-
+runtime validation or a complete obtain-prevention contract; no private source is
+distributed. Annotation `sources` entries append these explicit scoped citations
+without changing the primary wiki attribution or its printed descriptions.
+
 These documents are historical **draft/source-grounded** studies with explicit
 unclosed composition fields, largely scoped to Ironclad A0 Act 1 and off-color
 reachability. Linking them does not accept all their findings, implement other

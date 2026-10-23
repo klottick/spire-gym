@@ -172,6 +172,9 @@ class EnemyReferenceTests(unittest.TestCase):
         self.assertNotIn("Strength and other live modifiers apply separately", explosion["damage"]["basis"])
         self.assertIn("modifier_scope", explosion["damage"])
         self.assertIn("secondary", explosion["damage"]["modifier_scope"].lower())
+        self.assertEqual(explosion["damage"]["damage_type"], "THORNS")
+        self.assertIn("suicide", explosion["target"].lower())
+        self.assertIn("local:m8-shapes", record["citations"])
         self.assertTrue(any("modifier" in note for note in record["uncertainties"]))
         self.assertIn("secondary:port", record["citations"])
 
@@ -191,6 +194,102 @@ class EnemyReferenceTests(unittest.TestCase):
 
     def test_painful_stabs_keeps_discard_destination(self):
         self.assertTrue(any("Wound" in rule and "discard" in rule for rule in self.by_id["BOOK_OF_STABBING"]["lifecycle"]))
+
+
+    def test_m8_static_findings_close_only_named_shapes_and_round_clock(self):
+        orb = self.by_id["ORB_WALKER"]
+        self.assertEqual(orb["static_qualification"]["strength_up_phase"], "END_ROUND")
+        self.assertFalse(orb["static_qualification"]["original_runtime_validated"])
+        for identity in ("ORB_WALKER", "EXPLODER", "SPIKER", "REPULSOR"):
+            self.assertIn("local:m8-shapes", self.by_id[identity]["citations"])
+        mixed = next(r for r in self.encounters["encounters"] if r["factory_key"] == "Sphere and 2 Shapes")
+        self.assertEqual(mixed["ordered_slots"], ["INDEPENDENT_SHAPE", "INDEPENDENT_SHAPE", "SPHERIC_GUARDIAN"])
+        self.assertIn("local:m8-shapes", mixed["citations"])
+
+    def test_m8_darkling_static_lifecycle_is_not_an_unqualified_death_reset(self):
+        darkling = self.by_id["DARKLING"]
+        self.assertEqual(darkling["static_qualification"]["temporary_downing_callbacks"], ["POWER_ON_DEATH", "RELIC_ON_MONSTER_DEATH"])
+        self.assertFalse(darkling["static_qualification"]["upstream_build_channel_verified"])
+        self.assertIn("local:m8-darklings", darkling["citations"])
+        self.assertEqual(darkling["identity_status"], "owned_archive_static_constructor_label_build_unverified")
+
+    def test_m8_ordinary_static_damage_clocks_keep_callback_and_hp_clamp_distinct(self):
+        transient = self.by_id["TRANSIENT"]
+        self.assertEqual(transient["static_qualification"]["shifting_measure"], "POST_BLOCK_CALLBACK_BEFORE_HP_CLAMP")
+        self.assertEqual(transient["static_qualification"]["expiry_order"], ["ATTACK", "FADING_SUICIDE"])
+        for identity in ("SPIRE_GROWTH", "TRANSIENT", "THE_MAW"):
+            self.assertIn("local:m8-ordinary", self.by_id[identity]["citations"])
+            self.assertFalse(self.by_id[identity]["static_qualification"]["upstream_build_channel_verified"])
+
+    def test_m8_writhing_owned_static_values_do_not_silently_replace_wiki_claims(self):
+        record = self.by_id["WRITHING_MASS"]
+        facts = record["static_qualification"]
+        self.assertEqual(facts["a0_block_attack"], {"damage": 15, "block": 15, "basis": "damage_entry_base_not_modified_output"})
+        self.assertEqual(facts["a0_debuff_attack_damage"], 10)
+        self.assertEqual(facts["secondary_float_coins"], {"denominator": 16777216, "tenth_true_outcomes": 1677722, "two_fifths_true_outcomes": 6710887})
+        self.assertIn("local:m8-writhing", record["citations"])
+        self.assertFalse(facts["upstream_build_channel_verified"])
+
+    def test_m8_elites_keep_exact_owned_countdown_redirects_and_intangible_boundaries(self):
+        head = self.by_id["GIANT_HEAD"]["static_qualification"]
+        nemesis = self.by_id["NEMESIS"]["static_qualification"]
+        self.assertEqual(head["a0_first_time_enemy_turn"], 5)
+        self.assertEqual(head["a0_time_bases"], [30, 35, 40, 45, 50, 55, 60])
+        self.assertEqual(nemesis["later_integer_bands"], ["0-29 Scythe proposal", "30-64 TriAttack proposal", "65-99 TriBurn proposal"])
+        self.assertEqual(nemesis["first_protected_player_turn"], 2)
+        self.assertEqual(nemesis["positive_hit_cap"], 1)
+        for identity in ("GIANT_HEAD", "NEMESIS"):
+            record = self.by_id[identity]
+            self.assertIn("local:m8-elites", record["citations"])
+            self.assertFalse(record["static_qualification"]["upstream_build_channel_verified"])
+
+    def test_m8_reptomancer_keeps_tracking_action_order_and_prepared_spawn_distinct(self):
+        parent = self.by_id["REPTOMANCER"]["static_qualification"]
+        child = self.by_id["DAGGER"]["static_qualification"]
+        self.assertEqual(parent["tracked_dagger_slots"], 4)
+        self.assertEqual(parent["can_spawn_other_nondying_max"], 3)
+        self.assertEqual(parent["a0_children_per_spawn"], 1)
+        self.assertEqual(parent["physical_order"], ["slot3", "slot1", "parent", "slot2", "slot0"])
+        self.assertEqual(parent["ordinary_prepared_spawn_after_parent_cleanup"], "inserts_and_keeps_combat_live")
+        self.assertEqual(child["explosion_order"], ["NORMAL_attack25", "HP_LOSS_self_captured_current_hp"])
+        for identity in ("REPTOMANCER", "DAGGER"):
+            record = self.by_id[identity]
+            self.assertIn("local:m8-reptomancer", record["citations"])
+            self.assertFalse(record["static_qualification"]["upstream_build_channel_verified"])
+
+    def test_m8_partners_publish_all_targets_but_keep_execution_guards_separate(self):
+        for identity in ["DECA", "DONU"]:
+            record = self.by_id[identity]
+            facts = record["static_qualification"]
+            self.assertEqual(facts["group_buff_publication"], "ALL_CURRENT_GROUP_MEMBERS_IN_ORDER")
+            self.assertEqual(facts["own_cycle_advance"], "TAKE_TURN_PUBLICATION")
+            self.assertFalse(facts["original_runtime_validated"])
+            self.assertFalse(facts["upstream_build_channel_verified"])
+            self.assertIn("local:m8-partners", record["citations"])
+        source = self.by_id["DECA"]["static_qualification"]
+        self.assertEqual(source["block_skip_flags"], ["isDying", "isDead"])
+        self.assertEqual(source["strength_skip_flags"], ["isDying", "halfDead", "isEscaping"])
+
+    def test_m8_time_eater_keeps_after_use_and_selection_latches_source_qualified(self):
+        record = self.by_id["TIME_EATER"]
+        facts = record["static_qualification"]
+        self.assertEqual(facts["haste_threshold"], "hp < max_hp / 2")
+        self.assertEqual(facts["haste_latch"], "SELECTION")
+        self.assertEqual(facts["time_warp_callback"], "ON_AFTER_USE_CARD")
+        self.assertEqual(facts["secondary_float_coin"], {"true_outcomes": 11072963, "denominator": 16777216})
+        self.assertFalse(facts["original_runtime_validated"])
+        self.assertFalse(facts["upstream_build_channel_verified"])
+        self.assertIn("local:m8-time-eater", record["citations"])
+
+    def test_m8_awakened_keeps_signed_cleanse_and_bottom_void_source_qualified(self):
+        record = self.by_id["AWAKENED_ONE"]
+        facts = record["static_qualification"]
+        self.assertEqual(facts["a0_hp"], 300)
+        self.assertTrue(facts["positive_strength_retained"])
+        self.assertTrue(facts["negative_strength_removed"])
+        self.assertEqual(facts["sludge_void_destination"], "bottom_draw")
+        self.assertIn("local:m8-awakened", record["citations"])
+        self.assertFalse(facts["upstream_build_channel_verified"])
 
 
 if __name__ == "__main__":

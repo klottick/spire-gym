@@ -98,7 +98,7 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
     let card = owned.full().ok_or(crate::run::RunError::InvalidAction)?;
     if combat.state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound){return Err(crate::run::RunError::InvalidAction);}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void){return Err(crate::run::RunError::InvalidAction);}
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
@@ -154,7 +154,7 @@ enum PayloadTarget { Player, SelectedEnemy, Enemy(EnemyHandle) }
 
 /// Obtain price from the same read-only payload producer as actual play, not a second table.
 pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound){return None}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void){return None}
     payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)
 }
 pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
@@ -317,7 +317,7 @@ fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     Ok((cost, effects))
 }
 
-pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool, vulnerable: bool)
+pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool, enemy:&super::model::EnemyState)
     -> Result<i32, crate::run::RunError>
 {
     if !(0..=3003).contains(&base) || !(-9990..=9990).contains(&strength) {
@@ -328,8 +328,14 @@ pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool,
     if combined_base > 10004 {
         return Err(crate::run::RunError::Unsupported("full card damage exceeds supported numeric surface"));
     }
-    rules::full_normal_damage_modifiers(combined_base.max(0), 0, weak,
-        state.character.stance == super::characters::Stance::Wrath, vulnerable)
+    let mut receive=Vec::new();
+    if enemy.powers.iter().any(|p|p.id==PowerId::Vulnerable&&p.state.amount>0){receive.push(1.5f32);}
+    for power in &enemy.full_powers{match power.id.0{
+        "vulnerable" if power.state.amount>0=>receive.push(1.5f32),
+        "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
+    }}
+    rules::full_normal_damage_received(combined_base.max(0), 0, weak,
+        state.character.stance == super::characters::Stance::Wrath, receive)
         .map_err(|_| crate::run::RunError::Unsupported("invalid card damage"))
 }
 
@@ -339,10 +345,8 @@ fn modified_damage(state: &State, target: u64, base: i32) -> Result<i32, crate::
     let strength = state.player.powers.iter().find(|p| p.id == PowerId::Strength)
         .map_or(0, |p| p.state.amount)
         + state.player_full_powers.iter().filter(|p| p.id.0 == "strength").map(|p| p.state.amount).sum::<i32>();
-    let vulnerable = enemy.powers.iter().any(|p| p.id == PowerId::Vulnerable && p.state.amount > 0)
-        || enemy.full_powers.iter().any(|p| p.id.0 == "vulnerable" && p.state.amount > 0);
     let weak = state.player_full_powers.iter().any(|p| p.id.0 == "weak" && p.state.amount > 0);
-    normal_damage(state, base, strength, weak, vulnerable)
+    normal_damage(state, base, strength, weak, enemy)
 }
 
 fn modified_block(state: &State, base: i32) -> Result<i32, crate::run::RunError> {

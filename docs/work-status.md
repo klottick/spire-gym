@@ -6,6 +6,38 @@ for the implemented interface. No models/training/learner checkpoints belong her
 
 ## Current workstream
 
+2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
+The isolated feature worktree remains at `ddd4df2` after separately authorized
+PR41 integration. Tasks1–11 implement the named Act3 mechanics, ownership/events and
+same-player actual chest43 prefix. Task12 public normal-start/replay checks and16
+supplied diagnostics execute; [accepted profile](milestones/m8-act3.md) records
+seed11 completions721/738actions (TimeEater/DonuDeca icons), real GiantHeadDeath711,
+and seed7 three genuine elite losses694/685/689. No forced-win tuning/seed search.
+The diagnostic exposed an actual last-actor Awakened HalfDead decision defect;
+focused card-collapse RED→GREEN preserves Rebirth without fabricated Victory.
+ONE fresh independent GPT6 Luna review found no findings; all462 reviewed public
+files were unchanged in both worktrees before fresh nativeM8 111/0/public56/0/
+M6native92/0/M7native16/0/consumers43/0/other30/0/reporting1/0/all8examples/bothseeds/
+budgets0/1/reference70/0/Pythonperf22/0/builders/diffcheck. Core647/7 retains
+exactly the same seven historical underlying failures, not a green workspace.
+M9 `.31` and planning-only `.31.1` are open/unassigned; no product start.
+Task-local owned-
+static findings retain unverified archive build/channel and no original-runtime
+validation;27 provisional enemy labels/12 unresolved power IDs remain. All M8 work
+is uncommitted; no new publication/install/cleanup authority.
+The dated planning snapshot below is history, not a new approval gate.
+
+2026-10-23 M8 written planning: user "Continue then" resumes the next deliverable
+after the two local snapshot commits. [Plan](superpowers/plans/2026-10-23-m8-act3-mechanics.md)
+prepared for user review: twelve native tasks for actual Act3 ordinary/elite/all3boss
+mechanics, required card/item ownership, Falling/Tomb events and same-player prefix
+through actual chest43. Full Act3 completion stays M9. Task-local source conflicts
+and approximate AI probabilities have explicit closure/stop rules, no inferred
+private audit. One isolated413-file current-HEAD Luna factual pass supplied code
+gaps, not review/acceptance; no builds/tests/product changes during planning.
+Planning `.30.1` blocked/unassigned for written-plan review; no implementation
+child/start, further commits/pushes/installs/cleanup or reference-data edits.
+
 2026-10-23 pre-M8 local snapshot: user requested current public work committed and
 reference discovery improved before planning M8. Accepted M7 is committed locally
 as `2d9a47e` on `feat/run-act2-prefix`. The follow-up reference/docs snapshot includes

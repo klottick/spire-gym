@@ -27,6 +27,7 @@ TARGETED_SKILLS = {
     "JUDGMENT", "LEG_SWEEP", "MALAISE", "PRESSURE_POINTS", "SPOT_WEAKNESS", "TERROR",
 }
 RESEARCH = {
+    "M8": "data/enemies/m8-static-findings.md",
     "IRONCLAD": "docs/research/2026-10-19-act1-content-red-colorless.md",
     "SHARED": "docs/research/2026-10-19-act1-content-red-colorless.md",
     "SILENT": "docs/research/2026-10-19-act1-content-silent.md",
@@ -196,7 +197,7 @@ def build_dataset():
                 "revision_url": WIKI + "Special:PermanentLink/" + str(page["revision_id"]),
                 "wiki_name": row["Name"], "wiki_color": row["Color"], "wiki_rarity": row["Rarity"],
             },
-            "local_research": local_research(card_id, character),
+            "local_research": local_research(card_id, character) + annotations.get(card_id, {}).get("sources", []),
             "evidence": {"primary": "community-wiki description", "original_runtime_validated": False},
         })
     return {

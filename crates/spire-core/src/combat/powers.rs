@@ -2,6 +2,15 @@
 use super::*;
 use super::model::State;
 
+/// Finite source-qualified ordinary cleanse categories. Shackled has a separate
+/// unconditional removal at the named Champ/Awakened phase transitions.
+pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
+    "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"=>true,
+    "strength"|"dexterity"=>power.state.amount<=0,
+    "metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"=>false,
+    _=>return None,
+})}
+
 fn lanes<'a>(state: &'a mut State, actor: &Actor) -> (&'a mut Vec<PowerEntry>, &'a mut Vec<FullPowerEntry>) {
     match actor {
         Actor::Player => (&mut state.player.powers, &mut state.player_full_powers),
@@ -49,7 +58,7 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
         }});
     } else {
         full.push(FullPowerEntry { id, state: PowerState { amount: value,
-            skip_first: id.0 == "ritual",
+            skip_first: matches!(id.0,"ritual"|"draw_reduction")||id.0=="intangible"&&matches!(actor,Actor::Enemy(_)),
             monster_source_grace: matches!(id.0, "weak" | "vulnerable" | "frail")
                 && matches!(effect.source, Source::Actor(Actor::Enemy(_))),
         }});
@@ -88,7 +97,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "draw_reduction") && delta > 0)
         || (matches!(id.0, "strength" | "dexterity") && delta < 0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
     if application && debuff && artifact > 0 {

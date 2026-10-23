@@ -27,6 +27,7 @@ pub(super) fn refresh_enemy_values(state: &mut State) -> Result<(), InputError> 
     let player_powers = &state.player.powers;
     let player_full_powers = &state.player_full_powers;
     for enemy in &mut state.enemies {
+        if state.full_runtime{super::enemies::act3::elites::refresh_actor(enemy);}
         for entry in enemy.damage_entries.values_mut().chain(enemy.full_damage_entries.values_mut()) {
             entry.output = refreshed_damage(entry.base, &enemy.powers, &enemy.full_powers,
                 player_powers, player_full_powers, wrath, state.full_runtime)?;
@@ -90,7 +91,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             *hp = next_hp;
             *block = next_block;
             if full_runtime {
-                let result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
+                // Lightning's native Orb lane retains original THORNS callback
+                // exclusions; it is not a fourth original DamageType.
+                let result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)),thorns:matches!(payload,DamagePayload::Thorns(_)|DamagePayload::Orb(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
                 super::enemies::act2::after_damage(state,&result)?;
             }
             if let Actor::Enemy(id) = target {
@@ -100,6 +103,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     DamagePayload::Fixed(_) | DamagePayload::EnemyMove(_) | DamagePayload::FullEnemyMove(_));
                 super::enemies::on_hit(state, id, &effect.source, normal_damage, hp_before, hp_before - next_hp);
             }
+            let half_death=state.full_runtime&&next_hp==0&&match target{Actor::Enemy(owner)=>super::enemies::act3::darklings::down(state,owner,&effect.source)||super::enemies::act3::awakened::down(state,owner,&effect.source),_=>false};
             if next_hp == 0 {
                 if state.full_runtime&&hp_before>0&&matches!(target,Actor::Enemy(_)){
                     // Accepted multi-hit work stops on this actual corpse even
@@ -108,6 +112,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     state.pending.retain(|queued|queued.target.as_ref()!=Some(target)||!matches!(queued.kind,EffectKind::Damage(_)));
                 }
                 let outcome = match target {
+                    _ if half_death=>None,
                     Actor::Player => Some(Outcome::Death),
                     Actor::Enemy(_) if super::enemies::act2::combat_victory_ready(state) => Some(Outcome::Victory),
                     Actor::Enemy(_) => None,
@@ -124,7 +129,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     }
                     }
                 }
-                if state.full_runtime {
+                if state.full_runtime&&!half_death {
                     state.pending.push_front(Effect { source: effect.source.clone(), target: effect.target.clone(),
                         kind: EffectKind::Hook(Hook::Death) });
                 }
@@ -135,6 +140,12 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             }
         }
         EffectKind::GainBlock(n) => {
+            // Deca publishes the full group, not a living-only snapshot. Its
+            // already queued Block survives source death but skips a dead target.
+            // HalfDead is not ordinary death; do not generalize Strength's guard.
+            if state.full_runtime
+                &&matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Deca)))
+                &&matches!(&effect.target,Some(Actor::Enemy(target)) if state.enemies.iter().any(|e|&e.instance_id==target&&e.hp==0&&e.life!=ActorLife::HalfDead)){return Ok(())}
             let full_runtime = state.full_runtime;
             let block = match effect.target.as_ref().unwrap() {
                 Actor::Player => &mut state.player.block,
@@ -181,6 +192,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 .filter(|energy| *energy <= 999)
                 .ok_or_else(|| InputError::Unsupported("player energy overflow".into()))?;
         }
+        EffectKind::LoseEnergy(n)=>{state.player.energy=(state.player.energy-*n).max(0);},
         EffectKind::ApplyPower { id, amount: delta } => {
             let grace = matches!(effect.source, Source::Actor(Actor::Enemy(_)));
             let powers = powers_mut(state, effect.target.as_ref().unwrap());
@@ -234,6 +246,18 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::CollectorSuicide|EffectKind::AutomatonSuicide=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("boss suicide target absent".into()).into())};super::enemies::act2::suicide(state,owner);
         },
+        EffectKind::ShapeSuicide=>{
+            let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("shape suicide owner absent".into()).into())};super::enemies::act2::suicide(state,owner);
+        },
+        EffectKind::ShapeDamageComplete=>super::enemies::act3::shapes::complete_damage(state,&effect.source),
+        EffectKind::RevivalHeal(_)|EffectKind::DarklingCollapse|EffectKind::DarklingRevive|EffectKind::DarklingsDefeat=>super::enemies::act3::darklings::apply(state,effect)?,
+        EffectKind::TransientFade|EffectKind::TransientRecover|EffectKind::MawNom{..}=>super::enemies::act3::ordinary::apply(state,effect)?,
+        EffectKind::ObtainParasite=>super::enemies::act3::writhing::obtain(state,&effect.source)?,
+        EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth|EffectKind::AwakenedCanLose=>super::enemies::act3::awakened::apply(state,effect)?,
+        EffectKind::TimeWarpEndTurn=>super::enemies::act3::time_eater::force_end(state,effect)?,
+        EffectKind::TimeEaterCleanse=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Haste cleanse target absent".into()).into())};super::enemies::act3::time_eater::cleanse(state,owner)?;},
+        EffectKind::ReptomancerSuicide=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Reptomancer suicide target absent".into()).into())};super::enemies::act3::reptomancer::cleanup_suicide(state,owner);},
+        EffectKind::ResetMalleable=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Malleable reset owner absent".into()).into())};super::enemies::act3::writhing::reset_malleable(state,owner);},
         EffectKind::BookStab{remaining}=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Book stab owner absent".into()).into())};super::enemies::act2::book::stab(state,owner,*remaining);
         },
@@ -248,7 +272,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         },
         EffectKind::Decision => {
             if !state.pending.is_empty() || state.in_play.is_some() || state.player.hp <= 0
-                || state.enemies.iter().all(|e| e.hp <= 0) || state.outcome.is_some() {
+                || state.enemies.iter().all(|e|e.hp<=0&&e.life!=ActorLife::HalfDead) || state.outcome.is_some() {
                 return Err(InputError::Invariant("decision before quiescence".into()).into());
             }
             refresh_enemy_values(state)?;
@@ -258,6 +282,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             let Source::Card(card) = &effect.source else {
                 return Err(InputError::Invariant("FinishCard requires card source".into()).into());
             };
+            if state.full_runtime{super::enemies::act3::elites::after_card(state)?;}
+            if state.full_runtime{super::enemies::act3::time_eater::after_card(state)?;}
+            let power=state.in_play.as_ref().and_then(OwnedCard::full).is_some_and(|c|crate::content::Catalog::standard().card(c.id).is_some_and(|d|d.card_type==crate::content::CardType::Power));
+            if state.full_runtime&&power{state.played_powers.push(state.in_play.take().ok_or_else(||InputError::Invariant("played Power owner missing".into()))?);return Ok(())}
             super::piles::discard_card(state, card, false)?;
         }
         EffectKind::Terminal(outcome) => {
@@ -268,6 +296,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     .map_err(|_| InputError::Invariant("terminal HP overflow".into()))?;
             }
             state.pending.clear();
+            state.pending_time_warp=None;
             // Do not run FinishCard or reset diagnostic piles/block. dispatch_one
             // releases current after this synchronous terminal payload completes.
             state.phase = Phase::Terminal;
@@ -316,7 +345,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         }
         EffectKind::Hook(hook) => {
             if state.full_runtime {
-                super::hooks::dispatch(state, *hook, &effect.source,effect.target.as_ref())?;
+                // Darkling downing calls the same source death callbacks without
+                // becoming final actor death or combat settlement.
+                let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
+                super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
                 let hp = state.player.hp;
                 if *hook==Hook::CombatSettled&&hp>0 {
                     if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
@@ -325,11 +357,15 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     }
                 }
                 let work = if let Some(context) = state.item_context.as_mut() {
-                    crate::items::relic_hook_effects(context, *hook, hp)
+                    crate::items::relic_hook_effects(context, callback, hp)
                 } else {
                     crate::items::relic_hook_effects(
-                        &mut crate::items::CombatItemContext::default(), *hook, hp)
+                        &mut crate::items::CombatItemContext::default(), callback, hp)
                 };
+                if *hook==Hook::CombatStarted{
+                    let targets=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
+                    if let Some(context)=state.item_context.as_ref(){for work in crate::items::battle_start_enemy_effects(context,&targets).into_iter().rev(){state.pending.push_front(work);}}
+                }
                 for effect in work.bottom {
                     super::engine::validate_effect(&effect, state)?;
                     state.pending.push_back(effect);

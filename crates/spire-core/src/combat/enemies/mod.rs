@@ -46,6 +46,8 @@ impl EnemyProfile {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JawWormVariant { Act1, HordeHard }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum AwakenedPhase{First,Rebirth,Second}
 
 /// Native typed continuation data for queued Slime replacement. The live frame
 /// belongs to combat State; diagnostics must not expose private RNG keys.
@@ -79,6 +81,16 @@ pub enum EnemyMemory {
     Champ { turns:u32,forges:u8,angered:bool },
     Collector { turns_taken:u32,ult_used:bool,initial_spawn:bool,slots:std::collections::BTreeMap<u8,EnemyHandle> }, TorchHead,
     BronzeAutomaton { turns:u8 }, BronzeOrb { used_stasis:bool },
+    OrbWalker,Repulsor,Exploder {turns:u8},Spiker {buffs:u8},
+    Darkling {center:bool,nip:i32,first:bool},
+    SpireGrowth,Transient{turns:u8,base:i32},Maw{turns:u32,roared:bool},
+    WrithingMass{first:bool,parasite_used:bool,parasite_pending:bool},
+    GiantHead{count:i8},
+    Nemesis{first:bool,cooldown:u8},
+    Reptomancer{first:bool,slots:std::collections::BTreeMap<u8,EnemyHandle>},Dagger{first:bool},
+    AwakenedOne{phase:AwakenedPhase,first:bool},
+    TimeEater{haste_used:bool},
+    Deca{attacking:bool},Donu{attacking:bool},
     LouseRed { curl_up_used: bool },
     LouseGreen { curl_up_used: bool },
     AcidSlime { split_triggered: bool },
@@ -104,6 +116,16 @@ impl EnemyMemory {
             return Err(InputError::Unsupported("enemy profile/ascension unavailable".into()));
         }
         match id {
+            EnemyId::Deca=>Ok(Self::Deca{attacking:true}),EnemyId::Donu=>Ok(Self::Donu{attacking:false}),
+            EnemyId::TimeEater=>Ok(Self::TimeEater{haste_used:false}),
+            EnemyId::AwakenedOne=>Ok(Self::AwakenedOne{phase:AwakenedPhase::First,first:true}),
+            EnemyId::Reptomancer=>Ok(Self::Reptomancer{first:true,slots:Default::default()}),EnemyId::Dagger=>Ok(Self::Dagger{first:true}),
+            EnemyId::GiantHead=>Ok(Self::GiantHead{count:5}),
+            EnemyId::Nemesis=>Ok(Self::Nemesis{first:true,cooldown:0}),
+            EnemyId::WrithingMass=>Ok(Self::WrithingMass{first:true,parasite_used:false,parasite_pending:false}),
+            EnemyId::SpireGrowth=>Ok(Self::SpireGrowth),EnemyId::Transient=>Ok(Self::Transient{turns:0,base:30}),EnemyId::Maw=>Ok(Self::Maw{turns:0,roared:false}),
+            EnemyId::Darkling=>Ok(Self::Darkling{center:false,nip:7,first:true}),
+            EnemyId::OrbWalker=>Ok(Self::OrbWalker),EnemyId::Repulsor=>Ok(Self::Repulsor),EnemyId::Exploder=>Ok(Self::Exploder{turns:0}),EnemyId::Spiker=>Ok(Self::Spiker{buffs:0}),
             EnemyId::Cultist => Ok(Self::Cultist { ascension }),
             EnemyId::JawWorm => Ok(Self::JawWorm { ascension, variant: match profile {
                 EnemyProfile::Standard => JawWormVariant::Act1,
@@ -147,6 +169,19 @@ impl EnemyMemory {
 
     pub fn valid_for(&self, id: EnemyId) -> bool {
         match (id, self) {
+            (EnemyId::Deca,Self::Deca{..})|(EnemyId::Donu,Self::Donu{..})=>true,
+            (EnemyId::TimeEater,Self::TimeEater{..})=>true,
+            (EnemyId::AwakenedOne,Self::AwakenedOne{..})=>true,
+            (EnemyId::Reptomancer,Self::Reptomancer{slots,..})=>slots.keys().all(|slot|*slot<4)&&slots.values().collect::<std::collections::BTreeSet<_>>().len()==slots.len(),
+            (EnemyId::Dagger,Self::Dagger{..})=>true,
+            (EnemyId::GiantHead,Self::GiantHead{count})=>(-6..=5).contains(count),
+            (EnemyId::Nemesis,Self::Nemesis{cooldown,..})=>*cooldown<=2,
+            (EnemyId::WrithingMass,Self::WrithingMass{parasite_pending,parasite_used,..})=>!*parasite_pending||*parasite_used,
+            (EnemyId::SpireGrowth,Self::SpireGrowth)=>true,
+            (EnemyId::Transient,Self::Transient{turns,base})=>*turns<=5&&(*base==30+10*i32::from(*turns)||*turns>0&&*base==20+10*i32::from(*turns)),
+            (EnemyId::Maw,Self::Maw{turns,..})=>*turns<i32::MAX as u32,
+            (EnemyId::Darkling,Self::Darkling{nip:7..=11,..})=>true,
+            (EnemyId::OrbWalker,Self::OrbWalker)|(EnemyId::Repulsor,Self::Repulsor)|(EnemyId::Exploder,Self::Exploder{turns:0..=3})|(EnemyId::Spiker,Self::Spiker{buffs:0..=6})=>true,
             (EnemyId::Guardian,Self::Guardian{quota,loss,..})=>*quota>=30&&*loss>=0&&*loss<*quota,
             (EnemyId::Hexaghost,Self::Hexaghost{divider_base,cycle,..})=>*cycle<7&&divider_base.is_none_or(|base|(1..=84).contains(&base)),
             (EnemyId::SphericGuardian,Self::SphericGuardian)|(EnemyId::Byrd,Self::Byrd{..})=>true,
@@ -320,6 +355,15 @@ impl From<RngError> for SelectError { fn from(value: RngError) -> Self { Self::R
 
 /// Construct ordinary shared-resolver effects for the actor's selected intent.
 pub fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> {
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Deca|EnemyId::Donu)){return Err(InputError::Unsupported("Deca/Donu payload requires live group context".into()))}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater){return act3::time_eater::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::AwakenedOne){return act3::awakened::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::reptomancer::supports(id)){return act3::reptomancer::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::elites::supports(id)){return act3::elites::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::WrithingMass){return act3::writhing::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::ordinary::supports(id)){return act3::ordinary::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Darkling){return act3::darklings::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::supports(id)){return act3::shapes::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::SphericGuardian|EnemyId::Byrd)){return act2::flight::move_work(enemy);}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Chosen|EnemyId::Snecko)){return act2::chosen_snecko::move_work(enemy);}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Guardian){return guardian::move_work(enemy);}
@@ -414,10 +458,20 @@ fn damage(source: Actor, intent: FullIntentId) -> Effect {
 /// Select the next move using only this actor's history, memory, and AI stream.
 pub fn select_move(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
     stream: &StreamState) -> Result<MoveSelection, SelectError> {
+    if act3::elites::supports(id)&&!memory.valid_for(id){return Err(InputError::Invariant("elite memory/species mismatch".into()).into())}
     if stream.id().domain() != rng::Domain::RunCombatEnemyAi {
         return Err(InputError::Unsupported("native full enemy selection requires run enemy AI stream".into()).into());
     }
     match (id, memory) {
+        (EnemyId::Deca|EnemyId::Donu,_)=>act3::partners::select_move(id,history,memory,stream),
+        (EnemyId::TimeEater,_)=>Err(InputError::Unsupported("Time Eater selection requires live owner context".into()).into()),
+        (EnemyId::AwakenedOne,_)=>act3::awakened::select_move(history,memory,stream),
+        (id,_) if act3::reptomancer::supports(id)=>act3::reptomancer::select_move(id,history,memory,stream,None),
+        (id,_) if act3::elites::supports(id)=>act3::elites::select_move(history,memory,stream),
+        (EnemyId::WrithingMass,_)=>act3::writhing::select_move(history,memory,stream),
+        (id,_) if act3::ordinary::supports(id)=>act3::ordinary::select_move(id,history,memory,stream,None),
+        (EnemyId::Darkling,_)=>act3::darklings::select_move(history,memory,stream,false),
+        (id,_) if act3::supports(id)=>act3::shapes::select_move(id,history,memory,stream),
         (EnemyId::Guardian,EnemyMemory::Guardian{..})=>guardian::select_move(history,memory,stream),
         (EnemyId::SphericGuardian,EnemyMemory::SphericGuardian)|(EnemyId::Byrd,EnemyMemory::Byrd{..})=>act2::flight::select_move(history,memory,stream),
         (EnemyId::Chosen,EnemyMemory::Chosen)|(EnemyId::Snecko,EnemyMemory::Snecko)=>act2::chosen_snecko::select_move(history,memory,stream),
@@ -606,6 +660,15 @@ fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::SpikeSlimeM => (28, 32), EnemyId::SpikeSlimeL => (64, 70),
         EnemyId::SlimeBoss => (140, 140),
         EnemyId::Unknown(_) => (0, 0),
+        EnemyId::TimeEater=>(456,456),
+        EnemyId::Deca|EnemyId::Donu=>(250,250),
+        EnemyId::AwakenedOne=>(300,300),
+        EnemyId::Reptomancer=>(180,190),EnemyId::Dagger=>(20,25),
+        EnemyId::GiantHead=>(500,500),EnemyId::Nemesis=>(185,185),
+        EnemyId::WrithingMass=>(160,160),
+        EnemyId::SpireGrowth=>(170,170),EnemyId::Transient=>(999,999),EnemyId::Maw=>(300,300),
+        EnemyId::Darkling=>(48,56),
+        EnemyId::OrbWalker=>(90,96),EnemyId::Repulsor=>(29,35),EnemyId::Exploder=>(30,30),EnemyId::Spiker=>(42,56),
         EnemyId::GremlinLeader=>(140,148),EnemyId::GremlinMad=>(20,24),EnemyId::GremlinSneaky=>(10,14),EnemyId::GremlinFat=>(13,17),EnemyId::GremlinShield=>(12,15),EnemyId::GremlinWizard=>(21,25),
         EnemyId::SlaverBlue|EnemyId::SlaverRed=>(46,50),EnemyId::Taskmaster=>(54,60),EnemyId::BookOfStabbing=>(160,164),
         EnemyId::Champ=>(420,420),
@@ -653,6 +716,21 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::SpikeSlimeL => &[(SpikeFlameTackle, 16)],
         EnemyId::SlimeBoss => &[(FullIntentId::from_name("slam"), 35)],
         EnemyId::Unknown(name) => return Err(InputError::Unsupported(format!("damage bases missing for {name}"))),
+        EnemyId::TimeEater=>&[(FullIntentId::from_name("time_reverb"),7),(FullIntentId::from_name("time_slam"),26)],
+        EnemyId::Deca=>&[(FullIntentId::from_name("deca_beam"),10)],
+        EnemyId::Donu=>&[(FullIntentId::from_name("donu_beam"),10)],
+        EnemyId::AwakenedOne=>&[(FullIntentId::from_name("awa_slash"),20),(FullIntentId::from_name("awa_soul"),6),(FullIntentId::from_name("awa_echo"),40),(FullIntentId::from_name("awa_sludge"),18),(FullIntentId::from_name("awa_tackle"),10)],
+        EnemyId::Reptomancer=>&[(FullIntentId::from_name("repto_snake"),13),(FullIntentId::from_name("repto_bite"),30)],
+        EnemyId::Dagger=>&[(FullIntentId::from_name("dagger_wound"),9),(FullIntentId::from_name("dagger_explode"),25)],
+        EnemyId::GiantHead=>&[(FullIntentId::from_name("head_count"),13),(FullIntentId::from_name("head_time"),30)],
+        EnemyId::Nemesis=>&[(FullIntentId::from_name("nemesis_tri"),6),(FullIntentId::from_name("nemesis_scythe"),45)],
+        EnemyId::WrithingMass=>&[(FullIntentId::from_name("writhing_multi"),7),(FullIntentId::from_name("writhing_block"),15),(FullIntentId::from_name("writhing_debuff"),10),(FullIntentId::from_name("writhing_big"),32)],
+        EnemyId::SpireGrowth=>&[(FullIntentId::from_name("growth_quick"),16),(FullIntentId::from_name("growth_smash"),22)],
+        EnemyId::Transient=>&[(FullIntentId::from_name("transient_attack"),30)],
+        EnemyId::Maw=>&[(FullIntentId::from_name("maw_slam"),25),(FullIntentId::from_name("maw_nom"),5)],
+        EnemyId::Darkling=>&[(FullIntentId::from_name("darkling_nip"),7),(FullIntentId::from_name("darkling_chomp"),8)],
+        EnemyId::OrbWalker=>&[(FullIntentId::from_name("orb_laser"),10),(FullIntentId::from_name("orb_claw"),15)],
+        EnemyId::Repulsor=>&[(FullIntentId::from_name("repulsor_attack"),11)],EnemyId::Exploder=>&[(FullIntentId::from_name("exploder_attack"),9)],EnemyId::Spiker=>&[(FullIntentId::from_name("spiker_attack"),7)],
         EnemyId::GremlinLeader=>&[(FullIntentId::from_name("leader_stab"),6)],
         EnemyId::GremlinMad=>&[(FullIntentId::from_name("gremlin_scratch"),4)],EnemyId::GremlinSneaky=>&[(FullIntentId::from_name("gremlin_puncture"),9)],EnemyId::GremlinFat=>&[(FullIntentId::from_name("gremlin_smash"),4)],EnemyId::GremlinShield=>&[(FullIntentId::from_name("gremlin_bash"),6)],EnemyId::GremlinWizard=>&[(FullIntentId::from_name("gremlin_blast"),25)],
         EnemyId::SlaverBlue=>&[(FullIntentId::from_name("slaver_stab"),12),(FullIntentId::from_name("slaver_rake"),7)],EnemyId::Taskmaster=>&[(FullIntentId::from_name("taskmaster_whip"),7)],EnemyId::SlaverRed=>&[(FullIntentId::from_name("slaver_stab"),13),(FullIntentId::from_name("slaver_scrape"),8)],EnemyId::BookOfStabbing=>&[(FullIntentId::from_name("book_multi"),6),(FullIntentId::from_name("book_big"),21)],
@@ -724,6 +802,7 @@ fn select_jaw(history: &[FullIntentId], memory: &EnemyMemory, stream: &StreamSta
 
 /// Append native enemy payload to the same queue consumed by the shared resolver.
 pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::EffectError> {
+    if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(id) if act3::supports(id))){let work=act3::take_turn(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())}
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::BronzeAutomaton|EnemyId::BronzeOrb))){let work=act2::automaton::move_work(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())}
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::SlaverBlue|EnemyId::Taskmaster|EnemyId::SlaverRed|EnemyId::BookOfStabbing|EnemyId::Champ|EnemyId::Collector|EnemyId::TorchHead))){
         let work=act2::take_turn(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())
@@ -783,6 +862,16 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::Champ=>24,
         EncounterId::Collector=>25,
         EncounterId::BronzeAutomaton=>26,
+        EncounterId::OrbWalker=>27,EncounterId::ThreeShapes=>28,EncounterId::FourShapes=>29,EncounterId::SphereAndTwoShapes=>30,
+        EncounterId::ThreeDarklings=>31,
+        EncounterId::SpireGrowth=>32,EncounterId::Transient=>33,EncounterId::Maw=>34,
+        EncounterId::WrithingMass=>35,
+        EncounterId::GiantHead=>36,
+        EncounterId::Nemesis=>37,
+        EncounterId::Reptomancer=>38,
+        EncounterId::AwakenedOne=>39,
+        EncounterId::TimeEater=>40,
+        EncounterId::DonuAndDeca=>41,
         _ => return Err(crate::run::RunError::Registry("encounter setup not implemented")),
     };
     let expected_act = match encounter {
@@ -790,7 +879,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         | EncounterId::SmallSlimes | EncounterId::LargeSlime | EncounterId::LotsOfSlimes
         | EncounterId::SlimeBoss => 1,
         EncounterId::ThreeCultists|EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::ChosenAndByrds|EncounterId::Snecko|EncounterId::CenturionAndHealer|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton => 2,
-        EncounterId::JawWormHorde => 3,
+        EncounterId::JawWormHorde|EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::FourShapes|EncounterId::SphereAndTwoShapes|EncounterId::ThreeDarklings|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::Maw|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer|EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca => 3,
         EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries|EncounterId::ThreeLouse|EncounterId::Guardian|EncounterId::Hexaghost => 1,
         _ => unreachable!("encounter key lookup validated supported encounter"),
     };
@@ -821,6 +910,18 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::Champ=>vec![EnemyId::Champ],
         EncounterId::Collector=>vec![EnemyId::Collector],
         EncounterId::BronzeAutomaton=>vec![EnemyId::BronzeAutomaton],
+        EncounterId::OrbWalker=>vec![EnemyId::OrbWalker],
+        EncounterId::ThreeDarklings=>vec![EnemyId::Darkling;3],
+        EncounterId::SpireGrowth=>vec![EnemyId::SpireGrowth],EncounterId::Transient=>vec![EnemyId::Transient],EncounterId::Maw=>vec![EnemyId::Maw],
+        EncounterId::WrithingMass=>vec![EnemyId::WrithingMass],
+        EncounterId::GiantHead=>vec![EnemyId::GiantHead],
+        EncounterId::Nemesis=>vec![EnemyId::Nemesis],
+        EncounterId::Reptomancer=>vec![EnemyId::Dagger,EnemyId::Reptomancer,EnemyId::Dagger],
+        EncounterId::AwakenedOne=>vec![EnemyId::Cultist,EnemyId::Cultist,EnemyId::AwakenedOne],
+        EncounterId::TimeEater=>vec![EnemyId::TimeEater],
+        EncounterId::DonuAndDeca=>vec![EnemyId::Deca,EnemyId::Donu],
+        EncounterId::ThreeShapes=>vec![EnemyId::Repulsor;3],EncounterId::FourShapes=>vec![EnemyId::Repulsor;4],
+        EncounterId::SphereAndTwoShapes=>vec![EnemyId::Repulsor,EnemyId::Repulsor,EnemyId::SphericGuardian],
         EncounterId::GremlinLeader=>{
             let mut ids=Vec::new();for slot in 0..2{let ticket=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[act as u64,encounter_key,visit,slot,0],8);ids.push(act2::gremlin_leader::POOL[ticket]);}ids.push(EnemyId::GremlinLeader);ids
         },
@@ -849,7 +950,11 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::SlimeBoss => vec![EnemyId::SlimeBoss],
         _ => unreachable!("encounter selected above"),
     };
-    for (slot, id) in ids.into_iter().enumerate() {
+    let mut shape_pool=vec![EnemyId::Repulsor,EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Exploder,EnemyId::Spiker,EnemyId::Spiker];
+    for (slot, mut id) in ids.into_iter().enumerate() {
+        // Each chosen slot is constructed before the next composition request.
+        if matches!(encounter,EncounterId::ThreeShapes|EncounterId::FourShapes){let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],shape_pool.len() as u64);id=shape_pool.remove(index);}
+        else if encounter==EncounterId::SphereAndTwoShapes&&slot<2{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],3);id=[EnemyId::Spiker,EnemyId::Repulsor,EnemyId::Exploder][index];}
         let louse = matches!(id, EnemyId::LouseRed | EnemyId::LouseGreen);
         let (min_hp, max_hp) = hp_range(id, ascension);
         let hp = if min_hp == max_hp { min_hp } else { min_hp + rng.bounded_scoped(
@@ -861,6 +966,14 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
             damage_bases.insert((slot as u32, FullIntentId::Bite), bite);
         }
         let mut powers = Vec::new();
+        if matches!(id,EnemyId::Deca|EnemyId::Donu){powers.push(super::FullPowerEntry{id:FullPowerId("artifact"),state:super::PowerState{amount:2,skip_first:false,monster_source_grace:false}});}
+        if id==EnemyId::TimeEater{powers.push(super::FullPowerEntry{id:FullPowerId("time_warp"),state:super::PowerState{amount:0,skip_first:false,monster_source_grace:false}});}
+        if id==EnemyId::AwakenedOne{for (name,amount) in [("curiosity",1),("regenerate",10),("unawakened",1)]{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
+        if encounter==EncounterId::Reptomancer&&id!=EnemyId::Reptomancer{powers.push(super::FullPowerEntry{id:FullPowerId("minion"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
+        if id==EnemyId::GiantHead{powers.push(super::FullPowerEntry{id:FullPowerId("slow"),state:super::PowerState{amount:0,skip_first:false,monster_source_grace:false}});}
+        if id==EnemyId::WrithingMass{for (name,amount) in [("reactive",1),("malleable",4)]{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
+        if id==EnemyId::Transient{for (name,amount) in [("fading",5),("shifting",1)]{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
+        for (species,name,amount) in [(EnemyId::OrbWalker,"strength_up",3),(EnemyId::Spiker,"thorns",3),(EnemyId::Exploder,"explosive",3)]{if id==species{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
         if id==EnemyId::BronzeAutomaton{powers.push(super::FullPowerEntry{id:FullPowerId("artifact"),state:super::PowerState{amount:3,skip_first:false,monster_source_grace:false}});}
         if id==EnemyId::BookOfStabbing{powers.push(super::FullPowerEntry{id:FullPowerId("painful_stabs"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
         if encounter==EncounterId::GremlinLeader&&id!=EnemyId::GremlinLeader{powers.push(super::FullPowerEntry{id:FullPowerId("minion"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
@@ -887,17 +1000,20 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
             EnemyProfile::JawWormHorde
         } else if encounter==EncounterId::ThreeSentries&&slot==1{EnemyProfile::SentryCenter
         } else { EnemyProfile::Standard };
-        let memory = EnemyMemory::for_profile(id, ascension, profile)
+        let mut memory = EnemyMemory::for_profile(id, ascension, profile)
             .map_err(|_| crate::run::RunError::Unsupported("enemy memory unavailable"))?;
+        if id==EnemyId::Darkling{let nip=7+rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[act as u64,encounter_key,visit,slot as u64,3],5) as i32;damage_bases.insert((slot as u32,FullIntentId::from_name("darkling_nip")),nip);memory=EnemyMemory::Darkling{center:slot==1,nip,first:true};powers.push(super::FullPowerEntry{id:FullPowerId("life_link"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
         enemies.push(FullEnemySetup { initial_memory:Some(memory),instance_id: EnemyHandle::parse(&actor)
             .map_err(|_| crate::run::RunError::Unsupported("invalid generated enemy identity"))?,
             enemy_id: id, hp, max_hp: hp, block: 0, intent: FullIntentId::from_name("unselected_native_entry"), ascension, profile,
             powers, ai_rng });
     }
+    let player_constricted=context.player_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0);
+    if encounter==EncounterId::Reptomancer{let slots=[(1,enemies[0].instance_id.clone()),(0,enemies[2].instance_id.clone())].into_iter().collect();enemies[1].initial_memory=Some(EnemyMemory::Reptomancer{first:true,slots});}
     let summaries=enemies.iter().enumerate().map(|(slot,a)|act2::ActorSummary{owner:a.instance_id.clone(),species:a.enemy_id,hp:a.hp,max_hp:a.max_hp,slot:slot as u8}).collect::<Vec<_>>();
     for actor in &mut enemies {
         let context=act2::EnemyRollContext{owner:actor.instance_id.clone(),turn:1,actors:summaries.clone()};
-        let selected=act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context).map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
+        let selected=if actor.enemy_id==EnemyId::SpireGrowth{act3::ordinary::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,Some(player_constricted))}else{act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context)}.map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
         actor.intent=selected.intent;actor.ai_rng=selected.stream;actor.initial_memory=Some(selected.memory);
     }
     let shuffle_rng = rng.derive_combat_stream(crate::combat::rng::Domain::RunCombatShuffle,

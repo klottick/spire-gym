@@ -39,6 +39,7 @@ pub struct CombatInventoryView {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatPublic {
+    pub played_powers:Vec<LiveCardView>,
     pub stasis:Vec<StasisCardView>,
     pub content_id: String, pub turn: u32, pub player: FullPlayerView, pub enemies: Vec<FullEnemyView>,
     pub character: CharacterCombatView,
@@ -60,13 +61,14 @@ pub struct FullPlayerView {
 pub struct FullEnemyView {
     pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub hp: i32, pub max_hp: i32,
     pub block: i32, pub powers: Vec<FullPowerView>, pub intent: super::FullIntentId,
-    pub intent_damage: Option<i32>, pub replaced: bool, pub escaped:bool, pub logical_slot:u8,
+    pub intent_damage: Option<i32>, pub replaced: bool, pub escaped:bool, pub half_dead:bool, pub logical_slot:u8,
 }
 
 /// Native combat-to-run handoff. It contains only actual full-run cards and
 /// persistent combat result/resource values; run settlement remains a later owner.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatExit {
+    pub played_powers:Vec<LiveCard>,
     pub stasis:Vec<LiveCard>,
     pub hp: i32, pub max_hp: i32, pub block: i32, pub energy: i32,
     pub outcome: Outcome, pub hand: Vec<LiveCard>, pub draw: Vec<LiveCard>,
@@ -134,12 +136,13 @@ pub(super) fn full_enemies(state: &State) -> Vec<FullEnemyView> {
         intent: match e.intent_id { super::ActorIntentId::Full(id) => id,
             super::ActorIntentId::Legacy(id) => super::FullIntentId::from_name(id.as_str()) },
         intent_damage: e.intent_damage, replaced: e.life == super::ActorLife::Replaced,
-        escaped:e.life==super::ActorLife::Escaped,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
+        escaped:e.life==super::ActorLife::Escaped,half_dead:e.life==super::ActorLife::HalfDead,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
     }).collect()
 }
 
 pub(super) fn ready(state: &State) -> Result<(), AccessError> {
     if state.fault.is_some() { return Err(AccessError::Faulted); }
+    if state.pending_time_warp.is_some(){return Err(AccessError::NotReady)}
     if !matches!(state.phase, Phase::Decision | Phase::Terminal)
         || state.current.is_some() || !state.pending.is_empty()
         || (state.phase == Phase::Decision && state.in_play.is_some()) {

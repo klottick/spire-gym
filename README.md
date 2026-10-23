@@ -58,7 +58,8 @@ Acts 1–4 and the Heart, with all normally reachable content**; A20 is the prim
 final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
 M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
-declared profiles; M8 `.30` is planning-only next. Old
+declared profiles; M8 `.30`/`.30.2` are also accepted/closed at the captured
+Act3 mechanics/prefix scope. M9 planning is next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
@@ -116,6 +117,20 @@ completes all three alternatives; seed7 also records a natural Champ loss.
 ```sh
 cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario all --seed 7
 cargo run -p spire-core --example m7_act2 --locked --offline -- --scenario complete --seed 11
+```
+
+The [written M8 plan](docs/superpowers/plans/2026-10-23-m8-act3-mechanics.md)
+is complete and its [accepted runnable profile](docs/milestones/m8-act3.md)
+executes actual Act3 ordinary/elite/all3boss mechanics, Falling/Tomb/Red Mask and
+normal-start same-player paths through actual chest43. Seed11 completes Time Eater/
+Donu-Deca icon prefixes and retains a genuine Giant Head loss; all three seed7
+prefixes retain natural elite losses. No seed search or forced-win tuning. ONE fresh
+independent review found no findings; unchanged reviewed source and fresh checks
+establish scoped M8 acceptance. Full Act3 completion stays M9, now planning only.
+
+```sh
+cargo run -p spire-core --example m8_act3 --locked --offline -- --scenario all --seed 11
+cargo run -p spire-core --example m8_act3 --locked --offline -- --scenario prefix --seed 7
 ```
 
 See [repository scope](docs/scope.md), [existing environment usage](docs/combat-environments.md)

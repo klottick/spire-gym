@@ -15,3 +15,7 @@ mod m6_rooms;
 mod m7_rooms;
 mod m7_rewards;
 mod m7_transition;
+mod m8_acquisition;
+mod m8_power_census;
+mod m8_events;
+mod m8_rooms;

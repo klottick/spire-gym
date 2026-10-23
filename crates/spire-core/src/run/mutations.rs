@@ -5,7 +5,7 @@ pub(super) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
 }
 pub(super) fn supported(id:CardId)->bool {matches!(id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
     |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger|CardId::Bloodletting|CardId::BurningPact|CardId::Disarm)}
-pub(super) fn supported_in(state:&RunState,id:CardId)->bool{supported(id)||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))}
+pub(super) fn supported_in(state:&RunState,id:CardId)->bool{supported(id)||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::is_m8(state)&&state.act==3&&id==CardId::Inflame)}
 pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
     if !supported_in(state,id)||upgrades>1||state.deck.len()>=999{return Err(RunError::InvalidAction)}
     let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
@@ -15,7 +15,11 @@ pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u6
 }
 pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunError>{
     let at=state.deck.iter().position(|c|c.instance==id).ok_or(RunError::InvalidAction)?;
-    let card=state.deck.remove(at);crate::items::on_hook(state,crate::combat::Hook::CardRemoved)?;Ok(card)
+    let parasite=state.deck[at].id==CardId::Parasite;
+    if parasite&&(state.combat.is_some()||state.max_hp==0||state.max_hp>999||state.hp>state.max_hp){return Err(RunError::InvalidAction)}
+    let card=state.deck.remove(at);
+    if parasite{state.max_hp=state.max_hp.saturating_sub(3).max(1);state.hp=state.hp.min(state.max_hp);}
+    crate::items::on_hook(state,crate::combat::Hook::CardRemoved)?;Ok(card)
 }
 pub(super) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
     let at=state.deck.iter().position(|c|c.instance==id&&c.upgrades==0&&supported_in(state,c.id)).ok_or(RunError::InvalidAction)?;let card=&mut state.deck[at];

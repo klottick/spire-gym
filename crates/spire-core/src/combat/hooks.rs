@@ -6,7 +6,7 @@ use super::model::{Actor, State};
 pub enum Hook {
     CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStarted, TurnEnded,
     CardPlayed, CardDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
-    ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,
+    ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,6 +24,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         work.extend(super::enemies::gremlin_nob_card_played_work(state, source)?);
         super::enemies::guardian::card_played(state,source)?;
         super::enemies::act2::chosen_snecko::card_played(state,source)?;
+        super::enemies::act3::awakened::card_played(state,source)?;
     }
     if hook == Hook::TurnEnded {
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
@@ -45,8 +46,15 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
         let kind = match power.id.0 {
             "ritual" if power.state.skip_first => { power.state.skip_first = false; None }
             "ritual" => Some(EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: power.state.amount }),
+            "strength_up" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}),
             "metallicize"=>Some(EffectKind::GainBlock(power.state.amount)),
+            "slow"=>{power.state.amount=0;None},
+            "intangible" if matches!(actor,Actor::Enemy(_))&&power.state.skip_first=>{power.state.skip_first=false;None},
+            "intangible" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
+            "draw_reduction" if power.state.skip_first=>{power.state.skip_first=false;None},
+            "draw_reduction"=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "regeneration" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
+            "regenerate" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "vulnerable" | "weak" | "frail" if power.state.monster_source_grace => { power.state.monster_source_grace = false; None }
             "vulnerable" | "weak" | "frail" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),
             _ => None,

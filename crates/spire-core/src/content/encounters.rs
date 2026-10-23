@@ -29,7 +29,26 @@ const TWO_LOUSE: &[EnemyId] = &[EnemyId::LouseRed, EnemyId::LouseGreen];
 const SLIME_BOSS: &[EnemyId] = &[EnemyId::SlimeBoss];
 const THREE_CULTISTS: &[EnemyId] = &[EnemyId::Cultist, EnemyId::Cultist, EnemyId::Cultist];
 const JAW_WORM_HORDE: &[EnemyId] = &[EnemyId::JawWorm, EnemyId::JawWorm, EnemyId::JawWorm];
+const ORB_WALKER:&[EnemyId]=&[EnemyId::OrbWalker];
+const DARKLINGS:&[EnemyId]=&[EnemyId::Darkling;3];
+const WRITHING:&[EnemyId]=&[EnemyId::WrithingMass];
+const GROWTH:&[EnemyId]=&[EnemyId::SpireGrowth];const TRANSIENT:&[EnemyId]=&[EnemyId::Transient];const MAW:&[EnemyId]=&[EnemyId::Maw];
+// Dynamic groups list their supported species, not a fabricated fixed formation.
+const SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker];
+const SPHERE_SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker,EnemyId::SphericGuardian];
 pub(crate) const ENEMIES: &[EnemyDefinition] = &[
+    EnemyDefinition{id:EnemyId::Deca,definition_only:false},
+    EnemyDefinition{id:EnemyId::Donu,definition_only:false},
+    EnemyDefinition{id:EnemyId::TimeEater,definition_only:false},
+    EnemyDefinition{id:EnemyId::AwakenedOne,definition_only:false},
+    EnemyDefinition{id:EnemyId::Reptomancer,definition_only:false},
+    EnemyDefinition{id:EnemyId::Dagger,definition_only:false},
+    EnemyDefinition{id:EnemyId::GiantHead,definition_only:false},
+    EnemyDefinition{id:EnemyId::Nemesis,definition_only:false},
+    EnemyDefinition{id:EnemyId::WrithingMass,definition_only:false},
+    EnemyDefinition{id:EnemyId::SpireGrowth,definition_only:false},EnemyDefinition{id:EnemyId::Transient,definition_only:false},EnemyDefinition{id:EnemyId::Maw,definition_only:false},
+    EnemyDefinition{id:EnemyId::Darkling,definition_only:false},
+    EnemyDefinition{id:EnemyId::OrbWalker,definition_only:false},EnemyDefinition{id:EnemyId::Repulsor,definition_only:false},EnemyDefinition{id:EnemyId::Exploder,definition_only:false},EnemyDefinition{id:EnemyId::Spiker,definition_only:false},
     EnemyDefinition {id:EnemyId::Lagavulin,definition_only:false},
     EnemyDefinition {id:EnemyId::Sentry,definition_only:false},
     EnemyDefinition {id:EnemyId::Guardian,definition_only:false},
@@ -63,6 +82,16 @@ pub(crate) const ENEMIES: &[EnemyDefinition] = &[
     EnemyDefinition { id: EnemyId::SlimeBoss, definition_only: false },
 ];
 pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
+    EncounterDefinition{id:EncounterId::DonuAndDeca,enemies:&[EnemyId::Deca,EnemyId::Donu],definition_only:false},
+    EncounterDefinition{id:EncounterId::TimeEater,enemies:&[EnemyId::TimeEater],definition_only:false},
+    EncounterDefinition{id:EncounterId::AwakenedOne,enemies:&[EnemyId::Cultist,EnemyId::Cultist,EnemyId::AwakenedOne],definition_only:false},
+    EncounterDefinition{id:EncounterId::Reptomancer,enemies:&[EnemyId::Dagger,EnemyId::Reptomancer,EnemyId::Dagger],definition_only:false},
+    EncounterDefinition{id:EncounterId::GiantHead,enemies:&[EnemyId::GiantHead],definition_only:false},
+    EncounterDefinition{id:EncounterId::Nemesis,enemies:&[EnemyId::Nemesis],definition_only:false},
+    EncounterDefinition{id:EncounterId::WrithingMass,enemies:WRITHING,definition_only:false},
+    EncounterDefinition{id:EncounterId::SpireGrowth,enemies:GROWTH,definition_only:false},EncounterDefinition{id:EncounterId::Transient,enemies:TRANSIENT,definition_only:false},EncounterDefinition{id:EncounterId::Maw,enemies:MAW,definition_only:false},
+    EncounterDefinition{id:EncounterId::ThreeDarklings,enemies:DARKLINGS,definition_only:false},
+    EncounterDefinition{id:EncounterId::OrbWalker,enemies:ORB_WALKER,definition_only:false},EncounterDefinition{id:EncounterId::ThreeShapes,enemies:SHAPES,definition_only:false},EncounterDefinition{id:EncounterId::FourShapes,enemies:SHAPES,definition_only:false},EncounterDefinition{id:EncounterId::SphereAndTwoShapes,enemies:SPHERE_SHAPES,definition_only:false},
     EncounterDefinition {id:EncounterId::Lagavulin,enemies:LAGAVULIN,definition_only:false},
     EncounterDefinition {id:EncounterId::ThreeSentries,enemies:THREE_SENTRIES,definition_only:false},
     EncounterDefinition {id:EncounterId::ThreeLouse,enemies:THREE_LOUSE,definition_only:false},

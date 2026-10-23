@@ -7,6 +7,78 @@
     "changes": "Normalized short move/power descriptions, structured stats, independently summarized patterns and explicit reconciliation/conflict notes."
   },
   "sources": {
+    "local:m8-partners": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task9 named Deca/Donu constructors, ordered formation, A0 payloads/Artifact, own execution-advanced cycles, full-list group buff publication and action-specific later target predicates/source-death continuation; not universal foreign-actor flag semantics, faults, original runtime or target-version proof."
+    },
+    "local:m8-time-eater": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task8 named TimeEater A0 payloads/conditional redirects, selection-time Haste latch, Time Warp after-use/current-card/normal early-end pipeline, Draw Reduction application/grace/decay/removal; not universal terminal arbitration, arbitrary autoplay, fault parity or upstream target-version proof."
+    },
+    "local:m8-awakened": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task7 named AwakenedOne A0 AI/phase/callbacks and signed debuff cleanse, Curiosity/Regenerate IDs and timing, actual Inflame Power disposition, Void draw/Ethereal/loss and Sludge bottom insertion; not original runtime, upstream version, arbitrary injected cards or all queue compositions."
+    },
+    "local:m8-reptomancer": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task6 named Reptomancer/SnakeDagger A0 formation/IDs, exact live-count/history redirects, source tracked versus physical slots, prepared-before-insertion custody, ordered attacks/self-loss and callback-delivering top-queue cleanup; qualified ordinary pending-spawn/parent-death transition only, not arbitrary faults/mods or exhaustive rewards."
+    },
+    "local:m8-elites": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task5 named GiantHead/Nemesis A0 counters, exact redirects and payloads, Slow after-use/floating receive/reset, enemy Intangible actual hit types and ordinary enemy-queue end callback; not original runtime, archive target version, arbitrary skipped turns or direct HP mutation."
+    },
+    "local:m8-writhing": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task4 named Writhing conditional AI/finite float coins, payload/base-backed Block, Reactive/Malleable callbacks and TwinStrike queue order, permanent Parasite obtain/removal in owned bytes; not arbitrary obtain prevention, all dynamically generated hits or target-version provenance."
+    },
+    "local:m8-ordinary": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task3 named Growth/Transient/Maw constructors, conditional A0 AI, Constricted/Shifting/Fading/GainStrength clocks and named action caller sequence in owned bytes; not full prevention composition or upstream target-version provenance."
+    },
+    "local:m8-darklings": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Only Task2 named Darkling constructor, conditional AI, half-death callbacks, all-power clearing, staged revival and final group death in owned bytes; not complete callback consumers or upstream PCv2.3 proof."
+    },
+    "local:m8-shapes": {
+      "kind": "owned_archive_static_findings",
+      "path": "data/enemies/m8-static-findings.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Only named Task1 Shapes/Orb Walker formation, conditional AI, power clocks and explosion path in the owned bytes; not independent PCv2.3 build provenance or full callback composition."
+    },
     "wiki:cultist": {
       "kind": "wiki",
       "title": "Cultist",

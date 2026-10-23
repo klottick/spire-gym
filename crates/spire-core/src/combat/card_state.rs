@@ -71,7 +71,7 @@ pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCar
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     let exhaust_on_finish = match id {
         CardId::Miracle | CardId::Slimed | CardId::Shiv => true,
-        CardId::Dazed | CardId::Burn | CardId::Wound => false,
+        CardId::Dazed | CardId::Burn | CardId::Wound | CardId::Void => false,
         _ => return None,
     };
     Some(LiveCard { instance, id, origin: CombatCardRef::CombatLocal(instance.0), upgrades,
