@@ -1,0 +1,24 @@
+# On-demand checks; no shared Git hook is installed by this configuration.
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "ruff-check"
+name = "Ruff lint (uv locked environment)"
+language = "system"
+entry = "uv run --locked --no-sync ruff check"
+types_or = ["python", "pyi"]
+
+[[repos.hooks]]
+id = "ruff-format"
+name = "Ruff format check (no automatic rewrites)"
+language = "system"
+entry = "uv run --locked --no-sync ruff format --check"
+types_or = ["python", "pyi"]
+
+[[repos.hooks]]
+id = "ty"
+name = "ty check (uv locked environment)"
+language = "system"
+entry = "uv run --locked --no-sync ty check"
+types_or = ["python", "pyi"]

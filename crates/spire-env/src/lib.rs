@@ -1,4 +1,4 @@
-//! Rust-native supplied combat setup, source-grounded, not original-runtime validated.
+//! Rust-native combat and captured Run adapters; source-grounded, not original-runtime validated.
 
 mod canonical;
 mod episode;
@@ -15,6 +15,10 @@ mod pool;
 mod workers;
 mod diagnostics;
 mod replay;
+mod run_schema;
+mod run_observation;
+mod run_session;
+mod run_replay;
 
 pub use canonical::canonical_json;
 pub use episode::EpisodeJob;
@@ -29,6 +33,10 @@ pub use pool::{AutoReset, CombatPool, DecisionRows, EpisodeInfo, PoolConfig, Poo
 pub use pool::PoolOperation;
 pub use diagnostics::{PoolDiagnostics, SlotDiagnostic};
 pub use replay::{EpisodeRecord, RecordStatus, ReplayBoundary, ReplayResult, RECORD_SCHEMA_ID, replay};
+pub use run_schema::{RunCapacities,RunObservationSpec,RUN_OBSERVATION_SCHEMA_ID,run_observation_spec};
+pub use run_observation::{RunFeatureGroup,RunObservation,encode_run};
+pub use run_session::{RunSessionError,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_SEED_ADAPTER_ID};
+pub use run_replay::{RunReplayReport,replay_run};
 
 #[cfg(test)]
 mod tests;

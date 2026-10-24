@@ -95,6 +95,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 // exclusions; it is not a fourth original DamageType.
                 let result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)),thorns:matches!(payload,DamagePayload::Thorns(_)|DamagePayload::Orb(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
                 super::enemies::act2::after_damage(state,&result)?;
+                super::powers::player_thorns_after_damage(state,&result);
             }
             if let Actor::Enemy(id) = target {
                 // Only these native payload kinds are NORMAL for Curl Up.

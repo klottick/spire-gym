@@ -1,4 +1,12 @@
-# Headless combat environments
+# Headless environments
+
+For the captured normal-start Ironclad A0 **single-Run** API, see the
+[M9 RunEnv profile](milestones/m9-act3.md) and
+[Gym-only setup](development.md#gym-only-development-and-on-demand-quality-checks).
+It is separate from the supplied-entry combat-v1 API below, with int64 features
+and different seeds/rewards; do not interchange their schemas or records.
+
+## Supplied-entry combat-v1
 
 The current version is **source-grounded, not original-runtime validated**.
 It supports supplied first-ready Ironclad A0 combat states, base/upgraded
@@ -6,7 +14,7 @@ Strike/Defend/Bash, Burning Blood and one Cultist or ordinary Jaw Worm. No initi
 shuffle, draw, enemy-HP sampling or entry-hook execution occurs. Unsupported
 content/fields and capacity overflow reject, rather than silently becoming inert.
 The required future product remains full runs, keys, Act 4 and the Heart for
-**Ironclad, Silent, Defect and Watcher at Ascension 0–20**. No run engine,
+**Ironclad, Silent, Defect and Watcher at Ascension 0–20**. This combat-v1 API claims no run engine,
 learner, learned-strength, original-runtime fidelity or throughput result is claimed.
 
 ## Installation and example

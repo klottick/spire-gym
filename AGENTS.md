@@ -1,5 +1,191 @@
 # Spire Gym: current agent guidance
 
+## User-requested M9 publication reviews and conditional merge (2026-10-24)
+
+User: "spawn some luna reviewers and merge as long as they are happy". Bounded
+authority supersedes older no-publication/one-review-only notes for THIS follow-up:
+TWO fresh independent GPT6Luna read-only reviewers in dedicated exact-source
+worktrees/unique absolute targets; controller-owned scoped TDD fixes if needed;
+Conventional Commit, normal feature push/PR/merge after both approve and hosting
+checks/mergeability pass. No force push, installs, private publication, cleanup or
+M10 product start. Preserve all worktrees/stash/evidence and main checkout work.
+Fetched origin/main2ca2740 adds PR44 native run viewer; integrate its shared seams
+normally into a preserved M9 snapshot BEFORE review, never overwrite dirty work.
+Publication task spire-dxo.63; actor opencode-m9-planning-20261023-sol-v1. Ledger
+.superpowers/sdd/2026-10-24-m9-publication/progress.md. Accepted milestone .31 stays
+closed; these additional reviewers are explicitly user-requested publication review.
+
+## M9 accepted / M10 planning next (2026-10-24)
+
+M9 Tasks1–11 accepted at declared docs/milestones/m9-act3.md after ONE fresh
+independent GPT6Luna review ses_e9479e106ffewiKWyH0yLoeMcD: noCritical/Important/Minor,
+all5focus classes satisfied. Dedicated m9-final-review-luna-20261024 worktree,
+490publicfiles + actualextension SHA verified unchanged in BOTH checkouts before
+fresh core675/7 EXACTsame underlyingold7/publicM1–M9 59/0/env56/0/nativebinding5/0/
+Pythonenv195/0/prek3checks/diffcheck. Final rustdoc temp quota issue resolved with
+ignored target/m9-rust-tmp TMPDIR, no deletion. Six declined categories explicitly
+ruled in ledger. Actual six normalstart losses unchanged/replayed through all4
+layers; no normalstart boss50/no-key win claim, strategy still out of scope.
+All3boss/end coverage remains separately labelled supplied native diagnostics.
+Only administrative acceptance text changed after review; product/tests fixed.
+No standardpools/othercharacters/A1–20/Act4Heart/JavaParity/wholeworkspacegreen claim.
+Broader Python failures (absentTorch/readiness,60legacydiffschema+8metadatafixture)
+documented; not hidden/repaired by M9. Actual gym-dev remains Torch-free; original
+affected .venv preserved. No new commit/push/merge/install/sharedhooks/cleanup.
+M9 .31/.31.2 normally closed. M10 .32 active; actual planning-only .32.1 is OPEN/
+UNASSIGNED. Next ONE written plan for user review; no M10 product child/start.
+Ledger .superpowers/sdd/2026-10-23-m9-ironclad-act3/progress.md; preserve every
+worktree/stash/evidence and all uncommitted candidate files atdf0150f.
+
+## M9 Python setup authorized / bindings verified (2026-10-24)
+
+User approved uv-managed isolated gym-dev + pinned prek/Ruff/ty, changed-file
+on-demand checks only, no broad format/shared Git hooks. Own .31.2 resumed normally.
+Task9 real refreshed binding/Gym RED21missingAPI -> GREEN22new +167old =189env.
+Actual environment is target/m9-gym-dev-venv (Python3.12.15, NumPy2.5.4/Gym1.4.0/
+pytest9.1.1/maturin1.15.0/prek0.5.7/Ruff0.17.2/ty0.0.91), Torch CONFIRMED ABSENT.
+Use UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync ...;
+on-demand prek --config prek.toml --files <touchedPython/stubpaths> all3checks pass.
+Rebuild CARGO_TARGET_DIR=target/m9-python-extension-20261024 CARGO_BUILD_JOBS=2 with maturin
+develop --release --locked --offline --skip-install; editable metadata install
+uv pip install --no-deps --no-build-isolation --editable . --python target/.../bin/python.
+Reason: initial ordinary maturin develop unexpectedly installed existing project
+Torch/CUDA dependencies despite uv gym-only sync. User informed; original .venv
+and all evidence PRESERVED, no uninstall/cleanup. Corrected actual verification
+environment was separately synced gym-dev only, then editable installed with
+--no-deps (only spire-lab added). Never repeat dependency-expanding develop.
+Task10 actual six core/session/binding/Gym boundary agreement passes (195env total);
+source confirms all original losses unchanged, not winning strategy proof. No
+milestone acceptance yet; Task11 ONE fresh independent review remains pending.
+All changes uncommitted; no commit/push/merge/sharedhook/cleanup authority.
+
+## M9 native tools delivered / Python gate (2026-10-24)
+
+User's tools-not-strategy correction applied; no policy tuning. Tasks1–8 now native
+implemented/tested, not M9 accepted: int64 Run descriptor/known/occupied/action
+masks; one actual M9 Run session/reset/unsigned64 little-endian roots/None ordinals;
+session-bound stale-action rejection; owned outputs; retained setup/post-step/
+packaging faults and semantic records/replay. No new RunPool/vectorization. Source
+qualified all3boss/end supplied diagnostics remain separate from actual six unchanged
+seed7/11 natural losses. Public M9 tests3/0 no longer require in-repo strategy wins;
+conditional actual-completion correctness still checked. M9 CLI handles genuine
+Death versus budget/fault/unsupported; no from-start boss50/no-key victory claim.
+Fresh core675/7 EXACT same historical7/publicM1–M9 59/0/spire-env56/0/nativebinding5/0/
+other30/0/diffcheck. Native tasks6–8 tests6+5+5 plus2unit ownership/boundary checks,
+all real seed11 context boundaries compare against core; seed7/11 roots/None replay
+and all six public traces checked. Existing warnings retained, no new warnings.
+Task9 brief read: MUST stop before binding/Gym body until explicit configured
+Python environment/setup + local extension refresh permission. Current Python3.12.15
+has no NumPy/Gymnasium/pytest/maturin; neither conventional .venv exists. No install/
+sync/rebuild attempted; no new Python facade or stale-extension claim. Request a
+bounded isolated test environment with pinned NumPy/Gymnasium/pytest/maturin and
+local extension refresh, not game execution or training packages. Tasks9–11 and
+ONE fresh milestone review remain pending. Own .31.2 returned blocked/unassigned
+for this permission gate, not strategy/source permission. Native candidates stay
+uncommitted atdf0150f on plan/m9-ironclad-act3-20261023; all prior artifacts/stash/
+worktrees preserved, no new commit/push/cleanup. Ledger remains authoritative.
+
+## User scope correction: tools, not strategy (2026-10-24)
+
+User: "strategy is not in scope. We're building the tools to make the strategy".
+This supersedes the assistant-created Task5 policy-improvement pause below. Do
+NOT tune/optimize a caller, search winning seeds or make policy wins a delivery
+gate. Keep actual six normal-start losses/replay and source-qualified supplied
+all3boss/end diagnostics distinctly labelled; neither proves unobserved from-start
+victory. Require simulator/API/mask/reward/error/replay correctness, not win rate.
+M9 implementation .31.2 normally resumed by its allocated actor, not a new
+strategy assignment. Continue native numeric schema/session/replay and thin Gym
+tools under approved plan; separate Python setup/extension-refresh permission
+still applies. M9 is not accepted yet; no publication/install/cleanup authority.
+
+## M9 qualified ending / normal-start policy gate (2026-10-24)
+
+Tasks1–4 now implemented, NOT whole-M9 acceptance. Qualified static source findings
+in docs/research/2026-10-23-m9-act3-ending.md: final A0 Act3 boss suppresses combat
+reward publication, no claimable gold/card/potion or third boss chest. Actual boss
+Proceed then three Heart dialog choices; all-key third choice stops pre-door at
+Act4Ready3/50/noactions/nonterminal/noheal/nobonus. Missing-key path retains fourth
+actual dialog choice before Act3NoKeys, not combat Death. NativeM9 28/0; fresh
+core675/7 SAME exact underlyingold7/publicM1–M8 56/0/consumers43/0/other30/0 and both
+oldM8seed examples preserved. /tmp LLVM build hit usrquota; all artifacts preserved,
+new ignored target/m9-native-20261023/jobs2 used without installs/cleanup.
+Task5 actual first public-only M9 episodes/replay: seed11 AwakenedDeath711/floor41/
+reward40; TimeDeath813/floor47/reward46; DonuDeath830/floor47/reward46. Seed7 all3
+Death778/floor47/reward46. These are valid gameplay losses, not simulator defects;
+no actual boss50 entry or no-key completion demonstrated. New public tests2pass/
+1RED acceptance gate explicitly requires missing normal-start evidence; do not
+weaken/hide it or count icon selection as boss entry. First fixed policy+tests and
+all six results preserved in ledger; NO policy tuning/seed sweep/resource edits.
+Approved Task5 says pause for a bounded public-policy/acceptance amendment here.
+No M9 CLI yet; Tasks6–11/numericRunAPI/Python/finalreview not started. Python refresh/
+environment remains separately gated. Own implementation claim normally returned
+blocked/unassigned while asking for that policy decision. All candidate changes
+uncommitted on plan/m9-ironclad-act3-20261023 atdf0150f; no commits/push/install/
+cleanup. Two original factual assistants idle; not future final milestone reviewer.
+Standing task-local static lookup permission below remains valid; do not re-ask.
+Ledger .superpowers/sdd/2026-10-23-m9-ironclad-act3/progress.md.
+
+## Standing task-local static lookup permission (2026-10-23)
+
+User answered the explicit M9 source-lookup request: "yes. This is always allowed".
+Task-local read-only static inspection of the existing owned game archive using
+existing tools is standing permission for concrete mechanics blockers; do not
+re-ask per method. This covers the named Act3 boss reward producer and actual
+ProceedButton/VictoryRoom/SpireHeart ending methods needed by M9. Inspect only
+load-bearing called members, not whole archives/families. No game execution,
+installs/new tooling, broad/private audit, private-source publication, cleanup or
+fidelity promotion. Raw bytecode stays outside the public repo; keep archive build/
+channel unverified. Native `.31.2` resumes normally after own blocked source gate;
+Tasks1/2 remain complete, Task3 partial until qualified Victory settlement lands.
+Python-extension refresh/setup is still a separate permission gate, not covered.
+
+## M9 approved / native source gate (2026-10-23)
+
+User "yes" approved the actual written M9 plan below. Planning `.31.1` normally
+closed; implementation `.31.2` normally claimed by this session's allocated
+`opencode-m9-planning-20261023-sol-v1` actor. Tasks1/2 implemented: five real relic
+producers/player Thorns and separate full late-Act3 traversal/finite loot/chest
+handling. Task3 boss50 entry/all3 native bodies/discovery/lifecycle/Death/Time Warp
+integrated, but actual Victory settlement remains explicitly blocked at
+`run.m9.act3.reward-source`, retaining real Combat/source/items/census instead of
+publishing unqualified inherited Acts1/2 rewards. Task3/4 source dependency is
+ledgered; neither Task3 nor M9 is complete/accepted. No normal-start M9 completion
+or new Gym adapter delivered yet. Exact final boss rewards and Proceed/SpireHeart
+choices need separately bounded read-only static lookup permission; prior grants
+and this plan approval do NOT authorize it. No original execution/broad audit.
+Fresh nativeM9 21/0/core668/7 SAME exact underlying old7/public56/0/M6native92/0/
+M7native16/0/consumers43/0/other30/0/reporting1/0/all8oldexamples/bothM8seeds;
+`m8_` filter112 includes111old + one new M9 preservation test whose name contains
+m8. Existing warnings retained. No new commits/push/merge/install/cleanup/private
+lookup/Python refresh. All candidate changes uncommitted on existing plan branch;
+all worktrees/stash/evidence preserved. Own implementation claim was normally
+returned blocked/unassigned for the named source permission, not active custody.
+Plan `docs/superpowers/plans/2026-10-23-m9-ironclad-act3.md`; ledger
+`.superpowers/sdd/2026-10-23-m9-ironclad-act3/progress.md`.
+
+## M9 written-plan review gate (2026-10-23)
+
+New-session continuation is PLANNING ONLY. Written plan:
+`docs/superpowers/plans/2026-10-23-m9-ironclad-act3.md`, eleven native tasks for
+real normal-start full Act3, source-qualified final outcome, five bounded relic
+producers needed by finite late-act loot, and an actual single-Run numeric Gym
+adapter/replay. M8/PR42 remain accepted/merged; no repeated M8 reviews or edits.
+Two user-requested Luna6 factual assistants used dedicated exact463-file
+worktrees/unique reserved targets, not this live checkout, as repository isolation
+requires. They are not the future ONE fresh independent milestone reviewer.
+Controller actor `opencode-m9-planning-20261023-sol-v1` normally released its own
+planning `.31.1` claim to blocked/unassigned for actual written-plan review.
+No implementation child/product code/builds/tests/new commit/push/merge/cleanup.
+Plan approval is required before execution. Exact postboss rewards/event ordering
+needs named task-local fact closure; any private static lookup requires separate
+bounded permission. Real Python validation needs separately approved local
+extension refresh in a verified existing environment; conventional `.venv` paths
+in controller/main are absent, no automatic install/sync. Preserve seed7/11 roots,
+genuine losses, prior endpoints, old7, all worktrees/evidence/branches/stash.
+Planning branch `plan/m9-ironclad-act3-20261023` starts at preserved docs commit
+`df0150f`; local main remains merged `4874fb3`. Ledger:
+`.superpowers/sdd/2026-10-23-m9-ironclad-act3/progress.md`.
+
 ## Local preservation cleanup (2026-10-23)
 
 The user approved a bounded local cleanup: preserve the handoff and this pointer

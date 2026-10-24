@@ -27,6 +27,8 @@ mod env;
 mod errors;
 #[cfg(feature = "extension")]
 mod numeric;
+#[cfg(feature = "extension")]
+mod run_env;
 
 #[cfg(feature = "extension")]
 use pyo3::prelude::*;
@@ -50,6 +52,8 @@ fn build_info(py: Python) -> PyResult<Py<PyDict>> {
 fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_info, m)?)?;
     m.add_class::<env::NativeCombatPool>()?;
+    m.add_class::<run_env::NativeRunSession>()?;
+    run_env::register(m)?;
     errors::register(m)?;
     Ok(())
 }

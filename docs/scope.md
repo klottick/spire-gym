@@ -14,8 +14,11 @@ an [accepted captured Act2 profile](milestones/m7-act2.md) after ONE independent
 milestone review. M8 `.30`/`.30.2` are accepted/closed at the declared [Act3 profile](milestones/m8-act3.md):
 native named mechanics/events and same-player normal-start prefix through actual
 chest43. ONE fresh independent review found no findings; unchanged reviewed source
-and fresh checks confirmed acceptance. M9 `.31`/`.31.1` are planning only, not
-product start. Full Act3 completion remains M9. Natural Death is a valid episode outcome, not
+and fresh checks confirmed acceptance. M9's approved implementation `.31.2`
+now supplies the [accepted captured Act3/Run Gym profile](milestones/m9-act3.md), after
+ONE independent milestone review and fresh unchanged-source verification. Actual seed7/11 traces remain losses; supplied
+native diagnostics separately cover all three boss50 sources/endings. No strategy
+tuning or win-rate gate. M10 Act4 remains later work. Natural Death is a valid episode outcome, not
 a simulator failure; all three actual boss/reward/handoff paths complete on the
 already planned seed11 while seed7 retains its natural Champ loss. The
 [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)

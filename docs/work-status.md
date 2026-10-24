@@ -1,10 +1,23 @@
-# Work orientation — 2026-10-23
+# Work orientation — 2026-10-24
 
 Beads is authoritative; this is an administrative snapshot, not another task board.
 See [scope](scope.md) for the current repo boundary and [environment usage](combat-environments.md)
 for the implemented interface. No models/training/learner checkpoints belong here.
 
 ## Current workstream
+
+M9 Tasks1–11 are accepted at the declared scope after ONE fresh isolated independent
+milestone review with no findings and final unchanged-source verification.
+See the [accepted profile](milestones/m9-act3.md): real late-Act3/boss/end owners,
+five real finite relics, native int64 Run schema/masks, single-session reset/tokens/
+fault custody, semantic replay and thin refreshed-extension Gym. All six original
+seed7/11 losses remain unchanged and cross-layer replayed; no normal-start boss50
+or no-key win claim. User excluded strategy development, not simulator correctness.
+Verified Gym-only Python environment has no Torch; on-demand pinned uv/prek/Ruff/ty
+checks only touched files. No broad format/shared hooks/publication/cleanup. M9
+changes remain uncommitted on `plan/m9-ironclad-act3-20261023` at `df0150f`.
+M10 is next for planning only; no automatic product start. Beads/ledger remain
+authoritative; the dated M8 narrative below is historical.
 
 2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
 The isolated feature worktree remains at `ddd4df2` after separately authorized

@@ -88,6 +88,37 @@ the tests or probes run.
 
 ## Everyday workflow
 
+### Gym-only development and on-demand quality checks
+
+The approved M9 environment is `target/m9-gym-dev-venv`, managed by uv's locked
+`gym-dev` group (NumPy/Gymnasium/pytest/maturin plus pinned prek/Ruff/ty). It excludes
+the project's existing Torch runtime dependency. Setup requires explicit authority;
+routine checks do not sync or install:
+
+```sh
+# Only during separately approved initial setup:
+UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv sync --locked --only-group gym-dev
+# Build in place WITHOUT maturin's automatic project-dependency installation:
+UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv CARGO_TARGET_DIR=target/m9-python-extension-20261024 CARGO_BUILD_JOBS=2 uv run --locked --no-sync maturin develop --release --locked --offline --skip-install
+# Editable package metadata, no dependency expansion (needed once / after sync):
+uv pip install --python target/m9-gym-dev-venv/bin/python --no-deps --no-build-isolation --editable .
+# Routine checks, using the existing environment and freshly built extension:
+UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync python -B -m pytest tests/python/env -q
+UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync prek run --config prek.toml --files python/spire_lab/gymnasium/run.py
+```
+
+Pass only touched `.py`/`.pyi` paths to prek. It checks Ruff lint, Ruff format
+without rewrites, and ty. No Git hook is installed and no broad formatting is
+authorized. Native extension signatures are in `python/spire_lab/_native.pyi`.
+**Do not use ordinary `maturin develop` for a Gym-only environment**: it installs
+project runtime dependencies, including Torch/CUDA, even after gym-only uv sync.
+The original affected M9 `.venv` is preserved, not silently removed or repurposed.
+The actual isolated verification environment has Torch confirmed absent.
+Full `tests/python` collection includes the historical Torch readiness lane;
+without Torch it reports that missing dependency. Gym correctness has no CUDA gate.
+
+### Existing full-dependency workflow
+
 ```sh
 # Run the Python behavior tests
 uv run --no-sync pytest tests/python/test_readiness.py -q

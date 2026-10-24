@@ -41,6 +41,10 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
         for relic in context.relics() {
             if (*relic == RelicId::Anchor) != anchor_pass { continue; }
             let kind = match (hook, *relic) {
+                (Hook::CombatStarted, RelicId::Vajra) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("strength"),amount:1 }),
+                (Hook::CombatStarted, RelicId::OddlySmoothStone) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("dexterity"),amount:1 }),
+                (Hook::CombatStarted, RelicId::BagOfPreparation) => Some(EffectKind::Draw(2)),
+                (Hook::CombatStarted, RelicId::BronzeScales) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("thorns"),amount:3 }),
                 (Hook::CombatStarted, RelicId::BloodVial) => Some(EffectKind::Heal(2)),
                 (Hook::CombatStarted, RelicId::Anchor) => Some(EffectKind::GainBlock(10)),
                 (Hook::CombatStarted, RelicId::RingOfTheSnake) => Some(EffectKind::Draw(2)),
@@ -101,8 +105,12 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
 }
 
 pub(super) fn battle_start_enemy_effects(context:&CombatItemContext,targets:&[crate::combat::EnemyHandle])->Vec<Effect>{
-    if !context.owns_relic(RelicId::RedMask){return vec![]}
-    targets.iter().map(|owner|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("weak"),amount:1}}).collect()
+    let mut work=vec![];
+    for relic in context.relics(){
+        let id=match relic{RelicId::RedMask=>"weak",RelicId::BagOfMarbles=>"vulnerable",_=>continue};
+        work.extend(targets.iter().map(|owner|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId(id),amount:1}}));
+    }
+    work
 }
 
 pub(super) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{

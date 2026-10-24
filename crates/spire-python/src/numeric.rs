@@ -6,7 +6,7 @@ use spire_env::{DecisionRows, EpisodeInfo, EpisodeRecord, InputReason, Observati
     PoolDiagnostics, ResetRows, StepBatch, TensorValues};
 use crate::errors::{faults, input};
 
-fn array<'py, T: Element>(py: Python<'py>, values: Vec<T>, shape: &[usize]) -> PyResult<Bound<'py, PyAny>> {
+pub(crate) fn array<'py, T: Element>(py: Python<'py>, values: Vec<T>, shape: &[usize]) -> PyResult<Bound<'py, PyAny>> {
     Ok(PyArray1::from_vec(py, values).reshape(IxDyn(shape))?.into_any())
 }
 

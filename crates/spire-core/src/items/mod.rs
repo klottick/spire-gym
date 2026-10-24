@@ -176,7 +176,8 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
             | RelicId::PureWater | RelicId::BloodVial | RelicId::Anchor | RelicId::Lantern
             | RelicId::Strawberry | RelicId::Pear | RelicId::Mango | RelicId::SacredBark
             | RelicId::MarkOfBloom | RelicId::MagicFlower | RelicId::ToyOrnithopter | RelicId::NeowsLament
-            | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask) {
+            | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask
+            | RelicId::Vajra | RelicId::OddlySmoothStone | RelicId::BagOfPreparation | RelicId::BagOfMarbles | RelicId::BronzeScales) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }

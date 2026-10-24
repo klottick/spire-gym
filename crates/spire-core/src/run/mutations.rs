@@ -5,7 +5,7 @@ pub(super) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
 }
 pub(super) fn supported(id:CardId)->bool {matches!(id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
     |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger|CardId::Bloodletting|CardId::BurningPact|CardId::Disarm)}
-pub(super) fn supported_in(state:&RunState,id:CardId)->bool{supported(id)||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::is_m8(state)&&state.act==3&&id==CardId::Inflame)}
+pub(super) fn supported_in(state:&RunState,id:CardId)->bool{supported(id)||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::uses_captured_act3(state)&&state.act==3&&id==CardId::Inflame)}
 pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
     if !supported_in(state,id)||upgrades>1||state.deck.len()>=999{return Err(RunError::InvalidAction)}
     let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
