@@ -318,12 +318,14 @@ impl Combat {
         self.state.resolved_effects = 0;
         self.state.phase = Phase::PlayerAction;
         if let Some((index, stats, target, damage, remaining_energy, defend)) = prepared {
+            let observed_before=super::observe::mark(&self.state);
             let mut card = self.state.piles.hand.remove(index);
             let card_id = card.handle();
             let source = Source::Card(card_id.clone());
             if let Some(full) = card.full_mut() { full.local.free_play = false; }
             self.state.in_play = Some(card);
             self.state.player.energy = remaining_energy;
+            super::observe::changes(&self.state,observed_before,&source);
             if self.state.full_runtime {
                 self.state.pending.push_back(Effect { source: source.clone(), target: Some(target.clone()),
                     kind: EffectKind::Hook(Hook::CardPlayed) });
@@ -463,6 +465,7 @@ impl Combat {
         let master=combat.state.player.max_energy.checked_add(i32::from(collar)).filter(|n|*n<=999)
             .ok_or(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("Collar master energy overflow")))?;
         combat.state.item_context=item_context.take();
+        let _observation=super::observe::bind_entry(&combat);
         if let Some(items)=combat.state.item_context.as_mut(){items.collar_activated=collar;}
         combat.state.player.max_energy=master;
         let count = entry.opening_draw.min(combat.state.piles.draw.len());
@@ -496,6 +499,7 @@ impl Combat {
             return Err(CombatEntryFailure::Faulted { combat: Box::new(combat), fault });
         }
         combat.refresh_legacy_cache();
+        super::observe::capture_boundary(&combat,CombatBoundaryKind::Entry);
         Ok(combat)
     }
 
@@ -572,6 +576,7 @@ impl Combat {
         if matches!(action, CombatAction::PlayCard { .. }) {
             match super::cards::prepare(self, action) {
                 Ok(prepared) => {
+                    let observed_before=super::observe::mark(&self.state);
                     let instance = prepared.instance;
                     let source = Source::Card(super::card_state::handle(instance));
                     self.state.resolved_effects = 0;
@@ -581,6 +586,7 @@ impl Combat {
                     if let Some(full) = card.full_mut() { full.local.free_play = false; }
                     self.state.in_play = Some(card);
                     self.state.player.energy = prepared.remaining_energy;
+                    super::observe::changes(&self.state,observed_before,&source);
                     self.state.pending.push_back(Effect { source: source.clone(),
                         target: prepared.target, kind: EffectKind::Hook(Hook::CardPlayed) });
                     self.state.pending.extend(prepared.effects);
@@ -680,6 +686,7 @@ impl Combat {
         if self.state.pending_selection.as_ref().unwrap().selected.len()
             < self.state.pending_selection.as_ref().unwrap().required { return Ok(()); }
         let selection = self.state.pending_selection.take().unwrap();
+        let observed_before=super::observe::mark(&self.state);
         for selected in &selection.selected {
             let (card, source_zone) = take_owned_card(&mut self.state.piles, selected)
                 .ok_or(crate::run::RunError::InvalidAction)?;
@@ -691,6 +698,7 @@ impl Combat {
                     .map_err(|_| crate::run::RunError::InvalidAction)?,
             }
         }
+        super::observe::changes(&self.state,observed_before,&Source::Card(selection.parent.clone()));
         self.state.fault_selection = Some(selection.clone());
         self.state.attempted_action = Some(CombatAction::SelectCard { instance });
         let transition = resolve(&mut self.state);

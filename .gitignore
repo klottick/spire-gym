@@ -17,6 +17,16 @@ target/
 # per dispatch and checksum-verified; never committed. See
 # docs/validation/capture-guide.md.
 /tools/
+# Only the viewer's source helper/tests live alongside ignored local toolchains.
+!/tools/
+/tools/*
+!/tools/prepare_report_assets.py
+!/tools/tests/
+/tools/tests/*
+!/tools/tests/test_prepare_report_assets.py
+
+# Viewer-generated reports and original-art caches never enter source control.
+/files/run-viewer/
 
 # Gradle build outputs and project caches (root + subprojects).
 validation/windows-mod/.gradle/
@@ -30,4 +40,3 @@ validation/windows-mod/external/
 # after review on the pinned game).
 validation/captures/
 validation/reference_rng/
-

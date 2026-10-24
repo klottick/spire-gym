@@ -435,6 +435,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "spire-report"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "serde_json",
+ "spire-core",
+ "spire-env",
+]
+
+[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

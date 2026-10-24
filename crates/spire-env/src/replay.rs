@@ -38,6 +38,16 @@ pub struct ReplayBoundary { pub observation:ObservationRow, pub info:EpisodeInfo
 pub struct ReplayResult {
     pub boundaries:Vec<ReplayBoundary>, pub final_snapshot:Snapshot, pub fault:Option<SlotFault>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ReplayVisitKind { Initial, AcceptedAction, FaultAttempt }
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReplayVisit {
+    pub index:usize, pub kind:ReplayVisitKind, pub action:Option<spire_core::combat::Action>,
+    pub public:Option<spire_core::combat::PublicView>, pub effects:Vec<spire_core::combat::ResolvedEffect>,
+    pub boundary:Option<ReplayBoundary>,
+}
+pub fn replay_observed<F>(record:&EpisodeRecord,mut visitor:F)->Result<ReplayResult,EnvError>
+where F:FnMut(ReplayVisit)->Result<(),String> { replay_visiting(record,|_|{},Some(&mut visitor)) }
 
 // Completed records share immutable ownership with their former live slot, so
 // completion moves the action buffer without copying it. Only exceptional fault
@@ -115,6 +125,10 @@ pub fn replay(record:&EpisodeRecord) -> Result<ReplayResult,EnvError> {
     replay_inner(record, |_|{})
 }
 fn replay_inner(record:&EpisodeRecord, prepare:impl FnOnce(&mut Slot)) -> Result<ReplayResult,EnvError> {
+    replay_visiting(record,prepare,None)
+}
+fn replay_visiting(record:&EpisodeRecord,prepare:impl FnOnce(&mut Slot),
+    mut visitor:Option<&mut dyn FnMut(ReplayVisit)->Result<(),String>>)->Result<ReplayResult,EnvError> {
     validate(record)?;
     let mut slot=fresh_slot(&record.job)?;
     prepare(&mut slot);
@@ -122,11 +136,18 @@ fn replay_inner(record:&EpisodeRecord, prepare:impl FnOnce(&mut Slot)) -> Result
     let mut boundaries=reserved(count)?;
     let l=slot.live.as_mut().expect("fresh episode");
     boundaries.push(boundary(l));
-    for &index in &record.actions {
+    if let Some(v)=visitor.as_mut() {v(ReplayVisit {index:0,kind:ReplayVisitKind::Initial,action:None,
+        public:l.combat.public_view().ok(),effects:vec![],boundary:Some(boundary(l))}).map_err(|e|setup(format!("replay visitor: {e}")))?;}
+    for (offset,&index) in record.actions.iter().enumerate() {
         if l.info.outcome!=0 {return Err(input(InputReason::IllegalAction,"record continues beyond terminal boundary"));}
         let action=l.menu.resolve(index)?.clone();
-        l.advance(&action)?;
+        let effects=if visitor.is_some() {
+            let observed=l.advance_observed(&action);observed.result?;observed.effects
+        } else {l.advance(&action)?;Vec::new()};
         boundaries.push(boundary(l));
+        if let Some(v)=visitor.as_mut() {v(ReplayVisit {index:offset+1,kind:ReplayVisitKind::AcceptedAction,
+            action:Some(action.core),public:l.combat.public_view().ok(),effects,boundary:Some(boundary(l))})
+            .map_err(|e|setup(format!("replay visitor: {e}")))?;}
     }
     if (record.status==RecordStatus::Completed && l.info.outcome==0)
         || (matches!(record.status,RecordStatus::Active|RecordStatus::Abandoned) && l.info.outcome!=0) {
@@ -140,8 +161,18 @@ fn replay_inner(record:&EpisodeRecord, prepare:impl FnOnce(&mut Slot)) -> Result
         let injected=slot.injection.as_ref().map_or(Ok(()),|i|i.at(crate::FaultStage::Resolution));
         #[cfg(not(test))]
         let injected:Result<(),EnvError>=Ok(());
-        match injected.and_then(|_|l.advance(&action)) {
-            Err(EnvError::Fault { records })=>fault=records.into_iter().next(),
+        let mut effects=Vec::new();
+        let attempted=injected.and_then(|_| {
+            if visitor.is_some() {let observed=l.advance_observed(&action);effects=observed.effects;observed.result}
+            else {l.advance(&action)}
+        });
+        match attempted {
+            Err(EnvError::Fault { records })=> {
+                fault=records.into_iter().next();
+                if let Some(v)=visitor.as_mut() {v(ReplayVisit {index:record.actions.len()+1,kind:ReplayVisitKind::FaultAttempt,
+                    action:Some(action.core),public:l.combat.public_view().ok(),effects,boundary:None})
+                    .map_err(|e|setup(format!("replay visitor: {e}")))?;}
+            },
             Err(e)=>return Err(e),
             // A completed attempted action is not part of the recorded prefix.
             // Do not fabricate the original external failure or silently include

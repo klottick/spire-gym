@@ -117,10 +117,13 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 return Ok(());
             }
             let actor = Actor::Enemy(enemy.instance_id.clone());
+            let observed_move = super::observe::enabled(state).then(|| enemy.intent_id.clone());
             if state.full_runtime {
                 state.pending.push_front(Effect { source: Source::Actor(actor.clone()),
                     target: Some(Actor::Enemy(enemy.instance_id.clone())), kind: EffectKind::RollMove });
                 super::enemies::act(state, &enemy_id)?;
+                if let Some(move_id)=observed_move { super::observe::emit(state, &Source::Actor(actor.clone()), None,
+                    || ResolvedEffectKind::EnemyMove { actor, move_id }); }
                 return Ok(());
             }
             let payloads = match (&enemy.enemy_id, &enemy.intent_id) {
@@ -142,6 +145,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     vec![(actor.clone(), EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: 3 }), (actor.clone(), EffectKind::GainBlock(6))],
                 _ => return Err(InputError::Unsupported(format!("unhandled full enemy intent {}", enemy.intent_id.as_str())).into()),
             };
+            if let Some(move_id)=observed_move { super::observe::emit(state, &Source::Actor(actor.clone()), None,
+                || ResolvedEffectKind::EnemyMove { actor:actor.clone(), move_id }); }
             if !state.full_runtime {
                 state.pending.push_front(work(EffectKind::EndRound));
                 state.pending.push_front(Effect { source: Source::Actor(actor.clone()),
