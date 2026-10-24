@@ -127,7 +127,9 @@ fn truncated_document_is_rejected() {
 
 #[test]
 fn oversized_file_is_rejected() {
-    let dir = Path::new("/tmp/opencode");
+    let scratch = std::env::var_os("TMPDIR").map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/opencode"));
+    let dir = scratch.as_path();
     std::fs::create_dir_all(dir).expect("temp dir");
     let path = dir.join(format!("spire_trace_oversized_{}.jsonl", std::process::id()));
     std::fs::write(&path, b"xx").expect("write oversized sample");

@@ -5,6 +5,25 @@ use spire_core::combat::{CardKind, EnemyKind};
 fn request() -> ResetRequest {
     ResetRequest { seed:Some(IntegerSeed::from_be_bytes(&[37]).unwrap()),scenario_id:None }
 }
+
+#[test]
+fn replay_observed_shares_boundaries_and_rejects_before_visitation() {
+    let p=pool(super::support::template(),AutoReset::Manual,true);
+    let r=p.reset_batch(&[0],&[request()]).unwrap();
+    p.step_batch(&[1],&r.decisions.tokens).unwrap();
+    let record=p.reproduction(0).unwrap().unwrap();
+    let mut visits=vec![];
+    let observed=replay_observed(&record,|v|{visits.push(v);Ok(())}).unwrap();
+    assert_eq!(observed,replay(&record).unwrap());
+    assert_eq!(visits.len(),2);
+    assert_eq!(visits[0].kind,ReplayVisitKind::Initial);
+    assert_eq!(visits[1].kind,ReplayVisitKind::AcceptedAction);
+    assert_eq!(visits[1].boundary.as_ref(),Some(&observed.boundaries[1]));
+    assert!(!visits[1].effects.is_empty());
+    let mut bad=record.clone();bad.content_id="incompatible".into();
+    let mut called=false;
+    assert!(replay_observed(&bad,|_|{called=true;Ok(())}).is_err());assert!(!called);
+}
 fn pool(t:ScenarioTemplate, autoreset:AutoReset, recording:bool) -> CombatPool {
     CombatPool::new(Arc::new(ScenarioCatalog::new(vec![t]).unwrap()),
         PoolConfig { autoreset,record_replay:recording,..PoolConfig::default() }).unwrap()

@@ -25,6 +25,7 @@ mod m6_summons;
 mod m6_elites;
 mod m6_bosses;
 mod m6_stasis;
+mod observe;
 mod m8_shapes;
 mod m8_darklings;
 mod m8_ordinary;

@@ -4,6 +4,20 @@ use crate::content::{CardId,Character,EncounterId,RelicId};
 use crate::run::CardInstance;
 
 // Explicit supplied encounter/Run diagnostic, not normal-start M8 acceptance.
+
+#[test]
+fn observed_run_preserves_permanent_gain_sync_on_success_and_fault() {
+    for fault in [false,true] {
+        let mut observed=fixture(fault,false);let mut plain=observed.clone();
+        let action=GameAction::Combat(CombatAction::EndTurn);
+        let captured=observed.step_observed(&action);let result=plain.step(&action);
+        assert_eq!(captured.result,result);assert_eq!(observed,plain);
+        assert_eq!(observed.state.deck.last().unwrap().id,CardId::Parasite);
+        assert_eq!(observed.state.active_combat.as_ref().unwrap().applied_gain_ordinal,1);
+        assert!(!captured.effects.is_empty());
+        assert_eq!(captured.result.is_err(),fault);
+    }
+}
 fn fixture(exhausted:bool,capacity:bool)->Run{
     let cards=if capacity{(1..=999).map(|instance|CardInstance{instance,id:CardId::Defend,upgrades:0}).collect()}else{vec![CardInstance{instance:1,id:CardId::Defend,upgrades:0},CardInstance{instance:2,id:CardId::Strike,upgrades:0}]};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},AuthoredRunStart{hp:88,max_hp:88,gold:99,deck:cards,relics:vec![RelicId::BurningBlood],potions:vec![None;3],relic_counters:Default::default()},RunRng::new([41;32],Partition::Test,0)).unwrap();

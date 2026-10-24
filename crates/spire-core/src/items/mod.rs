@@ -223,11 +223,22 @@ pub(crate) fn use_combat_potion(combat: &mut Combat, slot: usize,
 /// This deliberately does not create a public action or advance room progression.
 pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
     turn_ended: bool, we_meet_again: bool) -> Result<(), RunError> {
-    let (hp,max_hp,potions)=prepare_run_potion(state,slot,turn_ended,we_meet_again)?;
-    state.hp=hp;state.max_hp=max_hp;state.potions=potions;Ok(())
+    let mut observed=crate::combat::observe::run_enabled(state).then(Vec::new);
+    let (hp,max_hp,potions)=prepare_run_potion_inner(state,slot,turn_ended,we_meet_again,|before,after,source| {
+        if let Some(values)=observed.as_mut(){values.push((before,after,source.clone()));}
+    })?;
+    state.hp=hp;state.max_hp=max_hp;state.potions=potions;
+    // Preparation is also used by legal menus. Publish its detached primitive
+    // checkpoints only after this real use commits, never during menu queries.
+    if let Some(values)=observed {for (before,after,source) in values {crate::combat::observe::run_heal_values(state,before,after,&source);}}
+    Ok(())
 }
 
 pub(crate) fn prepare_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->Result<(u32,u32,Vec<Option<PotionId>>),RunError>{
+    prepare_run_potion_inner(state,slot,turn_ended,we_meet_again,|_,_,_|{})
+}
+fn prepare_run_potion_inner(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool,
+    mut observe_heal:impl FnMut(u32,u32,&crate::combat::Source))->Result<(u32,u32,Vec<Option<PotionId>>),RunError>{
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
     if state.terminal.is_some() { return Err(RunError::Terminal); }
     if state.combat.is_some() { return Err(RunError::InvalidAction); }
@@ -244,22 +255,28 @@ pub(crate) fn prepare_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_m
     for effect in &prepared.effects {
         match &effect.kind {
             crate::combat::EffectKind::Heal(amount) => {
+                let before=hp;
                 let amount = ordinary_heal_amount(owned.relics(), *amount).max(0) as u32;
                 if hp > 0 { hp = hp.saturating_add(amount).min(max_hp); }
+                observe_heal(before,hp,&effect.source);
             }
             crate::combat::EffectKind::IncreaseMaxHpThenHeal(amount) => {
+                let before=hp;
                 max_hp = max_hp.checked_add(*amount as u32)
                     .filter(|value| *value <= 999)
                     .ok_or(RunError::Unsupported("maximum HP overflow"))?;
                 let heal = ordinary_heal_amount(owned.relics(), *amount).max(0) as u32;
                 if hp > 0 { hp = hp.saturating_add(heal).min(max_hp); }
+                observe_heal(before,hp,&effect.source);
             }
             _ => return Err(RunError::InvalidAction),
         }
     }
     if owned.owns_relic(RelicId::ToyOrnithopter) {
+        let before=hp;
         let heal = ordinary_heal_amount(owned.relics(), 5) as u32;
         if hp > 0 { hp = hp.saturating_add(heal).min(max_hp); }
+        observe_heal(before,hp,&crate::combat::Source::None);
     }
     Ok((hp,max_hp,prepared.potions))
 }

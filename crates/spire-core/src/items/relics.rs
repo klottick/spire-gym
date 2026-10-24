@@ -100,7 +100,9 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
     state.relics.push(id);
     if id==RelicId::NeowsLament{state.relic_counters.insert(id,3);}
     state.max_hp = max_hp;
+    let hp_before=state.hp;
     state.hp = hp;
+    if max_hp_gain>0 {crate::combat::observe::run_heal(state,hp_before);}
     Ok(())
 }
 

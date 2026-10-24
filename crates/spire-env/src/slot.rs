@@ -1,5 +1,5 @@
 //! Exclusive native episode ownership and cached public decision boundaries.
-use spire_core::combat::{Combat, Outcome, TransitionStatus};
+use spire_core::combat::{Combat, Outcome, TransitionStatus,Transition,StepError,Observed};
 use crate::{DecisionToken, EnvError, EpisodeInfo, EpisodeJob, FaultStage, ObservationRow, SlotFault};
 use crate::actions::{CandidateMenu, MenuAction};
 use crate::episode::{EpisodeSequence, PreparedEpisode};
@@ -58,7 +58,15 @@ impl Slot {
 impl LiveEpisode {
     /// The coordinator has validated the complete batch and checked steps + 1.
     pub(crate) fn advance(&mut self, accepted: &MenuAction) -> Result<(), EnvError> {
-        let transition = self.combat.step(&accepted.core)
+        let result=self.combat.step(&accepted.core);
+        self.complete_advance(accepted,result)
+    }
+    pub(crate) fn advance_observed(&mut self, accepted:&MenuAction)->Observed<Result<(),EnvError>> {
+        let observed=self.combat.step_observed(&accepted.core);
+        Observed {result:self.complete_advance(accepted,observed.result),effects:observed.effects,boundaries:observed.boundaries}
+    }
+    fn complete_advance(&mut self,accepted:&MenuAction,result:Result<Transition,StepError>)->Result<(),EnvError> {
+        let transition = result
             .map_err(|e| self.failure(FaultStage::Resolution,format!("cached action rejected: {e:?}")))?;
         if transition.status == TransitionStatus::Fault {
             return Err(self.failure(FaultStage::Resolution,"core transition fault".into()));

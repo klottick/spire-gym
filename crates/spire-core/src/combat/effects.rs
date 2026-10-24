@@ -48,6 +48,13 @@ fn powers_mut<'a>(state: &'a mut State, target: &Actor) -> &'a mut Vec<PowerEntr
 }
 
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
+    let before=super::observe::mark(state);
+    let result=apply_effect_inner(state,effect);
+    super::observe::changes(state,before,&effect.source);
+    result
+}
+
+fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
     super::engine::validate_effect(effect, state)?;
     if state.full_runtime && matches!(effect.kind, EffectKind::ApplyPower { .. }
         | EffectKind::ReducePower { .. } | EffectKind::RemovePower(_)
@@ -90,6 +97,14 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             };
             *hp = next_hp;
             *block = next_block;
+            super::observe::emit(state, &effect.source, Some(target), || ResolvedEffectKind::Damage {
+                incoming:damage, absorbed_block:block_before-next_block, hp_before, hp_after:next_hp,
+                hp_lost:hp_before-next_hp,
+                overkill:Some((damage-(block_before-next_block)-(hp_before-next_hp)).max(0)),
+                category:match payload { DamagePayload::Orb(_)=>DamageCategory::Orb,
+                    DamagePayload::Thorns(_)=>DamageCategory::Thorns, DamagePayload::HpLoss(_)=>DamageCategory::HpLoss,
+                    _=>DamageCategory::Normal },
+            });
             if full_runtime {
                 // Lightning's native Orb lane retains original THORNS callback
                 // exclusions; it is not a fourth original DamageType.
@@ -161,9 +176,14 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::Heal(n) => {
             if let Some(Actor::Enemy(owner))=&effect.target {
                 let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).expect("validated heal owner");
+                let before=enemy.hp;
                 if enemy.life==super::ActorLife::Active&&enemy.hp>0 {enemy.hp=(i64::from(enemy.hp)+i64::from(*n)).min(i64::from(enemy.max_hp)) as i32;}
+                let after=enemy.hp;
+                super::observe::emit(state, &effect.source, effect.target.as_ref(), ||
+                    ResolvedEffectKind::Heal { hp_before:before, hp_after:after, amount:after-before });
                 return Ok(());
             }
+            let before=state.player.hp;
             if state.player.hp > 0 {
                 let amount = if state.full_runtime {
                     crate::items::ordinary_heal_amount_in_room(
@@ -175,6 +195,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     .min(i64::from(state.player.max_hp)))
                     .map_err(|_| InputError::Invariant("healing overflow".into()))?;
             }
+            super::observe::emit(state, &effect.source, Some(&Actor::Player), ||
+                ResolvedEffectKind::Heal { hp_before:before, hp_after:state.player.hp, amount:state.player.hp-before });
         }
         EffectKind::NeowsLament=>{
             for enemy in state.enemies.iter_mut().filter(|e|e.hp>0&&e.life==super::ActorLife::Active){enemy.hp=1;}
@@ -291,10 +313,13 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         }
         EffectKind::Terminal(outcome) => {
             state.hp_before_healing = Some(state.player.hp);
+            let before=state.player.hp;
             if *outcome == Outcome::Victory && !state.full_runtime {
                 state.player.hp = i32::try_from((i64::from(state.player.hp) + 6)
                     .min(i64::from(state.player.max_hp)))
                     .map_err(|_| InputError::Invariant("terminal HP overflow".into()))?;
+                super::observe::emit(state, &Source::None, Some(&Actor::Player), ||
+                    ResolvedEffectKind::Heal { hp_before:before, hp_after:state.player.hp, amount:state.player.hp-before });
             }
             state.pending.clear();
             state.pending_time_warp=None;
