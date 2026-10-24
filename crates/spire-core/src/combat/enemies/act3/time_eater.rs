@@ -29,6 +29,10 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
 }
 
 pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
+    // A 12th-card checkpoint inside an autoplay child is an owned barrier,
+    // not permission to drop its suspended parent. Parent FinishCard work is
+    // already accepted and must unwind before the ordinary forced end turn.
+    if state.pending_time_warp.is_some(){return Ok(())}
     let owners=state.enemies.iter().enumerate().filter(|(_,e)|e.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater)&&e.life==ActorLife::Active&&e.hp>0&&e.full_powers.iter().any(|p|p.id.0=="time_warp")).map(|(i,_)|i).collect::<Vec<_>>();
     if owners.len()>1{return Err(InputError::Unsupported("multiple Time Warp owners unavailable".into()))}
     let Some(index)=owners.first().copied() else{return Ok(())};
@@ -37,6 +41,11 @@ pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
     if power.state.amount<11{power.state.amount+=1;return Ok(())}
     if !state.pending.iter().any(|e|e.kind==EffectKind::Decision){return Err(InputError::Invariant("Time Warp card decision continuation absent".into()))}
     power.state.amount=0;let owner=state.enemies[index].instance_id.clone();state.pending_time_warp=Some(owner.clone());
+    for queued in &mut state.pending{if let EffectKind::Ironclad(work)=&mut queued.kind{match work{
+        super::super::super::cards::IroncladEffect::HavocQueued{cancelled,..}
+        |super::super::super::cards::IroncladEffect::DoubleTapRepeat{cancelled,..}=>*cancelled=true,
+        _=>(),
+    }}}
     let actors=state.enemies.iter().map(|e|Actor::Enemy(e.instance_id.clone())).collect::<Vec<_>>();
     for target in actors.into_iter().rev(){state.pending.push_front(effect(Actor::Enemy(owner.clone()),target,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2}));}
     let at=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap();state.pending.insert(at,Effect{source:Source::Actor(Actor::Enemy(owner)),target:None,kind:EffectKind::TimeWarpEndTurn});Ok(())

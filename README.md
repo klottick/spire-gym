@@ -13,6 +13,12 @@ The [accepted M9 profile](docs/milestones/m9-act3.md) adds captured Ironclad A0
 progression through Act3 and a thin single-Run `RunEnv`, after one independent review.
 All six frozen normal-start seed7/11 traces are genuine losses, not demonstrated
 boss50/no-key wins. Strategy development belongs to external callers.
+
+**Current compatibility notice — 2026-10-24:** corrected shared random-spot draw
+insertion changes current seeded outcomes; see the [M9 compatibility note](docs/milestones/m9-act3.md#current-rules-compatibility-2026-10-24).
+Next is the [M10 written plan](docs/superpowers/plans/2026-10-24-m10-ironclad-heart.md)
+for Ironclad A0 character coverage and key-gated Act4/Heart tools is user-approved;
+native implementation has begun, but M10 is not yet delivered or accepted.
 The simulator, environment interfaces, correctness tests, performance checks and
 small random/scripted rollout examples belong here. External learners use those
 interfaces; a learned-agent benchmark is not required to deliver the gym.

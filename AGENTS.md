@@ -1,5 +1,480 @@
 # Spire Gym: current agent guidance
 
+## User-requested local M10 snapshot (2026-10-24)
+
+User requested "conventional commit what you have so far". This authorizes one
+local Conventional Commit of the integrated public M10 snapshot through Task21,
+including its qualified research, plan and current guidance. Task22's isolated
+candidate and private/ignored evidence are excluded. This is not M10 acceptance,
+push/merge authority, Python refresh permission or a change to remaining gates.
+
+## User-requested build hygiene (2026-10-24)
+
+User: "/tmp is filling up as you do this work. Can you please clean up after
+your builds better?" This authorizes cleanup of this work's identified inactive,
+reproducible build outputs, not source/worktrees/patches/logs/private evidence.
+Use the existing per-author absolute Cargo target under that author's worktree
+on /home; never create a new /tmp target per task/rebase/reconstruction. Set an
+existing absolute TMPDIR on /home for compiler/linker/test scratch. Keep targets
+separate between concurrent authors but reuse each author's target across tasks.
+After a build/test, remove its disposable command-specific scratch when inactive;
+after retiring a temporary target, remove its generated output rather than
+accumulating it. Preserve durable results outside cache directories before cleanup.
+Check ownership, contents and active processes before deleting any cache; no
+blanket /tmp cleanup or removal of unfamiliar files. These instructions apply to
+all future author briefs and controller verification. No package installs,
+source deletion or milestone/publication authority is added.
+
+Current cleanup removed only seven identified inactive Cargo debug directories
+in /tmp (Task16 extra target, completed M7/M8 reviews/PR42 reviews, old M9 native),
+freeing8,079,020,032 allocated bytes (~7.52GiB). Public source and Task16 packet
+hashes unchanged; exact paths/evidence in the M10 ledger. Controller remains
+verified15; Task16 remains unintegrated/unverified after its final restoration.
+
+## Latest concurrency steering (2026-10-24)
+
+User explicitly permits more Luna6 assistants for concurrent tasks. Task8 accepted
+at task scope; Task9 author remains m10-luna-upgrade-assistant-20261024. Existing
+facts session m10-luna-act4-facts-20261024 now authors Task10 player-power lifecycle.
+New m10-luna-exhaust-assistant-20261024 owns Task11 source closure/exhaust mechanics.
+New Task11 session: ses_e917d489bffebmMtZOMBgEHmJj (GPT6Luna), actually dispatched;
+Task10 existing ses_e94105386ffeThLCw4agzt1lFU and Task9 original session active.
+All have separate exact561-file snapshots, immutable preimages, unique absolute
+build targets/jobs2. Shared roots are candidate requests from isolated snapshots,
+integrated by controller sequentially9→10→11; reconcile preimage drift explicitly,
+never overwrite another lane or blind-apply. Earlier single-body-author notes are
+historical scheduling, not a renewed restriction. ONE final milestone review;
+no strategy/install/commit/push/cleanup/extension refresh authority added.
+Latest returns: Task9 17-file candidate NOTintegrated, same author repairs M3
+profile widening, invalid multienemy fixtures and retained gain/fault/receipt gaps.
+Task11 returned facts-only/no hard blocker; same session resumed actual approved
+source-closure→TDD→implementation (no new actor/approval gate). Task10 continues.
+Controller remains verifiedTask8; no additional milestone reviewer.
+Task10 first14-path implementation packet NOTintegrated; same author repairs
+non-demonstrating Innate/invalid TimeWarp fixtures, constructor/copy and Combust
+custody gaps. Task11 first14-path implementation packet NOTintegrated; same
+author repairs missing public values/generated constructors, actual-play,
+full-hand/payment and retained callback-fault coverage. Task9 still finishes
+durable gain/receipt repairs. Integration remains sequential9→10→11.
+
+Task9 now COMPLETE at task scope: final16-path b0b79693…850f420 integrated,
+all candidate/preimage/integrated SHAs checked. Fresh controller fatal15/gains4/
+M10 182 pass; workspace872/7 EXACTold7/all other targets pass/noOS122. Old M3
+profile preserved; actual Reaper postcommit receipt/Feed Run Death+fault covered.
+Task10/11 same-author repairs continue, not integrated. Freed Task9 author now
+gets Task13 reactive module/tests on refreshed564-file Task9 baseline; no Task12
+overlap with Task11 exhaust author. Controller next integrates10→11, then later
+candidates source-aware. Earlier controllerTask8 notes above are historical.
+Task10 repaired14-path47da6c…92cd packet inspected; same author now performs
+expected source-aware rebase onto controller-provided immutable564-file Task9
+baseline in its own worktree, then combined tests. Task11 repaired17-path
+105cd254…08e73 returned, not yet inspected/integrated. Task12 is explicitly next
+for the same exhaust author AFTER Task11 integration, not skipped for Task13.
+Task10 now COMPLETE: rebased14-path143e89a8…c8708c integrated/hashchecked,
+fresh power28/M10 210; workspace900/7 EXACTold7/all other targets pass/noOS122.
+Task11 repair inspected; same author next rebases onto provided566-file Task10
+baseline and restores original attacking Havoc-cancellation control weakened by
+Strike→Defend change. Task13 returned14-test candidate, not yet inspected/rebased.
+Task12 remains same exhaust author's immediate follow-up after11 integration.
+
+Latest user: exhaust logic MUST be generic across characters/cards. Task11 same
+author now corrects generic per-use disposition/notification and Ethereal
+property boundaries, with actual four-character regressions; specific powers/
+cards only provide listeners. No new callback framework or foreign-content scope.
+Rebased2ec53955…7f1487 NOTintegrated: controller found actual worker/patch still
+Defend child/Strike marker despite claimed restored attack-control; same author
+repairs packet/test source coherence before final hashes. Controller remains
+verifiedTask10. Task12 starts with same exhaust author after11 integration.
+
+Task11 now COMPLETE: controller reconstructed full22-path f46673f4…20eaaac from
+final generic20-path b813e785…fc2da16 plus its2 omitted required new files; read
+both/all source deltas, hashes verified, .orig/evidence preserved. Generic core
+movement/disposition/notification has no card/character gate; specific listeners
+remain content handlers. Fresh generic4/exhaust20/M10 231/workspace925/7 EXACTold7,
+all other targets pass/noOS122. Task12 SAME exhaust author now starts on refreshed
+570-file acceptedTask11 baseline. Task13 candidate still awaiting inspection/
+rebase. No M10 acceptance, extra reviewer, Python refresh, commit/install/cleanup.
+Task12 actually dispatched in same exhaust session on exact570 snapshot. Task13
+initial11-path ea7e8f77…de54c67 inspected, NOTintegrated: same author closes named
+callback damage-type/owner/order facts and fixes raw FlameBarrierBlock/public
+values/generated constructor gaps before source-aware rebase onto Task11.
+Latest: Task12 first11-path3414b014…5acbff NOTintegrated; same author repairs
+FiendFire fixed-count/current-hand vs frozen-ID mismatch, invalid11-card fixture,
+batch validation and retained RNG frontier. Task13 repaired15-path058c9e4d…79c62
+NOTintegrated; same author closes remaining Orb-as-originalTHORNS, deferred
+Juggernaut target/RNG, Confused free-play/order and valid-fixture/modifier seams.
+Controller stays verifiedTask11, both original isolated authors active, no new
+reviewer/source census or Task14+ start. Source corrections stay qualified.
+Task13 latestpartial5cbf9605…53b439c reports Confused free-play/DexFrail/Pummel
+Rage/BrutalityRupture checks added; focused20/M10 251, no finalworkspace yet.
+Same session resumes remaining Draw2+/power-order/Void, Confused X/unplayable,
+TimeWarpRage and Combust/BurnRupture controls only. Not integrated; no newaudit.
+Task12 partial repair reports fixed-count/live-hand FiendFire, RNG frontier/
+validation/legal10-card fixes; Run-census/TimeWarp/Havoc controls and finalpacket
+remain. SAME author resumed exactly those remaining items, not source restart;
+Task13 continues independently. Neither candidate integrated; controller11.
+
+Task12 now COMPLETE: final15-path59779e0a…81716f6 integrated byte-exact; normalized
+controllerpatchce23b661…95bebdf. Fresh actions18/generic4/Run-census1/M10 250,
+workspace944/7 EXACTold7/allotherspass/noOS122. Generic core has no card/character
+gate; captured-reference vs fixed-count/live-group and queued-child order ruled
+from named source facts. Task13 reportedfinal139bb9e9…849270b NOTintegrated:
+same author fixes missing deferred-work validation, invalid cloned-enemy fixture
+and omitted differential.rs packet path; then source-aware rebase onto Task12.
+Controller verified12; no M10 acceptance/reviewer/Python refresh/publication.
+Task14 now actually dispatched to SAME freed exhaust author on exact572-file
+Task12 snapshot/fullimmutablepreimages: five passive/reactive Ironclad relics,
+actual acquisition/listeners only. Task13 author independently repairs its named
+remaining validator/fixture/packet defects. Integrate13 then14 source-aware;
+no new actor/reviewer/Task15/Python refresh/install/commit/cleanup authority.
+Task13 repaired16-path5ff20c39…c2f6b124 actualdelta/hashchecked, NOTintegrated.
+Same author now source-aware rebases onto provided immutable572 Task12 baseline;
+checks actual Juggernaut→Defend/SecondWind ready-boundary (push_back can leave work
+after Decision). No repeated source audit; Task14 continues independently.
+
+Task13 now COMPLETE: rebased16-pathe816c136…c488e7ed integrated byte-exact from
+manifest's actual tested /tmp/opencode/task13-post12-source-aware-rebase-v2 root
+(live author tree intentionally retains prior candidate). All574 source hashes
+checked. Fresh reactive30/actions18/generic4/M10 280/workspace974/7 EXACTold7,
+allotherspass/noOS122. Real Juggernaut→Defend ready-boundary RED→GREEN; Task12
+generic core preserved. Task14 continues independently; controller verified13.
+Task17 still owns InfernalBlade/roster/acquisition closure, not fullM10acceptance.
+Task15 now actually dispatched to SAME freed reactive author on exact574-file
+verifiedTask13 snapshot/fullimmutablepreimages; Brimstone/MarkOfPain/RunicCube only.
+Task14 original author independently owns itsfive relics. Integrate14 then15 with
+explicit source-aware baseline reconciliation; no new actor/reviewer/Task16start,
+install/cleanup/commit/Python refresh. Controller remains verified13.
+Task14 first12-path07624a2e…0cc87a6 inspected/hashchecked NOTintegrated: existing
+qualified source places Charon's Ashes TOP, candidate defers it with bottom batch
+children; Clay exact next-start mapping and RedSkull/Belt custody/source edges
+need closure. SAME author repairs on provided immutable574 integrated13 baseline;
+generic exhaust stays character-free. Task15 continues independently; controller13.
+Task15 first8-path660b554b…4d115f inspected NOTintegrated: Brimstone dispatch
+order contradicts its qualified top-insertion facts; Cube/Rupture order test is
+final-totals-only, Mark uses zero-opening rather than phase/fault controls, and
+finalworkspace notrun. SAME author repairs bounded order/setup/custody/packet;
+Task14 continues independently. Controller verified13; no Task16/newreviewer.
+Task14 PARTIALrepair reports Ashes-top/Clay-predraw RED→GREEN, relic12/M10 292/
+workspace986/7old7. Sameauthor resumes remainingfault/4hero/Belt/Phrog/Skull/Clay
+controls+finalpacket; source/body nullAshes-owner and directinitialSkull seams
+stillunclosed. Preservecompletedfixes, noauditrestart. Task15 continues; controller13.
+Task15 repaired11-pathc5cde48a…55d8b38 inspected: full576 source/574preimages/
+delta hashes match; observedBrimstone/Cubeorder and Marknonnullopening/fault
+controls added. Author9relic/M10 294/workspace988/7old7, NOTcontrollerverified or
+integrated. Hold for post14 source-aware rebase; originalauthor idle at return.
+Task14 repair active; controllerverified13. No Task16/reviewer/Python refresh.
+Task14 finaldeclared15-pathfbab8356…e58ac8d read/hashchecked, NOTintegrated:
+batch top-work reverse iteration + moving continuation index reverses Ashes
+target vector vs nonbatch. SAMEauthor fixes that narrow order regression and
+backs up/materializes3stale docs from provided574baseline for coherentfullcensus.
+Completed20relic/6generic controls preserved; Task15 candidateparked; controller13.
+Task14 now COMPLETE: final15-path07e93ae7…a6d475c integrated/hashchecked; stale
+docsbackups preserved/no controller overwrite. Fresh relic21/generic5/actions18/
+M10 301/workspace996/7 EXACTold7/allotherspass/noOS122. Ashes nullTOP/target-order,
+Claypredraw and directinitial/Artifact-qualified Skull behavior pinned; shared
+exhaust stayscharacter-neutral. Task15 sameauthor nextrebases inspectedc5cde48a
+onto verified14 baseline; controller14, no Task16/reviewer/Python/publication.
+Task15 SAMEauthor actuallyrebases c5cde48a onto suppliedimmutable576 integrated14
+baseline. Task16 now dispatched to SAMEfreedexhaustauthor on exact576/fullimmutable
+preimages: actualElixir/HeartOfIron belt/selector/sharedexhaust only. Integrate15
+then16 source-aware; no newactor/reviewer/Pythonrefresh/install/commit/cleanup.
+Controller remains verified14, no M10acceptance.
+Task15 now COMPLETE: eleven-path0e04a99c…301172f1 integrated/hashchecked from
+actualtested578root; fresh relic9+21/generic5/actions18/M10 315/workspace1010/7
+EXACTold7/all37otherspass/noOS122. Controller verified15. Task16 eight-path
+1383d479…a28b90 NOTintegrated: finalsource restoration followed by OS122 quota,
+no finalfocused/workspace proof. Read-only storage/source diagnosis next; no
+cleanup/build retries/Task17/reviewer/Python/install/publication authority.
+User then explicitly requested continuation after build cleanup. SAME Task16author
+now repairs/rebases onto providedimmutable578 integrated15baseline, usingONLYits
+original /home buildtarget/real /home scratch and cleaning own disposable scratch.
+No new/tmp targets. Five priorpotiontests notfullcompletion: remainingselector/
+fault/finitevalidation/v1/realendturn+Runcontrols andfinalworkspace stillrequired.
+Controllerverified15; no Task17/reviewer/Python/publication started.
+Task16 post15 eleven-path6a1b18f0…dd014de inspected/full580hashchecked NOTintegrated.
+Sameauthor closesonlyempty-hand/finitevalidator/observedselectedgroup+Sentinel/
+multiselectedfault/stackedrawHeartcontrols. TypedRuninventoryDeath/v1boundary and
+coherentrebase preserved; authorworkspace1021/7/noOS122, controllerstill15.
+Interruptedemptytoolcallfailed; SAMEsessionactualboundedcontinuationdispatched.
+Task16 now COMPLETE: eleven-path48d90f57…23f699d integrated/hashchecked; fresh
+potions13/Run2/env11/generic5/actions18/M10 330/workspace1025/7 EXACTold7,
+all37otherspass/noOS122. All580source/578preimages verified; per-command/home
+scratchremoved. TypedPotion/emptyhand/finiteconsumedowner/selectedgroupfault/
+rawHeart6/12stack pinned; historicalinitialREDgap disclosed. Controller16;
+Task17 next, no M10acceptance/reviewer/Python/publication authority.
+Task17 actuallydispatched to SAME original upgrade/reactive/turn-relicauthor on
+exact580accepted16snapshot/fullimmutablepreimages (562links/18copies), prior23
+refreshedpaths backedup. SeparateM10profile/allred/exclusiveitemcaptures/Infernal
+only; M1–M9/v1/sourcequalifications preserved. Reuse/home target/scratch, nonew/tmp
+buildorcopyroots. Controllerverified16; Task18 notstarted, no newreviewer/Python.
+Task17 PARTIALreturn reportsroster75/Infernal28/body/rewardrows/v1M10reject,
+focusedM10 336/envlib41; nofinalworkspace/packet and NOTintegrated. SAMEauthor
+resumesremainingM10shops/itemdrop+boss+potionproducers/eventeligibility/actual
+reachabilitytests+finalpacket, preservescompletedwork. Controller16, noTask18.
+Task17 assembled29-path98b583d3…2aa38be9 FULL584hash/deltachecked NOTintegrated.
+SAMEauthor closesfiniteInfernalvalidation/fault/cost+constructors, actualshop
+destinationRNGstaging, event/newsource/literalcoverage+validbossfixture, durable
+facts/results/fullpacket. FiveM10bossrelicrows declaredcaptures permitted, oldM9
+three unchanged; no standardgeneratorclaim. Controller16, no newactor/Task18.
+Task17 repaired30-pathbb23e0a3…89a4e2b2 FULL584hashchecked NOTintegrated. SAME
+author closes3Infernalresiduals: actualenginepreflight(notbodyguard), validunique
+inplayfaultfixtures, sourcemagicvpayment+realupgraded/fullhandcontrols. Shopactual
+destination/event/roster/cursor/validBlackBloodfixespreserved. Controller16/nonew18.
+Task17 now COMPLETE: final31-path1ea17fc1…b7c00c745 integrated/hashchecked;
+freshgeneration10/content18/M10 358/env42+11+9+5/workspace1053/7 EXACTold7,
+all37otherspass/noOS122. Actualenginepreflight/validownedfaultfixtures/nomagic/
+upgraded+fullhand controls pinInfernal; stagedshopdestinationRNG+M9preserved.
+Controller17; next18keys/finite-stock and19ShieldSpear isolatedlanes, sequential
+integration18→19. No M10acceptance/reviewer/Pythonrefresh/publication authority.
+Task18 and19 actuallydispatched to SAME original exhaust/facts-power sessions,
+each exact584accepted17snapshot/fullimmutablepreimages. 18:544links/40copies,
+32refreshedpathsbackedup/9old.origpreserved;19:512links/72copies/70backedup.
+Onlykey-stock versusShieldSpear-facing lanes, noTask20. Original/home targets/
+scratchmandatory, no/tmpbuild/copyroots. Controller17; integrate18→19sourceaware.
+Task18 first8-path417d1b9b…75d8c715 FULL585hashchecked NOTintegrated. Realchest
+Open consumesoffer evenSapphire/Proceed skips, so15elites+3chests+Act4elite=19
+offers, not18acquisitions. SAMEauthor correctswithonequalifiedrealnormaldrop
+mechanic/19stock andboundedownercontrols; planamendmentrecorded. Task19active
+independently; controller17/noTask20/reviewer/Python/publication.
+Task18 PARTIALrepair reportsactualchestRED→19stock/Orichalcum6BlockGREEN,
+M10 368; nofinalworkspace/packet andNOTintegrated. SAMEauthorresumesonlyremaining
+keysource/fault/fullbelt/childcontrols+finalverification/packet; preservesfixes.
+Task19continuesindependently; controller17/noTask20/reviewer/Python/publication.
+Task19 initial16-path933719ca…45ab19fc6 FULL586hashchecked NOTintegrated; SAME
+author repairsdamage-rounding/BackAttackindicator/ShieldorbFocus/AI+facingfaults/
+v1datafacts. Task18 repaired14-path59041ef5…b3dee9fca FULL585hashchecked NOTintegrated;
+keycustodycontrolsreceived, SAMEauthor closesnarrowOrichalcumtrigger/reset/positive
+Blockcallback timing+raw/faultcontrols andwrong18-offerlabels. Controller17;
+integrate18then19sourceaware; noTask20/reviewer/Python/publication.
+Task18 now COMPLETE: final16-path2fd02a03…b7d6d4 integrated/hashchecked;
+freshkeys12/relics25/content18/M10 374/workspace1069core+210others/7 EXACTold7,
+all37othersuitespass/noOS122. Full585source/584preimageschecked, homescratchremoved.
+Real19consumedoffers+Orichalcumownedtrigger/TOPraw6 pinstock; originalhistorykept.
+Controller18; Task19repairsbeforepost18rebase. Task20cutoffrulingrecorded: existing
+immediatesettlement modelsendBattle.clear beforeundispatchedBeat/UCA, explicitly
+headlessmappingNOTdying-sourceTHORNScancel/runtimeparity/universallethalwinner.
+Task20 actuallydispatchedSAMEexhaust/keyauthor onexact585accepted18snapshot/
+immutablepreimages567links/18copies, only2guidancedocsbackedup. Task19original
+authorstillrepairs; immutable585post18rebaseinputs stagedwithouttouchinglivecode.
+Integrate19→20sourceaware; /home targets/scratchonly, noTask21/reviewer/Python/
+publication. Controllerverified18; Heartbody/cap/Beat notyetintegrated.
+Task19 repaired22-path74611eed…28fb1d0 FULL586hashchecked NOTintegrated. SAME
+author fixesFocusArtifact/before-coinBashattackcustody/actualv1consumer then
+source-aware rebasesonto PROVIDED585post18baseline. Author584/incompletecount
+waswrong: controller585/585/all16accepted18hasheschecked, durableproofsupplied.
+Task20continuesindependently; controller18/noTask21/reviewer/Python/publication.
+Task19 post18rebased24-path3a47c871…5d1e1b6 FULL587hashchecked NOTintegrated.
+Rebase/FocusArtifact/actualv1received; SAMEauthor correctsONLYBashcoincheckpoint:
+sourcequeuesattackTHENsamplesBEFOREhitexecutes, notafterhitcontinuation. RNGfault
+mustretainUNEXECUTEDhit/currentproducer/HPunchanged. Task20independent/controller18.
+Task20 first16-path3aa74027…94e2e54 FULL587hashchecked NOTintegrated. SAMEauthor
+repairsBloodShots12hits×2(not2×12hits)/first-enemy-turnDebilitate(notprebattle),
+BeatBOTTOMafterordinarycleanup/noTHORNSdying-sourceguard, realownedfixtures/
+finitevalidators/registration/capfacts/actualv1. Initialwrongoraclespreserved;
+planclarified. Task19narrowcoincheckpointrepairactive; controller18/nonewTask21.
+Task19 now COMPLETE: rebased24-pathb8715064…2152b54c9 integrated/hashchecked;
+freshpair26/keys12/relics25/M10 401/env43+11+9+5/reference70/workspace1096/7
+EXACTold7/all37otherspass/noOS122. Full587source/585preimageschecked; homescratch
+removed. BashproducerqueueshitTHENcoinBEFOREhitdispatch, Artifact/facing/custody
+pinned; oldwrongoraclespreserved. Controller19; Task20repairsbeforepost19rebase;
+noTask21/reviewer/Python/publication.
+Task20 revised18-path06d39303…afe61fa FULL587hashchecked NOTintegrated. Initial
+Heartliteral/Beatorder/sourceguard/setupfixesreceived; SAMEauthor closesbuffcount
+history/actualv1/Reaper-listener/Havoc-X controls thenrebasesprovidedcomplete587
+post19snapshot. InvinciblespendscappedpostBlockvalueBEFOREoverkillHPclamp;
+ReaperhealstillactualHPLOSS, plansourceclarified. Controller19/nonewTask21.
+Task20 now COMPLETE: post19 nineteen-path1697f8b2…3d947d95d integrated/hashchecked;
+freshHeart29/pair26/keys12/relics25/M10 430/env69/reference70/reportpass/workspace
+1126/7 EXACTold7/all37otherspass/noOS122. Full589source/587preimageschecked;
+homescratchremoved. InitialDebilitate/12hits2/BeatBOTTOMcleanup/cap+earnedReaper
+pinned; cutoffmappingqualificationskept. Controller20; next21route/22settlement,
+no M10acceptance/reviewer/Python/install/publication authority.
+Task21 actuallydispatchedSAMEfacts/power/pairauthor onexact589accepted20snapshot/
+fullimmutablepreimages557links/32copies;21refreshedpathsbackedup/allold587verified.
+Real4thchoice/ordinaryheal/fixedrooms only; Task22ownsfullreward/finalsettlement.
+Original/home target/scratch mandatory, nonew/tmpbuild/copyroots. Controller20;
+noTask22/reviewer/Python/install/publication started.
+Task21 first8-path1a49c9d4…3c2f952 FULL591source/589preimageschecked NOTintegrated.
+Fourthchoice/route/ordinaryheal/realrooms received; SAMEauthor closesonlymissing
+source/shopfrontier/accepted-entryfault+damagedRest/childcontrols beforefinalpacket.
+Controller20; noTask22/newreviewer/Python/publication; /homebuildhygienebinding.
+Task21 now COMPLETE: final8-patha6afed94…9282b34 integrated/hashchecked;
+freshAct4 10/M9end7/keys12/M10 440/env69/workspace1136/7 EXACTold7/all37otherspass.
+Full591source/589preimages verified; homescratchremoved/noOS122. Testsserialized
+forreportedexistingreport-scratchrace; noracefixclaim. Controller21; next22 actual
+reward/admission/finalProceed settlement, no M10acceptance/reviewer/Python/publication.
+Task22 actuallydispatchedSAMEfacts/pair/routeauthor onexact591accepted21snapshot/
+fullimmutablepreimages582links/9copies; onlyguidancerefreshed/backedup. RealElite53
+rewards→Heartadmission/explicitProceed→55HeartVictory+Deathcustody only. Original
+/home target/scratch mandatory, no/tmpbuild/copyroots; controller21, noTask23/
+reviewer/Python/install/publication started.
+Task22 first10-pathd303b0ed…6fb611fa FULL592source/591preimageschecked NOTintegrated.
+Mainsettlementreceived; SAMEauthor closesfinalProceedHeart-record/sourcechecks,
+terminalProceed-tokenfault/fullbeltclaim/firstpartner controls andreplacesforeign
+PureWaterfaultfixturewithownedMarkOfPain. Controller21; noTask23/newreviewer/
+Python/publication; /homebuildhygienebinding.
+
+## M10 approved / native execution active (2026-10-24)
+
+User subsequently requests Luna6 assistants perform detailed tool calls/research/
+tests while controller SYNTHESIZES/integrates. Two exact548-file native worktrees
+now active: m10-luna-upgrade-assistant-20261024 ses_e9410538fffeUkkFoxjAWXiydv
+(Task8 integrated/verified; now Task9 Feed/Reaper native implementation) and
+m10-luna-act4-facts-20261024 ses_e94105386ffeThLCw4agzt1lFU (env3-file candidate
+integrated; combined550-file matrix complete, Task4/Task5 facts complete and
+compatibility docs returned/integrated; Task6 facts closed, now read-only Task7
+autoplay/X/repeat andTask8growthfacts CLOSED inclDropkickcorrection; nowread-only
+Task9Fatal/earned-heal andTask8costfloor/upgradefacts CLOSED; nowread-onlyTask10
+defensivepowercheckpointfacts).
+Distinct absolute targets/jobs2; no controller/topic overlap, polling or duplicate
+research. Neither is final reviewer. Task1/Task2 complete; exact integrated Task2
+test SHA checked and controller fresh9core/1v1 pass. Task3 active on refreshed548
+file snapshots; genuine n-vs-n+1 random-spot insertion mismatch reported BEFORE
+shared helper change. Explicit plan/ledger amendment: corrected current M9 rules
+spire-gym-native-m9-rules-v2, old v1 rules records rejected before execution,
+v1 ABI/schema/fingerprint/RNG algorithm unchanged; prior records preserved. Core
+helper source prerequisite now CLOSED for actual Hex/Repulsor/OrbLaser routes;
+core assistant fixed insertion plus controller-found upgradedBoomerang per-hit
+damage/target-validation/Common-rarity defects with actual RED→GREEN. Core14/env3
+files integrated and byteverified; controller fresh20direct/9upgrade/7replay/
+7observation pass. ONE combined workspace720/7 exactold7/allother targets pass and
+all9examples12invocations exit0; Task3 complete. Corrected-rules-v2 M9seed7loss
+697/floor42/reward41 differs from preserved v1loss778/47/46; seed11Time814/Donu831
+also differ. No unchanged-old-trace claim. Task4 complete: all11 exact candidate
+files integrated, fresh18support/20direct/9upgrade/7obs/7replay pass; assistant full
+workspace738/7 exactold7/allother targets pass. Actual8runtimeRED before bodies
+preserved; real OrbLaser mixed-intent fixture validated. Task5 next on refreshed552
+files with full exact preimages; no optional-selector/Elixir completion yet;
+Task5 partial candidate had746/7 core but workspace compileblocked at newConfirm
+env matches; stale prior noenvscope explicitly superseded for Task5. Warcry was
+incorrectly optional; SAME author owns required-choice RED→GREEN and all necessary
+v1 rejection/consumer/edge verification. Controller product remains verifiedTask4.
+Full Task5 packet compiled but blanket-rejected old combat selections/deleted
+positive tests, exhausted BattleTrance, eagerly captured source choices and missed
+pinned PotionId/known-draw row contracts. SAME author now repairs these A–D items
+with RED→GREEN; no new reviewer/duplicate dispatch/polling. Preserve quota evidence,
+no cleanup. Interrupted-response continuation resumes this active pass normally.
+Latest partialreturn restored legacypositivev1 RED→GREEN(obs9/0), fixedcardliterals
+(selection19/0); action-timechoices/NoDraworder/pinnedtypes/atomiccustody remain.
+SAMEsession resumed to complete remaining work/finalpacket; not Task5integration.
+Latest coherentTask5 packet now resolves A–D items, integrated34 exactfiles with
+fresh M10filter80/0/obs9/0/replay9/0/report1/0; assistant workspace770/7 exactold7,
+allotherspass. Originalpatch missing newfilehunkheaders rebuilt/hashchecked before
+nativeintegration. Only realzero-pick characterizationtest remains beforeTask5close;
+optionalinitialREDgap preserved, noElixir/Task6/Pythonproducerclaim. This supersedes
+the earlier Task5notintegrated/controlleratTask4 notes immediately above.
+Task5 now COMPLETE: realzero-pick characterization integrated and freshly33/0;
+full optionalinitialRED history gap explicitly ledgered for finalreview. Task6
+starts from554 publicfiles/fullimmutablepreimages; selectedDualWield originals
+retainedINACTIVE for census, no activepile/masterdeck removal. Task7 facts assistant
+read-only/nonoverlapping, no new author/reviewer swarm. All product uncommitted.
+Task6 now COMPLETE:23 exactfiles+2characterizationtests integrated; freshcopy10,
+M10filter91/obs9/replay9/publicM9 3 pass, assistantworkspace779/7 exactold7/allothers.
+Samefamily/stat/nativeadapter routes distinct, replacedsourceINACTIVE/censusowned;
+actualcopiedPowerplay and selected-sourcepartialfault verified. Task7 starts from
+556files: failedHavocStatus/CurseEXHAUST withoutusepayload; TimeWarp cancelsqueued
+autoplayPAYLOADS butretainscleanup(DTpurge/Havocexhaust), nounrelatedeffectwipe;
+DoubleTapimmediatedecrement/playerendexpiry sourceclosed. Earliernext-task pointers
+above are chronological, not active missing work. No M10 acceptance yet.
+Task7 first22-filepacket reported17autoplay/108M10/workspace798/7old7, but inspection
+foundDTPower-vsSkill/definition-onlyrows/immediatecharge, Xpaymentcheckpoint,
+hardcodedautoplaylegality/faultcustody andnewplayingv1boundarygaps. NOTintegrated;
+SAMEauthor owns boundedA–F repairpass, no newreviewer/duplicateaudit/polling.
+Dropkicksourceclosed: validtargetalwayshit, onlyenergy/drawconditionalVulnerable;
+nativeinvalidtargetpreflight staysatomic. Controllerproduct remainsverifiedTask6.
+Task7 repairedpacket120M10/workspace810/7old7 fixesmajorA–D defects, but NOTyet
+integrated: claimedv1playingrejectionwastesthelperonly; nestedHavoclackstarget
+captureanddeferredframefaultvalidationgapremains. SAMEauthor nowclosesactualenv
+encoder/nestedHavoc/retainedfaultseams, usingexistingbudgetforlaterrepeatselection
+fault(no newinjectionplatform). No newreviewer/sourceaudit orcontrolleroverlap.
+Task7 nowCOMPLETE: final24files039ce5d8…af2894 integrated/hashverified, fresh
+autoplay31/M10filter122/envobs10/replay9/publicM9 3 pass; assistantworkspace812/7
+exactold7/allotherspass. Actualenvrejection/sharednestedHavoctarget/retainedframe
+validationfixed, acceptedrepeat-selectionbudgetfaultcharacterizedwithoutnewinjector.
+EarlierTask7notintegrated pointers above arehistory. Task8 starts558publicfiles/
+fullimmutablepreimages; activezone-vs-census distinctionsandDropkicksourceclosed.
+No M10 acceptance, Pythonextensionrefresh, commits/install/cleanup.
+Task8 first14-filepacket893d419e…ff8ceb4 reportedgrowth19/M10 141/workspace831/7,
+but sourceinspectionfoundeagerLB/Dropkickconditions,BfBinplaycallbacks/wrongcost
+offsetmodel, genericper-hitRampagegrowth, generatedLBflags/metadata/publicmagic/
+fixtureownership/snapshotgaps. NOTintegrated; SAMEauthorboundedA–Frepairactive.
+ControllerremainsverifiedTask7. Task9factsclosed; noauditswarm orduplicatedwork.
+Task8A–F repairedsource31growth/153M10/workspace843/7old7 read, FULL21pathdelta
+reconstructedbutNOTintegrated. SAMEauthorfinishes3edges: Rampagepost-addclamp,
+BfBfreshConfusedturncostvscombatdiscount, Dropkickordinarydamagecap(andpreserves
+oldnegativecostcontract). Interruptedemptytoolcallwasnotdispatch; normalcontinue
+resumedSAMEsession, no duplicatedresearch/polling. ControllerstillverifiedTask7.
+Task8finaledgesreportedgrowth33/M10 156, but finalworkspaceQUOTACONTAMINATED
+(core846/7old7 PLUStemp/rustdoc/workflowfailures), finalpatchSTALE18sectionsnot
+latest22paths. DoNOTapplyoldbe194f29…patch. NoTask8closure/integration. SAMEauthor
+readonlyquota/ownbuildsizediagnosisandboundedproposalonly; no retries/install/
+cleanupwithoutseparateuserapproval. Preservepartial/tmpcopy/evidence/currentwork.
+Userexplicitlyrequested/tmpinspection+cleanup. FiveexactoldinactiveCargo targets
+removed(/tmp/opencode/m34-{rules,state}-review-target,m5-final-review-target,
+m6-luna-milestone-review-target,spire-gym-review-pr-target), independentlyabsence
+verified;2,325,905,408bytes(~2.17GiB)freed. Source/evidence/partialpreimagecopy
+preserved; nooutside/tmpcachedeletion. QuotaissueNOTyettest-confirmedresolved.
+Task8final22pathpacketef52a5ab…5a2326b/workspace846/7old7/allotherspassNOOS122
+received,butnotintegrated: finalreadfoundbaseBfBreduction4→Armamentsupgrade
+validatorallows3withoutnormalization. SAMEauthorreproduces/fixes; factsassistant
+pinsretainedupdateCostfloor/turnoffset+upgradeBaseCost, no broaderaudit/newreview.
+ControllerremainsverifiedTask7; earlierquota-blockpointersabovearehistoryforretry.
+Task8 nowCOMPLETE:23exactfilesplus2filecostpairdelta integrated/hashverified;
+freshgrowth39/M10filter163/obs10/replay9/publicM9 3 pass, assistantfinalworkspace
+853/7 exactold7/allotherspass/noOS122. Quota-eraandnotintegratednotesabovehistory.
+BfBordinary/upgradecostpairnormalized,sourcemutabledisposition/activezonesfixed;
+Rampagequeuedrepeatlimbomappingqualifiednotpublicstarted. Task9 starts561files/
+fullimmutablepreimages, Feed/Reaperearnedhealorderalreadyclosed. No M10acceptance.
+first-seven runtime RED history gap disclosed, not reconstructed.
+No more policy work.
+Boomerang per-hit source chain qualified; native scoped RNG not original parity.
+No second legacy
+resolver or silent M9 compatibility claim. Exact old7 retained; all baseline public/
+consumers/examples/Python195 pass. Fact correction: real Heart Proceed enters
+TrueVictoryRoom55, conditional reward215 not205; M9 cutoff unchanged. No M10
+acceptance yet. Ledger records current packet/rulings/source qualifications.
+
+User "I approve" approved the actual29-task written M10 plan below. Planning
+.32.1 normally closed; native implementation .32.2 normally claimed by allocated
+opencode-m9-planning-20261023-sol-v1 actor in this existing isolated controller.
+Task1 baseline/load-bearing fact closure starts; no mechanics task complete yet.
+Native inline TDD/useful isolated factual assistance/ONE final milestone review.
+No strategy tuning/seedsearch/resource injection, no commits/push/install/cleanup.
+Task-local existing-tool read-only static lookup remains standing permission for
+concrete mechanics blockers; no original execution/private-source publication.
+M10 extension refresh remains a separate explicit permission gate before Task27.
+Preserve all prior profiles, genuine losses, main/worktrees/stash/evidence.
+Ledger .superpowers/sdd/2026-10-24-m10-ironclad-heart/progress.md authoritative.
+Older written-plan-wait notes below are historical, not a renewed approval gate.
+
+## M9 merged / M10 written-plan review gate (2026-10-24)
+
+PR45 is MERGED ad40ee70947027fcdd5cdf93578f060bb1a2384f; tree EXACT reviewed
+5ff1f02 after TWO user-requested fresh GPT6Luna publication reviewers approved with
+no findings. Publication .63 closed normally; prior uncommitted-M9/pending-merge
+notes below are history. Localmain4874fb3/maincheckout/allworktrees/stasha6daee8 and
+evidence preserved; current bounded commit/push/merge authority is COMPLETE.
+
+User "lets do this then" approved writing the NEXT PLAN, not product start.
+M10 actual written plan: docs/superpowers/plans/2026-10-24-m10-ironclad-heart.md.
+29native tasks include all75red cards (20existing/55missing), all11exclusive relics
+(3existing/8missing), all3exclusive potions, real key/Act4/ShieldSpear/Heart sources,
+opt-in numeric/replayv2 preserving defaultM9/v1, and small manual native batching.
+Strategy remains out of scope: no policy tuning/seedsearch or unconditional winning-
+caller gate; actual losses and supplied diagnostics stay distinctly labelled.
+Existing keys are implemented, act4 combat file is a stub; data records are not
+mechanics. Source/ordering uncertainties must close before new runtime oracles.
+Plan explicitly declares captured offers, not full standard-profile/pool acceptance.
+
+Planning branch plan/m10-ironclad-heart-20261024 starts at mergedad40ee7 in existing
+isolated controller. Own planning .32.1 normally returns blocked/unassigned for
+ACTUAL written-plan user review; no implementation child/code/build/tests/private
+archive lookup/install/commits/push/cleanup in planning. No new agents dispatched.
+Keep native execution/useful isolated factual assistance/ONE final milestone review
+after approval. Existing gym-dev setup stays available; M10 extension refresh is
+an explicit separate permission check, never ordinary dependency-expanding develop.
+Ledger .superpowers/sdd/2026-10-24-m10-ironclad-heart/progress.md.
+
 ## User-requested M9 publication reviews and conditional merge (2026-10-24)
 
 User: "spawn some luna reviewers and merge as long as they are happy". Bounded

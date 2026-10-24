@@ -39,6 +39,14 @@ pub fn full_normal_damage_modifiers(base: i32, strength: i32, weak: bool,
     full_normal_damage_received(base,strength,weak,wrath,[if vulnerable{1.5f32}else{1.0f32}])
 }
 
+pub(super) fn full_normal_damage_with_back_attack(base:i32,strength:i32,weak:bool,wrath:bool,vulnerable:bool,back_attack:bool)->Result<i32,InputError>{
+    let calculated=full_normal_damage_modifiers(base,strength,weak,wrath,vulnerable)?;
+    if !back_attack{return Ok(calculated)}
+    let after_back_attack=(calculated as f32*1.5f32).trunc() as i32;
+    bounded(after_back_attack,30_012,"full Back Attack damage")?;
+    Ok(after_back_attack.max(0))
+}
+
 /// Receive powers preserve owner-list order on binary32 damage; floor only once.
 pub(super) fn full_normal_damage_received(base:i32,strength:i32,weak:bool,wrath:bool,
     receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{

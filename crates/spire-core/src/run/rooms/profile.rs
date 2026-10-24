@@ -26,7 +26,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let mut next=run.next_choice;
     let built=match target.0 {
         10=>events::screen(&mut next,EventId::UpgradeShrine),31=>events::screen(&mut next,EventId::Purifier),
-        17|52=>shop::screen(run,&mut next),38=>rest::screen(&mut next,run.state.max_hp),
+        17|52=>shop::screen(run,&mut next),38=>rest::screen_for_run(run,&mut next),
         59=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)]),
         _=>Err(RunError::InvalidAction),
     };

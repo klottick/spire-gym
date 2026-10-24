@@ -29,19 +29,55 @@ fn run_schema_spaces_are_fixed_and_separate_from_combat(){
     }
 }
 
+// Break caught: adding core card identities must not silently widen the deployed
+// v1 descriptor or coerce a new selection operation to an old move operation.
 #[test]
-fn run_encoding_covers_room_combat_selection_and_potion_actions(){
+fn m10_upgrade_v1_rejects_new_card_and_unrepresentable_selection(){
+    let caps=RunCapacities::m9_default();let spec=run_observation_spec(&caps).unwrap();
+    let fingerprint=spec.fingerprint().iter().map(|b|format!("{b:02x}")).collect::<String>();
+    assert_eq!(fingerprint,"0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+    for id in [CardId::Armaments,CardId::SearingBlow]{
+        let r=combat_run();let mut d=r.decision().unwrap();d.combat.as_mut().unwrap().hand[0].id=id;
+        assert!(matches!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::Input(_))));
+    }
+    let r=combat_run();let mut d=r.decision().unwrap();let card=d.combat.as_ref().unwrap().hand[0].clone();
+    d.combat.as_mut().unwrap().selection=Some(combat::SelectionView{parent:combat::SelectionParent::Card(combat::CardHandle::parse(&card.instance.0.to_string()).unwrap()),candidates:vec![card],required:1,selected:vec![],
+        disposition:combat::SelectionDisposition::Hand,operation:combat::SelectionOperation::Upgrade,source_zone:combat::SelectionSourceZone::Hand,minimum:1,maximum:1});
+    assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+}
+
+// Explicit public-boundary fixtures: v1 may keep its old one-row representation
+// when a playing card is already represented in an established pile row, but it
+// must reject a started/suspended owner which would otherwise disappear.
+#[test]
+fn m10_v1_rejects_unrepresented_started_playing_owners_but_keeps_represented_legacy_row(){
+    let caps=RunCapacities::m9_default();
+    for count in [1,2]{
+        let r=combat_run();let mut d=r.decision().unwrap();let c=d.combat.as_mut().unwrap();
+        assert!(c.hand.len()>=count);
+        c.playing_cards=c.hand.drain(..count).collect();d.candidates.clear();
+        assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),
+            Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode unrepresented playing cards")),
+            "playing-only old IDs are not made representable merely because v1 knows their card vocabulary");
+    }
+
+    // This public boundary fixture labels an ordinary single in-play owner that
+    // is also present in the already-supported played-power row. It is not a
+    // new owner/family representation and must retain v1's positive encoding.
+    let r=combat_run();let mut d=r.decision().unwrap();let c=d.combat.as_mut().unwrap();
+    let represented=c.hand.remove(0);c.played_powers.push(represented.clone());c.playing_cards.push(represented);
+    d.candidates.clear();assert!(encode_run(&d,r.public_map().as_ref(),&caps).is_ok());
+}
+
+#[test]
+fn run_encoding_covers_room_combat_and_potion_actions(){
     let caps=RunCapacities::m9_default();let r=combat_run();let mut d=r.decision().unwrap();
-    let card=d.combat.as_ref().unwrap().hand[0].clone();
     d.combat.as_mut().unwrap().player.powers.push(combat::FullPowerView{id:combat::FullPowerId("strength"),amount:-3});
     d.combat.as_mut().unwrap().enemies[0].intent_damage=None;d.combat.as_mut().unwrap().enemies[0].half_dead=true;
-    d.combat.as_mut().unwrap().selection=Some(combat::SelectionView{candidates:vec![card.clone()],required:1,selected:vec![],disposition:combat::SelectionDisposition::Exhaust});
-    d.candidates=vec![Candidate{id:ChoiceId(999),action:GameAction::Combat(CombatAction::SelectCard{instance:card.instance.0}),label:"select",object:None,neow_offer:None}];
+    d.candidates=vec![Candidate{id:ChoiceId(999),action:GameAction::Combat(CombatAction::EndTurn),label:"end",object:None,neow_offer:None}];
     let o=encode_run(&d,r.public_map().as_ref(),&caps).unwrap();
     assert_eq!(o.action_mask.iter().filter(|x|**x==1).count(),1);assert_eq!(g(&o,"powers").values[3],-3);
-    assert_eq!(g(&o,"enemies").known[5],0);assert_eq!(g(&o,"enemies").values[8],1);assert_eq!(g(&o,"selection_counts").values,[1,0]);
-    assert_eq!(g(&o,"selection").values[2],1);assert_eq!(g(&o,"selection").known[3],1);
-    assert_eq!(g(&o,"actions").values[2],0); // selection-only action references visible combat row0
+    assert_eq!(g(&o,"enemies").known[5],0);assert_eq!(g(&o,"enemies").values[8],1);
     let saved=o.clone();let mut again=encode_run(&d,r.public_map().as_ref(),&caps).unwrap();again.groups[0].values[0]=999;assert_eq!(o,saved);
 
     let mut d=initial().decision().unwrap();let object=d.objects[0].clone();
@@ -51,6 +87,76 @@ fn run_encoding_covers_room_combat_selection_and_potion_actions(){
     let o=encode_run(&d,None,&caps).unwrap();assert_eq!(g(&o,"selection").known[3],0);assert_eq!(g(&o,"selection_counts").values,[2,1]);
     d.selection=None;d.player.potions=vec![Some(PotionId::FirePotion);3];d.candidates=vec![Candidate{id:ChoiceId(5),action:GameAction::DiscardPotion{slot:2},label:"discard",object:None,neow_offer:None}];
     let o=encode_run(&d,None,&caps).unwrap();assert_eq!(g(&o,"potions").occupied.as_ref().unwrap().iter().filter(|v|**v==1).count(),3);assert_eq!(g(&o,"actions").values[2],2);
+}
+
+// Frozen M9 compatibility: an old required-one movement choice remains
+// encodable with its exact candidate/action rows and selection values.
+#[test]
+fn run_encoding_covers_legacy_required_combat_selection(){
+    let caps=RunCapacities::m9_default();
+    for (source,disposition) in [
+        (combat::SelectionSourceZone::Hand,combat::SelectionDisposition::Hand),
+        (combat::SelectionSourceZone::Discard,combat::SelectionDisposition::Discard),
+        (combat::SelectionSourceZone::Exhaust,combat::SelectionDisposition::Exhaust),
+    ]{
+        let r=combat_run();let mut d=r.decision().unwrap();
+        let card=d.combat.as_ref().unwrap().hand[0].clone();
+        d.combat.as_mut().unwrap().selection=Some(combat::SelectionView{parent:combat::SelectionParent::Card(combat::CardHandle::parse(&card.instance.0.to_string()).unwrap()),candidates:vec![card.clone()],required:1,selected:vec![],
+            disposition,operation:combat::SelectionOperation::Move(disposition),source_zone:source,minimum:1,maximum:1});
+        d.candidates=vec![Candidate{id:ChoiceId(999),action:GameAction::Combat(CombatAction::SelectCard{instance:card.instance.0}),label:"select",object:None,neow_offer:None}];
+        let o=encode_run(&d,r.public_map().as_ref(),&caps).unwrap();
+        assert_eq!(o.action_mask.iter().filter(|x|**x==1).count(),1);
+        assert_eq!(g(&o,"selection_counts").values,[1,0]);
+        assert_eq!(g(&o,"selection").values[2],1);
+        assert_eq!(g(&o,"selection").known[3],1);
+        assert_eq!(g(&o,"actions").values[2],0);
+    }
+}
+
+#[test]
+fn frozen_run_v1_rejects_confirm_action_and_unrepresentable_selection_contracts(){
+    let caps=RunCapacities::m9_default();let r=combat_run();let mut d=r.decision().unwrap();
+    let card=d.combat.as_ref().unwrap().hand[0].clone();
+    d.combat.as_mut().unwrap().selection=Some(combat::SelectionView{parent:combat::SelectionParent::Card(combat::CardHandle::parse(&card.instance.0.to_string()).unwrap()),candidates:vec![card.clone()],required:0,selected:vec![],
+        disposition:combat::SelectionDisposition::Exhaust,operation:combat::SelectionOperation::Move(combat::SelectionDisposition::Exhaust),
+        source_zone:combat::SelectionSourceZone::Hand,minimum:0,maximum:1});
+    d.candidates.clear();
+    assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+
+    {let selection=d.combat.as_mut().unwrap().selection.as_mut().unwrap();
+    selection.minimum=1;selection.maximum=1;selection.required=1;selection.source_zone=combat::SelectionSourceZone::Exhaust;}
+    d.candidates=vec![Candidate{id:ChoiceId(999),action:GameAction::Combat(CombatAction::SelectCard{instance:card.instance.0}),label:"select",object:None,neow_offer:None}];
+    assert!(encode_run(&d,r.public_map().as_ref(),&caps).is_ok(),"v1 did not encode a legacy exact-count selection merely because its source is Exhaust");
+    {let selection=d.combat.as_mut().unwrap().selection.as_mut().unwrap();selection.source_zone=combat::SelectionSourceZone::Hand;selection.operation=combat::SelectionOperation::Upgrade;}
+    assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+    {let selection=d.combat.as_mut().unwrap().selection.as_mut().unwrap();selection.operation=combat::SelectionOperation::Move(selection.disposition);}
+    for operation in [combat::SelectionOperation::Topdeck,combat::SelectionOperation::ReturnFromExhaust,combat::SelectionOperation::CopyToHand{copies:2}]{
+        d.combat.as_mut().unwrap().selection.as_mut().unwrap().operation=operation;
+        assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+    }
+    {let selection=d.combat.as_mut().unwrap().selection.as_mut().unwrap();selection.operation=combat::SelectionOperation::Move(selection.disposition);
+        selection.parent=combat::SelectionParent::Potion{slot:2,id:PotionId::FirePotion};}
+    assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+    d.combat.as_mut().unwrap().selection.as_mut().unwrap().parent=combat::SelectionParent::Card(combat::CardHandle::parse(&card.instance.0.to_string()).unwrap());
+    d.candidates=vec![Candidate{id:ChoiceId(999),action:GameAction::Combat(CombatAction::ConfirmSelection),label:"confirm selection",object:None,neow_offer:None}];
+    d.combat.as_mut().unwrap().selection=None;
+    assert_eq!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
+}
+
+#[test]
+fn run_v1_rejects_an_actual_elixir_selection_boundary(){
+    use spire_core::{combat::rng::Partition,content::{Character,EncounterId,RelicId}};
+    let start=AuthoredRunStart{hp:80,max_hp:80,gold:0,
+        deck:(1..=8).map(|instance|CardInstance{instance,id:CardId::Defend,upgrades:0}).collect(),
+        relics:vec![RelicId::CharonsAshes],potions:vec![Some(PotionId::Elixir),None,None],relic_counters:Default::default()};
+    let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
+        RunRng::new([43;32],Partition::Test,0)).unwrap();
+    run.enter_combat(EncounterId::JawWorm).unwrap();
+    run.choose_combat(CombatAction::UsePotion{slot:0,target:None}).unwrap();
+    let decision=run.decision().unwrap();
+    assert!(matches!(decision.combat.as_ref().unwrap().selection.as_ref().unwrap().parent,combat::SelectionParent::Potion{slot:0,id:PotionId::Elixir}));
+    assert_eq!(encode_run(&decision,None,&RunCapacities::m9_default()),
+        Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")));
 }
 
 #[test]

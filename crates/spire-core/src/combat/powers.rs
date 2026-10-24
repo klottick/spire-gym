@@ -2,12 +2,26 @@
 use super::*;
 use super::model::State;
 
+pub(super) fn on_card_exhausted(state:&State,source:&super::Source)->Vec<super::Effect>{
+    if !state.full_runtime{return Vec::new()}
+    let monsters_alive=state.enemies.iter().any(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0);
+    state.player_full_powers.iter().filter_map(|power|{
+        if power.state.amount<=0{return None}
+        let kind=match power.id.0{
+            "dark_embrace" if monsters_alive=>super::EffectKind::Draw(power.state.amount),
+            "feel_no_pain"=>super::EffectKind::GainBlock(power.state.amount),
+            _=>return None,
+        };
+        Some(super::Effect{source:source.clone(),target:Some(super::Actor::Player),kind})
+    }).collect()
+}
+
 /// Finite source-qualified ordinary cleanse categories. Shackled has a separate
 /// unconditional removal at the named Champ/Awakened phase transitions.
 pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
-    "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"=>true,
+     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"=>true,
     "strength"|"dexterity"=>power.state.amount<=0,
-    "metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"=>false,
+     "metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"=>false,
     _=>return None,
 })}
 
@@ -69,6 +83,20 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
     }
 }
 
+/// The one source-qualified direct `AbstractCreature.addPower` adapter used by
+/// already-bloodied Red Skull at combat start. Unlike ApplyPowerAction this
+/// path does not consult Artifact; all threshold callbacks remain queued.
+pub(super) fn add_direct_strength(state:&mut State,delta:i32)->Result<(),InputError>{
+    let actor=Actor::Player;let id=FullPowerId("strength");
+    let previous=amount(state,&actor,id)?;
+    let next=previous.checked_add(delta).ok_or_else(||InputError::Invariant("direct Strength overflow".into()))?.clamp(-999,999);
+    if let Some(power)=state.player_full_powers.iter_mut().find(|power|power.id==id){power.state.amount=next;}
+    else if let Some(power)=state.player.powers.iter_mut().find(|power|power.id.as_str()==id.0){power.state.amount=next;}
+    else{state.player_full_powers.push(FullPowerEntry{id,state:PowerState{amount:next,skip_first:false,monster_source_grace:false}});}
+    if next==0{state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(id)});}
+    super::effects::refresh_enemy_values(state)
+}
+
 /// Owner-qualified player Thorns callback, shared by real incoming hit producers.
 pub(super) fn player_thorns_after_damage(state:&mut State,result:&super::model::DamageResult){
     if result.target!=Actor::Player||result.thorns||result.hp_loss{return}
@@ -90,12 +118,14 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         EffectKind::ReducePower { id, amount } => (FullPowerId(id.as_str()), -amount, false),
         EffectKind::RemoveFullPower(id) => {
             let target=effect.target.as_ref().unwrap();
+            if matches!(target,Actor::Player)&&id.0=="combust"{state.combust=None;}
             let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
             remove(state, effect.target.as_ref().unwrap(), id);
             if flight{super::enemies::act2::flight::on_removed(state,target);}
             return super::effects::refresh_enemy_values(state);
         }
         EffectKind::RemovePower(id) => {
+            if matches!(effect.target.as_ref(),Some(Actor::Player))&&id.as_str()=="combust"{state.combust=None;}
             remove(state, effect.target.as_ref().unwrap(), FullPowerId(id.as_str()));
             return super::effects::refresh_enemy_values(state);
         }
@@ -108,12 +138,17 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "draw_reduction") && delta > 0)
-        || (matches!(id.0, "strength" | "dexterity") && delta < 0);
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "draw_reduction"|"no_draw"|"lose_strength") && delta > 0)
+        ||(id.0=="focus"&&delta<0)
+        || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
     if application && debuff && artifact > 0 {
         set(state, effect, FullPowerId("artifact"), artifact - 1);
         return Ok(());
+    }
+    if application&&id.0=="focus" {
+        super::characters::apply_focus(state,delta)?;
+        return Ok(())
     }
     let previous = amount(state, actor, id)?;
     if !application && previous == 0 { return Ok(()); }
@@ -127,6 +162,37 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         _ if sum <= 999 => sum.max(0),
         _ => return Err(InputError::Unsupported("power outside supported native surface".into())),
     };
+    // Combust's card source owns one typed copy per positive application. Its
+    // 5/7 amount and copy count are preflighted together before either commits.
+    let combust_update=if id.0=="combust" {
+        if !matches!(actor,Actor::Player){return Err(InputError::Unsupported("Combust is player-owned only".into()))}
+        if application&&delta>0 {
+            let copies=state.combust.map_or(0,|power|power.copies).checked_add(1)
+                .ok_or_else(||InputError::Unsupported("Combust copy count exhausted".into()))?;
+            let count=i32::from(copies);let minimum=5*count;
+            if next<minimum||next>7*count||(next-minimum)%2!=0 {
+                return Err(InputError::Invariant("Combust amount/copy preflight is not a supported 5-or-7 stack sum".into()))
+            }
+            Some(Some(super::model::CombustState{copies}))
+        }else if next==0 {
+            Some(None)
+        }else {
+            let current=state.combust.ok_or_else(||InputError::Invariant("Combust reduction lacks typed copy custody".into()))?;
+            let count=i32::from(current.copies);let minimum=5*count;
+            if next<minimum||next>7*count||(next-minimum)%2!=0 {
+                return Err(InputError::Unsupported("Combust reductions are not source-qualified".into()))
+            }
+            Some(Some(current))
+        }
+    }else{None};
     set(state, effect, id, next);
+    if let Some(update)=combust_update{state.combust=update;}
+    if id.0=="vulnerable"&&delta>0&&matches!(effect.source,Source::Actor(Actor::Player)|Source::Card(_))
+        &&matches!(actor,Actor::Enemy(_))
+        &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::ChampionsBelt)) {
+        let belt_child=Effect{source:effect.source.clone(),target:Some(actor.clone()),kind:EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1}};
+        let decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
+        state.pending.insert(decision,belt_child);
+    }
     super::effects::refresh_enemy_values(state)
 }

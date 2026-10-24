@@ -236,8 +236,10 @@ fn unsupported_handler_preflight_rejects_selection_and_terminal_without_mutation
     let unsupported_instance = unsupported_instance.as_str().parse::<u64>().unwrap();
     let candidate = selecting.state.piles.hand[0].handle();
     selecting.state.pending_selection = Some(super::super::model::PendingSelection {
-        parent: CardHandle::parse("99").unwrap(), candidates: vec![candidate], selected: vec![],
-        required: 1, disposition: super::super::selection::SelectionDisposition::Discard,
+        operation:SelectionOperation::Move(SelectionDisposition::Discard),
+        parent: super::super::selection::SelectionParent::Card(CardHandle::parse("99").unwrap()),
+        source_zone:super::super::selection::SelectionSourceZone::Hand,candidates: vec![candidate], selected: vec![],
+        minimum:1,maximum:1, disposition: super::super::selection::SelectionDisposition::Discard,
         empty: super::super::selection::EmptySelection::Continue,
     });
     selecting.state.phase = Phase::Selection;
@@ -540,7 +542,7 @@ fn full_entry_owns_generic_card_ids_without_legacy_pile_rows() {
     let ready = combat.public_full().unwrap();
     assert_eq!(ready.hand, vec![LiveCardView { instance: CardInstanceId(9001),
         id: crate::content::CardId::Unknown("unwired_runtime_fixture"),
-        origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None }]);
+        origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None,values:None }]);
     assert_eq!(combat.state.piles.draw.len(), 0);
     let owned = &combat.state.piles.hand[0];
     assert!(matches!(owned, OwnedCard::Full(_)), "full ID has no legacy pile row");
@@ -627,7 +629,7 @@ fn starter_entry_fault_retains_committed_ring_draw_and_context_without_retry() {
         let instance = CardInstanceId(if id == 10 { u64::MAX } else { id });
         LiveCard { instance, id: crate::content::CardId::Strike,
             origin: CombatCardRef::Permanent(instance), upgrades: 0,
-            local: super::super::CombatCardData::default() }
+            local: super::super::CombatCardData::default(),copy_family:instance.0,copy_provenance:super::super::card_state::CopyProvenance::Original }
     }).collect();
     let mut setup = full_setup(&scenario);
     setup.card_rng = full_stream(Domain::RunCombatCardRandom, vec!["entry-fault"]);

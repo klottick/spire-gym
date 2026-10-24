@@ -7425,14 +7425,15 @@
       "lifecycle": [
         "Starts left of the player; together with Spear enables Surrounded and Back Attack. Surrounded is a marker, not itself the damage multiplier.",
         "Attacking a side changes facing according to targeting rules; rear attackers gain 50% damage. Smoke Bomb is disallowed while Surrounded; one remaining enemy changes the flanking state.",
-        "Bash checks orb-slot presence, not only character identity, before its Focus/Strength branch."
+        "Named Shield.takeTurn checks whether the active Orb list is nonempty (not character identity or empty slot capacity): no active Orb applies Strength−1 without a coin; an active Orb consumes the native AI Boolean and applies Focus−1 on true, otherwise Strength−1. The simulator's run enemy-AI stream is an explicit mapping, not original RNG parity."
       ],
       "variants": [],
       "local_a0": null,
       "citations": [
         "wiki:spire_shield_and_spire_spear",
         "wiki:ascension",
-        "secondary:port"
+        "secondary:port",
+        "local:m10-act4"
       ],
       "uncertainties": [
         "BelowA18 Smash Block is clarified by secondary-port evidence as calculated attack output, not actual player HP lost. Exact original modifier/callback and Block-application composition is not primary-checked here."
@@ -7566,7 +7567,8 @@
       "local_a0": null,
       "citations": [
         "wiki:spire_shield_and_spire_spear",
-        "wiki:ascension"
+        "wiki:ascension",
+        "local:m10-act4"
       ],
       "uncertainties": []
     },

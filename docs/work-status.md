@@ -15,9 +15,19 @@ seed7/11 losses remain unchanged and cross-layer replayed; no normal-start boss5
 or no-key win claim. User excluded strategy development, not simulator correctness.
 Verified Gym-only Python environment has no Torch; on-demand pinned uv/prek/Ruff/ty
 checks only touched files. No broad format/shared hooks/publication/cleanup. M9
-changes remain uncommitted on `plan/m9-ironclad-act3-20261023` at `df0150f`.
-M10 is next for planning only; no automatic product start. Beads/ledger remain
-authoritative; the dated M8 narrative below is historical.
+changes were published in PR45/ad40ee7 after TWO additionally user-requested fresh
+Luna publication reviews, both approving exact5ff1f02 without findings. The merged
+tree equals the reviewed candidate; existing seven Rust failures and broader Python
+limits remain explicit. No continuing publication/cleanup authority is implied.
+
+M10 is APPROVED FOR NATIVE EXECUTION. The [written plan](superpowers/plans/2026-10-24-m10-ironclad-heart.md)
+has29native tasks for75 red-card kinds/11exclusive relics/three exclusive potions,
+actual keys/Act4/Shield–Spear/Heart, versioned native/Gym/replay and small native
+batch agreement. User "I approve" approved it; planning `.32.1` closed normally,
+implementation `.32.2` claimed by the native controller. Task1 baseline/fact closure
+starts; no mechanics deliverable is accepted yet. Existing short-Neow/captured-content/strategy/fidelity
+limits are explicit, not silently promoted to full standard-profile acceptance.
+Beads/ledger remain authoritative; the dated M8 narrative below is historical.
 
 2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
 The isolated feature worktree remains at `ddd4df2` after separately authorized

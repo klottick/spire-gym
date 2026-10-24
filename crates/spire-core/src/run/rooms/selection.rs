@@ -2,7 +2,7 @@ use super::*;
 pub(super) fn open(run:&mut Run,choice:ChoiceId,operation:RoomSelectionOperation)->Result<RunTransition,RunError>{
     let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
     let mut next=run.next_choice;
-    let candidates=run.state.deck.iter().filter(|c|!matches!(operation,RoomSelectionOperation::Smith|RoomSelectionOperation::ShrineUpgrade)||c.upgrades==0&&mutations::supported_in(&run.state,c.id)).map(|c|Ok(SelectionCandidate{id:SelectionId(token(&mut next)?.0),card:c.clone()})).collect::<Result<Vec<_>,RunError>>()?;
+    let candidates=run.state.deck.iter().filter(|c|!matches!(operation,RoomSelectionOperation::Smith|RoomSelectionOperation::ShrineUpgrade)||mutations::can_upgrade(&run.state,c)).map(|c|Ok(SelectionCandidate{id:SelectionId(token(&mut next)?.0),card:c.clone()})).collect::<Result<Vec<_>,RunError>>()?;
     // Reserve the publication tokens before committing a mandatory selector.
     next.checked_add(candidates.len() as u64).ok_or(RunError::Unsupported("choice identity exhausted"))?;
     run.next_choice=next;
@@ -29,7 +29,7 @@ pub(in crate::run) fn select(run:&mut Run,id:SelectionId)->Result<RunTransition,
             let room=run.state.room_loop.as_ref().unwrap();if price!=room.purge_cost||run.state.gold<price{return Err(RunError::InvalidAction)}
             room.purge_cost.checked_add(25).ok_or(RunError::Unsupported("purge price overflow"))?;
         }
-        RoomSelectionOperation::Smith|RoomSelectionOperation::ShrineUpgrade=>if captured.upgrades!=0||!mutations::supported_in(&run.state,captured.id){return Err(RunError::InvalidAction)},
+        RoomSelectionOperation::Smith|RoomSelectionOperation::ShrineUpgrade=>if !mutations::can_upgrade(&run.state,&captured){return Err(RunError::InvalidAction)},
         _=>{},
     }
     if matches!(operation,RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::ShrineRemove|RoomSelectionOperation::AncientElegance)&&run.state.deck.len()==1{reward::preflight(&run.state,&[CommittedEvent::Ended(RunTerminal::EmptyDeck)])?;}

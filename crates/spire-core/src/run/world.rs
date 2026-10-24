@@ -73,7 +73,7 @@ fn domain(act: u8, kind: MapNodeKind, regular_count: usize) -> Option<&'static [
         (3, MapNodeKind::Monster) => Some(if regular_count < 2 { ACT3_WEAK } else { ACT3_STRONG }),
         (3, MapNodeKind::Elite) => Some(ACT3_ELITE),
         (3, MapNodeKind::Boss) => Some(ACT3_BOSS),
-        // Act 4's non-map route is owned by Task 12.
+        // Act 4 uses its separate fixed route, never this ordinary encounter scheduler.
         (4, MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss) => None,
         _ => None,
     }

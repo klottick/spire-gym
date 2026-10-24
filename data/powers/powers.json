@@ -5200,6 +5200,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Spire_Shield_and_Spire_Spear",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62988",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+          "section": "Task19 named-member facing findings",
+          "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
         }
       ],
       "evidence": {
@@ -7026,6 +7032,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Spire_Shield_and_Spire_Spear",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62988",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+          "section": "Task19 named-member facing findings",
+          "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
         }
       ],
       "evidence": {

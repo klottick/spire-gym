@@ -4,8 +4,9 @@ use super::model::{Actor, State};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Hook {
-    CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStarted, TurnEnded,
-    CardPlayed, CardDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
+    CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStartedPreDraw, TurnStarted, TurnEnded,
+    PlayerPreEndTurnCards, PlayerEndTurn,
+    CardPlayed, CardAfterUse, CardDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
     ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,
 }
 
@@ -19,14 +20,80 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     if !state.full_runtime { return Ok(()); }
 
     let mut work = Vec::new();
+    let mut after_use_bottom=Vec::new();
+    let mut exhaust_top = Vec::new();
     if hook==Hook::Death{super::enemies::act2::stasis::on_death(state,target);}
+    if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
+        super::cards::ironclad::reactive::turn_started(state,&mut work);
+    }
     if hook == Hook::CardPlayed {
+        super::cards::ironclad::reactive::card_played(state,source)?;
         work.extend(super::enemies::gremlin_nob_card_played_work(state, source)?);
         super::enemies::guardian::card_played(state,source)?;
         super::enemies::act2::chosen_snecko::card_played(state,source)?;
         super::enemies::act3::awakened::card_played(state,source)?;
+        super::cards::ironclad::autoplay::card_played(state,source,target,&mut work)?;
+    }
+    if hook==Hook::CardAfterUse {
+        if !matches!(source,Source::Card(_)){return Err(super::InputError::Invariant("after-use checkpoint requires the actual card owner".into()).into())}
+        for enemy in state.enemies.iter().filter(|enemy|enemy.enemy_id==super::ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart)&&enemy.hp>0&&enemy.life==super::ActorLife::Active){
+            if let Some(power)=enemy.full_powers.iter().find(|power|power.id.0=="beat_of_death"&&power.state.amount>0){
+                after_use_bottom.push(Effect{source:Source::Actor(Actor::Enemy(enemy.instance_id.clone())),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::Thorns(power.state.amount))});
+            }
+        }
+    }
+    if hook==Hook::CardExhausted {
+        let (top,tail)=super::exhaust::dispatch(state,source)?;
+        exhaust_top=top;
+        work.extend(tail);
+    }
+    if let Some(Actor::Player)=target {
+        match hook {
+            Hook::TurnStartedPreDraw=>{
+                for power in &state.player_full_powers {
+                    if power.id.0=="berserk"&&power.state.amount>0 {
+                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainEnergy(power.state.amount)});
+                    }
+                }
+            }
+            Hook::TurnStarted=>{
+                for power in &state.player_full_powers {
+                    match power.id.0 {
+                        "brutality" if power.state.amount>0=>{
+                            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Draw(power.state.amount)});
+                            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(power.state.amount))});
+                        }
+                        "demon_form" if power.state.amount>0=>work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}}),
+                        _=>(),
+                    }
+                }
+            }
+            Hook::PlayerPreEndTurnCards=>{
+                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="metallicize"&&power.state.amount>0){
+                    work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
+                }
+            }
+            Hook::PlayerEndTurn=>{
+                let copies=state.combust.as_ref().map_or(0,|power|i32::from(power.copies));
+                if copies>0&&state.enemies.iter().any(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0){
+                    let damage=state.player_full_powers.iter().find(|power|power.id.0=="combust").map_or(0,|power|power.state.amount);
+                    if damage>0 {
+                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(copies))});
+                        for enemy in state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0){
+                            work.push(Effect{source:Source::None,target:Some(Actor::Enemy(enemy.instance_id.clone())),kind:EffectKind::Damage(super::DamagePayload::Thorns(damage))});
+                        }
+                    }
+                }
+                super::cards::ironclad::reactive::turn_ended(state,&mut work);
+            }
+            _=>(),
+        }
     }
     if hook == Hook::TurnEnded {
+        if let Some(loss)=state.player_full_powers.iter().find(|power|power.id.0=="lose_strength").cloned(){
+            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:-loss.state.amount}});
+            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(loss.id)});
+        }
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
         round_end_full_work(&mut state.player_full_powers, Actor::Player, &mut work);
         for enemy in state.enemies.iter_mut().filter(|enemy|
@@ -36,8 +103,25 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             round_end_full_work(&mut enemy.full_powers, actor, &mut work);
         }
     }
-    // Hook-produced work is resolved before the card/action continuation.
-    for effect in work.into_iter().rev() { state.pending.push_front(effect); }
+    // CardGroup.moveToExhaustPile invokes listeners immediately, but their
+    // addToBot child actions wait behind the caller's already queued top work.
+    // Keep notification synchronous while placing those children at the tail.
+    let exhaust_batch_in_flight=hook==Hook::CardExhausted&&state.pending.iter().any(|effect|
+        matches!(effect.kind,EffectKind::ExhaustBatchContinue(_)));
+    if exhaust_batch_in_flight {
+        let continuation=state.pending.iter().position(|pending|matches!(pending.kind,EffectKind::ExhaustBatchContinue(_))).unwrap_or(0);
+        for effect in exhaust_top.into_iter().rev() {
+            state.pending.insert(continuation,effect);
+        }
+        for effect in work {
+            let decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
+            state.pending.insert(decision,effect);
+        }
+    } else {
+        for effect in work.into_iter().rev() { state.pending.push_front(effect); }
+        for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }
+    }
+    for effect in after_use_bottom{super::enemies::act2::bottom(state,effect);}
     Ok(())
 }
 
@@ -47,8 +131,9 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
             "ritual" if power.state.skip_first => { power.state.skip_first = false; None }
             "ritual" => Some(EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: power.state.amount }),
             "strength_up" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}),
-            "metallicize"=>Some(EffectKind::GainBlock(power.state.amount)),
+            "metallicize" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::GainBlock(power.state.amount)),
             "slow"=>{power.state.amount=0;None},
+            "double_tap" if matches!(actor,Actor::Player)=>Some(EffectKind::RemoveFullPower(power.id)),
             "intangible" if matches!(actor,Actor::Enemy(_))&&power.state.skip_first=>{power.state.skip_first=false;None},
             "intangible" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "draw_reduction" if power.state.skip_first=>{power.state.skip_first=false;None},

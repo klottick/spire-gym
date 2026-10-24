@@ -57,7 +57,7 @@ pub(crate) fn native_combat(c:&CombatPublic,id:&str)->Result<Value,ReportError> 
         "stasis":c.stasis.iter().map(|s|json!({"orb":crate::actions::actor_ref(&Actor::Enemy(s.orb.clone()),id),"card":live_card(&s.card,id)})).collect::<Vec<_>>(),"lastPlayedCard":null,
         "hpBeforeHealing":c.hp_before_healing,"hpAfterCleanup":c.hp_after_cleanup,"outcome":c.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death"})}))
 }
-fn disposition(d:SelectionDisposition)->&'static str {match d {SelectionDisposition::Hand=>"hand",SelectionDisposition::Discard=>"discard",SelectionDisposition::Exhaust=>"exhaust"}}
+fn disposition(d:SelectionDisposition)->&'static str {match d {SelectionDisposition::Hand=>"hand",SelectionDisposition::Discard=>"discard",SelectionDisposition::Exhaust=>"exhaust",SelectionDisposition::DrawTop=>"draw_top"}}
 
 pub fn legacy_snapshot(public: &PublicView)->Result<Value,ReportError> {legacy_snapshot_for(public,"combat-0")}
 pub(crate) fn legacy_card(card:&CardView,combat:&str)->Value {

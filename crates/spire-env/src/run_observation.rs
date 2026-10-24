@@ -37,6 +37,15 @@ fn position<T:PartialEq>(rows:&[T],id:&T)->Result<usize,RunSessionError>{rows.it
 
 pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     schema::validate(caps)?;
+    if d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
+        matches!(s.parent,spire_core::combat::SelectionParent::Potion{..})
+            || !matches!(s.operation,spire_core::combat::SelectionOperation::Move(
+            spire_core::combat::SelectionDisposition::Hand|
+            spire_core::combat::SelectionDisposition::Discard|
+            spire_core::combat::SelectionDisposition::Exhaust))
+            || s.minimum!=s.required || s.maximum!=s.required){
+        return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection"))
+    }
     capacity("permanent_cards",d.objects.len(),caps.permanent_cards)?;
     capacity("actions",d.candidates.len(),caps.actions)?;
     let offers=d.room.as_ref().map(|r|r.choices.as_slice()).unwrap_or(&[]);capacity("offers",offers.len(),caps.offers)?;
@@ -48,6 +57,9 @@ pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)-
     let mut cards:Vec<(&LiveCardView,i64,usize,Option<usize>)>=vec![];
     if let Some(c)=&d.combat{
         capacity("enemies",c.enemies.len(),caps.enemies)?;
+        if c.enemies.iter().any(|enemy|matches!(enemy.enemy_id,spire_core::content::EnemyId::SpireShield|spire_core::content::EnemyId::SpireSpear)){
+            return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode the Shield-and-Spear encounter"));
+        }
         let powers=c.enemies.iter().try_fold(c.player.powers.len(),|n,e|n.checked_add(e.powers.len())).ok_or(RunSessionError::Input("power count overflow"))?;
         capacity("powers",powers,caps.powers)?;capacity("orbs",c.character.orbs.len(),caps.orbs)?;
         for (zone,pile) in [(1,&c.hand),(2,&c.discard),(3,&c.exhaust),(4,&c.played_powers)]{
@@ -62,6 +74,13 @@ pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)-
             if let Some((existing,_,_,_))=cards.iter().find(|(v,_,_,_)|v.instance==card.instance){if **existing!=*card{return Err(RunSessionError::Input("conflicting public selection card"))}}
             else{cards.push((card,6,pos,None));}
         }}
+        for card in &c.playing_cards{
+            match cards.iter().find(|(existing,_,_,_)|existing.instance==card.instance){
+                Some((existing,_,_,_)) if **existing==*card=>{},
+                Some(_)=>return Err(RunSessionError::Input("conflicting public playing card")),
+                None=>return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode unrepresented playing cards")),
+            }
+        }
     }
     capacity("combat_cards",cards.len(),caps.combat_cards)?;
     let (relics,counters,potions)=if let Some(c)=&d.combat{let i=c.inventory.as_ref().ok_or(RunSessionError::Input("combat inventory missing"))?;(&i.relics,&i.relic_counters,&i.potions)}else{(&d.player.relics,&d.player.relic_counters,&d.player.potions)};
@@ -81,7 +100,7 @@ pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)-
         d.room.as_ref().and_then(|r|if let RoomViewKind::Event(e)=r.kind{Some(schema::event(e))}else{None}).transpose()?,
         Some(terminal(d.terminal)),Some(i64::from(d.reward_total)),Some(i64::from(d.player.keys[0])),Some(i64::from(d.player.keys[1])),Some(i64::from(d.player.keys[2])),
         map.and_then(|m|m.boss).map(schema::encounter).transpose()?,map.map(|m|i64::from(m.winged_moves)),Some(number(d.combat_progress.entered)?),Some(number(d.combat_progress.settled)?),
-        d.last_combat.as_ref().map(|c|schema::encounter(c.encounter)).transpose()?,d.last_combat.as_ref().map(|c|outcome(c.outcome)),d.content_profile.map(schema::profile),
+        d.last_combat.as_ref().map(|c|schema::encounter(c.encounter)).transpose()?,d.last_combat.as_ref().map(|c|outcome(c.outcome)),d.content_profile.map(schema::profile).transpose()?,
     ])?;
     // PublicDecision has no ascension field. M9's named profile fixes A0; never
     // infer it for an unknown/unrelated public profile.
@@ -157,6 +176,7 @@ pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)-
                 CombatAction::SelectCard{instance}=>{values[0]=Some(9);Some((4,card_row(*instance)?))},
                 CombatAction::UsePotion{slot,target}=>{values[0]=Some(6);values[6]=Some(number(*slot)?);encode_target(d,*target,&mut values)?;Some((6,*slot))},
                 CombatAction::EndTurn=>{values[0]=Some(10);None},
+                CombatAction::ConfirmSelection=>return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection")),
             },
         };
         if let Some((group,index))=source{
@@ -166,6 +186,63 @@ pub fn encode_run(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)-
         o.group_mut("actions").row(row,&values)?;o.action_mask[row]=1;
     }
     Ok(o)
+}
+
+#[cfg(test)]
+mod m10_v1_boundary_tests{
+    use super::*;
+    use spire_core::{combat::{rng::Partition,enemies::{self,SetupContext},Combat,PlayerState,permanent_live_card,CardInstanceId},content::{Character,CardId,EncounterId},run::{CreationProfile,Run,RunConfig,RunRng,RoomScenario,PublicPlayer,CombatProgress}};
+
+    #[test]
+    fn actual_m9_v1_observation_encoder_rejects_m10_profile_without_vocabulary_alias(){
+        let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
+        let run=Run::new_room_scenario(RunConfig{character:Character::Ironclad,ascension:0},profile,RunRng::new([10;32],Partition::Test,0),RoomScenario::M10IroncladHeart).unwrap();
+        let decision=run.decision().unwrap();
+        assert_eq!(encode_run(&decision,None,&RunCapacities::m9_default()),Err(RunSessionError::Input("M10 profile is not representable in the M9 v1 observation schema")));
+    }
+
+    #[test]
+    fn actual_m9_v1_encoder_rejects_public_shield_spear_pair_from_native_run(){
+        let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
+        let run=Run::new_room_scenario(RunConfig{character:Character::Ironclad,ascension:0},profile,RunRng::new([19;32],Partition::Test,0),RoomScenario::M10IroncladHeart).unwrap();
+        let mut setup_rng=RunRng::new([21;32],Partition::Test,0);
+        let entry=spire_core::combat::enemies::setup(EncounterId::ShieldAndSpear,4,0,&mut setup_rng,spire_core::combat::enemies::SetupContext{
+            player:PlayerState{hp:80,max_hp:80,block:0,energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],character:Character::Ironclad,
+            cards:(0..5).map(|i|permanent_live_card(CardId::Strike,CardInstanceId(i+1),0)).collect(),opening_draw:5,encounter_visit:0}).unwrap();
+        let combat=Combat::enter(entry).unwrap();
+        let view=combat.public_full().unwrap();
+        assert_eq!(view.enemies.iter().map(|enemy|enemy.enemy_id).collect::<Vec<_>>(),[spire_core::content::EnemyId::SpireShield,spire_core::content::EnemyId::SpireSpear]);
+        let mut decision=run.decision().unwrap();
+        decision.content_profile=None;
+        decision.combat=Some(view);
+        decision.room=None;
+        decision.objects.clear();decision.candidates.clear();decision.offers.clear();decision.selection=None;
+        decision.player=PublicPlayer{relic_counters:vec![],character:Character::Ironclad,hp:80,max_hp:80,gold:0,relics:vec![],potions:vec![None;3],keys:[false;3]};
+        decision.act=4;decision.floor=51;decision.combat_progress=CombatProgress::default();
+        assert!(matches!(encode_run(&decision,None,&RunCapacities::m9_default()),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode the Shield-and-Spear encounter"))));
+    }
+
+    #[test]
+    fn actual_heart_public_combat_view_is_rejected_by_the_m9_v1_consumer_vocabulary(){
+        let cards=(1..=10).map(|id|permanent_live_card(CardId::Strike,CardInstanceId(id),0)).collect();
+        let context=SetupContext{player:PlayerState{hp:80,max_hp:80,block:0,energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},
+            player_powers:vec![],character:Character::Ironclad,cards,opening_draw:5,encounter_visit:0};
+        let mut rng=RunRng::new([29;32],Partition::Test,0);
+        let entry=enemies::setup(EncounterId::CorruptHeart,4,0,&mut rng,context).unwrap();
+        let mut items=Some(spire_core::items::CombatItemContext::new(vec![],vec![None,None,None]));
+        let combat=Combat::enter_with_item_context(entry,&mut items).unwrap();
+        let public=combat.public_full().unwrap();
+
+        let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
+        let run=Run::new_room_scenario(RunConfig{character:Character::Ironclad,ascension:0},profile,
+            RunRng::new([10;32],Partition::Test,0),RoomScenario::M10IroncladHeart).unwrap();
+        let mut decision=run.decision().unwrap();
+        decision.content_profile=None;
+        decision.combat=Some(public);
+        assert_eq!(encode_run(&decision,None,&RunCapacities::m9_default()),
+            Err(RunSessionError::Input("unsupported public power or intent")),
+            "the real encoder rejects the actual Heart public payload, independent of its profile-only rejection");
+    }
 }
 fn encode_target(d:&PublicDecision,target:Option<spire_core::combat::TargetId>,values:&mut[Option<i64>;8])->Result<(),RunSessionError>{
     if let Some(target)=target{

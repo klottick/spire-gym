@@ -7,6 +7,14 @@
     "changes": "Normalized short move/power descriptions, structured stats, independently summarized patterns and explicit reconciliation/conflict notes."
   },
   "sources": {
+    "local:m10-act4": {
+      "kind": "owned_archive_static_findings",
+      "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+      "archive_sha256": "cfad868ac8d65a88e71a0bf096fb09f78811e553effe0787c5309a655e081673",
+      "original_runtime_validated": false,
+      "upstream_build_channel_verified": false,
+      "supports": "Task19 named AbstractCreature initial orientation plus Shield/Spear constructors, selector/takeTurn bodies, active-Orb Focus coin branch, Back Attack applicability and damage checkpoints; not upstream build/channel verification, original execution or whole-encounter fidelity."
+    },
     "local:m8-partners": {
       "kind": "owned_archive_static_findings",
       "path": "data/enemies/m8-static-findings.md",

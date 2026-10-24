@@ -36,7 +36,7 @@ fn enemy(id: EnemyId, intent: FullIntentId, hp: i32) -> EnemyState {
             EnemyId::Reptomancer|EnemyId::Dagger=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::AwakenedOne=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::TimeEater=>EnemyMemory::for_enemy(id).unwrap(),
-            EnemyId::Deca|EnemyId::Donu=>EnemyMemory::for_enemy(id).unwrap(),
+            EnemyId::Deca|EnemyId::Donu|EnemyId::SpireShield|EnemyId::SpireSpear|EnemyId::CorruptHeart=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::Unknown(_) => unreachable!(),
         }), intent_damage: None, life: super::super::model::ActorLife::Active,
     };
@@ -893,7 +893,7 @@ fn large_acid_and_spike_attacks_request_two_slimed_cards_after_damage() {
 
 #[test]
 fn full_damage_path_accepts_qualified_base_sixteen_without_widening_legacy_helper() {
-    assert_eq!(super::super::effects::refreshed_damage(16, &[], &[], &[], &[], false, true).unwrap(), 16);
+    assert_eq!(super::super::effects::refreshed_damage(16, &[], &[], &[], &[], false, true, false).unwrap(), 16);
     assert!(super::super::rules::normal_damage(16, 0, false).is_err());
     assert!(super::super::rules::normal_damage_modifiers(16, 0, false, false, false).is_err());
 }
@@ -1225,7 +1225,7 @@ fn slime_boss_real_turn_cycle_deals_goop_slam_and_selects_preparation() {
 
 #[test]
 fn slime_boss_slam_uses_full_enemy_damage_range_without_changing_legacy_range() {
-    assert_eq!(super::super::effects::refreshed_damage(35, &[], &[], &[], &[], false, true).unwrap(), 35);
+    assert_eq!(super::super::effects::refreshed_damage(35, &[], &[], &[], &[], false, true, false).unwrap(), 35);
     assert!(super::super::rules::normal_damage_modifiers(35, 0, false, false, false).is_err(),
         "the legacy numeric contract remains unchanged");
 }

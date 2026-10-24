@@ -29,6 +29,60 @@ fn m8_reptomancer_initial_slots_and_live_cap(){
     assert!(engine::validate_runtime(&c.state).is_ok());
 }
 
+#[test]
+fn m10_brimstone_buffs_a_reptomancer_summon_only_at_the_next_actual_player_start(){
+    use crate::{content::{Character,RelicId},items::CombatItemContext,run::{CreationProfile,Run,RunConfig,RunRng}};
+    let mut run=Run::new(RunConfig{character:Character::Ironclad,ascension:0},CreationProfile::experienced(),
+        RunRng::new([201;32],crate::combat::rng::Partition::Test,0)).unwrap();
+    crate::items::acquire_relic(run.state_mut_for_test(),RelicId::Brimstone).unwrap();
+    let entry=entry(EncounterId::Reptomancer);
+    let mut owner=Some(CombatItemContext::take_from_run(run.state_mut_for_test()));
+    let mut combat=Combat::enter_with_item_context(entry,&mut owner).unwrap();assert!(owner.is_none());
+    assert_eq!(combat.public_full().unwrap().enemies.len(),3);
+    assert!(combat.public_full().unwrap().enemies.iter().all(|enemy|enemy.powers.iter().any(|power|power.id.0=="strength"&&power.amount==1)));
+    let dead= combat.state.enemies[0].instance_id.clone();hit(&mut combat,0,100);
+    assert_eq!(combat.state.enemies[0].hp,0);
+    let observed=combat.step_full_observed(&CombatAction::EndTurn);observed.result.unwrap();
+    let public=combat.public_full().unwrap();assert_eq!(public.enemies.len(),4);
+    let summoned=observed.effects.iter().find_map(|event|match (&event.target,&event.kind){
+        (Some(Actor::Enemy(id)),ResolvedEffectKind::LifeChange{before:None,after:PublicLife::Active,..})=>Some((id.clone(),event.sequence)),_=>None,
+    }).expect("actual Reptomancer summon is admitted through its normal queued spawn lifecycle");
+    let buff=observed.effects.iter().find(|event|event.target==Some(Actor::Enemy(summoned.0.clone()))&&matches!(event.kind,
+        ResolvedEffectKind::Power{id:FullPowerId("strength"),before:None,after:Some(1)})).expect("summon is affected at the subsequent player-start callback");
+    assert!(summoned.1<buff.sequence,"the later summon did not exist at the prior player-start snapshot; it receives no retroactive Brimstone effect");
+    assert!(public.enemies.iter().find(|enemy|enemy.instance_id==summoned.0).unwrap().powers.iter().any(|power|power.id.0=="strength"&&power.amount==1));
+    let defeated=combat.state.enemies.iter().find(|enemy|enemy.instance_id==dead).unwrap();
+    assert_eq!(defeated.full_powers.iter().find(|power|power.id.0=="strength").unwrap().state.amount,1,
+        "the existing full-power application guard skips a currently defeated actor without changing general power lifecycle rules");
+}
+
+#[test]
+fn m10_mark_of_pain_second_generated_wound_fault_retains_first_insertion_and_entry_owner(){
+    use crate::{content::{Character,RelicId},items::CombatItemContext,run::{CreationProfile,Run,RunConfig,RunRng}};
+    let mut run=Run::new(RunConfig{character:Character::Ironclad,ascension:0},CreationProfile::experienced(),
+        RunRng::new([202;32],crate::combat::rng::Partition::Test,0)).unwrap();
+    crate::items::acquire_relic(run.state_mut_for_test(),RelicId::MarkOfPain).unwrap();
+    let mut entry=entry(EncounterId::OrbWalker);
+    for instance in 2..=4{entry.cards.push(permanent_live_card(CardId::Defend,CardInstanceId(instance),0));}
+    entry.cards[0].instance=CardInstanceId(u64::MAX-1);
+    entry.cards[0].origin=CombatCardRef::Permanent(CardInstanceId(u64::MAX-1));
+    entry.cards[0].copy_family=u64::MAX-1;
+    let mut owner=Some(CombatItemContext::take_from_run(run.state_mut_for_test()));
+    let before_card_rng=entry.setup.card_rng.clone();
+    let failure=Combat::enter_with_item_context(entry,&mut owner).expect_err("second actual Wound id overflows only after first Wound commits");
+    let (combat,fault)=match failure {CombatEntryFailure::Faulted{combat,fault}=>(*combat,fault),other=>panic!("expected retained post-transfer entry fault, got {other:?}")};
+    assert!(fault.checkpoint.contains("combat"));
+    assert!(owner.is_none(),"post-transfer fault custody is the returned native CombatEntryFailure::Faulted combat");
+    assert!(combat.item_context().unwrap().owns_relic(RelicId::MarkOfPain));
+    assert_eq!(combat.state.piles.draw.iter().filter_map(crate::combat::model::OwnedCard::full).filter(|card|card.id==CardId::Wound).count(),1,
+        "the first generated Wound and its shuffled insertion remain committed");
+    assert!(combat.state.card_ids_issued.contains(&CardHandle::parse(&u64::MAX.to_string()).unwrap()));
+    assert_eq!(combat.state.current.as_ref().map(|effect|&effect.kind),Some(&EffectKind::CreateCard{id:CardId::Wound,destination:CardDestination::ShuffledDraw,upgrades:0}),
+        "the interrupted second generator remains current and is never retried");
+    assert_ne!(combat.state.card_rng.as_ref().unwrap(),&before_card_rng,"first insertion retains its committed scoped card-random frontier");
+    assert_eq!(combat.state.player.max_energy,4);
+}
+
 fn spawn(c:&mut Combat){let e=&mut c.state.enemies[1];let i=ActorIntentId::Full(FullIntentId::from_name("repto_spawn"));e.intent_id=i.clone();e.selected_move=i.clone();e.move_history.push(i);let actor=Actor::Enemy(e.instance_id.clone());c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(actor),kind:EffectKind::EnemyMove}],None).unwrap();}
 
 #[test]

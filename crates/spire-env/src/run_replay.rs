@@ -21,14 +21,17 @@ fn parse_term(v:&Value)->Result<Option<RunTerminal>,RunSessionError>{if v.is_nul
 fn action(a:&GameAction)->Value{match a{
     GameAction::Move(id)=>json!({"verb":"move","node":id.0}),GameAction::Choose(id)=>json!({"verb":"choose","choice":id.0}),GameAction::Select(id)=>json!({"verb":"select","selection":id.0}),GameAction::Confirm=>json!({"verb":"confirm"}),GameAction::Cancel=>json!({"verb":"cancel"}),
     GameAction::UsePotion{slot,target}=>json!({"verb":"use_potion","slot":slot,"target":target.map(|t|t.0)}),GameAction::DiscardPotion{slot}=>json!({"verb":"discard_potion","slot":slot}),
-    GameAction::Combat(a)=>match a{CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),CombatAction::EndTurn=>json!({"verb":"combat.end_turn"})},
+      GameAction::Combat(a)=>match a{CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),CombatAction::ConfirmSelection=>Value::Null,CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),CombatAction::EndTurn=>json!({"verb":"combat.end_turn"})},
 }}
 fn parse_action(v:&Value)->Result<GameAction,RunSessionError>{
+    if v["verb"].as_str()==Some("combat.confirm_selection"){
+        return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
+    }
     let target=||if v["target"].is_null(){Ok(None)}else{Ok(Some(TargetId(u(&v["target"])?)))};
     Ok(match text(&v["verb"])?{
         "move"=>GameAction::Move(NodeId(u(&v["node"])?)),"choose"=>GameAction::Choose(ChoiceId(u(&v["choice"])?)),"select"=>GameAction::Select(SelectionId(u(&v["selection"])?)),"confirm"=>GameAction::Confirm,"cancel"=>GameAction::Cancel,
         "use_potion"=>GameAction::UsePotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?,target:target()?},"discard_potion"=>GameAction::DiscardPotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?},
-        "combat.play_card"=>GameAction::Combat(CombatAction::PlayCard{instance:u(&v["instance"])? ,target:target()?}),"combat.select_card"=>GameAction::Combat(CombatAction::SelectCard{instance:u(&v["instance"])?}),"combat.use_potion"=>GameAction::Combat(CombatAction::UsePotion{slot:size(&v["slot"])? ,target:target()?}),"combat.end_turn"=>GameAction::Combat(CombatAction::EndTurn),_=>return Err(incompatible()),
+          "combat.play_card"=>GameAction::Combat(CombatAction::PlayCard{instance:u(&v["instance"])? ,target:target()?}),"combat.select_card"=>GameAction::Combat(CombatAction::SelectCard{instance:u(&v["instance"])?}),"combat.use_potion"=>GameAction::Combat(CombatAction::UsePotion{slot:size(&v["slot"])? ,target:target()?}),"combat.end_turn"=>GameAction::Combat(CombatAction::EndTurn),_=>return Err(incompatible()),
     })
 }
 fn capacities(c:&RunCapacities)->Value{json!({"map_nodes":c.map_nodes,"map_edges":c.map_edges,"permanent_cards":c.permanent_cards,"combat_cards":c.combat_cards,"enemies":c.enemies,"powers":c.powers,"relics":c.relics,"potions":c.potions,"offers":c.offers,"selection":c.selection,"orbs":c.orbs,"actions":c.actions})}
@@ -52,6 +55,10 @@ fn validate(record:&RunEpisodeRecord)->Result<(),RunSessionError>{
 impl RunEpisodeRecord{
     pub fn to_json(&self)->Result<Vec<u8>,RunSessionError>{
         validate(self)?;
+        if self.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
+            ||self.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection))){
+            return Err(RunSessionError::UnsupportedBoundary("ConfirmSelection is not representable in replay v1"));
+        }
         let steps=self.steps.iter().map(|s|json!({"action":action(&s.action),"reward":s.reward,"terminal":term(s.terminal)})).collect::<Vec<_>>();
         let fault=self.fault.as_ref().map(|f|json!({"action":f.action.as_ref().map(action),"committed":f.committed,"gameplay_recorded":f.gameplay_recorded,"error":f.error}));
         crate::canonical_json(&json!({"schema_id":self.schema_id,"profile_id":self.profile_id,"rules_id":self.rules_id,"content_id":self.content_id,"seed_adapter_id":self.seed_adapter_id,"rng_id":self.rng_id,"reward_id":self.reward_id,"observation_fingerprint":self.observation_fingerprint,"config":config(&self.config),"seed":self.seed,"ordinal":self.ordinal,"steps":steps,"terminal":term(self.terminal),"fault":fault,"closed":self.closed})).map_err(|_|RunSessionError::DeliveryFault("Run record JSON export failed"))
@@ -68,6 +75,10 @@ impl RunEpisodeRecord{
 }
 pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplayReport,RunSessionError>{
     validate(record)?;crate::run_schema::validate(&caps)?;
+    if record.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
+        ||record.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection))){
+        return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
+    }
     let mut run=create_run(&record.config,record.seed,record.ordinal)?;
     let mut decision=run.decision().map_err(RunSessionError::Core)?;
     crate::encode_run(&decision,run.public_map().as_ref(),&caps)?;

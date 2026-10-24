@@ -35,12 +35,13 @@ pub fn describe_run_action(d:&PublicDecision,a:&GameAction,id:&str)->Result<Valu
                 },
                 CombatAction::UsePotion {slot,..}=>{value["preActionOffer"]=json!({"slot":slot,"potionId":c.inventory.as_ref().and_then(|i|i.potions.get(*slot)).and_then(|p|*p).map(|p|p.as_str())});value["description"]=json!("Use potion");},
                 CombatAction::EndTurn=>value["description"]=json!("End Turn"),
+                CombatAction::ConfirmSelection=>value["description"]=json!("Confirm selection"),
             }
         },_=>(),
     }
     Ok(value)
 }
-fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn"}}}
+fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}
 pub(crate) fn option_key(a:&GameAction)->String {
     let target=|t:Option<TargetId>|t.map(|t|t.0.to_string()).unwrap_or_else(||"none".into());
     match a {
@@ -48,7 +49,7 @@ pub(crate) fn option_key(a:&GameAction)->String {
         GameAction::Confirm=>"confirm".into(),GameAction::Cancel=>"cancel".into(),
         GameAction::UsePotion{slot,target:t}=>format!("use_potion/{slot}/{}",target(*t)),GameAction::DiscardPotion{slot}=>format!("discard_potion/{slot}"),
         GameAction::Combat(c)=>match c {CombatAction::EndTurn=>"combat/end_turn".into(),CombatAction::PlayCard{instance,target:t}=>format!("combat/play/{instance}/{}",target(*t)),
-            CombatAction::UsePotion{slot,target:t}=>format!("combat/potion/{slot}/{}",target(*t)),CombatAction::SelectCard{instance}=>format!("combat/select/{instance}")},
+            CombatAction::UsePotion{slot,target:t}=>format!("combat/potion/{slot}/{}",target(*t)),CombatAction::SelectCard{instance}=>format!("combat/select/{instance}"),CombatAction::ConfirmSelection=>"combat/confirm_selection".into()},
     }
 }
 fn room_data(row:&RoomChoiceView)->(String,Value) {
@@ -88,7 +89,7 @@ pub(crate) fn actor_ref(actor:&Actor,combat:&str)->String {
 pub(crate) fn card_ref(card:&CardHandle,combat:&str)->String {format!("{combat}/card/{}",card.as_str())}
 pub(crate) fn effects(values:&[ResolvedEffect],combat:&str)->Vec<Value> {
     values.iter().map(|e| {
-        let source=match &e.source {Source::None=>None,Source::Actor(actor)=>Some(actor_ref(actor,combat)),Source::Card(card)=>Some(card_ref(card,combat))};
+        let source=match &e.source {Source::None=>None,Source::Actor(actor)=>Some(actor_ref(actor,combat)),Source::Card(card)=>Some(card_ref(card,combat)),Source::Potion{slot,id}=>Some(format!("{combat}/potion/{slot}/{}",id.as_str()))};
         let target=e.target.as_ref().map(|a|actor_ref(a,combat));
         let mut v=json!({"sequence":e.sequence,"source":source,"target":target});
         let data=match &e.kind {

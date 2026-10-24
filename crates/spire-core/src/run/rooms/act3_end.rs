@@ -12,14 +12,14 @@ pub(crate) struct Act3EndFrame {
 pub(in crate::run) struct PreparedAct3End {screen:RoomView,next:u64,frame:Act3EndFrame}
 
 fn source(state:&RunState,node:NodeId,record:&CombatRecord)->bool{
-    is_m9(state)&&state.act==3&&state.floor==50&&state.ascension==0
+    (is_m9(state)||is_m10(state))&&state.act==3&&state.floor==50&&state.ascension==0
         &&record.outcome==Outcome::Victory
         &&matches!(record.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         &&state.map.as_ref().is_some_and(|m|m.act==3&&m.current==Some(node)
             &&m.boss_icon==Some(record.encounter)&&m.nodes.iter().any(|n|n.id==node&&n.floor==50&&n.kind==MapNodeKind::Boss&&n.visited&&n.encounter==Some(record.encounter)))
 }
 pub(in crate::run) fn prepare(run:&Run,record:&CombatRecord)->Result<Option<PreparedAct3End>,RunError>{
-    if !is_m9(&run.state)||run.state.act!=3||record.outcome!=Outcome::Victory{return Ok(None)}
+    if !(is_m9(&run.state)||is_m10(&run.state))||run.state.act!=3||record.outcome!=Outcome::Victory{return Ok(None)}
     let Some(CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=run.state.active_combat.as_ref().map(|a|a.origin)else{return Ok(None)};
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !source(&run.state,node,record)||run.state.pending.is_some()||run.state.terminal.is_some()||run.state.fault.is_some()
@@ -36,10 +36,19 @@ pub(in crate::run) fn commit(run:&mut Run,prepared:PreparedAct3End){
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let frame=room.act3_end.as_ref().cloned().ok_or(RunError::InvalidAction)?;
+    if frame.phase==Act3EndPhase::Dialog(4)&&is_m10(&run.state)&&run.state.act4_enabled&&run.state.keys==[true;3]{
+        if frame.accepted.is_some()||room.screen.kind!=RoomViewKind::Act3Ending
+            ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Act3Continue{stage:4}&&row.status==RoomChoiceStatus::Offered){return Err(RunError::InvalidAction)}
+        let prepared=act4::prepare_transition(run)?;
+        run.state.room_loop.as_mut().unwrap().act3_end.as_mut().unwrap().accepted=Some(id);
+        act4::commit_transition(run,prepared);
+        if let Some(fault)=&run.state.fault{return Err(RunError::Faulted(fault.clone()))}
+        return Ok(RunTransition{reward:0,terminal:None,committed_events:vec![CommittedEvent::ActAdvanced{from:3,to:4}]})
+    }
     let (kind,choice,next_phase)=match frame.phase{
         Act3EndPhase::AwaitingSource=>(RoomViewKind::Act3BossComplete,RoomChoiceKind::Proceed,Act3EndPhase::Dialog(1)),
         Act3EndPhase::Dialog(stage @ 1..=2)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage},Act3EndPhase::Dialog(stage+1)),
-        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
+        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if is_m10(&run.state){Act3EndPhase::Dialog(4)}else if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
         Act3EndPhase::Dialog(4)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:4},Act3EndPhase::Ended),
         _=>return Err(RunError::InvalidAction),
     };

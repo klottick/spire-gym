@@ -18,6 +18,23 @@ pub(super) fn use_potion(context: &CombatItemContext, slot: usize,
         return Err(RunError::InvalidAction);
     }
     let effect = match potion {
+        PotionId::Elixir => {
+            if facts.phase != PotionRoomPhase::Combat || facts.turn_ended || facts.live_targets.is_empty() {
+                return Err(RunError::InvalidAction);
+            }
+            Effect { source: Source::Potion { slot, id: potion }, target: Some(Actor::Player),
+                kind: EffectKind::SelectHandCardsAfterDraw { required: 0,
+                    disposition: crate::combat::SelectionDisposition::Exhaust,
+                    empty: crate::combat::EmptySelection::Continue } }
+        }
+        PotionId::HeartOfIron => {
+            if facts.phase != PotionRoomPhase::Combat || facts.turn_ended || facts.live_targets.is_empty() {
+                return Err(RunError::InvalidAction);
+            }
+            Effect { source: Source::Potion { slot, id: potion }, target: Some(Actor::Player),
+                kind: EffectKind::ApplyFullPower { id: crate::combat::FullPowerId("metallicize"), amount:
+                    if context.owns_relic(crate::content::RelicId::SacredBark) { 12 } else { 6 } } }
+        }
         PotionId::FirePotion => {
             if facts.phase != PotionRoomPhase::Combat || facts.turn_ended {
                 return Err(RunError::InvalidAction);

@@ -2,9 +2,13 @@
 //! combat resolver; this module does not own or drain a second effect queue.
 mod relics;
 mod potions;
+mod ironclad;
+mod ironclad_turns;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod m10_ironclad_relic_turns;
 
 use crate::{combat::{Combat, Effect, EnemyHandle, Hook}, content::{PotionId, RelicId}, run::{RunError, RunState}};
 
@@ -24,6 +28,7 @@ pub struct CombatItemContext {
     counters: std::collections::BTreeMap<RelicId,i32>,
     relics: Vec<RelicId>,
     potions: Vec<Option<PotionId>>,
+    pub(crate) orichalcum_trigger: bool,
     lantern_armed: bool,
     heal_room: NativeHealRoom,
 }
@@ -35,23 +40,24 @@ pub(crate) struct NativeBattleContext {pub elite_trigger:bool,pub boss:bool,pub 
 pub(crate) struct RelicHookWork {
     pub top: Vec<Effect>,
     pub bottom: Vec<Effect>,
+    pub direct_strength: i32,
 }
 
 impl RelicHookWork {
-    pub(crate) fn is_empty(&self) -> bool { self.top.is_empty() && self.bottom.is_empty() }
+    pub(crate) fn is_empty(&self) -> bool { self.top.is_empty() && self.bottom.is_empty() && self.direct_strength==0 }
 }
 
 impl CombatItemContext {
     pub fn new(relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Self {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
-        Self { counters, relics, potions, lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false }
+        Self { counters, relics, potions, orichalcum_trigger:false, lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
         Self { battle:NativeBattleContext::default(),collar_activated:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
-            potions: std::mem::take(&mut state.potions), lantern_armed: false,
+            potions: std::mem::take(&mut state.potions), orichalcum_trigger:false, lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
 
@@ -71,6 +77,8 @@ impl CombatItemContext {
     pub(crate) fn relics(&self) -> &[RelicId] { &self.relics }
     pub(crate) fn potions(&self) -> &[Option<PotionId>] { &self.potions }
     pub(crate) fn counters(&self)->&std::collections::BTreeMap<RelicId,i32>{&self.counters}
+    pub(crate) fn counter(&self,id:RelicId)->i32{self.counters.get(&id).copied().unwrap_or(0)}
+    pub(crate) fn set_counter(&mut self,id:RelicId,value:i32){if value==0{self.counters.remove(&id);}else{self.counters.insert(id,value);}}
     pub(crate) fn with_counters(mut self,counters:std::collections::BTreeMap<RelicId,i32>)->Self{self.counters=counters;self}
     pub(crate) fn heal_room(&self) -> NativeHealRoom { self.heal_room }
 
@@ -81,7 +89,7 @@ impl CombatItemContext {
     }
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { battle:self.battle,collar_activated:self.collar_activated,counters:self.counters.clone(),relics: self.relics.clone(), potions, lantern_armed: self.lantern_armed,
+        Self { battle:self.battle,collar_activated:self.collar_activated,counters:self.counters.clone(),relics: self.relics.clone(), potions, orichalcum_trigger:self.orichalcum_trigger, lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
 }
@@ -154,9 +162,20 @@ pub(crate) fn ordinary_heal_amount_in_room(relics: &[RelicId], amount: i32,
 }
 
 /// Produce ordered native effects for a combat lifecycle checkpoint.
-pub(crate) fn relic_hook_effects(context: &mut CombatItemContext, hook: Hook, hp: i32) -> RelicHookWork {
-    relics::on_combat_hook(context, hook, hp)
+pub(crate) fn relic_hook_effects(context: &mut CombatItemContext, hook: Hook, hp: i32,max_hp:i32,block:i32) -> RelicHookWork {
+    let mut work=relics::on_combat_hook(context, hook, hp,block);
+    let ic=ironclad::on_hook(context,hook,hp,max_hp);
+    work.top.extend(ic.top);work.bottom.extend(ic.bottom);work.direct_strength=ic.direct_strength;
+    work.top.extend(ironclad_turns::relic_hook(context,hook));
+    work
 }
+
+pub(crate) fn relic_damage_effects(context:&mut CombatItemContext,target:&crate::combat::Actor,hp_lost:i32,hp_after:i32,max_hp:i32)->Result<Vec<Effect>,crate::combat::InputError>{ironclad::on_damage(context,target,hp_lost,hp_after,max_hp)}
+pub(crate) fn relic_hp_state_effects(context:&mut CombatItemContext,hp:i32,max_hp:i32)->Vec<Effect>{ironclad::on_hp_state(context,hp,max_hp)}
+pub(crate) fn relic_exhaust_effects(context:&CombatItemContext,source:&crate::combat::Source,enemies:&[crate::combat::EnemyHandle])->Vec<Effect>{ironclad::on_exhaust(context,source,enemies)}
+
+pub(crate) fn brimstone_enemy_work(context:&CombatItemContext,hook:Hook,enemies:&[EnemyHandle])->Vec<Effect>{ironclad_turns::brimstone_enemy_work(context,hook,enemies)}
+pub(crate) fn runic_cube_draw(context:&CombatItemContext,positive_hp_lost:i32)->Option<Effect>{ironclad_turns::runic_cube_draw(context,positive_hp_lost)}
 
 pub(crate) fn battle_start_enemy_effects(context:&CombatItemContext,targets:&[EnemyHandle])->Vec<Effect>{relics::battle_start_enemy_effects(context,targets)}
 
@@ -177,7 +196,9 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
             | RelicId::Strawberry | RelicId::Pear | RelicId::Mango | RelicId::SacredBark
             | RelicId::MarkOfBloom | RelicId::MagicFlower | RelicId::ToyOrnithopter | RelicId::NeowsLament
             | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask
-            | RelicId::Vajra | RelicId::OddlySmoothStone | RelicId::BagOfPreparation | RelicId::BagOfMarbles | RelicId::BronzeScales) {
+            | RelicId::Vajra | RelicId::OddlySmoothStone | RelicId::BagOfPreparation | RelicId::BagOfMarbles | RelicId::BronzeScales
+            | RelicId::RedSkull | RelicId::PaperPhrog | RelicId::ChampionsBelt | RelicId::CharonsAshes | RelicId::SelfFormingClay
+            | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }
@@ -185,7 +206,7 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
         if !matches!(id, PotionId::FirePotion | PotionId::BloodPotion | PotionId::FruitJuice
             | PotionId::BlockPotion | PotionId::EnergyPotion | PotionId::StrengthPotion
             | PotionId::SwiftPotion | PotionId::WeakPotion | PotionId::FearPotion
-            | PotionId::DexterityPotion | PotionId::AncientPotion) {
+            | PotionId::DexterityPotion | PotionId::AncientPotion | PotionId::Elixir | PotionId::HeartOfIron) {
             return Err(RunError::Unsupported("unimplemented combat potion"));
         }
     }

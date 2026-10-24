@@ -38,7 +38,7 @@ impl<'a,W:Write> RunRecorder<'a,W> {
         let mut described=crate::describe_run_action(&before,action,&id).map_err(CaptureError::WriteBeforeCall)?;
         let prior=crate::run_snapshot(&before,run.public_map().as_ref()).map_err(CaptureError::WriteBeforeCall)?;
         let before_screen=prior["screen"].clone();
-        if matches!(action,GameAction::Select(_)|GameAction::Combat(spire_core::combat::CombatAction::SelectCard{..})|GameAction::Cancel) {
+        if matches!(action,GameAction::Select(_)|GameAction::Combat(spire_core::combat::CombatAction::SelectCard{..}|spire_core::combat::CombatAction::ConfirmSelection)|GameAction::Cancel) {
             if let Some((parent,card))=&self.parent {
                 described["parentActionId"]=json!(parent);
                 if let Some(card)=card {described["card"]=card.clone();}

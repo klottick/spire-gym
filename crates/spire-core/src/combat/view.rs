@@ -24,14 +24,26 @@ pub struct PublicView {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LiveCardView { pub instance: CardInstanceId, pub id: crate::content::CardId,
-    pub origin: CombatCardRef, pub upgrades: u32, pub effective_cost:Option<i32> }
+    pub origin: CombatCardRef, pub upgrades: u32, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum CardCostKind { Fixed,X,Unplayable }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct CardPublicValues {
+    pub base_damage:Option<i32>,pub base_block:Option<i32>,pub magic_number:Option<i32>,pub damage_bonus:Option<i32>,
+    pub cost_kind:CardCostKind,pub free_play:bool,pub exhaust_on_finish:bool,pub ethereal:bool,pub innate:bool,pub temporary_cost:i32,
+}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct StasisCardView {pub orb:EnemyHandle,pub card:LiveCardView}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SelectionView {
+    pub parent:super::SelectionParent,
+    pub operation:super::SelectionOperation,
     pub candidates: Vec<LiveCardView>, pub required: usize,
     pub selected: Vec<CardInstanceId>, pub disposition: super::SelectionDisposition,
+    pub source_zone:super::SelectionSourceZone,pub minimum:usize,pub maximum:usize,
 }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct KnownDrawCardView { pub card:LiveCardView,pub from_top:bool,pub offset:usize }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatInventoryView {
     pub relic_counters:Vec<crate::items::RelicCounterView>,
@@ -40,6 +52,8 @@ pub struct CombatInventoryView {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatPublic {
     pub played_powers:Vec<LiveCardView>,
+    /// Cards whose accepted use has started, in suspended-parent to active-child order.
+    pub playing_cards:Vec<LiveCardView>,
     pub stasis:Vec<StasisCardView>,
     pub content_id: String, pub turn: u32, pub player: FullPlayerView, pub enemies: Vec<FullEnemyView>,
     pub character: CharacterCombatView,
@@ -48,6 +62,7 @@ pub struct CombatPublic {
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
     pub targets: Vec<(TargetId, bool)>,
     pub selection: Option<SelectionView>,
+    pub known_draw:Vec<KnownDrawCardView>,
     pub inventory: Option<CombatInventoryView>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -63,6 +78,10 @@ pub struct FullEnemyView {
     pub block: i32, pub powers: Vec<FullPowerView>, pub intent: super::FullIntentId,
     pub intent_damage: Option<i32>, pub replaced: bool, pub escaped:bool, pub half_dead:bool, pub logical_slot:u8,
 }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct EncounterActorView {pub instance_id:EnemyHandle,pub side:super::EncounterSide,pub back_attack:bool}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct EncounterFacingView {pub player_facing:super::PlayerFacing,pub surrounded:bool,pub enemies:Vec<EncounterActorView>}
 
 /// Native combat-to-run handoff. It contains only actual full-run cards and
 /// persistent combat result/resource values; run settlement remains a later owner.
@@ -72,7 +91,8 @@ pub struct CombatExit {
     pub stasis:Vec<LiveCard>,
     pub hp: i32, pub max_hp: i32, pub block: i32, pub energy: i32,
     pub outcome: Outcome, pub hand: Vec<LiveCard>, pub draw: Vec<LiveCard>,
-    pub discard: Vec<LiveCard>, pub exhaust: Vec<LiveCard>, pub in_play: Option<LiveCard>,
+    pub discard: Vec<LiveCard>, pub exhaust: Vec<LiveCard>, pub in_play: Option<LiveCard>,pub play_frames:Vec<LiveCard>,pub queued_autoplay:Vec<LiveCard>,
+    pub inactive_cards:Vec<LiveCard>,
     pub(crate) item_context: Option<crate::items::CombatItemContext>,
 }
 
@@ -88,6 +108,22 @@ pub struct PublicProjection<'a> {
 }
 
 impl Combat {
+    /// Descriptive encounter-owned facing without changing observation-v1 or
+    /// exposing actor history, selection state, or hidden resolver data.
+    pub fn encounter_facing_view(&self)->Result<Option<EncounterFacingView>,AccessError>{
+        ready(&self.state)?;
+        let Some(facing)=self.state.facing else{return Ok(None)};
+        let surrounded=self.state.player_full_powers.iter().any(|p|p.id.0=="surrounded"&&p.state.amount>0);
+        let mut enemies=Vec::new();
+        for enemy in &self.state.enemies {
+            if !matches!(enemy.enemy_id,super::ActorEnemyId::Full(crate::content::EnemyId::SpireShield|crate::content::EnemyId::SpireSpear)){continue}
+            let slot=*self.state.actor_slots.get(&enemy.instance_id).ok_or(AccessError::NotReady)?;
+            let side=match slot{0=>super::EncounterSide::Left,1=>super::EncounterSide::Right,_=>return Err(AccessError::NotReady)};
+            enemies.push(EncounterActorView{instance_id:enemy.instance_id.clone(),side,back_attack:super::effects::back_attack_active(&self.state,enemy)});
+        }
+        Ok(Some(EncounterFacingView{player_facing:facing,surrounded,enemies}))
+    }
+
     /// Read public values without copying visible piles or growing reveal history.
     /// Decision and terminal boundaries use the same access checks as `public_view`.
     pub fn public_projection(&self) -> Result<PublicProjection<'_>, AccessError> {

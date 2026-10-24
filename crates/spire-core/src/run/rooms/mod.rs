@@ -2,11 +2,13 @@
 use super::*;
 use crate::content::{CardId,PotionId,RelicId,EventId};
 mod profile;
+pub(crate) mod m10_content;
 mod neow;
 mod act1;
 pub(super) mod act2;
 pub(super) mod act3;
 pub(super) mod act3_end;
+pub(super) mod act4;
 mod boss;
 pub(super) mod transition;
 pub(super) mod rewards;
@@ -15,7 +17,7 @@ pub(super) mod events;
 mod rest;
 pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3 }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -27,13 +29,13 @@ pub struct RoomChoiceView {pub id:ChoiceId,pub kind:RoomChoiceKind,pub price:Opt
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RoomView {pub kind:RoomViewKind,pub choices:Vec<RoomChoiceView>}
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>}
+pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub act4:Option<act4::Act4Progress>,pub m10_elite_relic_cursor:usize,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>}
 
 pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
     let mut screen=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.clone();
     for row in &mut screen.choices {if row.status==RoomChoiceStatus::Offered {
         if row.price.is_some_and(|p|p>run.state.gold)||matches!(row.kind,RoomChoiceKind::Potion(_))&&!run.state.potions.contains(&None){row.status=RoomChoiceStatus::Disabled;}
-        if matches!(row.kind,RoomChoiceKind::Smith|RoomChoiceKind::ShrineUpgrade)&&!run.state.deck.iter().any(|c|c.upgrades==0&&mutations::supported_in(&run.state,c.id)){row.status=RoomChoiceStatus::Disabled;}
+        if matches!(row.kind,RoomChoiceKind::Smith|RoomChoiceKind::ShrineUpgrade)&&!run.state.deck.iter().any(|c|mutations::can_upgrade(&run.state,c)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Rest{..}){row.kind=RoomChoiceKind::Rest{heal:(run.state.max_hp as f32*0.3_f32) as u32};}
@@ -64,7 +66,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
     if !candidates(run)?.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction)}
     match action {
         GameAction::Choose(id) if public(run)?.kind==RoomViewKind::Neow=>neow::choose(run,*id),
-        GameAction::Move(id)=>if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
+        GameAction::Move(id)=>if is_m10(&run.state)&&run.state.act==4{act4::enter(run,*id)}else if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
         GameAction::DiscardPotion{slot}=>{run.state.potions[*slot as usize]=None;Ok(empty_transition())},
         GameAction::UsePotion{slot,target:None}=>{crate::items::use_run_potion(&mut run.state,*slot as usize,false,false)?;Ok(empty_transition())},
         GameAction::Select(id)=>run.select(*id),
@@ -83,9 +85,10 @@ pub(in crate::run) fn is_m6(state:&RunState)->bool{state.room_loop.as_ref().is_s
 pub(in crate::run) fn is_m7(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M7Act2Captured)}
 pub(in crate::run) fn is_m8(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M8Act3Prefix)}
 pub(in crate::run) fn is_m9(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M9IroncladAct3)}
-pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)||is_m9(state)}
+pub(in crate::run) fn is_m10(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M10IroncladHeart)}
+pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)||is_m9(state)||is_m10(state)}
 pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||uses_captured_act3(state)}
-pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||uses_captured_act2(state)}
+pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||is_m10(state)||uses_captured_act2(state)}
 pub(super) fn token(next:&mut u64)->Result<ChoiceId,RunError>{let id=*next;*next=next.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;Ok(ChoiceId(id))}
 pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
     let mut staged=*next;let choices=rows.into_iter().map(|(kind,price)|Ok(RoomChoiceView{id:token(&mut staged)?,kind,price,status:RoomChoiceStatus::Offered})).collect::<Result<_,RunError>>()?;
@@ -94,6 +97,7 @@ pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Opti
 pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
     if run.state.deck.is_empty(){return run.commit_terminal(RunTerminal::EmptyDeck)}
     if uses_captured_act3(&run.state)&&run.state.act==3{return act3::finish_room(run)}
+    if is_m10(&run.state)&&run.state.act==4{return act4::finish_room(run)}
     if uses_captured_act2(&run.state)&&run.state.act==2{return act2::finish_room(run)}
     let kind=if !uses_captured_act1(&run.state)&&run.state.map.as_ref().and_then(|m|m.current)==Some(NodeId(59)){RoomViewKind::CheckpointComplete}else{RoomViewKind::Map};
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind,choices:vec![]};run.candidates.clear();Ok(empty_transition())
@@ -104,6 +108,6 @@ impl Run {
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();
-        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None});Ok(run)
+        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,act4:None,m10_elite_relic_cursor:0,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None});Ok(run)
     }
 }

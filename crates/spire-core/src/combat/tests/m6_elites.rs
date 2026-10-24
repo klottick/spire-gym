@@ -10,6 +10,26 @@ fn wounds(c:&Combat)->Vec<CardInstanceId>{c.state.piles.all(c.state.in_play.as_r
 fn apply(c:&mut Combat,id:&'static str,n:i32){c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId(id),amount:n}}],None).unwrap();}
 
 #[test]
+fn m10_runic_cube_draws_once_for_each_actual_book_of_stabbing_multihit(){
+    use crate::{content::{Character,RelicId},items::CombatItemContext,run::{CreationProfile,Run,RunConfig,RunRng}};
+    let mut run=Run::new(RunConfig{character:Character::Ironclad,ascension:0},CreationProfile::experienced(),
+        RunRng::new([203;32],rng::Partition::Test,0)).unwrap();
+    crate::items::acquire_relic(run.state_mut_for_test(),RelicId::RunicCube).unwrap();
+    let mut e=entry(EncounterId::BookOfStabbing);e.setup.player.hp=200;e.setup.player.max_hp=200;
+    let mut owner=Some(CombatItemContext::take_from_run(run.state_mut_for_test()));
+    let mut combat=Combat::enter_with_item_context(e,&mut owner).unwrap();assert!(owner.is_none());
+    assert_eq!(combat.state.enemies[0].intent_id.as_str(),"book_multi");
+    let observed=combat.step_full_observed(&CombatAction::EndTurn);observed.result.unwrap();
+    let hits=observed.effects.iter().filter(|event|event.target==Some(Actor::Player)&&matches!(event.kind,
+        ResolvedEffectKind::Damage{hp_lost,..} if hp_lost>0)).collect::<Vec<_>>();
+    assert_eq!(hits.len(),2,"the actual canonical Book multi-hit produces two positive HP-loss callbacks");
+    let draws=hits.iter().map(|hit|observed.effects.iter().find(|event|event.sequence>hit.sequence
+        &&matches!(event.kind,ResolvedEffectKind::CardMove{after:PublicZone::Hand,..})).expect("positive hit immediately produces an ordinary card move")).collect::<Vec<_>>();
+    assert!(hits[0].sequence<draws[0].sequence&&draws[0].sequence<hits[1].sequence&&hits[1].sequence<draws[1].sequence,
+        "Runic Cube queues one ordinary draw after each actual hit, not once for the turn or once per HP point");
+}
+
+#[test]
 fn m6_slavers_actors_keep_independent_histories_and_entangle() {
     let mut c=Combat::enter(entry(EncounterId::Slavers)).unwrap();
     assert_eq!(c.state.enemies.iter().map(|e|e.enemy_id.as_str()).collect::<Vec<_>>(),vec!["slaver_blue","taskmaster","slaver_red"]);

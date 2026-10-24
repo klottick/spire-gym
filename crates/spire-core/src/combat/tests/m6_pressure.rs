@@ -1,5 +1,6 @@
 use super::super::*;
 use crate::content::{CardId,EncounterId};
+use crate::combat::model::OwnedCard;
 
 fn apply(c:&mut Combat,id:&'static str,n:i32){c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId(id),amount:n}}],None).unwrap();}
 fn create(c:&mut Combat,id:CardId,destination:CardDestination){c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::CreateCard{id,destination,upgrades:0}}],None).unwrap();}
@@ -16,9 +17,30 @@ fn m6_chosen_hex_adds_one_dazed_per_non_attack_not_hit() {
     for artifact in [false,true] {
         let mut c=chosen(artifact);assert_eq!(c.state.player_full_powers.iter().find(|p|p.id.0=="hex").map(|p|p.state.amount),if artifact{None}else{Some(1)});
         c.step_full(&CombatAction::PlayCard{instance:1,target:Some(TargetId(1))}).unwrap();assert_eq!(dazed(&c),0);
+        let card_stream=c.state.card_rng.clone();let shuffle_stream=c.state.rng.shuffle.clone();
         c.step_full(&CombatAction::PlayCard{instance:2,target:None}).unwrap();assert_eq!(dazed(&c),usize::from(!artifact));
+        if !artifact{assert_eq!(c.state.card_rng,card_stream,"empty Hex insertion is deterministic and consumes no scoped card RNG");}
+        assert_eq!(c.state.rng.shuffle,shuffle_stream,"Hex status insertion is not opening/combat shuffle");
         if !artifact {let new=c.state.piles.draw[0].full().unwrap();assert_eq!((new.id,new.origin.clone()),(CardId::Dazed,CombatCardRef::CombatLocal(3)));assert_eq!(c.state.piles.exhaust.len(),0);}
     }
+}
+
+#[test]
+fn m10_hex_power_producer_uses_nonempty_n_position_insertion_and_card_stream(){
+    let mut c=chosen(false);
+    for instance in [100,101]{
+        let handle=CardHandle::parse(&instance.to_string()).unwrap();c.state.card_ids_issued.insert(handle);
+        c.state.piles.draw.push(OwnedCard::Full(permanent_live_card(CardId::Strike,CardInstanceId(instance),0)));
+    }
+    let stream=c.state.card_rng.as_ref().unwrap().clone();let shuffle=c.state.rng.shuffle.clone();
+    let (expected,next)=rng::uniform_below(&stream,2).unwrap();
+    assert!(engine::validate_runtime(&c.state).is_ok());
+    c.step_full(&CombatAction::PlayCard{instance:2,target:None}).unwrap();
+    let actual=c.state.piles.draw.iter().position(|owned|owned.full().is_some_and(|card|card.id==CardId::Dazed)).unwrap();
+    assert_eq!(actual,expected as usize,"actual Hex power-created Dazed uses n existing positions");
+    assert_eq!(c.state.card_rng.as_ref().unwrap(),&next);
+    assert_eq!(c.state.rng.shuffle,shuffle,"Hex insertion is distinct from opening/combat shuffle");
+    assert!(engine::validate_runtime(&c.state).is_ok());
 }
 
 #[test]
@@ -56,11 +78,48 @@ fn m6_confused_redraw_overwrites_an_older_discount() {
 }
 
 #[test]
+fn m10_blood_for_blood_confused_draw_is_exact_turn_cost_and_hp_loss_updates_it_once(){
+    let mut e=super::m6_ordinary::entry(EncounterId::Snecko);
+    e.cards[0]=permanent_live_card(CardId::BloodForBlood,CardInstanceId(1),0);
+    let mut c=Combat::enter(e).unwrap();c.step_full(&CombatAction::EndTurn).unwrap();
+    assert!(c.state.player_full_powers.iter().any(|power|power.id.0=="confused"&&power.state.amount>0));
+    c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::HpLoss(1))}],None).unwrap();
+    let position=c.state.piles.hand.iter().position(|owned|owned.handle()==CardHandle::parse("1").unwrap()).unwrap();
+    let mut bfb=c.state.piles.hand.remove(position);c.state.piles.draw.push(bfb.clone());
+    let stream=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(stream.id().clone(),[0;32],0).unwrap());
+    c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Draw(1)}],None).unwrap();
+    let drawn=c.state.piles.hand.iter().find_map(OwnedCard::full).filter(|card|card.id==CardId::BloodForBlood).unwrap();
+    assert_eq!(drawn.local.randomized_cost,Some(2),"existing Confused draw stream selects the literal fresh turn cost2");
+    assert_eq!(drawn.local.combat_cost_reduction,1);
+    assert_eq!(card_state::effective_cost(drawn,4).unwrap(),2,
+        "prior combat reduction must not be subtracted a second time from a fresh Confused setCostForTurn value");
+    c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::HpLoss(1))}],None).unwrap();
+    let after_loss=c.state.piles.hand.iter().find_map(OwnedCard::full).filter(|card|card.id==CardId::BloodForBlood).unwrap();
+    assert_eq!(after_loss.local.randomized_cost,Some(1));
+    assert_eq!(after_loss.local.combat_cost_reduction,2);
+    assert_eq!(card_state::effective_cost(after_loss,4).unwrap(),1,
+        "HP loss after Confused assignment reduces the current turn price exactly once");
+    let position=c.state.piles.hand.iter().position(|owned|owned.handle()==CardHandle::parse("1").unwrap()).unwrap();
+    bfb=c.state.piles.hand.remove(position);c.state.piles.draw.push(bfb);
+    let stream=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(stream.id().clone(),[0;32],0).unwrap());
+    c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Draw(1)}],None).unwrap();
+    let recycled=c.state.piles.hand.iter().find_map(OwnedCard::full).filter(|card|card.id==CardId::BloodForBlood).unwrap();
+    assert_eq!(recycled.local.randomized_cost,Some(2));
+    assert_eq!(recycled.local.combat_cost_reduction,2);
+    assert_eq!(card_state::effective_cost(recycled,4).unwrap(),2,
+        "recycling establishes a fresh turn cost without losing persistent combat history");
+    assert!(engine::validate_runtime(&c.state).is_ok());
+}
+
+#[test]
 fn m6_hex_inserts_among_existing_draw_cards_without_reordering_them() {
     let mut c=chosen(false);create(&mut c,CardId::Burn,CardDestination::Draw);create(&mut c,CardId::Burn,CardDestination::Draw);
     let stream=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(stream.id().clone(),[0;32],0).unwrap());
     c.step_full(&CombatAction::PlayCard{instance:2,target:None}).unwrap();
-    assert_eq!(c.state.piles.draw.iter().map(|c|c.full().unwrap().instance.0).collect::<Vec<_>>(),vec![3,5,4]);assert_eq!(c.state.card_rng.as_ref().unwrap().word_index(),1);
+    // Rules-v2 follows the producer's n positions. The prior local n+1
+    // interpretation put generated ID5 at slot1; the corrected n=2 law puts
+    // it at slot0 without changing the order of existing IDs3 and4.
+    assert_eq!(c.state.piles.draw.iter().map(|c|c.full().unwrap().instance.0).collect::<Vec<_>>(),vec![5,3,4]);assert_eq!(c.state.card_rng.as_ref().unwrap().word_index(),1);
 }
 
 #[test]
@@ -95,7 +154,7 @@ fn m6_snecko_glare_is_artifact_blocked_and_free_or_x_cards_keep_payment_rules() 
     create(&mut c,CardId::Shiv,CardDestination::Draw);c.state.piles.draw.last_mut().unwrap().full_mut().unwrap().local.x_cost=true;
     let stream=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(stream.id().clone(),[0;32],0).unwrap());
     c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Draw(2)}],None).unwrap();assert_eq!(c.state.card_rng.as_ref().unwrap().word_index(),1,"X is unchanged, free card still has its underlying cost rolled");
-    c.step_full(&CombatAction::PlayCard{instance:2,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.energy,3);
+    c.step_full(&CombatAction::PlayCard{instance:2,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.energy,1,"Confused clears a drawn card's free-to-play flag, so the randomized cost is paid");
     c.step_full(&CombatAction::PlayCard{instance:3,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.energy,0);
 }
 

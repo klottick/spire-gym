@@ -1,9 +1,18 @@
 //! Native handlers for the card families implemented in this module.
 use super::*;
 use super::model::State;
-mod ironclad;
+pub(crate) mod ironclad;
+pub use ironclad::IroncladEffect;
 mod shared;
 mod silent;
+
+pub(super) fn on_card_exhausted(_state:&State,source:&super::Source,card:&super::LiveCard)
+    ->Result<Vec<super::Effect>,super::EffectError>{
+    match card.id{
+        crate::content::CardId::Sentinel=>Ok(vec![ironclad::exhaust::sentinel_trigger(source,card)]),
+        _=>Ok(Vec::new()),
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DefectContinuation {
@@ -78,6 +87,8 @@ pub(super) fn apply_defect_continuation(state: &mut State, effect: &Effect,
 pub(super) struct PreparedCard {
     pub hand_index: usize,
     pub instance: CardInstanceId,
+    pub captured_energy:i32,
+    pub paid:i32,
     pub remaining_energy: i32,
     pub target: Option<Actor>,
     pub effects: Vec<Effect>,
@@ -96,9 +107,43 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         .find(|(_, card)| card.handle() == handle)
         .ok_or(crate::run::RunError::InvalidAction)?;
     let card = owned.full().ok_or(crate::run::RunError::InvalidAction)?;
-    if combat.state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
+    validate_card_use(&combat.state,card,*target)?;
+    let captured_energy=combat.state.player.energy;
+    let (cost, payloads) = payload(&combat.state, card, target.map(|id| id.0))?;
+    let corruption_skill=ironclad::exhaust::corruption_skill_active(&combat.state)
+        &&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Skill);
+    let payment = if card.id==crate::content::CardId::Whirlwind&&card.local.x_cost&&!card.local.free_play {
+        Ok(super::card_state::Payment{remaining_energy:captured_energy,paid:0})
+    }else if corruption_skill&&!card.local.free_play&&!card.local.x_cost{
+        super::card_state::effective_cost(card,cost).map_err(|_|crate::run::RunError::InvalidAction)?;
+        Ok(super::card_state::Payment{remaining_energy:captured_energy,paid:0})
+    }else{super::card_state::payment(card,captured_energy,cost)}
+        .map_err(|_| crate::run::RunError::InvalidAction)?;
+    let actor = match target {
+        Some(TargetId(id)) if *id > 0 => Some(combat.state.enemies.get((*id - 1) as usize)
+            .filter(|enemy| enemy.hp > 0).map(|enemy| Actor::Enemy(enemy.instance_id.clone()))
+            .ok_or(crate::run::RunError::InvalidAction)?),
+        Some(_) => return Err(crate::run::RunError::InvalidAction),
+        None => None,
+    };
+    let source = Source::Card(handle);
+    let effects = payloads.into_iter().map(|(target, kind)| Effect {
+        source: source.clone(), target: target.map(|target| match target {
+            PayloadTarget::Player => Actor::Player,
+            PayloadTarget::SelectedEnemy => actor.clone().expect("enemy target validated"),
+            PayloadTarget::Enemy(id) => Actor::Enemy(id),
+        }), kind,
+    }).collect();
+    Ok(PreparedCard { hand_index, instance: card.instance,captured_energy,paid:payment.paid,
+        remaining_energy: payment.remaining_energy, target: actor, effects })
+}
+
+/// Shared accepted-use legality used by both ordinary hand plays and autoplay
+/// children. Payload production remains read-only; payment is a separate owner.
+pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<(),crate::run::RunError>{
+    if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void){return Err(crate::run::RunError::InvalidAction);}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret){return Err(crate::run::RunError::InvalidAction);}
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
@@ -121,26 +166,7 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
     if matches!(card.id, crate::content::CardId::SweepingBeam) && target.is_some() {
         return Err(crate::run::RunError::InvalidAction);
     }
-    let (cost, payloads) = payload(&combat.state, card, target.map(|id| id.0))?;
-    let payment = super::card_state::payment(card, combat.state.player.energy, cost)
-        .map_err(|_| crate::run::RunError::InvalidAction)?;
-    let actor = match target {
-        Some(TargetId(id)) if *id > 0 => Some(combat.state.enemies.get((*id - 1) as usize)
-            .filter(|enemy| enemy.hp > 0).map(|enemy| Actor::Enemy(enemy.instance_id.clone()))
-            .ok_or(crate::run::RunError::InvalidAction)?),
-        Some(_) => return Err(crate::run::RunError::InvalidAction),
-        None => None,
-    };
-    let source = Source::Card(handle);
-    let effects = payloads.into_iter().map(|(target, kind)| Effect {
-        source: source.clone(), target: target.map(|target| match target {
-            PayloadTarget::Player => Actor::Player,
-            PayloadTarget::SelectedEnemy => actor.clone().expect("enemy target validated"),
-            PayloadTarget::Enemy(id) => Actor::Enemy(id),
-        }), kind,
-    }).collect();
-    Ok(PreparedCard { hand_index, instance: card.instance,
-        remaining_energy: payment.remaining_energy, target: actor, effects })
+    Ok(())
 }
 
 /// Public card adapter. Native play validation and commit remain in
@@ -158,7 +184,11 @@ pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
     payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)
 }
 pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
-    if card.local.x_cost{return None}super::card_state::effective_cost(card,base_cost(state,card)?).ok()
+    if card.local.x_cost{return None}
+    let cost=super::card_state::effective_cost(card,base_cost(state,card)?).ok()?;
+    if ironclad::exhaust::corruption_skill_active(state)&&crate::content::Catalog::standard().card(card.id)
+        .is_some_and(|definition|definition.card_type==crate::content::CardType::Skill)&&!card.local.free_play{return Some(0)}
+    Some(cost)
 }
 
 fn payload(state: &State, card: &LiveCard, target: Option<u64>)
@@ -317,6 +347,41 @@ fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     Ok((cost, effects))
 }
 
+/// Read-only equivalent of the ordinary card preparation path for an already
+/// owned autoplay child. It shares use legality, payload production and target
+/// conversion; only energy payment is waived by the caller.
+pub(super) fn prepare_autoplay(state:&State,card:&LiveCard,target:Option<&Actor>,energy_on_use:i32,
+    source:&CardHandle)->Result<Option<Vec<Effect>>,crate::run::RunError>{
+    let mut projection=state.clone();
+    let actor=target.cloned();
+    projection.play_context=Some(super::model::PlayContext{card:source.clone(),target:actor.clone(),energy_on_use,paid:0,
+        disposition:if card.local.purge{super::model::FinishDisposition::Purge}else{super::model::FinishDisposition::Natural}});
+    let target_id=actor.as_ref().and_then(|actor|match actor{Actor::Player=>None,Actor::Enemy(owner)=>projection.enemies.iter().position(|enemy|&enemy.instance_id==owner).map(|index|index as u64+1)});
+    let (cost,payloads,selected_target)=match payload(&projection,card,None){
+        Ok((cost,payloads))=>{validate_card_use(&projection,card,None)?;(cost,payloads,None)}
+        Err(crate::run::RunError::InvalidAction)=>{
+            let Some(id)=target_id else{return Ok(None)};
+            if let Some(Actor::Enemy(owner))=&actor{
+                if !projection.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.life==ActorLife::Active&&enemy.hp>0){return Ok(None)}
+            }else{return Ok(None)}
+            validate_card_use(&projection,card,Some(crate::combat::TargetId(id)))?;
+            match payload(&projection,card,Some(id)){
+                Ok((cost,payloads))=>(cost,payloads,actor.clone()),
+                Err(crate::run::RunError::InvalidAction)=>return Ok(None),
+                Err(error)=>return Err(error),
+            }
+        }
+        Err(error)=>return Err(error),
+    };
+    if cost>0&&!card.local.free_play{return Err(crate::run::RunError::InvalidAction)}
+    let effects=payloads.into_iter().map(|(target,kind)|Effect{source:Source::Card(source.clone()),target:target.map(|target|match target{
+        PayloadTarget::Player=>Actor::Player,
+        PayloadTarget::SelectedEnemy=>selected_target.clone().expect("validated selected autoplay target"),
+        PayloadTarget::Enemy(owner)=>Actor::Enemy(owner),
+    }),kind}).collect();
+    Ok(Some(effects))
+}
+
 pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool, enemy:&super::model::EnemyState)
     -> Result<i32, crate::run::RunError>
 {
@@ -329,9 +394,10 @@ pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool,
         return Err(crate::run::RunError::Unsupported("full card damage exceeds supported numeric surface"));
     }
     let mut receive=Vec::new();
-    if enemy.powers.iter().any(|p|p.id==PowerId::Vulnerable&&p.state.amount>0){receive.push(1.5f32);}
+    let phrog=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::PaperPhrog));
+    if enemy.powers.iter().any(|p|p.id==PowerId::Vulnerable&&p.state.amount>0){receive.push(if phrog{1.75f32}else{1.5f32});}
     for power in &enemy.full_powers{match power.id.0{
-        "vulnerable" if power.state.amount>0=>receive.push(1.5f32),
+        "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
     }}
     rules::full_normal_damage_received(combined_base.max(0), 0, weak,

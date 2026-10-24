@@ -7,7 +7,7 @@ mod combat;
 mod observe;
 mod reward;
 mod mutations;
-mod rooms;
+pub(crate) mod rooms;
 pub use rooms::{RoomScenario,RoomView,RoomViewKind,RoomChoiceKind,RoomChoiceView,RoomChoiceStatus};
 mod rng;
 pub mod map;

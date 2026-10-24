@@ -46,16 +46,16 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
         let mut transition=match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind}){Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::UnsupportedBoundary("M5 encounter entry"),"run.m5.encounter"))};
         transition.reward+=credit;transition.committed_events.insert(0,event);return Ok(transition)
     }
-    let mut next=run.next_choice;
+    let mut next=run.next_choice;let mut rng=run.state.rng.clone();
     let screen=match captured.kind {
         MapNodeKind::Event=>events::screen(&mut next,captured.event.ok_or(RunError::InvalidAction)?),
-        MapNodeKind::Shop=>shop::screen(run,&mut next),
-        MapNodeKind::Rest=>rest::screen(&mut next,run.state.max_hp),
+        MapNodeKind::Shop=>shop::screen_with_rng_at(run,&mut next,&mut rng,(1,node.floor,target)),
+        MapNodeKind::Rest=>rest::screen_for_run(run,&mut next),
         MapNodeKind::Treasure=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)]),
         _=>Err(RunError::InvalidAction),
     };
     let screen=match screen{Ok(s)=>s,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("M5 room preparation failed"),"run.m5.room"))};
     if captured.kind==MapNodeKind::Shop{run.state.room_loop.as_mut().unwrap().act1.as_mut().unwrap().shop_visits+=1;}
-    run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=screen;
+    run.next_choice=next;if is_m10(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen;
     Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
 }

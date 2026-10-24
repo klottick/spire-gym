@@ -35,7 +35,7 @@ pub use diagnostics::{PoolDiagnostics, SlotDiagnostic};
 pub use replay::{EpisodeRecord, RecordStatus, ReplayBoundary, ReplayResult, RECORD_SCHEMA_ID, replay};
 pub use run_schema::{RunCapacities,RunObservationSpec,RUN_OBSERVATION_SCHEMA_ID,run_observation_spec};
 pub use run_observation::{RunFeatureGroup,RunObservation,encode_run};
-pub use run_session::{RunSessionError,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_SEED_ADAPTER_ID};
+pub use run_session::{RunSessionError,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_RULES_ID,RUN_RULES_ID_V1,RUN_SEED_ADAPTER_ID};
 pub use run_replay::{RunReplayReport,replay_run};
 pub use replay::{ReplayVisit,ReplayVisitKind,replay_observed};
 
