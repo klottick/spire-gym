@@ -59,6 +59,7 @@ fn room_data(row:&RoomChoiceView)->(String,Value) {
         JoustResult{owner_wins}=>("Joust result".into(),json!({"ownerWins":owner_wins})),
         FallingLose{card_type,instance}=>("Lose card".into(),json!({"cardType":match card_type {spire_core::content::CardType::Attack=>"attack",spire_core::content::CardType::Skill=>"skill",spire_core::content::CardType::Power=>"power",spire_core::content::CardType::Status=>"status",spire_core::content::CardType::Curse=>"curse"},"instance":instance.map(|id|id.to_string())})),
         TombGold=>("Take gold".into(),json!({})),TombOfferGold=>("Offer gold".into(),json!({})),
+        Act3Continue{stage}=>("Continue".into(),json!({"stage":stage})),
         kind=>(match kind {NeowLament=>"Neow's Lament",CardReward=>"Card reward",Sapphire=>"Sapphire key",Emerald=>"Emerald key",OpenChest=>"Open chest",Smith=>"Smith",Recall=>"Recall",Purge=>"Remove card",ShrineUpgrade=>"Upgrade card",ShrineRemove=>"Remove card",AncientElegance=>"Elegance",AncientSimplicity=>"Simplicity",JoustMurderer=>"Bet on murderer",JoustOwner=>"Bet on owner",JoustContinue=>"Continue Joust",Leave=>"Leave",Proceed=>"Proceed",Skip=>"Skip",ConfirmSkip=>"Confirm skip",CancelSkip=>"Cancel skip",_=>unreachable!()}.into(),json!({})),
     };
     data["price"]=json!(row.price);data["choiceId"]=json!(row.id.0.to_string());(label,data)
@@ -78,7 +79,7 @@ pub(crate) fn screen(d:&PublicDecision,id:&str)->Result<Value,ReportError> {
     Ok(json!({"kind":kind,"name":name,"options":options,"selection":d.selection.as_ref().map(|s|json!({"kind":"permanent_cards","required":s.required,"selectedCount":s.selected_count,"cards":s.eligible.iter().map(crate::snapshot::permanent_card).collect::<Vec<_>>()}))}))
 }
 fn room_name(kind:RoomViewKind)->(&'static str,String) {
-    use RoomViewKind::*;let name=match kind {Neow=>"neow",Map=>"map",Combat=>"combat",Rewards=>"rewards",CardReward=>"card_reward",Shop=>"shop",Campfire=>"campfire",Event(id)=>return ("event",id.as_str().into()),Treasure=>"treasure",CheckpointComplete=>"checkpoint_complete",BossTreasure=>"boss_treasure",BossRelicChoice=>"boss_relic_choice",BossRelicChild=>"boss_relic_child",ProceedWithoutRelic=>"proceed_without_relic",Act2Ready=>"act2_ready",Act2PrefixComplete=>"act2_prefix_complete",Act3Ready=>"act3_ready",Act3PrefixComplete=>"act3_prefix_complete"};(name,name.into())
+    use RoomViewKind::*;let name=match kind {Neow=>"neow",Map=>"map",Combat=>"combat",Rewards=>"rewards",CardReward=>"card_reward",Shop=>"shop",Campfire=>"campfire",Event(id)=>return ("event",id.as_str().into()),Treasure=>"treasure",CheckpointComplete=>"checkpoint_complete",BossTreasure=>"boss_treasure",BossRelicChoice=>"boss_relic_choice",BossRelicChild=>"boss_relic_child",ProceedWithoutRelic=>"proceed_without_relic",Act2Ready=>"act2_ready",Act2PrefixComplete=>"act2_prefix_complete",Act3Ready=>"act3_ready",Act3PrefixComplete=>"act3_prefix_complete",Act3BossComplete=>"act3_boss_complete",Act3Ending=>"act3_ending",Act4Ready=>"act4_ready"};(name,name.into())
 }
 
 pub(crate) fn actor_ref(actor:&Actor,combat:&str)->String {

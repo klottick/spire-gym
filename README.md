@@ -9,6 +9,10 @@ Repository: [klottick/spire-gym](https://github.com/klottick/spire-gym). A bound
 native batched combat environment and single/vector Gymnasium facades are implemented
 for supplied-entry Ironclad A0 encounters; this is not a full-run simulator.
 Existing `spire-lab` / `spire_lab` package and crate names remain unchanged.
+The [accepted M9 profile](docs/milestones/m9-act3.md) adds captured Ironclad A0
+progression through Act3 and a thin single-Run `RunEnv`, after one independent review.
+All six frozen normal-start seed7/11 traces are genuine losses, not demonstrated
+boss50/no-key wins. Strategy development belongs to external callers.
 The simulator, environment interfaces, correctness tests, performance checks and
 small random/scripted rollout examples belong here. External learners use those
 interfaces; a learned-agent benchmark is not required to deliver the gym.
@@ -59,7 +63,7 @@ final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
 M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
 declared profiles; M8 `.30`/`.30.2` are also accepted/closed at the captured
-Act3 mechanics/prefix scope. M9 planning is next. Old
+Act3 mechanics/prefix scope. M9 is accepted as described above; M10 planning is next. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom

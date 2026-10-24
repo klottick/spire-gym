@@ -19,3 +19,6 @@ mod m8_acquisition;
 mod m8_power_census;
 mod m8_events;
 mod m8_rooms;
+mod m9_rooms;
+mod m9_boss;
+mod m9_end;

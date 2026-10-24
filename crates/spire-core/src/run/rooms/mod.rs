@@ -6,6 +6,7 @@ mod neow;
 mod act1;
 pub(super) mod act2;
 pub(super) mod act3;
+pub(super) mod act3_end;
 mod boss;
 pub(super) mod transition;
 pub(super) mod rewards;
@@ -14,11 +15,11 @@ pub(super) mod events;
 mod rest;
 pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete }
+pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready }
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip }
+pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -26,7 +27,7 @@ pub struct RoomChoiceView {pub id:ChoiceId,pub kind:RoomChoiceKind,pub price:Opt
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RoomView {pub kind:RoomViewKind,pub choices:Vec<RoomChoiceView>}
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>}
+pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>}
 
 pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
     let mut screen=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.clone();
@@ -41,7 +42,7 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
 }
 pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     let view=public(run)?;
-    if matches!(view.kind,RoomViewKind::Act2Ready|RoomViewKind::Act2PrefixComplete|RoomViewKind::Act3Ready|RoomViewKind::Act3PrefixComplete){return Ok(vec![])}
+    if matches!(view.kind,RoomViewKind::Act2Ready|RoomViewKind::Act2PrefixComplete|RoomViewKind::Act3Ready|RoomViewKind::Act3PrefixComplete|RoomViewKind::Act4Ready){return Ok(vec![])}
     if let Some(pending)=&run.state.pending {
         let mut candidates=run.candidates.clone();
         if matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::Smith,..}){
@@ -69,6 +70,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
         GameAction::Select(id)=>run.select(*id),
         GameAction::Cancel=>{run.state.pending=None;run.candidates.clear();Ok(empty_transition())},
         GameAction::Choose(id)=>match public(run)?.kind {
+            RoomViewKind::Act3BossComplete|RoomViewKind::Act3Ending=>act3_end::choose(run,*id),
             RoomViewKind::BossTreasure|RoomViewKind::BossRelicChoice|RoomViewKind::BossRelicChild|RoomViewKind::ProceedWithoutRelic=>boss::choose(run,*id),
             RoomViewKind::Shop=>shop::choose(run,*id),RoomViewKind::Campfire=>rest::choose(run,*id),RoomViewKind::Event(_)=>events::choose(run,*id),_=>rewards::choose(run,*id),
         },
@@ -80,8 +82,9 @@ pub(in crate::run) fn is_m5(state:&RunState)->bool{state.room_loop.as_ref().is_s
 pub(in crate::run) fn is_m6(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M6Act2Prefix)}
 pub(in crate::run) fn is_m7(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M7Act2Captured)}
 pub(in crate::run) fn is_m8(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M8Act3Prefix)}
-pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)}
-pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||is_m8(state)}
+pub(in crate::run) fn is_m9(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M9IroncladAct3)}
+pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)||is_m9(state)}
+pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||uses_captured_act3(state)}
 pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||uses_captured_act2(state)}
 pub(super) fn token(next:&mut u64)->Result<ChoiceId,RunError>{let id=*next;*next=next.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;Ok(ChoiceId(id))}
 pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
@@ -101,6 +104,6 @@ impl Run {
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();
-        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None});Ok(run)
+        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None});Ok(run)
     }
 }

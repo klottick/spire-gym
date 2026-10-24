@@ -5,7 +5,7 @@ pub(crate) struct Act3Progress{pub question_visits:usize,pub shop_visits:usize,p
 pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::act1::CapturedRoom,RunError>{
     if !uses_captured_act3(state)||state.act!=3{return Err(RunError::InvalidAction)}
     let map=state.map.as_ref().filter(|m|m.act==3).ok_or(RunError::InvalidAction)?;let n=map.nodes.iter().find(|n|n.id==node).ok_or(RunError::InvalidAction)?;
-    if !(35..=43).contains(&n.floor){return Err(RunError::InvalidAction)}
+    if !(35..=if is_m9(state){50}else{43}).contains(&n.floor){return Err(RunError::InvalidAction)}
     let p=state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?;let mut kind=n.kind;let mut event=None;
     if kind==MapNodeKind::Question{match p.question_visits{0=>{kind=MapNodeKind::Event;event=Some(EventId::Falling)},1=>{kind=MapNodeKind::Event;event=Some(EventId::TombOfLordRedMask)},_=>kind=MapNodeKind::Monster}}
     let encounter=match kind{
@@ -17,8 +17,13 @@ pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::a
             }).ok_or(RunError::InvalidAction)?
         }})},
         MapNodeKind::Elite=>{let offset=match map.boss_icon{Some(EncounterId::AwakenedOne)=>0,Some(EncounterId::TimeEater)=>1,Some(EncounterId::DonuAndDeca)=>2,_=>return Err(RunError::InvalidAction)};let cycle=[EncounterId::GiantHead,EncounterId::Nemesis,EncounterId::Reptomancer];Some((0..3).map(|i|cycle[(map.elite_encounter_history.len()%3+offset+i)%3]).find(|id|map.elite_encounter_history.last()!=Some(id)).ok_or(RunError::InvalidAction)?)},
+        MapNodeKind::Boss if is_m9(state)&&n.floor==50=>{
+            let boss=state.room_loop.as_ref().and_then(|r|r.act3_boss_order.as_ref()).and_then(|order|order.first()).copied().ok_or(RunError::InvalidAction)?;
+            if !matches!(boss,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)||map.boss_icon!=Some(boss){return Err(RunError::InvalidAction)}
+            Some(boss)
+        },
         MapNodeKind::Event|MapNodeKind::Shop|MapNodeKind::Rest|MapNodeKind::Treasure=>None,
-        _=>return Err(RunError::Unsupported("room beyond declared M8 prefix")),
+        _=>return Err(RunError::Unsupported("room beyond declared Act3 capture")),
     };Ok(super::act1::CapturedRoom{kind,encounter,event})
 }
 
@@ -40,8 +45,9 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if let Some(screen)=screen{room.screen=screen;run.next_choice=next;}
     if let Some(prepared)=prepared_event{room.act3_event=Some(prepared.frame);run.state.rng=prepared.rng;}
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
-    if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted M8 room-entry hook failed"),"run.m8.room"))}
-    if let Some(encounter)=captured.encounter{let mut t=match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind}){Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted M8 encounter entry failed"),"run.m8.encounter"))};t.reward+=credit;t.committed_events.insert(0,event);return Ok(t)}
+    let (hook_error,hook_checkpoint,entry_error,entry_checkpoint)=if is_m9(&run.state){("accepted M9 room-entry hook failed","run.m9.room","accepted M9 encounter entry failed","run.m9.encounter")}else{("accepted M8 room-entry hook failed","run.m8.room","accepted M8 encounter entry failed","run.m8.encounter")};
+    if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant(hook_error),hook_checkpoint))}
+    if let Some(encounter)=captured.encounter{let mut t=match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind}){Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant(entry_error),entry_checkpoint))};t.reward+=credit;t.committed_events.insert(0,event);return Ok(t)}
     Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
 }
 
@@ -49,7 +55,7 @@ pub(super) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !uses_captured_act3(&run.state)||run.state.act!=3||run.state.combat.is_some()||run.state.active_combat.is_some()||run.state.pending.is_some()||room.reward_parent.is_some(){return Err(RunError::InvalidAction)}
     let kind=if run.state.floor==43{
-        if room.screen.kind!=RoomViewKind::Treasure||!run.state.map.as_ref().is_some_and(|m|m.current.is_some_and(|id|m.nodes.iter().any(|n|n.id==id&&n.floor==43&&n.kind==MapNodeKind::Treasure&&n.visited))){return Err(RunError::InvalidAction)}RoomViewKind::Act3PrefixComplete
-    }else if (35..43).contains(&run.state.floor){RoomViewKind::Map}else{return Err(RunError::InvalidAction)};
+        if room.screen.kind!=RoomViewKind::Treasure||!run.state.map.as_ref().is_some_and(|m|m.current.is_some_and(|id|m.nodes.iter().any(|n|n.id==id&&n.floor==43&&n.kind==MapNodeKind::Treasure&&n.visited))){return Err(RunError::InvalidAction)}if is_m8(&run.state){RoomViewKind::Act3PrefixComplete}else{RoomViewKind::Map}
+    }else if (35..=if is_m9(&run.state){49}else{42}).contains(&run.state.floor){RoomViewKind::Map}else{return Err(RunError::InvalidAction)};
     let room=run.state.room_loop.as_mut().unwrap();room.screen=RoomView{kind,choices:vec![]};run.state.room=if kind==RoomViewKind::Act3PrefixComplete{"Act3PrefixComplete"}else{"Map"};run.candidates.clear();Ok(empty_transition())
 }

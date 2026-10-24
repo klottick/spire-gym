@@ -69,6 +69,17 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
     }
 }
 
+/// Owner-qualified player Thorns callback, shared by real incoming hit producers.
+pub(super) fn player_thorns_after_damage(state:&mut State,result:&super::model::DamageResult){
+    if result.target!=Actor::Player||result.thorns||result.hp_loss{return}
+    let Source::Actor(Actor::Enemy(attacker))=&result.source else{return};
+    let thorns=state.player_full_powers.iter().find(|p|p.id.0=="thorns").map_or(0,|p|p.state.amount);
+    if thorns<=0||!state.enemies.iter().any(|e|&e.instance_id==attacker&&e.life==ActorLife::Active&&e.hp>0){return}
+    // onAttacked is per qualifying hit, including zero/fully blocked NORMAL.
+    // Retaliation is typed THORNS and cannot recursively trigger this power.
+    state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(attacker.clone())),kind:EffectKind::Damage(DamagePayload::Thorns(thorns))});
+}
+
 /// Only ordinary supported applications spend Artifact. Reductions/removals
 /// reach this same owner without being reclassified as fresh applications.
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), InputError> {

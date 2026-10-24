@@ -35,3 +35,4 @@ mod m8_reptomancer;
 mod m8_awakened;
 mod m8_time_eater;
 mod m8_partners;
+mod m9_relics;

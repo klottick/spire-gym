@@ -73,3 +73,36 @@ fn run_public_map() {
     for n in state["map"]["nodes"].as_array().unwrap() {if n["kind"]=="?" {assert_eq!(n["resolvedRoom"],Value::Null);}}
     assert!(!state.to_string().contains("encounter_history"));
 }
+
+#[test]
+fn m9_report_rooms_do_not_invent_a_terminal_or_next_act() {
+    // Public display diagnostics, not a supplied-state victory or reset API.
+    let mut d=native::m4::run(7).decision().unwrap();d.candidates.clear();
+    d.act=3;d.floor=50;let hp=d.player.hp;
+    for (kind,want) in [(RoomViewKind::Act3BossComplete,"act3_boss_complete"),
+        (RoomViewKind::Act3Ending,"act3_ending"),(RoomViewKind::Act4Ready,"act4_ready")] {
+        d.room=Some(RoomView{kind,choices:vec![]});let state=run_snapshot(&d,None).unwrap();
+        assert_eq!(state["screen"]["kind"],want);assert!(state["terminal"].is_null());
+        assert_eq!(state["player"]["hp"],hp);assert!(state["screen"]["options"].as_array().unwrap().is_empty());
+    }
+    d.terminal=Some(RunTerminal::Act3NoKeys);
+    assert_eq!(run_snapshot(&d,None).unwrap()["terminal"],"act3_no_keys");
+}
+
+#[test]
+fn m9_report_heart_choices_preserve_native_stage_and_action() {
+    let mut d=native::m4::run(7).decision().unwrap();
+    for stage in 1..=4 {
+        let action=GameAction::Choose(ChoiceId(42));
+        d.candidates=vec![Candidate{id:ChoiceId(42),action:action.clone(),label:"Continue",object:None,neow_offer:None}];
+        d.room=Some(RoomView{kind:RoomViewKind::Act3Ending,choices:vec![RoomChoiceView{
+            id:ChoiceId(42),kind:RoomChoiceKind::Act3Continue{stage},status:RoomChoiceStatus::Offered,price:None,
+        }]});
+        let snapshot=run_snapshot(&d,None).unwrap();let row=&snapshot["screen"]["options"][0];
+        let described=describe_run_action(&d,&action,"combat-0").unwrap();
+        assert_eq!(row["label"],"Continue");assert_eq!(row["status"],"offered");
+        assert_eq!(row["data"]["stage"],stage);assert_eq!(row["data"]["choiceId"],"42");
+        assert_eq!(described["optionKey"],row["key"]);assert_eq!(described["preActionOffer"],row["data"]);
+        assert!(snapshot["terminal"].is_null());
+    }
+}

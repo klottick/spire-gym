@@ -57,7 +57,8 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
     let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
     let m8=super::rooms::uses_captured_act3(state)&&state.act==3&&matches!(encounter,EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::FourShapes|EncounterId::Maw|EncounterId::SphereAndTwoShapes|EncounterId::JawWormHorde|EncounterId::ThreeDarklings|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer);
-    if !m5&&!m6&&!m8&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    let m9_boss=super::rooms::is_m9(state)&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..});
+    if !m5&&!m6&&!m8&&!m9_boss&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
@@ -135,7 +136,13 @@ impl Run {
         if super::reward::preflight(&self.state,&events).is_err(){
             return Err(self.retain_fault(RunFaultKind::Invariant("combat reward ledger preflight failed"),"run.combat.settlement"));
         }
-        let rewards=match super::rooms::rewards::prepare_combat(self,&record){
+        // Final Act3 suppresses the ordinary reward screen. Prepare its exact
+        // source/frame before releasing the real combat inventory and census.
+        let ending=match super::rooms::act3_end::prepare(self,&record){
+            Ok(prepared)=>prepared,
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),"run.m9.act3.end")),
+        };
+        let rewards=match if ending.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
         };
@@ -151,6 +158,7 @@ impl Run {
         self.state.combat=None;
         self.candidates.clear();
         if let Some(prepared)=rewards{super::rooms::rewards::commit_combat(self,prepared);}
+        if let Some(prepared)=ending{super::rooms::act3_end::commit(self,prepared);}
         if exit.outcome==Outcome::Death {
             self.state.terminal=Some(RunTerminal::Death);
         }
@@ -223,7 +231,7 @@ impl Run {
         self.state.combat=Some(combat);
         self.state.active_combat=Some(ActiveCombat {visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
         if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}){
-            let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),_=>None};
+            let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),EncounterId::AwakenedOne=>Some("AwakenedOne"),EncounterId::TimeEater=>Some("TimeEater"),EncounterId::DonuAndDeca=>Some("DonuAndDeca"),_=>None};
             if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}
         }
         self.state.combat_progress.entered=entered;

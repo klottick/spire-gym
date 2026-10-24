@@ -4,10 +4,14 @@ pub(crate) enum RewardReturn { Map,BossTreasure }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct CapturedRewards {pub cards:RoomView,pub return_to:RewardReturn}
 pub(in crate::run) struct PreparedRoomRewards {screen:RoomView,rng:RunRng,next:u64,captured:Option<CapturedRewards>,elite_cursor:Option<usize>,act:u8}
-pub(in crate::run) fn capture_elite_relic(start:usize,owned:&[RelicId])->Result<(RelicId,usize),RunError>{
-    const RELICS:[RelicId;8]=[RelicId::Lantern,RelicId::Pear,RelicId::Mango,RelicId::MagicFlower,RelicId::ToyOrnithopter,RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial];
-    let index=(start..RELICS.len()).find(|i|!owned.contains(&RELICS[*i])).ok_or(RunError::Unsupported("captured elite relic sequence exhausted"))?;
-    Ok((RELICS[index],index+1))
+const ELITE_RELICS:[RelicId;8]=[RelicId::Lantern,RelicId::Pear,RelicId::Mango,RelicId::MagicFlower,RelicId::ToyOrnithopter,RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial];
+fn capture_with_extra(start:usize,owned:&[RelicId],extra:&[RelicId])->Result<(RelicId,usize),RunError>{
+    let (index,relic)=ELITE_RELICS.iter().chain(extra).enumerate().skip(start).find(|(_,id)|!owned.contains(id)).ok_or(RunError::Unsupported("captured elite relic sequence exhausted"))?;
+    Ok((*relic,index+1))
+}
+pub(in crate::run) fn capture_elite_relic(start:usize,owned:&[RelicId])->Result<(RelicId,usize),RunError>{capture_with_extra(start,owned,&[])}
+pub(in crate::run) fn capture_m9_elite_relic(start:usize,owned:&[RelicId])->Result<(RelicId,usize),RunError>{
+    capture_with_extra(start,owned,&[RelicId::Vajra,RelicId::OddlySmoothStone,RelicId::BagOfPreparation,RelicId::BagOfMarbles,RelicId::BronzeScales])
 }
 pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
     if !matches!(run.state.active_combat.as_ref().map(|a|a.origin),Some(CombatOrigin::MapRoom{..}))||record.outcome!=crate::combat::Outcome::Victory{return Ok(None)}
@@ -23,7 +27,7 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
         let owned=run.state.combat.as_ref().and_then(|c|c.item_context()).map_or(run.state.relics.as_slice(),|c|c.relics());
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let start=if m8{room.act3.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else if m6{room.act2.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor};
-        let (relic,next)=capture_elite_relic(start,owned)?;
+        let (relic,next)=if is_m9(&run.state)&&run.state.act==3{capture_m9_elite_relic(start,owned)?}else{capture_elite_relic(start,owned)?};
         rows.push((RoomChoiceKind::Relic(relic),None));elite_cursor=Some(next);
         if !run.state.keys[2]&&run.state.map.as_ref().unwrap().nodes.iter().any(|n|n.id==node&&n.burning){rows.push((RoomChoiceKind::Emerald,None));}
     }
@@ -63,6 +67,19 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         RoomChoiceKind::OpenChest=>{
             if screen.kind!=RoomViewKind::Treasure{return Err(RunError::InvalidAction)}
+            if is_m9(&run.state)&&run.state.act==3 {
+                let captures=[RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial];
+                let available=captures.iter().find(|id|!run.state.relics.contains(id));
+                let relics=available.map_or_else(||captures.to_vec(),|id|vec![*id]);
+                let mut rows=relics.into_iter().map(|id|(RoomChoiceKind::Relic(id),None)).collect::<Vec<_>>();
+                rows.extend([(RoomChoiceKind::Sapphire,None),(RoomChoiceKind::Proceed,None)]);
+                let mut next=run.next_choice;let mut prepared=view(&mut next,RoomViewKind::Treasure,rows)?;
+                for row in &mut prepared.choices{if matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id))||row.kind==RoomChoiceKind::Sapphire&&run.state.keys[1]{row.status=RoomChoiceStatus::Disabled;}}
+                crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:false})?;
+                run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=prepared;
+                crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpenedAfter{boss:false})?;
+                return Ok(empty_transition())
+            }
             let relic=if uses_captured_act1(&run.state){[RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial].into_iter().find(|id|!run.state.relics.contains(id)).ok_or(RunError::Unsupported("captured ordinary treasure relics exhausted"))?}else{RelicId::Strawberry};
             let rows=view(&mut run.next_choice,RoomViewKind::Treasure,vec![(RoomChoiceKind::Relic(relic),None),(RoomChoiceKind::Sapphire,None),(RoomChoiceKind::Proceed,None)])?;
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:false})?;

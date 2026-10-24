@@ -7,7 +7,7 @@ pub(crate) struct BossProgress {pub selected:Option<RelicId>,pub source_complete
 fn source_floors(state:&RunState)->Result<(u32,u32),RunError>{
     match state.act {
         1 if uses_captured_act1(state)=>Ok((16,17)),
-        2 if is_m7(state)||is_m8(state)=>Ok((33,34)),
+        2 if is_m7(state)||uses_captured_act3(state)=>Ok((33,34)),
         _=>Err(RunError::InvalidAction),
     }
 }
