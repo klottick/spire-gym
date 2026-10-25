@@ -19,7 +19,7 @@ pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready }
+pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
@@ -73,6 +73,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
         GameAction::Cancel=>{run.state.pending=None;run.candidates.clear();Ok(empty_transition())},
         GameAction::Choose(id)=>match public(run)?.kind {
             RoomViewKind::Act3BossComplete|RoomViewKind::Act3Ending=>act3_end::choose(run,*id),
+            RoomViewKind::HeartVictory=>act4::choose_heart_proceed(run,*id),
             RoomViewKind::BossTreasure|RoomViewKind::BossRelicChoice|RoomViewKind::BossRelicChild|RoomViewKind::ProceedWithoutRelic=>boss::choose(run,*id),
             RoomViewKind::Shop=>shop::choose(run,*id),RoomViewKind::Campfire=>rest::choose(run,*id),RoomViewKind::Event(_)=>events::choose(run,*id),_=>rewards::choose(run,*id),
         },

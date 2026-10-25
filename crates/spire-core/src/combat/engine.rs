@@ -949,7 +949,7 @@ impl Combat {
             hp_after_cleanup: self.state.hp_after_cleanup,
             targets: self.state.enemies.iter().enumerate().map(|(i, e)|
              (TargetId((i + 1) as u64), e.life==ActorLife::Active&&e.hp > 0)).collect(), selection,
-             known_draw })
+             known_draw,encounter_facing:super::view::encounter_facing(&self.state).map_err(|_|crate::run::RunError::InvalidAction)? })
     }
 
     /// Read-only resource bridge for the owning Run, including a retained

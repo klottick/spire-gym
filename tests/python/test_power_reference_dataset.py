@@ -210,6 +210,31 @@ class PowerReferenceBuilderTests(unittest.TestCase):
         self.builder = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.builder)
 
+    def test_preserves_task19_facing_citations_in_generated_records(self):
+        dataset = self.builder.build_dataset()
+        powers = {power["key"]: power for power in dataset["powers"]}
+        citation = {
+            "kind": "local_document",
+            "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+            "section": "Task19 named-member facing findings",
+            "grade": (
+                "owned-archive static named-method qualification; not original-runtime "
+                "validation or upstream build/channel verification"
+            ),
+        }
+
+        for key in ("power.reference.back_attack", "power.reference.surrounded"):
+            with self.subTest(key=key):
+                self.assertEqual(powers[key]["citations"][-1], citation)
+
+        source = ROOT / citation["path"]
+        local_source = next(source for source in dataset["sources"] if source["id"] == "local")
+        snapshot = {
+            "path": citation["path"],
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+        self.assertIn(snapshot, local_source["snapshots"])
+
     def test_renders_links_and_preserves_nonupgrade_parentheses_and_energy(self):
         text = 'Gain [[File:GreenEnergy.png|20px]] (X+1) [https://example.org Energy] and [[Strength|Strength]].'
         self.assertEqual(self.builder.plain_text(text), "Gain [E] (X+1) Energy and Strength.")

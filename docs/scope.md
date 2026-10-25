@@ -20,10 +20,19 @@ ONE independent milestone review and fresh unchanged-source verification. Actual
 native diagnostics separately cover all three boss50 sources/endings. No strategy
 tuning or win-rate gate. M9 is merged in PR45/ad40ee7. The
 [M10 written plan](superpowers/plans/2026-10-24-m10-ironclad-heart.md) covers remaining
-Ironclad A0 character mechanics, real Act4/Heart and versioned tools; user "I approve"
-approved native implementation on2026-10-24. M10 is not yet accepted. Natural Death is a valid episode outcome, not
-a simulator failure; all three actual boss/reward/handoff paths complete on the
-already planned seed11 while seed7 retains its natural Champ loss. The
+Ironclad A0 character mechanics, real Act4/Heart and versioned tools; it was approved
+for native implementation on 2026-10-24. Native M10 implementation and the
+preservation matrix are controller-verified on the final 607-file source baseline.
+The fresh Python environment passed 251 tests (235 prior plus 16 Task 28), and
+touched-file Ruff/format/`ty` checks passed. The native workspace recorded 1,402
+passes and exactly the seven preserved historical failures; scoped M10–M6 filters
+and all 17 example/CLI invocations matched their expected results. M10 is accepted
+at its declared captured profile after ONE clean independent review and exact-source
+verification. M11 planning-only `.33.1` is open/unassigned; no product start follows.
+Natural Death remains a valid
+episode outcome, not a simulator failure; the six frozen seed-7/11 runs remain early
+gameplay losses, not wins. Separate default masked-caller Deaths at 27/67 actions are
+not strategy-quality or full-route evidence. The
 [M2 implementation plan](superpowers/plans/2026-10-23-m2-shared-combat-mechanics.md)
 is user-approved; the [M2 authored combat profile](milestones/m2-combat.md) is
 accepted after integrated verification and isolated review, not full-run or

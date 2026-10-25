@@ -241,9 +241,9 @@ fn m10_act4_fixed_heart_node_enters_the_actual_corrupt_heart_combat(){
     // Supplied accepted-map checkpoint for the boss entry seam; this is not a
     // claim that the Act4 route was traversed in a normal-start episode.
     let mut run=real_m10_heart_source(true);choose(&mut run,RoomChoiceKind::Act3Continue{stage:4});
+    super::m10_settlement::complete_elite_rewards_for_supplied_heart_entry(&mut run);
     let heart={
         let map=run.state.map.as_mut().unwrap();
-        map.nodes[0].visited=true;map.nodes[1].visited=true;map.nodes[2].visited=true;
         map.current=Some(map.nodes[2].id);map.nodes[3].id
     };
     run.state.floor=53;run.state.room="Map";

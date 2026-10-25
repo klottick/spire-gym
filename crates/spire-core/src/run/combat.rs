@@ -143,16 +143,22 @@ impl Run {
 
     pub(super) fn settle_combat(&mut self) -> Result<RunTransition,RunError> {
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
-        if super::rooms::is_m10(&self.state)&&self.state.act==4
-            &&self.state.combat.as_ref().and_then(|combat|combat.public_full().ok()).and_then(|combat|combat.outcome)==Some(Outcome::Victory){
-            return Err(self.retain_fault(RunFaultKind::UnsupportedBoundary("Task22 Act4 victory reward and terminal source"),"run.m10.act4.settlement"));
-        }
         self.sync_permanent_gains()?;
         let (mut exit,record,settled,local_visits)=match prepare_settlement(&self.state) {
             Ok(prepared)=>prepared,
             Err(RunError::Faulted(fault))=>{self.state.fault=Some(fault.clone());return Err(RunError::Faulted(fault));}
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat settlement validation failed"),"run.combat.settlement")),
         };
+        let act4_node=match super::rooms::act4::validate_combat_source(self,&record){
+            Ok(node)=>node,
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act4 combat source preparation failed"),"run.m10.act4.settlement")),
+        };
+        let heart_victory=if act4_node.is_some()&&record.encounter==EncounterId::CorruptHeart&&record.outcome==Outcome::Victory{
+            match super::rooms::act4::prepare_heart_victory(self,&record){
+                Ok(prepared)=>prepared,
+                Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Heart victory Proceed preparation failed"),"run.m10.heart.victory")),
+            }
+        }else{None};
         let mut events=vec![CommittedEvent::CombatFinished(record.clone())];
         if exit.outcome==Outcome::Death {events.push(CommittedEvent::Ended(RunTerminal::Death));}
         if super::reward::preflight(&self.state,&events).is_err(){
@@ -164,13 +170,15 @@ impl Run {
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),"run.m9.act3.end")),
         };
-        let rewards=match if ending.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
+        let rewards=match if ending.is_some()||heart_victory.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
         };
         // All conversions/counter/membership/return checks precede this commit.
         // Export is detached; the real terminal owner remains until commit.
-        exit.item_context.take().unwrap().return_to_run(&mut self.state)?;
+        if exit.item_context.take().unwrap().return_to_run(&mut self.state).is_err(){
+            return Err(self.retain_fault(RunFaultKind::Invariant("accepted combat item return failed"),"run.combat.item-return"));
+        }
         self.state.hp=exit.hp as u32;
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
@@ -181,6 +189,8 @@ impl Run {
         self.candidates.clear();
         if let Some(prepared)=rewards{super::rooms::rewards::commit_combat(self,prepared);}
         if let Some(prepared)=ending{super::rooms::act3_end::commit(self,prepared);}
+        if let Some(node)=act4_node{super::rooms::act4::commit_elite_victory(self,node,record.clone());}
+        if let Some(prepared)=heart_victory{super::rooms::act4::commit_heart_victory(self,prepared);}
         if exit.outcome==Outcome::Death {
             self.state.terminal=Some(RunTerminal::Death);
         }

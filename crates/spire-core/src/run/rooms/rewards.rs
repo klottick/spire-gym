@@ -25,10 +25,11 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     if !matches!(run.state.active_combat.as_ref().map(|a|a.origin),Some(CombatOrigin::MapRoom{..}))||record.outcome!=crate::combat::Outcome::Victory{return Ok(None)}
     let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
     let m10=is_m10(&run.state);let m5=uses_captured_act1(&run.state);let m6=uses_captured_act2(&run.state)&&run.state.act==2;let m8=uses_captured_act3(&run.state)&&run.state.act==3;let kind=match run.state.active_combat.as_ref().unwrap().origin{CombatOrigin::MapRoom{kind,..}=>kind,_=>unreachable!()};
-    let mut rng=run.state.rng.clone();let mut semantic=vec![run.state.act as u64,node.0,record.visit];if m5{semantic.push(kind as u64);}
+    let local=if m10&&run.state.act==4{run.state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else if m8{run.state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else if m6{run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else{record.visit};
+    let act4_local=m10&&run.state.act==4;
+    let mut rng=run.state.rng.clone();let mut semantic=vec![run.state.act as u64,node.0,if act4_local{local}else{record.visit}];if m5{semantic.push(kind as u64);}
     let minimum=if m5{match kind{MapNodeKind::Elite=>25,MapNodeKind::Boss=>95,_=>10}}else{10};
     let gold=minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32;
-    let local=if m8{run.state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else if m6{run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits}else{record.visit};
     let ordinal=(local%3) as usize;let potion=if m10{[PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron][ordinal]}else if m5{[PotionId::FirePotion,PotionId::StrengthPotion,PotionId::WeakPotion][ordinal]}else{PotionId::FirePotion};
     let mut rows=vec![(RoomChoiceKind::Gold(gold),None),(RoomChoiceKind::CardReward,None),(RoomChoiceKind::Potion(potion),None)];let mut elite_cursor=None;
     if m5&&kind==MapNodeKind::Elite {
@@ -43,7 +44,7 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
     let captured=if m10 {
         let rarities=if kind==MapNodeKind::Boss{vec![crate::content::CardRarity::Rare;3]}else{vec![crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Uncommon]};
-        let cards=super::m10_content::sample_capture_row(&mut rng,&[u64::from(run.state.act),u64::from(run.state.floor),node.0,record.visit,kind as u64],&rarities)?;
+        let cards=super::m10_content::sample_capture_row(&mut rng,&[u64::from(run.state.act),u64::from(run.state.floor),node.0,if act4_local{local}else{record.visit},kind as u64],&rarities)?;
         let mut rows=cards.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},None)).collect::<Vec<_>>();rows.push((RoomChoiceKind::Skip,None));
         Some(CapturedRewards{cards:view(&mut next,RoomViewKind::CardReward,rows)?,return_to:if kind==MapNodeKind::Boss{RewardReturn::BossTreasure}else{RewardReturn::Map}})
     }else if m5 {

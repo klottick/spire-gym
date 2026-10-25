@@ -5,25 +5,17 @@ gym with a Rust simulator, native batching and thin Python/Gymnasium interfaces
 for external ML consumers. Models, training, learner checkpoints and experiments
 are outside this repo. No playable client or rendering is part of the product.
 
-Current state: the Rust/Python package foundation, device-readiness probe, narrow
-supplied-entry Python combat reference and bounded native batched combat/Gymnasium
-interfaces are implemented. The reference is a readable
-correctness aid, not the production simulator or a Python optimization target;
-it is not original-runtime validated. Its final recorded implementation run passed
-735 Python tests. The narrow Rust combat engine and differential harness are also
-implemented and reviewed; the final recorded core-handoff verification passed 124
-native tests in each workspace/release run and 830 Python tests. The bounded
-environment slice adds supplied-entry scenarios, public observations, native
-batching and single/vector Gymnasium facades. A fresh offline Rust workspace run
-passed 169 tests. Controller verification with a freshly built candidate-revision
-extension passed all 167 environment Python tests; the full Python suite had 995
-passes and the same two baseline readiness-test failures as main. Those CPU-only
-failures are separate from historical required-CUDA checks that failed with CUDA
-allocation OOMs. A fully green suite, CUDA readiness and original-runtime validation
-are not claimed. Models and learners are external, not planned in-repo work.
-The existing optimizer probe is retained historical device-readiness smoke code,
-not a training pipeline or a gym prerequisite. No dependencies were removed as
-part of this scope correction.
+Current state: M9 is accepted at its captured Ironclad A0/Act3 boundary. M10 native
+implementation and the preservation matrix are controller-verified on the final
+607-file source baseline. The source-matched fresh Python environment passed 251
+tests (235 prior plus 16 Task 28); changed-file Ruff lint, format, and `ty` checks
+passed. Task 28 verified a real optional Elixir selector and its Python record/replay
+and accepted-child delivery-fault behavior. The M10 profile is accepted at its
+declared captured scope after ONE clean independent review and exact verification
+of the 608 reviewed source files in both checkouts. Earlier combat-reference
+and bounded-environment counts recorded in the [dated work-status history](work-status.md)
+are historical checkpoints, not current M10 evidence. Models and learners remain
+external; no original-runtime validation or full-Python/workspace-green claim is made.
 
 Validation/capture tools stay outside simulation and training execution. Neither
 requires a running original game or an active Windows connection. The approved
@@ -88,34 +80,31 @@ the tests or probes run.
 
 ## Everyday workflow
 
-### Gym-only development and on-demand quality checks
+### Existing Gym-only environment and binding refresh
 
-The approved M9 environment is `target/m9-gym-dev-venv`, managed by uv's locked
-`gym-dev` group (NumPy/Gymnasium/pytest/maturin plus pinned prek/Ruff/ty). It excludes
-the project's existing Torch runtime dependency. Setup requires explicit authority;
-routine checks do not sync or install:
+Use the existing `target/m9-gym-dev-venv` (Python 3.12.15, NumPy 2.5.4,
+Gymnasium 1.4.0, pytest 9.1.1, maturin 1.15.0); Torch is absent. Before the
+approved bounded M10 extension refresh, preserve the currently installed native
+binary byte-for-byte in ignored evidence. Keep the old M9 Cargo artifacts in
+`target/m9-python-extension-20261024`; build M10 separately with the approved
+worktree-local target:
 
 ```sh
-# Only during separately approved initial setup:
-UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv sync --locked --only-group gym-dev
-# Build in place WITHOUT maturin's automatic project-dependency installation:
-UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv CARGO_TARGET_DIR=target/m9-python-extension-20261024 CARGO_BUILD_JOBS=2 uv run --locked --no-sync maturin develop --release --locked --offline --skip-install
-# Editable package metadata, no dependency expansion (needed once / after sync):
-uv pip install --python target/m9-gym-dev-venv/bin/python --no-deps --no-build-isolation --editable .
-# Routine checks, using the existing environment and freshly built extension:
-UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync python -B -m pytest tests/python/env -q
-UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync prek run --config prek.toml --files python/spire_lab/gymnasium/run.py
+UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv CARGO_TARGET_DIR=target/m10-python-extension-20261024 CARGO_BUILD_JOBS=2 CARGO_NET_OFFLINE=true uv run --locked --no-sync maturin develop --release --locked --offline --skip-install
 ```
 
-Pass only touched `.py`/`.pyi` paths to prek. It checks Ruff lint, Ruff format
-without rewrites, and ty. No Git hook is installed and no broad formatting is
-authorized. Native extension signatures are in `python/spire_lab/_native.pyi`.
-**Do not use ordinary `maturin develop` for a Gym-only environment**: it installs
-project runtime dependencies, including Torch/CUDA, even after gym-only uv sync.
-The original affected M9 `.venv` is preserved, not silently removed or repurposed.
-The actual isolated verification environment has Torch confirmed absent.
-Full `tests/python` collection includes the historical Torch readiness lane;
-without Torch it reports that missing dependency. Gym correctness has no CUDA gate.
+This refresh replaces the in-place module only after the old binary is preserved;
+`--skip-install`, `--no-sync`, and locked/offline flags avoid dependency expansion
+or environment metadata changes. Verify the imported module path, build revision,
+source/artifact snapshot, and Torch absence before Python tests. The controller-
+verified Task 27 candidate passed 235 environment tests (195 existing plus 40 M10).
+For subsequent changes, run
+`UV_PROJECT_ENVIRONMENT=target/m9-gym-dev-venv uv run --locked --no-sync python -B -m pytest tests/python/env -q`.
+Pass only touched `.py`/`.pyi` paths to `prek --config prek.toml --files ...`; it
+runs Ruff lint, non-rewriting Ruff format checks, and ty. No shared Git hooks or
+broad formatting are part of this workflow. Do not use dependency-expanding
+`maturin develop`; broader Python collection has historical Torch/readiness and
+diff-schema/metadata-fixture limitations. Gym correctness has no CUDA gate.
 
 ### Existing full-dependency workflow
 

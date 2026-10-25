@@ -1,5 +1,44 @@
 # Spire Gym: current agent guidance
 
+## Receiving session / authorized M10 continuation (2026-10-25)
+
+The current user instructed this receiving controller to continue the approved M10
+implementation, use shared Beads, and use GPT-6 Luna MAX assistants with controller
+integration. The historical outgoing-session STOP below applies only to that
+outgoing controller; it is not a current stop or reapproval gate. Native controller
+actor `codex-m10-controller-20261025-v1` owns approved M10 integration, scoped fixes,
+verification, and normal Beads completion authority; no force/reclaim or
+impersonation. Tasks 1–28 and the preservation matrix are verified on the final
+607-file baseline: workspace 1,402 passes with exactly the seven historical core
+failures (core 1,149/7), M10–M6 focused filters 453/32/115/16/95 with zero failures,
+and a fresh 251-test Python environment (235 prior plus 16 Task 28). Changed-file
+checks passed; all 17 example/CLI invocations and power/enemy reference checks
+(builder 133, powers 20, enemies 27) matched expectations. Task 28 verified actual
+optional-Elixir selection, normal Confirm0 record/replay agreement, and retained
+accepted-child delivery-fault behavior. M10 is accepted after ONE fresh independent
+GPT-6 Luna MAX review `ses_e8bdccfd2ffe9wlTc8FVR7oHE3` with no findings; all 608
+reviewed files matched in BOTH checkouts before administrative acceptance updates.
+All five focus classes and six declined categories were controller-ruled; actual
+`.32.2`/`.32` are normally closed. M11 planning-only `.33.1` is open/unassigned: next
+deliver ONE written Silent combat plan for user review, no product child/start.
+No normal-start Heart win was observed. Preserve all historical
+handoff/guidance entries below. The previously approved bounded M10 extension
+refresh remains narrowly scoped and dependency-preserving; it does not authorize
+environment sync or broader installation. No new commit, push, merge, installation,
+blanket-cleanup, or private-audit authority is granted; preserve existing source,
+evidence, worktrees and handoff history.
+
+## Session handoff / outgoing work stopped (2026-10-25)
+
+User requested a DIFFERENT session and explicitly said stop working. Read
+`docs/handoffs/2026-10-25-m10-task22-session-handoff.md` FIRST for continuation.
+Tasks1–21 are locally committed47948cf; repairedTask22 packet0c77fc97…4a50e6e is
+NOTintegrated/controllerverified. Originalauthorreturned; no outstandingauthor
+dispatch. Outgoing session stopped product work, prepared ONLY handoff/pointer;
+no receivingagentlaunched. Newhandoffdocs intentionallyuncommitted, preserve.
+No renewedcommit/push/Pythonrefresh/reviewer/cleanupauthority; approvedM10plan,
+isolatedauthor/controllerintegration/buildhygiene andremaininggates unchanged.
+
 ## User-requested local M10 snapshot (2026-10-24)
 
 User requested "conventional commit what you have so far". This authorizes one

@@ -31,8 +31,14 @@ pub(crate) fn permanent_card(c:&spire_core::run::PublicObject)->Value {
 }
 pub(crate) fn live_card(c:&LiveCardView,combat:&str)->Value {
     let origin=match c.origin {CombatCardRef::Permanent(id)=>json!({"kind":"permanent","instance":id.0.to_string()}),CombatCardRef::CombatLocal(id)=>json!({"kind":"combat_local","instance":id.to_string()})};
+    let values=c.values.as_ref();
     json!({"ref":format!("{combat}/card/{}",c.instance.0),"origin":origin,"cardId":c.id.as_str(),"name":c.id.as_str(),"upgrades":c.upgrades,
-        "baseCost":null,"currentCost":c.effective_cost,"freeToPlay":null,"assetKey":format!("card/{}",c.id.as_str())})
+        "baseCost":null,"currentCost":c.effective_cost,"freeToPlay":values.map(|v|v.free_play),
+        "baseDamage":values.and_then(|v|v.base_damage),"baseBlock":values.and_then(|v|v.base_block),
+        "magicNumber":values.and_then(|v|v.magic_number),"damageBonus":values.and_then(|v|v.damage_bonus),
+        "costKind":values.map(|v|match v.cost_kind {CardCostKind::Fixed=>"fixed",CardCostKind::X=>"x",CardCostKind::Unplayable=>"unplayable"}),
+        "exhaustOnFinish":values.map(|v|v.exhaust_on_finish),"ethereal":values.map(|v|v.ethereal),"innate":values.map(|v|v.innate),
+        "temporaryCost":values.map(|v|v.temporary_cost),"assetKey":format!("card/{}",c.id.as_str())})
 }
 fn full_player(c:&CombatPublic)->Value {json!({"hp":c.player.hp,"maxHp":c.player.max_hp,"block":c.player.block,"energy":c.player.energy,"gold":null,
     "statuses":c.player.powers.iter().map(|p|json!({"id":p.id.0,"amount":p.amount})).collect::<Vec<_>>()})}
@@ -42,21 +48,35 @@ fn inventory(relics:&[spire_core::content::RelicId],counters:&[spire_core::items
         "potions":potions.iter().map(|p|p.map(|id|json!({"potionId":id.as_str(),"name":id.as_str(),"assetKey":format!("potion/{}",id.as_str())}))).collect::<Vec<_>>()})
 }
 fn inventory_value(i:&CombatInventoryView)->Value {inventory(&i.relics,&i.relic_counters,&i.potions)}
+fn draw_order_known(c:&CombatPublic)->bool {
+    let count=c.draw_count;
+    if count==0{return false;}
+    let mut positions=std::collections::BTreeSet::new();
+    for known in &c.known_draw{
+        if known.offset>=count{return false;}
+        positions.insert(if known.from_top{known.offset}else{count-1-known.offset});
+    }
+    positions.len()==count
+}
 pub(crate) fn native_combat(c:&CombatPublic,id:&str)->Result<Value,ReportError> {
     if c.targets.len()!=c.enemies.len(){return Err(ReportError::Invalid("public target/actor lengths disagree".into()));}
     Ok(json!({"id":id,"turn":c.turn,"player":full_player(c),"inventory":c.inventory.as_ref().map(inventory_value),"enemies":c.enemies.iter().zip(&c.targets).map(|(e,(target,eligible))|json!({
         "ref":crate::actions::actor_ref(&Actor::Enemy(e.instance_id.clone()),id),"targetId":target.0.to_string(),"targetEligible":eligible,"logicalSlot":e.logical_slot,"monsterId":e.enemy_id.as_str(),"name":e.enemy_id.as_str(),
         "hp":e.hp,"maxHp":e.max_hp,"block":e.block,"statuses":e.powers.iter().map(|p|json!({"id":p.id.0,"amount":p.amount})).collect::<Vec<_>>(),
         "lifeState":if e.replaced {"replaced"}else if e.escaped {"escaped"}else if e.half_dead {"half_dead"}else if e.hp<=0 {"defeated"}else{"alive"},
-        "intent":if !e.replaced&&!e.escaped&&e.hp>0 {json!({"name":e.intent.as_str(),"damagePerHit":e.intent_damage,"hitCount":null})}else{Value::Null},"assetKey":format!("enemy/{}",e.enemy_id.as_str())})).collect::<Vec<_>>(),
+        "side":c.encounter_facing.as_ref().and_then(|facing|facing.enemies.iter().find(|actor|actor.instance_id==e.instance_id)).map(|actor|match actor.side {EncounterSide::Left=>"left",EncounterSide::Right=>"right"}),
+        "intent":if !e.replaced&&!e.escaped&&e.hp>0 {json!({"name":e.intent.as_str(),"damagePerHit":e.intent_damage,"hitCount":intent_hits(e.intent.as_str())})}else{Value::Null},"assetKey":format!("enemy/{}",e.enemy_id.as_str())})).collect::<Vec<_>>(),
         "hand":c.hand.iter().map(|c|live_card(c,id)).collect::<Vec<_>>(),
-        "piles":{"draw":{"count":c.draw_count,"knownCards":null,"orderKnown":false},"discard":c.discard.iter().map(|c|live_card(c,id)).collect::<Vec<_>>(),"exhaust":c.exhaust.iter().map(|c|live_card(c,id)).collect::<Vec<_>>()},
-        "selection":c.selection.as_ref().map(|s|json!({"kind":disposition(s.disposition),"required":s.required,"selected":s.selected.iter().map(|c|c.0.to_string()).collect::<Vec<_>>(),"cards":s.candidates.iter().map(|c|live_card(c,id)).collect::<Vec<_>>()})),
+        "piles":{"draw":{"count":c.draw_count,"knownCards":if c.known_draw.is_empty(){Value::Null}else{json!(c.known_draw.iter().map(|known|json!({"card":live_card(&known.card,id),"fromTop":known.from_top,"offset":known.offset})).collect::<Vec<_>>())},"orderKnown":draw_order_known(c)},"discard":c.discard.iter().map(|c|live_card(c,id)).collect::<Vec<_>>(),"exhaust":c.exhaust.iter().map(|c|live_card(c,id)).collect::<Vec<_>>()},
+        "selection":c.selection.as_ref().map(|s|json!({"kind":disposition(s.disposition),"purpose":crate::actions::selection_purpose(s.operation),"required":s.required,"minimum":s.minimum,"maximum":s.maximum,"selected":s.selected.iter().map(|c|c.0.to_string()).collect::<Vec<_>>(),"cards":s.candidates.iter().map(|c|live_card(c,id)).collect::<Vec<_>>()})),
         "character":{"stance":match c.character.stance {Stance::Neutral=>"neutral",Stance::Wrath=>"wrath",Stance::Calm=>"calm"},"focus":c.character.focus,
             "orbs":c.character.orbs.iter().map(|o|o.map(|o|match o {OrbKind::Lightning=>"lightning",OrbKind::Frost=>"frost"})).collect::<Vec<_>>()},
         "stasis":c.stasis.iter().map(|s|json!({"orb":crate::actions::actor_ref(&Actor::Enemy(s.orb.clone()),id),"card":live_card(&s.card,id)})).collect::<Vec<_>>(),"lastPlayedCard":null,
+        "facing":c.encounter_facing.as_ref().map(|facing|json!({"player":match facing.player_facing {PlayerFacing::Left=>"left",PlayerFacing::Right=>"right"},"surrounded":facing.surrounded,
+            "enemies":facing.enemies.iter().map(|actor|json!({"side":match actor.side {EncounterSide::Left=>"left",EncounterSide::Right=>"right"},"backAttack":actor.back_attack})).collect::<Vec<_>>()})),
         "hpBeforeHealing":c.hp_before_healing,"hpAfterCleanup":c.hp_after_cleanup,"outcome":c.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death"})}))
 }
+fn intent_hits(name:&str)->Option<u8>{match name {"shield_bash"|"shield_smash"|"heart_echo"=>Some(1),"spear_burn_strike"=>Some(2),"spear_skewer"=>Some(3),"heart_blood_shots"=>Some(12),_=>None}}
 fn disposition(d:SelectionDisposition)->&'static str {match d {SelectionDisposition::Hand=>"hand",SelectionDisposition::Discard=>"discard",SelectionDisposition::Exhaust=>"exhaust",SelectionDisposition::DrawTop=>"draw_top"}}
 
 pub fn legacy_snapshot(public: &PublicView)->Result<Value,ReportError> {legacy_snapshot_for(public,"combat-0")}

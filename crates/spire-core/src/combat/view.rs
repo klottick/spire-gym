@@ -63,6 +63,7 @@ pub struct CombatPublic {
     pub targets: Vec<(TargetId, bool)>,
     pub selection: Option<SelectionView>,
     pub known_draw:Vec<KnownDrawCardView>,
+    pub encounter_facing:Option<EncounterFacingView>,
     pub inventory: Option<CombatInventoryView>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -112,16 +113,7 @@ impl Combat {
     /// exposing actor history, selection state, or hidden resolver data.
     pub fn encounter_facing_view(&self)->Result<Option<EncounterFacingView>,AccessError>{
         ready(&self.state)?;
-        let Some(facing)=self.state.facing else{return Ok(None)};
-        let surrounded=self.state.player_full_powers.iter().any(|p|p.id.0=="surrounded"&&p.state.amount>0);
-        let mut enemies=Vec::new();
-        for enemy in &self.state.enemies {
-            if !matches!(enemy.enemy_id,super::ActorEnemyId::Full(crate::content::EnemyId::SpireShield|crate::content::EnemyId::SpireSpear)){continue}
-            let slot=*self.state.actor_slots.get(&enemy.instance_id).ok_or(AccessError::NotReady)?;
-            let side=match slot{0=>super::EncounterSide::Left,1=>super::EncounterSide::Right,_=>return Err(AccessError::NotReady)};
-            enemies.push(EncounterActorView{instance_id:enemy.instance_id.clone(),side,back_attack:super::effects::back_attack_active(&self.state,enemy)});
-        }
-        Ok(Some(EncounterFacingView{player_facing:facing,surrounded,enemies}))
+        encounter_facing(&self.state)
     }
 
     /// Read public values without copying visible piles or growing reveal history.
@@ -141,6 +133,19 @@ impl Combat {
     pub fn fault_record(&self) -> Option<FaultRecord> {
         self.state.fault.clone()
     }
+}
+
+pub(super) fn encounter_facing(state:&State)->Result<Option<EncounterFacingView>,AccessError>{
+    let Some(facing)=state.facing else{return Ok(None)};
+    let surrounded=state.player_full_powers.iter().any(|p|p.id.0=="surrounded"&&p.state.amount>0);
+    let mut enemies=Vec::new();
+    for enemy in &state.enemies {
+        if !matches!(enemy.enemy_id,super::ActorEnemyId::Full(crate::content::EnemyId::SpireShield|crate::content::EnemyId::SpireSpear)){continue}
+        let slot=*state.actor_slots.get(&enemy.instance_id).ok_or(AccessError::NotReady)?;
+        let side=match slot{0=>super::EncounterSide::Left,1=>super::EncounterSide::Right,_=>return Err(AccessError::NotReady)};
+        enemies.push(EncounterActorView{instance_id:enemy.instance_id.clone(),side,back_attack:super::effects::back_attack_active(state,enemy)});
+    }
+    Ok(Some(EncounterFacingView{player_facing:facing,surrounded,enemies}))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

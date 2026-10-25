@@ -21,6 +21,20 @@ impl Scheduler {
         }
         Ok(results)
     }
+    /// Map owned jobs over disjoint mutable values, retaining those values in
+    /// their original ordered slice. Result storage is reserved before dispatch.
+    pub(crate) fn map_mut<T:Send,J:Send,R:Send>(&self, values:&mut [T], jobs:Vec<J>,
+        f:impl Fn(usize,&mut T,J)->R+Send+Sync) -> Result<Vec<R>,EnvError> {
+        assert_eq!(values.len(),jobs.len());
+        let mut results=reserved(jobs.len())?;
+        match self {
+            Self::Serial => results.extend(values.iter_mut().zip(jobs).enumerate()
+                .map(|(i,(value,job))|f(i,value,job))),
+            Self::Parallel(pool) => pool.install(|| values.par_iter_mut().zip(jobs.into_par_iter())
+                .enumerate().map(|(i,(value,job))|f(i,value,job)).collect_into_vec(&mut results)),
+        }
+        Ok(results)
+    }
     pub(crate) fn slots<T:Send,R:Send>(&self, slots:&mut [Slot], jobs:Vec<T>,
         f:impl Fn(usize,&mut Slot,T)->R+Send+Sync) -> Result<Vec<R>,EnvError> {
         assert_eq!(slots.len(),jobs.len());

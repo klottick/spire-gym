@@ -16,9 +16,11 @@ mod workers;
 mod diagnostics;
 mod replay;
 mod run_schema;
+mod run_schema_m10;
 mod run_observation;
 mod run_session;
 mod run_replay;
+mod run_batch;
 
 pub use canonical::canonical_json;
 pub use episode::EpisodeJob;
@@ -34,8 +36,10 @@ pub use pool::PoolOperation;
 pub use diagnostics::{PoolDiagnostics, SlotDiagnostic};
 pub use replay::{EpisodeRecord, RecordStatus, ReplayBoundary, ReplayResult, RECORD_SCHEMA_ID, replay};
 pub use run_schema::{RunCapacities,RunObservationSpec,RUN_OBSERVATION_SCHEMA_ID,run_observation_spec};
-pub use run_observation::{RunFeatureGroup,RunObservation,encode_run};
-pub use run_session::{RunSessionError,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_RULES_ID,RUN_RULES_ID_V1,RUN_SEED_ADAPTER_ID};
+pub use run_schema_m10::{m10_run_observation_spec,RUN_OBSERVATION_M10_SCHEMA_ID};
+pub use run_observation::{RunFeatureGroup,RunObservation,encode_run,encode_run_m10};
+pub use run_session::{RunSessionError,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,RUN_RULES_ID,RUN_RULES_ID_V1,RUN_RULES_ID_M10,RUN_CONTENT_ID_M10,RUN_SEED_ADAPTER_ID};
+pub use run_batch::{RunBatch,RunBatchError,RunBatchSlotFault};
 pub use run_replay::{RunReplayReport,replay_run};
 pub use replay::{ReplayVisit,ReplayVisitKind,replay_observed};
 
