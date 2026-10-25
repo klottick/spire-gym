@@ -444,13 +444,23 @@
     "effect": "Player-side orientation/encounter indicator for the Shield/Spear fight. The supporting enemy page says this indicator does not itself add another damage bonus; keep the enemy Back Attack multiplier separate.",
     "triggers": ["TARGETED_CARD_OR_POTION_ORIENTATION_CHANGE"],
     "extra_wiki": ["Spire Shield and Spire Spear", "Module:Powers/data"],
+    "local_citations": [{
+      "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+      "section": "Task19 named-member facing findings",
+      "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
+    }],
     "notes": ["Do not multiply incoming damage twice by implementing both a player Surrounded bonus and an enemy Back Attack bonus. Exact technical power type/constructor ID remain unverified in this dataset."],
     "discrepancies": ["The generic module says receive 50% more damage; the enemy page explicitly calls Surrounded a telegraph rather than a second damage modifier."]
   },
   "power.reference.back_attack": {
     "amount": "Conditional rear-attack multiplier/state, not a linear damage bonus per stack.",
     "notes": ["Spire Shield/Spear orientation controls the condition. Treat the player-side Surrounded indicator separately, not as an additional multiplier."],
-    "extra_wiki": ["Spire Shield and Spire Spear"]
+    "extra_wiki": ["Spire Shield and Spire Spear"],
+    "local_citations": [{
+      "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+      "section": "Task19 named-member facing findings",
+      "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
+    }]
   },
   "power.reference.beat_of_death": {
     "triggers": ["ON_PLAYER_CARD_PLAY"],

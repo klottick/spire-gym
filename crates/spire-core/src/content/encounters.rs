@@ -36,9 +36,13 @@ const GROWTH:&[EnemyId]=&[EnemyId::SpireGrowth];const TRANSIENT:&[EnemyId]=&[Ene
 // Dynamic groups list their supported species, not a fabricated fixed formation.
 const SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker];
 const SPHERE_SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker,EnemyId::SphericGuardian];
+const HEART:&[EnemyId]=&[EnemyId::CorruptHeart];
 pub(crate) const ENEMIES: &[EnemyDefinition] = &[
     EnemyDefinition{id:EnemyId::Deca,definition_only:false},
+    EnemyDefinition{id:EnemyId::CorruptHeart,definition_only:false},
     EnemyDefinition{id:EnemyId::Donu,definition_only:false},
+    EnemyDefinition{id:EnemyId::SpireShield,definition_only:false},
+    EnemyDefinition{id:EnemyId::SpireSpear,definition_only:false},
     EnemyDefinition{id:EnemyId::TimeEater,definition_only:false},
     EnemyDefinition{id:EnemyId::AwakenedOne,definition_only:false},
     EnemyDefinition{id:EnemyId::Reptomancer,definition_only:false},
@@ -82,7 +86,9 @@ pub(crate) const ENEMIES: &[EnemyDefinition] = &[
     EnemyDefinition { id: EnemyId::SlimeBoss, definition_only: false },
 ];
 pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
+    EncounterDefinition{id:EncounterId::ShieldAndSpear,enemies:&[EnemyId::SpireShield,EnemyId::SpireSpear],definition_only:false},
     EncounterDefinition{id:EncounterId::DonuAndDeca,enemies:&[EnemyId::Deca,EnemyId::Donu],definition_only:false},
+    EncounterDefinition{id:EncounterId::CorruptHeart,enemies:HEART,definition_only:false},
     EncounterDefinition{id:EncounterId::TimeEater,enemies:&[EnemyId::TimeEater],definition_only:false},
     EncounterDefinition{id:EncounterId::AwakenedOne,enemies:&[EnemyId::Cultist,EnemyId::Cultist,EnemyId::AwakenedOne],definition_only:false},
     EncounterDefinition{id:EncounterId::Reptomancer,enemies:&[EnemyId::Dagger,EnemyId::Reptomancer,EnemyId::Dagger],definition_only:false},

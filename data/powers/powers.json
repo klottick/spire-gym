@@ -121,6 +121,10 @@
           "sha256": "8a6ebfeea48d7f360cb80b74898f0c2fb298ebe07b0570a31fdd1e11e827b49a"
         },
         {
+          "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+          "sha256": "11648c5e847483b0ec46fd32a05af7a967507f289c9673a5a6b1f99e5e5720ed"
+        },
+        {
           "path": "data/powers/sources/catalog-powers.json",
           "sha256": "c1e71c00141900fc2fd05f4506debb7dd1d6c44a374ce822201edf73fa11a3c1"
         },
@@ -5200,6 +5204,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Spire_Shield_and_Spire_Spear",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62988",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+          "section": "Task19 named-member facing findings",
+          "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
         }
       ],
       "evidence": {
@@ -7026,6 +7036,12 @@
           "url": "https://slaythespire.wiki.gg/wiki/Spire_Shield_and_Spire_Spear",
           "revision_url": "https://slaythespire.wiki.gg/wiki/Special:PermanentLink/62988",
           "grade": "community documentation; not version-pinned runtime evidence"
+        },
+        {
+          "kind": "local_document",
+          "path": "docs/research/2026-10-24-m10-act4-and-ironclad.md",
+          "section": "Task19 named-member facing findings",
+          "grade": "owned-archive static named-method qualification; not original-runtime validation or upstream build/channel verification"
         }
       ],
       "evidence": {

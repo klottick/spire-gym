@@ -12,6 +12,7 @@ pub struct RunCapacities{
 }
 impl RunCapacities{
     pub fn m9_default()->Self{Self{map_nodes:106,map_edges:742,permanent_cards:256,combat_cards:1024,enemies:32,powers:2048,relics:256,potions:16,offers:512,selection:256,orbs:10,actions:2048}}
+    pub fn m10_default()->Self{Self::m9_default()}
 }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RunObservationSpec{pub(crate) descriptor:serde_json::Value,pub(crate) fingerprint:[u8;32]}
@@ -66,7 +67,7 @@ pub fn run_observation_spec(c:&RunCapacities)->Result<RunObservationSpec,RunSess
     Ok(RunObservationSpec{descriptor,fingerprint:hash.finalize().into()})
 }
 
-fn domain(group:&str,field:&str,unit:&str,c:&RunCapacities,vocab:&Value)->Value{
+pub(crate) fn domain(group:&str,field:&str,unit:&str,c:&RunCapacities,vocab:&Value)->Value{
     let category=match field{
         "character"=>Some("character"),"room_kind"=>Some("room"),"event_kind"=>Some("event"),"terminal_kind"=>Some("terminal"),
         "map_boss"|"last_encounter"=>Some("encounter"),"last_outcome"=>Some("outcome"),"content_profile"=>Some("profile"),
@@ -99,7 +100,7 @@ macro_rules! vocabulary{
     ($fun:ident,$table:ident,$ty:ident,[$($v:ident),+ $(,)?])=>{
         pub(crate) const $table:&[$ty]=&[$($ty::$v),+];
         pub(crate) fn $fun(id:$ty)->Result<i64,RunSessionError>{
-            match id{$($ty::$v=>{}),+,$ty::Unknown(_)=>return Err(RunSessionError::Input(concat!("unsupported ",stringify!($ty))))}
+            match id{$($ty::$v=>{}),+,_=>return Err(RunSessionError::Input(concat!("unsupported ",stringify!($ty))))}
             Ok($table.iter().position(|v|*v==id).expect("exhaustive transport vocabulary") as i64+1)
         }
     }
@@ -113,8 +114,8 @@ vocabulary!(event,EVENTS,EventId,[Neow,UpgradeShrine,Purifier,AncientWriting,Jou
 pub(crate) fn character(c:Character)->i64{match c{Character::Ironclad=>1,Character::Silent=>2,Character::Defect=>3,Character::Watcher=>4}}
 pub(crate) fn node(k:MapNodeKind)->i64{match k{MapNodeKind::Monster=>1,MapNodeKind::Elite=>2,MapNodeKind::Shop=>3,MapNodeKind::Rest=>4,MapNodeKind::Question=>5,MapNodeKind::Treasure=>6,MapNodeKind::Boss=>7,MapNodeKind::Event=>8}}
 pub(crate) const ROOMS:&[&str]=&["padding","neow","map","combat","rewards","card_reward","shop","campfire","event","treasure","checkpoint_complete","boss_treasure","boss_relic_choice","boss_relic_child","proceed_without_relic","act2_ready","act2_prefix_complete","act3_ready","act3_prefix_complete","act3_boss_complete","act3_ending","act4_ready"];
-pub(crate) fn room(k:RoomViewKind)->i64{match k{RoomViewKind::Neow=>1,RoomViewKind::Map=>2,RoomViewKind::Combat=>3,RoomViewKind::Rewards=>4,RoomViewKind::CardReward=>5,RoomViewKind::Shop=>6,RoomViewKind::Campfire=>7,RoomViewKind::Event(_)=>8,RoomViewKind::Treasure=>9,RoomViewKind::CheckpointComplete=>10,RoomViewKind::BossTreasure=>11,RoomViewKind::BossRelicChoice=>12,RoomViewKind::BossRelicChild=>13,RoomViewKind::ProceedWithoutRelic=>14,RoomViewKind::Act2Ready=>15,RoomViewKind::Act2PrefixComplete=>16,RoomViewKind::Act3Ready=>17,RoomViewKind::Act3PrefixComplete=>18,RoomViewKind::Act3BossComplete=>19,RoomViewKind::Act3Ending=>20,RoomViewKind::Act4Ready=>21}}
-pub(crate) fn profile(p:RoomScenario)->i64{match p{RoomScenario::M4Act1Prefix=>1,RoomScenario::M5Act1Captured=>2,RoomScenario::M6Act2Prefix=>3,RoomScenario::M7Act2Captured=>4,RoomScenario::M8Act3Prefix=>5,RoomScenario::M9IroncladAct3=>6}}
+pub(crate) fn room(k:RoomViewKind)->Result<i64,RunSessionError>{Ok(match k{RoomViewKind::Neow=>1,RoomViewKind::Map=>2,RoomViewKind::Combat=>3,RoomViewKind::Rewards=>4,RoomViewKind::CardReward=>5,RoomViewKind::Shop=>6,RoomViewKind::Campfire=>7,RoomViewKind::Event(_)=>8,RoomViewKind::Treasure=>9,RoomViewKind::CheckpointComplete=>10,RoomViewKind::BossTreasure=>11,RoomViewKind::BossRelicChoice=>12,RoomViewKind::BossRelicChild=>13,RoomViewKind::ProceedWithoutRelic=>14,RoomViewKind::Act2Ready=>15,RoomViewKind::Act2PrefixComplete=>16,RoomViewKind::Act3Ready=>17,RoomViewKind::Act3PrefixComplete=>18,RoomViewKind::Act3BossComplete=>19,RoomViewKind::Act3Ending=>20,RoomViewKind::Act4Ready=>21,RoomViewKind::HeartVictory|RoomViewKind::TrueVictory=>return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode M10 Act4 room"))})}
+pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{Ok(match p{RoomScenario::M4Act1Prefix=>1,RoomScenario::M5Act1Captured=>2,RoomScenario::M6Act2Prefix=>3,RoomScenario::M7Act2Captured=>4,RoomScenario::M8Act3Prefix=>5,RoomScenario::M9IroncladAct3=>6,RoomScenario::M10IroncladHeart=>return Err(RunSessionError::Input("M10 profile is not representable in the M9 v1 observation schema"))})}
 pub(crate) const CHOICES:&[&str]=&["padding","neow_max_hp","neow_lament","gold","card_reward","card","potion","relic","sapphire","emerald","open_chest","rest","smith","recall","purge","shrine_upgrade","shrine_remove","ancient_elegance","ancient_simplicity","joust_murderer","joust_owner","joust_continue","joust_result","falling_lose","tomb_gold","tomb_offer_gold","leave","proceed","skip","confirm_skip","cancel_skip","act3_continue"];
 pub(crate) fn choice(c:&RoomChoiceKind)->i64{match c{RoomChoiceKind::NeowMaxHp{..}=>1,RoomChoiceKind::NeowLament=>2,RoomChoiceKind::Gold(_)=>3,RoomChoiceKind::CardReward=>4,RoomChoiceKind::Card{..}=>5,RoomChoiceKind::Potion(_)=>6,RoomChoiceKind::Relic(_)=>7,RoomChoiceKind::Sapphire=>8,RoomChoiceKind::Emerald=>9,RoomChoiceKind::OpenChest=>10,RoomChoiceKind::Rest{..}=>11,RoomChoiceKind::Smith=>12,RoomChoiceKind::Recall=>13,RoomChoiceKind::Purge=>14,RoomChoiceKind::ShrineUpgrade=>15,RoomChoiceKind::ShrineRemove=>16,RoomChoiceKind::AncientElegance=>17,RoomChoiceKind::AncientSimplicity=>18,RoomChoiceKind::JoustMurderer=>19,RoomChoiceKind::JoustOwner=>20,RoomChoiceKind::JoustContinue=>21,RoomChoiceKind::JoustResult{..}=>22,RoomChoiceKind::FallingLose{..}=>23,RoomChoiceKind::TombGold=>24,RoomChoiceKind::TombOfferGold=>25,RoomChoiceKind::Leave=>26,RoomChoiceKind::Proceed=>27,RoomChoiceKind::Skip=>28,RoomChoiceKind::ConfirmSkip=>29,RoomChoiceKind::CancelSkip=>30,RoomChoiceKind::Act3Continue{..}=>31}}
 pub(crate) fn reward(r:NeowReward)->i64{match r{NeowReward::ThreeCards=>1,NeowReward::RandomRare=>2,NeowReward::RemoveOne=>3,NeowReward::UpgradeOne=>4,NeowReward::TransformOne=>5,NeowReward::ThreeUncommonColorless=>6,NeowReward::ThreePotions=>7,NeowReward::CommonRelic=>8,NeowReward::MaxHp=>9,NeowReward::Lament=>10,NeowReward::Gold=>11,NeowReward::RareColorless=>12,NeowReward::RareRelic=>13,NeowReward::ThreeRareCards=>14,NeowReward::TransformTwo=>15,NeowReward::RemoveTwo=>16,NeowReward::Gold250=>17,NeowReward::MaxHpTwice=>18,NeowReward::BossSwap=>19}}
@@ -124,11 +125,11 @@ pub(crate) const INTENTS:&[&str]=&["padding","incantation","attack","chomp","thr
 pub(crate) fn named(table:&[&str],name:&str)->Result<i64,RunSessionError>{table.iter().position(|v|*v==name).filter(|i|*i>0).map(|i|i as i64).ok_or(RunSessionError::Input("unsupported public power or intent"))}
 // Exact additional Act1 producer names. Append IDs; never alias a spelling to
 // another intent. Transport vocabularies do not claim implementation coverage.
-const ACT1_INTENTS:&[&str]=&["charging_up","beam","bolt","stunned"];
+pub(crate) const ACT1_INTENTS:&[&str]=&["charging_up","beam","bolt","stunned"];
 pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{
     INTENTS.iter().chain(ACT1_INTENTS).position(|v|*v==name).filter(|i|*i>0).map(|i|i as i64).ok_or(RunSessionError::Input("unsupported public intent"))
 }
-fn vocabularies()->Value{
+pub(crate) fn vocabularies()->Value{
     let padded=|names:Vec<&'static str>|std::iter::once("padding").chain(names).collect::<Vec<_>>();
     json!({"card":padded(CARDS.iter().map(|id|id.as_str()).collect()),"enemy":padded(ENEMIES.iter().map(|id|id.as_str()).collect()),"encounter":padded(ENCOUNTERS.iter().map(|id|id.as_str()).collect()),"relic":padded(RELICS.iter().map(|id|id.as_str()).collect()),"potion":padded(POTIONS.iter().map(|id|id.as_str()).collect()),"event":padded(EVENTS.iter().map(|id|id.as_str()).collect()),"power":POWERS,"intent":INTENTS.iter().chain(ACT1_INTENTS).copied().collect::<Vec<_>>(),"room":ROOMS,"choice":CHOICES,"character":["padding","ironclad","silent","defect","watcher"],"map_kind":["padding","monster","elite","shop","rest","question","treasure","boss","event"],"terminal":["ongoing","death","empty_deck","act3_no_keys","heart_victory"],"outcome":["ongoing","victory","death"],"profile":["padding","M4Act1Prefix","M5Act1Captured","M6Act2Prefix","M7Act2Captured","M8Act3Prefix","M9IroncladAct3"],"choice_status":["padding","offered","claimed","skipped","disabled"],"zone":["padding","hand","discard","exhaust","played_power","stasis","selection_only"],"row_group":["none","player","map_nodes","permanent_cards","combat_cards","enemies","potions","offers","selection"],"verb":["padding","move","choose","select","confirm","cancel","use_potion","discard_potion","play_card","combat_select_card","end_turn"],"card_type":["padding","attack","skill","power","status","curse"],"stance":["padding","neutral","wrath","calm"],"orb":["empty","lightning","frost"],"neow_reward":["padding","three_cards","random_rare","remove_one","upgrade_one","transform_one","three_uncommon_colorless","three_potions","common_relic","max_hp","lament","gold","rare_colorless","rare_relic","three_rare_cards","transform_two","remove_two","gold250","max_hp_twice","boss_swap"],"neow_drawback":["none","max_hp_loss","no_gold","random_curse","current_hp_loss"]})
 }

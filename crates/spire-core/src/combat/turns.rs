@@ -33,12 +33,15 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     let next = state.turn.checked_add(1).filter(|n| *n <= i32::MAX as u32)
         .ok_or_else(|| InputError::Unsupported("next turn outside supported numeric surface".into()))?;
     state.turn = next;
+    super::piles::expire_turn_scoped_costs(state);
     state.phase = Phase::PlayerStart;
-    state.player.block = 0;
+    let retain_player_block=state.full_runtime&&state.player_full_powers.iter().any(|power|power.id.0=="barricade"&&power.state.amount>0);
+    if !retain_player_block{state.player.block = 0;}
     state.player.energy = state.player.max_energy;
     for enemy in &mut state.enemies { enemy.intent_id = enemy.selected_move.clone(); }
     super::effects::refresh_enemy_values(state)?;
     let reduction=i32::from(state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="draw_reduction"&&p.state.amount>0));
+    if state.full_runtime {state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::TurnStartedPreDraw)});}
     state.pending.push_back(Effect { source: Source::Actor(Actor::Player),
         target: Some(Actor::Player), kind: EffectKind::Draw((state.player.draw_per_turn-reduction).max(0)) });
     if state.full_runtime {
@@ -75,6 +78,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::EndPlayerTurn => {
             state.phase = Phase::EnemyTurn;
             state.pending.push_front(work(EffectKind::MonsterStart));
+            if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)});}
+            if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="no_draw"){
+                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("no_draw"))});
+            }
             if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="entangled"){
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("entangled"))});
             }
@@ -85,6 +92,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             }
             state.pending.push_front(work(EffectKind::DiscardHand));
             if state.full_runtime {for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}}
+            if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerPreEndTurnCards)});}
         }
         EffectKind::MonsterStart => {
             state.phase = Phase::EnemyTurn;
@@ -93,6 +101,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     enemy.life == super::ActorLife::Active && enemy.hp > 0) {
                     if !enemy.full_powers.iter().any(|p|p.id.0=="barricade"&&p.state.amount>0){enemy.block=0;}
                     if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="flight"){power.state.amount=3;}}
+                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="invincible"){power.state.amount=300;}}
                 }
                 state.pending.push_back(work(EffectKind::EndRound));
                 let mut scheduled=state.enemies.iter().filter(|e|e.life==super::ActorLife::HalfDead||(e.life==super::ActorLife::Active&&e.hp>0)).collect::<Vec<_>>();

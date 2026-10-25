@@ -15,10 +15,17 @@ pub(super) fn on_run_hook(state: &mut RunState, hook: Hook) -> Result<(), RunErr
     Ok(())
 }
 
-pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i32)
+pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i32,block:i32)
     -> super::RelicHookWork
 {
     let mut work = super::RelicHookWork::default();
+    if context.owns_relic(RelicId::Orichalcum) {
+        if hook==Hook::TurnStarted {context.orichalcum_trigger=false;}
+        if hook==Hook::PlayerEndTurn&&(block==0||context.orichalcum_trigger) {
+            context.orichalcum_trigger=false;
+            work.top.push(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::GainBlock(6)});
+        }
+    }
     if hook == Hook::CombatStarted {
         context.lantern_armed = context.owns_relic(RelicId::Lantern);
         if context.owns_relic(RelicId::NeowsLament) {
@@ -78,6 +85,8 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
     if crate::content::Catalog::standard().relic(id).is_none() {
         return Err(RunError::Registry("unknown relic"));
     }
+    if matches!(id,RelicId::RedSkull|RelicId::PaperPhrog|RelicId::ChampionsBelt|RelicId::CharonsAshes|RelicId::SelfFormingClay)
+        &&state.character!=crate::content::Character::Ironclad{return Err(RunError::InvalidAction)}
     let max_hp_gain = match id {
         RelicId::Strawberry => 7,
         RelicId::Pear => 10,

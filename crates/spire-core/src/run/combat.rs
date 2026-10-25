@@ -36,10 +36,10 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
         return Err(RunError::InvalidAction);
     }
     let mut seen=BTreeSet::new();
-    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.stasis).chain(&exit.played_powers) {
+    for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.play_frames).chain(&exit.queued_autoplay).chain(&exit.stasis).chain(&exit.played_powers).chain(&exit.inactive_cards) {
         if let CombatCardRef::Permanent(id)=card.origin {
             if card.instance!=id || active.acquired_instances.contains(&id.0) || !seen.insert(id.0) || !state.deck.iter().any(|original|
-                original.instance==id.0 && original.id==card.id && original.upgrades==card.upgrades) {
+                original.instance==id.0 && original.id==card.id && Some(original.upgrades)==card.upgrades.checked_sub(card.local.temporary_upgrades)) {
                 return Err(RunError::Unsupported("permanent card exit mismatch"));
             }
         }
@@ -47,7 +47,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     let originals=state.deck.iter().filter(|c|!active.acquired_instances.contains(&c.instance)).map(|c|c.instance).collect::<BTreeSet<_>>();
     if seen!=originals { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    let local_visits=if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else{None};
+    let local_visits=if super::rooms::is_m10(state)&&state.act==4{Some((4,state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act4 settled visit exhausted"))?))}else if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else{None};
     Ok((exit,record,settled,local_visits))
 }
 
@@ -57,8 +57,13 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
     let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
     let m8=super::rooms::uses_captured_act3(state)&&state.act==3&&matches!(encounter,EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::FourShapes|EncounterId::Maw|EncounterId::SphereAndTwoShapes|EncounterId::JawWormHorde|EncounterId::ThreeDarklings|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer);
-    let m9_boss=super::rooms::is_m9(state)&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..});
-    if !m5&&!m6&&!m8&&!m9_boss&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    let captured_act3_boss=(super::rooms::is_m9(state)||super::rooms::is_m10(state))&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..});
+    let captured_act4=super::rooms::is_m10(state)&&state.act==4&&match (encounter,origin){
+        (EncounterId::ShieldAndSpear,CombatOrigin::MapRoom{node,kind:MapNodeKind::Elite})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==53&&n.visited&&n.encounter==Some(encounter)&&!n.burning)),
+        (EncounterId::CorruptHeart,CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==54&&n.visited&&n.encounter==Some(encounter))),
+        _=>false,
+    };
+    if !m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
@@ -86,6 +91,19 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
 
 impl Run {
     pub(super) fn sync_permanent_gains(&mut self)->Result<(),RunError>{
+        // Feed commits maxHP at its native Fatal checkpoint. Publish that same
+        // resource owner after each attempted action, including an action that
+        // later faults, without replaying its already-committed heal.
+        if let Some(combat)=self.state.combat.as_ref(){
+            let max_hp=combat.max_hp_for_run();
+            let Ok(max_hp)=u32::try_from(max_hp) else {
+                return Err(self.retain_fault(RunFaultKind::Invariant("combat max HP is outside Run bounds"),"run.combat.max-hp"));
+            };
+            if max_hp>999 {
+                return Err(self.retain_fault(RunFaultKind::Invariant("combat max HP is outside Run bounds"),"run.combat.max-hp"));
+            }
+            self.state.max_hp=max_hp;
+        }
         let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
         if let Some((cards,next,ordinal))=prepared{
             let ids=cards.iter().map(|c|c.instance).collect::<Vec<_>>();self.state.deck.extend(cards);self.state.next_instance=next;
@@ -131,6 +149,16 @@ impl Run {
             Err(RunError::Faulted(fault))=>{self.state.fault=Some(fault.clone());return Err(RunError::Faulted(fault));}
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat settlement validation failed"),"run.combat.settlement")),
         };
+        let act4_node=match super::rooms::act4::validate_combat_source(self,&record){
+            Ok(node)=>node,
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act4 combat source preparation failed"),"run.m10.act4.settlement")),
+        };
+        let heart_victory=if act4_node.is_some()&&record.encounter==EncounterId::CorruptHeart&&record.outcome==Outcome::Victory{
+            match super::rooms::act4::prepare_heart_victory(self,&record){
+                Ok(prepared)=>prepared,
+                Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Heart victory Proceed preparation failed"),"run.m10.heart.victory")),
+            }
+        }else{None};
         let mut events=vec![CommittedEvent::CombatFinished(record.clone())];
         if exit.outcome==Outcome::Death {events.push(CommittedEvent::Ended(RunTerminal::Death));}
         if super::reward::preflight(&self.state,&events).is_err(){
@@ -142,23 +170,27 @@ impl Run {
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),"run.m9.act3.end")),
         };
-        let rewards=match if ending.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
+        let rewards=match if ending.is_some()||heart_victory.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
         };
         // All conversions/counter/membership/return checks precede this commit.
         // Export is detached; the real terminal owner remains until commit.
-        exit.item_context.take().unwrap().return_to_run(&mut self.state)?;
+        if exit.item_context.take().unwrap().return_to_run(&mut self.state).is_err(){
+            return Err(self.retain_fault(RunFaultKind::Invariant("accepted combat item return failed"),"run.combat.item-return"));
+        }
         self.state.hp=exit.hp as u32;
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
-        if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();if act==3{room.act3.as_mut().unwrap().combat_visits=visits;}else{room.act2.as_mut().unwrap().combat_visits=visits;}}
+        if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();match act{2=>room.act2.as_mut().unwrap().combat_visits=visits,3=>room.act3.as_mut().unwrap().combat_visits=visits,4=>room.act4.as_mut().unwrap().combat_visits=visits,_=>unreachable!()}}
         self.state.last_combat=Some(record.clone());
         self.state.active_combat=None;
         self.state.combat=None;
         self.candidates.clear();
         if let Some(prepared)=rewards{super::rooms::rewards::commit_combat(self,prepared);}
         if let Some(prepared)=ending{super::rooms::act3_end::commit(self,prepared);}
+        if let Some(node)=act4_node{super::rooms::act4::commit_elite_victory(self,node,record.clone());}
+        if let Some(prepared)=heart_victory{super::rooms::act4::commit_heart_victory(self,prepared);}
         if exit.outcome==Outcome::Death {
             self.state.terminal=Some(RunTerminal::Death);
         }

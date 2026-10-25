@@ -1,5 +1,21 @@
 use super::*;
-pub(in crate::run) fn screen(run:&Run,next:&mut u64)->Result<RoomView,RunError>{
+pub(in crate::run) fn screen(run:&Run,next:&mut u64)->Result<RoomView,RunError>{let mut rng=run.state.rng.clone();screen_with_rng(run,next,&mut rng)}
+pub(in crate::run) fn screen_with_rng(run:&Run,next:&mut u64,rng:&mut RunRng)->Result<RoomView,RunError>{
+    let node=if is_m10(&run.state){run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?}else{NodeId(0)};
+    screen_with_rng_at(run,next,rng,(run.state.act,run.state.floor,node))
+}
+pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,destination:(u8,u32,NodeId))->Result<RoomView,RunError>{
+    if is_m10(&run.state){
+        let (act,floor,node)=destination;
+        let cards=super::m10_content::sample_capture_row(rng,&[u64::from(act),u64::from(floor),node.0],&[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare])?;
+        let mut rows=cards.into_iter().zip([50,75,150]).map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
+        rows.extend([(RoomChoiceKind::Relic(RelicId::Brimstone),Some(150)),
+            (RoomChoiceKind::Potion(PotionId::BloodPotion),Some(50)),
+            (RoomChoiceKind::Potion(PotionId::Elixir),Some(75)),
+            (RoomChoiceKind::Potion(PotionId::HeartOfIron),Some(100)),
+            (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
+        return view(next,RoomViewKind::Shop,rows)
+    }
     if uses_captured_act1(&run.state){
         let later=(uses_captured_act2(&run.state)&&run.state.act==2)||(uses_captured_act3(&run.state)&&run.state.act==3)||run.state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).is_some_and(|p|p.shop_visits>0);
         let (card,price,potion,relic)=if later{(CardId::Clothesline,50,PotionId::StrengthPotion,RelicId::Anchor)}else{(CardId::IronWave,25,PotionId::FirePotion,RelicId::BloodVial)};

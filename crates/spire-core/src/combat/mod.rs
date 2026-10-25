@@ -8,11 +8,12 @@ mod content;
 mod model;
 mod engine;
 mod effects;
+mod exhaust;
 mod powers;
 mod piles;
 mod turns;
 mod status;
-mod card_state;
+pub(crate) mod card_state;
 mod characters;
 pub mod cards;
 mod selection;
@@ -28,16 +29,17 @@ pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
     ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind,
     EnemyHandle, EnemySetup, EnemyState, EnemyReplacementDiagnostics, SpawnRequest, EnemySpawnDiagnostics,
     CombatEntry, CombatFault, FaultKind, FaultRecord, FullCombatSetup, FullEnemySetup, FullIntentId, FullPowerEntry, FullPowerId, InputError, Outcome, Phase, Piles, PlayerState, PowerEntry,
-    PowerState, PublicKnowledge, RestoreError, Scenario, Source, StepError, Transition,
-    TransitionStatus};
+    PowerState, PublicKnowledge, PendingSelection, RestoreError, Scenario, Source, StepError, Transition,
+     TransitionStatus, PlayerFacing, EncounterSide};
 pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
-pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView};
+pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
 pub use card_state::{permanent as permanent_live_card, CombatCardData, LiveCard};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, Stance};
-pub use cards::resolve;
+pub use cards::{resolve,IroncladEffect};
+pub use view::{CardCostKind,CardPublicValues};
 pub use hooks::{Hook, HookEvent};
-pub use selection::{EmptySelection, SelectionDisposition};
+pub use selection::{EmptySelection, SelectionDisposition,SelectionOperation,SelectionParent,SelectionSourceZone};
 pub use snapshot::{Divergence, Snapshot};
 
 #[cfg(test)]

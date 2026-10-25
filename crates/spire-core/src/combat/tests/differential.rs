@@ -45,6 +45,18 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::Heal(n)=> ("heal",json!({"amount":n})),
         EffectKind::IncreaseMaxHpThenHeal(n)=> ("increase_max_hp_then_heal",json!({"amount":n})),
         EffectKind::NeowsLament=>("neows_lament",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::UpgradeHand{all})=>("ironclad_upgrade_hand",json!({"all":all})),
+        EffectKind::Ironclad(cards::IroncladEffect::UpgradeCard{instance})=>("ironclad_upgrade_card",json!({"instance":instance.0})),
+        EffectKind::Ironclad(cards::IroncladEffect::SwordBoomerangHit{damage})=>("ironclad_sword_boomerang_hit",json!({"damage":damage})),
+        EffectKind::Ironclad(cards::IroncladEffect::DoubleCurrentBlock)=>("ironclad_double_current_block",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::SpotWeakness{amount})=>("ironclad_spot_weakness",json!({"amount":amount})),
+        EffectKind::Ironclad(cards::IroncladEffect::TrueGritRandomExhaust)=>("ironclad_true_grit_random_exhaust",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::ChooseTrueGritCard)=>("ironclad_choose_true_grit_card",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::ChooseHeadbuttCard)=>("ironclad_choose_headbutt_card",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::ChooseExhumeCard)=>("ironclad_choose_exhume_card",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::ChooseDualWieldCard)=>("ironclad_choose_dual_wield_card",json!({})),
+        EffectKind::Ironclad(cards::IroncladEffect::WhirlwindRound{..}|cards::IroncladEffect::WhirlwindSpend|cards::IroncladEffect::HavocTop{..}|cards::IroncladEffect::HavocExtract{..}|cards::IroncladEffect::DoubleTapRepeat{..}|cards::IroncladEffect::HavocQueued{..}|cards::IroncladEffect::FinishSuppressed|cards::IroncladEffect::LimitBreakDispatch|cards::IroncladEffect::DropkickDispatch{..}|cards::IroncladEffect::RampageGrow{..}|cards::IroncladEffect::ReaperResolve{..})=>panic!("M9 v1 cannot encode M10 Ironclad work"),
+        EffectKind::ExhaustBatchStart{..}|EffectKind::ExhaustBatchContinue(_)=>panic!("M9 v1 cannot encode M10 exhaust batch work"),
         EffectKind::GuardianChange(change)=>("guardian_change",json!({"change":match change {
             enemies::GuardianEffect::Defensive=>"defensive",enemies::GuardianEffect::Offensive=>"offensive",
             enemies::GuardianEffect::Reset=>"reset",enemies::GuardianEffect::LoseBlock=>"lose_block",
@@ -91,6 +103,8 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::DrawOne=>("draw_one",json!({})),
         EffectKind::AfterCardDrawn{card}=>("after_card_drawn",json!({"card":card.as_str()})),
         EffectKind::FinishCard=>("finish_card",json!({})), EffectKind::Decision=>("decision",json!({})),
+        EffectKind::JuggernautRandomDamage(_)=>panic!("M9 v1 cannot encode M10 reactive work"),
+        EffectKind::Ironclad(super::super::cards::IroncladEffect::InfernalBladeGenerate)=>panic!("M9 v1 cannot encode M10 generation work"),
         EffectKind::Recycle=>("recycle",json!({})), EffectKind::DiscardHand=>("discard_hand",json!({})),
         EffectKind::EndPlayerTurn=>("end_player_turn",json!({})), EffectKind::MonsterStart=>("monster_start",json!({})),
         EffectKind::EnemyMove=>("enemy_move",json!({})), EffectKind::RollMove=>("roll_move",json!({})),
@@ -99,7 +113,9 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::SelectCard { candidates, empty } => ("select_card", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"empty":format!("{empty:?}")})),
         EffectKind::SelectCards { candidates, required, disposition, empty } => ("select_cards", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
         EffectKind::SelectHandCardsAfterDraw { required, disposition, empty } => ("select_hand_after_draw", json!({"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
+        EffectKind::Hook(Hook::CardAfterUse) => panic!("M9 v1 cannot encode M10 after-use Heart work"),
         EffectKind::Hook(hook) => ("hook", json!({"hook":format!("{hook:?}")})),
+        EffectKind::CorruptHeartBuff => panic!("M9 v1 cannot encode M10 Corrupt Heart work"),
         EffectKind::ReplaceEnemy { parent, children } => ("replace_enemy", json!({
             "parent": parent.as_str(), "children": children.iter().map(|id| id.as_str()).collect::<Vec<_>>() })),
         EffectKind::CardContinuation(continuation) => ("card_continuation", match continuation {
@@ -109,6 +125,7 @@ pub(super) fn effect(e: &Effect) -> Value {
             super::super::cards::DefectContinuation::CompileDriverDraw => json!({"compile_driver_draw":true}),
         }),
         EffectKind::Character(action) => ("character", match *action {
+            super::super::characters::CharacterEffect::Focus(_) => panic!("M9 v1 cannot encode M10 Focus work"),
             super::super::characters::CharacterEffect::Stance(stance) => json!({"stance":match stance {
                 super::super::characters::Stance::Neutral => "neutral",
                 super::super::characters::Stance::Wrath => "wrath",
@@ -120,8 +137,9 @@ pub(super) fn effect(e: &Effect) -> Value {
             super::super::characters::CharacterEffect::EvokeAt { index } => json!({"evoke_at":{"index":index}}),
             super::super::characters::CharacterEffect::EndTurn => json!({"end_turn_orbs":true}),
         }),
+        EffectKind::ShieldBashFocus => panic!("M10 Shield Bash continuation is unsupported by M9 v1"),
     };
-    let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Actor(a)=>json!({"actor":actor(a)})};
+    let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),Source::Actor(a)=>json!({"actor":actor(a)})};
     json!({"kind":kind,"source":source,"target":e.target.as_ref().map(actor),"payload":payload})
 }
 fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Outcome::Death=>"death"} }
@@ -134,16 +152,22 @@ fn fault(f: &FaultRecord) -> Value {
 fn combat_action(a: &CombatAction) -> Value { match a {
     CombatAction::PlayCard { instance, target } => json!({"play_card":{"instance":instance,"target":target.map(|t|t.0)}}),
     CombatAction::SelectCard { instance } => json!({"select_card":{"instance":instance}}),
+    CombatAction::ConfirmSelection=>json!("confirm_selection"),
     CombatAction::UsePotion { slot, target } => json!({"use_potion":{"slot":slot,"target":target.map(|id|id.0)}}),
     CombatAction::EndTurn => json!("end_turn"),
 } }
 fn selection_capture(s: &super::super::model::PendingSelection) -> Value {
-    json!({"parent":s.parent.as_str(),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
-        "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"required":s.required,
+    let parent=match &s.parent{SelectionParent::Card(card)=>json!({"card":card.as_str()}),SelectionParent::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}})};
+    json!({"parent":parent,"source_zone":format!("{:?}",s.source_zone),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
+        "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"minimum":s.minimum,"maximum":s.maximum,
         "disposition":format!("{:?}",s.disposition),"empty":format!("{:?}",s.empty)})
 }
 pub(super) fn encode_checkpoint(c: &Combat) -> Value {
     let s=&c.state; let p=&s.player;
+    assert!(s.play_frames.is_empty()&&s.queued_autoplay.is_empty(),
+        "M9 v1 cannot encode an active or retained M10 autoplay play frame");
+    assert!(!s.enemies.iter().any(|enemy|enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart)),
+        "M9 v1 cannot encode M10 Corrupt Heart state");
     let enemies:Vec<_>=s.enemies.iter().map(|e| {
         let damage:serde_json::Map<String,Value>=e.damage_entries.iter().map(|(id,d)| (id.as_str().into(),json!({"base":d.base,"output":d.output}))).collect();
         json!({"instance_id":e.instance_id.as_str(),"enemy_id":e.enemy_id.as_str(),"hp":e.hp,"max_hp":e.max_hp,"block":e.block,"powers":powers(&e.powers),
@@ -165,6 +189,13 @@ pub(super) fn encode_checkpoint(c: &Combat) -> Value {
             "relics":items.relics().iter().map(|id|id.as_str()).collect::<Vec<_>>(),
             "potions":items.potions().iter().map(|id|id.map(|id|id.as_str())).collect::<Vec<_>>() })),
         "hp_before_healing":s.hp_before_healing,"hp_after_cleanup":s.hp_after_cleanup})
+}
+
+#[test]
+#[should_panic(expected="M9 v1 cannot encode M10 Corrupt Heart state")]
+fn m9_v1_explicitly_rejects_a_real_heart_checkpoint(){
+    let combat=super::m10_heart::actual_heart();
+    let _=encode_checkpoint(&combat);
 }
 pub(super) fn action(a: &Action) -> Value { match a {
     Action::EndTurn=>json!({"kind":"end_turn"}),
@@ -233,6 +264,14 @@ fn protocol() {
         },
         _=>panic!("both interchange paths are required"),
     }
+}
+
+#[test]
+fn m10_focus_character_work_is_explicitly_rejected_by_unchanged_m9_v1_serializer(){
+    let work=Effect{source:Source::Actor(Actor::Enemy(EnemyHandle::parse("shield-0").unwrap())),
+        target:Some(Actor::Player),kind:EffectKind::Character(super::super::characters::CharacterEffect::Focus(-1))};
+    let rejected=std::panic::catch_unwind(||effect(&work));
+    assert!(rejected.is_err(),"M9-v1 wire remains closed rather than silently encoding M10 Focus work");
 }
 
 #[test]

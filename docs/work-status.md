@@ -1,4 +1,4 @@
-# Work orientation — 2026-10-24
+# Work orientation — 2026-10-25
 
 Beads is authoritative; this is an administrative snapshot, not another task board.
 See [scope](scope.md) for the current repo boundary and [environment usage](combat-environments.md)
@@ -15,9 +15,35 @@ seed7/11 losses remain unchanged and cross-layer replayed; no normal-start boss5
 or no-key win claim. User excluded strategy development, not simulator correctness.
 Verified Gym-only Python environment has no Torch; on-demand pinned uv/prek/Ruff/ty
 checks only touched files. No broad format/shared hooks/publication/cleanup. M9
-changes remain uncommitted on `plan/m9-ironclad-act3-20261023` at `df0150f`.
-M10 is next for planning only; no automatic product start. Beads/ledger remain
-authoritative; the dated M8 narrative below is historical.
+changes were published in PR45/ad40ee7 after TWO additionally user-requested fresh
+Luna publication reviews, both approving exact5ff1f02 without findings. The merged
+tree equals the reviewed candidate; existing seven Rust failures and broader Python
+limits remain explicit. No continuing publication/cleanup authority is implied.
+
+M10 implementation and its preservation matrix are complete on the final 607-file
+source baseline; M10 is accepted at its declared captured profile after ONE clean
+independent review and exact verification of all 608 reviewed source files in both
+checkouts. The approved [plan](superpowers/plans/2026-10-24-m10-ironclad-heart.md)
+covers Ironclad A0 content, actual keys/Act4/Heart and versioned native/Gym/replay
+tools. The workspace recorded 1,402 passes and exactly the seven preserved historical
+core failures (core 1,149/7); scoped native filters passed: M10 453, M9 32, M8 115,
+M7 16 and M6 95, all with zero failures. Task 26's earlier 5 batch/102 `spire-env`/
+1,401 workspace result remains its historical checkpoint. The fresh Python
+environment passed 251 tests (235 prior plus 16 Task 28); changed-file Ruff/format/
+`ty` checks passed. All ten native examples plus M9 seed-7, M10 seed-7, nonattacking,
+and four expected-error CLI cases matched their expected results (17 invocations);
+enemy/power reference suites passed 27/20 and the power builder regenerated 133
+records. Task 28 confirmed the actual optional Elixir selector, normal Confirm0
+record/replay/array agreement and one-time potion consumption, plus retained accepted-
+child delivery-fault behavior. The ONE fresh GPT-6 Luna MAX reviewer
+`ses_e8bdccfd2ffe9wlTc8FVR7oHE3` found no Critical, Important, or Minor findings;
+all five focus classes and six declared exclusion categories were controller-ruled.
+Its fresh checks passed native M10 453, environment 102, report 12, and Python 251.
+M10 `.32.2`/`.32` are normally closed. Natural early Deaths remain valid outcomes;
+M11 planning-only `.33.1` is open/unassigned for ONE written plan and user review
+before any product work. Beads and
+the native controller ledger remain authoritative; the dated history below is
+preserved as historical context.
 
 2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
 The isolated feature worktree remains at `ddd4df2` after separately authorized

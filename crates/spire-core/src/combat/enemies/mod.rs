@@ -91,11 +91,13 @@ pub enum EnemyMemory {
     AwakenedOne{phase:AwakenedPhase,first:bool},
     TimeEater{haste_used:bool},
     Deca{attacking:bool},Donu{attacking:bool},
+    SpireShield{selections:u32},SpireSpear{selections:u32},
     LouseRed { curl_up_used: bool },
     LouseGreen { curl_up_used: bool },
     AcidSlime { split_triggered: bool },
     SpikeSlime { split_triggered: bool },
     SlimeBoss { split_triggered: bool },
+    CorruptHeart { selection_count:u32, first_attack:Option<bool>, buff_count:u32, last_buff_selection:Option<u32> },
 }
 
 impl EnemyMemory {
@@ -117,6 +119,8 @@ impl EnemyMemory {
         }
         match id {
             EnemyId::Deca=>Ok(Self::Deca{attacking:true}),EnemyId::Donu=>Ok(Self::Donu{attacking:false}),
+            EnemyId::SpireShield=>Ok(Self::SpireShield{selections:0}),EnemyId::SpireSpear=>Ok(Self::SpireSpear{selections:0}),
+            EnemyId::CorruptHeart=>Ok(Self::CorruptHeart{selection_count:0,first_attack:None,buff_count:0,last_buff_selection:None}),
             EnemyId::TimeEater=>Ok(Self::TimeEater{haste_used:false}),
             EnemyId::AwakenedOne=>Ok(Self::AwakenedOne{phase:AwakenedPhase::First,first:true}),
             EnemyId::Reptomancer=>Ok(Self::Reptomancer{first:true,slots:Default::default()}),EnemyId::Dagger=>Ok(Self::Dagger{first:true}),
@@ -170,6 +174,15 @@ impl EnemyMemory {
     pub fn valid_for(&self, id: EnemyId) -> bool {
         match (id, self) {
             (EnemyId::Deca,Self::Deca{..})|(EnemyId::Donu,Self::Donu{..})=>true,
+            (EnemyId::SpireShield,Self::SpireShield{..})|(EnemyId::SpireSpear,Self::SpireSpear{..})=>true,
+            (EnemyId::CorruptHeart,Self::CorruptHeart{selection_count,first_attack,buff_count,last_buff_selection})=>{
+                let maximum=*selection_count/3;
+                let minimum=maximum.saturating_sub(u32::from(*selection_count>0&&selection_count%3==0));
+                *selection_count<=i32::MAX as u32&&(*selection_count==0)==first_attack.is_none()
+                    &&*buff_count>=minimum&&*buff_count<=maximum&&*buff_count<=i32::MAX as u32
+                    &&((*buff_count==0&&last_buff_selection.is_none())
+                        ||(*buff_count>0&&*last_buff_selection==buff_count.checked_mul(3).and_then(|n|n.checked_sub(1))))
+            },
             (EnemyId::TimeEater,Self::TimeEater{..})=>true,
             (EnemyId::AwakenedOne,Self::AwakenedOne{..})=>true,
             (EnemyId::Reptomancer,Self::Reptomancer{slots,..})=>slots.keys().all(|slot|*slot<4)&&slots.values().collect::<std::collections::BTreeSet<_>>().len()==slots.len(),
@@ -355,6 +368,7 @@ impl From<RngError> for SelectError { fn from(value: RngError) -> Self { Self::R
 
 /// Construct ordinary shared-resolver effects for the actor's selected intent.
 pub fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> {
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart){return act4::heart::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Deca|EnemyId::Donu)){return Err(InputError::Unsupported("Deca/Donu payload requires live group context".into()))}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater){return act3::time_eater::move_work(enemy)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::AwakenedOne){return act3::awakened::move_work(enemy)}
@@ -438,6 +452,7 @@ fn jaw_bellow_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> {
 /// One-time setup work for an encounter-selected native profile. These are
 /// ordinary resolver effects, not a fabricated monster turn or history entry.
 pub(super) fn prebattle_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> {
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart){return Ok(act4::heart::prebattle_work(enemy))}
     match enemy.full_memory.as_ref() {
         Some(EnemyMemory::SphericGuardian)=>{let actor=Actor::Enemy(enemy.instance_id.clone());Ok(vec![effect(actor.clone(),actor,EffectKind::GainBlock(40))])},
         Some(EnemyMemory::Lagavulin{awake:false,..})=>{let actor=Actor::Enemy(enemy.instance_id.clone());Ok(vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(8)),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("metallicize"),amount:8})])},
@@ -462,6 +477,8 @@ pub fn select_move(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
     if stream.id().domain() != rng::Domain::RunCombatEnemyAi {
         return Err(InputError::Unsupported("native full enemy selection requires run enemy AI stream".into()).into());
     }
+    if id==EnemyId::CorruptHeart{return act4::heart::select_move(history,memory,stream)}
+    if act4::supports(id){return act4::select_move(id,history,memory,stream);}
     match (id, memory) {
         (EnemyId::Deca|EnemyId::Donu,_)=>act3::partners::select_move(id,history,memory,stream),
         (EnemyId::TimeEater,_)=>Err(InputError::Unsupported("Time Eater selection requires live owner context".into()).into()),
@@ -671,9 +688,10 @@ fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::OrbWalker=>(90,96),EnemyId::Repulsor=>(29,35),EnemyId::Exploder=>(30,30),EnemyId::Spiker=>(42,56),
         EnemyId::GremlinLeader=>(140,148),EnemyId::GremlinMad=>(20,24),EnemyId::GremlinSneaky=>(10,14),EnemyId::GremlinFat=>(13,17),EnemyId::GremlinShield=>(12,15),EnemyId::GremlinWizard=>(21,25),
         EnemyId::SlaverBlue|EnemyId::SlaverRed=>(46,50),EnemyId::Taskmaster=>(54,60),EnemyId::BookOfStabbing=>(160,164),
-        EnemyId::Champ=>(420,420),
+        EnemyId::Champ=>(420,420),EnemyId::CorruptHeart=>(750,750),
         EnemyId::Collector=>(282,282),EnemyId::TorchHead=>(38,40),
         EnemyId::BronzeAutomaton=>(300,300),EnemyId::BronzeOrb=>(52,58),
+        EnemyId::SpireShield=>(110,110),EnemyId::SpireSpear=>(160,160),
     }
 }
 
@@ -737,6 +755,9 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::Champ=>&[(FullIntentId::from_name("champ_slash"),16),(FullIntentId::from_name("champ_execute"),10),(FullIntentId::from_name("champ_slap"),12)],
         EnemyId::Collector=>&[(FullIntentId::from_name("collector_rake"),18)],EnemyId::TorchHead=>&[(FullIntentId::from_name("torch_attack"),7)],
         EnemyId::BronzeAutomaton=>&[(FullIntentId::from_name("automaton_flail"),7),(FullIntentId::from_name("automaton_beam"),45)],EnemyId::BronzeOrb=>&[(FullIntentId::from_name("orb_beam"),8)],
+        EnemyId::CorruptHeart=>&[(FullIntentId::from_name("heart_blood_shots"),2),(FullIntentId::from_name("heart_echo"),40)],
+        EnemyId::SpireShield=>&[(FullIntentId::from_name("shield_bash"),12),(FullIntentId::from_name("shield_smash"),34)],
+        EnemyId::SpireSpear=>&[(FullIntentId::from_name("spear_burn_strike"),5),(FullIntentId::from_name("spear_skewer"),10)],
     };
     Ok(entries.iter().copied().collect())
 }
@@ -802,6 +823,14 @@ fn select_jaw(history: &[FullIntentId], memory: &EnemyMemory, stream: &StreamSta
 
 /// Append native enemy payload to the same queue consumed by the shared resolver.
 pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::EffectError> {
+    if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart)){
+        let enemy=state.enemies.iter().find(|enemy|&enemy.instance_id==owner).expect("selected Heart owner");
+        let work=act4::heart::move_work(enemy)?;
+        for effect in work.into_iter().rev(){state.pending.push_front(effect);}
+        super::effects::refresh_enemy_values(state)?;
+        return Ok(())
+    }
+    if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(id) if act4::supports(id))){let work=act4::move_work(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())}
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(id) if act3::supports(id))){let work=act3::take_turn(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())}
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::BronzeAutomaton|EnemyId::BronzeOrb))){let work=act2::automaton::move_work(state,owner)?;for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())}
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::SlaverBlue|EnemyId::Taskmaster|EnemyId::SlaverRed|EnemyId::BookOfStabbing|EnemyId::Champ|EnemyId::Collector|EnemyId::TorchHead))){
@@ -871,7 +900,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::Reptomancer=>38,
         EncounterId::AwakenedOne=>39,
         EncounterId::TimeEater=>40,
-        EncounterId::DonuAndDeca=>41,
+        EncounterId::DonuAndDeca=>41,EncounterId::ShieldAndSpear=>42,EncounterId::CorruptHeart=>43,
         _ => return Err(crate::run::RunError::Registry("encounter setup not implemented")),
     };
     let expected_act = match encounter {
@@ -880,6 +909,8 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         | EncounterId::SlimeBoss => 1,
         EncounterId::ThreeCultists|EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::ChosenAndByrds|EncounterId::Snecko|EncounterId::CenturionAndHealer|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton => 2,
         EncounterId::JawWormHorde|EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::FourShapes|EncounterId::SphereAndTwoShapes|EncounterId::ThreeDarklings|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::Maw|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer|EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca => 3,
+        EncounterId::CorruptHeart=>4,
+        EncounterId::ShieldAndSpear => 4,
         EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries|EncounterId::ThreeLouse|EncounterId::Guardian|EncounterId::Hexaghost => 1,
         _ => unreachable!("encounter key lookup validated supported encounter"),
     };
@@ -895,6 +926,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     let mut enemies = Vec::new();
     let mut damage_bases = std::collections::BTreeMap::new();
     let ids = match encounter {
+        EncounterId::ShieldAndSpear=>vec![EnemyId::SpireShield,EnemyId::SpireSpear],
         EncounterId::Cultist => vec![EnemyId::Cultist],
         EncounterId::JawWorm => vec![EnemyId::JawWorm],
         EncounterId::ThreeCultists => vec![EnemyId::Cultist; 3],
@@ -920,6 +952,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::AwakenedOne=>vec![EnemyId::Cultist,EnemyId::Cultist,EnemyId::AwakenedOne],
         EncounterId::TimeEater=>vec![EnemyId::TimeEater],
         EncounterId::DonuAndDeca=>vec![EnemyId::Deca,EnemyId::Donu],
+        EncounterId::CorruptHeart=>vec![EnemyId::CorruptHeart],
         EncounterId::ThreeShapes=>vec![EnemyId::Repulsor;3],EncounterId::FourShapes=>vec![EnemyId::Repulsor;4],
         EncounterId::SphereAndTwoShapes=>vec![EnemyId::Repulsor,EnemyId::Repulsor,EnemyId::SphericGuardian],
         EncounterId::GremlinLeader=>{
@@ -967,6 +1000,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         }
         let mut powers = Vec::new();
         if matches!(id,EnemyId::Deca|EnemyId::Donu){powers.push(super::FullPowerEntry{id:FullPowerId("artifact"),state:super::PowerState{amount:2,skip_first:false,monster_source_grace:false}});}
+        if encounter==EncounterId::ShieldAndSpear{powers.push(super::FullPowerEntry{id:FullPowerId("artifact"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});powers.push(super::FullPowerEntry{id:FullPowerId("back_attack"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
         if id==EnemyId::TimeEater{powers.push(super::FullPowerEntry{id:FullPowerId("time_warp"),state:super::PowerState{amount:0,skip_first:false,monster_source_grace:false}});}
         if id==EnemyId::AwakenedOne{for (name,amount) in [("curiosity",1),("regenerate",10),("unawakened",1)]{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
         if encounter==EncounterId::Reptomancer&&id!=EnemyId::Reptomancer{powers.push(super::FullPowerEntry{id:FullPowerId("minion"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
@@ -975,6 +1009,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         if id==EnemyId::Transient{for (name,amount) in [("fading",5),("shifting",1)]{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
         for (species,name,amount) in [(EnemyId::OrbWalker,"strength_up",3),(EnemyId::Spiker,"thorns",3),(EnemyId::Exploder,"explosive",3)]{if id==species{powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
         if id==EnemyId::BronzeAutomaton{powers.push(super::FullPowerEntry{id:FullPowerId("artifact"),state:super::PowerState{amount:3,skip_first:false,monster_source_grace:false}});}
+        if id==EnemyId::CorruptHeart {for (name,amount) in [("beat_of_death",1),("invincible",300)] {powers.push(super::FullPowerEntry{id:FullPowerId(name),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}}
         if id==EnemyId::BookOfStabbing{powers.push(super::FullPowerEntry{id:FullPowerId("painful_stabs"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
         if encounter==EncounterId::GremlinLeader&&id!=EnemyId::GremlinLeader{powers.push(super::FullPowerEntry{id:FullPowerId("minion"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
         if id==EnemyId::GremlinMad{powers.push(super::FullPowerEntry{id:FullPowerId("angry"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
@@ -1013,8 +1048,12 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     let summaries=enemies.iter().enumerate().map(|(slot,a)|act2::ActorSummary{owner:a.instance_id.clone(),species:a.enemy_id,hp:a.hp,max_hp:a.max_hp,slot:slot as u8}).collect::<Vec<_>>();
     for actor in &mut enemies {
         let context=act2::EnemyRollContext{owner:actor.instance_id.clone(),turn:1,actors:summaries.clone()};
-        let selected=if actor.enemy_id==EnemyId::SpireGrowth{act3::ordinary::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,Some(player_constricted))}else{act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context)}.map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
-        actor.intent=selected.intent;actor.ai_rng=selected.stream;actor.initial_memory=Some(selected.memory);
+        if actor.enemy_id==EnemyId::CorruptHeart {
+            actor.intent=FullIntentId::HeartDebilitate;
+        }else{
+            let selected=if actor.enemy_id==EnemyId::SpireGrowth{act3::ordinary::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,Some(player_constricted))}else{act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context)}.map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
+            actor.intent=selected.intent;actor.ai_rng=selected.stream;actor.initial_memory=Some(selected.memory);
+        }
     }
     let shuffle_rng = rng.derive_combat_stream(crate::combat::rng::Domain::RunCombatShuffle,
         act, encounter.as_str(), visit, None, "shuffle")
@@ -1022,7 +1061,9 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     let card_rng = rng.derive_combat_stream(crate::combat::rng::Domain::RunCombatCardRandom,
         act, encounter.as_str(), visit, None, "card")
         .map_err(|_| crate::run::RunError::Unsupported("combat card-random stream derivation failed"))?;
-    let setup = FullCombatSetup { player: context.player, player_powers: context.player_powers,
+    let mut player_powers=context.player_powers;
+    if encounter==EncounterId::ShieldAndSpear{player_powers.push(super::FullPowerEntry{id:FullPowerId("surrounded"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
+    let setup = FullCombatSetup { player: context.player, player_powers,
         character: context.character, card_rng,
         shuffle_rng, enemies, enemy_damage_bases: damage_bases };
     Ok(super::CombatEntry { setup, opening_draw: context.opening_draw, cards: context.cards })

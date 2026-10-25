@@ -36,9 +36,9 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let p=run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?;
     let questions=if node.kind==MapNodeKind::Question{p.question_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 question visits exhausted"))?}else{p.question_visits};
     let shops=if captured.kind==MapNodeKind::Shop{p.shop_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 shop visits exhausted"))?}else{p.shop_visits};
-    let mut next=run.next_choice;let screen=if captured.encounter.is_none(){Some(match captured.kind{
+    let mut next=run.next_choice;let mut rng=run.state.rng.clone();let screen=if captured.encounter.is_none(){Some(match captured.kind{
         MapNodeKind::Event=>events::screen(&mut next,captured.event.ok_or(RunError::InvalidAction)?)?,
-        MapNodeKind::Shop=>shop::screen(run,&mut next)?,MapNodeKind::Rest=>rest::screen(&mut next,run.state.max_hp)?,
+        MapNodeKind::Shop=>shop::screen_with_rng_at(run,&mut next,&mut rng,(2,node.floor,target))?,MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
         MapNodeKind::Treasure=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?,_=>return Err(RunError::InvalidAction),
     })}else{None};
     let event=CommittedEvent::FloorEntered{act:2,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
@@ -58,7 +58,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
         let mut t=match entered{Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted M6 encounter entry failed"),"run.m6.encounter"))};
         t.reward+=credit;t.committed_events.insert(0,event);return Ok(t)
     }
-    run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=screen.unwrap();Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
+    run.next_choice=next;if is_m10(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen.unwrap();Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
 }
 
 pub(super) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{

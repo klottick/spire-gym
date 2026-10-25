@@ -5,6 +5,25 @@
 Act4/Heart or original-runtime fidelity. The final roadmap scope is unchanged.
 [Approved plan](../superpowers/plans/2026-10-23-m9-ironclad-act3.md).
 
+## Current rules compatibility 2026-10-24
+
+This dated notice supplements, and does not rewrite, the historical M9 acceptance
+and publication results below. Shared random-spot draw insertion was corrected from
+n+1 gaps to n positions. The current native candidate uses `spire-gym-native-m9-rules-v2`; replay
+wire schema remains `spire-gym-run-replay-v1`, with numeric-v1 spaces, action
+vocabulary and descriptor fingerprint unchanged. The HMAC RNG algorithm and root
+adaptation are unchanged.
+
+Corrected binaries reject preserved `m9-rules-v1` records at identity preflight;
+there is no promised compatibility mode. Historical replay requires the preserved
+old source/binary. Current corrected-rules outcomes may differ: seed7 all three
+Act3 histories now end in Death at action697/floor42/reward41, versus the historical
+v1 result action778/floor47/reward46. This is not a strategy change or old-trace
+compatibility claim. See [current M10 compatibility/source notes](../research/2026-10-24-m10-act4-and-ironclad.md).
+
+This notice makes no claim of M10 milestone completion, Python extension refresh,
+or original-runtime parity.
+
 The deliverable is simulator/API tooling for externally developed strategy.
 Neither a winning example policy nor learned-agent strength is an acceptance gate.
 

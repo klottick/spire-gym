@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from operator import index
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import gymnasium as gym
 import numpy as np
@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from spire_lab._native import RunResetPayload, RunStepPayload
 
 Observation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
+RunProfile = Literal["m9-ironclad-act3", "m10-ironclad-heart"]
 
 
 class RunEnv(gym.Env[Observation, int]):
@@ -32,6 +33,7 @@ class RunEnv(gym.Env[Observation, int]):
         character: str,
         ascension: int,
         *,
+        profile: RunProfile = "m9-ironclad-act3",
         partition: str = "train",
         boss_history: str = "awakened-unseen",
         capacities: dict[str, int] | None = None,
@@ -43,6 +45,7 @@ class RunEnv(gym.Env[Observation, int]):
         self._session = _native.NativeRunSession(
             character,
             ascension,
+            profile=profile,
             partition=partition,
             boss_history=boss_history,
             capacities=capacities,

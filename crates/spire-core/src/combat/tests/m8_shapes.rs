@@ -22,7 +22,7 @@ fn supplied_actor(actor:&mut FullEnemySetup,id:EnemyId) {
     let selected=enemies::select_move(id,&[],&memory,&actor.ai_rng).unwrap();
     actor.intent=selected.intent;actor.initial_memory=Some(selected.memory);actor.ai_rng=selected.stream;
 }
-fn single(id:EnemyId)->CombatEntry {
+pub(super) fn single(id:EnemyId)->CombatEntry {
     let mut e=entry(EncounterId::OrbWalker);supplied_actor(&mut e.setup.enemies[0],id);e.setup.enemy_damage_bases.clear();e
 }
 fn power(id:&'static str,amount:i32)->FullPowerEntry {
@@ -39,10 +39,13 @@ fn select(c:&mut Combat,slot:usize,name:&'static str) {
 fn m8_orb_growth_and_burn_destinations() {
     let mut c=Combat::enter(entry(EncounterId::OrbWalker)).unwrap();
     assert!((90..=96).contains(&c.state.enemies[0].hp));assert_eq!(amount(&c,0,"strength_up"),3);
+    let card_stream=c.state.card_rng.clone();let shuffle_stream=c.state.rng.shuffle.clone();
     select(&mut c,0,"orb_laser");c.step_full(&CombatAction::EndTurn).unwrap();
     assert_eq!((c.state.player.hp,amount(&c,0,"strength")),(290,3));
     assert_eq!(c.state.piles.hand.iter().filter(|c|c.full().unwrap().id==CardId::Burn).count(),1);
     assert_eq!(c.state.piles.discard.iter().filter(|c|c.full().unwrap().id==CardId::Burn).count(),1);
+    assert_eq!(c.state.card_rng,card_stream,"Shapes' first Burn enters empty draw deterministically");
+    assert_eq!(c.state.rng.shuffle,shuffle_stream,"Shapes status insertion is not opening/combat shuffle");
     assert!(c.state.piles.hand.iter().chain(&c.state.piles.discard).filter(|c|c.full().unwrap().id==CardId::Burn).all(|c|matches!(c.full().unwrap().origin,CombatCardRef::CombatLocal(_))));
     let enemy=&c.state.enemies[0];let want=match enemy.intent_id.as_str(){"orb_laser"=>13,"orb_claw"=>18,_=>panic!("wrong ordinary intent")};
     assert_eq!(enemy.intent_damage,Some(want));
@@ -124,7 +127,9 @@ fn m8_explosion_suicide_precedes_damage_without_erasing_death_or_pending_fault()
 fn m8_repulsor_creates_only_two_temporary_draw_statuses_and_live_ally_keeps_combat_open() {
     let mut e=entry(EncounterId::SphereAndTwoShapes);e.setup.enemies.truncate(2);
     supplied_actor(&mut e.setup.enemies[0],EnemyId::Exploder);supplied_actor(&mut e.setup.enemies[1],EnemyId::Repulsor);e.setup.enemy_damage_bases.clear();
-    let mut c=Combat::enter(e).unwrap();select(&mut c,1,"repulsor_daze");c.step_full(&CombatAction::EndTurn).unwrap();
+    let mut c=Combat::enter(e).unwrap();let card_stream=c.state.card_rng.clone();let shuffle_stream=c.state.rng.shuffle.clone();select(&mut c,1,"repulsor_daze");c.step_full(&CombatAction::EndTurn).unwrap();
+    assert_eq!(c.state.card_rng,card_stream,"Repulsor's empty then singleton insertions consume no native card RNG");
+    assert_eq!(c.state.rng.shuffle,shuffle_stream,"Repulsor status insertion is not opening/combat shuffle");
     let all=c.state.piles.hand.iter().chain(&c.state.piles.draw).chain(&c.state.piles.discard).chain(&c.state.piles.exhaust).collect::<Vec<_>>();
     assert_eq!(all.iter().filter(|c|c.full().unwrap().id==CardId::Dazed).count(),2);
     assert_eq!(all.iter().filter(|c|matches!(c.full().unwrap().origin,CombatCardRef::Permanent(_))).count(),1);
@@ -133,6 +138,7 @@ fn m8_repulsor_creates_only_two_temporary_draw_statuses_and_live_ally_keeps_comb
     assert_eq!(c.state.phase,Phase::Decision);assert!(c.exit().is_err());
     let view=c.public_full().unwrap();assert_eq!(view.enemies.iter().filter(|e|e.hp>0).count(),1);
 }
+
 
 #[test]
 fn m8_shapes_invalid_setup_is_precommit_and_exhausted_live_roll_retains_damage() {

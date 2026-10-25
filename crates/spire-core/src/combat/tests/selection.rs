@@ -85,7 +85,7 @@ fn fault_while_resuming_selection_retains_parent_capture_and_current_queue() {
     assert_eq!(native.current.as_ref().unwrap().kind, EffectKind::FinishCard);
     assert_eq!(native.pending.front().unwrap().kind, EffectKind::Decision);
     let selection = native.selection.as_ref().unwrap();
-    assert_eq!(selection.parent, parent_id);
+    assert_eq!(selection.parent, SelectionParent::Card(parent_id));
     assert_eq!(selection.candidates, vec![candidate.clone()]);
     assert_eq!(selection.selected, vec![candidate.clone()]);
     assert_eq!(native.attempted_action, Some(CombatAction::SelectCard {
@@ -150,9 +150,9 @@ fn typed_combat_hooks_follow_card_damage_and_finish_order() {
     let mut combat = super::full_runtime::entered_combat(3, 3, |_| {});
     combat.step_full(&CombatAction::PlayCard { instance: 3, target: Some(TargetId(1)) }).unwrap();
     assert_eq!(combat.state.hook_events.iter().map(|event| event.hook).collect::<Vec<_>>(),
-        vec![Hook::CombatStarted, Hook::TurnStarted, Hook::CardPlayed, Hook::Damage, Hook::CardDiscarded]);
-    assert_eq!(combat.state.hook_events[2].source, Source::Card(CardHandle::parse("3").unwrap()));
-    assert_eq!(combat.state.hook_events[3].target, Some(Actor::Enemy(EnemyHandle::parse("enemy-1").unwrap())));
+        vec![Hook::CombatStarted, Hook::TurnStartedPreDraw, Hook::TurnStarted, Hook::CardPlayed, Hook::Damage, Hook::CardAfterUse, Hook::CardDiscarded]);
+    assert_eq!(combat.state.hook_events[3].source, Source::Card(CardHandle::parse("3").unwrap()));
+    assert_eq!(combat.state.hook_events[4].target, Some(Actor::Enemy(EnemyHandle::parse("enemy-1").unwrap())));
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn lethal_damage_runs_death_and_settlement_hooks_before_earned_healing_cleanup()
     combat.state.enemies[0].hp = 8;
     combat.step_full(&CombatAction::PlayCard { instance: 3, target: Some(TargetId(1)) }).unwrap();
     assert_eq!(combat.state.hook_events.iter().map(|event| event.hook).collect::<Vec<_>>(),
-        vec![Hook::CombatStarted, Hook::TurnStarted, Hook::CardPlayed, Hook::Damage, Hook::Death, Hook::CombatSettled]);
+        vec![Hook::CombatStarted, Hook::TurnStartedPreDraw, Hook::TurnStarted, Hook::CardPlayed, Hook::Damage, Hook::Death, Hook::CombatSettled]);
     assert_eq!(combat.state.hp_before_healing, Some(31));
     assert_eq!(combat.state.hp_after_cleanup, Some(31), "no owned Burning Blood means no full-mode heal");
     assert_eq!(combat.state.player.hp, 31);

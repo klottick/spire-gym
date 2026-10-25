@@ -13,9 +13,21 @@ The [accepted M9 profile](docs/milestones/m9-act3.md) adds captured Ironclad A0
 progression through Act3 and a thin single-Run `RunEnv`, after one independent review.
 All six frozen normal-start seed7/11 traces are genuine losses, not demonstrated
 boss50/no-key wins. Strategy development belongs to external callers.
+
+**Current compatibility notice — 2026-10-25:** corrected shared random-spot draw
+insertion changes current seeded outcomes; see the [M9 compatibility note](docs/milestones/m9-act3.md#current-rules-compatibility-2026-10-24).
+Native M10 implementation and the preservation matrix are controller-verified on
+the final 607-file source baseline. The fresh Python environment passed 251 tests
+(235 prior plus 16 Task 28); touched-file Ruff, format, and `ty` checks passed. The
+native matrix recorded 1,402 workspace passes with exactly the seven preserved
+historical failures; the M10–M6 filters and 17 example/CLI invocations passed their
+expected results. The [accepted M10 profile](docs/milestones/m10-heart.md) records
+scoped acceptance after ONE clean independent review and verification of all 608
+reviewed source files in both checkouts. Six frozen seed-7/11 normal-start traces
+remain early gameplay Deaths; separate default masked-caller Deaths at 27/67 actions
+are not strategy-quality or full-route evidence.
 The simulator, environment interfaces, correctness tests, performance checks and
-small random/scripted rollout examples belong here. External learners use those
-interfaces; a learned-agent benchmark is not required to deliver the gym.
+small rollout examples belong here; learner/training infrastructure does not.
 
 The [repository scope](docs/scope.md) records the current priorities, boundaries,
 delivery path and implementation status. No human-playable client, graphics,
@@ -63,7 +75,9 @@ final performance workload. Beads `spire-dxo` remains the parent. Milestones
 M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are closed;
 M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
 declared profiles; M8 `.30`/`.30.2` are also accepted/closed at the captured
-Act3 mechanics/prefix scope. M9 is accepted as described above; M10 planning is next. Old
+Act3 mechanics/prefix scope. M9 and M10 are accepted at their declared captured
+profiles after independent review and exact-source verification. M11 planning-only
+`spire-dxo.33.1` is open/unassigned; no M11 implementation is authorized. Old
 unfinished components retain their scope and history as coverage umbrellas,
 not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom

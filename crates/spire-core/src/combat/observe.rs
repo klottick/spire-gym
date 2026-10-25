@@ -29,7 +29,7 @@ pub enum PublicCombatSnapshot { Legacy(PublicView), Native(CombatPublic) }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CombatBoundaryKind { Entry, Selection, Terminal }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CombatBoundary { pub kind:CombatBoundaryKind, pub public:PublicCombatSnapshot, pub parent_card:Option<CardHandle> }
+pub struct CombatBoundary { pub kind:CombatBoundaryKind, pub public:PublicCombatSnapshot, pub parent_card:Option<CardHandle>,pub selection_parent:Option<super::SelectionParent> }
 
 struct Collector { owner:usize, run:Option<usize>, run_state:Option<usize>, entry:bool, effects:Vec<ResolvedEffect>, boundaries:Vec<CombatBoundary> }
 thread_local! { static CAPTURE:RefCell<Option<Collector>> = const { RefCell::new(None) }; }
@@ -138,8 +138,9 @@ pub(super) fn capture_boundary(combat:&Combat,kind:CombatBoundaryKind) {
         combat.public_full().ok().map(PublicCombatSnapshot::Native)
     } else { combat.public_view().ok().map(PublicCombatSnapshot::Legacy) };
     if let Some(public) = public {
+        let selection_parent=combat.state.pending_selection.as_ref().map(|s|s.parent.clone());
         let boundary = CombatBoundary { kind, public,
-            parent_card:combat.state.pending_selection.as_ref().map(|s|s.parent.clone()) };
+            parent_card:selection_parent.as_ref().and_then(|parent|match parent{super::SelectionParent::Card(card)=>Some(card.clone()),super::SelectionParent::Potion{..}=>None}),selection_parent };
         CAPTURE.with(|slot| { slot.borrow_mut().as_mut().unwrap().boundaries.push(boundary); });
     }
 }

@@ -24,7 +24,7 @@ fn full_entry(character: crate::content::Character, opening_draw: usize, count: 
     };
     let cards = (1..=count).map(|id| LiveCard { instance: crate::combat::CardInstanceId(id),
         id: CardId::StrikeBlue, origin: CombatCardRef::Permanent(crate::combat::CardInstanceId(id)),
-        upgrades: 0, local: CombatCardData::default() }).collect();
+        upgrades: 0, local: CombatCardData::default(),copy_family:id,copy_provenance:crate::combat::card_state::CopyProvenance::Original }).collect();
     CombatEntry { setup, opening_draw, cards }
 }
 
@@ -245,17 +245,17 @@ fn anchor_adds_ten_block_and_lantern_adds_one_energy_only_for_first_turn() {
 fn blood_vial_and_lantern_startup_work_precedes_anchor_bottom_queued_block() {
     let mut context = CombatItemContext::new(
         vec![RelicId::Anchor, RelicId::Lantern, RelicId::BloodVial], vec![]);
-    let startup = relic_hook_effects(&mut context, Hook::CombatStarted, 40);
+    let startup = relic_hook_effects(&mut context, Hook::CombatStarted, 40, 80,0);
     assert_eq!(startup.top.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
         vec![EffectKind::Heal(2)]);
     assert_eq!(startup.bottom.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
         vec![EffectKind::GainBlock(10)]);
 
-    let first_turn = relic_hook_effects(&mut context, Hook::TurnStarted, 40);
+    let first_turn = relic_hook_effects(&mut context, Hook::TurnStarted, 40, 80,0);
     assert_eq!(first_turn.top.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
         vec![EffectKind::GainEnergy(1)]);
     assert!(first_turn.bottom.is_empty());
-    assert!(relic_hook_effects(&mut context, Hook::TurnStarted, 40).top.is_empty());
+    assert!(relic_hook_effects(&mut context, Hook::TurnStarted, 40, 80,0).top.is_empty());
 }
 
 fn run_with_vitals(hp: u32, max_hp: u32) -> crate::run::Run {
@@ -728,7 +728,7 @@ fn entered_combat_with_card(player_hp: i32, enemy_hp: i32, card_id: CardId) -> C
     };
     let live = LiveCard { instance: crate::combat::CardInstanceId(1), id: card_id,
         origin: CombatCardRef::Permanent(crate::combat::CardInstanceId(1)), upgrades: 0,
-        local: CombatCardData::default() };
+        local: CombatCardData::default(),copy_family:1,copy_provenance:crate::combat::card_state::CopyProvenance::Original };
     Combat::enter(CombatEntry { setup, opening_draw: 1, cards: vec![live] }).unwrap()
 }
 
@@ -736,15 +736,15 @@ fn entered_combat_with_card(player_hp: i32, enemy_hp: i32, card_id: CardId) -> C
 fn burning_blood_effect_is_owned_survival_gated_and_capped_by_native_heal() {
     let owned = CombatItemContext::new(vec![RelicId::BurningBlood], vec![]);
     let absent = CombatItemContext::default();
-    let effects = relic_hook_effects(&mut owned.clone(), Hook::CombatSettled, 30);
+    let effects = relic_hook_effects(&mut owned.clone(), Hook::CombatSettled, 30, 80,0);
     assert_eq!(effects.top.len(), 1);
     assert_eq!(effects.top[0].target, Some(Actor::Player));
     assert_eq!(effects.top[0].kind, EffectKind::Heal(6));
     assert_eq!(effects.top[0].source, Source::None);
     assert!(effects.bottom.is_empty());
-    assert!(relic_hook_effects(&mut absent.clone(), Hook::CombatSettled, 30).is_empty());
-    assert!(relic_hook_effects(&mut owned.clone(), Hook::CombatSettled, 0).is_empty());
-    assert!(relic_hook_effects(&mut owned.clone(), Hook::TurnEnded, 30).is_empty());
+    assert!(relic_hook_effects(&mut absent.clone(), Hook::CombatSettled, 30, 80,0).is_empty());
+    assert!(relic_hook_effects(&mut owned.clone(), Hook::CombatSettled, 0, 80,0).is_empty());
+    assert!(relic_hook_effects(&mut owned.clone(), Hook::TurnEnded, 30, 80,0).is_empty());
 
     let mut combat = entered_combat(48, 1);
     combat.install_item_context(owned).unwrap();

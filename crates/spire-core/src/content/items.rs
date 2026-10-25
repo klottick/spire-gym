@@ -12,6 +12,15 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition{id:RelicId::BagOfMarbles,definition_only:false},
     RelicDefinition{id:RelicId::BronzeScales,definition_only:false},
     RelicDefinition{id:RelicId::RedMask,definition_only:false},
+    RelicDefinition{id:RelicId::RedSkull,definition_only:false},
+    RelicDefinition{id:RelicId::PaperPhrog,definition_only:false},
+    RelicDefinition{id:RelicId::ChampionsBelt,definition_only:false},
+    RelicDefinition{id:RelicId::CharonsAshes,definition_only:false},
+    RelicDefinition{id:RelicId::SelfFormingClay,definition_only:false},
+    RelicDefinition{id:RelicId::Orichalcum,definition_only:false},
+    RelicDefinition{id:RelicId::Brimstone,definition_only:false},
+    RelicDefinition{id:RelicId::MarkOfPain,definition_only:false},
+    RelicDefinition{id:RelicId::RunicCube,definition_only:false},
     RelicDefinition { id: RelicId::BlackBlood, definition_only: false },
     RelicDefinition { id: RelicId::EmptyCage, definition_only: false },
     RelicDefinition { id: RelicId::SlaversCollar, definition_only: false },
@@ -39,7 +48,7 @@ pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
 ];
 pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::FirePotion, definition_only: true },
-    PotionDefinition { id: PotionId::BloodPotion, definition_only: true },
+    PotionDefinition { id: PotionId::BloodPotion, definition_only: false },
     PotionDefinition { id: PotionId::FruitJuice, definition_only: true },
     PotionDefinition { id: PotionId::BlockPotion, definition_only: true },
     PotionDefinition { id: PotionId::EnergyPotion, definition_only: true },
@@ -49,4 +58,6 @@ pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::FearPotion, definition_only: true },
     PotionDefinition { id: PotionId::DexterityPotion, definition_only: false },
     PotionDefinition { id: PotionId::AncientPotion, definition_only: false },
+    PotionDefinition { id: PotionId::Elixir, definition_only: false },
+    PotionDefinition { id: PotionId::HeartOfIron, definition_only: false },
 ];

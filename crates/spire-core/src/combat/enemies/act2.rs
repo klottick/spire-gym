@@ -44,7 +44,7 @@ pub(crate) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory
     if stream.id().domain()!=rng::Domain::RunCombatEnemyAi||context.turn==0||!memory.valid_for(id)||!context.actors.iter().any(|a|a.owner==context.owner&&a.species==id){return Err(InputError::Invariant("live enemy selection context mismatch".into()).into())}
     let mut slots=std::collections::BTreeSet::new();
     for actor in context.actors.iter().filter(|a|a.hp>0){if actor.hp>actor.max_hp||!slots.insert(actor.slot){return Err(InputError::Invariant("live selection formation mismatch".into()).into())}}
-    if super::act3::supports(id){super::act3::select_move(id,history,memory,stream,context)}else if id==EnemyId::Collector{collector::select_move(history,memory,stream,context)}else if id==EnemyId::Champ{champ::select_move(history,memory,stream,context)}else if id==EnemyId::GremlinLeader{gremlin_leader::select_leader(history,memory,stream,context)}else if matches!(id,EnemyId::Centurion|EnemyId::Mystic){partners::select_move(id,history,memory,stream,context)}else{super::select_move(id,history,memory,stream)}
+    if super::act4::supports(id){super::act4::select_move(id,history,memory,stream)}else if super::act3::supports(id){super::act3::select_move(id,history,memory,stream,context)}else if id==EnemyId::Collector{collector::select_move(history,memory,stream,context)}else if id==EnemyId::Champ{champ::select_move(history,memory,stream,context)}else if id==EnemyId::GremlinLeader{gremlin_leader::select_leader(history,memory,stream,context)}else if matches!(id,EnemyId::Centurion|EnemyId::Mystic){partners::select_move(id,history,memory,stream,context)}else{super::select_move(id,history,memory,stream)}
 }
 
 pub(in crate::combat) fn roll_move(state:&mut State,owner:&EnemyHandle)->Result<(),super::super::EffectError>{
@@ -57,10 +57,13 @@ pub(in crate::combat) fn roll_move(state:&mut State,owner:&EnemyHandle)->Result<
     let context=EnemyRollContext{owner:owner.clone(),turn:state.turn,actors};
     let memory=enemy.full_memory.as_ref().ok_or_else(||InputError::Invariant("live roll memory absent".into()))?;
     let stream=enemy.full_ai_rng.as_ref().ok_or_else(||InputError::Invariant("live roll stream absent".into()))?;
-    let selected=if id==EnemyId::SpireGrowth{super::act3::ordinary::select_move(id,&history,memory,stream,Some(state.player_full_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0)))}else{select_move(id,&history,memory,stream,&context)}.map_err(|e|match e{super::SelectError::Invalid(e)=>super::super::EffectError::Invalid(e),super::SelectError::Random(e)=>super::super::EffectError::Random(e)})?;
+    let selected=if id==EnemyId::SpireGrowth{super::act3::ordinary::select_move(id,&history,memory,stream,Some(state.player_full_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0)))}
+        else if id==EnemyId::CorruptHeart{super::select_move(id,&history,memory,stream)}
+        else{select_move(id,&history,memory,stream,&context)}.map_err(|e|match e{super::SelectError::Invalid(e)=>super::super::EffectError::Invalid(e),super::SelectError::Random(e)=>super::super::EffectError::Random(e)})?;
     let actor=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();
     actor.intent_id=ActorIntentId::Full(selected.intent);actor.selected_move=ActorIntentId::Full(selected.intent);actor.move_history.push(ActorIntentId::Full(selected.intent));actor.full_memory=Some(selected.memory);actor.full_ai_rng=Some(selected.stream);
     super::act3::ordinary::refresh_selected(state,owner);
+    if id==EnemyId::CorruptHeart{super::act4::heart::selected(state,owner,selected.intent);}
     super::super::effects::refresh_enemy_values(state)?;Ok(())
 }
 
@@ -92,5 +95,5 @@ pub(in crate::combat) fn modify_incoming_damage(state:&State,target:&Actor,paylo
 }
 
 pub(in crate::combat) fn after_damage(state:&mut State,result:&super::super::model::DamageResult)->Result<(),super::super::EffectError>{
-    flight::after_damage(state,result);gremlin_leader::after_damage(state,result);book::after_damage(state,result);collector::after_damage(state,result);automaton::after_damage(state,result);super::act3::shapes::after_damage(state,result);super::act3::ordinary::after_damage(state,result);super::act3::writhing::after_damage(state,result)?;super::act3::reptomancer::after_damage(state,result);super::act3::awakened::after_damage(state,result);Ok(())
+    flight::after_damage(state,result);gremlin_leader::after_damage(state,result);book::after_damage(state,result);collector::after_damage(state,result);automaton::after_damage(state,result);super::act3::shapes::after_damage(state,result);super::act3::ordinary::after_damage(state,result);super::act3::writhing::after_damage(state,result)?;super::act3::reptomancer::after_damage(state,result);super::act3::awakened::after_damage(state,result);super::act4::shield_spear::after_damage(state,result);Ok(())
 }

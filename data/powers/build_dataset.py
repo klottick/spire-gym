@@ -139,6 +139,9 @@ def make_power(key, row, catalog, annotations, pages):
     for page in note.get("extra_wiki", []):
         if page != row["_pageName"]:
             citations.append(citation(page, pages))
+    for ref in note.get("local_citations", []):
+        citations.append({"kind": "local_document", "path": ref["path"],
+                          "section": ref["section"], "grade": ref["grade"]})
     uncertainties = list(note.get("uncertainties", []))
     if game_id is None:
         uncertainties.append("Exact constructor ID is not established by the retained public catalog/research; null is intentional, not an inferred display-name ID.")

@@ -1,12 +1,13 @@
 """Transport signatures for the compiled extension; no Python gameplay."""
 
 from collections.abc import Callable
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 import numpy as np
 from numpy.typing import NDArray
 
 type RunObservation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
+type RunProfile = Literal["m9-ironclad-act3", "m10-ironclad-heart"]
 
 class RunInfo(TypedDict):
     schema_id: str
@@ -53,6 +54,7 @@ class NativeRunSession:
         character: str,
         ascension: int,
         *,
+        profile: RunProfile = ...,
         partition: str = ...,
         boss_history: str = ...,
         capacities: dict[str, int] | None = ...,

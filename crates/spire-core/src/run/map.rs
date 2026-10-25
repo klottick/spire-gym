@@ -92,11 +92,11 @@ fn round_half_up(n: usize, percent: usize) -> usize {
 }
 
 /// Generate a connected representative map with scoped topology and room draws.
-/// Act 4's special routing is owned by Task 12; ordinary maps are generated for
+/// Act 4's special routing is owned by Task 21; ordinary maps are generated for
 /// Acts 1–3. Any rejected draft is private and consumes only its semantic scopes.
 pub fn generate(act: u8, rng: &mut RunRng, eligibility: MapEligibility) -> Result<ActMap, RunError> {
     if !(1..=3).contains(&act) {
-        return Err(RunError::Unsupported("ordinary map generation is defined for Acts 1-3; Act 4 routing belongs to Task 12"));
+        return Err(RunError::Unsupported("ordinary map generation is defined for Acts 1-3; Act 4 routing belongs to Task 21"));
     }
     let mut draft = 0u64;
     loop {

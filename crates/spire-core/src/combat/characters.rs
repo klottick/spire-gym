@@ -22,7 +22,7 @@ impl CharacterState {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CharacterEffect { Stance(Stance), Channel(OrbKind), EvokeFront { remove: bool }, EvokeAt { index: usize }, EndTurn }
+pub enum CharacterEffect { Stance(Stance), Focus(i32), Channel(OrbKind), EvokeFront { remove: bool }, EvokeAt { index: usize }, EndTurn }
 
 pub(super) fn enqueue(state: &mut super::model::State, source: Source, action: CharacterEffect) {
     state.pending.push_front(Effect { source, target: Some(Actor::Player),
@@ -33,6 +33,15 @@ pub(super) fn apply(state: &mut super::model::State, source: &Source,
     action: CharacterEffect) -> Result<(), super::EffectError>
 {
     match action {
+        CharacterEffect::Focus(delta) => {
+            if !state.character.orb_slots.iter().any(Option::is_some){return Err(super::InputError::Invariant("Focus adjustment without an active Orb".into()).into())}
+            if delta<0 {
+                state.pending.push_front(Effect{source:source.clone(),target:Some(Actor::Player),
+                    kind:EffectKind::ApplyFullPower{id:super::FullPowerId("focus"),amount:delta}});
+                return Ok(())
+            }
+            apply_focus(state,delta)?;
+        }
         CharacterEffect::Stance(next) => {
             let previous = state.character.stance;
             if previous == next { return Ok(()); }
@@ -80,6 +89,14 @@ pub(super) fn apply(state: &mut super::model::State, source: &Source,
             }
         }
     }
+    Ok(())
+}
+
+pub(super) fn apply_focus(state:&mut super::model::State,delta:i32)->Result<(),super::InputError>{
+    if !state.character.orb_slots.iter().any(Option::is_some){return Err(super::InputError::Invariant("Focus adjustment without an active Orb".into()))}
+    state.character.focus=state.character.focus.checked_add(delta)
+        .filter(|focus|(-999..=999).contains(focus))
+        .ok_or_else(||super::InputError::Unsupported("Focus outside supported bounds".into()))?;
     Ok(())
 }
 

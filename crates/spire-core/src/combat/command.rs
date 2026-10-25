@@ -8,6 +8,7 @@ pub struct TargetId(pub u64);
 pub enum CombatAction {
     PlayCard { instance: u64, target: Option<TargetId> },
     SelectCard { instance: u64 },
+    ConfirmSelection,
     UsePotion { slot: usize, target: Option<TargetId> },
     EndTurn,
 }

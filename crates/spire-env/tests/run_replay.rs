@@ -7,6 +7,34 @@ fn prefix()->RunEpisodeRecord{
 }
 
 #[test]
+fn corrected_rules_record_keeps_v1_wire_and_observation_identity(){
+    let record=prefix();
+    assert_eq!(record.schema_id,"spire-gym-run-replay-v1");
+    assert_eq!(record.rules_id,RUN_RULES_ID);
+    assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v2");
+    assert_eq!(RUN_RULES_ID_V1,"spire-gym-native-m9-rules-v1");
+    assert_eq!(record.observation_fingerprint.iter().map(|b|format!("{b:02x}")).collect::<String>(),
+        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+    let encoded=record.to_json().unwrap();
+    let decoded=RunEpisodeRecord::from_json(&encoded).unwrap();
+    assert_eq!(decoded,record);
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(&encoded).unwrap()["schema_id"],"spire-gym-run-replay-v1");
+}
+
+#[test]
+fn explicitly_labelled_legacy_v1_rules_record_fails_identity_preflight(){
+    // This in-memory fixture emulates the old v1 semantic identity. It is not a
+    // saved historical record and does not rewrite or bless an old artifact.
+    let mut legacy_v1_rules_record_fixture=prefix();
+    legacy_v1_rules_record_fixture.rules_id=RUN_RULES_ID_V1.into();
+    // If replay advanced to action execution, this action would fail as unoffered.
+    // Identity mismatch must win at strict preflight before Run construction/step.
+    legacy_v1_rules_record_fixture.steps[0].action=GameAction::Move(NodeId(u64::MAX));
+    assert!(matches!(replay_run(&legacy_v1_rules_record_fixture,RunCapacities::m9_default()),
+        Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))));
+}
+
+#[test]
 fn run_replay_reconstructs_real_start_and_semantic_actions(){
     let contexts=[(M9BossHistory::AwakenedUnseen,support::M9BossHistory::AwakenedUnseen),(M9BossHistory::TimeEaterUnseen,support::M9BossHistory::TimeEaterUnseen),(M9BossHistory::DonuDecaUnseen,support::M9BossHistory::DonuDecaUnseen)];
     for (history,example) in contexts{
@@ -55,6 +83,25 @@ fn run_replay_wire_covers_all_current_action_variants_without_discriminant_casts
     let mut record=prefix();record.steps=actions.into_iter().map(|action|RunRecordedStep{action,reward:0,terminal:None}).collect();assert_eq!(RunEpisodeRecord::from_json(&record.to_json().unwrap()).unwrap(),record);
     // Wire round-trip isn't gameplay acceptance: this deliberately unoffered script fails replay.
     assert!(replay_run(&record,RunCapacities::m9_default()).is_err());
+}
+
+#[test]
+fn frozen_replay_v1_action_encoder_rejects_confirmation_and_keeps_old_roundtrip(){
+    let valid=prefix();let old=valid.to_json().unwrap();
+    assert_eq!(RunEpisodeRecord::from_json(&old).unwrap(),valid);
+
+    let mut candidate=valid.clone();candidate.steps.push(RunRecordedStep{action:GameAction::Combat(spire_core::combat::CombatAction::ConfirmSelection),reward:0,terminal:None});
+    assert_eq!(candidate.to_json(),Err(RunSessionError::UnsupportedBoundary("ConfirmSelection is not representable in replay v1")));
+    assert_eq!(replay_run(&candidate,RunCapacities::m9_default()),Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1")));
+}
+
+#[test]
+fn frozen_replay_v1_decoder_rejects_confirmation_input_explicitly(){
+    let valid=prefix();let old=valid.to_json().unwrap();
+    let mut wire:serde_json::Value=serde_json::from_slice(&old).unwrap();
+    wire["steps"][0]["action"]=serde_json::json!({"verb":"combat.confirm_selection"});
+    assert_eq!(RunEpisodeRecord::from_json(&serde_json::to_vec(&wire).unwrap()),
+        Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1")));
 }
 
 #[test]

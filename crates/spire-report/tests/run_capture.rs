@@ -130,6 +130,21 @@ fn run_combat_selection_parent() {
 }
 
 #[test]
+fn report_formats_combat_confirmation_as_distinct_action(){
+    use spire_core::content::{CardId,Character,EncounterId};
+    let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},AuthoredRunStart {
+        hp:40,max_hp:80,gold:99,deck:[CardId::BurningPact,CardId::Strike,CardId::Defend].into_iter().enumerate().map(|(i,id)|spire_core::run::CardInstance{instance:i as u64+1,id,upgrades:0}).collect(),
+        relics:vec![],potions:vec![None;3],relic_counters:Default::default()},RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
+    run.enter_combat(EncounterId::Cultist).unwrap();let mut d=run.decision().unwrap();
+    let action=GameAction::Combat(CombatAction::ConfirmSelection);
+    d.candidates.push(Candidate{id:ChoiceId(999),action:action.clone(),label:"Confirm selection",object:None,neow_offer:None});
+    let event=describe_run_action(&d,&action,"run-1").unwrap();
+    assert_eq!(event["type"],"confirm_selection");
+    assert_eq!(event["optionKey"],"combat/confirm_selection");
+    assert_eq!(event["description"],"Confirm selection");
+}
+
+#[test]
 fn run_relic_acquisition_keeps_actual_healing() {
     let mut run=native::m4::run(7);
     for (action,_,_) in native::route() {

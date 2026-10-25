@@ -336,6 +336,7 @@ fn every_state_component_participates_in_comparison() {
     check!(fault, |s: &mut super::super::model::State| s.fault = Some(FaultRecord { kind: FaultKind::Invariant, message: "first".into(), resolved_effects: 0 }));
     check!(hp_before_healing, |s: &mut super::super::model::State| s.hp_before_healing = Some(40));
     check!(hp_after_cleanup, |s: &mut super::super::model::State| s.hp_after_cleanup = Some(46));
+    check!(damage_events_this_combat, |s: &mut super::super::model::State| s.damage_events_this_combat = 1);
 }
 
 #[test]

@@ -37,6 +37,8 @@ impl EnemyHandle {
 pub struct CardInstance { pub instance_id: CardHandle, pub card_id: CardKind, pub upgraded: bool }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PowerState { pub amount: i32, pub skip_first: bool, pub monster_source_grace: bool }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(super) struct CombustState { pub copies:u16 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PowerEntry { pub id: PowerId, pub state: PowerState }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -45,6 +47,7 @@ pub enum FullIntentId { Incantation, Attack, Chomp, Thrash, Bellow, Bite, Grow, 
     AcidTackle, AcidSpit, AcidLick, AcidSplit,
     SpikeTackle, SpikeFlameTackle, SpikeLick, SpikeSplit,
     SlimeBossSticky, SlimeBossPrepSlam, SlimeBossSlam, SlimeBossSplit,
+    HeartDebilitate, HeartBloodShots, HeartEcho, HeartBuff,
     Unknown(&'static str) }
 impl FullIntentId {
     pub fn from_name(id: &'static str) -> Self { match id {
@@ -58,6 +61,7 @@ impl FullIntentId {
         "spike_lick" => Self::SpikeLick, "spike_split" => Self::SpikeSplit,
         "sticky" => Self::SlimeBossSticky, "prep_slam" => Self::SlimeBossPrepSlam,
         "slam" => Self::SlimeBossSlam, "split" => Self::SlimeBossSplit,
+        "heart_debilitate"=>Self::HeartDebilitate,"heart_blood_shots"=>Self::HeartBloodShots,"heart_echo"=>Self::HeartEcho,"heart_buff"=>Self::HeartBuff,
         _ => Self::Unknown(id),
     } }
     pub const fn as_str(self) -> &'static str { match self {
@@ -71,6 +75,7 @@ impl FullIntentId {
         Self::SpikeLick => "spike_lick", Self::SpikeSplit => "spike_split",
         Self::SlimeBossSticky => "sticky", Self::SlimeBossPrepSlam => "prep_slam",
         Self::SlimeBossSlam => "slam", Self::SlimeBossSplit => "split",
+        Self::HeartDebilitate=>"heart_debilitate",Self::HeartBloodShots=>"heart_blood_shots",Self::HeartEcho=>"heart_echo",Self::HeartBuff=>"heart_buff",
         Self::Unknown(id) => id,
     } }
 }
@@ -184,6 +189,10 @@ pub(crate) struct PermanentCardGain{pub ordinal:u64,pub id:crate::content::CardI
 pub struct DamageEntry { pub base: i32, pub output: i32 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActorLife { Active, Replaced, Escaped, HalfDead }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum PlayerFacing { Left, Right }
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum EncounterSide { Left, Right }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyState {
@@ -254,7 +263,7 @@ pub struct Transition { pub status: TransitionStatus }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Actor { Player, Enemy(EnemyHandle) }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Source { None, Card(CardHandle), Actor(Actor) }
+pub enum Source { None, Card(CardHandle), Potion{slot:usize,id:crate::content::PotionId}, Actor(Actor) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DamagePayload {
     Fixed(i32), Orb(i32),
@@ -274,13 +283,15 @@ pub enum EffectKind {
     Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), NeowsLament, ApplyPower { id: PowerId, amount: i32 },
     ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId),
     ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
-    FinishCard, Decision,
+    FinishCard, Decision, JuggernautRandomDamage(i32),
     Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
     DrawOne, AfterCardDrawn { card:CardHandle },
     GainEnergy(i32),LoseEnergy(i32),
     CreateCard { id: crate::content::CardId, destination: super::command::CardDestination, upgrades: u32 },
     CopyCard { source: CardHandle, destination: super::command::CardDestination },
     ExhaustHandCard { instance: super::CardInstanceId },
+    ExhaustBatchStart { filter: ExhaustBatchFilter, random: bool, finish: ExhaustBatchFinish },
+    ExhaustBatchContinue(ExhaustBatch),
     SelectCard { candidates: Vec<CardHandle>, empty: super::selection::EmptySelection },
     SelectCards { candidates: Vec<CardHandle>, required: usize,
         disposition: super::selection::SelectionDisposition, empty: super::selection::EmptySelection },
@@ -290,7 +301,9 @@ pub enum EffectKind {
     Hook(super::hooks::Hook), EndPlayerTurn, MonsterStart,
     EnemyMove, RollMove, EndRound, StartNextPlayer,
     Character(super::characters::CharacterEffect),
+    ShieldBashFocus,
     CardContinuation(super::cards::DefectContinuation),
+    Ironclad(super::cards::IroncladEffect),
     ReplaceEnemy { parent: EnemyHandle, children: Vec<EnemyId> },
     GuardianChange(super::enemies::GuardianEffect),
     HexaghostBurn(super::enemies::HexaghostEffect),
@@ -308,15 +321,38 @@ pub enum EffectKind {
     ReptomancerSuicide,
     AwakenedCollapse,AwakenedRebirth,AwakenedCanLose,
     TimeWarpEndTurn,TimeEaterCleanse,
-    CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle },
+    CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle }, CorruptHeartBuff,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle> }
+pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle>,pub known_draw:Vec<CardHandle>,pub known_draw_bottom:Vec<CardHandle> }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PendingSelection { pub parent: CardHandle, pub candidates: Vec<CardHandle>,
-    pub selected: Vec<CardHandle>, pub required: usize,
+pub struct PendingSelection { pub parent: super::selection::SelectionParent, pub source_zone:super::selection::SelectionSourceZone, pub candidates: Vec<CardHandle>,
+    pub operation: super::selection::SelectionOperation,
+    pub selected: Vec<CardHandle>, pub minimum:usize,pub maximum:usize,
     pub disposition: super::selection::SelectionDisposition, pub empty: super::selection::EmptySelection }
+
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(super) enum FinishDisposition { Natural, Exhaust, Purge }
+
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum ExhaustBatchFilter { NonAttack, AllHand }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub enum ExhaustBatchFinish {
+    BlockPerExhaust(i32),
+    DamagePerExhaust{target:Actor,damage:i32},
+    DamageAfterBatch{target:Actor,damage:i32},
+}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct ExhaustBatch {
+    pub owner:CardHandle,pub filter:ExhaustBatchFilter,pub candidates:Vec<CardHandle>,pub random:bool,pub remaining:u8,
+    pub committed:u32,pub finish:ExhaustBatchFinish,
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct PlayContext {pub card:CardHandle,pub target:Option<Actor>,pub energy_on_use:i32,pub paid:i32,pub disposition:FinishDisposition}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_handle:CardHandle,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct State {
@@ -337,12 +373,20 @@ pub(super) struct State {
     pub item_context: Option<crate::items::CombatItemContext>,
     pub replacement_progress: Option<super::enemies::ReplacementProgress>,
     pub actor_slots:BTreeMap<EnemyHandle,u8>,
+    pub facing:Option<PlayerFacing>,
     pub spawn_ordinals:BTreeMap<EnemyHandle,u64>,
     pub spawn_progress:Option<super::enemies::act2::spawn::SpawnProgress>,
     pub stasis:BTreeMap<EnemyHandle,OwnedCard>,
     pub permanent_gains:Vec<PermanentCardGain>,pub next_permanent_gain:u64,
     pub played_powers:Vec<OwnedCard>,
+    pub inactive_cards:Vec<OwnedCard>,
+    pub play_frames:Vec<PlayFrame>,
+    pub play_context:Option<PlayContext>,
+    pub queued_autoplay:BTreeMap<CardHandle,OwnedCard>,
     pub pending_time_warp:Option<EnemyHandle>,
+    pub damage_events_this_combat:u32,
+    /// Combust stacks are counted independently of the summed damage amount.
+    pub combust:Option<CombustState>,
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {
