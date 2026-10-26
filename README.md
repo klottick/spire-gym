@@ -18,8 +18,9 @@ checkpoints, and experiments are outside this repository.
 ## Implemented surface
 
 The repository contains a bounded supplied-entry Ironclad A0 combat Gym, captured
-Ironclad A0 progression/Run profiles, and a finite native Silent A0 authored-combat
-slice. M10 adds captured Act 4/Heart mechanics and tools, but normal-start traversal
+Ironclad A0 progression/Run profiles, and finite native Silent A0 progression
+through Act1, including the smaller M11 authored-combat slice. M10 adds captured
+Act 4/Heart mechanics and tools, but normal-start traversal
 to the Heart and HeartVictory remains unobserved. These are separate versioned
 profiles with explicit limits; they do not claim complete standard content, a full
 all-character run simulator, original-runtime parity, or a fresh Python artifact
@@ -43,6 +44,12 @@ tracker. As of this 2026-10-26 snapshot, the user-approved M12 design and plan
 passed independent review and M12 execution was released against the accepted
 post-Gym66 baseline. Check Beads and the current primary session for the active
 task and checkout. This dated note is not an assignment or worktree instruction.
+
+M12 is accepted as a finite native Silent A0 Act1 profile on the same Run,
+with normal-start fixed seed 7/11 boss alternatives, rewards, Act2Ready and native
+session/replay/batch agreement. The [M12 profile](docs/milestones/m12-silent-act1.md)
+records exact scope, outcomes and limits. Independent milestone review and root
+verification are complete; no new Python-delivery claim is made.
 
 ## Architecture and references
 

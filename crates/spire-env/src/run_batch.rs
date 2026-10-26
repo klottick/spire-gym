@@ -40,6 +40,18 @@ pub struct RunBatch {
 
 impl RunBatch {
     pub fn new_m10(configs: Vec<RunSessionConfig>, workers: usize) -> Result<Self, RunBatchError> {
+        Self::new_with(configs, workers, RunSession::new_m10)
+    }
+
+    pub fn new_m12(configs: Vec<RunSessionConfig>, workers: usize) -> Result<Self, RunBatchError> {
+        Self::new_with(configs, workers, RunSession::new_m12)
+    }
+
+    fn new_with(
+        configs: Vec<RunSessionConfig>,
+        workers: usize,
+        constructor: fn(RunSessionConfig) -> Result<RunSession, RunSessionError>,
+    ) -> Result<Self, RunBatchError> {
         if configs.is_empty() || workers == 0 {
             return Err(RunBatchError::Input {
                 slot: None,
@@ -48,7 +60,7 @@ impl RunBatch {
         }
         let mut sessions = crate::error::reserved(configs.len()).map_err(RunBatchError::Setup)?;
         for (slot, config) in configs.into_iter().enumerate() {
-            sessions.push(RunSession::new_m10(config).map_err(|error| RunBatchError::Input {
+            sessions.push(constructor(config).map_err(|error| RunBatchError::Input {
                 slot: Some(slot),
                 error,
             })?);

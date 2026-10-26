@@ -458,3 +458,8 @@ fn modified_block(state: &State, base: i32) -> Result<i32, crate::run::RunError>
 fn card_handle(card: &LiveCard) -> CardHandle {
     super::card_state::handle(card.instance)
 }
+
+/// One public card-value projection; established Ironclad values stay exact.
+pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
+    ironclad::rules::public_values(card).or_else(||silent::public_values(card))
+}

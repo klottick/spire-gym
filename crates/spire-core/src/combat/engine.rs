@@ -974,20 +974,20 @@ impl Combat {
         }
         let cards = |pile: &[OwnedCard]| -> Result<Vec<LiveCardView>, crate::run::RunError> {
             pile.iter().map(|card| card.full().map(|live| LiveCardView { instance: live.instance,
-                id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::ironclad::rules::public_values(live) })
+                id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live) })
                 .ok_or(crate::run::RunError::InvalidAction)).collect()
         };
         let card_view=|id:&CardHandle|->Result<LiveCardView,crate::run::RunError>{
             self.state.piles.all(self.state.in_play.as_ref()).find(|owned|owned.handle()==*id)
                 .and_then(OwnedCard::full).map(|live|LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),
                     upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),
-                    values:super::cards::ironclad::rules::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)
+                    values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)
         };
         let selection = if let Some(pending) = &self.state.pending_selection {
             let candidates = pending.candidates.iter().map(|id| self.state.piles.all(self.state.in_play.as_ref())
                 .find(|card| card.handle() == *id).and_then(OwnedCard::full)
                 .map(|live| LiveCardView { instance: live.instance, id: live.id,
-                    origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::ironclad::rules::public_values(live) }).ok_or(crate::run::RunError::InvalidAction))
+                    origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live) }).ok_or(crate::run::RunError::InvalidAction))
                 .collect::<Result<Vec<_>, _>>()?;
             let selected = pending.selected.iter().map(|id| id.as_str().parse::<u64>()
                 .map(CardInstanceId).map_err(|_| crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>, _>>()?;
@@ -1000,14 +1000,14 @@ impl Combat {
             known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:false,offset});
         }
         let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|LiveCardView{instance:live.instance,id:live.id,
-            origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::ironclad::rules::public_values(live)}).ok_or(crate::run::RunError::InvalidAction))
+            origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction))
             .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
-                effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::ironclad::rules::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)))
+                effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)))
             .collect::<Result<Vec<_>,_>>()?;
         Ok(CombatPublic { content_id: self.state.content_id.clone(), turn: self.state.turn,
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
-            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::ironclad::rules::public_values(live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
+            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             player: super::view::full_player(&self.state), enemies: super::view::full_enemies(&self.state),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
                 relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),

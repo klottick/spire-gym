@@ -11,12 +11,15 @@ use crate::{RunCapacities,RunObservation};
 pub const RUN_RECORD_SCHEMA_ID:&str="spire-gym-run-replay-v1";
 pub const RUN_RECORD_SCHEMA_ID_POLICY:&str="spire-gym-run-replay-v3";
 pub const RUN_RECORD_SCHEMA_ID_M10:&str="spire-gym-run-replay-v2";
+pub const RUN_RECORD_SCHEMA_ID_M12:&str="spire-gym-m12-silent-act1-replay-v1";
 pub const RUN_SEED_ADAPTER_ID:&str="spire-gym-run-u64-le-v1";
 pub const RUN_RULES_ID_V1:&str="spire-gym-native-m9-rules-v1";
 pub const RUN_RULES_ID:&str="spire-gym-native-m9-rules-v2";
 pub(crate) const RUN_CONTENT_ID:&str="spire-gym-m9-ironclad-a0-captured-v1";
 pub const RUN_RULES_ID_M10:&str="spire-gym-native-m10-rules-v1";
 pub const RUN_CONTENT_ID_M10:&str="spire-gym-m10-ironclad-a0-captured-v1";
+pub const RUN_RULES_ID_M12:&str="spire-gym-native-m12-rules-v1";
+pub const RUN_CONTENT_ID_M12:&str="spire-gym-m12-silent-a0-act1-captured-v1";
 pub(crate) const RUN_REWARD_ID:&str="spire-gym-floor-key-terminal-reward-v1";
 static SESSION_IDS:crate::identity::PoolIdAllocator=crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
@@ -26,33 +29,41 @@ pub(crate) fn allocate_run_session_id()->Result<u64,RunSessionError>{
 }
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunProfile { M9IroncladAct3, M10IroncladHeart, M10IroncladPolicy }
+pub(crate) enum RunProfile { M9IroncladAct3, M10IroncladHeart, M10IroncladPolicy, M12SilentAct1 }
 impl RunProfile {
-    pub(crate) fn id(self)->&'static str{match self{Self::M9IroncladAct3=>"M9IroncladAct3",Self::M10IroncladHeart=>"M10IroncladHeart",Self::M10IroncladPolicy=>"M10IroncladPolicy"}}
-    pub(crate) fn schema_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RECORD_SCHEMA_ID,Self::M10IroncladHeart=>RUN_RECORD_SCHEMA_ID_M10,Self::M10IroncladPolicy=>RUN_RECORD_SCHEMA_ID_POLICY}}
-    pub(crate) fn rules_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RULES_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_RULES_ID_M10}}
-    pub(crate) fn content_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_CONTENT_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_CONTENT_ID_M10}}
+    pub(crate) fn id(self)->&'static str{match self{Self::M9IroncladAct3=>"M9IroncladAct3",Self::M10IroncladHeart=>"M10IroncladHeart",Self::M10IroncladPolicy=>"M10IroncladPolicy",Self::M12SilentAct1=>"M12SilentAct1"}}
+    pub(crate) fn schema_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RECORD_SCHEMA_ID,Self::M10IroncladHeart=>RUN_RECORD_SCHEMA_ID_M10,Self::M10IroncladPolicy=>RUN_RECORD_SCHEMA_ID_POLICY,Self::M12SilentAct1=>RUN_RECORD_SCHEMA_ID_M12}}
+    pub(crate) fn rules_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RULES_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_RULES_ID_M10,Self::M12SilentAct1=>RUN_RULES_ID_M12}}
+    pub(crate) fn content_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_CONTENT_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_CONTENT_ID_M10,Self::M12SilentAct1=>RUN_CONTENT_ID_M12}}
     pub(crate) fn observation_spec(self,caps:&RunCapacities)->Result<crate::RunObservationSpec,RunSessionError>{match self{
         Self::M9IroncladAct3=>crate::run_observation_spec(caps),
-        Self::M10IroncladHeart=>crate::m10_run_observation_spec(caps),Self::M10IroncladPolicy=>crate::policy_run_observation_spec(caps),
+        Self::M10IroncladHeart=>crate::m10_run_observation_spec(caps),Self::M10IroncladPolicy=>crate::policy_run_observation_spec(caps),Self::M12SilentAct1=>crate::m12_run_observation_spec(caps),
     }}
     fn validate(self,config:&RunSessionConfig)->Result<(),RunSessionError>{
-        if config.character!=Character::Ironclad||config.ascension!=0{return Err(RunSessionError::Input(match self{
-            Self::M9IroncladAct3=>"M9 requires Ironclad A0",Self::M10IroncladHeart|Self::M10IroncladPolicy=>"M10 requires Ironclad A0",
+        let expected_character=if self==Self::M12SilentAct1{Character::Silent}else{Character::Ironclad};
+        if config.character!=expected_character||config.ascension!=0{return Err(RunSessionError::Input(match self{
+            Self::M9IroncladAct3=>"M9 requires Ironclad A0",Self::M10IroncladHeart|Self::M10IroncladPolicy=>"M10 requires Ironclad A0",Self::M12SilentAct1=>"M12 requires Silent A0",
         }))}
-        match self{Self::M9IroncladAct3=>crate::run_schema::validate(&config.capacities),Self::M10IroncladHeart|Self::M10IroncladPolicy=>crate::run_schema_m10::validate(&config.capacities)}
+        let history_matches=match self{
+            Self::M12SilentAct1=>matches!(config.boss_history,RunBossHistory::Act1GuardianUnseen|RunBossHistory::Act1HexaghostUnseen|RunBossHistory::Act1SlimeBossUnseen),
+            _=>matches!(config.boss_history,RunBossHistory::AwakenedUnseen|RunBossHistory::TimeEaterUnseen|RunBossHistory::DonuDecaUnseen),
+        };
+        if !history_matches{return Err(RunSessionError::Input("boss history does not match Run profile"))}
+        match self{Self::M9IroncladAct3=>crate::run_schema::validate(&config.capacities),Self::M10IroncladHeart|Self::M10IroncladPolicy=>crate::run_schema_m10::validate(&config.capacities),Self::M12SilentAct1=>crate::run_schema_m12::validate(&config.capacities)}
     }
     pub(crate) fn from_record(schema:&str,profile:&str)->Result<Self,RunSessionError>{match (schema,profile){
         (RUN_RECORD_SCHEMA_ID,"M9IroncladAct3")=>Ok(Self::M9IroncladAct3),
         (RUN_RECORD_SCHEMA_ID_M10,"M10IroncladHeart")=>Ok(Self::M10IroncladHeart),
         (RUN_RECORD_SCHEMA_ID_POLICY,"M10IroncladPolicy")=>Ok(Self::M10IroncladPolicy),
+        (RUN_RECORD_SCHEMA_ID_M12,"M12SilentAct1")=>Ok(Self::M12SilentAct1),
         _=>Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
     }}
 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum M9BossHistory {AwakenedUnseen,TimeEaterUnseen,DonuDecaUnseen}
+pub enum RunBossHistory {AwakenedUnseen,TimeEaterUnseen,DonuDecaUnseen,Act1GuardianUnseen,Act1HexaghostUnseen,Act1SlimeBossUnseen}
+pub type M9BossHistory=RunBossHistory;
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub struct RunSessionConfig{pub character:Character,pub ascension:u8,pub partition:Partition,pub boss_history:M9BossHistory,pub capacities:RunCapacities,pub record_replay:bool}
+pub struct RunSessionConfig{pub character:Character,pub ascension:u8,pub partition:Partition,pub boss_history:RunBossHistory,pub capacities:RunCapacities,pub record_replay:bool}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub struct RunDecisionToken(pub(crate) [u64;2]);
 impl From<RunDecisionToken> for [u64;2]{fn from(t:RunDecisionToken)->Self{t.0}}
@@ -107,31 +118,45 @@ pub struct RunReproduction{
 pub struct RunSession{
     config:RunSessionConfig,profile:RunProfile,id:u64,serial:u64,run:Option<Run>,published:Option<RunBoundary>,
     actions:Vec<GameAction>,seed:Option<u64>,ordinal:u64,record:Option<RunEpisodeRecord>,
-    fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,
+    fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,at_m12_cutoff:bool,
 }
 pub(crate) fn create_run(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)->Result<Run,RunSessionError>{
     let mut root=[0;32];root[..8].copy_from_slice(&seed.to_le_bytes());
     let mut creation=CreationProfile::experienced();creation.neow_eligible=false;
-    creation.seen_bosses[0]=vec!["Hexaghost","SlimeBoss"];creation.seen_bosses[1]=vec!["Champ","Collector"];
-    creation.seen_bosses[2]=match config.boss_history{
-        M9BossHistory::AwakenedUnseen=>vec!["TimeEater","DonuAndDeca"],
-        M9BossHistory::TimeEaterUnseen=>vec!["AwakenedOne","DonuAndDeca"],
-        M9BossHistory::DonuDecaUnseen=>vec!["AwakenedOne","TimeEater"],
+    creation.seen_bosses[0]=match config.boss_history{
+        RunBossHistory::Act1GuardianUnseen=>vec!["Hexaghost","SlimeBoss"],
+        RunBossHistory::Act1HexaghostUnseen=>vec!["Guardian","SlimeBoss"],
+        RunBossHistory::Act1SlimeBossUnseen=>vec!["Guardian","Hexaghost"],
+        _=>vec!["Hexaghost","SlimeBoss"],
     };
-    let scenario=match profile{RunProfile::M9IroncladAct3=>RoomScenario::M9IroncladAct3,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RoomScenario::M10IroncladHeart};
+    if profile!=RunProfile::M12SilentAct1{
+        creation.seen_bosses[1]=vec!["Champ","Collector"];
+        creation.seen_bosses[2]=match config.boss_history{
+            RunBossHistory::AwakenedUnseen=>vec!["TimeEater","DonuAndDeca"],
+            RunBossHistory::TimeEaterUnseen=>vec!["AwakenedOne","DonuAndDeca"],
+            RunBossHistory::DonuDecaUnseen=>vec!["AwakenedOne","TimeEater"],
+            _=>vec!["TimeEater","DonuAndDeca"],
+        };
+    }
+    let scenario=match profile{RunProfile::M9IroncladAct3=>RoomScenario::M9IroncladAct3,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RoomScenario::M10IroncladHeart,RunProfile::M12SilentAct1=>RoomScenario::M12SilentAct1};
     Run::new_room_scenario(RunConfig{character:config.character,ascension:config.ascension},creation,RunRng::new(root,config.partition,ordinal),scenario).map_err(RunSessionError::Core)
 }
 pub(crate) fn validate_config(profile:RunProfile,config:&RunSessionConfig)->Result<(),RunSessionError>{profile.validate(config)}
 fn check_boundary(profile:RunProfile,d:&PublicDecision)->Result<(),RunSessionError>{
     if profile==RunProfile::M9IroncladAct3&&d.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act4Ready){return Err(RunSessionError::UnsupportedBoundary("M9 stops before the Act4 door"))}
+    if profile==RunProfile::M12SilentAct1&&d.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act2Ready){
+        if d.terminal.is_none()&&d.candidates.is_empty(){return Ok(())}
+        return Err(RunSessionError::UnsupportedBoundary("M12 Act2Ready must be nonterminal with no actions"));
+    }
     if d.terminal.is_none()&&d.candidates.is_empty(){return Err(RunSessionError::UnsupportedBoundary("nonterminal Run has no legal actions"))}Ok(())
 }
-fn publish(profile:RunProfile,run:&Run,config:&RunSessionConfig,token:RunDecisionToken)->Result<(RunBoundary,Vec<GameAction>),RunSessionError>{
+fn publish(profile:RunProfile,run:&Run,config:&RunSessionConfig,token:RunDecisionToken)->Result<(RunBoundary,Vec<GameAction>,bool),RunSessionError>{
     let d=run.decision().map_err(RunSessionError::Core)?;check_boundary(profile,&d)?;
-    let observation=match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&d,run.public_map().as_ref(),&config.capacities)?};
+    let observation=match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&d,run.public_map().as_ref(),&config.capacities)?};
+    let at_m12_cutoff=profile==RunProfile::M12SilentAct1&&d.terminal.is_none()&&d.candidates.is_empty()&&d.room.as_ref().is_some_and(|room|room.kind==RoomViewKind::Act2Ready);
     let mut actions=Vec::new();actions.try_reserve_exact(d.candidates.len()).map_err(|_|RunSessionError::DeliveryFault("Run candidate allocation failed"))?;
     actions.extend(d.candidates.into_iter().map(|c|c.action));
-    Ok((RunBoundary{observation,token,terminal:d.terminal},actions))
+    Ok((RunBoundary{observation,token,terminal:d.terminal},actions,at_m12_cutoff))
 }
 fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)->Result<RunEpisodeRecord,RunSessionError>{
     Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint:profile.observation_spec(&config.capacities)?.fingerprint(),config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
@@ -140,17 +165,34 @@ impl RunSession{
     /// Additive public provenance: no replay, seed, cursor or private Note.
     pub fn environment_spec(&self)->Result<serde_json::Value,RunSessionError>{
         let spec=self.observation_spec()?;
-        Ok(serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
+        let mut descriptor=serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
             "observation_fingerprint":crate::combat_policy::hex(&spec.fingerprint()),"rules_id":self.profile.rules_id(),
             "content_id":self.profile.content_id(),"reward_id":RUN_REWARD_ID,"seed_adapter_id":RUN_SEED_ADAPTER_ID,
-            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":crate::COMBAT_POLICY_VIEW_ID,
-            "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"}))
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if self.profile==RunProfile::M12SilentAct1{serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
+            "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"});
+        if self.profile==RunProfile::M12SilentAct1{
+            descriptor["finite_content"]=serde_json::json!({
+                "permanent_cards":spire_core::run::M12_SILENT_ACT1_CARDS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "generated_and_status_cards":["shiv","dazed","burn","slimed"],
+                "relics":spire_core::run::M12_SILENT_ACT1_RELICS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "potions":spire_core::run::M12_SILENT_ACT1_POTIONS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "playable_enemies":crate::run_schema_m12::M12_PLAYABLE_ENEMIES.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "playable_encounters":crate::run_schema_m12::M12_PLAYABLE_ENCOUNTERS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "map_only_boss_icons":crate::run_schema_m12::M12_MAP_ONLY_BOSS_ICONS.iter().map(|id|id.as_str()).collect::<Vec<_>>()
+            });
+            descriptor["cutoff"]=serde_json::json!("Act2Ready: nonterminal, zero actions, no completion reward");
+        }
+        Ok(descriptor)
     }
-    pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{crate::combat_policy_observation_spec()}
+    pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
+        if self.profile==RunProfile::M12SilentAct1{return Err(RunSessionError::UnsupportedBoundary("M12 does not provide the Ironclad combat policy sidecar"))}
+        crate::combat_policy_observation_spec()
+    }
     /// Owned public sidecar. Dispatch uses the same token/index as the full Run.
     /// Resources are current; snapshot on the settled-count transition. The
     /// visit-keyed last_exit remains sticky across later noncombat decisions.
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
+        if self.profile==RunProfile::M12SilentAct1{return Err(RunSessionError::UnsupportedBoundary("M12 does not provide the Ironclad combat policy sidecar"))}
         self.usable()?;let token=self.published.as_ref().ok_or(RunSessionError::NotReset)?.token;
         let run=self.run.as_ref().unwrap();let d=run.decision().map_err(RunSessionError::Core)?;let cp=run.combat_checkpoint();
         let observation=match crate::combat_policy::encode_combat_policy(&d,cp.as_ref()){
@@ -167,10 +209,12 @@ impl RunSession{
     /// The existing constructor and public configuration remain M9-compatible.
     pub fn new_m10(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladHeart)}
     pub fn new_m10_policy(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladPolicy)}
+    /// Opt into the finite Silent A0 captured Act1 profile on the shared session owner.
+    pub fn new_m12(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M12SilentAct1)}
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
         let id=allocate_run_session_id()?;
-        Ok(Self{config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false})
+        Ok(Self{config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false})
     }
     /// The immutable numeric action/observation contract selected by this session.
     pub fn observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{self.profile.observation_spec(&self.config.capacities)}
@@ -198,16 +242,17 @@ impl RunSession{
         self.record=record;self.seed=Some(seed);self.ordinal=ordinal;self.last_step=None;self.published=None;self.actions.clear();
         let run=match create_run(self.profile,&self.config,seed,ordinal){Ok(run)=>run,Err(error)=>{self.run=None;return Err(self.freeze(error.clone(),error,None,false,false))}};
         self.run=Some(run);self.serial=serial;
-        let (boundary,actions)=match publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial])){
+        let (boundary,actions,at_m12_cutoff)=match publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial])){
             Ok(result)=>result,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false)),
         };
         let returned=match boundary.owned(){Ok(b)=>b,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false))};
-        self.published=Some(boundary);self.actions=actions;Ok(returned)
+        self.published=Some(boundary);self.actions=actions;self.at_m12_cutoff=at_m12_cutoff;Ok(returned)
     }
     pub fn decision(&self)->Result<RunBoundary,RunSessionError>{self.usable()?;self.published.as_ref().ok_or(RunSessionError::NotReset)?.owned()}
     fn step_preflight(&self,token:RunDecisionToken,index:RunActionIndex)->Result<(usize,u64),RunSessionError>{
         self.usable()?;let published=self.published.as_ref().ok_or(RunSessionError::NotReset)?;
         if token!=published.token{return Err(RunSessionError::StaleToken)}
+        if self.at_m12_cutoff{return Err(RunSessionError::UnsupportedBoundary("M12 stops at Act2Ready"))}
         if published.terminal.is_some(){return Err(RunSessionError::Terminal)}
         let index=usize::try_from(index.0).ok().filter(|i|*i<self.actions.len()).ok_or(RunSessionError::Input("action index is not legal"))?;
         let serial=self.serial.checked_add(1).ok_or(RunSessionError::Input("Run decision identity exhausted"))?;
@@ -238,7 +283,7 @@ impl RunSession{
         };
         self.serial=serial;let step=RunRecordedStep{action:action.clone(),reward:transition.reward,terminal:transition.terminal};self.last_step=Some(step.clone());
         if let Some(record)=&mut self.record{record.steps.push(step);record.terminal=transition.terminal;}
-        let (boundary,actions)=match publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial])){
+        let (boundary,actions,at_m12_cutoff)=match publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial])){
             Ok(result)=>result,
             Err(error)=>{
                 let returned=if matches!(error,RunSessionError::UnsupportedBoundary(_)){error.clone()}else{RunSessionError::DeliveryFault("post-step Run encoding failed")};
@@ -250,7 +295,7 @@ impl RunSession{
             Ok(b)=>b,
             Err(error)=>{let error=self.freeze(error.clone(),error,Some(action),true,true);return Err(RunSessionStepFailure{error,committed:true})},
         };
-        self.actions=actions;self.published=Some(boundary);
+        self.actions=actions;self.published=Some(boundary);self.at_m12_cutoff=at_m12_cutoff;
         Ok(RunStepResult{boundary:returned,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false})
     }
     pub(crate) fn publication_serial(&self)->u64{self.serial}

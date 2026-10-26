@@ -91,3 +91,34 @@ pub(super) fn apply_nightmare_copy(state:&mut State,effect:&Effect,owner:&crate:
 pub(super) fn validate_nightmare_templates(state:&State)->Result<(),crate::combat::InputError>{
     copy::validate_pending(state)
 }
+
+/// Visible quantities for the finite supported Silent slice; execution stays shared.
+pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
+    use crate::content::CardId::*;
+    let up=card.upgrades>0;
+    let (damage,block,magic)=match card.id{
+        Neutralize=>(Some(if up{4}else{3}),None,Some(if up{2}else{1})),
+        Survivor=>(None,Some(if up{11}else{8}),Some(1)),
+        PoisonedStab=>(Some(if up{8}else{6}),None,Some(if up{4}else{3})),
+        Backflip=>(None,Some(if up{8}else{5}),Some(2)),
+        BladeDance=>(None,None,Some(if up{4}else{3})),
+        DeadlyPoison=>(None,None,Some(if up{7}else{5})),
+        CloakAndDagger=>(None,Some(6),Some(if up{2}else{1})),
+        DaggerThrow=>(Some(if up{12}else{9}),None,Some(1)),
+        NoxiousFumes=>(None,None,Some(if up{3}else{2})),
+        Accuracy=>(None,None,Some(if up{6}else{4})),
+        WellLaidPlans=>(None,None,Some(if up{2}else{1})),
+        QuickSlash=>(Some(if up{12}else{8}),None,Some(1)),
+        Reflex=>(None,None,Some(if up{3}else{2})),
+        Catalyst=>(None,None,Some(if up{3}else{2})),
+        Deflect=>(None,Some(if up{7}else{4}),None),
+        Tactician=>(None,None,Some(if up{2}else{1})),
+        Nightmare=>(None,None,Some(3)),
+        Shiv=>(Some(card.local.base_damage.unwrap_or(if up{6}else{4})),None,None),
+        _=>return None,
+    };
+    Some(CardPublicValues{base_damage:damage,base_block:block,magic_number:magic,damage_bonus:None,
+        cost_kind:if matches!(card.id,Reflex|Tactician){CardCostKind::Unplayable}else{CardCostKind::Fixed},
+        free_play:card.local.free_play,exhaust_on_finish:card.local.exhaust_on_finish,
+        ethereal:card.local.ethereal,innate:card.local.innate,temporary_cost:card.local.temporary_cost})
+}

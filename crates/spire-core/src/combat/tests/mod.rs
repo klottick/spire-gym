@@ -59,3 +59,5 @@ mod m11_silent_discard;
 mod m11_silent_shiv;
 mod m11_silent_retain;
 mod m11_silent_copy;
+
+mod m12_silent_values;

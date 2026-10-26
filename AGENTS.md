@@ -34,6 +34,7 @@ user did not request.
 | Frozen combat-v1 and M9/M10 Run contracts | [environment guide](docs/combat-environments.md), [M9](docs/milestones/m9-act3.md), [M10](docs/milestones/m10-heart.md) |
 | Gym66 standalone combat and common policy view | [combat-training guide](docs/combat-training.md) |
 | M11 finite Silent authored-combat boundary | [M11 profile](docs/milestones/m11-silent-combat.md) |
+| M12 accepted finite Silent Act1 native progression | [M12 profile](docs/milestones/m12-silent-act1.md) and [approval record](docs/superpowers/plans/2026-10-26-m12-silent-act1-approval.md) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |
@@ -68,6 +69,13 @@ loaded. The default Rust workspace does not enable the Python extension feature.
 The accepted M11 profile is native-only and made no Python-delivery claim.
 Reference records, source-grounded behavior, built artifacts, imported modules,
 and original-runtime validation are distinct evidence.
+
+Consumer source, manifests, artifacts and required ignored evidence must outlive
+managed sessions. Before archiving, preserve them in independently retained
+storage, verify their hashes, and coordinate consumer release. Paseo session
+archival can remove managed worktrees; a path there is not a retention guarantee.
+Prefer an accepted Git commit plus a versioned read-only source export with its
+manifest stored alongside it.
 
 ## Choose the smallest meaningful check
 

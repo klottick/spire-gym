@@ -19,11 +19,19 @@ Beads for task state and ownership; confirm the assigned checkout before editing
   the 60 legacy Python differential mismatches unchanged from accepted M11; see
   the [M9 comparison limits](milestones/m9-act3.md#verification-boundaries).
   This is baseline continuity evidence, not a claim that all tests pass.
-- The user-approved M12 design and implementation plan passed independent review,
-  and implementation was released against the accepted post-`.66` baseline. Bead
-  `spire-dxo.34.1` is in progress at this snapshot. Consult live Beads and the
-  current primary session for ownership and the assigned checkout; no further
-  M12 plan approval is required.
+- The user-approved M12 design and implementation plan passed independent review.
+  Its implementation, one fresh independent milestone review and root integration
+  verification are complete. Consult live Beads and the primary session for
+  publication state and ownership; the approved documents remain historical
+  records and do not require another M12 approval.
+- M12 is accepted at its declared finite native scope. The
+  [finite Silent Act1 profile](milestones/m12-silent-act1.md) records all six
+  normal-start seed7/11 boss Victory/Act2Ready examples, natural Death controls,
+  and native public replay/batch agreement. The final native matrix has 1,529 passed
+  and the sole historical Blue Slaver setup failure; root publication verification
+  reproduced that result and both fixed-seed examples. The independent reviewer
+  passed 51 bounded probes with no findings. This does not refresh the Python
+  extension or accept future milestones.
 - The all-character A0–20 Acts 1–4/Heart target remains the repository scope. See
   [scope](scope.md), [milestone profiles](milestones/), and the current task's
   Bead for details and accepted limits.
