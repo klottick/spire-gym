@@ -88,6 +88,10 @@ impl CombatItemContext {
         self
     }
 
+    /// A typed independent combat room supplies the same healing entitlement as
+    /// an entered Run combat node, without constructing a fake map.
+    pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
+
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { battle:self.battle,collar_activated:self.collar_activated,counters:self.counters.clone(),relics: self.relics.clone(), potions, orichalcum_trigger:self.orichalcum_trigger, lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }

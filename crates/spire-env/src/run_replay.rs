@@ -21,11 +21,11 @@ fn parse_term(v:&Value)->Result<Option<RunTerminal>,RunSessionError>{if v.is_nul
 fn action(a:&GameAction,profile:RunProfile)->Value{match a{
     GameAction::Move(id)=>json!({"verb":"move","node":id.0}),GameAction::Choose(id)=>json!({"verb":"choose","choice":id.0}),GameAction::Select(id)=>json!({"verb":"select","selection":id.0}),GameAction::Confirm=>json!({"verb":"confirm"}),GameAction::Cancel=>json!({"verb":"cancel"}),
     GameAction::UsePotion{slot,target}=>json!({"verb":"use_potion","slot":slot,"target":target.map(|t|t.0)}),GameAction::DiscardPotion{slot}=>json!({"verb":"discard_potion","slot":slot}),
-      GameAction::Combat(a)=>match a{CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),CombatAction::ConfirmSelection if profile==RunProfile::M10IroncladHeart=>json!({"verb":"combat.confirm_selection"}),CombatAction::ConfirmSelection=>Value::Null,CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),CombatAction::EndTurn=>json!({"verb":"combat.end_turn"})},
+      GameAction::Combat(a)=>match a{CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),CombatAction::ConfirmSelection if profile!=RunProfile::M9IroncladAct3=>json!({"verb":"combat.confirm_selection"}),CombatAction::ConfirmSelection=>Value::Null,CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),CombatAction::EndTurn=>json!({"verb":"combat.end_turn"})},
  }}
 fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>{
     if v["verb"].as_str()==Some("combat.confirm_selection"){
-        return if profile==RunProfile::M10IroncladHeart{Ok(GameAction::Combat(CombatAction::ConfirmSelection))}else{Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"))};
+        return if profile!=RunProfile::M9IroncladAct3{Ok(GameAction::Combat(CombatAction::ConfirmSelection))}else{Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"))};
     }
     let target=||if v["target"].is_null(){Ok(None)}else{Ok(Some(TargetId(u(&v["target"])?)))};
     Ok(match text(&v["verb"])?{
@@ -78,14 +78,14 @@ impl RunEpisodeRecord{
 }
 pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplayReport,RunSessionError>{
     let profile=validate(record)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart=>crate::run_schema_m10::validate(&caps)?}
+    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?}
     if profile==RunProfile::M9IroncladAct3&&(record.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
         ||record.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection)))){
         return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
     }
     let mut run=create_run(profile,&record.config,record.seed,record.ordinal)?;
     let mut decision=run.decision().map_err(RunSessionError::Core)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?};
+    match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?};
     let mut rewards=Vec::new();let mut terminals=Vec::new();
     rewards.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
     terminals.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
@@ -94,7 +94,7 @@ pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplay
         let t=run.step(&step.action).map_err(RunSessionError::Core)?;
         if (t.reward,t.terminal)!=(step.reward,step.terminal){return Err(RunSessionError::IncompatibleReplay("Run reward or terminal mismatch"))}
         decision=run.decision().map_err(RunSessionError::Core)?;
-        match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?};
+        match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?};
         rewards.push(t.reward);terminals.push(t.terminal);
     }
     if decision.terminal!=record.terminal{return Err(RunSessionError::IncompatibleReplay("Run final terminal mismatch"))}

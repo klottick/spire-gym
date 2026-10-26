@@ -15,10 +15,10 @@ from ._common import OperationGuard
 from .spaces import spaces_from_spec
 
 if TYPE_CHECKING:
-    from spire_lab._native import RunResetPayload, RunStepPayload
+    from spire_lab._native import CombatPolicyPayload, RunResetPayload, RunStepPayload
 
 Observation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
-RunProfile = Literal["m9-ironclad-act3", "m10-ironclad-heart"]
+RunProfile = Literal["m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy"]
 
 
 class RunEnv(gym.Env[Observation, int]):
@@ -61,6 +61,26 @@ class RunEnv(gym.Env[Observation, int]):
     def observation_spec(self) -> dict[str, Any]:
         """Owned native descriptor; Python defines no feature schema."""
         return self._session.observation_spec()
+
+    def environment_spec(self) -> dict[str, Any]:
+        """Public profile/rules/content/reward identities without a replay record."""
+        with self._guard:
+            return self._session.environment_spec()
+
+    def combat_observation_spec(self) -> dict[str, Any]:
+        """Reusable native combat-policy view; old Run schema stays unchanged."""
+        with self._guard:
+            return self._session.combat_observation_spec()
+
+    def combat_view(self) -> CombatPolicyPayload:
+        """Owned current combat features and visit/routing/exit metadata.
+
+        Dispatch uses the original Run action index. Outside combat the view's
+        action mask is empty. Snapshot resources on a settled-count change;
+        last_exit is sticky while resource arrays always describe current state.
+        """
+        with self._guard:
+            return self._session.combat_view()
 
     def _package_reset(
         self, raw: RunResetPayload

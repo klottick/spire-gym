@@ -4,6 +4,8 @@ mod profile;
 mod decision;
 mod engine;
 mod combat;
+mod training;
+pub use training::*;
 mod observe;
 mod reward;
 mod mutations;

@@ -29,7 +29,7 @@ const NEW_RELICS: &[RelicId] = &[
     RelicId::RunicCube,
 ];
 const NEW_POTIONS: &[PotionId] = &[PotionId::Elixir, PotionId::HeartOfIron];
-const NEW_POWERS: &[&str] = &[
+pub(crate) const NEW_POWERS: &[&str] = &[
     "berserk", "brutality", "combust", "corruption", "dark_embrace", "demon_form", "double_tap",
     "evolve", "feel_no_pain", "fire_breathing", "flame_barrier", "juggernaut", "no_draw", "rage", "rupture",
     "beat_of_death", "invincible", "surrounded", "back_attack",

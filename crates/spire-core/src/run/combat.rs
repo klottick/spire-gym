@@ -57,17 +57,17 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
     let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
     let m8=super::rooms::uses_captured_act3(state)&&state.act==3&&matches!(encounter,EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::FourShapes|EncounterId::Maw|EncounterId::SphereAndTwoShapes|EncounterId::JawWormHorde|EncounterId::ThreeDarklings|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer);
-    let captured_act3_boss=(super::rooms::is_m9(state)||super::rooms::is_m10(state))&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..});
+    let captured_act3_boss=(super::rooms::is_m9(state)||super::rooms::is_m10(state))&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss});
     let captured_act4=super::rooms::is_m10(state)&&state.act==4&&match (encounter,origin){
         (EncounterId::ShieldAndSpear,CombatOrigin::MapRoom{node,kind:MapNodeKind::Elite})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==53&&n.visited&&n.encounter==Some(encounter)&&!n.burning)),
         (EncounterId::CorruptHeart,CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==54&&n.visited&&n.encounter==Some(encounter))),
         _=>false,
     };
-    if !m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    if !matches!(origin,CombatOrigin::Training{..})&&!m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let mut battle=crate::items::NativeBattleContext{elite_trigger:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}),boss:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}),burning:None};
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None};
     let mut entry=enemies::setup(encounter,state.act,state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
@@ -174,6 +174,13 @@ impl Run {
             Ok(prepared)=>prepared,
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
         };
+        let checkpoint=match self.state.combat.as_ref().unwrap().public_full(){
+            Ok(view)=>match (view.hp_before_healing,view.hp_after_cleanup){
+                (Some(before),Some(after)) if before>=0&&after>=0=>CombatCheckpoint{record:record.clone(),hp_before_healing:before as u32,hp_after_cleanup:after as u32},
+                _=>return Err(self.retain_fault(RunFaultKind::Invariant("combat cleanup checkpoint missing"),"run.combat.checkpoint")),
+            },
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat cleanup checkpoint unreadable"),"run.combat.checkpoint")),
+        };
         // All conversions/counter/membership/return checks precede this commit.
         // Export is detached; the real terminal owner remains until commit.
         if exit.item_context.take().unwrap().return_to_run(&mut self.state).is_err(){
@@ -183,6 +190,7 @@ impl Run {
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
         if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();match act{2=>room.act2.as_mut().unwrap().combat_visits=visits,3=>room.act3.as_mut().unwrap().combat_visits=visits,4=>room.act4.as_mut().unwrap().combat_visits=visits,_=>unreachable!()}}
+        self.state.last_combat_checkpoint=Some(checkpoint);
         self.state.last_combat=Some(record.clone());
         self.state.active_combat=None;
         self.state.combat=None;
@@ -238,16 +246,23 @@ impl Run {
         if start.relics.iter().any(|id| !relics.insert(*id))
             || start.relic_counters.keys().any(|id| !relics.contains(id)) { return Err(RunError::InvalidAction); }
         crate::items::validate_combat_inventory(&CombatItemContext::new(start.relics.clone(),start.potions.clone()).with_counters(start.relic_counters.clone()))?;
+        Ok(Self::from_validated_combat_resources(config,start,rng,next_instance))
+    }
+
+    /// Shared resource owner after profile-specific validation. Character-specific
+    /// entry contracts choose resources; no character copies this state builder,
+    /// encounter startup, item custody, resolver or settlement implementation.
+    pub(super) fn from_validated_combat_resources(config:RunConfig,start:AuthoredRunStart,rng:RunRng,next_instance:u64)->Self{
         let profile=CreationProfile::experienced();
-        Ok(Self {state:RunState {
-            room_loop:None,reward_ledger:Default::default(),authored_combat:true,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
+        Self {state:RunState {
+            room_loop:None,reward_ledger:Default::default(),authored_combat:true,training_encounter:None,last_combat_checkpoint:None,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
             character:config.character,ascension:config.ascension,hp:start.hp,max_hp:start.max_hp,gold:start.gold,
             deck:start.deck,relics:start.relics,potions:start.potions,relic_counters:start.relic_counters,
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
             last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,
-        },candidates:vec![],next_choice:0})
+        },candidates:vec![],next_choice:0}
     }
 
     pub fn enter_combat(&mut self, encounter:EncounterId) -> Result<RunTransition,RunError> {
@@ -262,8 +277,10 @@ impl Run {
             || self.state.pending.is_some() { return Err(RunError::InvalidAction); }
         let entered=self.state.combat_progress.entered.checked_add(1).ok_or(RunError::Unsupported("combat visit exhausted"))?;
         let (entry,rng,battle)=prepare_entry(&self.state,encounter,origin)?;
-        let mut items=Some(CombatItemContext::take_from_run(&mut self.state)
-            .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle));
+        let context=CombatItemContext::take_from_run(&mut self.state)
+            .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle);
+        let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
+        let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
             Ok(combat)=>(combat,None),
@@ -277,7 +294,7 @@ impl Run {
         self.state.rng=rng;
         self.state.combat=Some(combat);
         self.state.active_combat=Some(ActiveCombat {visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
-        if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}){
+        if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}){
             let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),EncounterId::AwakenedOne=>Some("AwakenedOne"),EncounterId::TimeEater=>Some("TimeEater"),EncounterId::DonuAndDeca=>Some("DonuAndDeca"),_=>None};
             if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}
         }

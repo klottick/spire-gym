@@ -266,3 +266,7 @@ the domain guides retain their specific notices. Slay the Spire is owned
 by Mega Crit; this license does not grant rights to the original game or its assets.
 Original game code, binaries, assets and private raw evidence are not distributed
 with this project.
+
+The opt-in [Ironclad combat training interface](docs/combat-training.md) documents
+standalone full-engine entries, disabled-autoreset native batches and the common
+combat-policy view for normal Runs. Existing combat-v1/M9/M10 defaults stay frozen.

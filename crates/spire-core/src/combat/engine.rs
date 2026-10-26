@@ -1977,7 +1977,13 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                         && state.player.hp > 0, "victory actors")?;
                     let before = state.hp_before_healing.ok_or_else(|| InputError::Invariant("missing prehealing HP".into()))?;
                     require((1..=state.player.max_hp).contains(&before)
-                        && if state.full_runtime { before == state.player.hp }
+                        && if state.full_runtime {
+                            let amount=state.item_context.as_ref().map_or(0,|items|{
+                                let base=if items.owns_relic(crate::content::RelicId::BlackBlood){12}else if items.owns_relic(crate::content::RelicId::BurningBlood){6}else{0};
+                                crate::items::ordinary_heal_amount_in_room(items.relics(),base,items.heal_room())
+                            });
+                            (i64::from(before)+i64::from(amount)).min(i64::from(state.player.max_hp))==i64::from(state.player.hp)
+                        }
                            else { (i64::from(before) + 6).min(i64::from(state.player.max_hp)) == i64::from(state.player.hp) },
                         "victory healing")?;
                 }

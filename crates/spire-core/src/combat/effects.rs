@@ -427,7 +427,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if state.full_runtime{super::cards::ironclad::autoplay::resume_parent(state,card)?;}
         }
         EffectKind::Terminal(outcome) => {
-            state.hp_before_healing = Some(state.player.hp);
+            if !state.full_runtime || state.hp_before_healing.is_none() {state.hp_before_healing = Some(state.player.hp);}
             let before=state.player.hp;
             if *outcome == Outcome::Victory && !state.full_runtime {
                 state.player.hp = i32::try_from((i64::from(state.player.hp) + 6)
@@ -515,6 +515,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
                 super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
                 let hp = state.player.hp;
+                if *hook==Hook::CombatSettled {state.hp_before_healing=Some(hp);}
                 if *hook==Hook::CombatSettled&&hp>0 {
                     if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
                         state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;

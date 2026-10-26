@@ -1698,3 +1698,41 @@ No new commits, installs or cleanup authority. Preserve accepted M3 and all draf
 - For environment usage/tests, see `docs/combat-environments.md` and
   `docs/development.md`. Existing test counts are historical, not current reruns.
   CUDA/device smoke checks are not a prerequisite for Rust/gym correctness.
+
+## User-required shared progression and combat interface architecture (2026-10-26)
+
+The user explicitly rejects copying Ironclad progression for Silent and later
+characters. Keep ONE authoritative Run map/room/enemy/boss/reward/transition and
+combat entry/startup/settlement implementation. Character-specific card pools,
+items and hooks belong in focused existing character/content modules. M12–M15
+extend these owners; no cloned character Run engine or parallel simulator.
+
+Feature .66 uses `Run::from_validated_combat_resources` (internal character-aware
+resource builder after each profile validates), `Run::enter_owned` →
+`enemies::setup` → `Combat::enter_with_item_context`, shared resolver and
+`Run::settle_combat`. `enemies::A0_ENCOUNTER_SETUPS` is shared setup metadata,
+including the existing stable RNG scope keys; standalone does not own a second
+43-encounter table. Its Ironclad A0 input validation remains explicitly bounded.
+`spire-env/src/combat_policy.rs` reuses the versioned public Run encoder and M10
+vocabulary, selecting a common view rather than duplicating the encoder.
+Python transport shares `spire-python/src/run_env.rs` scalar/token/numeric/spec
+packaging helpers. Extend the existing catalog/profile seam and mechanical
+session/batch transport when adding a future character profile; do not copy the
+Ironclad facades/loops into a separate simulator. Keep frozen profile contracts
+through adapters/versioned schemas. No new Silent Gym API or M12 product start
+is implied by .66. Review this shared-ownership requirement in the ONE final
+feature review. Preserve all historical guidance, evidence and worktrees.
+
+## User communication routing and current parallel ownership (2026-10-26)
+
+Any Gym question requiring user input must be sent to the parent/root's current
+user conversation, with a concrete decision, options/tradeoffs and why the user
+is needed. Do not ask in an executor tab, Learn agent tab, or another queue.
+Routine approved implementation continues independently. Technical Learn
+coordination remains authorized; it is not a route for user approvals.
+
+The user separately authorized M12 in its own senior worktree and prioritizes
+`.66` delivery/normal main merge first because it blocks Learn. This supersedes
+historical M12 planning-only pointers, without widening this `.66` worktree into
+Silent product work. Root owns publication/integration and the final accepted
+Learn callback. Preserve all historical guidance and isolated worktrees.
