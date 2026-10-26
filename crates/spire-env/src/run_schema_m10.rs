@@ -81,28 +81,49 @@ pub(crate) fn groups(c: &RunCapacities) -> Vec<v1::GroupSpec> {
 }
 
 pub(crate) fn validate(c: &RunCapacities) -> Result<(), RunSessionError> {
-    let mut bytes = 0usize;
-    for group in groups(c) {
-        if group.rows == Some(0) {
-            return Err(RunSessionError::Input("capacities must be positive"));
-        }
-        let count = group.rows.unwrap_or(1)
-            .checked_mul(group.fields.split(',').count())
-            .ok_or(RunSessionError::Input("Run shape overflow"))?;
-        bytes = bytes.checked_add(count.checked_mul(9).ok_or(RunSessionError::Input("Run shape overflow"))?)
-            .ok_or(RunSessionError::Input("Run shape overflow"))?;
-    }
-    if bytes > isize::MAX as usize {
-        return Err(RunSessionError::Input("Run shape overflow"));
-    }
-    Ok(())
+    validate_groups(&groups(c), c)
 }
 
 pub fn m10_run_observation_spec(c: &RunCapacities) -> Result<RunObservationSpec, RunSessionError> {
-    validate(c)?;
     let vocab = vocabularies();
+    spec_from_vocabulary(
+        c,
+        RUN_OBSERVATION_M10_SCHEMA_ID,
+        "M10IroncladHeart",
+        vocab,
+        json!({
+            "padding":"zero,known0,occupied0","unknown_reference":"minus_one,known0 in occupied rows",
+            "counts":"only published public counts; no hidden draw rows","identity":"explicit versioned vocabulary IDs and row references only; no raw resolver IDs",
+            "power_absence":"no row; listed signed amounts are public","potions":"belt slot rows; empty slot known1/occupied0/kind0; unused transport padding known0",
+            "orbs":"N/A for Ironclad; known empty slot differs from padding/N/A",
+            "selection":"Run selections expose counts without selected identities; entitled combat selections expose selected card rows and an explicit public operation",
+            "known_draw":"only entitled known cards; references point to corresponding combat_cards rows; unknown draw cards have no rows",
+            "playing_cards":"accepted public play owners use a dedicated playing zone",
+            "actions":"legal candidate order; no paging, truncation or policy",
+            "scalar0":"potion belt slot for potion verbs; otherwise absent","scalar1":"reserved absent",
+            "heart":"remaining Invincible allowance is public only when the Heart/power view supplies it; cap is source-qualified A0 value 300",
+            "offer_amount":"Neow HP/gold/heal/Joust result/Falling type/stage per choice_kind"
+        }),
+        groups(c),
+        b"spire-gym/run-schema/v2\0",
+    )
+}
+
+/// Shared descriptor assembly for finite Run vocabularies. The profile supplies
+/// only its vocabulary, groups and identity; row layout and domain construction
+/// stay with the existing M10-compatible owner.
+pub(crate) fn spec_from_vocabulary(
+    c: &RunCapacities,
+    schema_id: &str,
+    profile_id: &str,
+    vocab: Value,
+    semantics: Value,
+    groups: Vec<v1::GroupSpec>,
+    fingerprint_domain: &[u8],
+) -> Result<RunObservationSpec, RunSessionError> {
+    validate_groups(&groups, c)?;
     let mut tensors = Vec::new();
-    for group in groups(c) {
+    for group in groups {
         let columns = group.fields.split(',').zip(group.units.split(','))
             .map(|(field, unit)| domain(group.key, field, unit, c, &vocab)).collect::<Vec<_>>();
         let shape = group.rows.map_or_else(|| vec![columns.len()], |rows| vec![rows, columns.len()]);
@@ -122,31 +143,41 @@ pub fn m10_run_observation_spec(c: &RunCapacities) -> Result<RunObservationSpec,
     tensors.push(json!({"key":"action_mask","dtype":"int8","shape":[c.actions],"low":0,"high":1,
         "space":"MultiBinary","padding":0}));
     let descriptor = json!({
-        "schema_id":RUN_OBSERVATION_M10_SCHEMA_ID,
-        "profile_id":"M10IroncladHeart",
+        "schema_id":schema_id,
+        "profile_id":profile_id,
         "array_layout":"owned_c_contiguous_native_endian_row_major",
         "capacities":{"map_nodes":c.map_nodes,"map_edges":c.map_edges,"permanent_cards":c.permanent_cards,
             "combat_cards":c.combat_cards,"enemies":c.enemies,"powers":c.powers,"relics":c.relics,
             "potions":c.potions,"offers":c.offers,"selection":c.selection,"orbs":c.orbs,"actions":c.actions},
         "action_space":{"type":"Discrete","n":c.actions,"start":0},
         "tensors":tensors,"vocabularies":vocab,
-        "semantics":{"padding":"zero,known0,occupied0","unknown_reference":"minus_one,known0 in occupied rows",
-            "counts":"only published public counts; no hidden draw rows","identity":"explicit versioned vocabulary IDs and row references only; no raw resolver IDs",
-            "power_absence":"no row; listed signed amounts are public","potions":"belt slot rows; empty slot known1/occupied0/kind0; unused transport padding known0",
-            "orbs":"N/A for Ironclad; known empty slot differs from padding/N/A",
-            "selection":"Run selections expose counts without selected identities; entitled combat selections expose selected card rows and an explicit public operation",
-            "known_draw":"only entitled known cards; references point to corresponding combat_cards rows; unknown draw cards have no rows",
-            "playing_cards":"accepted public play owners use a dedicated playing zone",
-            "actions":"legal candidate order; no paging, truncation or policy",
-            "scalar0":"potion belt slot for potion verbs; otherwise absent","scalar1":"reserved absent",
-            "heart":"remaining Invincible allowance is public only when the Heart/power view supplies it; cap is source-qualified A0 value 300",
-            "offer_amount":"Neow HP/gold/heal/Joust result/Falling type/stage per choice_kind"}
+        "semantics":semantics
     });
     let canonical = crate::canonical_json(&descriptor).map_err(|_| RunSessionError::Input("invalid Run descriptor"))?;
     let mut hash = Sha256::new();
-    hash.update(b"spire-gym/run-schema/v2\0");
+    hash.update(fingerprint_domain);
     hash.update(canonical);
     Ok(RunObservationSpec { descriptor, fingerprint: hash.finalize().into() })
+}
+
+pub(crate) fn validate_groups(groups: &[v1::GroupSpec], c: &RunCapacities) -> Result<(), RunSessionError> {
+    let mut bytes = 0usize;
+    for group in groups {
+        if group.rows == Some(0) {
+            return Err(RunSessionError::Input("capacities must be positive"));
+        }
+        let count = group.rows.unwrap_or(1)
+            .checked_mul(group.fields.split(',').count())
+            .ok_or(RunSessionError::Input("Run shape overflow"))?;
+        bytes = bytes.checked_add(count.checked_mul(9).ok_or(RunSessionError::Input("Run shape overflow"))?)
+            .ok_or(RunSessionError::Input("Run shape overflow"))?;
+    }
+    if bytes > isize::MAX as usize {
+        return Err(RunSessionError::Input("Run shape overflow"));
+    }
+    // Keep capacity references in the common schema builder's range checks.
+    let _ = c;
+    Ok(())
 }
 
 fn append<T: PartialEq>(id: T, base: &[T], extra: &[T], message: &'static str) -> Result<i64, RunSessionError> {

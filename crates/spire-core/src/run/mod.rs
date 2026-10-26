@@ -22,3 +22,5 @@ pub use engine::*;
 pub use rng::*;
 pub use map::ActMap;
 #[cfg(test)] mod tests;
+
+pub use rooms::m12_content::{M12_SILENT_ACT1_CARDS,M12_SILENT_ACT1_RELICS,M12_SILENT_ACT1_POTIONS};

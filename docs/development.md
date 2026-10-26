@@ -50,6 +50,13 @@ Python proof. The [Gym66 build guide](combat-training.md#shared-implementation-a
 shows an isolated wheel workflow for authorized binding validation that preserves
 other environments.
 
+Consumer source, manifests, artifacts and required ignored evidence must outlive
+managed sessions. Before archiving, preserve them in independently retained
+storage, verify their hashes, and coordinate consumer release. Paseo session
+archival can remove managed worktrees; a path there is not a retention guarantee.
+Prefer an accepted Git commit plus a versioned read-only source export with its
+manifest stored alongside it.
+
 `maturin develop` builds and installs the extension. `uv sync` changes the
 environment and removes the editable package, so neither is a routine test step.
 Use setup or refresh commands only when the current task requires and authorizes
