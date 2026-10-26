@@ -35,6 +35,21 @@ on the shared Run/room/resolver/public session owners, with actual normal-start
 boss alternatives and a nonterminal Act2Ready cutoff. Independent milestone review
 and root verification are complete and M12 is accepted; finite captured pools and
 native-only delivery limits remain explicit.
+
+The [M13 finite Silent Acts1–2 profile](milestones/m13-silent-act2.md) is accepted
+after one fresh independent milestone review with no findings. It reuses the
+shared Run and native session/replay/batch owners, stopping at Act3Ready. The
+user-approved six-run coverage amendment has actual entries for all three Act2
+boss species, three normal completions and three genuine Deaths. The finite
+19-card/13-relic/four-potion scope plus Wound remains explicit; it does not claim
+all three boss victories, full Silent pools or refreshed Python delivery.
+
+M14's [design](superpowers/specs/2026-10-26-m14-silent-act3-design.md) and
+[plan](superpowers/plans/2026-10-26-m14-silent-act3.md) are approved, with the
+[coverage amendment](superpowers/plans/2026-10-26-silent-normal-run-coverage-amendment.md).
+Its implementation proceeds from accepted M13 source through a primary-session
+assignment; check Beads for the live owner and checkout.
+
 The milestone narratives below preserve earlier scope and acceptance history;
 use [work status](work-status.md) and live Beads for current scheduling and ownership.
 

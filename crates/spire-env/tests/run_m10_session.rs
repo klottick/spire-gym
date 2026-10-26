@@ -44,7 +44,7 @@ fn direct_m10(seed: u64, history: M9BossHistory, partition: Partition, ordinal: 
         M9BossHistory::AwakenedUnseen => vec!["TimeEater", "DonuAndDeca"],
         M9BossHistory::TimeEaterUnseen => vec!["AwakenedOne", "DonuAndDeca"],
         M9BossHistory::DonuDecaUnseen => vec!["AwakenedOne", "TimeEater"],
-        M9BossHistory::Act1GuardianUnseen | M9BossHistory::Act1HexaghostUnseen | M9BossHistory::Act1SlimeBossUnseen =>
+        M9BossHistory::Act1GuardianUnseen | M9BossHistory::Act1HexaghostUnseen | M9BossHistory::Act1SlimeBossUnseen | M9BossHistory::M13SilentAct2 { .. } =>
             unreachable!("M10 direct-run reference only accepts Act 3 history variants"),
     };
     Run::new_room_scenario(

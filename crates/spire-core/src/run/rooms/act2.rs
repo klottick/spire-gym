@@ -5,7 +5,8 @@ pub(crate) struct Act2Progress {pub question_visits:usize,pub shop_visits:usize,
 pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::act1::CapturedRoom,RunError>{
     if !uses_captured_act2(state)||state.act!=2{return Err(RunError::InvalidAction)}
     let map=state.map.as_ref().filter(|m|m.act==2).ok_or(RunError::InvalidAction)?;let n=map.nodes.iter().find(|n|n.id==node).ok_or(RunError::InvalidAction)?;
-    let last=if is_m7(state)||uses_captured_act3(state){33}else{26};
+    let continues_to_boss=is_m7(state)||is_m13(state)||uses_captured_act3(state);
+    let last=if continues_to_boss{33}else{26};
     if !(18..=last).contains(&n.floor){return Err(RunError::InvalidAction)}
     let p=state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?;let mut kind=n.kind;let mut event=None;
     if kind==MapNodeKind::Question{match p.question_visits{0=>{kind=MapNodeKind::Event;event=Some(EventId::AncientWriting)},1=>{kind=MapNodeKind::Event;event=Some(if events::joust_eligible(state){EventId::Joust}else{EventId::Purifier})},_=>kind=MapNodeKind::Monster}}
@@ -21,7 +22,7 @@ pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::a
             let cycle=[EncounterId::GremlinLeader,EncounterId::Slavers,EncounterId::BookOfStabbing];let history=&map.elite_encounter_history;
             Some((0..3).map(|i|cycle[(history.len()+offset+i)%3]).find(|id|history.last()!=Some(id)).ok_or(RunError::InvalidAction)?)
         },
-        MapNodeKind::Boss if (is_m7(state)||uses_captured_act3(state))&&n.floor==33=>{
+        MapNodeKind::Boss if continues_to_boss&&n.floor==33=>{
             let boss=state.room_loop.as_ref().and_then(|r|r.act2_boss_order.as_ref()).and_then(|order|order.first()).copied().ok_or(RunError::InvalidAction)?;
             if map.boss_icon!=Some(boss)||!matches!(boss,EncounterId::Champ|EncounterId::BronzeAutomaton|EncounterId::Collector){return Err(RunError::InvalidAction)}
             Some(boss)
@@ -64,9 +65,10 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
 pub(super) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !uses_captured_act2(&run.state)||run.state.act!=2||run.state.combat.is_some()||run.state.active_combat.is_some()||run.state.pending.is_some()||room.reward_parent.is_some(){return Err(RunError::InvalidAction)}
-    let kind=if (is_m7(&run.state)||uses_captured_act3(&run.state))&&(18..=32).contains(&run.state.floor){RoomViewKind::Map}else if run.state.floor==26{
+    let continues_to_boss=is_m7(&run.state)||is_m13(&run.state)||uses_captured_act3(&run.state);
+    let kind=if continues_to_boss&&(18..=32).contains(&run.state.floor){RoomViewKind::Map}else if run.state.floor==26{
         if room.screen.kind!=RoomViewKind::Treasure||!run.state.map.as_ref().is_some_and(|m|m.current.is_some_and(|id|m.nodes.iter().any(|n|n.id==id&&n.floor==26&&n.kind==MapNodeKind::Treasure&&n.visited))){return Err(RunError::InvalidAction)}
-        RoomViewKind::Act2PrefixComplete
+        if continues_to_boss{RoomViewKind::Map}else{RoomViewKind::Act2PrefixComplete}
     }else if (18..26).contains(&run.state.floor){RoomViewKind::Map}else{return Err(RunError::InvalidAction)};
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind,choices:vec![]};run.state.room=if kind==RoomViewKind::Act2PrefixComplete{"Act2PrefixComplete"}else{"Map"};run.candidates.clear();Ok(empty_transition())
 }
