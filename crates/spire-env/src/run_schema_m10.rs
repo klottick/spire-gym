@@ -29,7 +29,7 @@ const NEW_RELICS: &[RelicId] = &[
     RelicId::RunicCube,
 ];
 const NEW_POTIONS: &[PotionId] = &[PotionId::Elixir, PotionId::HeartOfIron];
-const NEW_POWERS: &[&str] = &[
+pub(crate) const NEW_POWERS: &[&str] = &[
     "berserk", "brutality", "combust", "corruption", "dark_embrace", "demon_form", "double_tap",
     "evolve", "feel_no_pain", "fire_breathing", "flame_barrier", "juggernaut", "no_draw", "rage", "rupture",
     "beat_of_death", "invincible", "surrounded", "back_attack",
@@ -214,6 +214,8 @@ pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> i64 {
         CopyToHand { copies: 2 } => "copy_to_hand_2",
         CopyToHand { copies: 3 } => "copy_to_hand_3",
         CopyToHand { .. } => "copy_to_hand_3",
+        NightmareCapture => panic!("M10 v2 selection schema cannot encode M11 Nightmare selections"),
+        Retain => panic!("M10 v2 selection schema cannot encode M11 retain choices"),
     };
     SELECTION_OPERATIONS.iter().position(|value| *value == name).expect("declared M10 selection operation") as i64 + 1
 }

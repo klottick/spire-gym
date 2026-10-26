@@ -88,6 +88,10 @@ impl CombatItemContext {
         self
     }
 
+    /// A typed independent combat room supplies the same healing entitlement as
+    /// an entered Run combat node, without constructing a fake map.
+    pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
+
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { battle:self.battle,collar_activated:self.collar_activated,counters:self.counters.clone(),relics: self.relics.clone(), potions, orichalcum_trigger:self.orichalcum_trigger, lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
@@ -198,7 +202,8 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
             | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask
             | RelicId::Vajra | RelicId::OddlySmoothStone | RelicId::BagOfPreparation | RelicId::BagOfMarbles | RelicId::BronzeScales
             | RelicId::RedSkull | RelicId::PaperPhrog | RelicId::ChampionsBelt | RelicId::CharonsAshes | RelicId::SelfFormingClay
-            | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum) {
+            | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum
+            | RelicId::SneckoSkull) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }

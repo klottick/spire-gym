@@ -108,8 +108,11 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 scheduled.sort_by_key(|e|state.actor_slots.get(&e.instance_id).copied().unwrap_or(0));
                 let actors=scheduled.into_iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
                 for id in actors.into_iter().rev() {
+                    let actor=Actor::Enemy(id);
                     state.pending.push_front(Effect { source: Source::None,
-                        target: Some(Actor::Enemy(id)), kind: EffectKind::EnemyMove });
+                        target: Some(actor.clone()), kind: EffectKind::EnemyMove });
+                    state.pending.push_front(Effect { source: Source::Actor(actor.clone()),
+                        target: Some(actor), kind: EffectKind::Hook(super::Hook::EnemyTurnStarted) });
                 }
             } else {
                 state.enemies[0].block = 0;

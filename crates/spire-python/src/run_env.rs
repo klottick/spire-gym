@@ -9,50 +9,52 @@ create_exception!(_native,RunInputError,PyValueError);
 create_exception!(_native,RunStateError,PyRuntimeError);
 create_exception!(_native,RunFaultError,PyRuntimeError);
 create_exception!(_native,RunUnsupportedBoundaryError,PyNotImplementedError);
-fn integer<T:for<'a,'py> FromPyObject<'a,'py>>(v:&Bound<'_,PyAny>)->PyResult<T>{
+pub(crate) fn integer<T:for<'a,'py> FromPyObject<'a,'py>>(v:&Bound<'_,PyAny>)->PyResult<T>{
     if !v.is_exact_instance_of::<PyInt>(){return Err(RunInputError::new_err("expected built-in integer, not bool"))}
     v.extract().map_err(|_|RunInputError::new_err("integer outside native range"))
 }
-fn label(v:&Bound<'_,PyAny>)->PyResult<String>{if !v.is_exact_instance_of::<PyString>(){return Err(RunInputError::new_err("expected string"))}v.extract().map_err(Into::into)}
-fn boolean(v:&Bound<'_,PyAny>)->PyResult<bool>{if !v.is_exact_instance_of::<PyBool>(){return Err(RunInputError::new_err("expected bool"))}v.extract().map_err(Into::into)}
-fn error(e:RunSessionError)->PyErr{match e{
+pub(crate) fn label(v:&Bound<'_,PyAny>)->PyResult<String>{if !v.is_exact_instance_of::<PyString>(){return Err(RunInputError::new_err("expected string"))}v.extract().map_err(Into::into)}
+pub(crate) fn boolean(v:&Bound<'_,PyAny>)->PyResult<bool>{if !v.is_exact_instance_of::<PyBool>(){return Err(RunInputError::new_err("expected bool"))}v.extract().map_err(Into::into)}
+pub(crate) fn error(e:RunSessionError)->PyErr{match e{
     RunSessionError::Input(s)=>RunInputError::new_err(s),RunSessionError::StaleToken=>RunStateError::new_err("stale Run decision token"),RunSessionError::NotReset=>RunStateError::new_err("Run has not been reset"),RunSessionError::Terminal=>RunStateError::new_err("Run is terminal"),RunSessionError::Closed=>RunStateError::new_err("Run is closed"),
     RunSessionError::UnsupportedBoundary(s)=>RunUnsupportedBoundaryError::new_err(s),RunSessionError::DeliveryFault(s)=>RunFaultError::new_err(s),RunSessionError::Capacity{group,required,capacity}=>RunFaultError::new_err(format!("Run capacity {group}: {required} > {capacity}")),RunSessionError::IncompatibleReplay(s)=>RunInputError::new_err(s),RunSessionError::Core(_)=>RunFaultError::new_err("native Run fault; inspect privileged reproduction"),
 }}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart}
+pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart,M10IroncladPolicy}
 impl RunProfile{
     fn parse(value:&str)->PyResult<Self>{match value{
         "m9-ironclad-act3"=>Ok(Self::M9IroncladAct3),
         "m10-ironclad-heart"=>Ok(Self::M10IroncladHeart),
+        "m10-ironclad-policy"=>Ok(Self::M10IroncladPolicy),
         _=>Err(RunInputError::new_err("unsupported Run profile")),
     }}
     fn schema_id(self)->&'static str{match self{
         Self::M9IroncladAct3=>RUN_OBSERVATION_SCHEMA_ID,
-        Self::M10IroncladHeart=>RUN_OBSERVATION_M10_SCHEMA_ID,
+        Self::M10IroncladHeart=>RUN_OBSERVATION_M10_SCHEMA_ID,Self::M10IroncladPolicy=>spire_env::RUN_OBSERVATION_POLICY_SCHEMA_ID,
     }}
     fn new_session(self,config:RunSessionConfig)->Result<RunSession,RunSessionError>{match self{
         Self::M9IroncladAct3=>RunSession::new(config),
-        Self::M10IroncladHeart=>RunSession::new_m10(config),
+        Self::M10IroncladHeart=>RunSession::new_m10(config),Self::M10IroncladPolicy=>RunSession::new_m10_policy(config),
     }}
     fn from_record(record:&RunEpisodeRecord)->Result<Self,RunSessionError>{match (record.schema_id.as_str(),record.profile_id.as_str()){
         (RUN_RECORD_SCHEMA_ID,"M9IroncladAct3")=>Ok(Self::M9IroncladAct3),
         (RUN_RECORD_SCHEMA_ID_M10,"M10IroncladHeart")=>Ok(Self::M10IroncladHeart),
+        (spire_env::RUN_RECORD_SCHEMA_ID_POLICY,"M10IroncladPolicy")=>Ok(Self::M10IroncladPolicy),
         _=>Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
     }}
     fn encode(self,decision:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{match self{
         Self::M9IroncladAct3=>spire_env::encode_run(decision,map,caps),
-        Self::M10IroncladHeart=>spire_env::encode_run_m10(decision,map,caps),
+        Self::M10IroncladHeart=>spire_env::encode_run_m10(decision,map,caps),Self::M10IroncladPolicy=>spire_env::encode_run_policy(decision,map,caps),
     }}
 }
 pub(crate) fn capacities(v:Option<&Bound<'_,PyAny>>,profile:RunProfile)->PyResult<RunCapacities>{
-    let mut c=match profile{RunProfile::M9IroncladAct3=>RunCapacities::m9_default(),RunProfile::M10IroncladHeart=>RunCapacities::m10_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
+    let mut c=match profile{RunProfile::M9IroncladAct3=>RunCapacities::m9_default(),RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RunCapacities::m10_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
     let d=v.cast::<PyDict>().map_err(|_|RunInputError::new_err("capacities must be a dictionary"))?;
     for (key,value) in d.iter(){let target=match label(&key)?.as_str(){"map_nodes"=>&mut c.map_nodes,"map_edges"=>&mut c.map_edges,"permanent_cards"=>&mut c.permanent_cards,"combat_cards"=>&mut c.combat_cards,"enemies"=>&mut c.enemies,"powers"=>&mut c.powers,"relics"=>&mut c.relics,"potions"=>&mut c.potions,"offers"=>&mut c.offers,"selection"=>&mut c.selection,"orbs"=>&mut c.orbs,"actions"=>&mut c.actions,_=>return Err(RunInputError::new_err("unknown capacity"))};*target=integer(&value)?;}
     Ok(c)
 }
 fn terminal(t:Option<RunTerminal>)->Option<&'static str>{t.map(|t|match t{RunTerminal::Death=>"death",RunTerminal::EmptyDeck=>"empty_deck",RunTerminal::Act3NoKeys=>"act3_no_keys",RunTerminal::HeartVictory=>"heart_victory"})}
-fn observation<'py>(py:Python<'py>,o:RunObservation)->PyResult<Bound<'py,PyDict>>{
+pub(crate) fn observation<'py>(py:Python<'py>,o:RunObservation)->PyResult<Bound<'py,PyDict>>{
     let d=PyDict::new(py);
     for g in o.groups{
         d.set_item(g.key,numeric::array(py,g.values,&g.shape)?)?;
@@ -61,11 +63,20 @@ fn observation<'py>(py:Python<'py>,o:RunObservation)->PyResult<Bound<'py,PyDict>
     }
     let count=o.action_mask.len();d.set_item("action_mask",numeric::array(py,o.action_mask,&[count])?)?;Ok(d)
 }
+pub(crate) fn specification<'py>(py:Python<'py>,spec:spire_env::RunObservationSpec)->PyResult<Bound<'py,PyAny>>{
+    let d=numeric::descriptor(py,spec.descriptor().to_string())?;
+    d.set_item("fingerprint",spec.fingerprint().iter().map(|v|format!("{v:02x}")).collect::<String>())?;Ok(d)
+}
+pub(crate) fn policy_boundary<'py>(py:Python<'py>,b:spire_env::CombatPolicyBoundary)->PyResult<Bound<'py,PyDict>>{
+    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation)?)?;
+    let t:[u64;2]=b.token.into();d.set_item("token",(t[0],t[1]))?;
+    d.set_item("info",numeric::descriptor(py,b.info.to_string())?)?;Ok(d)
+}
 fn boundary<'py>(py:Python<'py>,b:RunBoundary,profile:RunProfile)->PyResult<Bound<'py,PyDict>>{
     let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation)?)?;let token:[u64;2]=b.token.into();d.set_item("token",(token[0],token[1]))?;
     let info=PyDict::new(py);info.set_item("schema_id",profile.schema_id())?;info.set_item("terminal_reason",terminal(b.terminal))?;d.set_item("info",info)?;Ok(d)
 }
-fn token(v:&Bound<'_,PyAny>)->PyResult<RunDecisionToken>{
+pub(crate) fn token(v:&Bound<'_,PyAny>)->PyResult<RunDecisionToken>{
     let t=v.cast::<PyTuple>().map_err(|_|RunInputError::new_err("token must be a two-integer tuple"))?;
     if t.len()!=2{return Err(RunInputError::new_err("token must have length two"))}Ok([integer(&t.get_item(0)?)?,integer(&t.get_item(1)?)?].into())
 }
@@ -93,15 +104,25 @@ impl NativeRunSession{
     #[pyo3(signature=(character,ascension,*,profile="m9-ironclad-act3".to_owned(),partition="train".to_owned(),boss_history="awakened-unseen".to_owned(),capacities=None,record_replay=false))]
     fn new(py:Python<'_>,character:&Bound<'_,PyAny>,ascension:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]profile:String,#[pyo3(from_py_with=label)]partition:String,#[pyo3(from_py_with=label)]boss_history:String,capacities:Option<&Bound<'_,PyAny>>,#[pyo3(from_py_with=boolean)]record_replay:bool)->PyResult<Self>{
         let profile=RunProfile::parse(&profile)?;
-        let character=match label(character)?.as_str(){"ironclad"=>Character::Ironclad,_=>return Err(RunInputError::new_err(match profile{RunProfile::M9IroncladAct3=>"M9 supports ironclad only",RunProfile::M10IroncladHeart=>"M10 supports ironclad only"}))};
+        let character=match label(character)?.as_str(){"ironclad"=>Character::Ironclad,_=>return Err(RunInputError::new_err(match profile{RunProfile::M9IroncladAct3=>"M9 supports ironclad only",RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>"M10 supports ironclad only"}))};
         let partition=match partition.as_str(){"train"=>Partition::Train,"selection"=>Partition::Selection,"final"=>Partition::Final,"test"=>Partition::Test,_=>return Err(RunInputError::new_err("unknown partition"))};
         let boss_history=match boss_history.as_str(){"awakened-unseen"=>M9BossHistory::AwakenedUnseen,"time-eater-unseen"=>M9BossHistory::TimeEaterUnseen,"donu-deca-unseen"=>M9BossHistory::DonuDecaUnseen,_=>return Err(RunInputError::new_err("unknown boss history"))};
         let capacities=crate::run_env::capacities(capacities,profile)?;let cfg=RunSessionConfig{character,ascension:integer(ascension)?,partition,boss_history,capacities,record_replay};
         let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false)})
     }
-    fn observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
-        let spec=self.session.lock().unwrap_or_else(|p|p.into_inner()).observation_spec().map_err(error)?;let d=numeric::descriptor(py,spec.descriptor().to_string())?;
-        d.set_item("fingerprint",spec.fingerprint().iter().map(|v|format!("{v:02x}")).collect::<String>())?;Ok(d)
+    pub(crate) fn observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
+        specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).observation_spec().map_err(error)?)
+    }
+    fn environment_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
+        let _lease=self.begin()?;let d=self.session.lock().unwrap_or_else(|p|p.into_inner()).environment_spec().map_err(error)?;
+        numeric::descriptor(py,d.to_string())
+    }
+    fn combat_observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
+        let _lease=self.begin()?;specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).combat_observation_spec().map_err(error)?)
+    }
+    fn combat_view<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyDict>>{
+        let _lease=self.begin()?;let b=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).combat_view()).map_err(error)?;
+        self.deliver(policy_boundary(py,b))
     }
     #[pyo3(signature=(seed=None))]
     fn reset<'py>(&self,py:Python<'py>,seed:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{self.reset_transport(py,seed,Ok)}

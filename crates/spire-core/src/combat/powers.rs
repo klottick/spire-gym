@@ -111,7 +111,7 @@ pub(super) fn player_thorns_after_damage(state:&mut State,result:&super::model::
 /// Only ordinary supported applications spend Artifact. Reductions/removals
 /// reach this same owner without being reclassified as fresh applications.
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), InputError> {
-    let (id, delta, application) = match effect.kind {
+    let (id, mut delta, application) = match effect.kind {
         EffectKind::ApplyFullPower { id, amount } => (id, amount, true),
         EffectKind::ApplyPower { id, amount } => (FullPowerId(id.as_str()), amount, true),
         EffectKind::ReduceFullPower { id, amount } => (id, -amount, false),
@@ -138,13 +138,19 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "draw_reduction"|"no_draw"|"lose_strength") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength") && delta > 0)
         ||(id.0=="focus"&&delta<0)
         || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
     if application && debuff && artifact > 0 {
         set(state, effect, FullPowerId("artifact"), artifact - 1);
         return Ok(());
+    }
+    if application && id.0=="poison" && delta>0
+        && state.item_context.as_ref().is_some_and(|items|
+            items.owns_relic(crate::content::RelicId::SneckoSkull)) {
+        delta=delta.checked_add(1).ok_or_else(||InputError::Unsupported(
+            "Snecko Skull Poison amount overflow".into()))?;
     }
     if application&&id.0=="focus" {
         super::characters::apply_focus(state,delta)?;
@@ -159,6 +165,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,
         "dexterity" => return Err(InputError::Unsupported("Dexterity outside supported native surface".into())),
+        // A new Poison object caps at 9999. Existing matching-ID stacks add
+        // the raw application amount without that constructor clamp.
+        "poison" if previous == 0 => sum.clamp(0, 9_999),
+        "poison" => sum.max(0),
         _ if sum <= 999 => sum.max(0),
         _ => return Err(InputError::Unsupported("power outside supported native surface".into())),
     };
@@ -186,6 +196,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         }
     }else{None};
     set(state, effect, id, next);
+    if id.0 == "accuracy" && matches!(actor, Actor::Player) {
+        super::cards::rewrite_accuracy_shivs(state, next);
+    }
     if let Some(update)=combust_update{state.combust=update;}
     if id.0=="vulnerable"&&delta>0&&matches!(effect.source,Source::Actor(Actor::Player)|Source::Card(_))
         &&matches!(actor,Actor::Enemy(_))

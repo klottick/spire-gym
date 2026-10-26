@@ -19,7 +19,7 @@ pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::Encounter
 pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin,
     pub applied_gain_ordinal:u64,pub acquired_instances:Vec<u64> }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum CombatOrigin { Authored, MapRoom{node:super::NodeId,kind:MapNodeKind} }
+pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{node:super::NodeId,kind:MapNodeKind} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunTerminal { HeartVictory, Death, EmptyDeck, Act3NoKeys }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -96,7 +96,8 @@ pub struct RunHistory { pub rooms:Vec<VisitedRoom>, pub events:Vec<CommittedEven
 pub struct RunState {
     pub(crate) room_loop:Option<super::rooms::RoomLoop>,
     pub(crate) reward_ledger:super::reward::RunRewardLedger,
-    pub(crate) authored_combat:bool, pub(crate) combat_progress:CombatProgress,
+    pub(crate) authored_combat:bool, pub(crate) training_encounter:Option<crate::content::EncounterId>,
+    pub(crate) last_combat_checkpoint:Option<super::CombatCheckpoint>, pub(crate) combat_progress:CombatProgress,
     pub(crate) active_combat:Option<ActiveCombat>, pub(crate) last_combat:Option<CombatRecord>,
     pub character:Character, pub ascension:u8, pub hp:u32, pub max_hp:u32, pub gold:u32,
     pub deck:Vec<CardInstance>, pub relics:Vec<RelicId>, pub potions:Vec<Option<PotionId>>,

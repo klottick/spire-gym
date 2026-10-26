@@ -865,6 +865,57 @@ pub struct SetupContext {
 
 /// Build the supported native Act1 encounter from real run-owned player/deck
 /// context. Species without an implemented ascension profile remain fail-closed.
+/// Authoritative setup metadata shared by Run and independent combat entry.
+/// Table order is the existing frozen encounter RNG scope key minus one.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum EncounterKind{Monster,Elite,Boss}
+impl EncounterKind{pub fn label(self)->&'static str{match self{Self::Monster=>"Monster",Self::Elite=>"Elite",Self::Boss=>"Boss"}}}
+pub const A0_ENCOUNTER_SETUPS:&[(crate::content::EncounterId,u8,EncounterKind)]=&[
+    (crate::content::EncounterId::Cultist,1,EncounterKind::Monster), // RNG scope key 1
+    (crate::content::EncounterId::JawWorm,1,EncounterKind::Monster), // RNG scope key 2
+    (crate::content::EncounterId::TwoLouse,1,EncounterKind::Monster), // RNG scope key 3
+    (crate::content::EncounterId::SmallSlimes,1,EncounterKind::Monster), // RNG scope key 4
+    (crate::content::EncounterId::LargeSlime,1,EncounterKind::Monster), // RNG scope key 5
+    (crate::content::EncounterId::LotsOfSlimes,1,EncounterKind::Monster), // RNG scope key 6
+    (crate::content::EncounterId::SlimeBoss,1,EncounterKind::Boss), // RNG scope key 7
+    (crate::content::EncounterId::ThreeCultists,2,EncounterKind::Monster), // RNG scope key 8
+    (crate::content::EncounterId::JawWormHorde,3,EncounterKind::Monster), // RNG scope key 9
+    (crate::content::EncounterId::GremlinNob,1,EncounterKind::Elite), // RNG scope key 10
+    (crate::content::EncounterId::Lagavulin,1,EncounterKind::Elite), // RNG scope key 11
+    (crate::content::EncounterId::ThreeSentries,1,EncounterKind::Elite), // RNG scope key 12
+    (crate::content::EncounterId::ThreeLouse,1,EncounterKind::Monster), // RNG scope key 13
+    (crate::content::EncounterId::Guardian,1,EncounterKind::Boss), // RNG scope key 14
+    (crate::content::EncounterId::Hexaghost,1,EncounterKind::Boss), // RNG scope key 15
+    (crate::content::EncounterId::SphericGuardian,2,EncounterKind::Monster), // RNG scope key 16
+    (crate::content::EncounterId::ThreeByrds,2,EncounterKind::Monster), // RNG scope key 17
+    (crate::content::EncounterId::ChosenAndByrds,2,EncounterKind::Monster), // RNG scope key 18
+    (crate::content::EncounterId::Snecko,2,EncounterKind::Monster), // RNG scope key 19
+    (crate::content::EncounterId::CenturionAndHealer,2,EncounterKind::Monster), // RNG scope key 20
+    (crate::content::EncounterId::GremlinLeader,2,EncounterKind::Elite), // RNG scope key 21
+    (crate::content::EncounterId::Slavers,2,EncounterKind::Elite), // RNG scope key 22
+    (crate::content::EncounterId::BookOfStabbing,2,EncounterKind::Elite), // RNG scope key 23
+    (crate::content::EncounterId::Champ,2,EncounterKind::Boss), // RNG scope key 24
+    (crate::content::EncounterId::Collector,2,EncounterKind::Boss), // RNG scope key 25
+    (crate::content::EncounterId::BronzeAutomaton,2,EncounterKind::Boss), // RNG scope key 26
+    (crate::content::EncounterId::OrbWalker,3,EncounterKind::Monster), // RNG scope key 27
+    (crate::content::EncounterId::ThreeShapes,3,EncounterKind::Monster), // RNG scope key 28
+    (crate::content::EncounterId::FourShapes,3,EncounterKind::Monster), // RNG scope key 29
+    (crate::content::EncounterId::SphereAndTwoShapes,3,EncounterKind::Monster), // RNG scope key 30
+    (crate::content::EncounterId::ThreeDarklings,3,EncounterKind::Monster), // RNG scope key 31
+    (crate::content::EncounterId::SpireGrowth,3,EncounterKind::Monster), // RNG scope key 32
+    (crate::content::EncounterId::Transient,3,EncounterKind::Monster), // RNG scope key 33
+    (crate::content::EncounterId::Maw,3,EncounterKind::Monster), // RNG scope key 34
+    (crate::content::EncounterId::WrithingMass,3,EncounterKind::Monster), // RNG scope key 35
+    (crate::content::EncounterId::GiantHead,3,EncounterKind::Elite), // RNG scope key 36
+    (crate::content::EncounterId::Nemesis,3,EncounterKind::Elite), // RNG scope key 37
+    (crate::content::EncounterId::Reptomancer,3,EncounterKind::Elite), // RNG scope key 38
+    (crate::content::EncounterId::AwakenedOne,3,EncounterKind::Boss), // RNG scope key 39
+    (crate::content::EncounterId::TimeEater,3,EncounterKind::Boss), // RNG scope key 40
+    (crate::content::EncounterId::DonuAndDeca,3,EncounterKind::Boss), // RNG scope key 41
+    (crate::content::EncounterId::ShieldAndSpear,4,EncounterKind::Elite), // RNG scope key 42
+    (crate::content::EncounterId::CorruptHeart,4,EncounterKind::Boss), // RNG scope key 43
+];
+
 pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     rng: &mut crate::run::RunRng, context: SetupContext)
     -> Result<super::CombatEntry, crate::run::RunError> {
@@ -873,47 +924,10 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         || context.player.hp <= 0 || context.player.hp > context.player.max_hp {
         return Err(crate::run::RunError::Unsupported("enemy setup facts unavailable for this act/ascension"));
     }
-    let encounter_key = match encounter {
-        EncounterId::Cultist => 1, EncounterId::JawWorm => 2, EncounterId::TwoLouse => 3,
-        EncounterId::SmallSlimes => 4, EncounterId::LargeSlime => 5, EncounterId::LotsOfSlimes => 6,
-        EncounterId::SlimeBoss => 7,
-        EncounterId::ThreeCultists => 8,
-        EncounterId::JawWormHorde => 9,
-        EncounterId::GremlinNob => 10,
-        EncounterId::Lagavulin=>11,EncounterId::ThreeSentries=>12,EncounterId::ThreeLouse=>13,
-        EncounterId::Guardian=>14,
-        EncounterId::Hexaghost=>15,
-        EncounterId::SphericGuardian=>16,EncounterId::ThreeByrds=>17,
-        EncounterId::ChosenAndByrds=>18,EncounterId::Snecko=>19,
-        EncounterId::CenturionAndHealer=>20,
-        EncounterId::GremlinLeader=>21,
-        EncounterId::Slavers=>22,EncounterId::BookOfStabbing=>23,
-        EncounterId::Champ=>24,
-        EncounterId::Collector=>25,
-        EncounterId::BronzeAutomaton=>26,
-        EncounterId::OrbWalker=>27,EncounterId::ThreeShapes=>28,EncounterId::FourShapes=>29,EncounterId::SphereAndTwoShapes=>30,
-        EncounterId::ThreeDarklings=>31,
-        EncounterId::SpireGrowth=>32,EncounterId::Transient=>33,EncounterId::Maw=>34,
-        EncounterId::WrithingMass=>35,
-        EncounterId::GiantHead=>36,
-        EncounterId::Nemesis=>37,
-        EncounterId::Reptomancer=>38,
-        EncounterId::AwakenedOne=>39,
-        EncounterId::TimeEater=>40,
-        EncounterId::DonuAndDeca=>41,EncounterId::ShieldAndSpear=>42,EncounterId::CorruptHeart=>43,
-        _ => return Err(crate::run::RunError::Registry("encounter setup not implemented")),
-    };
-    let expected_act = match encounter {
-        EncounterId::Cultist | EncounterId::JawWorm | EncounterId::TwoLouse
-        | EncounterId::SmallSlimes | EncounterId::LargeSlime | EncounterId::LotsOfSlimes
-        | EncounterId::SlimeBoss => 1,
-        EncounterId::ThreeCultists|EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::ChosenAndByrds|EncounterId::Snecko|EncounterId::CenturionAndHealer|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton => 2,
-        EncounterId::JawWormHorde|EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::FourShapes|EncounterId::SphereAndTwoShapes|EncounterId::ThreeDarklings|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::Maw|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer|EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca => 3,
-        EncounterId::CorruptHeart=>4,
-        EncounterId::ShieldAndSpear => 4,
-        EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries|EncounterId::ThreeLouse|EncounterId::Guardian|EncounterId::Hexaghost => 1,
-        _ => unreachable!("encounter key lookup validated supported encounter"),
-    };
+    let (index,(_,expected_act,_))=A0_ENCOUNTER_SETUPS.iter().enumerate().find(|(_, (id,_,_))|*id==encounter)
+        .ok_or(crate::run::RunError::Registry("encounter setup not implemented"))?;
+    let encounter_key=index as u64+1;
+    let expected_act=*expected_act;
     if act != expected_act {
         return Err(crate::run::RunError::Unsupported("encounter is unavailable in the supplied act"));
     }

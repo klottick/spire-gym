@@ -9,6 +9,7 @@ pub enum RunSessionError {
 use spire_core::{combat::rng::Partition,content::Character,run::*};
 use crate::{RunCapacities,RunObservation};
 pub const RUN_RECORD_SCHEMA_ID:&str="spire-gym-run-replay-v1";
+pub const RUN_RECORD_SCHEMA_ID_POLICY:&str="spire-gym-run-replay-v3";
 pub const RUN_RECORD_SCHEMA_ID_M10:&str="spire-gym-run-replay-v2";
 pub const RUN_SEED_ADAPTER_ID:&str="spire-gym-run-u64-le-v1";
 pub const RUN_RULES_ID_V1:&str="spire-gym-native-m9-rules-v1";
@@ -18,26 +19,33 @@ pub const RUN_RULES_ID_M10:&str="spire-gym-native-m10-rules-v1";
 pub const RUN_CONTENT_ID_M10:&str="spire-gym-m10-ironclad-a0-captured-v1";
 pub(crate) const RUN_REWARD_ID:&str="spire-gym-floor-key-terminal-reward-v1";
 static SESSION_IDS:crate::identity::PoolIdAllocator=crate::identity::PoolIdAllocator::new(1);
+/// All owners of RunDecisionToken share one checked transport namespace.
+/// These IDs never participate in gameplay RNG, actor features or replay.
+pub(crate) fn allocate_run_session_id()->Result<u64,RunSessionError>{
+    SESSION_IDS.allocate().map_err(|_|RunSessionError::DeliveryFault("Run session identity exhausted"))
+}
+
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunProfile { M9IroncladAct3, M10IroncladHeart }
+pub(crate) enum RunProfile { M9IroncladAct3, M10IroncladHeart, M10IroncladPolicy }
 impl RunProfile {
-    pub(crate) fn id(self)->&'static str{match self{Self::M9IroncladAct3=>"M9IroncladAct3",Self::M10IroncladHeart=>"M10IroncladHeart"}}
-    pub(crate) fn schema_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RECORD_SCHEMA_ID,Self::M10IroncladHeart=>RUN_RECORD_SCHEMA_ID_M10}}
-    pub(crate) fn rules_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RULES_ID,Self::M10IroncladHeart=>RUN_RULES_ID_M10}}
-    pub(crate) fn content_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_CONTENT_ID,Self::M10IroncladHeart=>RUN_CONTENT_ID_M10}}
+    pub(crate) fn id(self)->&'static str{match self{Self::M9IroncladAct3=>"M9IroncladAct3",Self::M10IroncladHeart=>"M10IroncladHeart",Self::M10IroncladPolicy=>"M10IroncladPolicy"}}
+    pub(crate) fn schema_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RECORD_SCHEMA_ID,Self::M10IroncladHeart=>RUN_RECORD_SCHEMA_ID_M10,Self::M10IroncladPolicy=>RUN_RECORD_SCHEMA_ID_POLICY}}
+    pub(crate) fn rules_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_RULES_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_RULES_ID_M10}}
+    pub(crate) fn content_id(self)->&'static str{match self{Self::M9IroncladAct3=>RUN_CONTENT_ID,Self::M10IroncladHeart|Self::M10IroncladPolicy=>RUN_CONTENT_ID_M10}}
     pub(crate) fn observation_spec(self,caps:&RunCapacities)->Result<crate::RunObservationSpec,RunSessionError>{match self{
         Self::M9IroncladAct3=>crate::run_observation_spec(caps),
-        Self::M10IroncladHeart=>crate::m10_run_observation_spec(caps),
+        Self::M10IroncladHeart=>crate::m10_run_observation_spec(caps),Self::M10IroncladPolicy=>crate::policy_run_observation_spec(caps),
     }}
     fn validate(self,config:&RunSessionConfig)->Result<(),RunSessionError>{
         if config.character!=Character::Ironclad||config.ascension!=0{return Err(RunSessionError::Input(match self{
-            Self::M9IroncladAct3=>"M9 requires Ironclad A0",Self::M10IroncladHeart=>"M10 requires Ironclad A0",
+            Self::M9IroncladAct3=>"M9 requires Ironclad A0",Self::M10IroncladHeart|Self::M10IroncladPolicy=>"M10 requires Ironclad A0",
         }))}
-        match self{Self::M9IroncladAct3=>crate::run_schema::validate(&config.capacities),Self::M10IroncladHeart=>crate::run_schema_m10::validate(&config.capacities)}
+        match self{Self::M9IroncladAct3=>crate::run_schema::validate(&config.capacities),Self::M10IroncladHeart|Self::M10IroncladPolicy=>crate::run_schema_m10::validate(&config.capacities)}
     }
     pub(crate) fn from_record(schema:&str,profile:&str)->Result<Self,RunSessionError>{match (schema,profile){
         (RUN_RECORD_SCHEMA_ID,"M9IroncladAct3")=>Ok(Self::M9IroncladAct3),
         (RUN_RECORD_SCHEMA_ID_M10,"M10IroncladHeart")=>Ok(Self::M10IroncladHeart),
+        (RUN_RECORD_SCHEMA_ID_POLICY,"M10IroncladPolicy")=>Ok(Self::M10IroncladPolicy),
         _=>Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
     }}
 }
@@ -72,7 +80,7 @@ pub struct RunCapacityFailure{pub group:String,pub required:usize,pub capacity:u
 pub struct RunRecordError{pub kind:RunRecordErrorKind,pub message:String,pub capacity:Option<RunCapacityFailure>}
 impl RunRecordError{
     pub fn diagnostic_json(&self)->Result<String,RunSessionError>{serde_json::to_string(self).map_err(|_|RunSessionError::DeliveryFault("Run diagnostic export failed"))}
-    fn from_error(error:&RunSessionError)->Self{
+    pub(crate) fn from_error(error:&RunSessionError)->Self{
         use RunRecordErrorKind as K;
         let (kind,message,capacity)=match error{
             RunSessionError::Input(s)=>(K::Input,(*s).to_owned(),None),RunSessionError::StaleToken=>(K::StaleToken,"stale token".into(),None),
@@ -110,7 +118,7 @@ pub(crate) fn create_run(profile:RunProfile,config:&RunSessionConfig,seed:u64,or
         M9BossHistory::TimeEaterUnseen=>vec!["AwakenedOne","DonuAndDeca"],
         M9BossHistory::DonuDecaUnseen=>vec!["AwakenedOne","TimeEater"],
     };
-    let scenario=match profile{RunProfile::M9IroncladAct3=>RoomScenario::M9IroncladAct3,RunProfile::M10IroncladHeart=>RoomScenario::M10IroncladHeart};
+    let scenario=match profile{RunProfile::M9IroncladAct3=>RoomScenario::M9IroncladAct3,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RoomScenario::M10IroncladHeart};
     Run::new_room_scenario(RunConfig{character:config.character,ascension:config.ascension},creation,RunRng::new(root,config.partition,ordinal),scenario).map_err(RunSessionError::Core)
 }
 pub(crate) fn validate_config(profile:RunProfile,config:&RunSessionConfig)->Result<(),RunSessionError>{profile.validate(config)}
@@ -120,7 +128,7 @@ fn check_boundary(profile:RunProfile,d:&PublicDecision)->Result<(),RunSessionErr
 }
 fn publish(profile:RunProfile,run:&Run,config:&RunSessionConfig,token:RunDecisionToken)->Result<(RunBoundary,Vec<GameAction>),RunSessionError>{
     let d=run.decision().map_err(RunSessionError::Core)?;check_boundary(profile,&d)?;
-    let observation=match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&d,run.public_map().as_ref(),&config.capacities)?};
+    let observation=match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&d,run.public_map().as_ref(),&config.capacities)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&d,run.public_map().as_ref(),&config.capacities)?};
     let mut actions=Vec::new();actions.try_reserve_exact(d.candidates.len()).map_err(|_|RunSessionError::DeliveryFault("Run candidate allocation failed"))?;
     actions.extend(d.candidates.into_iter().map(|c|c.action));
     Ok((RunBoundary{observation,token,terminal:d.terminal},actions))
@@ -129,6 +137,27 @@ fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)-
     Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint:profile.observation_spec(&config.capacities)?.fingerprint(),config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
 }
 impl RunSession{
+    /// Additive public provenance: no replay, seed, cursor or private Note.
+    pub fn environment_spec(&self)->Result<serde_json::Value,RunSessionError>{
+        let spec=self.observation_spec()?;
+        Ok(serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
+            "observation_fingerprint":crate::combat_policy::hex(&spec.fingerprint()),"rules_id":self.profile.rules_id(),
+            "content_id":self.profile.content_id(),"reward_id":RUN_REWARD_ID,"seed_adapter_id":RUN_SEED_ADAPTER_ID,
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":crate::COMBAT_POLICY_VIEW_ID,
+            "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"}))
+    }
+    pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{crate::combat_policy_observation_spec()}
+    /// Owned public sidecar. Dispatch uses the same token/index as the full Run.
+    /// Resources are current; snapshot on the settled-count transition. The
+    /// visit-keyed last_exit remains sticky across later noncombat decisions.
+    pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
+        self.usable()?;let token=self.published.as_ref().ok_or(RunSessionError::NotReset)?.token;
+        let run=self.run.as_ref().unwrap();let d=run.decision().map_err(RunSessionError::Core)?;let cp=run.combat_checkpoint();
+        let observation=match crate::combat_policy::encode_combat_policy(&d,cp.as_ref()){
+            Ok(o)=>o,Err(e)=>return Err(self.freeze(e.clone(),e,None,false,false)),
+        };
+        Ok(crate::CombatPolicyBoundary{observation,token,info:crate::combat_policy::lifecycle(&d,cp.as_ref())})
+    }
     /// Transport-only Gym seeding metadata, never an observation feature.
     pub fn effective_seed(&self)->Option<u64>{self.seed}
     pub fn new(config:RunSessionConfig)->Result<Self,RunSessionError>{
@@ -137,9 +166,10 @@ impl RunSession{
     /// Opt into the captured M10 Ironclad Heart Run profile on the same native session owner.
     /// The existing constructor and public configuration remain M9-compatible.
     pub fn new_m10(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladHeart)}
+    pub fn new_m10_policy(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladPolicy)}
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
-        let id=SESSION_IDS.allocate().map_err(|_|RunSessionError::DeliveryFault("Run session identity exhausted"))?;
+        let id=allocate_run_session_id()?;
         Ok(Self{config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false})
     }
     /// The immutable numeric action/observation contract selected by this session.

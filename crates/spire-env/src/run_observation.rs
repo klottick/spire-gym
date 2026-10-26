@@ -63,7 +63,10 @@ pub fn encode_run_m10(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
     encode_run_versioned(d,map,caps,true)
 }
 
-fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool)->Result<RunObservation,RunSessionError>{
+pub(crate) fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool)->Result<RunObservation,RunSessionError>{
+    encode_run_with_power(d,map,caps,m10,power_id)
+}
+pub(crate) fn encode_run_with_power(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool,power:fn(bool,&str)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
     if m10 {schema_m10::validate(caps)?;}else{schema::validate(caps)?;}
     if !m10&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.parent,spire_core::combat::SelectionParent::Potion{..})
@@ -73,6 +76,10 @@ fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaci
             spire_core::combat::SelectionDisposition::Exhaust))
             || s.minimum!=s.required || s.maximum!=s.required){
          return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection"))
+    }
+    if m10&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
+        matches!(s.operation,spire_core::combat::SelectionOperation::Retain)) {
+        return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 retain selections"));
     }
     if m10&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.operation,spire_core::combat::SelectionOperation::CopyToHand{copies} if !(1..=3).contains(&copies))) {
@@ -223,7 +230,7 @@ fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaci
             (d.player.character==Character::Defect).then_some(i64::from(c.character.focus)),c.hp_before_healing.map(i64::from),c.hp_after_cleanup.map(i64::from)])?;
         let mut power_row=0;
         for (owner,row,powers) in std::iter::once((1,0,&c.player.powers)).chain(c.enemies.iter().enumerate().map(|(i,e)|(5,i,&e.powers))){
-            for power in powers{o.group_mut("powers").row(power_row,&[Some(owner),Some(number(row)?),Some(power_id(m10,power.id.0)?),Some(i64::from(power.amount))])?;power_row+=1;}
+            for entry in powers{o.group_mut("powers").row(power_row,&[Some(owner),Some(number(row)?),Some(power(m10,entry.id.0)?),Some(i64::from(entry.amount))])?;power_row+=1;}
         }
         for (row,e) in c.enemies.iter().enumerate(){
             let mut values=vec![Some(enemy_id(m10,e.enemy_id)?),Some(i64::from(e.hp)),Some(i64::from(e.max_hp)),Some(i64::from(e.block)),Some(intent_id(m10,e.intent.as_str())?),e.intent_damage.map(i64::from),Some(i64::from(e.replaced)),Some(i64::from(e.escaped)),Some(i64::from(e.half_dead)),Some(i64::from(e.logical_slot))];
@@ -252,6 +259,9 @@ fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaci
             let mut counts=vec![Some(number(s.required)?),Some(number(s.selected.len())?)];
             if m10 {
                 let confirm=d.candidates.iter().any(|candidate|matches!(candidate.action,GameAction::Combat(CombatAction::ConfirmSelection)));
+                if matches!(s.operation,spire_core::combat::SelectionOperation::NightmareCapture) {
+                    return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections"));
+                }
                 counts.extend([Some(number(s.minimum)?),Some(number(s.maximum)?),Some(i64::from(confirm)),Some(schema_m10::operation(s))]);
             }
             o.group_mut("selection_counts").row(0,&counts)?;

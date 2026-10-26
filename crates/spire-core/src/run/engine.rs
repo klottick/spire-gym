@@ -18,7 +18,7 @@ impl Run {
         let mut deck=Vec::new();let mut id=1;
         for card in starter{deck.push(CardInstance{id:*card,instance:id,upgrades:0});id+=1;}
         if config.ascension>=10{deck.push(CardInstance{id:CardId::AscendersBane,instance:id,upgrades:0});}
-        let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
+        let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,training_encounter:None,last_combat_checkpoint:None,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
             character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
             potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
             neow_eligible:profile.neow_eligible,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,

@@ -55,6 +55,14 @@ fn powers_mut<'a>(state: &'a mut State, target: &Actor) -> &'a mut Vec<PowerEntr
     }
 }
 
+fn is_enemy_poison_tick(state:&State,effect:&Effect)->bool {
+    let (Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target)),
+        EffectKind::Damage(DamagePayload::PoisonTickHpLoss{owner,amount}))=
+        (&effect.source,&effect.target,&effect.kind) else { return false; };
+    source==target&&source==owner&&state.full_runtime&&*amount>0&&state.enemies.iter().any(|enemy|
+        &enemy.instance_id==owner&&enemy.life==super::ActorLife::Active&&enemy.hp>0)
+}
+
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
     apply_effect_with_result(state,effect).map(|_|())
 }
@@ -86,11 +94,14 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
     }
     match &effect.kind {
         EffectKind::Damage(payload) => {
+            let poison_tick=is_enemy_poison_tick(state,effect);
             // The validated target is needed while calculating typed payloads as
             // well as for the shared Block/HP commit below.
             let target = effect.target.as_ref().unwrap();
             let damage = match payload {
-                DamagePayload::Fixed(n) | DamagePayload::Orb(n) | DamagePayload::Thorns(n) | DamagePayload::HpLoss(n) => *n,
+                DamagePayload::Fixed(n) | DamagePayload::Orb(n) | DamagePayload::Thorns(n)
+                | DamagePayload::HpLoss(n) => *n,
+                DamagePayload::PoisonTickHpLoss { amount, .. } => *amount,
                 DamagePayload::EnemyMove(id) => {
                     let source = match &effect.source { Source::Actor(Actor::Enemy(id)) => id, _ => unreachable!("validated enemy source") };
                     state.enemies.iter().find(|e| &e.instance_id == source).expect("validated enemy").damage_entries[id].output
@@ -110,14 +121,14 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             }else{None}}else{None};
             let block_at_entry=match target{Actor::Player=>state.player.block,Actor::Enemy(owner)=>state.enemies.iter().find(|enemy|&enemy.instance_id==owner).expect("validated actor").block};
             let damage_event_count=state.damage_events_this_combat;
-            if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
+            if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
                     Actor::Player => (&mut state.player.hp, &mut state.player.block),
                     Actor::Enemy(id) => {let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==id).expect("validated actor");(&mut enemy.hp,&mut enemy.block)}
                 };
                 let hp_before=*hp;let block_before=*block;
-                let (next_hp,next_block)=if matches!(payload,DamagePayload::HpLoss(_)){
+                let (next_hp,next_block)=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){
                     ((i64::from(hp_before)-i64::from(damage)).max(0) as i32,*block)
                 }else if full_runtime{rules::full_hp_and_block_after_damage(hp_before,*block,damage)?}
                 else{rules::hp_and_block_after_damage(hp_before,*block,damage)?};
@@ -129,7 +140,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if let (Some(_),Actor::Enemy(owner))=(invincible,target) {
                 // The source callback receives post-Block damage and spends its
                 // capped value before creature HP clamps overkill to zero.
-                let spent=if matches!(payload,DamagePayload::HpLoss(_)){damage}else{damage.saturating_sub(block_at_entry)};
+                let spent=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){damage}else{damage.saturating_sub(block_at_entry)};
                 if spent>0 {if let Some(power)=state.enemies.iter_mut().find(|enemy|&enemy.instance_id==owner).and_then(|enemy|enemy.full_powers.iter_mut().find(|power|power.id.0=="invincible")){
                     power.state.amount=power.state.amount.checked_sub(spent).ok_or_else(||InputError::Invariant("Invincible quota underflow".into()))?;
                 }}
@@ -140,10 +151,11 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 hp_lost:hp_before-next_hp,
                 overkill:Some((damage-(block_before-next_block)-(hp_before-next_hp)).max(0)),
                 category:match payload { DamagePayload::Orb(_)=>DamageCategory::Orb,
-                    DamagePayload::Thorns(_)=>DamageCategory::Thorns, DamagePayload::HpLoss(_)=>DamageCategory::HpLoss,
+                    DamagePayload::Thorns(_)=>DamageCategory::Thorns,
+                    DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}=>DamageCategory::HpLoss,
                     _=>DamageCategory::Normal },
             });
-            let damage_result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)),thorns:matches!(payload,DamagePayload::Thorns(_)|DamagePayload::Orb(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
+            let damage_result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}),thorns:matches!(payload,DamagePayload::Thorns(_)|DamagePayload::Orb(_)),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
             *damage_result_out=Some(damage_result.clone());
             if full_runtime {
                 // Lightning's native Orb lane retains original THORNS callback
@@ -192,7 +204,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     Actor::Enemy(_) if super::enemies::act2::combat_victory_ready(state) => Some(Outcome::Victory),
                     Actor::Enemy(_) => None,
                 };
-                if let Some(outcome) = outcome {
+                if let Some(outcome) = outcome.filter(|_| !poison_tick) {
                     if state.full_runtime&&outcome==Outcome::Victory {
                         super::enemies::act2::queue_victory(state,&effect.source);
                     }else{
@@ -204,7 +216,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     }
                     }
                 }
-                if state.full_runtime&&!half_death {
+                if state.full_runtime&&!half_death&&!poison_tick {
                     state.pending.push_front(Effect { source: effect.source.clone(), target: effect.target.clone(),
                         kind: EffectKind::Hook(Hook::Death) });
                 }
@@ -214,6 +226,22 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     kind: EffectKind::Hook(Hook::Damage) });
             }
         }
+        EffectKind::PoisonTickComplete => {
+            let Some(Actor::Enemy(owner))=effect.target.as_ref() else { unreachable!("validated Poison completion actor") };
+            let died=state.enemies.iter().any(|enemy|&enemy.instance_id==owner
+                &&enemy.life==super::ActorLife::Active&&enemy.hp==0);
+            if died {
+                // The shared HP_LOSS and current-stack reduction are ahead of
+                // this completion marker, so Death and settlement now follow
+                // their source-qualified local order.
+                if super::enemies::act2::combat_victory_ready(state) {
+                    super::enemies::act2::queue_victory(state,&effect.source);
+                }
+                state.pending.push_front(Effect{source:effect.source.clone(),
+                    target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::Hook(Hook::Death)});
+            }
+        }
+        EffectKind::Catalyst => super::cards::apply_silent_catalyst(state, effect)?,
         EffectKind::JuggernautRandomDamage(damage) => {
             let candidates=state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
             if candidates.is_empty(){return Ok(())}
@@ -399,7 +427,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if state.full_runtime{super::cards::ironclad::autoplay::resume_parent(state,card)?;}
         }
         EffectKind::Terminal(outcome) => {
-            state.hp_before_healing = Some(state.player.hp);
+            if !state.full_runtime || state.hp_before_healing.is_none() {state.hp_before_healing = Some(state.player.hp);}
             let before=state.player.hp;
             if *outcome == Outcome::Victory && !state.full_runtime {
                 state.player.hp = i32::try_from((i64::from(state.player.hp) + 6)
@@ -409,6 +437,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     ResolvedEffectKind::Heal { hp_before:before, hp_after:state.player.hp, amount:state.player.hp-before });
             }
             state.pending.clear();
+            state.nightmare_templates.clear();
             state.pending_time_warp=None;
             // Do not run FinishCard or reset diagnostic piles/block. dispatch_one
             // releases current after this synchronous terminal payload completes.
@@ -427,6 +456,19 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     super::selection::SelectionDisposition::Hand, *empty)?;
             }
         }
+        EffectKind::SelectNightmareCard => {
+            let Source::Card(parent) = &effect.source else {
+                return Err(InputError::Invariant("Nightmare selection parent is not a card".into()).into());
+            };
+            if state.piles.hand.is_empty() { return Ok(()); }
+            let candidates = state.piles.hand.iter().map(|card| card.handle()).collect::<Vec<_>>();
+            begin_selection(state, parent.clone(), candidates, 1,
+                super::selection::SelectionDisposition::Hand, super::selection::EmptySelection::Continue)?;
+            state.pending_selection.as_mut().expect("nonempty Nightmare hand creates selection").operation =
+                super::selection::SelectionOperation::NightmareCapture;
+        }
+        EffectKind::NightmareCopy { owner, installation_id } =>
+            super::cards::apply_silent_nightmare_copy(state,effect,owner,*installation_id)?,
         EffectKind::SelectHandCardsAfterDraw { required, disposition, empty } => {
             let parent=match &effect.source {
                 Source::Card(parent)=>super::selection::SelectionParent::Card(parent.clone()),
@@ -465,6 +507,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if *required==0{begin_selection_range(state,super::selection::SelectionParent::Card(parent.clone()),infer_selection_zone(state,candidates)?,
                 candidates.clone(),0,candidates.len(),*disposition,*empty)?;}else{begin_selection(state, parent.clone(), candidates.clone(), *required, *disposition, *empty)?;}
         }
+        EffectKind::OpenRetainSelection{limit}=>super::cards::apply_silent_retain_selection(state,effect,*limit)?,
         EffectKind::Hook(hook) => {
             if state.full_runtime {
                 // Darkling downing calls the same source death callbacks without
@@ -472,6 +515,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
                 super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
                 let hp = state.player.hp;
+                if *hook==Hook::CombatSettled {state.hp_before_healing=Some(hp);}
                 if *hook==Hook::CombatSettled&&hp>0 {
                     if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
                         state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;
@@ -562,6 +606,9 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     match &parent{
         super::selection::SelectionParent::Card(card) if state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(card)=>(),
         super::selection::SelectionParent::Potion{slot,..} if state.in_play.is_none()&&*slot<3=>(),
+        super::selection::SelectionParent::EndTurn{turn} if state.full_runtime&&*turn==state.turn
+            &&state.phase==super::Phase::EnemyTurn&&state.in_play.is_none()
+            &&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1=>(),
         _=>return Err(InputError::Invariant("selection parent is not owned by the active continuation".into()).into()),
     }
     if minimum>maximum||maximum==0||maximum>candidates.len(){

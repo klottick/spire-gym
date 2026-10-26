@@ -251,5 +251,6 @@ original game execution or Java RNG/cursor parity is claimed.
 
 **Acceptance state:** M10 is accepted at its declared captured profile after ONE clean independent
 review and exact-source verification. The six normal-start traces remain early gameplay Deaths;
-normal-start HeartVictory remains unobserved. M11 planning-only `.33.1` is open/unassigned for ONE
-written Silent combat plan and actual user review before implementation; no product start follows.
+normal-start HeartVictory remains unobserved. At M10 acceptance, M11 planning-only `.33.1` was
+open/unassigned for ONE written Silent combat plan and actual user review before implementation.
+Current planning state is recorded in [work status](../work-status.md); no product start follows automatically.

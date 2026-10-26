@@ -14,6 +14,39 @@ pub(super) fn on_card_exhausted(_state:&State,source:&super::Source,card:&super:
     }
 }
 
+pub(super) fn apply_silent_catalyst(state:&mut State, effect:&super::Effect)->Result<(),super::EffectError>{
+    silent::apply_catalyst(state,effect)
+}
+
+pub(super) fn manual_discard(state: &mut State, card: &super::LiveCard) -> Result<bool, crate::combat::InputError> {
+    silent::manual_discard(state, card)
+}
+
+pub(super) fn rewrite_accuracy_shivs(state: &mut State, amount: i32) {
+    silent::rewrite_accuracy_shivs(state, amount);
+}
+
+pub(super) fn rewrite_accuracy_hand_shivs(state: &mut State, amount: i32) {
+    silent::rewrite_accuracy_hand_shivs(state, amount);
+}
+
+pub(super) fn apply_silent_retain_selection(state:&mut State,effect:&super::Effect,limit:i32)
+    ->Result<(),super::EffectError>{
+    silent::apply_retain_selection(state,effect,limit)
+}
+
+pub(super) fn capture_silent_nightmare_template(state:&mut State,owner:super::CardHandle,
+    source:&super::LiveCard)->Result<(),super::InputError>{silent::capture_nightmare_template(state,owner,source)}
+
+pub(super) fn silent_nightmare_pre_draw(state:&State)->Vec<super::Effect>{silent::nightmare_pre_draw(state)}
+
+pub(super) fn apply_silent_nightmare_copy(state:&mut State,effect:&super::Effect,owner:&super::CardHandle,installation_id:u64)
+    ->Result<(),super::EffectError>{silent::apply_nightmare_copy(state,effect,owner,installation_id)}
+
+pub(super) fn validate_silent_nightmare_templates(state:&State)->Result<(),super::InputError>{
+    silent::validate_nightmare_templates(state)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DefectContinuation {
     GoForTheEyesWeak { amount: i32 },
@@ -143,11 +176,11 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
 pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<(),crate::run::RunError>{
     if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret){return Err(crate::run::RunError::InvalidAction);}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician){return Err(crate::run::RunError::InvalidAction);}
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
-        | crate::content::CardId::Dualcast | crate::content::CardId::Vigilance)
+        | crate::content::CardId::Dualcast | crate::content::CardId::Vigilance | crate::content::CardId::WellLaidPlans)
         && target.is_some() {
         return Err(crate::run::RunError::InvalidAction);
     }

@@ -60,6 +60,7 @@ pub fn compare(left: &Snapshot, right: &Snapshot) -> Option<Divergence> {
     component!("state.content_id", left.state.content_id, right.state.content_id);
     state_fields!(phase, turn, player, enemies, piles, card_ids_issued, rng, pending, current,
         in_play, resolved_effects, public, outcome, fault, attempted_action, fault_selection, player_full_powers,
+        temporary_retain, nightmare_templates, next_nightmare_installation_id,
         actor_slots,facing,spawn_ordinals,spawn_progress,
         stasis,inactive_cards,permanent_gains,next_permanent_gain,played_powers,play_frames,play_context,queued_autoplay,pending_time_warp,
         hp_before_healing, hp_after_cleanup, full_runtime, pending_selection, hook_events, item_context,combust,

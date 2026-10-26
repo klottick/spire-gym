@@ -271,6 +271,9 @@ pub enum DamagePayload {
     Thorns(i32),
     /// HP_LOSS bypasses Block and NORMAL-only modifiers/triggers.
     HpLoss(i32),
+    /// A source-owned Poison tick, committed by the same HP_LOSS damage path.
+    /// Amount is captured when the live owner-start hook queues this work.
+    PoisonTickHpLoss { owner: EnemyHandle, amount: i32 },
     EnemyMove(MoveId), FullEnemyMove(FullIntentId),
 }
 /// Detached result from the single shared damage commit, not a second calculator.
@@ -298,6 +301,9 @@ pub enum EffectKind {
     /// Capture the current hand only when this queued effect executes (after preceding draws).
     SelectHandCardsAfterDraw { required: usize,
         disposition: super::selection::SelectionDisposition, empty: super::selection::EmptySelection },
+    SelectNightmareCard,
+    NightmareCopy { owner: CardHandle, installation_id: u64 },
+    OpenRetainSelection { limit:i32 },
     Hook(super::hooks::Hook), EndPlayerTurn, MonsterStart,
     EnemyMove, RollMove, EndRound, StartNextPlayer,
     Character(super::characters::CharacterEffect),
@@ -315,6 +321,7 @@ pub enum EffectKind {
     CollectorSuicide,
     AutomatonSuicide,
     ShapeSuicide,ShapeDamageComplete,
+    PoisonTickComplete,
     RevivalHeal(i32),DarklingCollapse,DarklingRevive,DarklingsDefeat,
     TransientFade,TransientRecover,MawNom{remaining:u32},
     ObtainParasite,ResetMalleable,
@@ -322,6 +329,7 @@ pub enum EffectKind {
     AwakenedCollapse,AwakenedRebirth,AwakenedCanLose,
     TimeWarpEndTurn,TimeEaterCleanse,
     CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle }, CorruptHeartBuff,
+    Catalyst,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle>,pub known_draw:Vec<CardHandle>,pub known_draw_bottom:Vec<CardHandle> }
@@ -331,6 +339,17 @@ pub struct PendingSelection { pub parent: super::selection::SelectionParent, pub
     pub operation: super::selection::SelectionOperation,
     pub selected: Vec<CardHandle>, pub minimum:usize,pub maximum:usize,
     pub disposition: super::selection::SelectionDisposition, pub empty: super::selection::EmptySelection }
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct TemporaryRetain { pub turn:u32,pub cards:BTreeSet<CardHandle> }
+
+/// One independent Nightmare installation owns an immutable template and its
+/// remaining generated-copy cursor. The template is a value, not a card owner.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct NightmareTemplateOwner {
+    pub installation_id:u64, pub owner:CardHandle, pub delivery_turn:u32, pub delivered:u8,
+    pub template:super::card_state::LiveCard,
+}
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(super) enum FinishDisposition { Natural, Exhaust, Purge }
@@ -364,6 +383,9 @@ pub(super) struct State {
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
     pub full_runtime: bool,
     pub pending_selection: Option<PendingSelection>,
+    pub temporary_retain: Option<TemporaryRetain>,
+    pub nightmare_templates: Vec<NightmareTemplateOwner>,
+    pub next_nightmare_installation_id:u64,
     pub hook_events: Vec<super::hooks::HookEvent>,
     pub attempted_action: Option<super::CombatAction>,
     pub fault_selection: Option<PendingSelection>,

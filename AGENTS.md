@@ -1,5 +1,89 @@
 # Spire Gym: current agent guidance
 
+## M11 accepted at finite Silent A0 scope (2026-10-26)
+
+The user-approved M11 plan and Tasks 1–8 are complete. M11 `.33.2`/`.33` is
+accepted after one fresh independent GPT-6 Luna MAX review (`m11_milestone_review`; evidence:
+`.superpowers/sdd/2026-10-25-m11-silent-combat-mechanics/task8-independent-review.md`). The accepted profile is docs/milestones/m11-silent-combat.md.
+The preservation matrix recorded 1,476 passed and one retained Blue Slaver and
+Two Fungi failure. No Python extension refresh or new Python-delivery claim was
+made.
+All Luna assistants use max reasoning; the native controller owns integration. Scope is
+representative Silent A0 combat through an explicitly authored bridge populated
+from canonical Silent starting resources. This does not establish ordinary
+Neow/map/Act 1 progression, a Silent Gym profile, complete card/item pools, or
+another character's milestone acceptance. Preserve the accepted M10 scope and
+contracts.
+
+On 2026-10-26, the user authorized needed task-local static lookup for needed
+Gym mechanics blockers using the existing locally owned archive and existing
+tools; do not ask again for each bounded lookup. Inspect only named load-bearing
+members and their called chains, record source grades, and keep raw source/output
+out of public prose. This additive permission does not authorize original-game
+execution, new tools or installs, a broad audit, private-source publication, or
+changes to the approved M11 scope. Preserve all worktrees and evidence; no commit,
+push, merge, or cleanup follows from this authorization.
+
+The user-prioritized `.66` Gym interoperability implementation is active in
+parallel under Senior GPT-6.1 Sol/high on branch
+`feat/ironclad-combat-interface-66-20261026` in isolated worktree
+`wks_923d57c3a37763a9`. M11 constrains `.66` final integration only. M12 remains
+planning-only and is not the automatic next product milestone; no M12 product
+child/start is authorized. No Silent Gym profile or extension refresh is included.
+The bounded authored-combat example and supplied cases remain separate from
+ordinary progression. Earlier dated planning/review entries below are historical
+and do not override this current status.
+
+## M11 approval / execution-start record (2026-10-25, historical)
+
+User "I approve" approves the actual eight-task written plan
+`docs/superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md`.
+Planning .33.1 is normally closed; implementation spire-dxo.33.2 is normally claimed by
+codex-m11-controller-20261025-v1. Execute all eight tasks with real TDD, qualified
+source facts before new oracles, native controller integration and useful isolated
+GPT6 Luna MAX assistants, then ONE fresh independent milestone review. No per-task
+review swarm. All Luna assistants use max reasoning. No new commit/push/merge,
+install/sync, private audit, cleanup or M12 product authority. Preserve all prior
+profiles, genuine losses, historical assertions, worktrees/stash/ignored evidence.
+No Silent Gym profile or extension refresh is included. Current isolated branch
+plan/m11-silent-combat-20261025 at36fbdc6 is authorized for M11 edits/build/tests.
+Six historical Poison cases are directly in scope; unrelated BlueSlaver/twoFungi
+failure remains visible. Reuse actual Ring opening draw; canonical resource
+snapshot→authored combat is not normal Neow/map/Act1 traversal. Earlier planning
+review-wait and M10/outgoing-stop entries below are historical, not current gates.
+
+
+## M10 merged / M11 written-plan review gate (2026-10-25, historical)
+
+This is the earlier pre-approval snapshot; the current M11 status above supersedes its planning-gate language.
+
+User explicitly requested opening/merging the M10 PR and preparing the M11 plan.
+M10 PR46 merged normally at36fbdc6310945caa194f2aa806c37769275228c3;
+its tree equals the accepted public5b293e7 snapshot. Local main matches the merge.
+PR task spire-dxo.65 is normally closed. No CI checks or applied branch rules were
+configured/reported; merge used the exact expected head without bypass. Fresh
+prepublication workspace1402pass/exact historical7 and Python251pass remain the
+M10 evidence, not newly run M11 proof.
+
+M11 planning-only spire-dxo.33.1 has the actual written plan:
+`docs/superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md`.
+Eight native tasks cover representative Poison/discard/Shiv/retain/delayed-copy
+mechanics, canonical Silent resources through an explicitly authored combat
+bridge, a runnable example, and ONE final milestone review. M12 retains normal
+Neow/map/Act1 progression; no Silent Gym profile or extension rebuild is included.
+Three Luna6MAX assistants supplied facts/draft; native controller reconciled and
+self-reviewed the final plan. Existing Ring draw is reused, six historical Poison
+failures are directly in scope, and the seventh encounter failure remains separate.
+
+The actual written plan awaits user review; .33.1 is blocked/unassigned at that
+gate. No M11 implementation child, code/build/test/start is authorized before
+approval. Preserve the selected native integration/LunaMAX assistance/ONE eventual
+fresh independent review method, all worktrees/stash/source/ignored evidence and
+the local internal M10 handoff. No further commit/push/merge/install/sync/private
+audit/cleanup authority follows. Current isolated branch is
+plan/m11-silent-combat-20261025 at36fbdc6; only planning/status docs are modified.
+All dated entries below remain historical; outgoing STOP applies to its old actor.
+
 ## Receiving session / authorized M10 continuation (2026-10-25)
 
 The current user instructed this receiving controller to continue the approved M10
@@ -1614,3 +1698,41 @@ No new commits, installs or cleanup authority. Preserve accepted M3 and all draf
 - For environment usage/tests, see `docs/combat-environments.md` and
   `docs/development.md`. Existing test counts are historical, not current reruns.
   CUDA/device smoke checks are not a prerequisite for Rust/gym correctness.
+
+## User-required shared progression and combat interface architecture (2026-10-26)
+
+The user explicitly rejects copying Ironclad progression for Silent and later
+characters. Keep ONE authoritative Run map/room/enemy/boss/reward/transition and
+combat entry/startup/settlement implementation. Character-specific card pools,
+items and hooks belong in focused existing character/content modules. M12–M15
+extend these owners; no cloned character Run engine or parallel simulator.
+
+Feature .66 uses `Run::from_validated_combat_resources` (internal character-aware
+resource builder after each profile validates), `Run::enter_owned` →
+`enemies::setup` → `Combat::enter_with_item_context`, shared resolver and
+`Run::settle_combat`. `enemies::A0_ENCOUNTER_SETUPS` is shared setup metadata,
+including the existing stable RNG scope keys; standalone does not own a second
+43-encounter table. Its Ironclad A0 input validation remains explicitly bounded.
+`spire-env/src/combat_policy.rs` reuses the versioned public Run encoder and M10
+vocabulary, selecting a common view rather than duplicating the encoder.
+Python transport shares `spire-python/src/run_env.rs` scalar/token/numeric/spec
+packaging helpers. Extend the existing catalog/profile seam and mechanical
+session/batch transport when adding a future character profile; do not copy the
+Ironclad facades/loops into a separate simulator. Keep frozen profile contracts
+through adapters/versioned schemas. No new Silent Gym API or M12 product start
+is implied by .66. Review this shared-ownership requirement in the ONE final
+feature review. Preserve all historical guidance, evidence and worktrees.
+
+## User communication routing and current parallel ownership (2026-10-26)
+
+Any Gym question requiring user input must be sent to the parent/root's current
+user conversation, with a concrete decision, options/tradeoffs and why the user
+is needed. Do not ask in an executor tab, Learn agent tab, or another queue.
+Routine approved implementation continues independently. Technical Learn
+coordination remains authorized; it is not a route for user approvals.
+
+The user separately authorized M12 in its own senior worktree and prioritizes
+`.66` delivery/normal main merge first because it blocks Learn. This supersedes
+historical M12 planning-only pointers, without widening this `.66` worktree into
+Silent product work. Root owns publication/integration and the final accepted
+Learn callback. Preserve all historical guidance and isolated worktrees.

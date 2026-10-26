@@ -272,9 +272,9 @@ fn m10_havoc_unplayable_curse_has_no_payload_hook_or_end_turn_trigger_red(){
 fn m10_havoc_unsupported_nested_child_fault_keeps_parent_context_and_child_owner_red(){
     let mut combat=with_task7_card(CardId::Havoc,false);
     let havoc=combat.state.piles.hand.iter().find(|owned|owned.handle()==card_state::handle(CardInstanceId(3))).unwrap().clone();
-    let child=OwnedCard::Full(card_state::permanent(CardId::DeadlyPoison,CardInstanceId(78),0));let child_handle=child.handle();
+    let child=OwnedCard::Full(card_state::permanent(CardId::Madness,CardInstanceId(78),0));let child_handle=child.handle();
     combat.state.card_ids_issued.insert(child_handle.clone());combat.state.piles.draw.clear();combat.state.piles.draw.push(child);
-    assert!(crate::content::Catalog::standard().card(CardId::DeadlyPoison).unwrap().definition_only,"fixture is a registered definition-only card with no M10 payload handler");
+    assert!(crate::content::Catalog::standard().card(CardId::Madness).unwrap().definition_only,"fixture is a registered definition-only card with no M10 payload handler");
     let (_,expected_rng)=super::super::rng::uniform_below(combat.state.card_rng.as_ref().unwrap(),1).unwrap();
     let result=combat.step_full(&CombatAction::PlayCard{instance:3,target:None});
     assert!(result.is_err(),"a genuinely unsupported child handler remains an honest retained fault");
