@@ -54,3 +54,8 @@ mod m10_ironclad_potions;
 mod m10_heart;
 mod m10_generation;
 mod m10_shield_spear;
+mod m11_silent_poison;
+mod m11_silent_discard;
+mod m11_silent_shiv;
+mod m11_silent_retain;
+mod m11_silent_copy;

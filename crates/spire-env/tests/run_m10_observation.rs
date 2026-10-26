@@ -667,3 +667,108 @@ fn m10_act4_public_fields_are_known_only_at_qualified_boundaries() {
     assert_eq!(enemies.known[23], 1);
     assert_eq!(pair_state.known[2], 0, "Heart-only allowance remains unknown in a pair fight");
 }
+
+#[test]
+fn m10_encoder_fails_closed_for_an_actual_native_retain_selection() {
+    let mut decision = m10_decision();
+    let cards = std::iter::once(combat::permanent_live_card(CardId::WellLaidPlans, combat::CardInstanceId(1), 0))
+        .chain((2..=5).map(|instance| combat::permanent_live_card(CardId::Strike, combat::CardInstanceId(instance), 0)))
+        .collect::<Vec<_>>();
+    align_public_deck(&mut decision, &cards);
+    let setup = combat::enemies::setup(
+        EncounterId::CorruptHeart,
+        4,
+        0,
+        &mut RunRng::new([102; 32], combat::rng::Partition::Test, 0),
+        combat::enemies::SetupContext {
+            player: combat::PlayerState { hp: 80, max_hp: 80, block: 0, energy: 3, max_energy: 3, draw_per_turn: 5, powers: vec![] },
+            player_powers: vec![],
+            character: Character::Ironclad,
+            cards,
+            opening_draw: 5,
+            encounter_visit: 0,
+        },
+    ).unwrap();
+    let mut items = Some(CombatItemContext::new(vec![RelicId::BurningBlood], vec![None, None, None]));
+    let mut native = combat::Combat::enter_with_item_context(setup, &mut items).unwrap();
+    let well_laid_plans = native.public_full().unwrap().hand.iter()
+        .find(|card| card.id == CardId::WellLaidPlans).unwrap().instance.0;
+    native.step_full(&CombatAction::PlayCard { instance: well_laid_plans, target: None }).unwrap();
+    assert!(native.public_full().unwrap().player.powers.iter()
+        .any(|power| power.id.0 == "retain_cards" && power.amount == 1));
+    native.step_full(&CombatAction::EndTurn).unwrap();
+    let legal = native.legal_actions_full().unwrap();
+    assert!(legal.contains(&CombatAction::ConfirmSelection));
+    let public = native.public_full().unwrap();
+    let selection = public.selection.as_ref().expect("the native engine owns a live retain selection");
+    assert_eq!(selection.parent, combat::SelectionParent::EndTurn { turn: public.turn });
+    assert_eq!(selection.operation, SelectionOperation::Retain);
+
+    decision.combat = Some(public);
+    decision.room = None;
+    decision.offers.clear();
+    decision.candidates = native_combat_candidates(legal, 1400);
+    decision.selection = None;
+    assert_eq!(
+        encode_run_m10(&decision, None, &RunCapacities::m10_default()),
+        Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 retain selections")),
+        "the frozen M10 encoder rejects the native M11 selector before enum encoding",
+    );
+}
+
+#[test]
+fn m10_encoder_fails_closed_for_an_actual_nightmare_capture_selection() {
+    let mut decision = m10_decision();
+    let cards = std::iter::once(combat::permanent_live_card(CardId::Nightmare, combat::CardInstanceId(1), 0))
+        .chain((2..=5).map(|instance| combat::permanent_live_card(CardId::Strike, combat::CardInstanceId(instance), 0)))
+        .collect::<Vec<_>>();
+    align_public_deck(&mut decision, &cards);
+    let setup = combat::enemies::setup(
+        EncounterId::CorruptHeart,
+        4,
+        0,
+        &mut RunRng::new([103; 32], combat::rng::Partition::Test, 0),
+        combat::enemies::SetupContext {
+            player: combat::PlayerState { hp: 80, max_hp: 80, block: 0, energy: 3, max_energy: 3, draw_per_turn: 5, powers: vec![] },
+            player_powers: vec![],
+            character: Character::Ironclad,
+            cards,
+            opening_draw: 5,
+            encounter_visit: 0,
+        },
+    ).unwrap();
+    let mut items = Some(CombatItemContext::new(vec![RelicId::BurningBlood], vec![None, None, None]));
+    let mut native = combat::Combat::enter_with_item_context(setup, &mut items).unwrap();
+    let nightmare = native.public_full().unwrap().hand.iter()
+        .find(|card| card.id == CardId::Nightmare).unwrap().instance.0;
+    native.step_full(&CombatAction::PlayCard { instance: nightmare, target: None }).unwrap();
+    let public = native.public_full().unwrap();
+    let selection = public.selection.as_ref().expect("played Nightmare owns its real remaining-hand selector");
+    assert_eq!(selection.parent, combat::SelectionParent::Card(
+        combat::CardHandle::parse(&nightmare.to_string()).unwrap()));
+    assert_eq!(selection.operation, SelectionOperation::NightmareCapture);
+
+    let legal = native.legal_actions_full().unwrap();
+    decision.combat = Some(public);
+    decision.room = None;
+    decision.offers.clear();
+    decision.candidates = native_combat_candidates(legal, 1500);
+    decision.selection = None;
+    assert_eq!(
+        encode_run_m10(&decision, None, &RunCapacities::m10_default()),
+        Err(RunSessionError::Input("unsupported CardId")),
+        "the actual M11 card remains outside the frozen M10 card vocabulary",
+    );
+
+    // Codec-only negative control: mutate a supported native selection view to
+    // the new operation so the frozen M10 operation boundary is exercised
+    // independently of the earlier unknown-card rejection above.
+    let mut codec_fixture = m10_dual_wield_selection_decision();
+    codec_fixture.combat.as_mut().unwrap().selection.as_mut().unwrap().operation =
+        SelectionOperation::NightmareCapture;
+    assert_eq!(
+        encode_run_m10(&codec_fixture, None, &RunCapacities::m10_default()),
+        Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections")),
+        "M10 v2 rejects the unsupported selector operation without extending its descriptor",
+    );
+}

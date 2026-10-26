@@ -5,7 +5,7 @@ use super::model::{Actor, State};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Hook {
     CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStartedPreDraw, TurnStarted, TurnEnded,
-    PlayerPreEndTurnCards, PlayerEndTurn,
+    PlayerPreEndTurnCards, PlayerEndTurn, EnemyTurnStarted,
     CardPlayed, CardAfterUse, CardDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
     ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,
 }
@@ -25,6 +25,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     if hook==Hook::Death{super::enemies::act2::stasis::on_death(state,target);}
     if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
         super::cards::ironclad::reactive::turn_started(state,&mut work);
+        work.extend(super::cards::silent_nightmare_pre_draw(state));
     }
     if hook == Hook::CardPlayed {
         super::cards::ironclad::reactive::card_played(state,source)?;
@@ -47,6 +48,35 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         exhaust_top=top;
         work.extend(tail);
     }
+    if hook == Hook::CardDrawn && target == Some(&Actor::Player) {
+        let accuracy = state.player_full_powers.iter()
+            .find(|power| power.id.0 == "accuracy" && power.state.amount > 0)
+            .map(|power| power.state.amount);
+        if let Some(amount) = accuracy {
+            super::cards::rewrite_accuracy_hand_shivs(state, amount);
+        }
+    }
+    if hook==Hook::EnemyTurnStarted {
+        let Some(Actor::Enemy(owner))=target else {
+            return Err(super::InputError::Invariant("enemy start-turn hook owner absent".into()).into());
+        };
+        if !super::enemies::act2::combat_victory_ready(state) {
+            if let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner
+                &&enemy.life==super::ActorLife::Active&&enemy.hp>0) {
+                if let Some(poison)=enemy.full_powers.iter().find(|power|power.id.0=="poison")
+                    .map(|power|power.state.amount).filter(|amount|*amount>0) {
+                    let actor=Actor::Enemy(owner.clone());
+                    work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),
+                        kind:EffectKind::Damage(super::DamagePayload::PoisonTickHpLoss {
+                            owner: owner.clone(), amount: poison })});
+                    work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),
+                        kind:EffectKind::ReduceFullPower{id:super::FullPowerId("poison"),amount:1}});
+                    work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor),
+                        kind:EffectKind::PoisonTickComplete});
+                }
+            }
+        }
+    }
     if let Some(Actor::Player)=target {
         match hook {
             Hook::TurnStartedPreDraw=>{
@@ -64,6 +94,17 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
                             work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(power.state.amount))});
                         }
                         "demon_form" if power.state.amount>0=>work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}}),
+                        "noxious_fumes" if power.state.amount>0=>{
+                            // The player-owned callback emits one ordinary
+                            // application per eligible live enemy. The shared
+                            // power owner still handles Artifact and relics.
+                            for enemy in state.enemies.iter().filter(|enemy|
+                                enemy.life==super::ActorLife::Active&&enemy.hp>0) {
+                                work.push(Effect{source:Source::Actor(Actor::Player),
+                                    target:Some(Actor::Enemy(enemy.instance_id.clone())),
+                                    kind:EffectKind::ApplyFullPower{id:super::FullPowerId("poison"),amount:power.state.amount}});
+                            }
+                        }
                         _=>(),
                     }
                 }
@@ -71,6 +112,10 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             Hook::PlayerPreEndTurnCards=>{
                 if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="metallicize"&&power.state.amount>0){
                     work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
+                }
+                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="retain_cards"&&power.state.amount>0){
+                    work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+                        kind:EffectKind::OpenRetainSelection{limit:power.state.amount}});
                 }
             }
             Hook::PlayerEndTurn=>{

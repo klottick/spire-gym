@@ -200,9 +200,22 @@ impl Run {
 
     pub fn from_authored_combat(config:RunConfig, start:AuthoredRunStart, rng:RunRng) -> Result<Self,RunError> {
         if config.ascension>20 { return Err(RunError::InvalidAscension(config.ascension)); }
-        if config.character!=Character::Ironclad || config.ascension!=0 {
-            return Err(RunError::Unsupported("authored M3 requires Ironclad A0"));
-        }
+        let silent_a0=config.character==Character::Silent&&config.ascension==0;
+        let silent_next_instance=if silent_a0 {
+            let canonical=Self::new(config,CreationProfile::experienced(),rng.clone())?;
+            let state=&canonical.state;
+            if start.hp!=state.hp || start.max_hp!=state.max_hp || start.gold!=state.gold
+                || start.deck!=state.deck || start.relics!=state.relics || start.potions!=state.potions
+                || start.relic_counters!=state.relic_counters {
+                return Err(RunError::InvalidAction);
+            }
+            Some(state.next_instance)
+        }else{
+            if config.character!=Character::Ironclad || config.ascension!=0 {
+                return Err(RunError::Unsupported("authored M3 requires Ironclad A0"));
+            }
+            None
+        };
         if start.hp==0 || start.hp>start.max_hp || start.max_hp>999
             || !(1..=999).contains(&start.deck.len()) || start.potions.len()!=3 {
             return Err(RunError::InvalidAction);
@@ -212,13 +225,15 @@ impl Run {
             if card.instance==0 || !ids.insert(card.instance) || card.upgrades>1 {
                 return Err(RunError::InvalidAction);
             }
-            if !matches!(card.id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
+            if !silent_a0 && !matches!(card.id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
                 |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger
                 |CardId::Bloodletting|CardId::BurningPact|CardId::Disarm) {
                 return Err(RunError::Unsupported("card outside authored M3 profile"));
             }
         }
-        let next_instance=ids.last().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+        let next_instance=if let Some(next)=silent_next_instance { next } else {
+            ids.last().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?
+        };
         let mut relics=BTreeSet::new();
         if start.relics.iter().any(|id| !relics.insert(*id))
             || start.relic_counters.keys().any(|id| !relics.contains(id)) { return Err(RunError::InvalidAction); }

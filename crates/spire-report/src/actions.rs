@@ -50,6 +50,8 @@ pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
         Move(Hand)=>"move_hand",Move(Discard)=>"move_discard",Move(Exhaust)=>"move_exhaust",Move(DrawTop)=>"move_draw_top",
         Upgrade=>"upgrade",Topdeck=>"topdeck",ReturnFromExhaust=>"return_from_exhaust",
         CopyToHand{copies:1}=>"copy_to_hand_1",CopyToHand{copies:2}=>"copy_to_hand_2",CopyToHand{copies:_}=>"copy_to_hand_3",
+        NightmareCapture=>"nightmare_capture",
+        Retain=>"retain",
     }
 }
 fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}

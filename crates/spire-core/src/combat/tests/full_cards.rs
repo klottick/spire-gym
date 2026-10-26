@@ -24,7 +24,11 @@ fn with_watcher_card(id: crate::content::CardId, upgrades: u32) -> Combat {
 }
 
 fn with_silent_card(id: crate::content::CardId, upgrades: u32) -> Combat {
-    let mut combat = with_first_hand_card(id, upgrades);
+    // These tests need the permanent card's real default flags (not the old
+    // Bash fixture after mutating only its id and upgrade count).
+    let mut combat = entered_combat(3, 3, |_| {});
+    let instance = combat.state.piles.hand[0].full().unwrap().instance;
+    *combat.state.piles.hand[0].full_mut().unwrap() = permanent_live_card(id, instance, upgrades);
     combat.state.character = super::super::characters::CharacterState::for_character(
         crate::content::Character::Silent);
     combat
@@ -77,9 +81,10 @@ fn catalyst_permanent_card_state_carries_its_exhaust_flag() {
 
 #[test]
 fn catalyst_adds_twice_the_current_poison_and_exhausts_but_absence_is_noop() {
-    for (upgrades, start, expected) in [(0, 4, 12), (1, 4, 12), (0, 6_000, 18_000)] {
+    for (upgrades, start, expected) in [
+        (0, 4, 8), (1, 4, 12), (0, 6_000, 12_000), (1, 6_000, 18_000),
+    ] {
         let mut combat = with_silent_card(crate::content::CardId::Catalyst, upgrades);
-        combat.state.piles.hand[0].full_mut().unwrap().local.exhaust_on_finish = true;
         combat.state.enemies[0].full_powers.push(full_power("poison", start));
         let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
         combat.step_full(&CombatAction::PlayCard { instance, target: Some(TargetId(1)) }).unwrap();
@@ -90,7 +95,6 @@ fn catalyst_adds_twice_the_current_poison_and_exhausts_but_absence_is_noop() {
     }
 
     let mut absent = with_silent_card(crate::content::CardId::Catalyst, 0);
-    absent.state.piles.hand[0].full_mut().unwrap().local.exhaust_on_finish = true;
     let instance = absent.state.piles.hand[0].full().unwrap().instance.0;
     absent.step_full(&CombatAction::PlayCard { instance, target: Some(TargetId(1)) }).unwrap();
     assert!(!absent.state.enemies[0].full_powers.iter()

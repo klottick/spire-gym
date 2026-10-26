@@ -21,6 +21,7 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition{id:RelicId::Brimstone,definition_only:false},
     RelicDefinition{id:RelicId::MarkOfPain,definition_only:false},
     RelicDefinition{id:RelicId::RunicCube,definition_only:false},
+    RelicDefinition{id:RelicId::SneckoSkull,definition_only:false},
     RelicDefinition { id: RelicId::BlackBlood, definition_only: false },
     RelicDefinition { id: RelicId::EmptyCage, definition_only: false },
     RelicDefinition { id: RelicId::SlaversCollar, definition_only: false },

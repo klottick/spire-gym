@@ -75,6 +75,10 @@ fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaci
          return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection"))
     }
     if m10&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
+        matches!(s.operation,spire_core::combat::SelectionOperation::Retain)) {
+        return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 retain selections"));
+    }
+    if m10&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.operation,spire_core::combat::SelectionOperation::CopyToHand{copies} if !(1..=3).contains(&copies))) {
         return Err(RunSessionError::Input("unsupported public selection copy count"));
     }
@@ -252,6 +256,9 @@ fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaci
             let mut counts=vec![Some(number(s.required)?),Some(number(s.selected.len())?)];
             if m10 {
                 let confirm=d.candidates.iter().any(|candidate|matches!(candidate.action,GameAction::Combat(CombatAction::ConfirmSelection)));
+                if matches!(s.operation,spire_core::combat::SelectionOperation::NightmareCapture) {
+                    return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections"));
+                }
                 counts.extend([Some(number(s.minimum)?),Some(number(s.maximum)?),Some(i64::from(confirm)),Some(schema_m10::operation(s))]);
             }
             o.group_mut("selection_counts").row(0,&counts)?;

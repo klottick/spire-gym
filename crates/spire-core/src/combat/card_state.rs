@@ -91,7 +91,7 @@ pub(super) fn effective_cost(card:&LiveCard,base_cost:i32)->Result<i32,InputErro
 
 pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCard {
     LiveCard { instance, id, origin: CombatCardRef::Permanent(instance),
-         upgrades, local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(super::cards::ironclad::rules::reconstructed_searing_damage(upgrades))}else if id==CardId::Rampage{Some(8)}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else{None},exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering|CardId::Pummel|CardId::Intimidate|CardId::SeeingRed|CardId::Shockwave|CardId::Warcry|CardId::Exhume|CardId::Feed|CardId::Reaper|CardId::FiendFire|CardId::InfernalBlade)||(id==CardId::LimitBreak&&upgrades==0),ethereal:matches!(id,CardId::Carnage|CardId::GhostlyArmor|CardId::Dazed|CardId::Void),innate:id==CardId::Brutality&&upgrades>0,x_cost:id==CardId::Whirlwind, ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Original }
+         upgrades, local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(super::cards::ironclad::rules::reconstructed_searing_damage(upgrades))}else if id==CardId::Rampage{Some(8)}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else{None},exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering|CardId::Pummel|CardId::Intimidate|CardId::SeeingRed|CardId::Shockwave|CardId::Warcry|CardId::Exhume|CardId::Feed|CardId::Reaper|CardId::FiendFire|CardId::InfernalBlade|CardId::Catalyst|CardId::Nightmare)||(id==CardId::LimitBreak&&upgrades==0),ethereal:matches!(id,CardId::Carnage|CardId::GhostlyArmor|CardId::Dazed|CardId::Void),innate:id==CardId::Brutality&&upgrades>0,x_cost:id==CardId::Whirlwind, ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Original }
 }
 
 /// Build a temporary native card with its actual use/disposition state.
@@ -106,7 +106,7 @@ pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> 
         |CardId::Headbutt|CardId::Anger|CardId::IronWave|CardId::Cleave|CardId::PommelStrike
         |CardId::TwinStrike|CardId::Clothesline|CardId::HeavyBlade|CardId::PerfectedStrike
         |CardId::Thunderclap|CardId::Bludgeon=>false,
-        CardId::Miracle | CardId::Slimed | CardId::Shiv => true,
+        CardId::Miracle | CardId::Slimed | CardId::Shiv | CardId::Nightmare => true,
         CardId::Dazed | CardId::Burn | CardId::Wound | CardId::Void => false,
         CardId::LimitBreak=>upgrades==0,
         CardId::Evolve|CardId::FireBreathing|CardId::FlameBarrier|CardId::Juggernaut|CardId::Rage|CardId::Rupture=>false,

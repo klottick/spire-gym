@@ -76,12 +76,10 @@ M1–36 are `.23`–`.58`. M1 `.23`/`.23.1` and M2 `.24`/`.24.1`/`.24.2` are clo
 M3 `.25`, M4 `.26`, M5 `.27`, M6 `.28` and M7 `.29` are accepted at their
 declared profiles; M8 `.30`/`.30.2` are also accepted/closed at the captured
 Act3 mechanics/prefix scope. M9 and M10 are accepted at their declared captured
-profiles after independent review and exact-source verification. M11 planning-only
-`spire-dxo.33.1` is open/unassigned; no M11 implementation is authorized. Old
-unfinished components retain their scope and history as coverage umbrellas,
-not blockers requiring every content family before the first usable milestone.
+profiles after independent review and exact-source verification. M10 is merged in
+[PR46](https://github.com/klottick/spire-gym/pull/46). The user-approved M11 plan is [documented here](docs/superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md). M11 `.33.2`/`.33` is accepted at its finite Silent A0 scope after one fresh independent review (`m11_milestone_review`; evidence: `.superpowers/sdd/2026-10-25-m11-silent-combat-mechanics/task8-independent-review.md`). The [accepted M11 profile](docs/milestones/m11-silent-combat.md) records representative Poison, discard, Shiv, retain, copy, and canonical-resource authored-combat behavior. The final workspace preservation matrix recorded 1,476 passed and one retained Blue Slaver and Two Fungi failure. The authored bridge bypasses Neow selection, map generation, and Act 1; it is not a Silent Gym profile or normal-start route. No Python extension refresh or Python-delivery claim was made. The user-prioritized Gym interoperability request `.66` is being implemented in parallel in an isolated worktree; M11 constrains its final integration only. M12 remains planning-only and is not the automatic next product milestone. Old unfinished components retain their scope and history as coverage umbrellas, not blockers requiring every content family before the first usable milestone.
 Use fast deterministic behavior tests and focused regressions, not a custom
-verification platform. Full runs and complete content are not implemented.
+verification platform. Complete standard pools and the wider four-character roadmap remain outside the implemented profiles.
 
 The [M3 plan](docs/superpowers/plans/2026-10-23-m3-persistent-combat-run.md) is
 user-approved. Its [accepted persistent combat profile](docs/milestones/m3-run.md) runs

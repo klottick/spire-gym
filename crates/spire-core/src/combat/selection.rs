@@ -9,8 +9,13 @@ pub enum SelectionDisposition { Hand, Discard, Exhaust, DrawTop }
 pub enum SelectionSourceZone { Hand, Draw, Discard, Exhaust }
 
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub enum SelectionParent { Card(super::CardHandle), Potion { slot:usize,id:crate::content::PotionId } }
+pub enum SelectionParent {
+    Card(super::CardHandle),
+    Potion { slot:usize,id:crate::content::PotionId },
+    /// One optional card choice suspended under the live player EndTurn queue.
+    EndTurn { turn:u32 },
+}
 
 /// A nonmoving upgrade is not an exhaust/discard with a cosmetic label.
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum SelectionOperation { Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8} }
+pub enum SelectionOperation { Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8}, Retain, NightmareCapture }

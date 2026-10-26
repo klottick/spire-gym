@@ -40,10 +40,12 @@ child delivery-fault behavior. The ONE fresh GPT-6 Luna MAX reviewer
 all five focus classes and six declared exclusion categories were controller-ruled.
 Its fresh checks passed native M10 453, environment 102, report 12, and Python 251.
 M10 `.32.2`/`.32` are normally closed. Natural early Deaths remain valid outcomes;
-M11 planning-only `.33.1` is open/unassigned for ONE written plan and user review
-before any product work. Beads and
-the native controller ledger remain authoritative; the dated history below is
-preserved as historical context.
+M10 merged in [PR46](https://github.com/klottick/spire-gym/pull/46) at `36fbdc6`,
+with the accepted tree preserved and local main updated. The eight-task [M11 Silent combat plan](superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md) was explicitly user-approved on 2026-10-25 and is complete. After one fresh independent review (`m11_milestone_review`; evidence: `.superpowers/sdd/2026-10-25-m11-silent-combat-mechanics/task8-independent-review.md`), M11 `.33.2`/`.33` is accepted at the finite representative Silent A0 scope. The [accepted profile](milestones/m11-silent-combat.md) documents canonical Silent A0 resources, the authored-combat bypass, supplied diagnostic scenarios, and source limits.
+
+The final Task 8 matrix comprised 29 verification invocations. The workspace had 1,476 passed and retained one failure: combat::tests::full_enemies::blue_slaver_and_two_fungi_encounters_construct_real_actors_across_ascensions. Its core library target had 1,217 passed / one failed; the workspace total includes all targets. The six other native checks passed: M11 Silent 62/0, M10 453/0, M9 32/0, M8 115/0, M7 16/0, and M6 95/0. All 22 example/CLI invocations matched expected results. M9/M10 fixed-seed outcomes and settlement prefixes matched accepted M10 logs exactly. The 622-file tested source was stable and diff check passed. No Python extension refresh or new Python-delivery claim was made.
+
+Tasks 1–8 are complete and M11 is accepted at the declared finite scope. The [accepted profile](milestones/m11-silent-combat.md) records the authored-resource boundary and observed seed-7/11 outcomes. The user-prioritized Gym interoperability request `.66` is being implemented in parallel in an isolated worktree; M11 constrains its final integration only. M12 remains planning-only and is not the automatic next product step; no M12 product child/start is authorized. Preserve accepted M10 scope. Beads and the native controller ledger remain authoritative; the dated history below is preserved as historical context.
 
 2026-10-23 M8 accepted at its declared captured scope; `.30.2`/`.30` closed normally.
 The isolated feature worktree remains at `ddd4df2` after separately authorized

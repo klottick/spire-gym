@@ -64,10 +64,18 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             state.public.known_draw_bottom.clear();
         }
         EffectKind::DiscardHand => {
-            while let Some(card) = state.piles.hand.last() {
+            if let Some(retain)=&state.temporary_retain {
+                if retain.turn!=state.turn||retain.cards.iter().any(|handle|!state.piles.hand.iter().any(|card|
+                    card.handle()==*handle&&card.full().is_some_and(|live|!live.local.ethereal))){
+                    return Err(InputError::Invariant("temporary retain owner is not in the current end-turn hand".into()).into());
+                }
+            }
+            while let Some(card) = state.piles.hand.iter().rev().find(|card|!state.temporary_retain.as_ref()
+                .is_some_and(|retain|retain.cards.contains(&card.handle()))) {
                 let id = card.handle();
                 discard_card(state, &id, true)?;
             }
+            state.temporary_retain=None;
         }
         EffectKind::DrawOne=>{
             let card=state.piles.draw.pop().ok_or_else(||InputError::Invariant("draw-one owner absent".into()))?;let handle=card.handle();
@@ -132,8 +140,18 @@ pub(super) fn next_generated_instance(state: &State) -> Result<super::CardInstan
     Ok(super::CardInstanceId(next))
 }
 
-pub(super) fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
+pub(super) fn insert_generated(state: &mut State, mut card: super::card_state::LiveCard,
     requested: super::command::CardDestination) -> Result<(), EffectError> {
+    if card.id == crate::content::CardId::Shiv && card.local.base_damage.is_none() {
+        let accuracy = state.player_full_powers.iter()
+            .find(|power| power.id.0 == "accuracy" && power.state.amount > 0)
+            .map_or(0, |power| power.state.amount);
+        if accuracy > 0 {
+            let base: i32 = if card.upgrades > 0 { 6 } else { 4 };
+            card.local.base_damage = Some(base.checked_add(accuracy)
+                .ok_or_else(|| InputError::Unsupported("Accuracy Shiv damage overflow".into()))?);
+        }
+    }
     let instance = card.instance;
     let handle = super::card_state::handle(instance);
     if !state.full_runtime || state.card_ids_issued.len() >= 999
@@ -172,6 +190,15 @@ pub(super) fn insert_generated(state: &mut State, card: super::card_state::LiveC
     if destination==super::command::CardDestination::BottomDraw{
         state.public.known_draw_bottom.insert(0,handle.clone());
         if empty_draw{state.public.known_draw.insert(0,handle);}
+    }
+    if destination==super::command::CardDestination::Hand {
+        if let Some(amount)=state.player_full_powers.iter()
+            .find(|power|power.id.0=="accuracy"&&power.state.amount>0)
+            .map(|power|power.state.amount) {
+            // Actual generated hand construction calls the copy/draw-discard
+            // listener synchronously; this local behavior is not a card draw.
+            super::cards::rewrite_accuracy_hand_shivs(state,amount);
+        }
     }
     Ok(())
 }
@@ -240,6 +267,30 @@ pub(super) fn finish_owned_card(state:&mut State,card:OwnedCard,override_disposi
         FinishDisposition::Natural=>{
             state.piles.discard.push(card);
             if state.full_runtime{state.pending.push_front(Effect{source:Source::Card(handle),target:None,kind:EffectKind::Hook(Hook::CardDiscarded)});}
+        }
+    }
+    Ok(())
+}
+
+/// Commit a selection's discard movement. Only a hand-sourced Dagger Throw or
+/// Survivor selection is eligible for the manual Silent reactions; end-turn and
+/// natural-finish paths remain on their existing owners.
+pub(super) fn discard_selected_card(state: &mut State, card: OwnedCard, manual_hand_discard: bool)
+    -> Result<(), InputError> {
+    let handle = card.handle();
+    let live = card.full().cloned();
+    state.piles.discard.push(card);
+    if state.full_runtime && manual_hand_discard {
+        let listener = if let Some(live) = live.as_ref() {
+            super::cards::manual_discard(state, live)?
+        } else {
+            false
+        };
+        if listener {
+            let notification = Effect { source: Source::Card(handle), target: None,
+                kind: EffectKind::Hook(Hook::CardDiscarded) };
+            super::engine::validate_effect(&notification, state)?;
+            state.pending.push_front(notification);
         }
     }
     Ok(())

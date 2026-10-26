@@ -25,6 +25,7 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::Damage(DamagePayload::Orb(n))=>("orb_damage",json!({"amount":n})),
         EffectKind::Damage(DamagePayload::Thorns(n))=>("thorns_damage",json!({"amount":n})),
         EffectKind::Damage(DamagePayload::HpLoss(n))=>("hp_loss",json!({"amount":n})),
+        EffectKind::Damage(DamagePayload::PoisonTickHpLoss{owner,amount})=>("poison_tick_hp_loss",json!({"owner":owner.as_str(),"amount":amount})),
         EffectKind::ExhaustHandCard { instance } => ("exhaust_hand_card", json!({"instance":instance.0})),
         EffectKind::Damage(DamagePayload::EnemyMove(m))=>("damage",json!({"move":m.as_str()})),
         EffectKind::Damage(DamagePayload::FullEnemyMove(m))=>("damage",json!({"full_move":m.as_str()})),
@@ -112,9 +113,13 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::StartNextPlayer=>("start_next_player",json!({})),
         EffectKind::SelectCard { candidates, empty } => ("select_card", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"empty":format!("{empty:?}")})),
         EffectKind::SelectCards { candidates, required, disposition, empty } => ("select_cards", json!({"candidates":candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
+        EffectKind::SelectNightmareCard | EffectKind::NightmareCopy { .. } => panic!("M9 v1 cannot encode M11 Nightmare work"),
         EffectKind::SelectHandCardsAfterDraw { required, disposition, empty } => ("select_hand_after_draw", json!({"required":required,"disposition":format!("{disposition:?}"),"empty":format!("{empty:?}")})),
         EffectKind::Hook(Hook::CardAfterUse) => panic!("M9 v1 cannot encode M10 after-use Heart work"),
+        EffectKind::OpenRetainSelection{..} => panic!("M9 v1 cannot encode M11 retain selection work"),
         EffectKind::Hook(hook) => ("hook", json!({"hook":format!("{hook:?}")})),
+        EffectKind::PoisonTickComplete => ("poison_tick_complete", json!({})),
+        EffectKind::Catalyst => panic!("M9 v1 cannot encode M11 Catalyst work"),
         EffectKind::CorruptHeartBuff => panic!("M9 v1 cannot encode M10 Corrupt Heart work"),
         EffectKind::ReplaceEnemy { parent, children } => ("replace_enemy", json!({
             "parent": parent.as_str(), "children": children.iter().map(|id| id.as_str()).collect::<Vec<_>>() })),
@@ -157,7 +162,9 @@ fn combat_action(a: &CombatAction) -> Value { match a {
     CombatAction::EndTurn => json!("end_turn"),
 } }
 fn selection_capture(s: &super::super::model::PendingSelection) -> Value {
-    let parent=match &s.parent{SelectionParent::Card(card)=>json!({"card":card.as_str()}),SelectionParent::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}})};
+    let parent=match &s.parent{SelectionParent::Card(card)=>json!({"card":card.as_str()}),
+        SelectionParent::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),
+        SelectionParent::EndTurn{..}=>panic!("M9 replay-v1 cannot encode the M11 end-turn selection parent")};
     json!({"parent":parent,"source_zone":format!("{:?}",s.source_zone),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
         "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"minimum":s.minimum,"maximum":s.maximum,
         "disposition":format!("{:?}",s.disposition),"empty":format!("{:?}",s.empty)})

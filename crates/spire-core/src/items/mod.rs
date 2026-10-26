@@ -198,7 +198,8 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext) -> Result<(
             | RelicId::BlackBlood | RelicId::EmptyCage | RelicId::SlaversCollar | RelicId::RedMask
             | RelicId::Vajra | RelicId::OddlySmoothStone | RelicId::BagOfPreparation | RelicId::BagOfMarbles | RelicId::BronzeScales
             | RelicId::RedSkull | RelicId::PaperPhrog | RelicId::ChampionsBelt | RelicId::CharonsAshes | RelicId::SelfFormingClay
-            | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum) {
+            | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum
+            | RelicId::SneckoSkull) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }

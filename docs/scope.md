@@ -28,7 +28,8 @@ touched-file Ruff/format/`ty` checks passed. The native workspace recorded 1,402
 passes and exactly the seven preserved historical failures; scoped M10–M6 filters
 and all 17 example/CLI invocations matched their expected results. M10 is accepted
 at its declared captured profile after ONE clean independent review and exact-source
-verification. M11 planning-only `.33.1` is open/unassigned; no product start follows.
+verification. M10 merged in [PR46](https://github.com/klottick/spire-gym/pull/46).
+The user-approved [M11 Silent combat plan](superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md) is complete at its finite representative Silent A0 scope after one fresh independent review (`m11_milestone_review`; evidence: `.superpowers/sdd/2026-10-25-m11-silent-combat-mechanics/task8-independent-review.md`). The [accepted profile](milestones/m11-silent-combat.md) covers Poison, discard, Shiv, retain, copy, and the canonical-resource authored-combat bridge. The preservation matrix recorded 1,476 passed and one retained Blue Slaver and Two Fungi failure. The bridge bypasses Neow, map generation, and Act 1; it is neither a Silent Gym profile nor a normal-start route, and no Python extension refresh or delivery claim was made. The user-prioritized Gym interoperability request `.66` is being implemented in parallel in an isolated worktree; M11 constrains final integration only. M12 remains planning-only and is not the automatic next product step. No M12 product work is active.
 Natural Death remains a valid
 episode outcome, not a simulator failure; the six frozen seed-7/11 runs remain early
 gameplay losses, not wins. Separate default masked-caller Deaths at 27/67 actions are

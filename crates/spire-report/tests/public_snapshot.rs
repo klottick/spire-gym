@@ -245,6 +245,70 @@ fn m10_report_discloses_confirm_selection_purpose_and_true_victory_room() {
 }
 
 #[test]
+fn m11_report_labels_the_owned_optional_retain_selection() {
+    use spire_core::{combat::{self,Combat,CombatAction,FullPowerEntry,PowerState},
+        content::{CardId,Character,EncounterId},run::RunRng};
+    let cards=(1..=10).map(|instance|combat::permanent_live_card(CardId::StrikeGreen,combat::CardInstanceId(instance),0))
+        .collect::<Vec<_>>();
+    let mut decision=native::m4::run(7).decision().unwrap();
+    align_public_deck(&mut decision,&cards);
+    let entry=combat::enemies::setup(EncounterId::OrbWalker,3,0,&mut RunRng::new([97;32],combat::rng::Partition::Test,0),
+        combat::enemies::SetupContext{
+            player:combat::PlayerState{hp:70,max_hp:70,block:0,energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},
+            player_powers:vec![FullPowerEntry{id:combat::FullPowerId("retain_cards"),
+                state:PowerState{amount:1,skip_first:false,monster_source_grace:false}}],
+            character:Character::Silent,cards,opening_draw:5,encounter_visit:0,
+        }).unwrap();
+    let mut native=Combat::enter(entry).unwrap();
+    assert_eq!(native.step_full(&CombatAction::EndTurn),Ok(()));
+    let legal=native.legal_actions_full().unwrap();
+    assert!(legal.contains(&CombatAction::ConfirmSelection));
+    decision.combat=Some(native.public_full().unwrap());
+    decision.room=None;
+    decision.candidates=legal.into_iter().enumerate().map(|(index,action)|Candidate{
+        id:ChoiceId(900+index as u64),action:GameAction::Combat(action),label:"native legal combat action",neow_offer:None,object:None}).collect();
+    let action=GameAction::Combat(CombatAction::ConfirmSelection);
+
+    let snapshot=run_snapshot(&decision,None).unwrap();
+
+    assert_eq!(snapshot["combat"]["selection"]["purpose"],"retain");
+    assert_eq!(snapshot["combat"]["selection"]["minimum"],0);
+    assert_eq!(snapshot["combat"]["selection"]["maximum"],1);
+    assert!(snapshot["screen"]["options"].as_array().unwrap().iter()
+        .any(|option|option["key"]=="combat/confirm_selection"));
+    let described=describe_run_action(&decision,&action,"combat-0").unwrap();
+    assert_eq!(described["selectionPurpose"],"retain");
+}
+
+#[test]
+fn m11_report_labels_the_native_nightmare_capture_selection() {
+    use spire_core::{combat::{self,Combat,CombatAction},content::{CardId,Character,EncounterId},run::RunRng};
+    let cards=std::iter::once(combat::permanent_live_card(CardId::Nightmare,combat::CardInstanceId(1),0))
+        .chain((2..=5).map(|instance|combat::permanent_live_card(CardId::StrikeGreen,combat::CardInstanceId(instance),0)))
+        .collect::<Vec<_>>();
+    let mut decision=native::m4::run(7).decision().unwrap();
+    align_public_deck(&mut decision,&cards);
+    let entry=combat::enemies::setup(EncounterId::OrbWalker,3,0,&mut RunRng::new([98;32],combat::rng::Partition::Test,0),
+        combat::enemies::SetupContext{
+            player:combat::PlayerState{hp:70,max_hp:70,block:0,energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},
+            player_powers:vec![],character:Character::Silent,cards,opening_draw:5,encounter_visit:0,
+        }).unwrap();
+    let mut native=Combat::enter(entry).unwrap();
+    let nightmare=native.public_full().unwrap().hand.iter().find(|card|card.id==CardId::Nightmare).unwrap().instance.0;
+    native.step_full(&CombatAction::PlayCard{instance:nightmare,target:None}).unwrap();
+    let legal=native.legal_actions_full().unwrap();
+    let public=native.public_full().unwrap();
+    assert_eq!(public.selection.as_ref().unwrap().operation,spire_core::combat::SelectionOperation::NightmareCapture);
+    decision.combat=Some(public);
+    decision.room=None;
+    decision.candidates=legal.into_iter().enumerate().map(|(index,action)|Candidate{
+        id:ChoiceId(950+index as u64),action:GameAction::Combat(action),label:"native legal combat action",neow_offer:None,object:None}).collect();
+
+    let snapshot=run_snapshot(&decision,None).unwrap();
+    assert_eq!(snapshot["combat"]["selection"]["purpose"],"nightmare_capture");
+}
+
+#[test]
 fn m10_report_keeps_dual_wield_copy_purpose_without_synthetic_confirmation() {
     use spire_core::{combat::{self,Combat,CombatAction},content::{CardId,Character,EncounterId,RelicId},items::CombatItemContext};
     let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
