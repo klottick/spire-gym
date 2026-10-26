@@ -102,7 +102,7 @@ numbers must not be interpreted as current-branch locations.
    their deliberate retention was documented.
    [Manifest: `pyproject.toml:7–10`](https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/pyproject.toml#L7-L10),
    [consumer: `readiness.py:20`](https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/python/spire_lab/readiness.py#L20),
-   [lockfile](https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/uv.lock#L490-L519).
+   [full pinned lockfile](https://github.com/klottick/spire-gym/blob/c0746b7751773cf93cb24a780b65a7ca4a9cbe66/uv.lock), including the Torch and NVIDIA wheel entries used in this total. The earlier excerpt cited lines 490–519 only.
 
 9. **P2 — The everyday “Python behavior tests” command tested readiness, not the gym.**
    The development guide directed callers only to `test_readiness.py`, which covers

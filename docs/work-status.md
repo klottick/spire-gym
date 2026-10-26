@@ -1,10 +1,45 @@
-# Work orientation — 2026-10-25
+# Work status
+
+## Current snapshot — 2026-10-26
+
+This page gives dated orientation, not live task ownership or implementation
+permission. Use the current primary-session instructions for authorization and
+Beads for task state and ownership; confirm the assigned checkout before editing.
+
+- M11 is accepted at the finite representative Silent A0 authored-combat scope in
+  the [accepted profile](milestones/m11-silent-combat.md). It is not Neow/map/Act 1
+  progression, a Silent Gym profile, full-pool coverage, or Python-delivery proof.
+  Its accepted native matrix retains the documented Blue Slaver/Two Fungi fixture
+  failure; consult the profile for the exact test and evidence.
+- Gym interoperability `.66` merged to main through PR47 at
+  `533dad1c8aec86df624b3742b6b3ad1dbf1d0033`. The [training guide](combat-training.md)
+  describes its opt-in standalone Ironclad A0 interface and common combat-policy
+  view. The default M9 and original M10 Heart contracts remain frozen;
+  `m10-ironclad-policy` is an opt-in Run-v3 profile. The `.66` review reproduced
+  the 60 legacy Python differential mismatches unchanged from accepted M11; see
+  the [M9 comparison limits](milestones/m9-act3.md#verification-boundaries).
+  This is baseline continuity evidence, not a claim that all tests pass.
+- The user-approved M12 design and implementation plan passed independent review,
+  and implementation was released against the accepted post-`.66` baseline. Bead
+  `spire-dxo.34.1` is in progress at this snapshot. Consult live Beads and the
+  current primary session for ownership and the assigned checkout; no further
+  M12 plan approval is required.
+- The all-character A0–20 Acts 1–4/Heart target remains the repository scope. See
+  [scope](scope.md), [milestone profiles](milestones/), and the current task's
+  Bead for details and accepted limits.
+
+The dated records below preserve prior evidence and coordination. They are not
+current branch/worktree assignments, recurring approval rules beyond the current
+user instruction, or authority to resume old work.
+
+## Dated status history
+
+### Prior workstream snapshot — 2026-10-25
 
 Beads is authoritative; this is an administrative snapshot, not another task board.
 See [scope](scope.md) for the current repo boundary and [environment usage](combat-environments.md)
 for the implemented interface. No models/training/learner checkpoints belong here.
 
-## Current workstream
 
 M9 Tasks1–11 are accepted at the declared scope after ONE fresh isolated independent
 milestone review with no findings and final unchanged-source verification.
