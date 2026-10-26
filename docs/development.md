@@ -5,17 +5,59 @@ gym with a Rust simulator, native batching and thin Python/Gymnasium interfaces
 for external ML consumers. Models, training, learner checkpoints and experiments
 are outside this repo. No playable client or rendering is part of the product.
 
-Current state: M9 is accepted at its captured Ironclad A0/Act3 boundary. M10 native
-implementation and the preservation matrix are controller-verified on the final
-607-file source baseline. The source-matched fresh Python environment passed 251
-tests (235 prior plus 16 Task 28); changed-file Ruff lint, format, and `ty` checks
-passed. Task 28 verified a real optional Elixir selector and its Python record/replay
-and accepted-child delivery-fault behavior. The M10 profile is accepted at its
-declared captured scope after ONE clean independent review and exact verification
-of the 608 reviewed source files in both checkouts. Earlier combat-reference
-and bounded-environment counts recorded in the [dated work-status history](work-status.md)
-are historical checkpoints, not current M10 evidence. Models and learners remain
-external; no original-runtime validation or full-Python/workspace-green claim is made.
+Use the [dated work-status snapshot](work-status.md) for current milestone
+coordination and each [accepted profile](milestones/) for its exact evidence and
+limits. M11 is accepted as a finite native Silent A0 authored-combat slice; it did
+not refresh the Python extension or establish Python delivery. Gym66 adds an
+opt-in standalone Ironclad A0 interface and common combat-policy view; see the
+[training guide](combat-training.md). M12's approved design and plan passed
+independent review, and implementation is authorized against the accepted
+post-`.66` baseline. Check Beads and the current primary session for live task
+ownership. A native source result, an installed extension, and Python/Gym behavior
+are separate evidence. Models and learners remain external; no original-runtime
+validation or full-workspace-green claim follows from a scoped profile.
+
+## Agent lane selection and artifact identity
+
+Choose the narrowest existing lane for the changed surface:
+
+| Work | Command | Limit |
+| --- | --- | --- |
+| Rust core, environment, or CLI | `cargo test --workspace --locked --offline` | Native Rust only; default features do not build the Python extension. Use a profile's focused command when available. |
+| Gym/Python facade | `uv run --locked --no-sync python -B -m pytest tests/python/env tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py -q` | Requires an already provisioned Gym environment and a source-matched extension; covers the existing facade and Gym66 session/policy-view tests. |
+| Python combat reference / legacy comparator | `uv run --locked --no-sync python -B -m pytest tests/python/combat -q` | Separate compatibility lane. Known legacy comparator mismatches are baseline-reported in [work status](work-status.md) and [M9 limits](milestones/m9-act3.md#verification-boundaries); this is not a Python-package delivery claim. |
+
+For Python/Gym results, first inspect the imported module in the same environment:
+
+```sh
+uv run --locked --no-sync python -B -c 'import spire_lab._native as n; print(n.__file__); print(n.build_info())'
+```
+
+If the scoped environment is not the project default, set
+`UV_PROJECT_ENVIRONMENT` to that existing environment for both commands. The
+module path identifies what Python imported. Record it with the build context
+(Python environment, build command, Rust toolchain, Cargo features, and
+revision/dirty state). `build_info()` reports revision and Rust version but
+contains no source hashes. Use the build context and source-match
+receipt: hashes for the Rust engine, bindings, and Python inputs that affect the
+extension; native module or wheel SHA-256; relevant descriptor fingerprint(s);
+and exact test results. A Git revision or descriptor fingerprint alone does not
+identify source bytes. A different HEAD does not invalidate a verified source
+receipt when only documentation changed or the build used verified dirty source;
+equal HEAD alone does not make an unverified or stale artifact current. If those
+inputs cannot be matched, report that limitation and do not count the run as
+Python proof. The [Gym66 build guide](combat-training.md#shared-implementation-and-extension-build)
+shows an isolated wheel workflow for authorized binding validation that preserves
+other environments.
+
+`maturin develop` builds and installs the extension. `uv sync` changes the
+environment and removes the editable package, so neither is a routine test step.
+Use setup or refresh commands only when the current task requires and authorizes
+that change. For a documentation-only change, verify changed links, paths, and
+documented commands. The unstaged `git diff --check` omits untracked files; before
+commit, stage only explicit task-owned paths and run `git diff --cached --check`
+to include new files. Never use blanket `git add`. Runtime suites do not validate
+prose.
 
 Validation/capture tools stay outside simulation and training execution. Neither
 requires a running original game or an active Windows connection. The approved
@@ -38,6 +80,10 @@ granted by Python/Rust agreement.
 
 ## One-time toolchain setup
 
+These install commands are for a human-owned workstation that lacks the tools.
+For an agent task, first inspect the provided environment and use its existing
+toolchain; do not run setup merely to start reading or editing documentation.
+
 ```sh
 # uv (user-local, ~/.local/bin)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -59,10 +105,14 @@ or switches to it automatically on first cargo run.
 
 ## Setup in a fresh checkout
 
-Consumes the committed lockfiles; it never re-resolves dependencies:
+This is a full Python/Gymnasium setup, not a Rust-only prerequisite. The
+project-level dependencies include pinned Torch, so `uv sync` may download a
+large runtime. Use it only when a full Python environment is intended; for Rust
+work, the Cargo commands are sufficient. The command consumes the committed
+lockfiles and does not re-resolve dependencies:
 
 ```sh
-uv sync --locked --dev    # Python runtime + dev dependencies, locked, editable-ready
+uv sync --locked --group gym-dev
 cargo build --workspace --locked
 uv run --no-sync maturin develop --release --locked
 ```
@@ -78,9 +128,14 @@ Order matters: `uv sync` makes the venv mirror the project specification and
 (from setup onward) so a sync does not remove the editable package before
 the tests or probes run.
 
-## Everyday workflow
+## Optional workflows
 
-### Existing Gym-only environment and binding refresh
+### Historical M10 Gym-only environment and binding refresh
+
+> This recipe records the one-off M10 refresh and its named environment. It is
+> not a general agent setup command. M11 did not refresh the extension. Use this
+> recipe only when the current task explicitly selects the same environment and
+> requires an artifact refresh.
 
 Use the existing `target/m9-gym-dev-venv` (Python 3.12.15, NumPy 2.5.4,
 Gymnasium 1.4.0, pytest 9.1.1, maturin 1.15.0); Torch is absent. Before the
@@ -106,29 +161,42 @@ broad formatting are part of this workflow. Do not use dependency-expanding
 `maturin develop`; broader Python collection has historical Torch/readiness and
 diff-schema/metadata-fixture limitations. Gym correctness has no CUDA gate.
 
-### Existing full-dependency workflow
+### Full-dependency and readiness workflow
 
 ```sh
-# Run the Python behavior tests
-uv run --no-sync pytest tests/python/test_readiness.py -q
+# Readiness/device tests are separate from Gym correctness
+uv run --locked --no-sync python -B -m pytest tests/python/test_readiness.py -q
 
 # Run the Rust test suite (links without a Python interpreter)
-cargo test --workspace --locked
+cargo test --workspace --locked --offline
 
 # Optional historical device-readiness probe (real computation; requires a GPU)
 uv run --no-sync python -m spire_lab.readiness --require-cuda
 
 # CLI version smoke check
-cargo run --locked -q -p spire-cli -- version
+cargo run --locked --offline -q -p spire-cli -- version
 ```
 
 ## Rebuilding after dependency or binding changes
 
+These commands replace the selected Python environment and install the
+extension. Use this recipe only when environment provisioning/refresh is part of
+the active task. `gym-dev` includes Gymnasium; `dev` alone does not. For binding
+validation that should preserve an existing environment, use the isolated wheel
+workflow in the [Gym66 build guide](combat-training.md#shared-implementation-and-extension-build).
+A default Cargo workspace build does not refresh the Python artifact.
+
 ```sh
-uv sync --locked --dev
+uv sync --locked --group gym-dev
 cargo build --workspace --locked
 uv run --no-sync maturin develop --release --locked
-uv run --no-sync pytest tests/python -q
+uv run --locked --no-sync python -B -m pytest \
+  tests/python/env \
+  tests/python/test_ironclad_training.py \
+  tests/python/test_combat_policy_view.py -q
+
+# Run the known legacy comparator lane separately; see its baseline limits above.
+uv run --locked --no-sync python -B -m pytest tests/python/combat -q
 ```
 
 ## Dependency updates (intentional lock regeneration)
@@ -143,7 +211,7 @@ uv add --dev <pkg>==<ver>       # or: uv remove <pkg>   (updates uv.lock on purp
 uv lock                         # or: regenerate uv.lock from the manifest
 cargo update -p <crate>         # or: cargo add, then verify --locked
 cargo check --workspace --locked
-uv sync --locked --dev          # re-verify the venv against the new lock
+uv sync --locked --group gym-dev # re-verify the full Gym venv against the new lock
 uv run --no-sync maturin develop --release --locked
 ```
 

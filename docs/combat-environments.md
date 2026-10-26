@@ -1,8 +1,8 @@
 # Headless environments
 
 For the captured normal-start Ironclad A0 **single-Run** API, see the
-[M9 RunEnv profile](milestones/m9-act3.md) and
-[Gym-only setup](development.md#gym-only-development-and-on-demand-quality-checks).
+[M9 RunEnv profile](milestones/m9-act3.md) and the
+[Python/Gym lane and artifact guidance](development.md#agent-lane-selection-and-artifact-identity).
 It is separate from the supplied-entry combat-v1 API below, with int64 features
 and different seeds/rewards; do not interchange their schemas or records.
 

@@ -1,6 +1,13 @@
 # Toolchain and tested versions
 
-## Bounded combat environment status
+> This page preserves the phase 1a toolchain and test record. Its versions and
+> results describe that recorded run, not the current checkout's test status.
+> Check [work status](work-status.md), the accepted
+> [M11 profile](milestones/m11-silent-combat.md), and the opt-in
+> [Gym66 training guide](combat-training.md) for newer evidence. The committed
+> lockfiles and toolchain files remain authoritative for pinned versions.
+
+## Historical bounded combat environment status
 
 The counts below are retained verification records, not a rerun during the
 2026-10-22 documentation/tracker cleanup. Current scope is the gym for external
@@ -16,7 +23,7 @@ full Python suite had 995 passes and two unchanged baseline readiness-test failu
 - `test_check_fails_closed_when_required_cuda_report_is_unsuccessful`
 - `test_check_normalizes_cuda_probe_exception`
 
-These current CPU-only failures report `CPU readiness probe failed: No CUDA GPUs
+Those recorded CPU-only failures report `CPU readiness probe failed: No CUDA GPUs
 are available`; they are separate from historical required-CUDA checks that failed
 with CUDA allocation OOMs. This is not a fully green suite, CUDA-readiness
 certification, original-runtime validation or full-run support.

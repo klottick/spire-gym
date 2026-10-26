@@ -44,10 +44,18 @@ copy at the old path. Historical authored reports remain in
    citations together; do not overwrite another worker's files or regenerate/fetch
    new sources merely to start a milestone.
 
-The current product boundary is [M7's captured Ironclad A0 profile](../docs/milestones/m7-act2.md),
-ending at nonterminal/no-action Act3Ready. M8 implementation is separately approved
-and active; reference coverage alone does not establish native Act3 support.
-Consult [AGENTS.md](../AGENTS.md) and the shared tracker for current ownership.
+The accepted simulator boundary is not the data catalog's coverage. See the
+[current work-status snapshot](../docs/work-status.md), [repository scope](../docs/scope.md),
+and accepted [milestone profiles](../docs/milestones/) for the current status; use
+Beads and the primary session for live task ownership and authorization. As of the
+2026-10-26 snapshot, M11 is accepted at its finite Silent A0 authored-combat scope,
+and Gym interoperability `.66` is merged to main. Its opt-in standalone and common
+combat-policy interfaces are described in the [training guide](../docs/combat-training.md).
+The user-approved M12 design and implementation plan passed independent review,
+and implementation is authorized against the accepted post-`.66` baseline. Check
+live Beads and the primary session for current ownership and authorization.
+Reference coverage alone does not establish native support. Consult
+[AGENTS.md](../AGENTS.md) before editing.
 
 ## Offline checks
 
