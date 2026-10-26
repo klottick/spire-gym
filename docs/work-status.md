@@ -32,6 +32,22 @@ Beads for task state and ownership; confirm the assigned checkout before editing
   reproduced that result and both fixed-seed examples. The independent reviewer
   passed 51 bounded probes with no findings. This does not refresh the Python
   extension or accept future milestones.
+- M13 is accepted at its [finite native Silent Acts1–2 scope](milestones/m13-silent-act2.md).
+  Across the same six fixed runs, all three Act2 boss species have actual entry
+  and matching record evidence; three cases reach Act3Ready and three end in
+  genuine Death. The user-approved coverage amendment preserves every outcome.
+  Final workspace verification recorded 1,581 passed, the sole historical Blue
+  Slaver setup failure, and zero ignored. All 52 M13 test executions passed,
+  including 15 helper tests compiled in two targets. The 15 CLI commands had
+  expected statuses; M12 and all 16 M9/M10 baseline summaries stayed unchanged.
+  One fresh independent reviewer found no issues and passed 18 bounded tests,
+  verifying all 674 reviewed source hashes/modes and exact patch reconstruction.
+  This is native-only finite delivery, not full Silent pools or Heart completion.
+- M14's [design](superpowers/specs/2026-10-26-m14-silent-act3-design.md),
+  [plan](superpowers/plans/2026-10-26-m14-silent-act3.md), and separate approval
+  are recorded. Implementation is next from the accepted M13 source, with live
+  ownership and the assigned checkout provided by the primary session and Beads.
+  No repeat design, plan or execution-method approval is required.
 - The all-character A0–20 Acts 1–4/Heart target remains the repository scope. See
   [scope](scope.md), [milestone profiles](milestones/), and the current task's
   Bead for details and accepted limits.

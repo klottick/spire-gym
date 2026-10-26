@@ -1,0 +1,645 @@
+//! Frozen public-data caller for the shared Silent A0 Acts 1–2 Run.
+//! Revision v2: retain Lament and ordinary room choices; compare visible
+//! routes by health/resources with strict ordinary/elite coverage, handle
+//! immediate survival before setup, and use threat-based potions. Death control
+//! ends turns. It chooses offered actions and owns no game simulation rules.
+
+use std::fmt;
+
+mod public_routes_v2;
+
+use spire_core::{
+    combat::{rng::Partition, CombatAction, Outcome, SelectionDisposition, SelectionOperation, TargetId},
+    content::{CardId, Character, EncounterId, EventId, PotionId, RelicId},
+    run::{
+        CommittedEvent, CreationProfile, GameAction, PublicDecision, RoomChoiceKind,
+        RoomChoiceStatus, RoomViewKind, Run, RunConfig, RunError, RunRng, RunTerminal,
+        RunTransition,
+    },
+};
+
+pub const CALLER_POLICY_REVISION: &str = "m13-public-caller-v2";
+pub const ACTION_LIMIT_MAX: usize = 4096;
+pub const FIXED_SEEDS: [u64; 2] = [7, 11];
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Scenario {
+    pub act1_boss: EncounterId,
+    pub act2_boss: EncounterId,
+}
+
+pub const FIXED_CASES: [(u64, Scenario); 6] = [
+    (7, Scenario { act1_boss: EncounterId::Guardian, act2_boss: EncounterId::Champ }),
+    (7, Scenario { act1_boss: EncounterId::Hexaghost, act2_boss: EncounterId::BronzeAutomaton }),
+    (7, Scenario { act1_boss: EncounterId::SlimeBoss, act2_boss: EncounterId::Collector }),
+    (11, Scenario { act1_boss: EncounterId::Guardian, act2_boss: EncounterId::BronzeAutomaton }),
+    (11, Scenario { act1_boss: EncounterId::Hexaghost, act2_boss: EncounterId::Collector }),
+    (11, Scenario { act1_boss: EncounterId::SlimeBoss, act2_boss: EncounterId::Champ }),
+];
+
+pub fn cases_for_seed(seed: u64) -> Result<Vec<Scenario>, String> {
+    if !FIXED_SEEDS.contains(&seed) { return Err(format!("seed must be one of {FIXED_SEEDS:?}")); }
+    Ok(FIXED_CASES.iter().filter(|(s, _)| *s == seed).map(|(_, scenario)| *scenario).collect())
+}
+
+impl Scenario {
+    pub const fn label(self) -> &'static str {
+        match self.act1_boss {
+            EncounterId::Guardian => "guardian",
+            EncounterId::Hexaghost => "hexaghost",
+            EncounterId::SlimeBoss => "slime",
+            _ => "invalid",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CallerOutcome {
+    Act3Ready,
+    Death,
+    BudgetExhausted,
+}
+
+impl fmt::Display for CallerOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Act3Ready => write!(f, "Act3Ready"),
+            Self::Death => write!(f, "Death (normal terminal outcome)"),
+            Self::BudgetExhausted => write!(f, "caller action budget exhausted"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Options {
+    pub seed: u64,
+    pub scenarios: Vec<Scenario>,
+    pub limit: usize,
+    pub nonattacking: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TraceStep {
+    /// Public decision and sanitized map immediately before the action.
+    pub decision: PublicDecision,
+    pub map: Option<spire_core::run::map::PublicMap>,
+    pub action: GameAction,
+    pub transition: RunTransition,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Caller {
+    limit: usize,
+    elite_reached: [bool; 2],
+    ordinary_reached: [bool; 2],
+    pub nonattacking: bool,
+    pub trace: Vec<TraceStep>,
+    pub final_decision: Option<PublicDecision>,
+    pub final_map: Option<spire_core::run::map::PublicMap>,
+}
+
+impl Caller {
+    pub fn new(limit: usize) -> Result<Self, String> {
+        if limit > ACTION_LIMIT_MAX {
+            return Err(format!("caller limit must be in 0..={ACTION_LIMIT_MAX}"));
+        }
+        Ok(Self { limit, elite_reached: [false; 2], ordinary_reached: [false; 2], nonattacking: false, trace: Vec::new(), final_decision: None, final_map: None })
+    }
+
+    pub fn accepted(&self) -> usize {
+        self.trace.len()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Summary {
+    pub ordinary_moves: usize,
+    pub elite_moves: usize,
+    pub boss_moves: usize,
+    pub reward_screens: usize,
+    pub card_reward_screens: usize,
+    pub chests_opened: usize,
+    pub boss_rewards: usize,
+    pub boss_combat_entries: Vec<EncounterId>,
+    pub boss_combat_records: Vec<(EncounterId, Outcome)>,
+}
+
+/// Boss histories are installed before Run construction. The normal map and
+/// encounter owners choose the actual boss from this initial unseen set.
+pub fn act1_seen_bosses(scenario: Scenario) -> Vec<&'static str> {
+    match scenario.act1_boss {
+        EncounterId::Guardian => vec!["Hexaghost", "SlimeBoss"],
+        EncounterId::Hexaghost => vec!["Guardian", "SlimeBoss"],
+        EncounterId::SlimeBoss => vec!["Guardian", "Hexaghost"],
+        _ => vec![],
+    }
+}
+
+pub fn act2_seen_bosses(scenario: Scenario) -> Vec<&'static str> {
+    match scenario.act2_boss {
+        EncounterId::Champ => vec!["Automaton", "Collector"],
+        EncounterId::BronzeAutomaton => vec!["Champ", "Collector"],
+        EncounterId::Collector => vec!["Champ", "Automaton"],
+        _ => vec![],
+    }
+}
+
+pub fn make_run(seed: u64, scenario: Scenario) -> Result<Run, String> {
+    if !FIXED_SEEDS.contains(&seed) {
+        return Err(format!("seed must be one of the fixed values {FIXED_SEEDS:?}"));
+    }
+    if !cases_for_seed(seed)?.contains(&scenario) { return Err("scenario is outside the six frozen seed/boss pairs".into()); }
+    let mut profile = CreationProfile::experienced();
+    profile.neow_eligible = false;
+    profile.seen_bosses[0] = act1_seen_bosses(scenario);
+    profile.seen_bosses[1] = act2_seen_bosses(scenario);
+    Run::new_room_scenario(
+        RunConfig { character: Character::Silent, ascension: 0 },
+        profile,
+        rng(seed),
+        spire_core::run::RoomScenario::M13SilentAct2,
+    )
+    .map_err(|error| format!("M13 Silent A0 creation: {error:?}"))
+}
+
+fn rng(seed: u64) -> RunRng {
+    let mut root = [0; 32];
+    root[..8].copy_from_slice(&seed.to_le_bytes());
+    RunRng::new(root, Partition::Test, 0)
+}
+
+pub fn parse_args<I>(args: I) -> Result<Options, String>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut seed = 7;
+    let mut scenario_label = "all".to_owned();
+    let mut nonattacking = false;
+    let mut limit = ACTION_LIMIT_MAX;
+    let mut args = args.into_iter();
+    while let Some(flag) = args.next() {
+        match flag.as_str() {
+            "--seed" => seed = args.next().ok_or("missing --seed value")?.parse().map_err(|_| "seed must be integer")?,
+            "--budget" => limit = args.next().ok_or("missing --budget value")?.parse().map_err(|_| "budget must be integer")?,
+            "--scenario" => scenario_label = args.next().ok_or("missing --scenario value")?,
+            _ => return Err(format!("unknown argument {flag}")),
+        }
+    }
+    let all = cases_for_seed(seed)?;
+    let scenarios = match scenario_label.as_str() {
+        "all" => all,
+        "death" => { nonattacking = true; vec![all[0]] },
+        "guardian" | "hexaghost" | "slime" => all.into_iter().filter(|scenario| scenario.label() == scenario_label).collect(),
+        _ => return Err("scenario must be all|guardian|hexaghost|slime|death".into()),
+    };
+    if limit > ACTION_LIMIT_MAX { return Err(format!("budget must be in 0..={ACTION_LIMIT_MAX}")); }
+    Ok(Options { seed, scenarios, limit, nonattacking })
+}
+
+/// Returns normal Act3Ready/Death/caller-budget outcomes; invalid actions and
+/// retained native faults remain operational errors rather than fake outcomes.
+pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Result<CallerOutcome, String> {
+    loop {
+        let decision = run.decision().map_err(classify_run_error)?;
+        let map = run.public_map();
+        caller.final_decision = Some(decision.clone());
+        caller.final_map = map.clone();
+
+        if decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready) {
+            return Ok(CallerOutcome::Act3Ready);
+        }
+        if decision.terminal == Some(RunTerminal::Death) {
+            return Ok(CallerOutcome::Death);
+        }
+        if decision.terminal.is_some() {
+            return Err(format!("unexpected native terminal state: {:?}", decision.terminal));
+        }
+        if caller.accepted() >= caller.limit {
+            return Ok(CallerOutcome::BudgetExhausted);
+        }
+
+        let action = if caller.nonattacking && decision.combat.is_some() {
+            GameAction::Combat(CombatAction::EndTurn)
+        } else {
+            action_for(&decision, map.as_ref(), caller)?
+        };
+        if !decision.candidates.iter().any(|candidate| candidate.action == action) {
+            return Err(format!("caller selected an action outside the public menu: {action:?}"));
+        }
+        let transition = run.step(&action).map_err(classify_run_error)?;
+        if let (GameAction::Move(id), Some(public_map)) = (&action, &map) {
+            if (1..=2).contains(&decision.act) {
+                let act = (decision.act - 1) as usize;
+                if let Some(node) = public_map.nodes.iter().find(|node| node.id == *id) {
+                    caller.elite_reached[act] |= node.kind == spire_core::run::MapNodeKind::Elite;
+                    caller.ordinary_reached[act] |= node.kind == spire_core::run::MapNodeKind::Monster;
+                }
+            }
+        }
+        caller.trace.push(TraceStep { decision, map, action, transition });
+    }
+}
+
+fn classify_run_error(error: RunError) -> String {
+    match error {
+        RunError::InvalidAction => "invalid public action".into(),
+        RunError::Faulted(fault) => format!("retained native fault at {}: {:?}", fault.checkpoint, fault.kind),
+        other => format!("native run error: {other:?}"),
+    }
+}
+
+fn action_for(
+    decision: &PublicDecision,
+    map: Option<&spire_core::run::map::PublicMap>,
+    caller: &Caller,
+) -> Result<GameAction, String> {
+    if let Some(combat) = &decision.combat {
+        return combat_action(decision, combat);
+    }
+    if decision.selection.is_some() {
+        return room_selection_action(decision);
+    }
+    let room = decision.room.as_ref().ok_or("missing public room")?;
+    let action = match room.kind {
+        RoomViewKind::Neow => room_choice(decision, |kind| kind == &RoomChoiceKind::NeowLament),
+        RoomViewKind::Map => map.and_then(|map| map_action(decision, map,
+            caller.elite_reached.get(decision.act.saturating_sub(1) as usize).copied().unwrap_or(true),
+            caller.ordinary_reached.get(decision.act.saturating_sub(1) as usize).copied().unwrap_or(true)).ok()),
+        RoomViewKind::Rewards => room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Relic(id) if !decision.player.relics.contains(id)))
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Gold(_))))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::CardReward))
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Potion(_))))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Proceed)),
+        RoomViewKind::CardReward => card_reward_action(decision),
+        RoomViewKind::Shop => shop_action(decision),
+        RoomViewKind::Campfire => campfire_action(decision),
+        RoomViewKind::Event(EventId::UpgradeShrine) => room_choice(decision, |kind| kind == &RoomChoiceKind::ShrineUpgrade)
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave)),
+        RoomViewKind::Event(EventId::Purifier) => room_choice(decision, |kind| kind == &RoomChoiceKind::ShrineRemove)
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave)),
+        RoomViewKind::Event(EventId::AncientWriting) => room_choice(decision, |kind| kind == &RoomChoiceKind::AncientSimplicity)
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave)),
+        RoomViewKind::Event(EventId::Joust) => room_choice(decision, |kind| kind == &RoomChoiceKind::JoustMurderer)
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::JoustContinue))
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::JoustResult { .. })))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave)),
+        RoomViewKind::Event(_) => room_choice(decision, |kind| kind == &RoomChoiceKind::Leave),
+        RoomViewKind::Treasure | RoomViewKind::BossTreasure => room_choice(decision, |kind| kind == &RoomChoiceKind::OpenChest)
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Relic(_))))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Proceed)),
+        RoomViewKind::BossRelicChoice => room_choice(decision, |kind| kind == &RoomChoiceKind::Relic(RelicId::SlaversCollar))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Relic(RelicId::EmptyCage)))
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Relic(_)))),
+        RoomViewKind::BossRelicChild => room_choice(decision, |kind| kind == &RoomChoiceKind::Proceed),
+        RoomViewKind::ProceedWithoutRelic => room_choice(decision, |kind| kind == &RoomChoiceKind::ConfirmSkip),
+        _ => None,
+    };
+    action.ok_or_else(|| format!("no public caller rule for floor {} in {room_kind:?}", decision.floor, room_kind = room.kind))
+}
+
+fn room_choice(decision: &PublicDecision, wanted: impl Fn(&RoomChoiceKind) -> bool) -> Option<GameAction> {
+    let row = decision.room.as_ref()?.choices.iter()
+        .find(|choice| choice.status == RoomChoiceStatus::Offered && wanted(&choice.kind))?;
+    decision.candidates.iter().find(|candidate| candidate.action == GameAction::Choose(row.id))
+        .map(|candidate| candidate.action.clone())
+}
+
+const REWARD_PRIORITY: [CardId; 15] = [
+    CardId::NoxiousFumes, CardId::BladeDance, CardId::Backflip, CardId::DeadlyPoison,
+    CardId::PoisonedStab, CardId::CloakAndDagger, CardId::DaggerThrow, CardId::Accuracy,
+    CardId::WellLaidPlans, CardId::QuickSlash, CardId::Reflex, CardId::Tactician,
+    CardId::Deflect, CardId::Catalyst, CardId::Nightmare,
+];
+
+fn card_reward_action(decision: &PublicDecision) -> Option<GameAction> {
+    for wanted in REWARD_PRIORITY {
+        if let Some(action) = room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Card { id, .. } if *id == wanted)) {
+            return Some(action);
+        }
+    }
+    room_choice(decision, |kind| kind == &RoomChoiceKind::Skip)
+}
+
+fn shop_action(decision: &PublicDecision) -> Option<GameAction> {
+    for wanted in [CardId::QuickSlash, CardId::Deflect, CardId::Backflip, CardId::BladeDance, CardId::DeadlyPoison, CardId::Catalyst, CardId::Nightmare] {
+        if let Some(action) = room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Card { id, .. } if *id == wanted)) {
+            return Some(action);
+        }
+    }
+    room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Potion(PotionId::FirePotion | PotionId::DexterityPotion)))
+        .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Relic(_))))
+        .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave))
+}
+
+fn campfire_action(decision: &PublicDecision) -> Option<GameAction> {
+    if decision.player.max_hp.saturating_sub(decision.player.hp) >= 15 {
+        room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Rest { .. }))
+            .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Smith))
+    } else {
+        room_choice(decision, |kind| kind == &RoomChoiceKind::Smith)
+            .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Rest { .. })))
+    }
+}
+
+fn map_action(
+    decision: &PublicDecision,
+    map: &spire_core::run::map::PublicMap,
+    elite_reached: bool,
+    ordinary_reached: bool,
+) -> Result<GameAction, String> {
+    public_routes_v2::action(decision, map, elite_reached, ordinary_reached)
+}
+
+fn room_selection_action(decision: &PublicDecision) -> Result<GameAction, String> {
+    let selection = decision.selection.as_ref().ok_or("missing public room selection")?;
+    if selection.eligible.is_empty() {
+        return Err("public room selection has no eligible card".into());
+    }
+    let prefer_high = matches!(decision.room.as_ref().map(|room| room.kind), Some(RoomViewKind::Event(EventId::UpgradeShrine) | RoomViewKind::Campfire));
+    let candidate = decision.candidates.iter().filter_map(|candidate| {
+        let GameAction::Select(_) = candidate.action else { return None };
+        let object = candidate.object.as_ref()?;
+        let value = card_value(object.id);
+        Some((if prefer_high { value } else { -value }, object.instance, candidate.action.clone()))
+    }).max_by_key(|(value, instance, _)| (*value, std::cmp::Reverse(*instance)));
+    candidate.map(|(_, _, action)| action).ok_or_else(|| "public room selection has no offered card".into())
+}
+
+fn combat_action(decision: &PublicDecision, combat: &spire_core::combat::CombatPublic) -> Result<GameAction, String> {
+    let legal = decision.candidates.iter().filter_map(|candidate| match &candidate.action {
+        GameAction::Combat(action) => Some(action.clone()),
+        _ => None,
+    }).collect::<Vec<_>>();
+    if legal.is_empty() { return Err("combat has no public legal action".into()); }
+
+    if let Some(selection) = &combat.selection {
+        if (selection.operation == SelectionOperation::Retain || selection.required == 0)
+            && legal.contains(&CombatAction::ConfirmSelection)
+        {
+            return Ok(GameAction::Combat(CombatAction::ConfirmSelection));
+        }
+        let choose_high = matches!(selection.operation,
+            SelectionOperation::CopyToHand { .. } | SelectionOperation::NightmareCapture
+                | SelectionOperation::Upgrade | SelectionOperation::Topdeck | SelectionOperation::ReturnFromExhaust)
+            || matches!(selection.operation, SelectionOperation::Move(SelectionDisposition::Hand | SelectionDisposition::DrawTop));
+        let selected = selection.candidates.iter().filter_map(|card| {
+            let action = CombatAction::SelectCard { instance: card.instance.0 };
+            legal.contains(&action).then_some((card_value(card.id), card.instance.0, action))
+        });
+        let chosen = if choose_high {
+            selected.max_by_key(|(value, instance, _)| (*value, std::cmp::Reverse(*instance)))
+        } else {
+            selected.min_by_key(|(value, instance, _)| (*value, *instance))
+        };
+        return chosen.map(|(_, _, action)| GameAction::Combat(action))
+            .ok_or_else(|| "combat selection has no currently offered card".into());
+    }
+
+    if legal.contains(&CombatAction::ConfirmSelection) {
+        return Ok(GameAction::Combat(CombatAction::ConfirmSelection));
+    }
+    // Published damage is current damage PER HIT. This is a pressure lower
+    // bound, not a combat prediction; no private move/hit table is consulted.
+    let incoming = combat.enemies.iter().enumerate().filter(|(row, _)| targetable(combat, *row))
+        .filter_map(|(_, enemy)| enemy.intent_damage).map(|damage| damage.max(0)).sum::<i32>();
+    let under_pressure = incoming > combat.player.block;
+    let urgent = survival_pressure(combat, incoming);
+    let ordinary_target = combat.enemies.iter().enumerate()
+        .filter(|(row, _)| targetable(combat, *row))
+        .min_by_key(|(_, enemy)| (enemy.hp + enemy.block, enemy.hp))
+        .map(|(index, _)| TargetId(index as u64 + 1));
+    let target = if urgent { threat_target(combat).or(ordinary_target) } else { ordinary_target };
+    if under_pressure {
+        if let Some(action) = play_card_action(combat, &legal, CardId::Deflect, None) {
+            return Ok(GameAction::Combat(action));
+        }
+    }
+    if urgent {
+        let debuff_target = debuff_target(combat).or(target);
+        if let Some(action) = play_card_action(combat, &legal, CardId::Neutralize, debuff_target) {
+            return Ok(GameAction::Combat(action));
+        }
+    }
+    if let Some(action) = potion_action(combat, &legal, incoming, under_pressure) {
+        return Ok(GameAction::Combat(action));
+    }
+    if urgent {
+        // Preserve the existing draw/block ordering, adding the supported
+        // block-producing Cloak and Dagger before paying for setup powers.
+        for id in [CardId::Backflip, CardId::Survivor, CardId::CloakAndDagger, CardId::DefendGreen] {
+            if let Some(action) = play_card_action(combat, &legal, id, target) {
+                return Ok(GameAction::Combat(action));
+            }
+        }
+        // With legal defense exhausted, spend on current threats before setup.
+        // This is a fixed priority, not a search over simulated sequences.
+        for id in [CardId::Shiv, CardId::BladeDance, CardId::PoisonedStab,
+            CardId::DaggerThrow, CardId::QuickSlash, CardId::StrikeGreen] {
+            if let Some(action) = play_card_action(combat, &legal, id, target) {
+                return Ok(GameAction::Combat(action));
+            }
+        }
+    }
+    // Outside immediate survival pressure the original priorities are intact.
+    for id in [CardId::NoxiousFumes, CardId::Accuracy, CardId::WellLaidPlans, CardId::Neutralize] {
+        if let Some(action) = play_card_action(combat, &legal, id, target) {
+            return Ok(GameAction::Combat(action));
+        }
+    }
+    let priorities: &[CardId] = if under_pressure {
+        &[CardId::Backflip, CardId::Deflect, CardId::Survivor, CardId::DefendGreen,
+            CardId::Shiv, CardId::NoxiousFumes, CardId::BladeDance, CardId::DeadlyPoison, CardId::PoisonedStab,
+            CardId::Neutralize, CardId::DaggerThrow, CardId::QuickSlash, CardId::StrikeGreen]
+    } else {
+        &[CardId::Shiv, CardId::NoxiousFumes, CardId::BladeDance, CardId::DeadlyPoison, CardId::PoisonedStab,
+            CardId::Accuracy, CardId::CloakAndDagger, CardId::Neutralize, CardId::DaggerThrow,
+            CardId::QuickSlash, CardId::Backflip, CardId::StrikeGreen]
+    };
+    for id in priorities {
+        if let Some(action) = play_card_action(combat, &legal, *id, target) {
+            return Ok(GameAction::Combat(action));
+        }
+    }
+    if let Some(action) = legal.iter().find(|action| {
+        let CombatAction::PlayCard { instance, .. } = action else { return false };
+        combat.hand.iter().any(|card| card.instance.0 == *instance && !matches!(card.id,
+            CardId::DefendGreen | CardId::Survivor | CardId::CloakAndDagger | CardId::Deflect))
+    }) {
+        return Ok(GameAction::Combat(action.clone()));
+    }
+    if legal.contains(&CombatAction::EndTurn) {
+        return Ok(GameAction::Combat(CombatAction::EndTurn));
+    }
+    Ok(GameAction::Combat(legal[0].clone()))
+}
+
+fn play_card_action(
+    combat: &spire_core::combat::CombatPublic,
+    legal: &[CombatAction],
+    wanted: CardId,
+    target: Option<TargetId>,
+) -> Option<CombatAction> {
+    combat.hand.iter().filter(|card| card.id == wanted).find_map(|card| {
+        legal.iter().find_map(|action| match action {
+            CombatAction::PlayCard { instance, target: selected } if *instance == card.instance.0 => {
+                if selected.is_none() || selected == &target { Some(action.clone()) } else { None }
+            }
+            _ => None,
+        })
+    })
+}
+
+fn targetable(combat: &spire_core::combat::CombatPublic, row: usize) -> bool {
+    combat.targets.get(row).is_some_and(|(id, active)| *active && *id == TargetId(row as u64 + 1))
+        && combat.enemies.get(row).is_some_and(|enemy| enemy.hp > 0 && !enemy.replaced && !enemy.escaped && !enemy.half_dead)
+}
+
+fn survival_pressure(combat: &spire_core::combat::CombatPublic, incoming: i32) -> bool {
+    let gap = (incoming - combat.player.block).max(0);
+    gap > 0 && (combat.player.hp * 2 <= combat.player.max_hp
+        || gap >= (combat.player.hp / 3).max(1)
+        || combat.player.powers.iter().any(|power| power.id.0 == "vulnerable" && power.amount > 0))
+}
+
+fn threat_target(combat: &spire_core::combat::CombatPublic) -> Option<TargetId> {
+    combat.enemies.iter().enumerate().filter(|(row, _)| targetable(combat, *row))
+        .max_by_key(|(row, enemy)| {
+            let threat = i64::from(enemy.intent_damage.unwrap_or(0).max(0));
+            let durability = i64::from(enemy.hp.saturating_add(enemy.block).max(1));
+            ((threat + 1) * 1024 / durability, threat, std::cmp::Reverse(*row))
+        }).map(|(row, _)| TargetId(row as u64 + 1))
+}
+
+fn debuff_target(combat: &spire_core::combat::CombatPublic) -> Option<TargetId> {
+    combat.enemies.iter().enumerate().filter(|(row, enemy)| targetable(combat, *row)
+        && enemy.intent_damage.is_some_and(|damage| damage > 0)
+        && !enemy.powers.iter().any(|power| matches!(power.id.0, "artifact" | "weak") && power.amount > 0))
+        .max_by_key(|(row, enemy)| (enemy.intent_damage.unwrap_or(0), std::cmp::Reverse(*row)))
+        .map(|(row, _)| TargetId(row as u64 + 1))
+}
+
+fn potion_action(
+    combat: &spire_core::combat::CombatPublic,
+    legal: &[CombatAction],
+    incoming: i32,
+    under_pressure: bool,
+) -> Option<CombatAction> {
+    let inventory = combat.inventory.as_ref()?;
+    let urgent = survival_pressure(combat, incoming);
+    let attack_offered = combat.hand.iter().any(|card| {
+        (card.values.as_ref().is_some_and(|value| value.base_damage.is_some_and(|damage| damage > 0))
+            || card.id == CardId::BladeDance)
+            && legal.iter().any(|action| matches!(action, CombatAction::PlayCard { instance, .. } if *instance == card.instance.0))
+    });
+    let defense_offered = combat.hand.iter().any(|card| card.values.as_ref()
+        .is_some_and(|value| value.base_block.is_some_and(|block| block > 0))
+        && legal.iter().any(|action| matches!(action, CombatAction::PlayCard { instance, .. } if *instance == card.instance.0)));
+    for (slot, potion) in inventory.potions.iter().enumerate() {
+        let (use_now, target) = match potion {
+            Some(PotionId::WeakPotion) => {
+                let target = debuff_target(combat);
+                let threat = target.and_then(|id| combat.enemies.get((id.0 - 1) as usize))
+                    .and_then(|enemy| enemy.intent_damage).unwrap_or(0);
+                (under_pressure && (urgent || threat >= 10), target)
+            }
+            Some(PotionId::FirePotion) => {
+                // Twenty is the ordinary Fire Potion's printed damage. The
+                // public HP+block comparison is a targeting heuristic, not a
+                // guarantee of a kill through every enemy modifier.
+                let finish = combat.enemies.iter().enumerate()
+                    .filter(|(row, enemy)| targetable(combat, *row) && enemy.hp.saturating_add(enemy.block) <= 20)
+                    .max_by_key(|(row, enemy)| (enemy.intent_damage.unwrap_or(0), std::cmp::Reverse(*row)))
+                    .map(|(row, _)| TargetId(row as u64 + 1));
+                let target = finish.or_else(|| threat_target(combat));
+                let attacking_finish = finish.is_some_and(|id| combat.enemies[(id.0 - 1) as usize].intent_damage.unwrap_or(0) > 0);
+                (attacking_finish || urgent, target)
+            }
+            Some(PotionId::DexterityPotion | PotionId::BlockPotion) =>
+                (under_pressure && (urgent || incoming >= 10) && defense_offered, None),
+            Some(PotionId::StrengthPotion) => {
+                let remaining_risk = combat.enemies.iter().enumerate()
+                    .filter(|(row, _)| targetable(combat, *row))
+                    .map(|(_, enemy)| enemy.hp.saturating_add(enemy.block)).sum::<i32>();
+                (attack_offered && (!urgent || !defense_offered)
+                    && (under_pressure || remaining_risk >= combat.player.hp), None)
+            }
+            _ => (false, None),
+        };
+        if !use_now { continue; }
+        if let Some(action) = legal.iter().find(|action| matches!(action,
+            CombatAction::UsePotion { slot: offered, target: selected }
+                if *offered == slot && *selected == target)) {
+            return Some(action.clone());
+        }
+    }
+    None
+}
+
+fn card_value(id: CardId) -> i32 {
+    match id {
+        CardId::NoxiousFumes => 100,
+        CardId::BladeDance | CardId::DeadlyPoison | CardId::Backflip => 90,
+        CardId::PoisonedStab | CardId::CloakAndDagger | CardId::DaggerThrow => 80,
+        CardId::Accuracy | CardId::WellLaidPlans | CardId::Nightmare => 75,
+        CardId::QuickSlash | CardId::Catalyst => 70,
+        CardId::Neutralize | CardId::Survivor => 60,
+        CardId::Deflect | CardId::Reflex | CardId::Tactician => 55,
+        CardId::StrikeGreen | CardId::Strike => 40,
+        CardId::DefendGreen | CardId::Defend => 35,
+        CardId::Wound | CardId::Dazed | CardId::Burn | CardId::Slimed => 5,
+        _ => 25,
+    }
+}
+
+pub fn summarize(caller: &Caller) -> Summary {
+    let mut summary = Summary {
+        ordinary_moves: 0,
+        elite_moves: 0,
+        boss_moves: 0,
+        reward_screens: 0,
+        card_reward_screens: 0,
+        chests_opened: 0,
+        boss_rewards: 0,
+        boss_combat_entries: Vec::new(),
+        boss_combat_records: Vec::new(),
+    };
+    for step in &caller.trace {
+        if let (GameAction::Move(id), Some(map)) = (&step.action, &step.map) {
+            if let Some(node) = map.nodes.iter().find(|node| node.id == *id) {
+                match node.kind {
+                    spire_core::run::MapNodeKind::Monster => summary.ordinary_moves += 1,
+                    spire_core::run::MapNodeKind::Elite => summary.elite_moves += 1,
+                    spire_core::run::MapNodeKind::Boss => summary.boss_moves += 1,
+                    _ => (),
+                }
+            }
+        }
+        if let Some(room) = &step.decision.room {
+            summary.reward_screens += usize::from(room.kind == RoomViewKind::Rewards);
+            summary.card_reward_screens += usize::from(room.kind == RoomViewKind::CardReward);
+            summary.boss_rewards += usize::from(matches!(room.kind, RoomViewKind::BossTreasure | RoomViewKind::BossRelicChoice));
+            if matches!(room.kind, RoomViewKind::Treasure | RoomViewKind::BossTreasure)
+                && room.choices.iter().any(|choice| choice.kind == RoomChoiceKind::OpenChest && step.action == GameAction::Choose(choice.id))
+            {
+                summary.chests_opened += 1;
+            }
+        }
+        for event in &step.transition.committed_events {
+            match event {
+                CommittedEvent::CombatEntered { encounter, .. }
+                    if matches!(encounter, EncounterId::Guardian | EncounterId::Hexaghost | EncounterId::SlimeBoss | EncounterId::Champ | EncounterId::BronzeAutomaton | EncounterId::Collector) => {
+                        summary.boss_combat_entries.push(*encounter);
+                    }
+                CommittedEvent::CombatFinished(record)
+                    if matches!(record.encounter, EncounterId::Guardian | EncounterId::Hexaghost | EncounterId::SlimeBoss | EncounterId::Champ | EncounterId::BronzeAutomaton | EncounterId::Collector) => {
+                        summary.boss_combat_records.push((record.encounter, record.outcome));
+                    }
+                _ => (),
+            }
+        }
+    }
+    summary
+}
+
+#[cfg(test)]
+mod policy_revision_tests;

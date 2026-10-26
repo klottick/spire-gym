@@ -4,6 +4,7 @@ use crate::content::{CardId,PotionId,RelicId,EventId};
 mod profile;
 pub(crate) mod m10_content;
 pub(crate) mod m12_content;
+pub(crate) mod m13_content;
 mod neow;
 mod act1;
 pub(super) mod act2;
@@ -18,7 +19,7 @@ pub(super) mod events;
 mod rest;
 pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1 }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -89,9 +90,10 @@ pub(in crate::run) fn is_m8(state:&RunState)->bool{state.room_loop.as_ref().is_s
 pub(in crate::run) fn is_m9(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M9IroncladAct3)}
 pub(in crate::run) fn is_m10(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M10IroncladHeart)}
 pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)||is_m9(state)||is_m10(state)}
-pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||uses_captured_act3(state)}
+pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||is_m13(state)||uses_captured_act3(state)}
 pub(in crate::run) fn is_m12(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M12SilentAct1)}
-pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||is_m10(state)||is_m12(state)||uses_captured_act2(state)}
+pub(in crate::run) fn is_m13(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M13SilentAct2)}
+pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||is_m10(state)||is_m12(state)||is_m13(state)||uses_captured_act2(state)}
 pub(super) fn token(next:&mut u64)->Result<ChoiceId,RunError>{let id=*next;*next=next.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;Ok(ChoiceId(id))}
 pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
     let mut staged=*next;let choices=rows.into_iter().map(|(kind,price)|Ok(RoomChoiceView{id:token(&mut staged)?,kind,price,status:RoomChoiceStatus::Offered})).collect::<Result<_,RunError>>()?;
@@ -107,8 +109,9 @@ pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
 }
 impl Run {
     pub fn new_room_scenario(config:RunConfig,profile:CreationProfile,rng:RunRng,scenario:RoomScenario)->Result<Self,RunError>{
-        let character=if scenario==RoomScenario::M12SilentAct1{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
-        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(if scenario==RoomScenario::M12SilentAct1{"M12 requires Silent A0 short Neow"}else{"M4 requires Ironclad A0 short Neow"}))}
+        let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2);
+        let character=if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
+        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();

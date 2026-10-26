@@ -33,8 +33,11 @@ pub(super) fn reward_cards(boss:bool,ordinal:usize)->Vec<CardId>{
     if boss{vec![CardId::Nightmare]}else{REWARDS[ordinal%REWARDS.len()].to_vec()}
 }
 pub(in crate::run) fn elite_relic(start:usize,owned:&[RelicId])->Result<(RelicId,usize),RunError>{
+    elite_relic_with_exhaustion(start,owned,"captured Silent Act1 elite relic sequence exhausted")
+}
+pub(in crate::run) fn elite_relic_with_exhaustion(start:usize,owned:&[RelicId],message:&'static str)->Result<(RelicId,usize),RunError>{
     ELITE_RELICS.iter().enumerate().skip(start).find(|(_,id)|!owned.contains(id))
-        .map(|(i,id)|(*id,i+1)).ok_or(RunError::Unsupported("captured Silent Act1 elite relic sequence exhausted"))
+        .map(|(i,id)|(*id,i+1)).ok_or(RunError::Unsupported(message))
 }
 pub(super) fn shop_cards(later:bool)->[CardId;3]{
     if later{[CardId::Deflect,CardId::Tactician,CardId::Nightmare]}else{[CardId::QuickSlash,CardId::Reflex,CardId::Catalyst]}

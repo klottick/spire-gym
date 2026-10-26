@@ -7,7 +7,7 @@ pub(crate) struct BossProgress {pub selected:Option<RelicId>,pub source_complete
 fn source_floors(state:&RunState)->Result<(u32,u32),RunError>{
     match state.act {
         1 if uses_captured_act1(state)=>Ok((16,17)),
-        2 if is_m7(state)||uses_captured_act3(state)=>Ok((33,34)),
+        2 if is_m7(state)||is_m13(state)||uses_captured_act3(state)=>Ok((33,34)),
         _=>Err(RunError::InvalidAction),
     }
 }
@@ -40,7 +40,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let screen=public(run)?;let row=screen.choices.iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered&&c.price.is_none()).cloned().ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind.clone()){
         (RoomViewKind::BossTreasure,RoomChoiceKind::OpenChest)=>{
-            let mut next=run.next_choice;let mut rows=if is_m12(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
+            let mut next=run.next_choice;let mut rows=if is_m12(&run.state)||is_m13(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
             if is_m10(&run.state){rows.extend([(RoomChoiceKind::Relic(RelicId::MarkOfPain),None),(RoomChoiceKind::Relic(RelicId::RunicCube),None)]);}
             rows.push((RoomChoiceKind::Skip,None));let mut screen=view(&mut next,RoomViewKind::BossRelicChoice,rows)?;
             for row in &mut screen.choices{if let RoomChoiceKind::Relic(relic)=row.kind{if run.state.relics.contains(&relic)||(relic==RelicId::BlackBlood&&run.state.relics.first()!=Some(&RelicId::BurningBlood)){row.status=RoomChoiceStatus::Disabled;}}}

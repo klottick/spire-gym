@@ -1,4 +1,4 @@
-//! Stable ordered native batching over the existing M10 RunSession owner.
+//! Stable ordered native batching over the shared RunSession profiles.
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use crate::{
@@ -45,6 +45,10 @@ impl RunBatch {
 
     pub fn new_m12(configs: Vec<RunSessionConfig>, workers: usize) -> Result<Self, RunBatchError> {
         Self::new_with(configs, workers, RunSession::new_m12)
+    }
+
+    pub fn new_m13(configs: Vec<RunSessionConfig>, workers: usize) -> Result<Self, RunBatchError> {
+        Self::new_with(configs, workers, RunSession::new_m13)
     }
 
     fn new_with(

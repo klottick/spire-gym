@@ -5,6 +5,7 @@ use spire_core::{combat::{CardCostKind,CombatAction,CombatCardRef,LiveCardView,O
 use crate::run_schema as schema;
 use crate::run_schema_m10 as schema_m10;
 use crate::run_schema_m12 as schema_m12;
+use crate::run_schema_m13 as schema_m13;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RunFeatureGroup{pub key:&'static str,pub shape:Vec<usize>,pub values:Vec<i64>,pub known:Vec<i8>,pub occupied:Option<Vec<i8>>}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -14,20 +15,20 @@ fn number<T:TryInto<i64>>(v:T)->Result<i64,RunSessionError>{v.try_into().map_err
 fn reserved<T:Clone>(len:usize,value:T)->Result<Vec<T>,RunSessionError>{let mut v=Vec::new();v.try_reserve_exact(len).map_err(|_|RunSessionError::DeliveryFault("Run encoding allocation failed"))?;v.resize(len,value);Ok(v)}
 fn capacity(group:&'static str,required:usize,cap:usize)->Result<(),RunSessionError>{if required>cap{Err(RunSessionError::Capacity{group,required,capacity:cap})}else{Ok(())}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunEncodingProfile{M9,M10,M12}
+pub(crate) enum RunEncodingProfile{M9,M10,M12,M13}
 impl RunEncodingProfile{fn extended(self)->bool{self!=Self::M9}}
-fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id)}}
-fn enemy_id(profile:RunEncodingProfile,id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::enemy(id),RunEncodingProfile::M10=>schema_m10::enemy(id),RunEncodingProfile::M12=>schema_m12::enemy(id)}}
-fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id)}}
-fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id)}}
-fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id)}}
-fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id)}}
-fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id)}}
-fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id)}}
-fn intent_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::intent(name),RunEncodingProfile::M10=>schema_m10::intent(name),RunEncodingProfile::M12=>schema_m12::intent(name)}}
+fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id),RunEncodingProfile::M13=>schema_m13::card(id)}}
+fn enemy_id(profile:RunEncodingProfile,id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::enemy(id),RunEncodingProfile::M10=>schema_m10::enemy(id),RunEncodingProfile::M12=>schema_m12::enemy(id),RunEncodingProfile::M13=>schema_m13::enemy(id)}}
+fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id),RunEncodingProfile::M13=>schema_m13::encounter(id)}}
+fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id),RunEncodingProfile::M13=>schema_m13::relic(id)}}
+fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id),RunEncodingProfile::M13=>schema_m13::potion(id)}}
+fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id)}}
+fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id)}}
+fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id)}}
+fn intent_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::intent(name),RunEncodingProfile::M10=>schema_m10::intent(name),RunEncodingProfile::M12=>schema_m12::intent(name),RunEncodingProfile::M13=>schema_m13::intent(name)}}
 fn power_id(m10:bool,name:&str)->Result<i64,RunSessionError>{if m10{schema_m10::power(name)}else{schema::named(schema::POWERS,name)}}
-fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Ok(schema::choice(kind)),RunEncodingProfile::M10=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M12=>schema_m12::choice(kind)}}
-fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name)}}
+fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Ok(schema::choice(kind)),RunEncodingProfile::M10=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind)}}
+fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name)}}
 fn cost_kind(kind:CardCostKind)->i64{match kind{CardCostKind::Fixed=>1,CardCostKind::X=>2,CardCostKind::Unplayable=>3}}
 fn intent_hits(name:&str)->Option<i64>{match name{
     "shield_bash"|"shield_smash"|"heart_echo"=>Some(1),
@@ -78,6 +79,17 @@ pub fn encode_run_m12(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
     encode_run_with_schema(d,map,caps,RunEncodingProfile::M12,m12_power)
 }
 
+pub fn encode_run_m13(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCapacities) -> Result<RunObservation, RunSessionError> {
+    if d.content_profile != Some(RoomScenario::M13SilentAct2) || d.player.character != Character::Silent {
+        return Err(RunSessionError::Input("M13 v1 encoder requires the M13 Silent Act2 profile"));
+    }
+    if matches!(d.terminal, Some(RunTerminal::Act3NoKeys | RunTerminal::HeartVictory)) {
+        return Err(RunSessionError::UnsupportedBoundary("M13 cannot encode a terminal outside its Act2 profile"));
+    }
+    encode_run_with_schema(d, map, caps, RunEncodingProfile::M13, m13_power)
+}
+fn m13_power(_: bool, name: &str) -> Result<i64, RunSessionError> { schema_m13::power(name) }
+
 fn m12_power(_:bool,name:&str)->Result<i64,RunSessionError>{schema_m12::power(name)}
 
 pub(crate) fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool)->Result<RunObservation,RunSessionError>{
@@ -88,7 +100,7 @@ pub(crate) fn encode_run_with_power(d:&PublicDecision,map:Option<&PublicMap>,cap
 }
 fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,power:fn(bool,&str)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
     let extended=profile.extended();
-    match profile{RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?}
+    match profile{RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?,RunEncodingProfile::M13=>schema_m13::validate(caps)?}
     if !extended&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.parent,spire_core::combat::SelectionParent::Potion{..})
             || !matches!(s.operation,spire_core::combat::SelectionOperation::Move(
@@ -201,7 +213,7 @@ fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapa
     let selection_count=if let Some(s)=&d.selection{s.eligible.len()}else{d.combat.as_ref().and_then(|c|c.selection.as_ref()).map_or(0,|s|s.candidates.len())};
     capacity("selection",selection_count,caps.selection)?;
     let mut o=RunObservation{groups:vec![],action_mask:reserved(caps.actions,0)?};
-    for spec in match profile{RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps)}{
+    for spec in match profile{RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps)}{
         let cols=spec.fields.split(',').count();let rows=spec.rows.unwrap_or(1);let mut values=reserved(rows*cols,0)?;
         // Unavailable references in real rows are -1/known0; all padding remains0.
         let occupied_count=match spec.key{"combat_cards"=>cards.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
@@ -217,7 +229,7 @@ fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapa
     ])?;
     // PublicDecision has no ascension field. The named fixed-A0 profiles both
     // fix A0; never infer it for an unknown/unrelated public profile.
-    if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
+    if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
     o.group_mut("player").row(0,&[Some(i64::from(d.player.hp)),Some(i64::from(d.player.max_hp)),Some(i64::from(d.player.gold)),None,None,None,None,None,None,None,None,None])?;
     for (row,card) in d.objects.iter().enumerate(){
         if d.objects[..row].iter().any(|c|c.instance==card.instance){return Err(RunSessionError::Input("duplicate public permanent identity"))}
@@ -285,7 +297,7 @@ fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapa
                 if profile==RunEncodingProfile::M10&&matches!(s.operation,spire_core::combat::SelectionOperation::NightmareCapture) {
                     return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections"));
                 }
-                let operation=match profile{RunEncodingProfile::M10=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
+                let operation=match profile{RunEncodingProfile::M10=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M13=>schema_m13::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
                 counts.extend([Some(number(s.minimum)?),Some(number(s.maximum)?),Some(i64::from(confirm)),Some(operation)]);
             }
             o.group_mut("selection_counts").row(0,&counts)?;
@@ -298,7 +310,7 @@ fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapa
         let mut counts=vec![Some(number(s.required)?),Some(number(s.selected_count)?)];
         if extended {
             let confirm=d.candidates.iter().any(|candidate|matches!(candidate.action,GameAction::Confirm));
-            let operation=match profile{RunEncodingProfile::M10=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
+            let operation=match profile{RunEncodingProfile::M10=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M13=>schema_m13::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
             counts.extend([Some(number(s.required)?),Some(number(s.required)?),Some(i64::from(confirm)),Some(operation)]);
         }
         o.group_mut("selection_counts").row(0,&counts)?;

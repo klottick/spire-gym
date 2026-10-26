@@ -16,15 +16,16 @@ pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,
             (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
-    if is_m12(&run.state){
-        let later=run.state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).is_some_and(|p|p.shop_visits>0);
+    if is_m12(&run.state)||is_m13(&run.state){
+        let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
+        let later=if is_m13(&run.state)&&run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
         let cards=super::m12_content::shop_cards(later);
         let prices=if later{[50,75,150]}else{[50,75,75]};
         let mut rows=cards.into_iter().zip(prices).map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
         let relic=if later{RelicId::BagOfPreparation}else{RelicId::SneckoSkull};
         if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
         rows.extend([(RoomChoiceKind::Potion(if later{PotionId::FirePotion}else{PotionId::DexterityPotion}),Some(50)),
-            (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
+            (RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
     if uses_captured_act1(&run.state){
