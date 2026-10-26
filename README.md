@@ -19,7 +19,8 @@ checkpoints, and experiments are outside this repository.
 
 The repository contains a bounded supplied-entry Ironclad A0 combat Gym, captured
 Ironclad A0 progression/Run profiles, and finite native Silent A0 progression
-through Acts1–2 to Act3Ready, including the smaller M11 authored-combat slice.
+through Act 3, including a healthy all-key Act4Ready inspection boundary and the
+smaller M11 authored-combat slice.
 M10 adds captured Act 4/Heart mechanics and tools, but normal-start traversal
 to the Heart and HeartVictory remains unobserved. These are separate versioned
 profiles with explicit limits; they do not claim complete standard content, a full
@@ -56,10 +57,14 @@ three Act2 boss species, three Act3Ready completions and three genuine Deaths.
 The [M13 profile](docs/milestones/m13-silent-act2.md) records the exact outcomes,
 accepted coverage amendment and native session/replay/batch evidence.
 
-M14's [design](docs/superpowers/specs/2026-10-26-m14-silent-act3-design.md) and
-[plan](docs/superpowers/plans/2026-10-26-m14-silent-act3.md) are approved. Its
-implementation uses the accepted M13 source through the primary session's
-assigned checkout and live Beads ownership.
+M14 is accepted as a finite native Silent A0 Acts 1–3 profile. Its 42 normal-start
+cases cover actual entry and matching records for all three Act 3 bosses, seven
+ordinary encounter types and all three elite types. All 42 end in Death, so
+canonical normal-start completion remains unproven. Six separately labelled
+supplied-loadout cases verify full-HP boss Victory, Proceed, the ending dialogs
+and Act3NoKeys. M14 exposes no public supplied-start API, Act 4 door, Heart or
+Python-extension delivery. M15 remains unstarted. See the
+[M14 profile](docs/milestones/m14-silent-act3.md) for evidence and limits.
 
 ## Architecture and references
 

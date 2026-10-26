@@ -57,7 +57,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
     let m6=super::rooms::uses_captured_act2(state)&&state.act==2&&matches!(encounter,EncounterId::SphericGuardian|EncounterId::ThreeByrds|EncounterId::CenturionAndHealer|EncounterId::Snecko|EncounterId::ChosenAndByrds|EncounterId::ThreeCultists|EncounterId::GremlinLeader|EncounterId::Slavers|EncounterId::BookOfStabbing|EncounterId::Champ|EncounterId::Collector|EncounterId::BronzeAutomaton);
     let m8=super::rooms::uses_captured_act3(state)&&state.act==3&&matches!(encounter,EncounterId::OrbWalker|EncounterId::ThreeShapes|EncounterId::SpireGrowth|EncounterId::Transient|EncounterId::FourShapes|EncounterId::Maw|EncounterId::SphereAndTwoShapes|EncounterId::JawWormHorde|EncounterId::ThreeDarklings|EncounterId::WrithingMass|EncounterId::GiantHead|EncounterId::Nemesis|EncounterId::Reptomancer);
-    let captured_act3_boss=(super::rooms::is_m9(state)||super::rooms::is_m10(state))&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss});
+    let captured_act3_boss=super::rooms::uses_full_act3(state)&&state.act==3&&matches!(encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)&&matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss});
     let captured_act4=super::rooms::is_m10(state)&&state.act==4&&match (encounter,origin){
         (EncounterId::ShieldAndSpear,CombatOrigin::MapRoom{node,kind:MapNodeKind::Elite})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==53&&n.visited&&n.encounter==Some(encounter)&&!n.burning)),
         (EncounterId::CorruptHeart,CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==54&&n.visited&&n.encounter==Some(encounter))),
@@ -168,7 +168,7 @@ impl Run {
         // source/frame before releasing the real combat inventory and census.
         let ending=match super::rooms::act3_end::prepare(self,&record){
             Ok(prepared)=>prepared,
-            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),"run.m9.act3.end")),
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),super::rooms::act3_end::fault_checkpoint(&self.state))),
         };
         let rewards=match if ending.is_some()||heart_victory.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
             Ok(prepared)=>prepared,

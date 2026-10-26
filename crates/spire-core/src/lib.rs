@@ -9,6 +9,9 @@
 //! trace protocol (read side). The matching writer lives in the Java
 //! `:protocol` project under `validation/windows-mod`, which must produce
 //! files this module accepts.
+#[cfg(test)]
+extern crate self as spire_core;
+
 pub mod combat;
 pub mod content;
 pub mod items;

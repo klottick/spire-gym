@@ -35,3 +35,6 @@ mod m10_settlement;
 mod m11_silent;
 mod m12_silent_act1;
 mod m13_silent_act2;
+
+mod m14_silent_act3;
+mod m14_supplied_boss;

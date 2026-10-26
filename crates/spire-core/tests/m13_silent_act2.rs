@@ -12,14 +12,22 @@ use spire_core::{
 // Catches bypassed Neow, post-construction target mutation, missing Act2
 // progression, fabricated readiness, and a caller that cannot cover the matrix.
 #[test]
-fn m13_initial_boss_targets_select_generated_maps_and_actual_entries() {
+fn m13_caller_transcripts_unchanged_by_m14_extension() {
+    const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
+        "370ea52171b0c7958d6927cecae5327b82b151504448f51aeff8f758f7d902fa",
+        "d715a1e13a6d08472918b9bd637b9ad308437ad1e5cc6cc7128fcfb87c887165",
+        "c30e3d6336a9d0059cee1beeeb19c83f6c767d80cd13483a7e3f152b2005165e",
+        "749e206bc53aace53973bea3a5f91305a31baf1d0e8f28265ea5f863b92ced47",
+        "2c42be5086c090b30d5d379512c7c559d809f8055a58e51c4483db0e05d89a34",
+        "700cb47702ab4ce25ef72d600288798933dac99d7da7e624bc7eb22d7ff7b09e",
+    ];
     let mut completions = 0;
     // The separately approved coverage amendment aggregates real final-act
     // entries across all six unchanged runs. Early Death is reported, never
     // replaced by a fixture or counted through its generated map icon.
     let mut act2_coverage = Vec::new();
     let mut outcomes = Vec::new();
-    for (seed, scenario) in FIXED_CASES {
+    for (case_index, (seed, scenario)) in FIXED_CASES.into_iter().enumerate() {
         let mut run = m13_support::make_run(seed, scenario).unwrap();
         let initial = run.decision().unwrap();
         assert_eq!(initial.content_profile, Some(RoomScenario::M13SilentAct2));
@@ -37,6 +45,9 @@ fn m13_initial_boss_targets_select_generated_maps_and_actual_entries() {
 
         let mut caller = Caller::new(4096).unwrap();
         let outcome = m13_support::rollout(&mut run, &mut caller, scenario).unwrap();
+        let full_debug = format!("seed={seed} scenario={scenario:?} outcome={outcome:?}\n{caller:#?}\n");
+        assert_eq!(sha256_hex(full_debug.as_bytes()), ACCEPTED_FULL_DEBUG_SHA256[case_index],
+            "accepted M13 full public transcript remains byte-identical for seed={seed} scenario={scenario:?}");
         if let Some(directory) = std::env::var_os("SPIRE_M13_TRACE_DIR") {
             use std::io::Write;
             let directory = std::path::PathBuf::from(directory);
@@ -110,6 +121,7 @@ fn m13_initial_boss_targets_select_generated_maps_and_actual_entries() {
             }
             CallerOutcome::Death => assert_eq!(final_decision.terminal, Some(RunTerminal::Death)),
             CallerOutcome::BudgetExhausted => unreachable!(),
+            CallerOutcome::Act3NoKeys | CallerOutcome::Act4Ready | CallerOutcome::EmptyDeck => unreachable!("M13 stops at Act3Ready"),
         }
         outcomes.push((seed, scenario, outcome, caller.accepted()));
         eprintln!("seed={seed} scenario={scenario:?} outcome={outcome:?} actions={}", caller.accepted());
@@ -121,6 +133,11 @@ fn m13_initial_boss_targets_select_generated_maps_and_actual_entries() {
     eprintln!("M13 amended coverage={act2_coverage:?}; Act3Ready completions={completions}; all six outcomes={outcomes:?}");
     assert!(missing_species.is_empty() && completions >= 1,
         "M13 amended delivery gate unmet: missing actual Act2 boss species={missing_species:?}; Act3Ready completions={completions} (at least one required); all six outcomes={outcomes:?}");
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 // Catches fake success on limits/loss and invalid-action partial mutation.

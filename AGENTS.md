@@ -36,7 +36,7 @@ user did not request.
 | M11 finite Silent authored-combat boundary | [M11 profile](docs/milestones/m11-silent-combat.md) |
 | M12 accepted finite Silent Act1 native progression | [M12 profile](docs/milestones/m12-silent-act1.md) and [approval record](docs/superpowers/plans/2026-10-26-m12-silent-act1-approval.md) |
 | M13 accepted finite Silent Acts1–2 native progression | [M13 profile](docs/milestones/m13-silent-act2.md) and [coverage amendment](docs/superpowers/plans/2026-10-26-silent-normal-run-coverage-amendment.md) |
-| M14 approved Silent Act3 design and plan | [Design](docs/superpowers/specs/2026-10-26-m14-silent-act3-design.md), [plan](docs/superpowers/plans/2026-10-26-m14-silent-act3.md), and [approval](docs/superpowers/plans/2026-10-26-m14-silent-act3-approval.md); use the assigned accepted M13 baseline |
+| M14 accepted finite Silent A0 Acts 1–3 native progression | [M14 profile](docs/milestones/m14-silent-act3.md) and [approved supplied-full-boss amendment](docs/superpowers/plans/2026-10-26-m14-supplied-full-boss-approval.md); canonical normal-start completion remains unproven |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |
