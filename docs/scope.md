@@ -44,11 +44,15 @@ boss species, three normal completions and three genuine Deaths. The finite
 19-card/13-relic/four-potion scope plus Wound remains explicit; it does not claim
 all three boss victories, full Silent pools or refreshed Python delivery.
 
-M14's [design](superpowers/specs/2026-10-26-m14-silent-act3-design.md) and
-[plan](superpowers/plans/2026-10-26-m14-silent-act3.md) are approved, with the
-[coverage amendment](superpowers/plans/2026-10-26-silent-normal-run-coverage-amendment.md).
-Its implementation proceeds from accepted M13 source through a primary-session
-assignment; check Beads for the live owner and checkout.
+M14 is accepted at its finite native Silent A0 Acts 1–3 scope after the required
+independent review and root acceptance; see the [M14 profile](milestones/m14-silent-act3.md).
+The 42 normal-start cases cover actual entry and matching records for all three
+Act 3 bosses and real ordinary/elite encounters. Every case ended in Death, so
+canonical normal-start completion remains unproven. Six separately labelled
+supplied-loadout cases reached full-HP boss Victory, Proceed and Act3NoKeys.
+M14 exposes a healthy all-key Act4Ready inspection boundary and makes no public
+supplied-start API, full-pool, Act 4/Heart or Python-extension delivery claim.
+M15 remains unstarted.
 
 The milestone narratives below preserve earlier scope and acceptance history;
 use [work status](work-status.md) and live Beads for current scheduling and ownership.

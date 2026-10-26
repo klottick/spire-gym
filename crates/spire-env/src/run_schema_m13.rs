@@ -73,7 +73,7 @@ pub(crate) const M13_PLAYABLE_ENCOUNTERS: &[EncounterId] = &[
 
 pub(crate) const M13_MAP_ONLY_BOSS_ICONS: &[EncounterId] = ACT3_MAP_ONLY_BOSS_ICONS;
 
-const M13_ENCOUNTERS: &[EncounterId] = &[
+pub(crate) const M13_ENCOUNTERS: &[EncounterId] = &[
     EncounterId::Cultist,
     EncounterId::JawWorm,
     EncounterId::TwoLouse,
@@ -255,7 +255,7 @@ pub(crate) fn select_permanent_operation() -> i64 {
     m12::select_permanent_operation()
 }
 
-fn vocabularies() -> Value {
+pub(crate) fn vocabularies() -> Value {
     let mut vocab = m10::vocabularies();
     vocab["card"] = json!(padded(cards().map(CardId::as_str)));
     vocab["enemy"] = json!(padded(M13_PLAYABLE_ENEMIES.iter().map(|id| id.as_str())));

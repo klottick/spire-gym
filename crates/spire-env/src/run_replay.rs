@@ -45,18 +45,38 @@ fn boss_history(history: RunBossHistory) -> Value {
         RunBossHistory::Act1HexaghostUnseen => json!("act1-hexaghost-unseen"),
         RunBossHistory::Act1SlimeBossUnseen => json!("act1-slime-boss-unseen"),
         RunBossHistory::M13SilentAct2 { act1, act2 } => {
-            let act1 = match act1 {
-                crate::RunAct1BossTarget::Guardian => "guardian",
-                crate::RunAct1BossTarget::Hexaghost => "hexaghost",
-                crate::RunAct1BossTarget::SlimeBoss => "slime_boss",
-            };
-            let act2 = match act2 {
-                crate::RunAct2BossTarget::Champ => "champ",
-                crate::RunAct2BossTarget::BronzeAutomaton => "bronze_automaton",
-                crate::RunAct2BossTarget::Collector => "collector",
-            };
+            let act1 = act1_history_name(act1);
+            let act2 = act2_history_name(act2);
             json!({"m13-silent-act2":{"act1":act1,"act2":act2}})
         }
+        RunBossHistory::M14SilentAct3 { act1, act2, act3 } => json!({
+            "m14-silent-act3":{
+                "act1":act1_history_name(act1),
+                "act2":act2_history_name(act2),
+                "act3":act3_history_name(act3)
+            }
+        }),
+    }
+}
+fn act1_history_name(target: crate::RunAct1BossTarget) -> &'static str {
+    match target {
+        crate::RunAct1BossTarget::Guardian => "guardian",
+        crate::RunAct1BossTarget::Hexaghost => "hexaghost",
+        crate::RunAct1BossTarget::SlimeBoss => "slime_boss",
+    }
+}
+fn act2_history_name(target: crate::RunAct2BossTarget) -> &'static str {
+    match target {
+        crate::RunAct2BossTarget::Champ => "champ",
+        crate::RunAct2BossTarget::BronzeAutomaton => "bronze_automaton",
+        crate::RunAct2BossTarget::Collector => "collector",
+    }
+}
+fn act3_history_name(target: crate::RunAct3BossTarget) -> &'static str {
+    match target {
+        crate::RunAct3BossTarget::AwakenedOne => "awakened-one",
+        crate::RunAct3BossTarget::TimeEater => "time-eater",
+        crate::RunAct3BossTarget::DonuAndDeca => "donu-and-deca",
     }
 }
 fn parse_boss_history(value: &Value) -> Result<RunBossHistory, RunSessionError> {
@@ -73,25 +93,45 @@ fn parse_boss_history(value: &Value) -> Result<RunBossHistory, RunSessionError> 
     }
     let Some(outer) = value.as_object() else { return Err(incompatible()) };
     if outer.len() != 1 { return Err(incompatible()) }
-    let Some(pair) = outer.get("m13-silent-act2").and_then(Value::as_object) else {
+    if let Some(pair) = outer.get("m13-silent-act2").and_then(Value::as_object) {
+        if pair.len() != 2 || !pair.contains_key("act1") || !pair.contains_key("act2") {
+            return Err(incompatible());
+        }
+        let act1 = parse_act1_history(pair.get("act1").ok_or_else(incompatible)?)?;
+        let act2 = parse_act2_history(pair.get("act2").ok_or_else(incompatible)?)?;
+        return Ok(RunBossHistory::M13SilentAct2 { act1, act2 });
+    }
+    let Some(triple) = outer.get("m14-silent-act3").and_then(Value::as_object) else {
         return Err(incompatible());
     };
-    if pair.len() != 2 || !pair.contains_key("act1") || !pair.contains_key("act2") {
+    if triple.len() != 3 || !triple.contains_key("act1") || !triple.contains_key("act2") || !triple.contains_key("act3") {
         return Err(incompatible());
     }
-    let act1 = match text(pair.get("act1").ok_or_else(incompatible)?)? {
-        "guardian" => crate::RunAct1BossTarget::Guardian,
-        "hexaghost" => crate::RunAct1BossTarget::Hexaghost,
-        "slime_boss" => crate::RunAct1BossTarget::SlimeBoss,
+    let act1 = parse_act1_history(triple.get("act1").ok_or_else(incompatible)?)?;
+    let act2 = parse_act2_history(triple.get("act2").ok_or_else(incompatible)?)?;
+    let act3 = match text(triple.get("act3").ok_or_else(incompatible)?)? {
+        "awakened-one" => crate::RunAct3BossTarget::AwakenedOne,
+        "time-eater" => crate::RunAct3BossTarget::TimeEater,
+        "donu-and-deca" => crate::RunAct3BossTarget::DonuAndDeca,
         _ => return Err(incompatible()),
     };
-    let act2 = match text(pair.get("act2").ok_or_else(incompatible)?)? {
-        "champ" => crate::RunAct2BossTarget::Champ,
-        "bronze_automaton" => crate::RunAct2BossTarget::BronzeAutomaton,
-        "collector" => crate::RunAct2BossTarget::Collector,
-        _ => return Err(incompatible()),
-    };
-    Ok(RunBossHistory::M13SilentAct2 { act1, act2 })
+    Ok(RunBossHistory::M14SilentAct3 { act1, act2, act3 })
+}
+fn parse_act1_history(value: &Value) -> Result<crate::RunAct1BossTarget, RunSessionError> {
+    match text(value)? {
+        "guardian" => Ok(crate::RunAct1BossTarget::Guardian),
+        "hexaghost" => Ok(crate::RunAct1BossTarget::Hexaghost),
+        "slime_boss" => Ok(crate::RunAct1BossTarget::SlimeBoss),
+        _ => Err(incompatible()),
+    }
+}
+fn parse_act2_history(value: &Value) -> Result<crate::RunAct2BossTarget, RunSessionError> {
+    match text(value)? {
+        "champ" => Ok(crate::RunAct2BossTarget::Champ),
+        "bronze_automaton" => Ok(crate::RunAct2BossTarget::BronzeAutomaton),
+        "collector" => Ok(crate::RunAct2BossTarget::Collector),
+        _ => Err(incompatible()),
+    }
 }
 fn config(c:&RunSessionConfig)->Value{json!({"character":c.character.as_str(),"ascension":c.ascension,"partition":c.partition.as_str(),"boss_history":boss_history(c.boss_history),"capacities":capacities(&c.capacities),"record_replay":c.record_replay})}
 fn parse_config(v:&Value)->Result<RunSessionConfig,RunSessionError>{Ok(RunSessionConfig{
@@ -135,14 +175,14 @@ impl RunEpisodeRecord{
 }
 pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplayReport,RunSessionError>{
     let profile=validate(record)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?}
+    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?,RunProfile::M14SilentAct3=>crate::run_schema_m14::validate(&caps)?}
     if profile==RunProfile::M9IroncladAct3&&(record.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
         ||record.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection)))){
         return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
     }
     let mut run=create_run(profile,&record.config,record.seed,record.ordinal)?;
     let mut decision=run.decision().map_err(RunSessionError::Core)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?};
+    match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?};
     let mut rewards=Vec::new();let mut terminals=Vec::new();
     rewards.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
     terminals.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
@@ -151,7 +191,7 @@ pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplay
         let t=run.step(&step.action).map_err(RunSessionError::Core)?;
         if (t.reward,t.terminal)!=(step.reward,step.terminal){return Err(RunSessionError::IncompatibleReplay("Run reward or terminal mismatch"))}
         decision=run.decision().map_err(RunSessionError::Core)?;
-        match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?};
+        match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?};
         rewards.push(t.reward);terminals.push(t.terminal);
     }
     if decision.terminal!=record.terminal{return Err(RunSessionError::IncompatibleReplay("Run final terminal mismatch"))}

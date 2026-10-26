@@ -129,6 +129,11 @@ fn compare_m13_session_with_six_fixed_core_transcripts() -> bool {
             m13_support::CallerOutcome::BudgetExhausted => {
                 panic!("fixed route exhausted the caller budget at {seed}/{act1:?}/{act2:?}");
             }
+            m13_support::CallerOutcome::Act3NoKeys
+            | m13_support::CallerOutcome::Act4Ready
+            | m13_support::CallerOutcome::EmptyDeck => {
+                unreachable!("M14-only caller outcomes cannot occur in an M13 rollout");
+            }
         }
         let mut session = RunSession::new_m13(config(act1, act2, true)).unwrap();
         let mut boundary = session.reset(Some(seed)).unwrap();

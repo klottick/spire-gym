@@ -6,7 +6,49 @@ use std::{
 use spire_core::run::map::PublicMap;
 use spire_core::run::{GameAction, MapNodeKind, NodeId, PublicDecision};
 
-type Memo = BTreeMap<(NodeId, bool, bool), Option<i64>>;
+type RouteState = (NodeId, bool, bool, bool);
+type Memo = BTreeMap<RouteState, Option<RouteRank>>;
+
+#[derive(Clone, Copy)]
+struct RouteRank {
+    // Elites reached after the existing quota was already satisfied.
+    extra_elites: u32,
+    // Active only for M14's low-health, unmet-quota preference.
+    rest_before_first_elite: bool,
+    resource_score: i64,
+}
+
+#[derive(Clone, Copy)]
+struct RouteProfile {
+    m14_rank: bool,
+    prefer_rest_before_first_elite: bool,
+}
+
+impl RouteProfile {
+    const M13: Self = Self {
+        m14_rank: false,
+        prefer_rest_before_first_elite: false,
+    };
+
+    fn m14(decision: &PublicDecision, elite_reached: bool) -> Self {
+        let at_most_half_health =
+            u64::from(decision.player.hp) * 2 <= u64::from(decision.player.max_hp);
+        Self {
+            m14_rank: true,
+            prefer_rest_before_first_elite: !elite_reached && at_most_half_health,
+        }
+    }
+
+    fn key(self, rank: RouteRank) -> (Reverse<u32>, bool, i64) {
+        if self.m14_rank {
+            // M14 prioritizes fewer extra elites, then the visible recovery
+            // condition, before reusing the established resource score.
+            (Reverse(rank.extra_elites), rank.rest_before_first_elite, rank.resource_score)
+        } else {
+            (Reverse(0), false, rank.resource_score)
+        }
+    }
+}
 
 #[derive(Clone, Copy)]
 struct RouteWeights {
@@ -23,21 +65,7 @@ pub(super) fn action(
     elite_reached: bool,
     ordinary_reached: bool,
 ) -> Result<GameAction, String> {
-    let max_hp = decision.player.max_hp;
-    let weights = RouteWeights {
-        missing_hp: max_hp.saturating_sub(decision.player.hp),
-        max_hp,
-        // Four times max HP keeps HP fractions and the 3/2 risk multiplier exact.
-        score_scale: i64::from(max_hp.max(1)) * 4,
-        potion_stock: decision
-            .player
-            .potions
-            .iter()
-            .filter(|potion| potion.is_some())
-            .count()
-            .min(3) as i64,
-        gold: decision.player.gold,
-    };
+    let weights = RouteWeights::from_decision(decision);
     let mut memo = Memo::new();
     let mut visiting = BTreeSet::new();
 
@@ -48,32 +76,76 @@ pub(super) fn action(
             let GameAction::Move(id) = &candidate.action else {
                 return None;
             };
-            path_score(
+            path_rank(
                 map,
                 *id,
                 elite_reached,
                 ordinary_reached,
+                false,
+                RouteProfile::M13,
                 weights,
                 &mut memo,
                 &mut visiting,
             )
-            .map(|score| (score, *id, candidate.action.clone()))
+            .map(|rank| (rank.resource_score, *id, candidate.action.clone()))
         })
         .max_by_key(|(score, id, _)| (*score, Reverse(*id)))
         .map(|(_, _, action)| action)
         .ok_or_else(|| "map has no offered route to a boss".into())
 }
 
-fn path_score(
+pub(super) fn action_m14(
+    decision: &PublicDecision,
+    map: &PublicMap,
+    elite_reached: bool,
+    ordinary_reached: bool,
+) -> Result<GameAction, String> {
+    let weights = RouteWeights::from_decision(decision);
+    let profile = RouteProfile::m14(decision, elite_reached);
+    let mut memo = Memo::new();
+    let mut visiting = BTreeSet::new();
+
+    decision
+        .candidates
+        .iter()
+        .filter_map(|candidate| {
+            let GameAction::Move(id) = &candidate.action else {
+                return None;
+            };
+            path_rank(
+                map,
+                *id,
+                elite_reached,
+                ordinary_reached,
+                false,
+                profile,
+                weights,
+                &mut memo,
+                &mut visiting,
+            )
+            .map(|rank| (rank, *id, candidate.action.clone()))
+        })
+        .max_by_key(|(rank, id, _)| {
+            let (extra_elites, rest_before_first_elite, resource_score) =
+                profile.key(*rank);
+            (extra_elites, rest_before_first_elite, resource_score, Reverse(*id))
+        })
+        .map(|(_, _, action)| action)
+        .ok_or_else(|| "map has no offered route to a boss".into())
+}
+
+fn path_rank(
     map: &PublicMap,
     id: NodeId,
     elite_reached: bool,
     ordinary_reached: bool,
+    rest_before_first_elite: bool,
+    profile: RouteProfile,
     weights: RouteWeights,
     memo: &mut Memo,
-    visiting: &mut BTreeSet<(NodeId, bool, bool)>,
-) -> Option<i64> {
-    let key = (id, elite_reached, ordinary_reached);
+    visiting: &mut BTreeSet<RouteState>,
+) -> Option<RouteRank> {
+    let key = (id, elite_reached, ordinary_reached, rest_before_first_elite);
     if let Some(score) = memo.get(&key) {
         return *score;
     }
@@ -85,25 +157,41 @@ fn path_score(
         let next_elite_reached = elite_reached || node.kind == MapNodeKind::Elite;
         let next_ordinary_reached = ordinary_reached || node.kind == MapNodeKind::Monster;
         if node.kind == MapNodeKind::Boss {
-            return (next_elite_reached && next_ordinary_reached).then_some(0);
+            return (next_elite_reached && next_ordinary_reached).then_some(RouteRank {
+                extra_elites: 0,
+                rest_before_first_elite,
+                resource_score: 0,
+            });
         }
 
+        let next_rest_before_first_elite = rest_before_first_elite
+            || (profile.prefer_rest_before_first_elite
+                && !elite_reached
+                && node.kind == MapNodeKind::Rest);
         let best_continuation = node
             .edges
             .iter()
             .filter_map(|next| {
-                path_score(
+                path_rank(
                     map,
                     *next,
                     next_elite_reached,
                     next_ordinary_reached,
+                    next_rest_before_first_elite,
+                    profile,
                     weights,
                     memo,
                     visiting,
                 )
             })
-            .max()?;
-        Some(weights.node_score(node.kind, elite_reached) + best_continuation)
+            .max_by_key(|rank| profile.key(*rank))?;
+        Some(RouteRank {
+            extra_elites: best_continuation.extra_elites
+                + u32::from(node.kind == MapNodeKind::Elite && elite_reached),
+            rest_before_first_elite: best_continuation.rest_before_first_elite,
+            resource_score: weights.node_score(node.kind, elite_reached)
+                + best_continuation.resource_score,
+        })
     });
 
     visiting.remove(&key);
@@ -112,6 +200,24 @@ fn path_score(
 }
 
 impl RouteWeights {
+    fn from_decision(decision: &PublicDecision) -> Self {
+        let max_hp = decision.player.max_hp;
+        Self {
+            missing_hp: max_hp.saturating_sub(decision.player.hp),
+            max_hp,
+            // Four times max HP keeps HP fractions and the 3/2 risk multiplier exact.
+            score_scale: i64::from(max_hp.max(1)) * 4,
+            potion_stock: decision
+                .player
+                .potions
+                .iter()
+                .filter(|potion| potion.is_some())
+                .count()
+                .min(3) as i64,
+            gold: decision.player.gold,
+        }
+    }
+
     fn node_score(self, kind: MapNodeKind, elite_reached: bool) -> i64 {
         let risk = (12 * self.score_scale + self.ratio_score(24)
             - 3 * self.potion_stock * self.score_scale)
@@ -216,6 +322,154 @@ mod tests {
             selection: None,
             terminal: None,
         }
+    }
+
+    fn m14_map(candidate_ids: &[u64], nodes: Vec<PublicMapNode>) -> PublicMap {
+        let mut map = map(candidate_ids, nodes);
+        map.act = 3;
+        map
+    }
+
+    fn m14_decision(candidate_ids: &[u64], hp: u32, max_hp: u32, gold: u32) -> PublicDecision {
+        let mut decision = decision(candidate_ids, hp, max_hp, gold);
+        decision.content_profile = Some(RoomScenario::M14SilentAct3);
+        decision.act = 3;
+        decision
+    }
+
+    fn m14_action(decision: &PublicDecision, map: &PublicMap) -> Result<GameAction, String> {
+        m14_action_with_progress(decision, map, false, false)
+    }
+
+    fn m14_action_with_progress(
+        decision: &PublicDecision,
+        map: &PublicMap,
+        elite_reached: bool,
+        ordinary_reached: bool,
+    ) -> Result<GameAction, String> {
+        let mut caller = super::super::Caller::new_m14(8192).unwrap();
+        caller.act3_elite_reached = elite_reached;
+        caller.act3_ordinary_reached = ordinary_reached;
+        super::super::action_for(decision, Some(map), &caller)
+    }
+
+    #[test]
+    fn m14_revision_routes_minimizes_elites_beyond_the_required_one() {
+        let mut nodes = vec![
+            node(10, MapNodeKind::Elite, &[11]),
+            node(11, MapNodeKind::Monster, &[100]),
+            node(20, MapNodeKind::Treasure, &[21]),
+        ];
+        for id in 21..=29 {
+            nodes.push(node(id, MapNodeKind::Treasure, &[id + 1]));
+        }
+        nodes.push(node(30, MapNodeKind::Elite, &[31]));
+        for id in 31..=39 {
+            nodes.push(node(id, MapNodeKind::Treasure, &[id + 1]));
+        }
+        nodes.extend([
+            node(40, MapNodeKind::Elite, &[41]),
+            node(41, MapNodeKind::Monster, &[100]),
+            node(100, MapNodeKind::Boss, &[]),
+        ]);
+        let map = m14_map(&[10, 20], nodes);
+        let decision = m14_decision(&[10, 20], 70, 70, 0);
+
+        assert_eq!(m14_action(&decision, &map), Ok(GameAction::Move(NodeId(10))));
+    }
+
+    #[test]
+    fn m14_revision_routes_low_health_prefers_rest_before_the_required_elite() {
+        let mut nodes = vec![
+            node(10, MapNodeKind::Rest, &[11]),
+            node(11, MapNodeKind::Elite, &[12]),
+            node(12, MapNodeKind::Monster, &[100]),
+            node(20, MapNodeKind::Elite, &[21]),
+        ];
+        for id in 21..=36 {
+            nodes.push(node(id, MapNodeKind::Treasure, &[id + 1]));
+        }
+        nodes.extend([
+            node(37, MapNodeKind::Rest, &[38]),
+            node(38, MapNodeKind::Monster, &[100]),
+            node(100, MapNodeKind::Boss, &[]),
+        ]);
+        let map = m14_map(&[10, 20], nodes);
+        let decision = m14_decision(&[10, 20], 20, 70, 0);
+
+        assert_eq!(m14_action(&decision, &map), Ok(GameAction::Move(NodeId(10))));
+
+        let exact_half = m14_decision(&[10, 20], 35, 70, 0);
+        assert_eq!(m14_action(&exact_half, &map), Ok(GameAction::Move(NodeId(10))));
+    }
+
+    #[test]
+    fn m14_revision_routes_uses_existing_resource_score_after_route_constraints() {
+        let map = m14_map(
+            &[10, 20],
+            vec![
+                node(10, MapNodeKind::Question, &[11]),
+                node(11, MapNodeKind::Elite, &[12]),
+                node(12, MapNodeKind::Monster, &[100]),
+                node(20, MapNodeKind::Shop, &[21]),
+                node(21, MapNodeKind::Elite, &[22]),
+                node(22, MapNodeKind::Monster, &[100]),
+                node(100, MapNodeKind::Boss, &[]),
+            ],
+        );
+        let decision = m14_decision(&[10, 20], 70, 70, 150);
+
+        assert_eq!(m14_action(&decision, &map), Ok(GameAction::Move(NodeId(20))));
+    }
+
+    #[test]
+    fn m14_revision_routes_breaks_equal_ranks_by_smallest_offered_node_id() {
+        let map = m14_map(
+            &[20, 5],
+            vec![
+                node(20, MapNodeKind::Monster, &[30]),
+                node(5, MapNodeKind::Monster, &[30]),
+                node(30, MapNodeKind::Elite, &[40]),
+                node(40, MapNodeKind::Boss, &[]),
+            ],
+        );
+        let decision = m14_decision(&[20, 5], 70, 70, 0);
+
+        assert_eq!(m14_action(&decision, &map), Ok(GameAction::Move(NodeId(5))));
+    }
+
+    #[test]
+    fn m14_revision_routes_keeps_both_unmet_quotas_hard() {
+        let map = m14_map(
+            &[10, 20],
+            vec![
+                node(10, MapNodeKind::Elite, &[11]),
+                node(11, MapNodeKind::Treasure, &[100]),
+                node(20, MapNodeKind::Monster, &[21]),
+                node(21, MapNodeKind::Treasure, &[100]),
+                node(100, MapNodeKind::Boss, &[]),
+            ],
+        );
+        let decision = m14_decision(&[10, 20], 70, 70, 0);
+
+        assert_eq!(
+            m14_action(&decision, &map),
+            Err("no public caller rule for floor 1 in Map".into()),
+        );
+    }
+
+    #[test]
+    fn m14_revision_routes_accepts_a_route_after_both_quotas_are_satisfied() {
+        let map = m14_map(
+            &[10],
+            vec![node(10, MapNodeKind::Shop, &[100]), node(100, MapNodeKind::Boss, &[])],
+        );
+        let decision = m14_decision(&[10], 70, 70, 150);
+
+        assert_eq!(
+            m14_action_with_progress(&decision, &map, true, true),
+            Ok(GameAction::Move(NodeId(10))),
+        );
     }
 
     #[test]

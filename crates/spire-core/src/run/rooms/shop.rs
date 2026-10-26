@@ -16,9 +16,9 @@ pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,
             (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
-    if is_m12(&run.state)||is_m13(&run.state){
+    if uses_silent_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-        let later=if is_m13(&run.state)&&run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
+        let later=if is_m14(&run.state)&&run.state.act==3{room.act3.as_ref().is_some_and(|p|p.shop_visits>0)}else if (is_m13(&run.state)||is_m14(&run.state))&&run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
         let cards=super::m12_content::shop_cards(later);
         let prices=if later{[50,75,150]}else{[50,75,75]};
         let mut rows=cards.into_iter().zip(prices).map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();

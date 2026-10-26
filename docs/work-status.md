@@ -43,11 +43,20 @@ Beads for task state and ownership; confirm the assigned checkout before editing
   One fresh independent reviewer found no issues and passed 18 bounded tests,
   verifying all 674 reviewed source hashes/modes and exact patch reconstruction.
   This is native-only finite delivery, not full Silent pools or Heart completion.
-- M14's [design](superpowers/specs/2026-10-26-m14-silent-act3-design.md),
-  [plan](superpowers/plans/2026-10-26-m14-silent-act3.md), and separate approval
-  are recorded. Implementation is next from the accepted M13 source, with live
-  ownership and the assigned checkout provided by the primary session and Beads.
-  No repeat design, plan or execution-method approval is required.
+- M14 is accepted at its [finite native Silent A0 Acts 1–3 scope](milestones/m14-silent-act3.md).
+  The 42 fixed normal-start cases cover actual entry and matching records for all
+  three Act 3 bosses, seven ordinary encounter types and all three elite types.
+  All 42 end in Death; canonical normal-start completion remains unproven. Six
+  separately labelled supplied-loadout cases reach full-HP boss Victory, Proceed,
+  the ending dialogs and Act3NoKeys. Native single sessions, worker 1/2 batches
+  and portable semantic replay agree with core across all 42 normal cases. The
+  15 predecessor CLI commands and two M14 CLI commands reproduce retained results;
+  all six accepted M13 full Debug transcripts are byte-identical. The final
+  workspace before the diagnostic-label fix recorded 2,001 passed, the sole
+  historical Blue Slaver failure and zero ignored. The label fix then passed 47
+  focused M14 and predecessor checks. This finite native profile makes no public
+  supplied-start API, Python-extension, full Silent-pool or Heart claim. M15
+  remains unstarted.
 - The all-character A0–20 Acts 1–4/Heart target remains the repository scope. See
   [scope](scope.md), [milestone profiles](milestones/), and the current task's
   Bead for details and accepted limits.
