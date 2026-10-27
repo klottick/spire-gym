@@ -22,7 +22,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     let mut work = Vec::new();
     let mut after_use_bottom=Vec::new();
     let mut exhaust_top = Vec::new();
-    if hook==Hook::Death{super::enemies::act2::stasis::on_death(state,target);}
+    if hook==Hook::Death{super::enemies::act2::stasis::on_death(state,target);work.extend(super::enemies::act1::spore_cloud_work(state,target));work.extend(super::enemies::act1::thieves::death_reward_work(state,target));}
     if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
         super::cards::ironclad::reactive::turn_started(state,&mut work);
         work.extend(super::cards::silent_nightmare_pre_draw(state));

@@ -1,6 +1,7 @@
 //! Finite Act2 producers on the existing shared resolver.
 use super::*;
 pub(in crate::combat) mod flight;
+pub(in crate::combat) mod ordinary_closure;
 pub(in crate::combat) mod chosen_snecko;
 mod partners;
 pub(in crate::combat) mod spawn;
@@ -95,5 +96,5 @@ pub(in crate::combat) fn modify_incoming_damage(state:&State,target:&Actor,paylo
 }
 
 pub(in crate::combat) fn after_damage(state:&mut State,result:&super::super::model::DamageResult)->Result<(),super::super::EffectError>{
-    flight::after_damage(state,result);gremlin_leader::after_damage(state,result);book::after_damage(state,result);collector::after_damage(state,result);automaton::after_damage(state,result);super::act3::shapes::after_damage(state,result);super::act3::ordinary::after_damage(state,result);super::act3::writhing::after_damage(state,result)?;super::act3::reptomancer::after_damage(state,result);super::act3::awakened::after_damage(state,result);super::act4::shield_spear::after_damage(state,result);Ok(())
+    ordinary_closure::after_damage(state,result)?;flight::after_damage(state,result);gremlin_leader::after_damage(state,result);book::after_damage(state,result);collector::after_damage(state,result);automaton::after_damage(state,result);super::act3::shapes::after_damage(state,result);super::act3::ordinary::after_damage(state,result);super::act3::writhing::after_damage(state,result)?;super::act3::reptomancer::after_damage(state,result);super::act3::awakened::after_damage(state,result);super::act4::shield_spear::after_damage(state,result);Ok(())
 }

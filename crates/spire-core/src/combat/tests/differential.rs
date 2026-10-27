@@ -21,6 +21,7 @@ fn stream(s: &StreamState) -> Value {
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
 pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
+        EffectKind::Thief(_)|EffectKind::ShelledArmorBreak=>panic!("encounter-closure continuation is unsupported by the frozen differential profile"),
         EffectKind::Damage(DamagePayload::Fixed(n))=>("damage",json!({"amount":n})),
         EffectKind::Damage(DamagePayload::Orb(n))=>("orb_damage",json!({"amount":n})),
         EffectKind::Damage(DamagePayload::Thorns(n))=>("thorns_damage",json!({"amount":n})),

@@ -7,9 +7,12 @@ pub enum EnemyId {
     SlaverBlue,Taskmaster,SlaverRed,BookOfStabbing,
     Champ,Collector,TorchHead,BronzeAutomaton,BronzeOrb,
     OrbWalker,Repulsor,Exploder,Spiker,Darkling,SpireGrowth,Transient,Maw,WrithingMass,GiantHead,Nemesis,Reptomancer,Dagger,AwakenedOne,TimeEater,Deca,Donu,SpireShield,SpireSpear,CorruptHeart,
+    FungiBeast, Looter, Mugger, ShelledParasite, SnakePlant,
     Unknown(&'static str),
 }
 impl EnemyId { pub const fn as_str(self) -> &'static str { match self {
+    Self::FungiBeast=>"fungi_beast",Self::Looter=>"looter",Self::Mugger=>"mugger",
+    Self::ShelledParasite=>"shelled_parasite",Self::SnakePlant=>"snake_plant",
     Self::Deca=>"deca",Self::Donu=>"donu",
     Self::TimeEater=>"time_eater",Self::SpireShield=>"spire_shield",Self::SpireSpear=>"spire_spear",Self::CorruptHeart=>"corrupt_heart",
     Self::AwakenedOne=>"awakened_one",

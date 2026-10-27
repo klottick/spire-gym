@@ -437,7 +437,7 @@ impl Combat {
                 || enemy.ascension > 20
                 || (enemy.ascension != 0 && !matches!(enemy.enemy_id,
                     crate::content::EnemyId::Cultist | crate::content::EnemyId::JawWorm
-                        | crate::content::EnemyId::GremlinNob))
+                        | crate::content::EnemyId::GremlinNob | crate::content::EnemyId::SlaverBlue | crate::content::EnemyId::FungiBeast))
                 || !enemy.profile.valid_for(enemy.enemy_id)
                 || (matches!(enemy.enemy_id,crate::content::EnemyId::GiantHead|crate::content::EnemyId::Nemesis)
                     &&!super::enemies::act3::elites::valid_intent(enemy.enemy_id,enemy.intent.as_str()))
@@ -462,6 +462,9 @@ impl Combat {
         let rng = super::model::CombatRng { contract_id: RNG_CONTRACT_ID.into(),
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let mut combat = Self::build_full(setup, rng);
+        if combat.state.enemies.iter().any(|enemy|matches!(enemy.enemy_id,ActorEnemyId::Full(crate::content::EnemyId::Looter|crate::content::EnemyId::Mugger))){
+            combat.state.thief_gold=Some(Default::default());
+        }
         super::enemies::act2::collector::validate_slots(&combat.state)
             .map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;
         super::enemies::act3::reptomancer::validate_slots(&combat.state)
@@ -1028,6 +1031,15 @@ impl Combat {
 
     /// Export the settled full-combat state for a native run owner. This does
     /// not apply rewards or mutate/consume the combat checkpoint.
+    /// Explicit entry-only currency attachment. Existing combats without thieves
+    /// keep currency in Run; thief fights transfer its live value to this owner.
+    pub(crate) fn set_thief_gold_for_entry(&mut self,gold:u32)->Result<(),InputError>{
+        if self.state.thief_gold.is_some(){super::enemies::act1::thieves::initialize_gold(&mut self.state,gold)}else{Ok(())}
+    }
+    pub fn current_combat_gold(&self)->Option<u32>{super::enemies::act1::thieves::current_gold(&self.state)}
+    pub fn stolen_gold_rewards(&self)->Vec<u32>{super::enemies::act1::thieves::stolen_gold_rewards(&self.state).iter().map(|receipt|receipt.amount).collect()}
+    pub fn combat_mugged(&self)->bool{super::enemies::act1::thieves::mugged(&self.state)}
+    pub fn all_enemies_escaped(&self)->bool{super::enemies::act1::thieves::all_escaped(&self.state)}
     pub fn exit(&self) -> Result<CombatExit, crate::run::RunError> {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         if !self.state.full_runtime { return Err(crate::run::RunError::InvalidAction); }
@@ -1082,7 +1094,7 @@ impl Combat {
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,combust:None } }
+                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,combust:None,thief_gold:None } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
@@ -1113,7 +1125,7 @@ impl Combat {
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers: setup.player_powers, item_context: None,
                 character: super::characters::CharacterState::for_character(setup.character),
-                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,combust:None } }
+                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,combust:None,thief_gold:None } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {
@@ -1215,6 +1227,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         require(cultist_target, "Ritual payload owner")?;
     }
     match &effect.kind {
+        EffectKind::Thief(kind)=>super::enemies::act1::thieves::validate_effect(state,effect,kind)?,
         EffectKind::Damage(DamagePayload::Fixed(n)) => {
             let maximum = if state.full_runtime { 30_012 } else { 1_515 };
             require((0..=maximum).contains(n), "damage payload bounds")?;
@@ -1413,8 +1426,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::ObtainParasite=>{
             require(state.full_runtime&&effect.target==Some(Actor::Player)&&state.player.hp>0&&matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::WrithingMass)&&e.hp>0&&matches!(e.full_memory,Some(super::EnemyMemory::WrithingMass{parasite_used:true,parasite_pending:true,..})))),"accepted Parasite execution owner")?;
         },
+        EffectKind::ShelledArmorBreak=>{
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|enemy|&enemy.instance_id==source&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::ShelledParasite))),"Plated Armor removal owner")?;
+        },
         EffectKind::ResetMalleable=>{
-            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(a)),Some(Actor::Enemy(b))) if a==b&&state.enemies.iter().any(|e|&e.instance_id==a&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::WrithingMass)&&e.hp>0)),"Malleable source reset owner")?;
+            require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(a)),Some(Actor::Enemy(b))) if a==b&&state.enemies.iter().any(|e|&e.instance_id==a&&matches!(e.enemy_id,ActorEnemyId::Full(crate::content::EnemyId::WrithingMass|crate::content::EnemyId::SnakePlant))&&e.hp>0)),"Malleable source reset owner")?;
         },
         EffectKind::CaptureStasis{orb}=>require(state.full_runtime&&!state.stasis.contains_key(orb)&&effect.source==Source::Actor(Actor::Enemy(orb.clone()))&&effect.target==Some(Actor::Enemy(orb.clone()))&&state.enemies.iter().any(|e|e.instance_id==*orb&&e.hp>0&&e.life==ActorLife::Active&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::BronzeOrb)&&e.intent_id.as_str()=="orb_stasis"),"Stasis capture producer/custody")?,
         EffectKind::ReleaseStasis{orb}=>require(state.full_runtime&&state.stasis.contains_key(orb)&&effect.source==Source::Actor(Actor::Enemy(orb.clone()))&&effect.target==Some(Actor::Enemy(orb.clone()))&&state.enemies.iter().any(|e|e.instance_id==*orb&&e.hp==0&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::BronzeOrb)),"Stasis return death/custody")?,
@@ -1696,6 +1712,7 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
 }
 
 pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
+    super::enemies::act1::thieves::validate_state(state)?;
     require(state.content_id == CONTENT_ID, "runtime content")?;
     require(state.full_runtime||state.damage_events_this_combat==0,"legacy mode cannot carry native damage-event history")?;
     require((1..=i32::MAX as u32).contains(&state.turn), "turn bounds")?;
@@ -1820,7 +1837,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     | crate::content::EnemyId::SphericGuardian | crate::content::EnemyId::Byrd | crate::content::EnemyId::Chosen | crate::content::EnemyId::Snecko
                     | crate::content::EnemyId::Centurion | crate::content::EnemyId::Mystic
                     | crate::content::EnemyId::GremlinLeader | crate::content::EnemyId::GremlinMad | crate::content::EnemyId::GremlinSneaky | crate::content::EnemyId::GremlinFat | crate::content::EnemyId::GremlinShield | crate::content::EnemyId::GremlinWizard
-                    | crate::content::EnemyId::SlaverBlue | crate::content::EnemyId::Taskmaster | crate::content::EnemyId::SlaverRed | crate::content::EnemyId::BookOfStabbing | crate::content::EnemyId::Champ | crate::content::EnemyId::Collector | crate::content::EnemyId::TorchHead | crate::content::EnemyId::BronzeAutomaton | crate::content::EnemyId::BronzeOrb | crate::content::EnemyId::CorruptHeart)) {
+                    | crate::content::EnemyId::ShelledParasite | crate::content::EnemyId::SnakePlant | crate::content::EnemyId::Looter | crate::content::EnemyId::Mugger | crate::content::EnemyId::FungiBeast | crate::content::EnemyId::SlaverBlue | crate::content::EnemyId::Taskmaster | crate::content::EnemyId::SlaverRed | crate::content::EnemyId::BookOfStabbing | crate::content::EnemyId::Champ | crate::content::EnemyId::Collector | crate::content::EnemyId::TorchHead | crate::content::EnemyId::BronzeAutomaton | crate::content::EnemyId::BronzeOrb | crate::content::EnemyId::CorruptHeart)) {
                      require(e.full_memory.as_ref().is_some_and(|memory| memory.valid_for(*enemy_id)),
                          "supported full actor memory/configuration")?;
                  }

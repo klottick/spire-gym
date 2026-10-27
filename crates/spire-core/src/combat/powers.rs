@@ -21,7 +21,7 @@ pub(super) fn on_card_exhausted(state:&State,source:&super::Source)->Vec<super::
 pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
      "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"=>true,
     "strength"|"dexterity"=>power.state.amount<=0,
-     "metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"=>false,
+     "thievery"|"plated_armor"|"spore_cloud"|"metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"=>false,
     _=>return None,
 })}
 
@@ -120,7 +120,11 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             let target=effect.target.as_ref().unwrap();
             if matches!(target,Actor::Player)&&id.0=="combust"{state.combust=None;}
             let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
+            let plated=id.0=="plated_armor"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.full_powers.iter().any(|power|power.id==id)),_=>false};
             remove(state, effect.target.as_ref().unwrap(), id);
+            if plated{if let Actor::Enemy(owner)=target{if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::ShelledParasite)){
+                let actor=Actor::Enemy(owner.clone());super::enemies::act2::bottom(state,Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::ShelledArmorBreak});
+            }}}
             if flight{super::enemies::act2::flight::on_removed(state,target);}
             return super::effects::refresh_enemy_values(state);
         }

@@ -283,6 +283,8 @@ pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bo
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
+    Thief(super::enemies::act1::thieves::ThiefEffect),
+    ShelledArmorBreak,
     Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), NeowsLament, ApplyPower { id: PowerId, amount: i32 },
     ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId),
     ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
@@ -409,6 +411,7 @@ pub(super) struct State {
     pub damage_events_this_combat:u32,
     /// Combust stacks are counted independently of the summed damage amount.
     pub combust:Option<CombustState>,
+    pub thief_gold:Option<super::enemies::act1::thieves::ThiefGoldState>,
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {

@@ -7,6 +7,80 @@ fn training_catalog_validates_hidden_inputs_and_numeric_types(){
     for bytes in [br#"{"entries":[],"draw":[]}"#.as_slice(),br#"{"entries":[{"id":"a","encounter":"cultist","hp":true,"max_hp":80,"deck":[],"relics":[],"potions":[null,null,null]}]}"#]{assert!(CombatTrainingCatalog::from_json(bytes).is_err());}
 }
 #[test]
+fn training_catalog_profile_id_accepts_only_the_two_string_versions(){
+    for profile in [serde_json::json!(null),serde_json::json!("unknown-profile"),serde_json::json!(7),serde_json::json!(false)]{
+        let mut raw=serde_json::json!({"entries":[{"id":"case","encounter":"cultist","hp":80,"max_hp":80,"deck":[{"card":"strike","upgrades":0}],"relics":[],"potions":[null,null,null]}]});
+        raw["profile_id"]=profile;
+        assert!(CombatTrainingCatalog::from_json(&serde_json::to_vec(&raw).unwrap()).is_err());
+    }
+}
+#[test]
+fn v1_default_and_explicit_profile_keep_the_frozen_catalog_identity_and_43_support(){
+    let default=catalog();let mut raw=default.descriptor();raw.as_object_mut().unwrap().remove("catalog_schema_id");raw["profile_id"]=serde_json::json!(COMBAT_TRAINING_PROFILE_ID);
+    let explicit=CombatTrainingCatalog::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap();
+    assert_eq!(default.descriptor(),explicit.descriptor());assert_eq!(default.fingerprint(),explicit.fingerprint());
+    assert_eq!(default.descriptor()["catalog_schema_id"],"spire-gym-combat-entry-catalog-v1");
+    assert_eq!(default.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"4c8751dcc3fa4f13857562ec70f95cc2e6c2b0e0a0d1e54823e4c60dca6a1e98");
+    let support=combat_training_support();let ids=support["encounters"].as_array().unwrap().iter().map(|row|row["id"].as_str().unwrap()).collect::<Vec<_>>();
+    assert_eq!(ids,vec!["cultist","jaw_worm","two_louse","small_slimes","large_slime","lots_of_slimes","slime_boss","three_cultists","jaw_worm_horde","gremlin_nob","lagavulin","three_sentries","three_louse","guardian","hexaghost","spheric_guardian","three_byrds","chosen_and_byrds","snecko","centurion_and_healer","gremlin_leader","slavers","book_of_stabbing","champ","collector","bronze_automaton","orb_walker","three_shapes","four_shapes","sphere_and_two_shapes","three_darklings","spire_growth","transient","maw","writhing_mass","giant_head","nemesis","reptomancer","awakened_one","time_eater","donu_and_deca","shield_and_spear","corrupt_heart"]);
+}
+#[test]
+fn v1_rejects_the_additive_slaver_and_fungi_encounters(){
+    for encounter in ["blue_slaver","two_fungi_beasts"]{
+        let raw=serde_json::json!({"profile_id":COMBAT_TRAINING_PROFILE_ID,"entries":[{"id":"case","encounter":encounter,"hp":80,"max_hp":80,"deck":[{"card":"strike","upgrades":0}],"relics":[],"potions":[null,null,null]}]});
+        assert!(CombatTrainingCatalog::from_json(&serde_json::to_vec(&raw).unwrap()).is_err(),"{encounter}");
+    }
+}
+#[test]
+fn v2_additively_publishes_slaver_and_fungi_and_resolves_a_turn_for_each(){
+    let v2_spec=combat_policy_observation_spec_v2().unwrap();let v1_spec=combat_policy_observation_spec().unwrap();
+    assert_ne!(v2_spec.fingerprint(),v1_spec.fingerprint());
+    assert_eq!(v1_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"02009686282c592f971eece3d5853eb54f2a482dde9dae1d0cf380ecdaf8fd78");
+    for key in ["enemy","power","intent"] {
+        let old=v1_spec.descriptor()["vocabularies"][key].as_array().unwrap().clone();
+        let new=v2_spec.descriptor()["vocabularies"][key].as_array().unwrap().clone();
+        assert_eq!(&new[..old.len()],old.as_slice());assert_eq!(new.len(),old.len()+match key{"enemy"=>5,"power"=>3,_=>14});
+    }
+    assert_eq!(v2_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"02433813e1297244060d9852f342c6eb4c9c4d62f3dde9763ff82191867eceec");
+    let descriptor=v2_spec.descriptor();let vocab=&descriptor["vocabularies"];
+    assert!(vocab["enemy"].as_array().unwrap().iter().any(|name|name=="fungi_beast"));
+    assert!(vocab["power"].as_array().unwrap().iter().any(|name|name=="spore_cloud"));
+    assert_eq!(vocab["power"][vocab["power"].as_array().unwrap().len()-4],"lose_strength");
+    assert_eq!(combat_training_support_v2()["encounters"].as_array().unwrap().len(),57);
+    for encounter in ["blue_slaver","two_fungi_beasts"]{
+        let raw=serde_json::json!({"profile_id":COMBAT_TRAINING_PROFILE_V2_ID,"entries":[{"id":"case","encounter":encounter,"hp":80,"max_hp":80,"deck":vec![serde_json::json!({"card":"strike","upgrades":0});10],"relics":[],"potions":[null,null,null]}]});
+        let c=CombatTrainingCatalog::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap();
+        assert_eq!(c.descriptor()["catalog_schema_id"],"spire-gym-combat-entry-catalog-v2");
+        let mut s=CombatTrainingSession::new(c,Partition::Test).unwrap();let b=s.reset(Some(11),None).unwrap();
+        let identity=s.environment_spec().unwrap();assert_eq!(identity["profile_id"],COMBAT_TRAINING_PROFILE_V2_ID);assert_eq!(identity["schema_id"],COMBAT_POLICY_VIEW_V2_ID);
+        assert_eq!(b.info["combat_view_id"],COMBAT_POLICY_VIEW_V2_ID);
+        let enemies=b.observation.group("enemies").unwrap();let kinds=enemies.values.chunks(12).filter(|row|row[0]!=0).map(|row|row[0]).collect::<Vec<_>>();
+        if encounter=="blue_slaver"{
+            let slaver_id=vocab["enemy"].as_array().unwrap().iter().position(|id|id=="slaver_blue").unwrap() as i64;
+            assert!(kinds.contains(&slaver_id));
+        }else{
+            let fungi_id=vocab["enemy"].as_array().unwrap().iter().position(|id|id=="fungi_beast").unwrap() as i64;
+            assert_eq!(kinds.iter().filter(|id|**id==fungi_id).count(),2);
+            let spore_id=vocab["power"].as_array().unwrap().iter().position(|id|id=="spore_cloud").unwrap() as i64;
+            assert!(b.observation.group("powers").unwrap().values.chunks(4).any(|row|row[2]==spore_id));
+        }
+        let actions=b.observation.group("actions").unwrap();let end=actions.values.chunks(8).position(|row|row[0]==10).unwrap();
+        let step=s.step(b.token,RunActionIndex(end as i64)).unwrap();assert_eq!(step.reward,0);assert!(!step.terminated);assert!(!step.truncated);
+        assert_eq!(s.diagnostic()["accepted_steps"],1);assert_eq!(step.boundary.info["profile_id"],COMBAT_TRAINING_PROFILE_V2_ID);
+    }
+}
+#[test]
+fn v2_constructs_and_numerically_publishes_all_57_advertised_encounters(){
+    let support=combat_training_support_v2();let encounters=support["encounters"].as_array().unwrap();assert_eq!(encounters.len(),57);
+    for row in encounters{
+        let raw=serde_json::json!({"profile_id":COMBAT_TRAINING_PROFILE_V2_ID,"entries":[{"id":"case","encounter":row["id"],"hp":80,"max_hp":80,"deck":[{"card":"strike","upgrades":0}],"relics":[],"potions":[null,null,null]}]});
+        let c=CombatTrainingCatalog::from_json(&serde_json::to_vec(&raw).unwrap()).unwrap();let mut s=CombatTrainingSession::new(c,Partition::Test).unwrap();
+        let b=s.reset(Some(11),None).unwrap_or_else(|e|panic!("{}: {e:?}",row["id"]));
+        let enemies=b.observation.group("enemies").unwrap();let occupied=enemies.occupied.as_ref().unwrap().iter().filter(|x|**x==1).count();
+        assert!(occupied>0,"{} published no actors",row["id"]);assert_eq!(b.info["profile_id"],COMBAT_TRAINING_PROFILE_V2_ID);
+    }
+}
+#[test]
 fn training_view_seed_masks_tokens_and_public_metadata(){
     let mut s=CombatTrainingSession::new(catalog(),Partition::Test).unwrap();let b=s.reset(Some(7),None).unwrap();
     assert_eq!(b.info["routing"],"combat");assert!(b.observation.action_mask.iter().any(|x|*x==1));
