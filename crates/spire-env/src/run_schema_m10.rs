@@ -21,7 +21,7 @@ const NEW_CARDS: &[CardId] = &[
     CardId::FiendFire, CardId::Barricade, CardId::Berserk, CardId::Brutality, CardId::DemonForm,
     CardId::Metallicize, CardId::Combust,
 ];
-const NEW_ENEMIES: &[EnemyId] = &[EnemyId::SpireShield, EnemyId::SpireSpear, EnemyId::CorruptHeart];
+pub(crate) const NEW_ENEMIES: &[EnemyId] = &[EnemyId::SpireShield, EnemyId::SpireSpear, EnemyId::CorruptHeart];
 const NEW_ENCOUNTERS: &[EncounterId] = &[EncounterId::ShieldAndSpear, EncounterId::CorruptHeart];
 const NEW_RELICS: &[RelicId] = &[
     RelicId::RedSkull, RelicId::PaperPhrog, RelicId::ChampionsBelt, RelicId::CharonsAshes,

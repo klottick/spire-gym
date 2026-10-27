@@ -1,5 +1,6 @@
 //! Qualified Act1 Acid/Spike Slime setup, move selection and payloads (A0 facts).
 use super::*;
+pub mod thieves;
 
 const BOSS_STICKY: &str = "sticky";
 const BOSS_PREP: &str = "prep_slam";
@@ -171,4 +172,43 @@ pub(super) fn move_work(enemy: &EnemyState, id: EnemyId, intent: FullIntentId)
         _ => return Err(InputError::Unsupported(format!("unhandled slime intent {}", intent.as_str()))),
     };
     Ok(work)
+}
+
+/// Exact finite Fungi proposal/redirect law; each actor owns its AI stream.
+pub(super) fn select_fungi(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)
+    -> Result<MoveSelection,SelectError> {
+    use FullIntentId::{Bite,Grow};
+    if !matches!(memory,EnemyMemory::FungiBeast{..}) || history.iter().any(|intent|!matches!(intent,Bite|Grow)) {
+        return Err(InputError::Unsupported("Fungi Beast history/identity mismatch".into()).into());
+    }
+    let (ticket,next)=rng::uniform_below(stream,100)?;
+    let intent=if ticket<60 {
+        if history.ends_with(&[Bite,Bite]){Grow}else{Bite}
+    }else if history.last()==Some(&Grow){Bite}else{Grow};
+    Ok(MoveSelection{intent,memory:memory.clone(),stream:next})
+}
+
+pub(super) fn fungi_move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+    let actor=Actor::Enemy(enemy.instance_id.clone());
+    let Some(EnemyMemory::FungiBeast{ascension})=enemy.full_memory.as_ref()else{
+        return Err(InputError::Invariant("Fungi Beast memory absent".into()));
+    };
+    match enemy.intent_id {
+        super::super::ActorIntentId::Full(FullIntentId::Bite)=>Ok(vec![damage(actor,FullIntentId::Bite)]),
+        super::super::ActorIntentId::Full(FullIntentId::Grow)=>Ok(vec![effect(actor.clone(),actor,
+            EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if *ascension>=17{5}else if *ascension>=2{4}else{3}})]),
+        _=>Err(InputError::Invariant("Fungi Beast intent mismatch".into())),
+    }
+}
+
+/// Base death has already marked HP zero. A basically dead group suppresses
+/// Spore Cloud; the source-qualified null source does not grant monster grace.
+pub(in crate::combat) fn spore_cloud_work(state:&State,target:Option<&Actor>)->Vec<Effect>{
+    let Some(Actor::Enemy(owner))=target else{return vec![]};
+    if super::act2::combat_victory_ready(state){return vec![]}
+    let Some(amount)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner&&enemy.hp==0)
+        .and_then(|enemy|enemy.full_powers.iter().find(|power|power.id.0=="spore_cloud"))
+        .map(|power|power.state.amount).filter(|amount|*amount>0)else{return vec![]};
+    vec![Effect{source:Source::None,target:Some(Actor::Player),
+        kind:EffectKind::ApplyFullPower{id:FullPowerId("vulnerable"),amount}}]
 }

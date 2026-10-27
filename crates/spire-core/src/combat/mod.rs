@@ -33,6 +33,7 @@ pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
      TransitionStatus, PlayerFacing, EncounterSide};
 pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
+pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
 pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
 pub use card_state::{permanent as permanent_live_card, CombatCardData, LiveCard};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, Stance};

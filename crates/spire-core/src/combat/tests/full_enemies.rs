@@ -37,6 +37,7 @@ fn enemy(id: EnemyId, intent: FullIntentId, hp: i32) -> EnemyState {
             EnemyId::AwakenedOne=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::TimeEater=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::Deca|EnemyId::Donu|EnemyId::SpireShield|EnemyId::SpireSpear|EnemyId::CorruptHeart=>EnemyMemory::for_enemy(id).unwrap(),
+            EnemyId::FungiBeast|EnemyId::Looter|EnemyId::Mugger|EnemyId::ShelledParasite|EnemyId::SnakePlant=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::Unknown(_) => unreachable!(),
         }), intent_damage: None, life: super::super::model::ActorLife::Active,
     };
@@ -260,10 +261,12 @@ fn blue_slaver_and_two_fungi_encounters_construct_real_actors_across_ascensions(
             .expect("Blue Slaver encounter setup must construct its real solo actor");
         assert_eq!(slaver.setup.enemies.len(), 1);
         let actor = &slaver.setup.enemies[0];
-        assert_eq!(actor.enemy_id.as_str(), "blue_slaver");
-        assert_eq!(actor.instance_id.as_str(), format!("blue_slaver-{visit}-0"));
+        assert_eq!(actor.enemy_id, EnemyId::SlaverBlue);
+        assert_eq!(actor.instance_id.as_str(), format!("slaver_blue-{visit}-0"));
         assert!((if ascension >= 7 { 48..=52 } else { 46..=50 }).contains(&actor.hp));
-        assert!(matches!(actor.intent.as_str(), "rake" | "stab"));
+        assert!(matches!(actor.intent.as_str(), "slaver_rake" | "slaver_stab"));
+
+        Combat::enter(slaver).expect("solo actor must enter the real resolver at every supported ascension");
 
         let mut fungi_rng = crate::run::RunRng::new([122; 32], rng::Partition::Test, ascension as u64);
         let fungi = enemies::setup(EncounterId::TwoFungiBeasts, 1, ascension, &mut fungi_rng,
@@ -278,6 +281,7 @@ fn blue_slaver_and_two_fungi_encounters_construct_real_actors_across_ascensions(
             assert!(beast.powers.iter().any(|power|
                 power.id == FullPowerId("spore_cloud") && power.state.amount == 2));
         }
+        Combat::enter(fungi).expect("both fungi actors must enter the real resolver at every supported ascension");
     }
 }
 
@@ -1390,4 +1394,105 @@ fn large_acid_combat() -> Combat {
         enemies::SetupContext { player, player_powers: vec![], character: crate::content::Character::Watcher,
             cards: vec![live_card(crate::content::CardId::Strike, CardInstanceId(911), 0)],
             opening_draw: 1, encounter_visit: 5 }).unwrap()).unwrap()
+}
+
+fn closure_entry(id:crate::content::EncounterId,ascension:u8)->CombatEntry{
+    let mut rng=crate::run::RunRng::new([123;32],rng::Partition::Test,u64::from(ascension));
+    enemies::setup(id,1,ascension,&mut rng,encounter_context(400,22_000)).unwrap()
+}
+
+#[test]
+fn closure_slaver_turns_preserve_damage_weak_and_a17_repeat_threshold(){
+    for ascension in [0,1,2,6,7,16,17,20] {
+        for (intent,damage) in [("slaver_stab",if ascension>=2{13}else{12}),("slaver_rake",if ascension>=2{8}else{7})] {
+            let mut entry=closure_entry(crate::content::EncounterId::BlueSlaver,ascension);
+            entry.setup.enemies[0].intent=FullIntentId::from_name(intent);
+            let mut combat=Combat::enter(entry).unwrap();
+            assert_eq!(combat.public_full().unwrap().enemies[0].intent_damage,Some(damage));
+            combat.step_full(&CombatAction::EndTurn).unwrap();
+            assert_eq!(combat.state.player.hp,200-damage);
+            let weak=combat.state.player_full_powers.iter().find(|power|power.id.0=="weak").map_or(0,|p|p.state.amount);
+            assert_eq!(weak,if intent=="slaver_rake"{if ascension>=17{2}else{1}}else{0});
+            if intent=="slaver_rake"&&ascension>=17 {
+                assert_eq!(combat.state.enemies[0].intent_id.as_str(),"slaver_stab");
+            }
+        }
+    }
+}
+
+#[test]
+fn closure_fungi_real_grow_then_bite_use_ascension_strength_and_independent_actors(){
+    for ascension in [0,1,2,6,7,16,17,20] {
+        let mut entry=closure_entry(crate::content::EncounterId::TwoFungiBeasts,ascension);
+        for enemy in &mut entry.setup.enemies {enemy.intent=FullIntentId::Grow;}
+        assert_ne!(entry.setup.enemies[0].ai_rng.id(),entry.setup.enemies[1].ai_rng.id());
+        let mut combat=Combat::enter(entry).unwrap();
+        combat.step_full(&CombatAction::EndTurn).unwrap();
+        let strength=if ascension>=17{5}else if ascension>=2{4}else{3};
+        assert_eq!(combat.state.player.hp,200);
+        for enemy in &combat.state.enemies {
+            assert!(enemy.full_powers.iter().any(|p|p.id.0=="strength"&&p.state.amount==strength));
+            assert_eq!(enemy.intent_id.as_str(),"bite");
+            assert_eq!(enemy.intent_damage,Some(6+strength));
+        }
+        combat.step_full(&CombatAction::EndTurn).unwrap();
+        assert_eq!(combat.state.player.hp,200-2*(6+strength));
+    }
+}
+
+#[test]
+fn closure_spore_cloud_nonfinal_death_has_null_source_and_artifact_applies(){
+    for artifact in [false,true] {
+        let mut entry=closure_entry(crate::content::EncounterId::TwoFungiBeasts,0);
+        if artifact {entry.setup.player_powers.push(FullPowerEntry{id:FullPowerId("artifact"),state:PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
+        let mut combat=Combat::enter(entry).unwrap();
+        for slot in 0..2 {
+            let owner=combat.state.enemies[slot].instance_id.clone();
+            combat.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner)),kind:EffectKind::Damage(DamagePayload::Fixed(99))}],None).unwrap();
+            let cloud=combat.state.player_full_powers.iter().find(|p|p.id.0=="vulnerable");
+            if artifact {assert!(cloud.is_none());assert!(!combat.state.player_full_powers.iter().any(|p|p.id.0=="artifact"));}
+            else {let cloud=cloud.expect("only the nonfinal death applies cloud");assert_eq!(cloud.state.amount,2);assert!(!cloud.state.monster_source_grace);}
+        }
+        assert_eq!(combat.state.outcome,Some(Outcome::Victory));
+    }
+}
+
+#[test]
+fn closure_spore_cloud_thorns_death_changes_the_next_enemy_hit(){
+    let mut entry=closure_entry(crate::content::EncounterId::TwoFungiBeasts,0);
+    for enemy in &mut entry.setup.enemies {enemy.hp=1;enemy.max_hp=1;enemy.intent=FullIntentId::Bite;}
+    entry.setup.player_powers.push(FullPowerEntry{id:FullPowerId("thorns"),state:PowerState{amount:1,skip_first:false,monster_source_grace:false}});
+    let mut combat=Combat::enter(entry).unwrap();
+    combat.step_full(&CombatAction::EndTurn).unwrap();
+    assert_eq!(combat.state.outcome,Some(Outcome::Victory));
+    assert_eq!(combat.state.player.hp,185,"first Bite6, then nonfinal Spore Cloud makes second Bite9");
+}
+
+#[test]
+fn closure_fungi_and_slaver_selection_keep_proposals_history_and_owned_rng(){
+    let id=rng::StreamId::new(Domain::RunCombatEnemyAi,vec!["fixture".into(),"elite".into()]).unwrap();
+    // Reuse the accepted RNG-boundary fixtures. Ticket39 is below both cutoffs;
+    // ticket40 is Stab for Slaver and Bite for Fungi; ticket75 proposes Grow.
+    for (cursor,ticket) in [(8,39),(51,40),(16,75)] {
+        let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
+        assert_eq!(rng::uniform_below(&stream,100).unwrap().0,ticket);
+        for ascension in [0,17] {
+            let memory=EnemyMemory::for_enemy_at_ascension(EnemyId::FungiBeast,ascension).unwrap();
+            for (history,want) in [(vec![],if ticket<60{FullIntentId::Bite}else{FullIntentId::Grow}),
+                (vec![FullIntentId::Bite;2],FullIntentId::Grow),
+                (vec![FullIntentId::Grow],FullIntentId::Bite)] {
+                let selected=enemies::select_move(EnemyId::FungiBeast,&history,&memory,&stream).unwrap();
+                assert_eq!(selected.intent,want);assert_eq!(selected.memory,memory);
+                assert_eq!(selected.stream.word_index(),cursor+1);
+            }
+            let memory=EnemyMemory::for_enemy_at_ascension(EnemyId::SlaverBlue,ascension).unwrap();
+            for (history,want) in [(vec!["slaver_rake"],if ascension>=17||ticket>=40{"slaver_stab"}else{"slaver_rake"}),
+                (vec!["slaver_stab";2],"slaver_rake")] {
+                let history=history.into_iter().map(FullIntentId::from_name).collect::<Vec<_>>();
+                let selected=enemies::select_move(EnemyId::SlaverBlue,&history,&memory,&stream).unwrap();
+                assert_eq!(selected.intent.as_str(),want);assert_eq!(selected.memory,memory);
+                assert_eq!(selected.stream.word_index(),cursor+1);
+            }
+        }
+    }
 }

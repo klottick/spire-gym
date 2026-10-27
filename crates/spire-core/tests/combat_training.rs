@@ -69,3 +69,31 @@ fn training_cleanup_hp_checkpoint_handles_flower_bloom_cap_and_no_acquisition_re
         let cp=r.combat_checkpoint().unwrap();assert_eq!(cp.hp_before_healing,hp);assert_eq!(cp.hp_after_cleanup,expected);
     }
 }
+
+#[test]
+fn encounter_setup_metadata_resolves_registered_species_and_existing_rng_keys(){
+    use spire_core::combat::enemies::A0_ENCOUNTER_SETUPS;
+    let catalog=Catalog::standard();
+    let original=["cultist","jaw_worm","two_louse","small_slimes","large_slime","lots_of_slimes","slime_boss","three_cultists","jaw_worm_horde","gremlin_nob","lagavulin","three_sentries","three_louse","guardian","hexaghost","spheric_guardian","three_byrds","chosen_and_byrds","snecko","centurion_and_healer","gremlin_leader","slavers","book_of_stabbing","champ","collector","bronze_automaton","orb_walker","three_shapes","four_shapes","sphere_and_two_shapes","three_darklings","spire_growth","transient","maw","writhing_mass","giant_head","nemesis","reptomancer","awakened_one","time_eater","donu_and_deca","shield_and_spear","corrupt_heart"];
+    assert_eq!(TRAINING_ENCOUNTERS.iter().map(|(id,_,_)|id.as_str()).collect::<Vec<_>>(),original);
+    assert_eq!(A0_ENCOUNTER_SETUPS[43].0,EncounterId::BlueSlaver);
+    assert_eq!(A0_ENCOUNTER_SETUPS[44].0,EncounterId::TwoFungiBeasts);
+    for (encounter,_,_) in A0_ENCOUNTER_SETUPS {
+        let definition=catalog.encounter(*encounter).unwrap_or_else(||panic!("missing {encounter:?} catalog metadata"));
+        assert!(!definition.definition_only,"{encounter:?} is executable");
+        for id in definition.enemies {assert!(!catalog.enemy(*id).unwrap_or_else(||panic!("missing {id:?} species metadata")).definition_only);}
+    }
+}
+
+#[test]
+fn training_v2_enters_added_encounters_without_widening_v1(){
+    for (id,count) in [(EncounterId::BlueSlaver,1),(EncounterId::TwoFungiBeasts,2)] {
+        let e=entry(id);
+        assert!(Run::prepare_combat_training(e.clone(),RunRng::new([11;32],Partition::Test,0)).is_err());
+        let mut run=Run::prepare_combat_training_v2(e,RunRng::new([11;32],Partition::Test,0)).unwrap();
+        run.enter_training_combat(id).unwrap();
+        let d=run.decision().unwrap();assert_eq!(d.act,1);assert_eq!(d.combat.as_ref().unwrap().enemies.len(),count);
+        run.choose_combat(spire_core::combat::CombatAction::EndTurn).unwrap();
+        assert_eq!(run.decision().unwrap().combat_progress.entered,1);
+    }
+}

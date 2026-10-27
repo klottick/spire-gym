@@ -103,6 +103,7 @@ impl Run {
                 return Err(self.retain_fault(RunFaultKind::Invariant("combat max HP is outside Run bounds"),"run.combat.max-hp"));
             }
             self.state.max_hp=max_hp;
+            if let Some(gold)=combat.current_combat_gold(){self.state.gold=gold;}
         }
         let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
         if let Some((cards,next,ordinal))=prepared{
@@ -176,7 +177,10 @@ impl Run {
         };
         let checkpoint=match self.state.combat.as_ref().unwrap().public_full(){
             Ok(view)=>match (view.hp_before_healing,view.hp_after_cleanup){
-                (Some(before),Some(after)) if before>=0&&after>=0=>CombatCheckpoint{record:record.clone(),hp_before_healing:before as u32,hp_after_cleanup:after as u32},
+                (Some(before),Some(after)) if before>=0&&after>=0=>CombatCheckpoint{record:record.clone(),hp_before_healing:before as u32,hp_after_cleanup:after as u32,
+                    stolen_gold_rewards:self.state.combat.as_ref().unwrap().stolen_gold_rewards(),
+                    all_enemies_escaped:self.state.combat.as_ref().unwrap().all_enemies_escaped(),
+                    mugged:self.state.combat.as_ref().unwrap().combat_mugged()},
                 _=>return Err(self.retain_fault(RunFaultKind::Invariant("combat cleanup checkpoint missing"),"run.combat.checkpoint")),
             },
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat cleanup checkpoint unreadable"),"run.combat.checkpoint")),
@@ -282,7 +286,7 @@ impl Run {
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
-        let (combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
+        let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
             Ok(combat)=>(combat,None),
             Err(CombatEntryFailure::Rejected(error))=> {
                 items.expect("rejected entry retained owner").return_to_run(&mut self.state)?;
@@ -290,6 +294,7 @@ impl Run {
             }
             Err(CombatEntryFailure::Faulted {combat,fault})=>(*combat,Some(fault)),
         };
+        let gold_attached=combat.set_thief_gold_for_entry(self.state.gold).is_ok();
         let visit=self.state.combat_progress.entered;
         self.state.rng=rng;
         self.state.combat=Some(combat);
@@ -303,6 +308,7 @@ impl Run {
         let event=CommittedEvent::CombatEntered {visit,encounter};
         let reward=super::reward::commit(&mut self.state,std::slice::from_ref(&event))?;
         if let Some(fault)=fault { self.state.fault=Some(fault.clone()); return Err(RunError::Faulted(fault)); }
+        if !gold_attached{return Err(self.retain_fault(RunFaultKind::Invariant("combat gold custody attachment failed"),"run.combat.gold"));}
         Ok(RunTransition {reward,terminal:None,committed_events:vec![event]})
     }
 }

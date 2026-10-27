@@ -42,6 +42,8 @@ episode ordinals and current candidate indices themselves.
 ## Validated public construction
 
 Catalog: strict `{"entries": [...]}` with 1..256 unique entries, at most1MiB JSON.
+Optional `profile_id` selects `ironclad-combat-v1` (default) or the additive
+`ironclad-combat-v2` described below.
 Entry IDs are 1..64 ASCII alphanumeric/underscore/hyphen. All fields in the example
 are required; optional `relic_counters` accepts only equipped `neows_lament`,
 values `1,2,3,-2`, default3 (spent=-2). Unknown fields, numeric booleans,
@@ -78,6 +80,26 @@ These are finite accepted native setups, not complete standard encounter pools.
 No burning-elite or arbitrary enemy override. The existing project RNG-001 and
 TIME-001 qualifications remain. Runtime supported numeric/queue/RNG limits remain
 finite and fail explicitly.
+
+## Opt-in current standard encounter closure
+
+Set top-level `"profile_id":"ironclad-combat-v2"` alongside `entries` to select
+all57 current standard encounter IDs, including Blue Slaver, Two Fungi and the
+previously missing Act1/2 solo and mixed formations. This57-encounter profile
+retains the same
+A0 Ironclad resource rules and shared Run/combat owners. Its versioned catalog,
+content ID and combat-policy-view-v2 append the missing actors, powers and moves.
+V2 entries optionally accept already-owned `gold` (default0); v1 rejects it.
+Theft updates current gold; a killed thief earns an unclaimed stolen-gold receipt
+in terminal metadata, without an immediate refund. The default v1 retains its43 encounters and exact descriptor.
+Blue Slaver's actor token remains `slaver_blue`, distinct from its encounter ID.
+
+The additions are standalone entry support; captured normal Run profiles and
+their existing combat views retain their accepted content. See the complete
+[encounter inventory](encounter-coverage.md) for setup keys, finite admission,
+normal-profile boundaries and evidence limits. This change has native Rust
+validation; a matching rebuilt/imported Python extension is a separate delivery
+step and is not claimed here.
 
 ## Same combat view inside a normal Run
 
@@ -243,6 +265,7 @@ HEAD alone does not identify those bytes.
 
 Current descriptor fingerprints (exact current native defaults):
 
+- Opt-in standalone view-v2: `02433813e1297244060d9852f342c6eb4c9c4d62f3dde9763ff82191867eceec`.
 - Common view-v1: `02009686282c592f971eece3d5853eb54f2a482dde9dae1d0cf380ecdaf8fd78`.
 - Opt-in policy Run-v3: `30905db1b7a520482d3ea8aa2e63ddb7f78b7c081de89d87268151f29cf4c7f8`.
 - Frozen M10 Run-v2: `7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db`.

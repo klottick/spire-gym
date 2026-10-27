@@ -64,3 +64,6 @@ mod m12_silent_values;
 
 mod m13_silent_interactions;
 mod m14_silent_interactions;
+
+mod encounter_thieves;
+mod encounter_ordinary;

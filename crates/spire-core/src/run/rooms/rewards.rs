@@ -29,9 +29,14 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     let act4_local=m10&&run.state.act==4;
     let mut rng=run.state.rng.clone();let mut semantic=vec![run.state.act as u64,node.0,if act4_local{local}else{record.visit}];if m5{semantic.push(kind as u64);}
     let minimum=if m5{match kind{MapNodeKind::Elite=>25,MapNodeKind::Boss=>95,_=>10}}else{10};
-    let gold=minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32;
+    let all_escaped=run.state.combat.as_ref().is_some_and(|combat|combat.all_enemies_escaped());
+    let gold=if all_escaped{None}else{Some(minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32)};
     let ordinal=(local%3) as usize;let potion=if is_m14(&run.state)&&run.state.act==3{super::m14_content::combat_potion(local)}else if (is_m13(&run.state)||is_m14(&run.state))&&run.state.act==2{super::m13_content::combat_potion(local)}else if uses_silent_content(&run.state){super::m12_content::combat_potion(record.visit)}else if m10{[PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron][ordinal]}else if m5{[PotionId::FirePotion,PotionId::StrengthPotion,PotionId::WeakPotion][ordinal]}else{PotionId::FirePotion};
-    let mut rows=vec![(RoomChoiceKind::Gold(gold),None),(RoomChoiceKind::CardReward,None),(RoomChoiceKind::Potion(potion),None)];let mut elite_cursor=None;
+    let mut rows=Vec::new();if let Some(gold)=gold{rows.push((RoomChoiceKind::Gold(gold),None));}
+    for stolen in run.state.combat.as_ref().map(|combat|combat.stolen_gold_rewards()).unwrap_or_default(){
+        rows.push((RoomChoiceKind::Gold(stolen),None));
+    }
+    rows.extend([(RoomChoiceKind::CardReward,None),(RoomChoiceKind::Potion(potion),None)]);let mut elite_cursor=None;
     if m5&&kind==MapNodeKind::Elite {
         let owned=run.state.combat.as_ref().and_then(|c|c.item_context()).map_or(run.state.relics.as_slice(),|c|c.relics());
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;

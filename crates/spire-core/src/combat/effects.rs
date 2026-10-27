@@ -224,6 +224,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if state.full_runtime {
                 state.pending.push_front(Effect { source: effect.source.clone(), target: effect.target.clone(),
                     kind: EffectKind::Hook(Hook::Damage) });
+                super::enemies::act2::ordinary_closure::vampire_damage_complete(state,&damage_result,payload);
             }
         }
         EffectKind::PoisonTickComplete => {
@@ -389,7 +390,11 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         EffectKind::TimeEaterCleanse=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Haste cleanse target absent".into()).into())};super::enemies::act3::time_eater::cleanse(state,owner)?;},
         EffectKind::CorruptHeartBuff=>super::enemies::act4::heart::apply_buff(state,effect)?,
         EffectKind::ReptomancerSuicide=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Reptomancer suicide target absent".into()).into())};super::enemies::act3::reptomancer::cleanup_suicide(state,owner);},
-        EffectKind::ResetMalleable=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Malleable reset owner absent".into()).into())};super::enemies::act3::writhing::reset_malleable(state,owner);},
+        EffectKind::ShelledArmorBreak=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("armor break owner absent".into()).into())};super::enemies::act2::ordinary_closure::armor_break(state,owner)?;},
+        EffectKind::Thief(kind)=>super::enemies::act1::thieves::apply_effect(state,effect,kind)?,
+        EffectKind::ResetMalleable=>{let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Malleable reset owner absent".into()).into())};if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::SnakePlant)){
+                super::enemies::act2::ordinary_closure::reset_malleable(state,owner);
+            }else{super::enemies::act3::writhing::reset_malleable(state,owner);}},
         EffectKind::BookStab{remaining}=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Book stab owner absent".into()).into())};super::enemies::act2::book::stab(state,owner,*remaining);
         },
