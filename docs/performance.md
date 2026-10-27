@@ -6,6 +6,79 @@ Ironclad A0 native workloads below are measured today.** A catalog entry marked
 planned is not implemented coverage or a passing test. No gameplay optimizations,
 new dependencies or original-runtime fidelity claims accompany this scaffold.
 
+## Current measured baseline — 2026-10-26
+
+Measured clean commit `a8261aa55e64d9c013f418b37711060003ca50b4` (accepted
+M14 source) with the existing three-workload harness. These measure the older
+explicit Ironclad profiles on that source, not Silent or a complete Heart run.
+
+Host: AMD Ryzen 9 9950X, 16 cores/32 hardware threads, 59.5 GiB RAM,
+x86_64 Linux 7.0.0-38-generic; runner `mustafar-9950x`. Rust 1.99.0
+(`b940084d7`, LLVM 23.1.1), Cargo 1.99.0, target `x86_64-unknown-linux-gnu`.
+The `spire-core` example uses its default features, with no Python extension.
+The driver fixes release opt-level 3, LTO off, 16 codegen units, no debug info,
+assertions or overflow checks, unwind panics, and no incremental compilation;
+it clears inherited Rust flags. Compilation used two jobs.
+
+Each row uses seed 7, one worker, batch size 1, seven measured samples of 100
+independently initialized episodes, and one discarded warmup sample of 100
+episodes. Episodes are replayed serially; 100 iterations is not a native batch.
+Rates below are median accepted actions/s; parentheses give sample minimum–maximum.
+
+| Workload (version) | Accepted actions/episode | Native actions/s (range) | Public-loop actions/s (range) |
+| --- | ---: | ---: | ---: |
+| Authored Jaw Worm combat (v1) | 7 | 388,411 (385,786–390,615) | 256,972 (256,518–258,476) |
+| Captured Act 1 → Act2Ready (v1) | 212 | 173,434 (168,680–173,691) | 130,012 (129,546–130,638) |
+| Captured Act 2 prefix → floor 26 (v2) | 397 | 147,372 (146,818–147,720) | 109,523 (109,146–109,932) |
+
+Per sample the denominators are 700, 21,200 and 39,700 accepted actions,
+respectively. The endpoints are Jaw Worm Victory; Act2Ready with reward 17 and
+95 HP; and the nonterminal Act2PrefixComplete boundary at floor 26 with reward
+26 and 91 HP. The last workload includes Act 2 ordinary fights, an elite and
+room/economy work, ending before the Act 2 boss. Its "Champ" catalog name
+identifies the selected map boss icon, not a measured Champ fight.
+
+Native mode times `Combat::step_full` / `Run::step`. Public-loop mode additionally
+obtains public observations/menus before each action and public maps at map
+decisions. Compilation, initialization, policy-based script generation,
+checkpoint validation, JSON output and complete-state destruction are excluded.
+Every measured episode is checked against the expected endpoint afterward.
+These are replay-throughput figures, not end-to-end agent episode rates,
+Python/Gymnasium timings, batch scaling, policy strength or fidelity evidence.
+
+The immediate repeat had comparable identities for all six rows; median
+ns/action changes ranged from −0.15% to +1.12%. This describes two collections,
+not a guaranteed noise bound or statistical significance. Collection was serial;
+no core pinning or CPU-frequency control was applied. A process snapshot during
+collection showed no competing compiler job. First build: 15.238 s; repeat build
+check: 0.039 s, both outside runtime timing. Do not infer an optimization or
+regression from the historical 2026-10-23 numbers below: source, sampling and the
+Act 2 workload version differ.
+
+The result's source fingerprint is
+`fca0514edf94a7f69d3074fe44bee14bc1538bb287728b02fe4a2da737f54ffe`.
+It hashes the driver-defined Rust/harness/manifests/toolchain inputs, not just a
+Git revision. Exact source export, binary hash, commands, raw nanoseconds,
+operation counts and machine/build receipts are retained separately from the
+managed worktree. To generate the same two result documents from this revision,
+using an existing Python 3.12 interpreter and cached locked dependencies:
+
+```sh
+python3.12 -B -m performance.run --runner-id my-controlled-host \
+  --samples 7 --iterations 100 --warmup 1 \
+  --target-dir target/readme-measurement --output target/readme-first.json
+python3.12 -B -m performance.run --runner-id my-controlled-host \
+  --samples 7 --iterations 100 --warmup 1 \
+  --target-dir target/readme-measurement --output target/readme-repeat.json
+python3.12 -B -m performance.compare target/readme-first.json target/readme-repeat.json
+```
+
+The collection used the same arguments with host-specific existing interpreter,
+runner, target and output paths. Results embed the actual source revision,
+fingerprint, sampling, full catalog, compiler/build identity and raw samples.
+Use a fresh output filename for another collection. Documentation changes do not
+change the benchmark source fingerprint; gameplay/harness changes may do so.
+
 ## Run and compare
 
 Use the already-installed pinned Python3.12 interpreter; these tools require only
@@ -124,8 +197,8 @@ searches, settlement copies and RNG HMAC work. These remain hypotheses about
 internal cost, not measured attribution or justification to alter mechanics.
 
 No initial timings measure Python/Gymnasium, native batching, memory/allocations,
-other characters, A20 or complete Heart runs. The existing Python/batching facade
-still uses the older combat slice; its timing must not be relabeled M6 Run speed.
+other characters, A20 or complete Heart runs. At the time of this initial baseline, the Python/batching facade used the older
+combat slice; those unmeasured interfaces must not be relabeled M6 Run speed.
 
 ## Valid comparisons and exit codes
 
@@ -146,8 +219,8 @@ and its expected endpoint contract to **version 2**: the unchanged seed-7 fixtur
 and public policy now complete in 397 actions with 91 HP, rather than version 1's
 399 actions/49 HP. The floor-26 boundary and reward 26 are unchanged. Keep the
 historical version-1 measurements; they are incompatible with version 2, not a
-measured speedup or regression. Collect a new version-2 baseline before comparing
-timings. No new timing result is claimed by this correctness fix.
+measured speedup or regression. The 2026-10-26 section above supplies a version-2 baseline. The correctness fix
+itself made no new timing claim; version-1 timings remain historical evidence.
 
 - Exit0: valid diagnostic report, or passing requested checks.
 - Exit1: requested slowdown budget exceeded, or `--strict` finds missing/
@@ -185,12 +258,19 @@ an explicitly refreshed extension and separate timing boundaries; the current
 driver does not install it. Memory needs its own metric contract, not guessed
 numbers mixed into actions/s.
 
-## Verification limits
+## Historical scaffold verification — 2026-10-23
 
-Current focused release checks pass24Rust tests (new harness9 plus M1/M5/M615),
-and unchanged `spire-env` passes38tests. The scaffold's Python suite passes22tests.
-The broader workspace command is **not green**: core518pass/7fail reproduces the
-known historical failures below. Gameplay files are unchanged by this work.
+These counts describe the original scaffold revision, not current source or a
+fresh workspace run. The 2026-10-26 collection above performs the existing
+per-workload preflight and endpoint checks; documentation edits do not establish
+new gameplay acceptance.
+
+The original focused release checks passed 24 Rust tests (9 harness checks plus
+15 M1/M5/M6 checks), and unchanged `spire-env` passed 38 tests. The scaffold's
+Python suite passed 22 tests. At that revision the broader core suite recorded
+518 passes and the seven historical failures below. These are dated results,
+not the current failure inventory; see the [profile contracts](milestones/) for
+subsequent mechanics acceptance.
 
 - `combat::tests::full_cards::artifact_prevents_one_poison_application_without_erasing_existing_poison`
 - `combat::tests::full_cards::catalyst_adds_twice_the_current_poison_and_exhausts_but_absence_is_noop`
