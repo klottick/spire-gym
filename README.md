@@ -1,81 +1,83 @@
 # Spire Gym
 
 Spire Gym is a headless Slay the Spire 1 simulator for external machine-learning
-consumers. It uses one Rust simulation engine, native environment APIs, and thin
-Python/Gymnasium interfaces. Models, optimizers, training loops, learner
-checkpoints, and experiments are outside this repository.
+and evaluation tools. One Rust engine owns the game rules, with native sessions,
+replay and batching, plus thin Python/Gymnasium interfaces. Training loops,
+models and experiments live outside this repository. There is no graphical client.
 
-## Start here
+## What works today
 
-| If you are… | Read… |
-| --- | --- |
-| An agent receiving a task | [Agent entrypoint](AGENTS.md), then the assigned Bead and current profile or plan |
-| Checking supported behavior | [Accepted milestone profiles](docs/milestones/) and [environment contracts](docs/combat-environments.md) |
-| Choosing the current project scope | [Scope](docs/scope.md) and the dated [work-status snapshot](docs/work-status.md) |
-| Building or selecting a test lane | [Development workflow](docs/development.md) and [toolchain](docs/toolchain.md) |
-| Researching a game mechanic | [Reference library](data/README.md) and its cited domain guides |
+Current playable profiles focus on **Ironclad and Silent at Ascension 0**.
+They use generated maps with finite captured content: supported cards and
+encounters have real mechanics, but reward, shop and event pools are bounded.
 
-## Implemented surface
+| Surface | Implemented coverage | Current limit |
+| --- | --- | --- |
+| Native Ironclad Runs | Captured Acts 1–3; opt-in Act 4, keys, Shield/Spear and Heart mechanics; all 75 ordinary red card kinds | Normal-start traversal to the Heart and HeartVictory remain unobserved. [Ironclad profile](docs/milestones/m10-heart.md) |
+| Native Silent Runs | Canonical starts and finite Acts 1–3 progression; Poison, discard, Shiv, retain and copy mechanics | Finite green pools; native-only delivery; stops before Act 4. Canonical normal completion is unproven. [Silent profile](docs/milestones/m14-silent-act3.md) |
+| Python/Gymnasium Ironclad combat | Full-engine standalone supplied-resource fights, native batches and a common combat view inside Runs | Finite A0 inputs and encounters. [Combat API](docs/combat-training.md) |
+| Python/Gymnasium Ironclad Runs | Captured single-Run environment, legal-action masks, numeric observations and replay; explicit M10 opt-in | Silent progression is native-only; native acceptance does not establish delivery by an installed Python extension. [Run API](docs/milestones/m10-heart.md#opt-in-usage) |
 
-The repository contains a bounded supplied-entry Ironclad A0 combat Gym, captured
-Ironclad A0 progression/Run profiles, and finite native Silent A0 progression
-through Act 3, including a healthy all-key Act4Ready inspection boundary and the
-smaller M11 authored-combat slice.
-M10 adds captured Act 4/Heart mechanics and tools, but normal-start traversal
-to the Heart and HeartVictory remains unobserved. These are separate versioned
-profiles with explicit limits; they do not claim complete standard content, a full
-all-character run simulator, original-runtime parity, or a fresh Python artifact
-for every accepted native change. Read the relevant profile before relying on a
-behavior or result. The M11 authored bridge uses canonical Silent starting
-resources but bypasses Neow selection, map generation, and Act 1.
+Silent Act 3 coverage includes actual entry into all three bosses across 42
+fixed normal-start cases; every case ends in Death. Six separate supplied-loadout
+cases win full-HP bosses and reach the no-key ending. These are distinct from
+normal-start completion.
 
-Gym66 adds an opt-in Ironclad A0 combat-training interface over the same Rust
-engine: standalone full-engine entries, disabled-autoreset native batches, and a
-common public combat view inside normal Runs. The [combat-training guide](docs/combat-training.md)
-describes its API, finite inputs, and limits. It uses the opt-in m10-ironclad-policy Run-v3 profile;
-the existing M10 Heart profile and default M9 profile retain their frozen
-contracts. The guide does not claim complete standard pools, original-runtime
-parity, learner training, or a strategy win.
+The smaller [combat-v1 API](docs/combat-environments.md) remains available for
+supplied first-ready Ironclad states against Cultist or Jaw Worm.
 
-The [final product target](docs/scope.md) remains all four standard characters,
-Ascension 0–20, Acts 1–4, and the Heart, with normally reachable content. Current
-task ownership and milestone state change over time; consult [Beads and the
-current status snapshot](docs/work-status.md), then verify live ownership in the
-tracker. Check Beads and the current primary session for the active task and
-assigned checkout. This dated snapshot is not an assignment or worktree instruction.
+These profiles do not establish complete standard content pools or original-game
+runtime/RNG parity. Defect, Watcher, Ascension 1–20 and complete normally reachable
+Heart runs remain part of the [product target](docs/scope.md). Detailed supported
+content and boundaries are recorded in the [profile contracts](docs/milestones/).
 
-M12 is accepted as a finite native Silent A0 Act1 profile on the same Run,
-with normal-start fixed seed 7/11 boss alternatives, rewards, Act2Ready and native
-session/replay/batch agreement. The [M12 profile](docs/milestones/m12-silent-act1.md)
-records exact scope, outcomes and limits. Independent milestone review and root
-verification are complete; no new Python-delivery claim is made.
+## Try a native rollout
 
-M13 is accepted as a finite native Silent A0 Acts1–2 profile on the same Run.
-It retains 19 permanent green card kinds, 13 relic kinds and four potion kinds,
-with generated Wound support. The six fixed runs provide actual entry into all
-three Act2 boss species, three Act3Ready completions and three genuine Deaths.
-The [M13 profile](docs/milestones/m13-silent-act2.md) records the exact outcomes,
-accepted coverage amendment and native session/replay/batch evidence.
+With the [pinned Rust toolchain](rust-toolchain.toml) and cached Cargo dependencies,
+run a deterministic captured Ironclad Act 1 example from the repository root:
 
-M14 is accepted as a finite native Silent A0 Acts 1–3 profile. Its 42 normal-start
-cases cover actual entry and matching records for all three Act 3 bosses, seven
-ordinary encounter types and all three elite types. All 42 end in Death, so
-canonical normal-start completion remains unproven. Six separately labelled
-supplied-loadout cases verify full-HP boss Victory, Proceed, the ending dialogs
-and Act3NoKeys. M14 exposes no public supplied-start API, Act 4 door, Heart or
-Python-extension delivery. M15 remains unstarted. See the
-[M14 profile](docs/milestones/m14-silent-act3.md) for evidence and limits.
+```sh
+cargo run --release --locked --offline -p spire-core --example m5_act1 -- \
+  --seed 7 --scenario guardian --budget 4096
+```
 
-## Architecture and references
+It prints decisions, resources and the nonterminal `Act2Ready` endpoint. This is
+a fixed caller over a finite profile; it does not train a policy.
+For current Silent progression, see the [native Silent example](crates/spire-core/examples/m14_silent_act3.rs).
 
-crates/spire-core owns game state and rules. crates/spire-env owns native
-environment sessions, observations, actions, replay, and batching. Python bindings
-and Gymnasium wrappers stay thin and reuse that engine. The Python combat code is
-reference/comparison tooling, not a second production simulator. The
-[reference library](data/README.md) contains cited offline records; it is not an
-implemented-content registry or runtime evidence.
+For Python, follow [development setup](docs/development.md#setup-in-a-fresh-checkout)
+to build the optional extension, then use the
+[combat example](docs/combat-training.md) or [Run example](docs/milestones/m10-heart.md#opt-in-usage).
+Python/Gymnasium execution uses the compiled module in that environment; build
+matching source before relying on newer native behavior.
 
-See [performance measurements](docs/performance.md) for opt-in benchmark guidance.
-The project code is under the [MIT License](LICENSE); reference data has separate
+## Measured speed
+
+Measured on 2026-10-26 at commit `a8261aa`, release Rust 1.99.0, AMD Ryzen 9
+9950X. Medians from seven samples of 100 episodes, after one discarded warmup:
+
+| Workload | Native actions/s | Public-loop actions/s |
+| --- | ---: | ---: |
+| Authored Jaw Worm combat | 388k | 257k |
+| Captured Act 1 → Act2Ready | 173k | 130k |
+| Captured Act 2 prefix → floor 26 | 147k | 110k |
+
+These are accepted actions per second on fixed Ironclad A0 scripts, using one
+worker and batch size 1. The public loop includes observation/menu work before
+each action. Compilation, initialization, policy selection and teardown are
+outside runtime timing. See [measurements and reproduction](docs/performance.md)
+for hardware, source identity, sample ranges and exact workloads.
+
+## Code and references
+
+[`spire-core`](crates/spire-core) owns game state and rules;
+[`spire-env`](crates/spire-env) adds sessions, observations, replay and batching;
+[`spire-python`](crates/spire-python) and the
+[Gymnasium facades](python/spire_lab/gymnasium) expose that engine to Python.
+The separate Python combat implementation is reference/comparison tooling.
+The [reference library](data/README.md) contains cited offline records, rather
+than a registry of implemented behavior.
+
+Project code is under the [MIT License](LICENSE); reference data has separate
 [attribution and licensing terms](data/README.md#licensing). Slay the Spire and
 its original assets remain the property of their respective owners.
