@@ -32,3 +32,5 @@ pub const M15_SILENT_HEART_RELICS:&[crate::content::RelicId]=&rooms::m15_content
 pub const M15_SILENT_HEART_POTIONS:&[crate::content::PotionId]=crate::items::potion_generation::SILENT_POTIONS;
 
 pub use combat::m16_defect_combat_encounter_metadata;
+
+pub use rooms::m17_content::{M17_DEFECT_ACT1_CARDS,M17_DEFECT_ACT1_RELICS,M17_DEFECT_ACT1_POTIONS};

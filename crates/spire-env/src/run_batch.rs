@@ -43,6 +43,7 @@ impl RunBatch {
         Self::new_with(configs, workers, RunSession::new_m10)
     }
 
+    pub fn new_m17(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m17)}
     pub fn new_m12(configs: Vec<RunSessionConfig>, workers: usize) -> Result<Self, RunBatchError> {
         Self::new_with(configs, workers, RunSession::new_m12)
     }

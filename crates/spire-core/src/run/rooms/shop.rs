@@ -25,6 +25,15 @@ pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,
             (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
+    if is_m17(&run.state){
+        let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
+        let later=room.act1.as_ref().is_some_and(|p|p.shop_visits>0);
+        let mut rows=super::m17_content::shop_cards(later).into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},Some(75))).collect::<Vec<_>>();
+        let relic=if later{RelicId::EmotionChip}else{RelicId::GoldPlatedCables};
+        if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
+        rows.extend([(RoomChoiceKind::Potion(if later{PotionId::PotionOfCapacity}else{PotionId::FocusPotion}),Some(50)),(RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);
+        return view(next,RoomViewKind::Shop,rows)
+    }
     if uses_silent_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let later=if is_m14(&run.state)&&run.state.act==3{room.act3.as_ref().is_some_and(|p|p.shop_visits>0)}else if (is_m13(&run.state)||is_m14(&run.state))&&run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};

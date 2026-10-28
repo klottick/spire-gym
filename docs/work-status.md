@@ -1,6 +1,40 @@
 # Work status
 
-## Current snapshot — 2026-10-28, M16 source acceptance
+## Current snapshot — 2026-10-28, M17 source READY; publication pending
+
+M16 finite native Defect authored combat is accepted and merged through
+[PR55](https://github.com/klottick/spire-gym/pull/55) at
+`02ea21175aab4962671d4610f8b72d468a2fdad5`. Its corrected focused checks and
+pre-correction matrix/supplied-fixture evidence retain their separate grades.
+
+The manager accepted the exact independently reviewed 808-file M17 source
+`8937d5f72540cbffbdf3204d4c1e67c053dc4620b56538fe36b7e591f0c67ffc`
+for qualified finite native publication preparation. One fresh independent senior
+whole-milestone review returned READY with no blocking findings across Tasks0–5,
+all five focus classes and R1/R2. Main integration remains a separate manager
+operation; no M17 merge SHA is claimed. The nonblocking A1/P3 diff-format finding
+has a versioned standard-patch supplement with exact scratch reconstruction;
+initial source, malformed patch, review and evidence remain preserved.
+
+The [M17 profile](milestones/m17-defect-act1.md) delivers canonical Defect A0
+short-Neow Act1 through the shared generated route and exactly12 captured
+encounters:28 obtainable permanent kinds,14 relics,five potions versus M16's29
+mechanics-capable kinds. All six prescribed normal starts have actual requested
+boss Victory and matching records, then rewards/chest/heal to healthy nonterminal
+Act2Ready82/82. Native scalar, portable replay and workers1/2 batches consume the
+same source-bound actions; full reset/None and heterogeneous preflight agree.
+The stabilized native workspace recorded2448 passed,0 failed,2 existing held M15
+tests. This is finite normal-six evidence, without all-seed/strong-policy/full-pool,
+Act2 gameplay, Python-extension delivery or original-runtime claims. The
+[review record](superpowers/plans/2026-10-28-m17-native-runtime-review.md) preserves
+exact source relationships, acceptance authority, artifact disposition and limits.
+
+Full blue content remains M20 and Defect Act2 remains M18. M20/M22/M23 planning
+approvals and normal planning closeouts are complete; these are planning-only
+and release no runtime implementation. Root controls subsequent releases. Live
+Beads and the current primary session govern ownership and authorization.
+
+## Prior snapshot — 2026-10-28, M16 acceptance before PR55
 
 M15 merged through [PR54](https://github.com/klottick/spire-gym/pull/54) at
 `4d7e5be44fd1ce0167729ef1a4f8c9b17b9c5bdf`. Its accepted source and evidence
