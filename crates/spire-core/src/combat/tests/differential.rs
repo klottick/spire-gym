@@ -21,6 +21,9 @@ fn stream(s: &StreamState) -> Value {
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
 pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
+        EffectKind::Alchemize{..}=>panic!("M15 Alchemize is unsupported by M9 v1"),
+        EffectKind::SmokeEscape=>panic!("M15 escape is unsupported by M9 v1"),
+        EffectKind::Generate(_)=>panic!("M15 generator continuation is unsupported by M9 v1"),
         EffectKind::Thief(_)|EffectKind::ShelledArmorBreak=>panic!("encounter-closure continuation is unsupported by the frozen differential profile"),
         EffectKind::Damage(DamagePayload::Fixed(n))=>("damage",json!({"amount":n})),
         EffectKind::Damage(DamagePayload::Orb(n))=>("orb_damage",json!({"amount":n})),
@@ -143,12 +146,20 @@ pub(super) fn effect(e: &Effect) -> Value {
             super::super::characters::CharacterEffect::EvokeAt { index } => json!({"evoke_at":{"index":index}}),
             super::super::characters::CharacterEffect::EndTurn => json!({"end_turn_orbs":true}),
         }),
+        EffectKind::Damage(DamagePayload::CorpseExplosion{..})=>panic!("M9 v1 cannot encode Corpse Explosion"),
+        EffectKind::Silent(_) => panic!("M15 Silent continuation is unsupported by M9 v1"),
+        EffectKind::Colorless(_) => panic!("M15 Colorless continuation is unsupported by M9 v1"),
+        EffectKind::ShuffleDraw => panic!("M15 combined draw shuffle is unsupported by M9 v1"),
+        EffectKind::CardOffer{..}|EffectKind::DeliverCardOffer{..}=>panic!("M15 offers are unsupported by M9 v1"),
+        EffectKind::Potion(_) => panic!("M15 potion continuation is unsupported by M9 v1"),
+        EffectKind::ObtainPotion{..} => panic!("M15 generated potion obtain is unsupported by M9 v1"),
+        EffectKind::SilentItem(_) => panic!("M15 Silent item work is unsupported by M9 v1"),
         EffectKind::ShieldBashFocus => panic!("M10 Shield Bash continuation is unsupported by M9 v1"),
     };
     let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),Source::Actor(a)=>json!({"actor":actor(a)})};
     json!({"kind":kind,"source":source,"target":e.target.as_ref().map(actor),"payload":payload})
 }
-fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Outcome::Death=>"death"} }
+fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>panic!("M15 escape is unsupported by M9 v1")} }
 fn phase(p: Phase) -> &'static str { match p {Phase::Decision=>"decision",Phase::Selection=>"selection",Phase::PlayerAction=>"player_action",
     Phase::EnemyTurn=>"enemy_turn",Phase::RoundEnd=>"round_end",Phase::PlayerStart=>"player_start",Phase::Terminal=>"terminal"} }
 fn fault(f: &FaultRecord) -> Value {
@@ -156,6 +167,7 @@ fn fault(f: &FaultRecord) -> Value {
     json!({"kind":kind,"resolved_effects":f.resolved_effects})
 }
 fn combat_action(a: &CombatAction) -> Value { match a {
+    CombatAction::ChooseCardOffer{..}|CombatAction::SkipCardOffer=>panic!("M15 offer actions are unsupported by M9 v1"),
     CombatAction::PlayCard { instance, target } => json!({"play_card":{"instance":instance,"target":target.map(|t|t.0)}}),
     CombatAction::SelectCard { instance } => json!({"select_card":{"instance":instance}}),
     CombatAction::ConfirmSelection=>json!("confirm_selection"),
@@ -165,6 +177,7 @@ fn combat_action(a: &CombatAction) -> Value { match a {
 fn selection_capture(s: &super::super::model::PendingSelection) -> Value {
     let parent=match &s.parent{SelectionParent::Card(card)=>json!({"card":card.as_str()}),
         SelectionParent::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),
+        SelectionParent::Power{..}=>panic!("M9 replay-v1 cannot encode M15 power selections"),
         SelectionParent::EndTurn{..}=>panic!("M9 replay-v1 cannot encode the M11 end-turn selection parent")};
     json!({"parent":parent,"source_zone":format!("{:?}",s.source_zone),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
         "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"minimum":s.minimum,"maximum":s.maximum,

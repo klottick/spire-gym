@@ -1,4 +1,4 @@
-//! Feed's synchronous Fatal checkpoint and Reaper's ordered source action.
+//! Shared synchronous Fatal checkpoint and Reaper's ordered source action.
 use super::*;
 use crate::content::CardId;
 use crate::combat::{EffectError,InputError,model::{DamageResult,OwnedCard}};
@@ -32,12 +32,17 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
 pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Result<(),EffectError>{
     if !state.full_runtime||!result.normal||result.hp_after>0{return Ok(())}
     let Source::Card(source)=&result.source else{return Ok(())};
-    if !state.in_play.as_ref().is_some_and(|owned|owned.handle()==*source&&owned.full().is_some_and(|card|card.id==CardId::Feed)){return Ok(())}
+    let Some(card)=state.in_play.as_ref().filter(|owned|owned.handle()==*source).and_then(OwnedCard::full)
+        .filter(|card|matches!(card.id,CardId::Feed|CardId::HandOfGreed)) else {return Ok(())};
+    let id=card.id;let upgraded=card.upgrades>0;
     let Actor::Enemy(target)=&result.target else{return Ok(())};
     let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==target)else{return Ok(())};
     if enemy.hp>0||enemy.life!=super::super::ActorLife::Active
         ||enemy.full_powers.iter().any(|power|power.id.0=="minion"){return Ok(())}
-    let amount=if state.in_play.as_ref().and_then(OwnedCard::full).is_some_and(|card|card.upgrades>0){4}else{3};
+    if id==CardId::HandOfGreed {
+        return Ok(super::super::super::enemies::act1::thieves::gain_gold(state,if upgraded{25}else{20})?);
+    }
+    let amount=if upgraded{4}else{3};
     let max=state.player.max_hp.checked_add(amount).filter(|max|*max<=999)
         .ok_or_else(||InputError::Unsupported("Feed maximum HP ceiling exceeded".into()))?;
     state.player.max_hp=max;

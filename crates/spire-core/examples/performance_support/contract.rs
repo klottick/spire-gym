@@ -16,6 +16,8 @@ pub fn combat_action_value(action: &CombatAction) -> Value {
     match action {
         CombatAction::PlayCard { instance, target } => json!(["play", instance, target.map(|t| t.0)]),
         CombatAction::SelectCard { instance } => json!(["select", instance]),
+        CombatAction::ChooseCardOffer{index}=>json!(["choose-card-offer",index]),
+        CombatAction::SkipCardOffer=>json!(["skip-card-offer"]),
         CombatAction::ConfirmSelection => json!(["confirm-selection"]),
         CombatAction::UsePotion { slot, target } => json!(["potion", slot, target.map(|t| t.0)]),
         CombatAction::EndTurn => json!(["end-turn"]),

@@ -63,7 +63,7 @@ impl BenchState {
     }
     pub fn endpoint(&self, totals:ReplayTotals)->Result<Value,String> { match self {
         Self::Combat(c)=> { let v=c.public_full().map_err(error)?; Ok(json!({
-            "outcome":match v.outcome {Some(Outcome::Victory)=>"victory",Some(Outcome::Death)=>"death",None=>"unfinished"},
+            "outcome":match v.outcome {Some(Outcome::Victory)=>"victory",Some(Outcome::Death)=>"death",Some(Outcome::Escaped)=>"escaped",None=>"unfinished"},
             "hp":v.player.hp,"enemy_hp":v.enemies.iter().map(|e|e.hp).sum::<i32>(),
             "candidates":c.legal_actions_full().map_err(error)?.len(),"accepted_actions":totals.accepted,"reward":totals.reward })) }
         Self::Run(r)=> { let d=r.decision().map_err(error)?; let mut value=run_resources(&d);

@@ -41,6 +41,17 @@ pub fn full_normal_damage_modifiers(base: i32, strength: i32, weak: bool,
 
 pub(super) fn full_normal_damage_with_back_attack(base:i32,strength:i32,weak:bool,wrath:bool,vulnerable:bool,back_attack:bool)->Result<i32,InputError>{
     let calculated=full_normal_damage_modifiers(base,strength,weak,wrath,vulnerable)?;
+    full_damage_after_back_attack(calculated,back_attack)
+}
+
+pub(super) fn full_normal_damage_with_back_attack_weak_multiplier(base:i32,strength:i32,weak:bool,
+    weak_multiplier:f32,wrath:bool,vulnerable:bool,back_attack:bool)->Result<i32,InputError>{
+    let calculated=full_normal_damage_given_received_with_weak_multiplier(base,strength,weak,
+        weak_multiplier,wrath,false,[if vulnerable{1.5f32}else{1.0f32}])?;
+    full_damage_after_back_attack(calculated,back_attack)
+}
+
+fn full_damage_after_back_attack(calculated:i32,back_attack:bool)->Result<i32,InputError>{
     if !back_attack{return Ok(calculated)}
     let after_back_attack=(calculated as f32*1.5f32).trunc() as i32;
     bounded(after_back_attack,30_012,"full Back Attack damage")?;
@@ -50,6 +61,16 @@ pub(super) fn full_normal_damage_with_back_attack(base:i32,strength:i32,weak:boo
 /// Receive powers preserve owner-list order on binary32 damage; floor only once.
 pub(super) fn full_normal_damage_received(base:i32,strength:i32,weak:bool,wrath:bool,
     receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
+    full_normal_damage_given_received(base,strength,weak,wrath,false,receive)
+}
+
+pub(super) fn full_normal_damage_given_received(base:i32,strength:i32,weak:bool,wrath:bool,double:bool,
+    receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
+    full_normal_damage_given_received_with_weak_multiplier(base,strength,weak,0.75f32,wrath,double,receive)
+}
+
+pub(super) fn full_normal_damage_given_received_with_weak_multiplier(base:i32,strength:i32,weak:bool,
+    weak_multiplier:f32,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
     bounded(base, 10_004, "full base damage")?;
     if !(-999..=999).contains(&strength) {
         return Err(InputError::Unsupported("full Strength outside supported numeric surface".into()));
@@ -57,7 +78,8 @@ pub(super) fn full_normal_damage_received(base:i32,strength:i32,weak:bool,wrath:
     let total = calculated(base.checked_add(strength))?.max(0);
     bounded(total, 10_004, "full combined damage")?;
     let mut value = total as f32;
-    if weak { value *= 0.75f32; }
+    if weak { value *= weak_multiplier; }
+    if double { value *= 2.0f32; }
     if wrath { value *= 2.0f32; }
     for multiplier in receive {value*=multiplier;}
     bounded(value.floor() as i32, 30_012, "full modified damage")?;

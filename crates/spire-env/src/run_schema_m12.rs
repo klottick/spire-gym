@@ -151,6 +151,7 @@ pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> Result
         CopyToHand { copies: 2 } => "copy_to_hand_2",
         CopyToHand { copies: 3 } => "copy_to_hand_3",
         CopyToHand { .. } => return Err(RunSessionError::Input("unsupported M12 selection copy count")),
+        Setup|Bottomdeck|RetrieveMemories=>return Err(RunSessionError::UnsupportedBoundary("M15 selection requires M15 native profile")),
         NightmareCapture => "nightmare_capture",
         Retain => "retain",
     };

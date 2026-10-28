@@ -451,3 +451,26 @@ fn m14_shared_row_axes_fail_closed_at_capacity() {
     ];
     cap_error(actions, None, |caps| caps.actions = 1, "actions");
 }
+
+#[test]
+fn m15_offer_isolation_m14_rejects_generated_templates_even_without_candidate_rows() {
+    let mut decision=initial_m14_decision();
+    decision.combat=Some(act3_combat(EncounterId::ThreeShapes,&decision));
+    decision.room.as_mut().unwrap().kind=RoomViewKind::Combat;
+    decision.candidates.clear();decision.offers.clear();
+    assert!(encode_run_m14(&decision,None,&RunCapacities::m10_default()).is_ok());
+    decision.combat.as_mut().unwrap().card_offer=Some(spire_core::combat::CombatCardOfferView{
+        cards:vec![CardId::Backflip,CardId::Deflect,CardId::Nightmare],optional:true});
+    assert!(matches!(encode_run_m14(&decision,None,&RunCapacities::m10_default()),Err(RunSessionError::UnsupportedBoundary(_))));
+}
+
+#[test]
+fn m15_escape_isolation_m14_rejects_active_and_settled_escape_outcomes(){
+    let mut decision=initial_m14_decision();
+    decision.combat=Some(act3_combat(EncounterId::ThreeShapes,&decision));
+    decision.room.as_mut().unwrap().kind=RoomViewKind::Combat;decision.candidates.clear();decision.offers.clear();
+    decision.combat.as_mut().unwrap().outcome=Some(spire_core::combat::Outcome::Escaped);
+    assert!(matches!(encode_run_m14(&decision,None,&RunCapacities::m10_default()),Err(RunSessionError::UnsupportedBoundary(_))));
+    decision.combat=None;decision.last_combat=Some(spire_core::run::CombatRecord{visit:0,encounter:EncounterId::ThreeShapes,outcome:spire_core::combat::Outcome::Escaped});
+    assert!(matches!(encode_run_m14(&decision,None,&RunCapacities::m10_default()),Err(RunSessionError::UnsupportedBoundary(_))));
+}

@@ -172,3 +172,12 @@ fn m14_zero_action_record_replays_its_normal_start_without_completing_the_run() 
     assert_eq!(replay.final_decision.terminal, None);
     assert!(replay.final_decision.room.is_some());
 }
+
+#[test]
+fn m15_offer_isolation_m14_replay_rejects_new_semantic_actions_before_export() {
+    for action in [spire_core::combat::CombatAction::ChooseCardOffer{index:0},spire_core::combat::CombatAction::SkipCardOffer] {
+        let mut record=template_record();
+        record.steps.push(spire_env::RunRecordedStep{action:spire_core::run::GameAction::Combat(action),reward:0,terminal:None});
+        assert!(matches!(record.to_json(),Err(RunSessionError::UnsupportedBoundary(_))));
+    }
+}

@@ -22,14 +22,18 @@ pub(crate) fn upgrade(card:&mut LiveCard)->Result<(),RunError> {
     if !can_upgrade(card.id,card.upgrades){return Err(RunError::InvalidAction)}
     let next=card.upgrades.checked_add(1).ok_or(RunError::Unsupported("native upgrade count exhausted"))?;
     let temporary=card.local.temporary_upgrades.checked_add(1).ok_or(RunError::Unsupported("native combat upgrade count exhausted"))?;
+    super::super::silent::upgrade_local(card)?;
+    super::super::colorless::upgrade_local(card)?;
+    crate::combat::generation::upgrade_local(card)?;
     if card.id==CardId::BloodForBlood {
         crate::combat::card_state::upgrade_blood_for_blood_cost(card);
     }
     if card.id==CardId::SearingBlow {
         card.local.base_damage=Some(searing_damage(card).wrapping_add(4_i32.wrapping_add(card.upgrades as i32)));
     }
+    if card.id==CardId::CalculatedGamble{card.local.exhaust_on_finish=false;}
     if card.id==CardId::LimitBreak{card.local.exhaust_on_finish=false;}
-    if card.id==CardId::Brutality{card.local.innate=true;}
+    if matches!(card.id,CardId::Brutality|CardId::AfterImage|CardId::InfiniteBlades){card.local.innate=true;}
     card.upgrades=next;card.local.temporary_upgrades=temporary;Ok(())
 }
 
@@ -95,6 +99,6 @@ pub(crate) fn public_values(card:&LiveCard)->Option<CardPublicValues> {
         _=>return None,
     };
     Some(CardPublicValues{base_damage:damage,base_block:block,magic_number:magic,damage_bonus:None,
-        cost_kind:if card.local.x_cost{CardCostKind::X}else{CardCostKind::Fixed},free_play:card.local.free_play,
+        cost_kind:if card.local.x_cost{CardCostKind::X}else{CardCostKind::Fixed},free_play:card.local.free_play||card.local.free_to_play_once,
         exhaust_on_finish:card.local.exhaust_on_finish,ethereal:card.local.ethereal,innate:card.local.innate,temporary_cost:card.local.temporary_cost})
 }

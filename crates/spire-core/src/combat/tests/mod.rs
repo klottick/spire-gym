@@ -64,6 +64,26 @@ mod m12_silent_values;
 
 mod m13_silent_interactions;
 mod m14_silent_interactions;
+mod m15_silent_items;
 
 mod encounter_thieves;
 mod encounter_ordinary;
+mod m15_silent_direct;
+mod m15_silent_cost_copy;
+mod m15_silent_x_repeat;
+mod m15_silent_history;
+mod m15_silent_powers;
+mod m15_silent_poison_death;
+mod m15_colorless_direct;
+mod m15_colorless_powers;
+
+mod m15_card_offers;
+mod m15_colorless_choices;
+
+mod m15_generation;
+mod m15_potion_actions;
+
+mod m15_smoke;
+mod m15_potion_generation;
+
+mod m15_act4_interactions;

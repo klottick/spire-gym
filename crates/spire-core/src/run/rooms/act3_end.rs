@@ -3,7 +3,7 @@ use super::*;
 use crate::{combat::Outcome,content::EncounterId};
 
 pub(in crate::run) fn fault_checkpoint(state:&RunState)->&'static str {
-    if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
+    if is_m15(state){"run.m15.act3.end"}else if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
 }
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
@@ -40,7 +40,7 @@ pub(in crate::run) fn commit(run:&mut Run,prepared:PreparedAct3End){
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let frame=room.act3_end.as_ref().cloned().ok_or(RunError::InvalidAction)?;
-    if frame.phase==Act3EndPhase::Dialog(4)&&is_m10(&run.state)&&run.state.act4_enabled&&run.state.keys==[true;3]{
+    if frame.phase==Act3EndPhase::Dialog(4)&&uses_act4(&run.state)&&run.state.act4_enabled&&run.state.keys==[true;3]{
         if frame.accepted.is_some()||room.screen.kind!=RoomViewKind::Act3Ending
             ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Act3Continue{stage:4}&&row.status==RoomChoiceStatus::Offered){return Err(RunError::InvalidAction)}
         let prepared=act4::prepare_transition(run)?;
@@ -52,7 +52,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let (kind,choice,next_phase)=match frame.phase{
         Act3EndPhase::AwaitingSource=>(RoomViewKind::Act3BossComplete,RoomChoiceKind::Proceed,Act3EndPhase::Dialog(1)),
         Act3EndPhase::Dialog(stage @ 1..=2)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage},Act3EndPhase::Dialog(stage+1)),
-        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if is_m10(&run.state){Act3EndPhase::Dialog(4)}else if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
+        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if uses_act4(&run.state){Act3EndPhase::Dialog(4)}else if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
         Act3EndPhase::Dialog(4)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:4},Act3EndPhase::Ended),
         _=>return Err(RunError::InvalidAction),
     };

@@ -54,8 +54,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,choice:&IroncladEffect)->Res
             match candidates.as_slice(){
                 []=>(),
                 [only]=>{
-                    let source=state.piles.hand.iter().find(|card|card.handle()==*only).and_then(OwnedCard::full).unwrap().clone();
-                    super::super::super::piles::stat_copy_to_hand(state,&source,copies)?;
+                    super::super::super::piles::stat_copy_to_hand_from_owner(state,only,copies)?;
                 }
                 _=>{
                     super::super::super::effects::begin_selection(state,parent.clone(),candidates,1,
@@ -82,5 +81,6 @@ fn move_forced(state:&mut State,id:&crate::combat::CardHandle,zone:SelectionSour
         SelectionDisposition::Discard=>state.piles.discard.push(card),
         SelectionDisposition::Exhaust=>state.piles.exhaust.push(card),
     }
+    crate::combat::piles::refresh_hand_values(state);
     Ok(())
 }

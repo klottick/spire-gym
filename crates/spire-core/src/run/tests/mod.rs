@@ -38,3 +38,6 @@ mod m13_silent_act2;
 
 mod m14_silent_act3;
 mod m14_supplied_boss;
+mod m15_content;
+
+mod m15_silent_heart;

@@ -166,19 +166,17 @@ pub(in crate::combat) fn after_damage(
     state: &mut State,
     result: &super::super::super::model::DamageResult,
 ) -> Result<(), InputError> {
+    let plated_amount=match &result.target {
+        Actor::Player=>state.player_full_powers.iter().find(|power|power.id.0==PLATED_ARMOR).map_or(0,|power|power.state.amount),
+        Actor::Enemy(owner)=>state.enemies.iter().find(|enemy|&enemy.instance_id==owner)
+            .and_then(|enemy|enemy.full_powers.iter().find(|power|power.id.0==PLATED_ARMOR)).map_or(0,|power|power.state.amount),
+    };
+    if result.hp_lost>0&&!result.hp_loss&&!result.thorns
+        &&source_is_nonnull_and_external(&result.source,&result.target)&&plated_amount>0 {
+        let actor=result.target.clone();
+        super::bottom(state,effect(actor.clone(),actor,EffectKind::ReduceFullPower{id:FullPowerId(PLATED_ARMOR),amount:1}));
+    }
     if let Actor::Enemy(owner) = &result.target {
-        let loses_plated_armor = result.hp_lost > 0 && !result.hp_loss && !result.thorns
-            && source_is_nonnull_and_external(&result.source, &result.target)
-            && state.enemies.iter().find(|enemy| &enemy.instance_id == owner)
-                .is_some_and(|enemy| enemy.full_powers.iter()
-                    .any(|power| power.id.0 == PLATED_ARMOR && power.state.amount > 0));
-        if loses_plated_armor {
-            let actor = Actor::Enemy(owner.clone());
-            super::bottom(state, effect(actor.clone(), actor, EffectKind::ReduceFullPower {
-                id: FullPowerId(PLATED_ARMOR), amount: 1,
-            }));
-        }
-
         let malleable_block = {
             let enemy = state.enemies.iter_mut().find(|enemy| &enemy.instance_id == owner)
                 .ok_or_else(|| InputError::Invariant("ordinary Act2 closure damage owner absent".into()))?;

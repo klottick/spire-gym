@@ -6,6 +6,7 @@ pub(crate) mod m10_content;
 pub(crate) mod m12_content;
 pub(crate) mod m13_content;
 pub(crate) mod m14_content;
+pub(crate) mod m15_content;
 mod neow;
 mod act1;
 pub(super) mod act2;
@@ -20,7 +21,7 @@ pub(super) mod events;
 mod rest;
 pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3 }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -61,7 +62,7 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     }else{view.choices.iter().filter(|c|c.status==RoomChoiceStatus::Offered).map(|c|Candidate{id:c.id,action:GameAction::Choose(c.id),label:"Room choice",neow_offer:None,object:None}).collect()};
     for (slot,potion) in run.state.potions.iter().enumerate(){if potion.is_some(){
         candidates.push(Candidate{id:ChoiceId(u64::MAX-slot as u64),action:GameAction::DiscardPotion{slot:slot as u32},label:"Discard potion",neow_offer:None,object:None});
-        if crate::items::prepare_run_potion(&run.state,slot,false,false).is_ok(){candidates.push(Candidate{id:ChoiceId(u64::MAX-slot as u64),action:GameAction::UsePotion{slot:slot as u32,target:None},label:"Use potion",neow_offer:None,object:None});}
+        if crate::items::can_use_run_potion(&run.state,slot,false,false){candidates.push(Candidate{id:ChoiceId(u64::MAX-slot as u64),action:GameAction::UsePotion{slot:slot as u32,target:None},label:"Use potion",neow_offer:None,object:None});}
     }}
     Ok(candidates)
 }
@@ -69,7 +70,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
     if !candidates(run)?.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction)}
     match action {
         GameAction::Choose(id) if public(run)?.kind==RoomViewKind::Neow=>neow::choose(run,*id),
-        GameAction::Move(id)=>if is_m10(&run.state)&&run.state.act==4{act4::enter(run,*id)}else if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
+        GameAction::Move(id)=>if uses_act4(&run.state)&&run.state.act==4{act4::enter(run,*id)}else if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
         GameAction::DiscardPotion{slot}=>{run.state.potions[*slot as usize]=None;Ok(empty_transition())},
         GameAction::UsePotion{slot,target:None}=>{crate::items::use_run_potion(&mut run.state,*slot as usize,false,false)?;Ok(empty_transition())},
         GameAction::Select(id)=>run.select(*id),
@@ -94,9 +95,11 @@ pub(in crate::run) fn uses_captured_act3(state:&RunState)->bool{is_m8(state)||us
 pub(in crate::run) fn uses_captured_act2(state:&RunState)->bool{is_m6(state)||is_m7(state)||is_m13(state)||uses_captured_act3(state)}
 pub(in crate::run) fn is_m12(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M12SilentAct1)}
 pub(in crate::run) fn is_m13(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M13SilentAct2)}
+pub(crate) fn is_m15(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M15SilentHeart)}
+pub(in crate::run) fn uses_act4(state:&RunState)->bool{is_m10(state)||is_m15(state)}
 pub(in crate::run) fn is_m14(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M14SilentAct3)}
-pub(in crate::run) fn uses_silent_content(state:&RunState)->bool{is_m12(state)||is_m13(state)||is_m14(state)}
-pub(in crate::run) fn uses_full_act3(state:&RunState)->bool{is_m9(state)||is_m10(state)||is_m14(state)}
+pub(in crate::run) fn uses_silent_content(state:&RunState)->bool{is_m12(state)||is_m13(state)||is_m14(state)||is_m15(state)}
+pub(in crate::run) fn uses_full_act3(state:&RunState)->bool{is_m9(state)||is_m10(state)||is_m14(state)||is_m15(state)}
 pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m5(state)||is_m10(state)||is_m12(state)||is_m13(state)||uses_captured_act2(state)}
 pub(super) fn token(next:&mut u64)->Result<ChoiceId,RunError>{let id=*next;*next=next.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;Ok(ChoiceId(id))}
 pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
@@ -106,16 +109,16 @@ pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Opti
 pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
     if run.state.deck.is_empty(){return run.commit_terminal(RunTerminal::EmptyDeck)}
     if uses_captured_act3(&run.state)&&run.state.act==3{return act3::finish_room(run)}
-    if is_m10(&run.state)&&run.state.act==4{return act4::finish_room(run)}
+    if uses_act4(&run.state)&&run.state.act==4{return act4::finish_room(run)}
     if uses_captured_act2(&run.state)&&run.state.act==2{return act2::finish_room(run)}
     let kind=if !uses_captured_act1(&run.state)&&run.state.map.as_ref().and_then(|m|m.current)==Some(NodeId(59)){RoomViewKind::CheckpointComplete}else{RoomViewKind::Map};
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind,choices:vec![]};run.candidates.clear();Ok(empty_transition())
 }
 impl Run {
     pub fn new_room_scenario(config:RunConfig,profile:CreationProfile,rng:RunRng,scenario:RoomScenario)->Result<Self,RunError>{
-        let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3);
+        let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart);
         let character=if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
-        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
+        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",RoomScenario::M15SilentHeart=>"M15 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();

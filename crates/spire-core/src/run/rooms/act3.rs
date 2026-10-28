@@ -38,7 +38,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
         MapNodeKind::Treasure=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?,_=>return Err(RunError::InvalidAction),
     })}else{None};
     let event=CommittedEvent::FloorEntered{act:3,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
-    if is_m10(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=shop_rng;}
+    if uses_act4(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=shop_rng;}
     let map=run.state.map.as_mut().unwrap();map.current=Some(target);let n=map.nodes.iter_mut().find(|n|n.id==target).unwrap();n.visited=true;n.revealed=true;n.encounter=captured.encounter;if node.kind==MapNodeKind::Question{n.hidden_kind=Some(captured.kind)}
     if let Some(id)=captured.encounter{map.encounter_history.push(id);match captured.kind{MapNodeKind::Monster=>map.regular_encounter_history.push(id),MapNodeKind::Elite=>map.elite_encounter_history.push(id),_=>{}}}
     run.state.floor=node.floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:3,floor:node.floor,label:captured.kind.label()});

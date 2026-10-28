@@ -272,12 +272,16 @@ fn m10_havoc_unplayable_curse_has_no_payload_hook_or_end_turn_trigger_red(){
 fn m10_havoc_unsupported_nested_child_fault_keeps_parent_context_and_child_owner_red(){
     let mut combat=with_task7_card(CardId::Havoc,false);
     let havoc=combat.state.piles.hand.iter().find(|owned|owned.handle()==card_state::handle(CardInstanceId(3))).unwrap().clone();
-    let child=OwnedCard::Full(card_state::permanent(CardId::Madness,CardInstanceId(78),0));let child_handle=child.handle();
+    let child=OwnedCard::Full(card_state::permanent(CardId::Whirlwind,CardInstanceId(78),0));let child_handle=child.handle();
     combat.state.card_ids_issued.insert(child_handle.clone());combat.state.piles.draw.clear();combat.state.piles.draw.push(child);
-    assert!(crate::content::Catalog::standard().card(CardId::Madness).unwrap().definition_only,"fixture is a registered definition-only card with no M10 payload handler");
+    combat.state.item_context=Some(crate::items::CombatItemContext::new(
+        vec![crate::content::RelicId::Unknown("chemical_x")],vec![]));
+    assert!(crate::content::Catalog::standard().card(CardId::Whirlwind).is_some_and(|definition|
+        definition.card_type==crate::content::CardType::Attack&&!definition.definition_only),
+        "fixture is an executable Attack whose unsupported Chemical X modifier fails closed during nested preparation");
     let (_,expected_rng)=super::super::rng::uniform_below(combat.state.card_rng.as_ref().unwrap(),1).unwrap();
     let result=combat.step_full(&CombatAction::PlayCard{instance:3,target:None});
-    assert!(result.is_err(),"a genuinely unsupported child handler remains an honest retained fault");
+    assert!(result.is_err(),"an unsupported nested child-use condition remains an honest retained fault");
     assert!(combat.state.fault.as_ref().is_some_and(|fault|fault.kind==FaultKind::Unsupported));
     let frame=combat.state.play_frames.last().expect("completed parent is retained in the active child frame before child preparation");
     assert_eq!(frame.parent.as_ref().unwrap().handle(),card_state::handle(CardInstanceId(3)),"parent remains owned while child preparation faults");
@@ -357,7 +361,8 @@ fn m10_double_tap_headbutt_repeat_owns_parent_through_nested_selection_red(){
     combat.step_full(&CombatAction::SelectCard{instance:first}).unwrap();
     assert_eq!(combat.state.phase,Phase::Selection,"Double Tap's Headbutt repeat must execute its own source selection: fault={:?} hp={} inactive={:?} in_play={:?} frames={} pending={:?}",combat.state.fault,combat.state.enemies[0].hp,combat.state.inactive_cards.iter().map(OwnedCard::handle).collect::<Vec<_>>(),combat.state.in_play.as_ref().map(OwnedCard::handle),combat.state.play_frames.len(),combat.state.pending);
     let frame=combat.state.play_frames.last().expect("repeat retains its original parent frame");
-    assert_eq!(frame.parent_handle,card_state::handle(CardInstanceId(80)));
+    assert!(matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(handle)
+        if *handle==card_state::handle(CardInstanceId(80))));
     assert_ne!(frame.child,card_state::handle(CardInstanceId(80)),"repeat is a distinct issued card instance");
     let playing=combat.public_full().unwrap().playing_cards;
     assert_eq!(playing.iter().map(|card|card.id).collect::<Vec<_>>(),vec![CardId::Headbutt,CardId::Headbutt]);
@@ -569,7 +574,8 @@ fn m10_havoc_nested_selection_keeps_parent_reference_and_started_child_public(){
     let panic=encoded.expect_err("M9 v1 checkpoint codec rejects active M10 play-frame ownership");
     let message=panic.downcast_ref::<String>().map(String::as_str).or_else(||panic.downcast_ref::<&str>().copied()).unwrap_or("");
     assert!(message.contains("M9 v1 cannot encode an active or retained M10 autoplay play frame"),"specific v1 ownership boundary: {message}");
-    assert_eq!(combat.state.play_frames[0].parent_handle,card_state::handle(CardInstanceId(3)));
+    assert!(matches!(&combat.state.play_frames[0].parent_owner,super::super::model::PlayFrameParentOwner::Card(handle)
+        if *handle==card_state::handle(CardInstanceId(3))));
     assert!(!combat.state.piles.discard.iter().any(|owned|owned.handle()==card_state::handle(CardInstanceId(3))),"suspended parent remains in the retained play frame until its child settles");
     combat.step_full(&CombatAction::SelectCard{instance:source_cards[0]}).unwrap();
     assert!(combat.state.play_frames.is_empty());

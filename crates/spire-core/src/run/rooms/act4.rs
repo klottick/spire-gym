@@ -1,4 +1,4 @@
-//! Source-qualified M10 Act4 door transition and fixed Rest→Shop→Elite→Heart route.
+//! Shared source-qualified M10/M15 Act4 door transition and fixed Rest→Shop→Elite→Heart route.
 use super::*;
 use crate::{combat::Outcome,content::EncounterId};
 
@@ -68,7 +68,7 @@ fn source_is_current(run:&Run,frame:&act3_end::Act3EndFrame)->bool{
 pub(in crate::run) fn prepare_transition(run:&Run)->Result<PreparedAct4,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let frame=room.act3_end.as_ref().ok_or(RunError::InvalidAction)?;
-    if !is_m10(&run.state)||room.screen.kind!=RoomViewKind::Act3Ending
+    if !uses_act4(&run.state)||room.screen.kind!=RoomViewKind::Act3Ending
         ||!room.screen.choices.iter().any(|row|row.kind==RoomChoiceKind::Act3Continue{stage:4}&&row.status==RoomChoiceStatus::Offered)
         ||!source_is_current(run,frame)||run.state.max_hp==0||run.state.max_hp>999{return Err(RunError::InvalidAction)}
     let event=CommittedEvent::ActAdvanced{from:3,to:4};
@@ -146,7 +146,7 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
 }
 
 pub(in crate::run) fn validate_combat_source(run:&Run,record:&CombatRecord)->Result<Option<NodeId>,RunError>{
-    if !is_m10(&run.state)||run.state.act!=4{return Ok(None)}
+    if !uses_act4(&run.state)||run.state.act!=4{return Ok(None)}
     let active=run.state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let CombatOrigin::MapRoom{node,kind}=active.origin else{return Err(RunError::InvalidAction)};
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
@@ -216,7 +216,7 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
     if room.screen.kind!=RoomViewKind::HeartVictory||room.screen.choices.len()!=1
         ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Proceed&&row.status==RoomChoiceStatus::Offered)
         ||progress.heart_proceed!=Some(id)||progress.heart_proceed_phase!=Some(HeartProceedPhase::AwaitingProceed)
-        ||!is_m10(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor!=54
+        ||!uses_act4(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor!=54
         ||progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||progress.combat_visits<2
         ||source.outcome!=Outcome::Victory||!matches!(source.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         ||!run.state.history.events.contains(&CommittedEvent::CombatFinished(source.clone()))
@@ -241,7 +241,7 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
 }
 
 pub(in crate::run) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
-    if !is_m10(&run.state)||run.state.act!=4||run.state.combat.is_some()||run.state.active_combat.is_some()
+    if !uses_act4(&run.state)||run.state.act!=4||run.state.combat.is_some()||run.state.active_combat.is_some()
         ||run.state.pending.is_some()||run.state.fault.is_some(){return Err(RunError::InvalidAction)}
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let map=run.state.map.as_ref().ok_or(RunError::InvalidAction)?;

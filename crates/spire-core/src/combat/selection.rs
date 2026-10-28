@@ -14,8 +14,9 @@ pub enum SelectionParent {
     Potion { slot:usize,id:crate::content::PotionId },
     /// One optional card choice suspended under the live player EndTurn queue.
     EndTurn { turn:u32 },
+    Power { turn:u32, id:super::FullPowerId },
 }
 
 /// A nonmoving upgrade is not an exhaust/discard with a cosmetic label.
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum SelectionOperation { Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8}, Retain, NightmareCapture }
+pub enum SelectionOperation { Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8}, Retain, NightmareCapture, Setup, Bottomdeck, RetrieveMemories }

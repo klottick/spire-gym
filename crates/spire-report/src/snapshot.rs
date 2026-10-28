@@ -74,7 +74,7 @@ pub(crate) fn native_combat(c:&CombatPublic,id:&str)->Result<Value,ReportError> 
         "stasis":c.stasis.iter().map(|s|json!({"orb":crate::actions::actor_ref(&Actor::Enemy(s.orb.clone()),id),"card":live_card(&s.card,id)})).collect::<Vec<_>>(),"lastPlayedCard":null,
         "facing":c.encounter_facing.as_ref().map(|facing|json!({"player":match facing.player_facing {PlayerFacing::Left=>"left",PlayerFacing::Right=>"right"},"surrounded":facing.surrounded,
             "enemies":facing.enemies.iter().map(|actor|json!({"side":match actor.side {EncounterSide::Left=>"left",EncounterSide::Right=>"right"},"backAttack":actor.back_attack})).collect::<Vec<_>>()})),
-        "hpBeforeHealing":c.hp_before_healing,"hpAfterCleanup":c.hp_after_cleanup,"outcome":c.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death"})}))
+        "hpBeforeHealing":c.hp_before_healing,"hpAfterCleanup":c.hp_after_cleanup,"outcome":c.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"})}))
 }
 fn intent_hits(name:&str)->Option<u8>{match name {"shield_bash"|"shield_smash"|"heart_echo"=>Some(1),"spear_burn_strike"=>Some(2),"spear_skewer"=>Some(3),"heart_blood_shots"=>Some(12),_=>None}}
 fn disposition(d:SelectionDisposition)->&'static str {match d {SelectionDisposition::Hand=>"hand",SelectionDisposition::Discard=>"discard",SelectionDisposition::Exhaust=>"exhaust",SelectionDisposition::DrawTop=>"draw_top"}}
@@ -98,5 +98,5 @@ pub(crate) fn legacy_snapshot_for(p:&PublicView,combat:&str)->Result<Value,Repor
             "hand":cards(&p.hand),"piles":{"draw":{"count":p.draw_count,"knownCards":null,"orderKnown":false},"discard":cards(&p.discard),"exhaust":cards(&p.exhaust)},
             "selection":null,"character":null,"stasis":null,"lastPlayedCard":null,
             "hpBeforeHealing":p.hp_before_healing,"hpAfterCleanup":p.hp_after_cleanup,
-            "outcome":p.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death"})}}))
+            "outcome":p.outcome.map(|o|match o {Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"})}}))
 }

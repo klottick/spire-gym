@@ -75,7 +75,7 @@ impl LiveEpisode {
         let p = self.combat.public_projection()
             .map_err(|e| self.failure(FaultStage::Encoding,format!("completed projection: {e:?}")))?;
         self.knowledge.observe_completed(&self.row,accepted,&p)?;
-        let outcome = match p.outcome { None => 0,Some(Outcome::Victory) => 1,Some(Outcome::Death) => 2 };
+        let outcome = match p.outcome { None => 0,Some(Outcome::Victory) => 1,Some(Outcome::Death) => 2,Some(Outcome::Escaped)=>return Err(self.failure(FaultStage::Encoding,"M15 escape requires M15 native profile".into())) };
         self.info.episode_steps = self.steps;
         self.info.outcome = outcome;
         self.info.hp_before_healing = p.hp_before_healing;

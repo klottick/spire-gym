@@ -49,7 +49,9 @@ pub struct CombatInventoryView {
     pub relic_counters:Vec<crate::items::RelicCounterView>,
     pub relics: Vec<crate::content::RelicId>, pub potions: Vec<Option<crate::content::PotionId>>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct CombatCardOfferView { pub cards:Vec<crate::content::CardId>,pub optional:bool }
+#[derive(Clone, PartialEq, Eq)]
 pub struct CombatPublic {
     pub played_powers:Vec<LiveCardView>,
     /// Cards whose accepted use has started, in suspended-parent to active-child order.
@@ -65,6 +67,34 @@ pub struct CombatPublic {
     pub known_draw:Vec<KnownDrawCardView>,
     pub encounter_facing:Option<EncounterFacingView>,
     pub inventory: Option<CombatInventoryView>,
+    pub card_offer:Option<CombatCardOfferView>,
+}
+impl std::fmt::Debug for CombatPublic {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut value=f.debug_struct("CombatPublic");
+        value.field("played_powers",&self.played_powers);
+        value.field("playing_cards",&self.playing_cards);
+        value.field("stasis",&self.stasis);
+        value.field("content_id",&self.content_id);
+        value.field("turn",&self.turn);
+        value.field("player",&self.player);
+        value.field("enemies",&self.enemies);
+        value.field("character",&self.character);
+        value.field("hand",&self.hand);
+        value.field("draw_count",&self.draw_count);
+        value.field("discard",&self.discard);
+        value.field("exhaust",&self.exhaust);
+        value.field("outcome",&self.outcome);
+        value.field("hp_before_healing",&self.hp_before_healing);
+        value.field("hp_after_cleanup",&self.hp_after_cleanup);
+        value.field("targets",&self.targets);
+        value.field("selection",&self.selection);
+        value.field("known_draw",&self.known_draw);
+        value.field("encounter_facing",&self.encounter_facing);
+        value.field("inventory",&self.inventory);
+        if self.card_offer.is_some(){value.field("card_offer",&self.card_offer);}
+        value.finish()
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FullPowerView { pub id: super::FullPowerId, pub amount: i32 }
@@ -155,14 +185,26 @@ pub struct CharacterCombatView {
     pub focus: i32,
 }
 
-pub(super) fn full_player(state: &State) -> FullPlayerView {
+pub(super) fn full_player(state: &State) -> Result<FullPlayerView,crate::run::RunError> {
+    super::cards::validate_colorless_state(state).map_err(|_|crate::run::RunError::InvalidAction)?;
     let p = &state.player;
     let mut powers = p.powers.iter().map(|p| FullPowerView {
         id: super::FullPowerId(p.id.as_str()), amount: p.state.amount,
     }).chain(state.player_full_powers.iter().map(|p| FullPowerView { id: p.id, amount: p.state.amount })).collect::<Vec<_>>();
     powers.sort_by_key(|p| p.id.0);
-    FullPlayerView { hp: p.hp, max_hp: p.max_hp, block: p.block, energy: p.energy,
-        max_energy: p.max_energy, powers }
+    // These source-public counters are projections of the existing owners,
+    // not extra physical powers or a second timer/callback implementation.
+    if let Some(remaining)=state.colorless.panache_remaining {
+        powers.push(FullPowerView{id:super::FullPowerId("panache_countdown"),amount:i32::from(remaining)});
+    }
+    // Timer row order is the existing callback/creation order, including
+    // different captured payloads; no private cast IDs need to be exposed.
+    for bomb in &state.colorless.bombs {
+        let id=match bomb.damage{40=>"the_bomb",50=>"the_bomb_plus",_=>return Err(crate::run::RunError::InvalidAction)};
+        powers.push(FullPowerView{id:super::FullPowerId(id),amount:i32::from(bomb.remaining)});
+    }
+    Ok(FullPlayerView { hp: p.hp, max_hp: p.max_hp, block: p.block, energy: p.energy,
+        max_energy: p.max_energy, powers })
 }
 
 pub(super) fn full_enemies(state: &State) -> Vec<FullEnemyView> {

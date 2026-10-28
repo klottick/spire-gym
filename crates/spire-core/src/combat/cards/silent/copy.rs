@@ -14,17 +14,7 @@ pub(super) fn payload(card: &LiveCard, target: Option<u64>)
         vec![(None, EffectKind::SelectNightmareCard)])))
 }
 
-/// Take a value snapshot without registering it as a card owner or issued ID.
-pub(super) fn capture_template(source: &LiveCard) -> LiveCard {
-    let mut template = source.stat_equivalent_copy(CardInstanceId(0));
-    template.local.temporary_cost = 0;
-    template.local.infernal_blade_cost_this_turn = false;
-    template
-}
-
-pub(super) fn capture(state: &mut State, owner: CardHandle, source: &LiveCard)
-    -> Result<(), InputError>
-{
+fn installation_cursor(state:&State)->Result<(u32,u64,u64),InputError>{
     let delivery_turn = state.turn.checked_add(1).filter(|turn| *turn <= i32::MAX as u32)
         .ok_or_else(|| InputError::Unsupported("Nightmare next turn outside supported numeric surface".into()))?;
     if !state.full_runtime || state.next_nightmare_installation_id == 0 {
@@ -33,10 +23,41 @@ pub(super) fn capture(state: &mut State, owner: CardHandle, source: &LiveCard)
     let installation_id = state.next_nightmare_installation_id;
     let next_installation_id = installation_id.checked_add(1)
         .ok_or_else(|| InputError::Unsupported("Nightmare installation identity exhausted".into()))?;
+    Ok((delivery_turn,installation_id,next_installation_id))
+}
+
+fn reset_template_costs(state:&State,template:&mut LiveCard)->Result<(),InputError>{
+    template.local.temporary_cost=0;
+    template.local.infernal_blade_cost_this_turn=false;
+    if let Some(base)=super::super::base_cost(state,template){
+        template.local.turn_cost=Some(super::super::super::card_state::combat_price(template,base)?);
+    }
+    Ok(())
+}
+
+fn store_template(state:&mut State,owner:CardHandle,delivery_turn:u32,installation_id:u64,
+    next_installation_id:u64,template:LiveCard){
     state.nightmare_templates.push(super::super::super::model::NightmareTemplateOwner {
-        installation_id, owner, delivery_turn, delivered: 0, template: capture_template(source),
+        installation_id, owner, delivery_turn, delivered: 0, template,
     });
     state.next_nightmare_installation_id = next_installation_id;
+}
+
+/// Preserve the established value-taking helper for compatibility callers.
+pub(super) fn capture(state:&mut State,owner:CardHandle,source:&LiveCard)->Result<(),InputError>{
+    let (delivery_turn,installation_id,next_installation_id)=installation_cursor(state)?;
+    let mut template=source.stat_equivalent_copy(CardInstanceId(0));
+    reset_template_costs(state,&mut template)?;
+    store_template(state,owner,delivery_turn,installation_id,next_installation_id,template);
+    Ok(())
+}
+
+/// Runtime capture performs native makeCopy against the actual selected owner.
+pub(super) fn capture_from_owner(state:&mut State,owner:CardHandle,source:&CardHandle)->Result<(),InputError>{
+    let (delivery_turn,installation_id,next_installation_id)=installation_cursor(state)?;
+    let mut template=super::super::super::piles::make_stat_equivalent_copy_from_owner(state,source,CardInstanceId(0))?;
+    reset_template_costs(state,&mut template)?;
+    store_template(state,owner,delivery_turn,installation_id,next_installation_id,template);
     Ok(())
 }
 
@@ -63,7 +84,11 @@ pub(super) fn deliver(state: &mut State, effect: &Effect, owner: &CardHandle, in
         return Err(InputError::Invariant("Nightmare delivery turn/cursor mismatch".into()).into());
     }
     let instance = super::super::super::piles::next_generated_instance(state)?;
-    let copy = pending.template.stat_equivalent_copy(instance);
+    let history=super::super::copy_history(state);
+    let copy={
+        let template=&mut state.nightmare_templates[index].template;
+        super::super::make_stat_equivalent_copy(template,instance,history)?
+    };
     super::super::super::piles::insert_generated(state, copy, CardDestination::Hand)?;
 
     let current = state.nightmare_templates.get_mut(index)

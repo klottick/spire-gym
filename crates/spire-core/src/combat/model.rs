@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, VecDeque};
+use std::{collections::{BTreeMap, BTreeSet, VecDeque}, fmt};
 use super::content::*;
 use super::rng::{RngError, StreamState};
 use crate::content::EnemyId;
@@ -219,7 +219,7 @@ pub struct EnemySpawnDiagnostics {pub request:SpawnRequest,pub ordinal:u64,pub p
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase { Decision, Selection, PlayerAction, EnemyTurn, RoundEnd, PlayerStart, Terminal }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Outcome { Victory, Death }
+pub enum Outcome { Victory, Death, Escaped }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransitionStatus { Decision, Selection, Terminal, Fault }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -275,6 +275,26 @@ pub enum DamagePayload {
     /// Amount is captured when the live owner-start hook queues this work.
     PoisonTickHpLoss { owner: EnemyHandle, amount: i32 },
     EnemyMove(MoveId), FullEnemyMove(FullIntentId),
+    CorpseExplosion { owner:EnemyHandle, amount:i32 },
+}
+/// Typed item-owned work that must select a live target only when its queued
+/// action is dispatched by the shared combat resolver.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PotionEffect {
+    UpgradeHand,
+    RandomizeHandCosts,
+    GamblersBrewSelectDiscard,
+    LiquidMemories { requested: u8 },
+    LiquidMemoriesRetrieve { card: CardHandle },
+    DistilledChaosTopCard { target: Option<EnemyHandle> },
+    DistilledChaosQueuedChild { child: CardHandle, target: Option<EnemyHandle>, energy_on_use: i32, cancelled: bool },
+    DuplicationRepeat { child: CardHandle, target: Option<Actor>, energy_on_use: i32, cancelled: bool },
+    EntropicBrew { character: crate::content::Character, count: usize },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SilentItemEffect {
+    SpecimenPoisonTransfer { callback_owner: EnemyHandle, amount: i32 },
 }
 /// Detached result from the single shared damage commit, not a second calculator.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -288,7 +308,7 @@ pub enum EffectKind {
     Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), NeowsLament, ApplyPower { id: PowerId, amount: i32 },
     ReducePower { id: PowerId, amount: i32 }, RemovePower(PowerId),
     ApplyFullPower { id: FullPowerId, amount: i32 }, ReduceFullPower { id: FullPowerId, amount: i32 }, RemoveFullPower(FullPowerId),
-    FinishCard, Decision, JuggernautRandomDamage(i32),
+    FinishCard, Decision, JuggernautRandomDamage(i32), SilentItem(SilentItemEffect),
     Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
     DrawOne, AfterCardDrawn { card:CardHandle },
     GainEnergy(i32),LoseEnergy(i32),
@@ -332,6 +352,16 @@ pub enum EffectKind {
     TimeWarpEndTurn,TimeEaterCleanse,
     CaptureStasis { orb:EnemyHandle }, ReleaseStasis { orb:EnemyHandle }, CorruptHeartBuff,
     Catalyst,
+    Silent(super::cards::SilentEffect),
+    Colorless(super::cards::ColorlessEffect),
+    ShuffleDraw,
+    Potion(PotionEffect),
+    CardOffer { cards:Vec<crate::content::CardId>,optional:bool,copies:u8,zero_cost:bool },
+    SmokeEscape,
+    Alchemize { proposal:Option<crate::content::PotionId> },
+    Generate(super::GenerationWork),
+    DeliverCardOffer { id:crate::content::CardId,copies:u8,next:u8,zero_cost:bool },
+    ObtainPotion { id: crate::content::PotionId },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle>,pub known_draw:Vec<CardHandle>,pub known_draw_bottom:Vec<CardHandle> }
@@ -373,9 +403,37 @@ pub struct ExhaustBatch {
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(super) struct PlayContext {pub card:CardHandle,pub target:Option<Actor>,pub energy_on_use:i32,pub paid:i32,pub disposition:FinishDisposition}
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_handle:CardHandle,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
+pub(super) enum PlayFrameParentOwner { Card(CardHandle), Potion { slot:usize,id:crate::content::PotionId } }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone,PartialEq,Eq)]
+pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_owner:PlayFrameParentOwner,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
+
+impl fmt::Debug for PlayFrame {
+    fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
+        let mut debug=f.debug_struct("PlayFrame");
+        debug.field("parent",&self.parent);
+        match &self.parent_owner {
+            PlayFrameParentOwner::Card(handle)=>debug.field("parent_handle",handle),
+            PlayFrameParentOwner::Potion{..}=>debug.field("parent_handle",&self.parent_owner),
+        };
+        debug.field("parent_context",&self.parent_context)
+            .field("child",&self.child).field("target",&self.target)
+            .field("captured_energy",&self.captured_energy).field("paid",&self.paid)
+            .field("disposition",&self.disposition)
+            .field("parent_finish_checkpoint_done",&self.parent_finish_checkpoint_done).finish()
+    }
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct BombTimer { pub id:u64,pub owner:CardHandle,pub remaining:u8,pub damage:i32 }
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(super) struct ColorlessState { pub panache_remaining:Option<u8>,pub bombs:Vec<BombTimer>,pub next_bomb_id:u64 }
+impl Default for ColorlessState {
+    fn default()->Self{Self{panache_remaining:None,bombs:vec![],next_bomb_id:1}}
+}
+
+#[derive(Clone, PartialEq, Eq)]
 pub(super) struct State {
     pub content_id: String, pub phase: Phase, pub turn: u32, pub player: PlayerState,
     pub enemies: Vec<EnemyState>, pub piles: OwnedPiles, pub card_ids_issued: BTreeSet<CardHandle>,
@@ -409,9 +467,42 @@ pub(super) struct State {
     pub queued_autoplay:BTreeMap<CardHandle,OwnedCard>,
     pub pending_time_warp:Option<EnemyHandle>,
     pub damage_events_this_combat:u32,
+    pub silent:super::cards::SilentState,
     /// Combust stacks are counted independently of the summed damage amount.
     pub combust:Option<CombustState>,
     pub thief_gold:Option<super::enemies::act1::thieves::ThiefGoldState>,
+    pub colorless:ColorlessState,
+}
+
+// Keep established Combat Debug output byte-for-byte when this new owner is
+// empty. Its details appear only while a colorless power owns live work.
+impl std::fmt::Debug for State {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
+        let mut debug=f.debug_struct("State");
+        debug.field("content_id",&self.content_id).field("phase",&self.phase).field("turn",&self.turn)
+            .field("player",&self.player).field("enemies",&self.enemies).field("piles",&self.piles)
+            .field("card_ids_issued",&self.card_ids_issued).field("rng",&self.rng).field("pending",&self.pending)
+            .field("current",&self.current).field("in_play",&self.in_play).field("resolved_effects",&self.resolved_effects)
+            .field("public",&self.public).field("outcome",&self.outcome).field("fault",&self.fault)
+            .field("hp_before_healing",&self.hp_before_healing).field("hp_after_cleanup",&self.hp_after_cleanup)
+            .field("full_runtime",&self.full_runtime).field("pending_selection",&self.pending_selection)
+            .field("temporary_retain",&self.temporary_retain).field("nightmare_templates",&self.nightmare_templates)
+            .field("next_nightmare_installation_id",&self.next_nightmare_installation_id).field("hook_events",&self.hook_events)
+            .field("attempted_action",&self.attempted_action).field("fault_selection",&self.fault_selection)
+            .field("player_full_powers",&self.player_full_powers).field("character",&self.character)
+            .field("card_rng",&self.card_rng).field("item_context",&self.item_context)
+            .field("replacement_progress",&self.replacement_progress).field("actor_slots",&self.actor_slots)
+            .field("facing",&self.facing).field("spawn_ordinals",&self.spawn_ordinals).field("spawn_progress",&self.spawn_progress)
+            .field("stasis",&self.stasis).field("permanent_gains",&self.permanent_gains)
+            .field("next_permanent_gain",&self.next_permanent_gain).field("played_powers",&self.played_powers)
+            .field("inactive_cards",&self.inactive_cards).field("play_frames",&self.play_frames)
+            .field("play_context",&self.play_context).field("queued_autoplay",&self.queued_autoplay)
+            .field("pending_time_warp",&self.pending_time_warp).field("damage_events_this_combat",&self.damage_events_this_combat)
+            .field("combust",&self.combust).field("thief_gold",&self.thief_gold);
+        if self.silent.history_enabled||self.silent.source_character.is_some()||self.silent.card_offer.is_some()||self.silent.smoked||self.silent.retain_block_next_start{debug.field("silent",&self.silent);}
+        if self.colorless!=ColorlessState::default(){debug.field("colorless",&self.colorless);}
+        debug.finish()
+    }
 }
 
 pub(super) fn mark_fault(state: &mut State, kind: FaultKind, message: String) {

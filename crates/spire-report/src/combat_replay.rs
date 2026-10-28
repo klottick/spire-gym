@@ -26,7 +26,7 @@ pub fn capture_combat<W:Write>(record:&EpisodeRecord,writer:&mut ReportWriter<W>
     if let Some(error)=adapter_error {return Err(error);}
     let result=result.map_err(|e|ReportError::Invalid(format!("native replay: {e:?}")))?;
     let status=match record.status {spire_env::RecordStatus::Active=>"unfinished",spire_env::RecordStatus::Completed=>"complete",spire_env::RecordStatus::Abandoned=>"abandoned",spire_env::RecordStatus::Faulted=>"faulted"};
-    let outcome=previous.as_ref().and_then(|p|p.outcome).map(|o|match o {spire_core::combat::Outcome::Victory=>"combat_victory",spire_core::combat::Outcome::Death=>"death"});
+    let outcome=previous.as_ref().and_then(|p|p.outcome).map(|o|match o {spire_core::combat::Outcome::Victory=>"combat_victory",spire_core::combat::Outcome::Death=>"death",spire_core::combat::Outcome::Escaped=>"escaped"});
     writer.finish(json!({"status":status,"reason":match record.status {spire_env::RecordStatus::Active=>Some("active native prefix"),spire_env::RecordStatus::Abandoned=>Some("native episode abandoned"),spire_env::RecordStatus::Faulted=>Some("native record faulted; external faults are not fabricated"),_=>None}}),
         json!({"outcome":outcome,"boundary":Value::Null}))?;
     Ok(result)

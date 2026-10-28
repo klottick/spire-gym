@@ -34,6 +34,16 @@ pub fn describe_run_action(d:&PublicDecision,a:&GameAction,id:&str)->Result<Valu
                     value["preActionOffer"]=crate::snapshot::live_card(card,id);value["description"]=json!(format!("Select {}",card.id.as_str()));
                 },
                 CombatAction::UsePotion {slot,..}=>{value["preActionOffer"]=json!({"slot":slot,"potionId":c.inventory.as_ref().and_then(|i|i.potions.get(*slot)).and_then(|p|*p).map(|p|p.as_str())});value["description"]=json!("Use potion");},
+                CombatAction::ChooseCardOffer{index}=>{
+                    let card=c.card_offer.as_ref().and_then(|offer|offer.cards.get(*index as usize))
+                        .ok_or_else(||ReportError::Invalid("generated card offer index is not public".into()))?;
+                    value["preActionOffer"]=json!({"cardKind":card.as_str(),"offerIndex":index});
+                    value["description"]=json!(format!("Choose {}",card.as_str()));
+                },
+                CombatAction::SkipCardOffer=>{
+                    if !c.card_offer.as_ref().is_some_and(|offer|offer.optional){return Err(ReportError::Invalid("generated card offer cannot be skipped".into()))}
+                    value["description"]=json!("Skip card offer");
+                },
                 CombatAction::EndTurn=>value["description"]=json!("End Turn"),
                 CombatAction::ConfirmSelection=>{
                     value["description"]=json!("Confirm selection");
@@ -51,17 +61,17 @@ pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
         Upgrade=>"upgrade",Topdeck=>"topdeck",ReturnFromExhaust=>"return_from_exhaust",
         CopyToHand{copies:1}=>"copy_to_hand_1",CopyToHand{copies:2}=>"copy_to_hand_2",CopyToHand{copies:_}=>"copy_to_hand_3",
         NightmareCapture=>"nightmare_capture",
-        Retain=>"retain",
+        Retain=>"retain",Setup=>"setup",Bottomdeck=>"bottomdeck",RetrieveMemories=>"retrieve_memories",
     }
 }
-fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}
+fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::ChooseCardOffer{..}=>"choose_card_offer",CombatAction::SkipCardOffer=>"skip_card_offer",CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}
 pub(crate) fn option_key(a:&GameAction)->String {
     let target=|t:Option<TargetId>|t.map(|t|t.0.to_string()).unwrap_or_else(||"none".into());
     match a {
         GameAction::Move(id)=>format!("move/{}",id.0),GameAction::Choose(id)=>format!("choose/{}",id.0),GameAction::Select(id)=>format!("select/{}",id.0),
         GameAction::Confirm=>"confirm".into(),GameAction::Cancel=>"cancel".into(),
         GameAction::UsePotion{slot,target:t}=>format!("use_potion/{slot}/{}",target(*t)),GameAction::DiscardPotion{slot}=>format!("discard_potion/{slot}"),
-        GameAction::Combat(c)=>match c {CombatAction::EndTurn=>"combat/end_turn".into(),CombatAction::PlayCard{instance,target:t}=>format!("combat/play/{instance}/{}",target(*t)),
+        GameAction::Combat(c)=>match c {CombatAction::ChooseCardOffer{index}=>format!("combat/choose_card_offer/{index}"),CombatAction::SkipCardOffer=>"combat/skip_card_offer".into(),CombatAction::EndTurn=>"combat/end_turn".into(),CombatAction::PlayCard{instance,target:t}=>format!("combat/play/{instance}/{}",target(*t)),
             CombatAction::UsePotion{slot,target:t}=>format!("combat/potion/{slot}/{}",target(*t)),CombatAction::SelectCard{instance}=>format!("combat/select/{instance}"),CombatAction::ConfirmSelection=>"combat/confirm_selection".into()},
     }
 }

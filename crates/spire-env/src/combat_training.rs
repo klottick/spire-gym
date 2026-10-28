@@ -152,7 +152,7 @@ impl CombatTrainingSession{
         let v2=self.catalog.profile==CombatTrainingProfile::V2;
         let observation=match if v2{crate::combat_policy::encode_combat_policy_v2(&d,cp.as_ref())}else{encode_combat_policy(&d,cp.as_ref())}{Ok(o)=>o,Err(e)=>return Err(self.freeze(e))};
         let mut info=if v2{crate::combat_policy::lifecycle_v2(&d,cp.as_ref())}else{lifecycle(&d,cp.as_ref())};info["profile_id"]=json!(self.catalog.profile.id());info["entry_id"]=json!(self.entry_id);info["episode_ordinal"]=json!(self.ordinal);
-        info["effective_seed"]=json!(self.seed);info["outcome"]=cp.as_ref().map(|c|json!(match c.record.outcome{Outcome::Victory=>"victory",Outcome::Death=>"death"})).unwrap_or(Value::Null);
+        info["effective_seed"]=json!(self.seed);info["outcome"]=cp.as_ref().map(|c|json!(match c.record.outcome{Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"})).unwrap_or(Value::Null);
         let boundary=CombatPolicyBoundary{observation,token:[self.id,self.serial].into(),info};
         self.actions=d.candidates.into_iter().map(|c|c.action).collect();
         self.published=Some(boundary);self.decision()

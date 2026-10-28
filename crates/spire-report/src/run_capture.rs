@@ -99,7 +99,7 @@ fn committed_event(e:&CommittedEvent)->Value {match e {
     CommittedEvent::FloorEntered{act,floor}=>json!({"kind":"floor_entered","act":act,"floor":floor}),
     CommittedEvent::ActAdvanced{from,to}=>json!({"kind":"act_advanced","from":from,"to":to}),
     CommittedEvent::CombatEntered{visit,encounter}=>json!({"kind":"combat_entered","visit":visit.to_string(),"encounter":encounter.as_str()}),
-    CommittedEvent::CombatFinished(r)=>json!({"kind":"combat_finished","visit":r.visit.to_string(),"encounter":r.encounter.as_str(),"outcome":match r.outcome {spire_core::combat::Outcome::Victory=>"victory",spire_core::combat::Outcome::Death=>"death"}}),
+    CommittedEvent::CombatFinished(r)=>json!({"kind":"combat_finished","visit":r.visit.to_string(),"encounter":r.encounter.as_str(),"outcome":match r.outcome {spire_core::combat::Outcome::Victory=>"victory",spire_core::combat::Outcome::Death=>"death",spire_core::combat::Outcome::Escaped=>"escaped"}}),
     CommittedEvent::KeyAcquired(k)=>json!({"kind":"key_acquired","keyName":match k {Key::Ruby=>"ruby",Key::Sapphire=>"sapphire",Key::Emerald=>"emerald"}}),
     CommittedEvent::Ended(t)=>json!({"kind":"ended","terminal":crate::snapshot::terminal(*t)}),
 }}

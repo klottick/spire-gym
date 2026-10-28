@@ -41,11 +41,7 @@ pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
     if power.state.amount<11{power.state.amount+=1;return Ok(())}
     if !state.pending.iter().any(|e|e.kind==EffectKind::Decision){return Err(InputError::Invariant("Time Warp card decision continuation absent".into()))}
     power.state.amount=0;let owner=state.enemies[index].instance_id.clone();state.pending_time_warp=Some(owner.clone());
-    for queued in &mut state.pending{if let EffectKind::Ironclad(work)=&mut queued.kind{match work{
-        super::super::super::cards::IroncladEffect::HavocQueued{cancelled,..}
-        |super::super::super::cards::IroncladEffect::DoubleTapRepeat{cancelled,..}=>*cancelled=true,
-        _=>(),
-    }}}
+    super::super::super::cards::ironclad::autoplay::cancel_pending_card_queue(state);
     let actors=state.enemies.iter().map(|e|Actor::Enemy(e.instance_id.clone())).collect::<Vec<_>>();
     for target in actors.into_iter().rev(){state.pending.push_front(effect(Actor::Enemy(owner.clone()),target,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2}));}
     let at=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap();state.pending.insert(at,Effect{source:Source::Actor(Actor::Enemy(owner)),target:None,kind:EffectKind::TimeWarpEndTurn});Ok(())

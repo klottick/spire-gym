@@ -11,6 +11,8 @@ pub enum CombatAction {
     ConfirmSelection,
     UsePotion { slot: usize, target: Option<TargetId> },
     EndTurn,
+    ChooseCardOffer { index:u32 },
+    SkipCardOffer,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
