@@ -176,5 +176,7 @@ The reviewer inspected complete source and retained evidence and did not rerun
 Cargo, builds or episodes. A1/P3 concerns the supplementary diff's missing-final-
 newline formatting, not these source bytes or gameplay evidence. The original
 malformed patch is retained; the versioned standard supplement preserves fixture
-bytes and reconstructs this manifest exactly. Publication preparation changes only
-the six authorized documentation paths and the separately retained patch artifact.
+bytes and reconstructs this manifest exactly. Publication preparation updates the six authorized documentation paths and the
+separately retained patch artifact, and removes exactly one extra trailing newline
+from the new shared production routing file. Runtime tokens, behavior and Git
+modes remain unchanged.
