@@ -37,7 +37,7 @@ pub(super) fn prepare(seed: u64, scenario: frozen::Scenario) -> Result<Prepared,
     }
     run.state.potions = POTIONS.to_vec();
     let inventory = CombatItemContext::new(run.state.relics.clone(), run.state.potions.clone());
-    items::validate_combat_inventory(&inventory)
+    items::validate_combat_inventory(&inventory,run.state.character)
         .map_err(|error| format!("validate supplied combat inventory: {error:?}"))?;
 
     let eligibility = map::MapEligibility::from_run(&run.state);

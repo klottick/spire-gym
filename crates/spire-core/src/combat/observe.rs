@@ -141,7 +141,7 @@ pub(super) fn capture_boundary(combat:&Combat,kind:CombatBoundaryKind) {
         let selection_parent=combat.state.pending_selection.as_ref().map(|s|s.parent.clone());
         let boundary = CombatBoundary { kind, public,
             parent_card:selection_parent.as_ref().and_then(|parent|match parent{super::SelectionParent::Card(card)=>Some(card.clone()),
-                super::SelectionParent::Potion{..}|super::SelectionParent::EndTurn{..}=>None}),selection_parent };
+                super::SelectionParent::Potion{..}|super::SelectionParent::EndTurn{..}|super::SelectionParent::Power{..}=>None}),selection_parent };
         CAPTURE.with(|slot| { slot.borrow_mut().as_mut().unwrap().boundaries.push(boundary); });
     }
 }

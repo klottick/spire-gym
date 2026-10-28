@@ -28,6 +28,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
 pub(in crate::combat) fn down(state:&mut State,owner:&EnemyHandle,source:&Source)->bool{
     let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(EnemyId::AwakenedOne)&&e.hp==0&&e.life==ActorLife::Active&&matches!(e.full_memory,Some(EnemyMemory::AwakenedOne{phase:AwakenedPhase::First,..})))else{return false};
     enemy.life=ActorLife::HalfDead;enemy.full_memory=Some(EnemyMemory::AwakenedOne{phase:AwakenedPhase::Rebirth,first:true});let i=ActorIntentId::Full(FullIntentId::from_name("awa_rebirth"));enemy.intent_id=i.clone();enemy.selected_move=i.clone();enemy.move_history.push(i);enemy.intent_damage=None;
+    crate::combat::cards::ironclad::autoplay::cancel_pending_card_queue(state);
     let actor=Actor::Enemy(owner.clone());state.pending.push_front(effect(actor.clone(),actor.clone(),EffectKind::AwakenedCollapse));state.pending.push_front(Effect{source:source.clone(),target:Some(actor),kind:EffectKind::Hook(Hook::HalfDeath)});true
 }
 

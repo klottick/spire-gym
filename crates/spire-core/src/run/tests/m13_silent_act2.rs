@@ -327,6 +327,7 @@ fn m13_act2_cursor_exhaustion_is_explicit_and_retains_accepted_source() {
                 retained_fault = true;
                 break;
             }
+            Some(Outcome::Escaped)=>panic!("M13 does not admit Smoke escape"),
             Some(Outcome::Death) => panic!("cursor exhaustion must not turn the combat into Death"),
             None => {
                 let action = decision.candidates.iter().find(|candidate|

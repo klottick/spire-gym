@@ -8,6 +8,11 @@ mod content;
 mod model;
 mod engine;
 mod effects;
+mod card_offers;
+mod generation;
+mod smoke;
+pub(crate) use generation::offer_request;
+pub use generation::{GenerationPool,GenerationCost,GenerationWork};
 mod exhaust;
 mod powers;
 mod piles;
@@ -26,7 +31,7 @@ pub mod snapshot;
 
 pub use content::*;
 pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
-    ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind,
+    ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind, SilentItemEffect, PotionEffect,
     EnemyHandle, EnemySetup, EnemyState, EnemyReplacementDiagnostics, SpawnRequest, EnemySpawnDiagnostics,
     CombatEntry, CombatFault, FaultKind, FaultRecord, FullCombatSetup, FullEnemySetup, FullIntentId, FullPowerEntry, FullPowerId, InputError, Outcome, Phase, Piles, PlayerState, PowerEntry,
     PowerState, PublicKnowledge, PendingSelection, RestoreError, Scenario, Source, StepError, Transition,
@@ -34,7 +39,7 @@ pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
 pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
 pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
-pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
+pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
 pub use card_state::{permanent as permanent_live_card, CombatCardData, LiveCard};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, Stance};
 pub use cards::{resolve,IroncladEffect};

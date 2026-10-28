@@ -1,6 +1,30 @@
 # Work status
 
-## Current snapshot — 2026-10-26
+## Current snapshot — 2026-10-28
+
+The M15 native Silent A0 implementation has passed one independent senior review,
+its bounded correction recheck and the final required native integration checks.
+The [M15 profile](milestones/m15-silent-heart.md),
+[coverage ledger](milestones/m15-silent-coverage-ledger.md) and
+[review record](superpowers/plans/2026-10-28-m15-native-runtime-review.md) describe
+the exact scope and source-qualified evidence. All 75 green card kinds, 11
+exclusive relic kinds, three exclusive potions and required shared dependencies
+use the shared engine. The captured Run includes keys, Act4 and Heart settlement.
+
+All six original normal runs ended in genuine Death. Four earned all three keys;
+none reached Act3/Act4/Heart. A separately labelled supplied Act4 run reached
+HeartVictory in 85 legal actions; its stronger conditional fallback was not run.
+Both that result and earlier full-matrix/full-history checks are pre-correction.
+The reviewed corrected source passed 294 focused checks and 15 native integration
+tests. Canonical normal completion remains unproven; Python-extension delivery
+and original-runtime parity remain unverified. Runtime accuracy is the current
+primary objective; no strategy tuning or win search was required.
+
+PR/main integration and downstream source release remain separate manager
+operations. Use live Beads and the primary session for their current state. The
+accepted M16–M19 and M21 plans do not by themselves start implementation.
+
+## Prior snapshot — 2026-10-26
 
 This page gives dated orientation, not live task ownership or implementation
 permission. Use the current primary-session instructions for authorization and

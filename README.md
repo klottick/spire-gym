@@ -14,14 +14,17 @@ encounters have real mechanics, but reward, shop and event pools are bounded.
 | Surface | Implemented coverage | Current limit |
 | --- | --- | --- |
 | Native Ironclad Runs | Captured Acts 1–3; opt-in Act 4, keys, Shield/Spear and Heart mechanics; all 75 ordinary red card kinds | Normal-start traversal to the Heart and HeartVictory remain unobserved. [Ironclad profile](docs/milestones/m10-heart.md) |
-| Native Silent Runs | Canonical starts and finite Acts 1–3 progression; Poison, discard, Shiv, retain and copy mechanics | Finite green pools; native-only delivery; stops before Act 4. Canonical normal completion is unproven. [Silent profile](docs/milestones/m14-silent-act3.md) |
+| Native Silent Runs | Canonical starts, captured Acts 1–4/Heart, all 75 green card kinds and exclusive items; Poison, discard, Shiv, retain, copy and generation mechanics | Finite captured reward/shop/event content; native-only delivery. Canonical normal-start Heart completion remains unproven. [Silent profile](docs/milestones/m15-silent-heart.md) |
 | Python/Gymnasium Ironclad combat | Full-engine standalone supplied-resource fights, native batches and a common combat view inside Runs | Finite A0 inputs and encounters. [Combat API](docs/combat-training.md) |
 | Python/Gymnasium Ironclad Runs | Captured single-Run environment, legal-action masks, numeric observations and replay; explicit M10 opt-in | Silent progression is native-only; native acceptance does not establish delivery by an installed Python extension. [Run API](docs/milestones/m10-heart.md#opt-in-usage) |
 
 Silent Act 3 coverage includes actual entry into all three bosses across 42
 fixed normal-start cases; every case ends in Death. Six separate supplied-loadout
 cases win full-HP bosses and reach the no-key ending. These are distinct from
-normal-start completion.
+normal-start completion. M15 separately records six normal-run Deaths and a
+supplied Act 4 start reaching HeartVictory in 85 legal actions before the final
+review corrections. The corrected implementation passed independent source
+review and focused native integration checks; those checks do not replay that win.
 
 The smaller [combat-v1 API](docs/combat-environments.md) remains available for
 supplied first-ready Ironclad states against Cultist or Jaw Worm.
@@ -43,7 +46,7 @@ cargo run --release --locked --offline -p spire-core --example m5_act1 -- \
 
 It prints decisions, resources and the nonterminal `Act2Ready` endpoint. This is
 a fixed caller over a finite profile; it does not train a policy.
-For current Silent progression, see the [native Silent example](crates/spire-core/examples/m14_silent_act3.rs).
+For current Silent progression, see the [native Silent example](crates/spire-core/examples/m15_silent_heart.rs).
 
 For Python, follow [development setup](docs/development.md#setup-in-a-fresh-checkout)
 to build the optional extension, then use the

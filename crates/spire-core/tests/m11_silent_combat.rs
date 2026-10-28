@@ -116,6 +116,7 @@ fn m11_silent_public_start_enters_and_settles_real_owned_combat() {
         match record.outcome {
             Outcome::Victory => assert_eq!(settled.terminal, None),
             Outcome::Death => assert_eq!(settled.terminal, Some(RunTerminal::Death)),
+            Outcome::Escaped => panic!("M11 authored fixture cannot player-escape"),
         }
 
         if record.outcome == Outcome::Victory {

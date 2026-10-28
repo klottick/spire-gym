@@ -19,9 +19,9 @@ pub(super) fn on_card_exhausted(state:&State,source:&super::Source)->Vec<super::
 /// Finite source-qualified ordinary cleanse categories. Shackled has a separate
 /// unconditional removal at the named Champ/Awakened phase transitions.
 pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
-     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"=>true,
+     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"wraith_form"|"choked"|"corpse_explosion"=>true,
     "strength"|"dexterity"=>power.state.amount<=0,
-     "thievery"|"plated_armor"|"spore_cloud"|"metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"=>false,
+    "thievery"|"plated_armor"|"spore_cloud"|"metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"|"burst"|"mayhem"|"panache"|"sadistic_nature"|"magnetism"=>false,
     _=>return None,
 })}
 
@@ -72,7 +72,9 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
         }});
     } else {
         full.push(FullPowerEntry { id, state: PowerState { amount: value,
-            skip_first: matches!(id.0,"ritual"|"draw_reduction")||id.0=="intangible"&&matches!(actor,Actor::Enemy(_)),
+            skip_first: (matches!(id.0,"ritual"|"draw_reduction")
+                && !matches!(effect.source,Source::Potion{id:crate::content::PotionId::CultistPotion,..}))
+                ||id.0=="intangible"&&matches!(actor,Actor::Enemy(_)),
             monster_source_grace: matches!(id.0, "weak" | "vulnerable" | "frail")
                 && matches!(effect.source, Source::Actor(Actor::Enemy(_))),
         }});
@@ -122,6 +124,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
             let plated=id.0=="plated_armor"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.full_powers.iter().any(|power|power.id==id)),_=>false};
             remove(state, effect.target.as_ref().unwrap(), id);
+            super::cards::colorless_power_removed(state,target,id);
             if plated{if let Actor::Enemy(owner)=target{if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::ShelledParasite)){
                 let actor=Actor::Enemy(owner.clone());super::enemies::act2::bottom(state,Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::ShelledArmorBreak});
             }}}
@@ -129,8 +132,11 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             return super::effects::refresh_enemy_values(state);
         }
         EffectKind::RemovePower(id) => {
-            if matches!(effect.target.as_ref(),Some(Actor::Player))&&id.as_str()=="combust"{state.combust=None;}
-            remove(state, effect.target.as_ref().unwrap(), FullPowerId(id.as_str()));
+            let target=effect.target.as_ref().unwrap();
+            if matches!(target,Actor::Player)&&id.as_str()=="combust"{state.combust=None;}
+            let full_id=FullPowerId(id.as_str());
+            remove(state, target, full_id);
+            super::cards::colorless_power_removed(state,target,full_id);
             return super::effects::refresh_enemy_values(state);
         }
         _ => return Err(InputError::Invariant("power owner received non-power work".into())),
@@ -142,10 +148,19 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "corpse_explosion" | "choked" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity") && delta > 0)
         ||(id.0=="focus"&&delta<0)
-        || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
+        ||(id.0=="wraith_form"&&delta<0) || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
+    if application&&debuff&&artifact==0&&id.0!="shackled"&&matches!(actor,Actor::Enemy(_))
+        &&matches!(effect.source,Source::Actor(Actor::Player)|Source::Card(_)|Source::Potion{..}) {
+        let damage=state.player_full_powers.iter().find(|power|power.id.0=="sadistic_nature")
+            .map_or(0,|power|power.state.amount);
+        if damage>0{
+            super::enemies::act2::bottom(state,Effect{source:Source::Actor(Actor::Player),target:Some(actor.clone()),
+                kind:EffectKind::Damage(super::DamagePayload::Thorns(damage))});
+        }
+    }
     if application && debuff && artifact > 0 {
         set(state, effect, FullPowerId("artifact"), artifact - 1);
         return Ok(());
@@ -165,6 +180,12 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
     let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
     let next = match id.0 {
         "strength" => sum.clamp(-999, 999),
+        // DoubleDamagePower constructs at one; ApplyPower's application
+        // amount is the delta only when an existing matching power stacks.
+        "double_damage" if application&&previous==0=>1,
+        "energized"=>sum.clamp(0,999),
+        "wraith_form"=>sum.min(0),
+        "next_turn_block"|"draw_card_next_turn"|"blur"|"choked"|"infinite_blades"|"after_image"|"a_thousand_cuts"|"envenom"|"phantasmal"|"double_damage"|"intangible_player"|"tools_of_the_trade"|"burst"=>sum.max(0),
         "mode_shift"=>sum.max(0),
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,
@@ -200,6 +221,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         }
     }else{None};
     set(state, effect, id, next);
+    super::cards::colorless_power_applied(state,actor,id,application,previous);
     if id.0 == "accuracy" && matches!(actor, Actor::Player) {
         super::cards::rewrite_accuracy_shivs(state, next);
     }

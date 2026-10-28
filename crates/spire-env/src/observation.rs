@@ -183,7 +183,7 @@ pub(crate) fn encode_projected(p: &PublicProjection<'_>, k: &PublicKnowledge,
     row.relic_presence = [1];
     row.context = [1,0,i32::from(context.act.unwrap_or(0)),context.next_encounter.map(enemy_kind).unwrap_or(0)];
     row.context_mask = [1,1,i8::from(context.act.is_some()),i8::from(context.next_encounter.is_some())];
-    row.outcome = [match p.outcome { None => 0, Some(Outcome::Victory) => 1, Some(Outcome::Death) => 2 }];
+    row.outcome = [match p.outcome { None => 0, Some(Outcome::Victory) => 1, Some(Outcome::Death) => 2,Some(Outcome::Escaped)=>return Err(encoding_error("M15 escape requires M15 native profile")) }];
     if p.outcome.is_none() {
         for (i, (action, source, target)) in menu.rows().enumerate() {
             row.action_kind[i] = if action.source.is_some() { 2 } else { 1 };

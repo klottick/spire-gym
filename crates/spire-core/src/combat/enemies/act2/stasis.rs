@@ -22,6 +22,7 @@ pub(in crate::combat) fn capture(state:&mut State,owner:&EnemyHandle)->Result<()
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Stasis card stream absent".into()))?;let (index,next)=rng::uniform_below(stream,candidates.len() as u128)?;
     let index=candidates[index as usize].0;let draw=!state.piles.draw.is_empty();state.card_rng=Some(next);
     let card=if draw{state.piles.draw.remove(index)}else{state.piles.discard.remove(index)};state.stasis.insert(owner.clone(),card);
+    crate::combat::piles::refresh_hand_values(state);
     state.pending.push_front(effect(Actor::Enemy(owner.clone()),Actor::Enemy(owner.clone()),EffectKind::ApplyFullPower{id:FullPowerId("stasis"),amount:1}));Ok(())
 }
 
@@ -36,7 +37,8 @@ pub(in crate::combat) fn release(state:&mut State,owner:&EnemyHandle)->Result<()
     if !state.stasis.get(owner).is_some_and(|card|card.full().is_some()){return Err(InputError::Invariant("Stasis return is not full card".into()))}
     let mut card=state.stasis.remove(owner).ok_or_else(||InputError::Invariant("Stasis release owner absent".into()))?;
     returned(card.full_mut().unwrap());
-    if state.piles.hand.len()<10{state.piles.hand.push(card)}else{state.piles.discard.push(card)}Ok(())
+    if state.piles.hand.len()<10{state.piles.hand.push(card)}else{state.piles.discard.push(card)}
+    crate::combat::piles::refresh_hand_values(state);Ok(())
 }
 
 fn barrier(state:&State)->usize{state.pending.iter().position(|e|matches!(e.kind,EffectKind::Hook(super::super::super::Hook::CombatSettled)|EffectKind::Terminal(_)|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::Decision)).unwrap_or(state.pending.len())}

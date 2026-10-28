@@ -64,20 +64,22 @@ pub fn compare(left: &Snapshot, right: &Snapshot) -> Option<Divergence> {
         actor_slots,facing,spawn_ordinals,spawn_progress,
         stasis,inactive_cards,permanent_gains,next_permanent_gain,played_powers,play_frames,play_context,queued_autoplay,pending_time_warp,
         hp_before_healing, hp_after_cleanup, full_runtime, pending_selection, hook_events, item_context,combust,
-        character, card_rng, replacement_progress, damage_events_this_combat);
+        character, card_rng, replacement_progress, damage_events_this_combat, silent,colorless);
     None
 }
 
 fn is_legacy_v2_state(state: &State) -> bool {
     !state.full_runtime && state.enemies.len() == 1
+        && state.silent==super::cards::SilentState::default()
         && state.enemies.iter().all(|enemy| enemy.life == super::ActorLife::Active)
         && state.replacement_progress.is_none() && state.pending_selection.is_none()
         && state.hook_events.is_empty() && state.attempted_action.is_none()
         && state.fault_selection.is_none() && state.player_full_powers.is_empty()
         && state.play_frames.is_empty()
         && !state.pending.iter().chain(state.current.iter()).any(|effect|matches!(effect.kind,
-            super::model::EffectKind::JuggernautRandomDamage(_)))
+            super::model::EffectKind::Alchemize{..}|super::model::EffectKind::SmokeEscape|super::model::EffectKind::Generate(_)|super::model::EffectKind::JuggernautRandomDamage(_)|super::model::EffectKind::SilentItem(_)|super::model::EffectKind::Potion(_)|super::model::EffectKind::CardOffer{..}|super::model::EffectKind::DeliverCardOffer{..}|super::model::EffectKind::ObtainPotion{..}))
         && state.damage_events_this_combat==0
+        && state.colorless==super::model::ColorlessState::default()
         && state.play_context.is_none()
         && state.queued_autoplay.is_empty()
         && state.item_context.is_none()

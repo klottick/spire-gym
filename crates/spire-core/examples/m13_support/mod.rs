@@ -24,6 +24,7 @@ use spire_core::{
 pub const CALLER_POLICY_REVISION: &str = "m13-public-caller-v2";
 pub const ACTION_LIMIT_MAX: usize = 4096;
 pub const M14_ACTION_LIMIT_MAX: usize = 8192;
+pub const M15_ACTION_LIMIT_MAX: usize = 8192;
 pub const FIXED_SEEDS: [u64; 2] = [7, 11];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,6 +68,27 @@ pub enum CallerOutcome {
     EmptyDeck,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum M15CallerOutcome {
+    HeartVictory,
+    Death,
+    BudgetExhausted,
+    Act3NoKeys,
+    EmptyDeck,
+}
+
+impl fmt::Display for M15CallerOutcome {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::HeartVictory => write!(f, "HeartVictory"),
+            Self::Death => write!(f, "Death"),
+            Self::BudgetExhausted => write!(f, "BudgetExhausted"),
+            Self::Act3NoKeys => write!(f, "Act3NoKeys"),
+            Self::EmptyDeck => write!(f, "EmptyDeck"),
+        }
+    }
+}
+
 impl fmt::Display for CallerOutcome {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -101,6 +123,12 @@ pub struct TraceStep {
 enum CallerProfile {
     M13,
     M14,
+    M15,
+}
+
+enum SharedOutcome {
+    Legacy(CallerOutcome),
+    M15(M15CallerOutcome),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -128,7 +156,7 @@ impl fmt::Debug for Caller {
             .field("limit", &self.limit)
             .field("elite_reached", &self.elite_reached)
             .field("ordinary_reached", &self.ordinary_reached);
-        if self.profile == CallerProfile::M14 {
+        if self.profile != CallerProfile::M13 {
             debug
                 .field("profile", &self.profile)
                 .field("act3_elite_reached", &self.act3_elite_reached)
@@ -157,6 +185,13 @@ impl Caller {
             return Err(format!("M14 caller limit must be in 0..={M14_ACTION_LIMIT_MAX}"));
         }
         Ok(Self::with_profile(limit, CallerProfile::M14))
+    }
+
+    pub fn new_m15(limit: usize) -> Result<Self, String> {
+        if limit > M15_ACTION_LIMIT_MAX {
+            return Err(format!("M15 caller limit must be in 0..={M15_ACTION_LIMIT_MAX}"));
+        }
+        Ok(Self::with_profile(limit, CallerProfile::M15))
     }
 
     fn with_profile(limit: usize, profile: CallerProfile) -> Self {
@@ -189,7 +224,7 @@ impl Caller {
                 let index = (act - 1) as usize;
                 (self.elite_reached[index], self.ordinary_reached[index])
             }
-            3 if self.profile == CallerProfile::M14 => {
+            3 if self.profile != CallerProfile::M13 => {
                 (self.act3_elite_reached, self.act3_ordinary_reached)
             }
             // M13 has no Act3 map decision. Keep its prior no-extra-quota
@@ -290,7 +325,10 @@ pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Resul
     if caller.profile != CallerProfile::M13 {
         return Err("M13 rollout requires an M13 caller".into());
     }
-    rollout_shared(run, caller, CallerProfile::M13)
+    match rollout_shared(run, caller, CallerProfile::M13, None)? {
+        SharedOutcome::Legacy(outcome) => Ok(outcome),
+        SharedOutcome::M15(_) => Err("M13 rollout received an M15 finish result".into()),
+    }
 }
 
 /// Runs the same public caller policy through M14's additive Act3 endpoints.
@@ -305,7 +343,29 @@ pub fn rollout_m14(run: &mut Run, caller: &mut Caller, death_control: bool) -> R
         return Err("M14 rollout requires the M14SilentAct3 Run profile".into());
     }
     caller.nonattacking = death_control;
-    rollout_shared(run, caller, CallerProfile::M14)
+    match rollout_shared(run, caller, CallerProfile::M14, None)? {
+        SharedOutcome::Legacy(outcome) => Ok(outcome),
+        SharedOutcome::M15(_) => Err("M14 rollout received an M15 finish result".into()),
+    }
+}
+
+/// Runs M15 through the same shared public rollout loop with one pure key override.
+pub fn rollout_m15(
+    run: &mut Run,
+    caller: &mut Caller,
+    key_action: fn(&PublicDecision, Option<&spire_core::run::map::PublicMap>) -> Option<GameAction>,
+) -> Result<M15CallerOutcome, String> {
+    if caller.profile != CallerProfile::M15 {
+        return Err("M15 rollout requires an M15 caller".into());
+    }
+    let initial = run.decision().map_err(classify_run_error)?;
+    if initial.content_profile != Some(RoomScenario::M15SilentHeart) {
+        return Err("M15 rollout requires the M15SilentHeart Run profile".into());
+    }
+    match rollout_shared(run, caller, CallerProfile::M15, Some(key_action))? {
+        SharedOutcome::M15(outcome) => Ok(outcome),
+        SharedOutcome::Legacy(_) => Err("M15 rollout received a legacy finish result".into()),
+    }
 }
 
 pub(crate) fn m14_stop_outcome(decision: &PublicDecision) -> Option<CallerOutcome> {
@@ -321,7 +381,12 @@ pub(crate) fn m14_stop_outcome(decision: &PublicDecision) -> Option<CallerOutcom
     }
 }
 
-fn rollout_shared(run: &mut Run, caller: &mut Caller, profile: CallerProfile) -> Result<CallerOutcome, String> {
+fn rollout_shared(
+    run: &mut Run,
+    caller: &mut Caller,
+    profile: CallerProfile,
+    key_action: Option<fn(&PublicDecision, Option<&spire_core::run::map::PublicMap>) -> Option<GameAction>>,
+) -> Result<SharedOutcome, String> {
     loop {
         let decision = run.decision().map_err(classify_run_error)?;
         let map = run.public_map();
@@ -330,39 +395,52 @@ fn rollout_shared(run: &mut Run, caller: &mut Caller, profile: CallerProfile) ->
 
         if profile == CallerProfile::M13 {
             if decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready) {
-                return Ok(CallerOutcome::Act3Ready);
+                return Ok(SharedOutcome::Legacy(CallerOutcome::Act3Ready));
             }
             if decision.terminal == Some(RunTerminal::Death) {
-                return Ok(CallerOutcome::Death);
+                return Ok(SharedOutcome::Legacy(CallerOutcome::Death));
             }
             if decision.terminal.is_some() {
                 return Err(format!("unexpected native terminal state: {:?}", decision.terminal));
             }
-        } else {
+        } else if profile == CallerProfile::M14 {
             if let Some(outcome) = m14_stop_outcome(&decision) {
-                return Ok(outcome);
+                return Ok(SharedOutcome::Legacy(outcome));
             }
             if decision.terminal.is_some() {
                 return Err(format!("unexpected native terminal state: {:?}", decision.terminal));
             }
+        } else if let Some(outcome) = m15_stop_or_budget(&decision, caller.trace.last(), caller.accepted(), caller.limit)? {
+            return Ok(SharedOutcome::M15(outcome));
         }
-        if caller.accepted() >= caller.limit {
-            return Ok(CallerOutcome::BudgetExhausted);
+        if profile != CallerProfile::M15 && caller.accepted() >= caller.limit {
+            return Ok(match profile {
+                CallerProfile::M13 | CallerProfile::M14 => SharedOutcome::Legacy(CallerOutcome::BudgetExhausted),
+                CallerProfile::M15 => unreachable!("M15 budget handled before the shared legacy budget branch"),
+            });
         }
 
         let action = if caller.nonattacking && decision.combat.is_some() {
             GameAction::Combat(CombatAction::EndTurn)
         } else {
-            action_for(&decision, map.as_ref(), caller).map_err(|error| {
-                if profile == CallerProfile::M14 {
-                    format!("caller policy error at act {} floor {} in {:?}: {error}", decision.act, decision.floor, decision.room.as_ref().map(|room| room.kind))
-                } else {
-                    error
+            let override_action = key_action.and_then(|policy| policy(&decision, map.as_ref()));
+            if let Some(action) = override_action {
+                action
+            } else {
+                match action_for(&decision, map.as_ref(), caller) {
+                    Ok(action) => action,
+                    Err(error) if profile == CallerProfile::M15 => {
+                        m15_first_offered_legal(&decision).ok_or(error)?
+                    }
+                    Err(error) if profile == CallerProfile::M14 => {
+                        return Err(format!("caller policy error at act {} floor {} in {:?}: {error}", decision.act, decision.floor, decision.room.as_ref().map(|room| room.kind)));
+                    }
+                    Err(error) => return Err(error),
                 }
-            })?
+            }
         };
         if !decision.candidates.iter().any(|candidate| candidate.action == action) {
-            if profile == CallerProfile::M14 {
+            if profile != CallerProfile::M13 {
                 caller.failed_action = Some(action.clone());
                 return Err(format!("caller selected an action outside the public menu at act {} floor {}: {action:?}", decision.act, decision.floor));
             }
@@ -370,7 +448,7 @@ fn rollout_shared(run: &mut Run, caller: &mut Caller, profile: CallerProfile) ->
         }
         let transition = match run.step(&action) {
             Ok(transition) => transition,
-            Err(error) if profile == CallerProfile::M14 => {
+            Err(error) if profile != CallerProfile::M13 => {
                 caller.failed_action = Some(action.clone());
                 return Err(format!(
                     "{} at act {} floor {} while applying {action:?}",
@@ -385,7 +463,7 @@ fn rollout_shared(run: &mut Run, caller: &mut Caller, profile: CallerProfile) ->
                     let act = (decision.act - 1) as usize;
                     caller.elite_reached[act] |= node.kind == spire_core::run::MapNodeKind::Elite;
                     caller.ordinary_reached[act] |= node.kind == spire_core::run::MapNodeKind::Monster;
-                } else if decision.act == 3 && profile == CallerProfile::M14 {
+                } else if decision.act == 3 && profile != CallerProfile::M13 {
                     caller.act3_elite_reached |= node.kind == spire_core::run::MapNodeKind::Elite;
                     caller.act3_ordinary_reached |= node.kind == spire_core::run::MapNodeKind::Monster;
                 }
@@ -409,14 +487,14 @@ fn action_for(
     caller: &Caller,
 ) -> Result<GameAction, String> {
     if let Some(combat) = &decision.combat {
-        return if caller.profile == CallerProfile::M14 {
+        return if caller.profile != CallerProfile::M13 {
             combat_action_with_profile(decision, combat, true)
         } else {
             combat_action(decision, combat)
         };
     }
     if decision.selection.is_some() {
-        return if caller.profile == CallerProfile::M14 {
+        return if caller.profile != CallerProfile::M13 {
             m14_revision::room_selection_action(decision)
         } else {
             room_selection_action(decision)
@@ -427,7 +505,7 @@ fn action_for(
         RoomViewKind::Neow => room_choice(decision, |kind| kind == &RoomChoiceKind::NeowLament),
         RoomViewKind::Map => map.and_then(|map| {
             let (elite_reached, ordinary_reached) = caller.route_progress(decision.act);
-            if caller.profile == CallerProfile::M14 {
+            if caller.profile != CallerProfile::M13 {
                 public_routes_v2::action_m14(decision, map, elite_reached, ordinary_reached).ok()
             } else {
                 map_action(decision, map, elite_reached, ordinary_reached).ok()
@@ -438,12 +516,12 @@ fn action_for(
             .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::CardReward))
             .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::Potion(_))))
             .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Proceed)),
-        RoomViewKind::CardReward => if caller.profile == CallerProfile::M14 {
+        RoomViewKind::CardReward => if caller.profile != CallerProfile::M13 {
             m14_revision::card_reward_action(decision)
         } else {
             card_reward_action(decision)
         },
-        RoomViewKind::Shop => if caller.profile == CallerProfile::M14 {
+        RoomViewKind::Shop => if caller.profile != CallerProfile::M13 {
             m14_revision::shop_action(decision)
         } else {
             shop_action(decision)
@@ -459,7 +537,7 @@ fn action_for(
             .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::JoustContinue))
             .or_else(|| room_choice(decision, |kind| matches!(kind, RoomChoiceKind::JoustResult { .. })))
             .or_else(|| room_choice(decision, |kind| kind == &RoomChoiceKind::Leave)),
-        RoomViewKind::Event(EventId::Falling) => if caller.profile == CallerProfile::M14 {
+        RoomViewKind::Event(EventId::Falling) => if caller.profile != CallerProfile::M13 {
             m14_revision::falling_action(decision)
         } else {
             falling_action(decision)
@@ -486,6 +564,83 @@ fn action_for(
         _ => None,
     };
     action.ok_or_else(|| format!("no public caller rule for floor {} in {room_kind:?}", decision.floor, room_kind = room.kind))
+}
+
+pub(crate) fn m15_first_offered_legal(decision: &PublicDecision) -> Option<GameAction> {
+    if decision.combat.is_some() || decision.selection.is_some() {
+        return None;
+    }
+    let room = decision.room.as_ref()?;
+    room.choices.iter().filter(|choice| choice.status == RoomChoiceStatus::Offered)
+        .filter(|choice| room.kind != RoomViewKind::HeartVictory || choice.kind == RoomChoiceKind::Proceed)
+        .find_map(|choice| {
+            let action = GameAction::Choose(choice.id);
+            decision.candidates.iter().any(|candidate| candidate.id == choice.id && candidate.action == action).then_some(action)
+        })
+}
+
+/// Convert only actual M15 endpoints, validating the accepted Proceed receipt for Heart victory.
+pub fn m15_stop_outcome(
+    decision: &PublicDecision,
+    last: Option<&TraceStep>,
+) -> Result<Option<M15CallerOutcome>, String> {
+    if decision.content_profile != Some(RoomScenario::M15SilentHeart) {
+        return Err("M15 stop check requires the M15SilentHeart profile".into());
+    }
+    match decision.terminal {
+        None => Ok(None),
+        Some(RunTerminal::Death) => Ok(Some(M15CallerOutcome::Death)),
+        Some(RunTerminal::Act3NoKeys) => Ok(Some(M15CallerOutcome::Act3NoKeys)),
+        Some(RunTerminal::EmptyDeck) => Ok(Some(M15CallerOutcome::EmptyDeck)),
+        Some(RunTerminal::HeartVictory) => {
+            if decision.act != 4 || decision.floor != 55
+                || !decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::TrueVictory)
+            {
+                return Err("HeartVictory terminal is not the M15 floor-55 TrueVictory endpoint".into());
+            }
+            let trace = last.ok_or("HeartVictory terminal has no accepted final Proceed trace")?;
+            let before = &trace.decision;
+            if before.content_profile != Some(RoomScenario::M15SilentHeart)
+                || before.act != 4 || before.floor != 54
+                || before.terminal.is_some()
+                || !before.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::HeartVictory)
+            {
+                return Err("HeartVictory terminal is missing the M15 floor-54 HeartVictory source decision".into());
+            }
+            let proceed = before.room.as_ref().and_then(|room| room.choices.iter()
+                .find(|choice| choice.kind == RoomChoiceKind::Proceed && choice.status == RoomChoiceStatus::Offered))
+                .ok_or("HeartVictory source decision did not offer Proceed")?;
+            let expected = GameAction::Choose(proceed.id);
+            if !before.candidates.iter().any(|candidate| candidate.id == proceed.id && candidate.action == expected) || trace.action != expected {
+                return Err("HeartVictory terminal is not backed by the offered legal Proceed action".into());
+            }
+            if trace.transition.terminal != Some(RunTerminal::HeartVictory) {
+                return Err("accepted Proceed transition did not terminate in HeartVictory".into());
+            }
+            let entered = trace.transition.committed_events.iter()
+                .position(|event| *event == CommittedEvent::FloorEntered { act: 4, floor: 55 })
+                .ok_or("accepted Proceed transition omitted floor-55 entry")?;
+            let ended = trace.transition.committed_events.iter()
+                .position(|event| *event == CommittedEvent::Ended(RunTerminal::HeartVictory))
+                .ok_or("accepted Proceed transition omitted HeartVictory settlement")?;
+            if entered >= ended {
+                return Err("accepted Proceed transition has invalid floor/terminal event order".into());
+            }
+            Ok(Some(M15CallerOutcome::HeartVictory))
+        }
+    }
+}
+
+pub(crate) fn m15_stop_or_budget(
+    decision: &PublicDecision,
+    last: Option<&TraceStep>,
+    accepted: usize,
+    limit: usize,
+) -> Result<Option<M15CallerOutcome>, String> {
+    if let Some(outcome) = m15_stop_outcome(decision, last)? {
+        return Ok(Some(outcome));
+    }
+    Ok((accepted >= limit).then_some(M15CallerOutcome::BudgetExhausted))
 }
 
 fn room_choice(decision: &PublicDecision, wanted: impl Fn(&RoomChoiceKind) -> bool) -> Option<GameAction> {
@@ -981,12 +1136,12 @@ pub fn summarize(caller: &Caller) -> Summary {
             match event {
                 CommittedEvent::CombatEntered { encounter, .. }
                     if matches!(encounter, EncounterId::Guardian | EncounterId::Hexaghost | EncounterId::SlimeBoss | EncounterId::Champ | EncounterId::BronzeAutomaton | EncounterId::Collector)
-                        || caller.profile == CallerProfile::M14 && matches!(encounter, EncounterId::AwakenedOne | EncounterId::TimeEater | EncounterId::DonuAndDeca) => {
+                        || caller.profile != CallerProfile::M13 && matches!(encounter, EncounterId::AwakenedOne | EncounterId::TimeEater | EncounterId::DonuAndDeca) => {
                         summary.boss_combat_entries.push(*encounter);
                     }
                 CommittedEvent::CombatFinished(record)
                     if matches!(record.encounter, EncounterId::Guardian | EncounterId::Hexaghost | EncounterId::SlimeBoss | EncounterId::Champ | EncounterId::BronzeAutomaton | EncounterId::Collector)
-                        || caller.profile == CallerProfile::M14 && matches!(record.encounter, EncounterId::AwakenedOne | EncounterId::TimeEater | EncounterId::DonuAndDeca) => {
+                        || caller.profile != CallerProfile::M13 && matches!(record.encounter, EncounterId::AwakenedOne | EncounterId::TimeEater | EncounterId::DonuAndDeca) => {
                         summary.boss_combat_records.push((record.encounter, record.outcome));
                     }
                 _ => (),

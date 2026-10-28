@@ -33,11 +33,18 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     let next = state.turn.checked_add(1).filter(|n| *n <= i32::MAX as u32)
         .ok_or_else(|| InputError::Unsupported("next turn outside supported numeric surface".into()))?;
     state.turn = next;
+    state.silent.played_this_turn.clear();
+    state.silent.discarded_this_turn=0;
     super::piles::expire_turn_scoped_costs(state);
     state.phase = Phase::PlayerStart;
-    let retain_player_block=state.full_runtime&&state.player_full_powers.iter().any(|power|power.id.0=="barricade"&&power.state.amount>0);
+    let retain_player_block=state.full_runtime&&(state.silent.retain_block_next_start||state.player_full_powers.iter().any(|power|power.id.0=="barricade"&&power.state.amount>0));
+    state.silent.retain_block_next_start=false;
     if !retain_player_block{state.player.block = 0;}
     state.player.energy = state.player.max_energy;
+    if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="energized"&&p.state.amount>0).cloned(){
+        state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
+        state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
+    }
     for enemy in &mut state.enemies { enemy.intent_id = enemy.selected_move.clone(); }
     super::effects::refresh_enemy_values(state)?;
     let reduction=i32::from(state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="draw_reduction"&&p.state.amount>0));

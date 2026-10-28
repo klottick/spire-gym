@@ -59,7 +59,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
         let mut t=match entered{Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted M6 encounter entry failed"),"run.m6.encounter"))};
         t.reward+=credit;t.committed_events.insert(0,event);return Ok(t)
     }
-    run.next_choice=next;if is_m10(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen.unwrap();Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
+    run.next_choice=next;if uses_act4(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen.unwrap();Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
 }
 
 pub(super) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{

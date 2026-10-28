@@ -7,6 +7,7 @@ use crate::run_schema_m10 as schema_m10;
 use crate::run_schema_m12 as schema_m12;
 use crate::run_schema_m13 as schema_m13;
 use crate::run_schema_m14 as schema_m14;
+use crate::run_schema_m15 as schema_m15;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RunFeatureGroup{pub key:&'static str,pub shape:Vec<usize>,pub values:Vec<i64>,pub known:Vec<i8>,pub occupied:Option<Vec<i8>>}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -16,22 +17,22 @@ fn number<T:TryInto<i64>>(v:T)->Result<i64,RunSessionError>{v.try_into().map_err
 fn reserved<T:Clone>(len:usize,value:T)->Result<Vec<T>,RunSessionError>{let mut v=Vec::new();v.try_reserve_exact(len).map_err(|_|RunSessionError::DeliveryFault("Run encoding allocation failed"))?;v.resize(len,value);Ok(v)}
 fn capacity(group:&'static str,required:usize,cap:usize)->Result<(),RunSessionError>{if required>cap{Err(RunSessionError::Capacity{group,required,capacity:cap})}else{Ok(())}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunEncodingProfile{M9,M10,M12,M13,M14,CombatV2}
+pub(crate) enum RunEncodingProfile{M9,M10,M12,M13,M14,M15,CombatV2}
 impl RunEncodingProfile{fn extended(self)->bool{self!=Self::M9}}
-fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id),RunEncodingProfile::M13=>schema_m13::card(id),RunEncodingProfile::M14=>schema_m14::card(id)}}
+fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id),RunEncodingProfile::M13=>schema_m13::card(id),RunEncodingProfile::M14=>schema_m14::card(id),RunEncodingProfile::M15=>schema_m15::card(id)}}
 fn enemy_id(profile:RunEncodingProfile,id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{match profile{
     RunEncodingProfile::M9=>schema::enemy(id),RunEncodingProfile::M10=>schema_m10::enemy(id),
-    RunEncodingProfile::CombatV2=>crate::combat_policy::closure_enemy(id),RunEncodingProfile::M12=>schema_m12::enemy(id),RunEncodingProfile::M13=>schema_m13::enemy(id),RunEncodingProfile::M14=>schema_m14::enemy(id)}}
-fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id),RunEncodingProfile::M13=>schema_m13::encounter(id),RunEncodingProfile::M14=>schema_m14::encounter(id)}}
-fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id),RunEncodingProfile::M13=>schema_m13::relic(id),RunEncodingProfile::M14=>schema_m14::relic(id)}}
-fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id),RunEncodingProfile::M13=>schema_m13::potion(id),RunEncodingProfile::M14=>schema_m14::potion(id)}}
-fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id),RunEncodingProfile::M14=>schema_m14::event(id)}}
-fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id),RunEncodingProfile::M14=>schema_m14::room(id)}}
-fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id),RunEncodingProfile::M14=>schema_m14::profile(id)}}
-fn intent_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::intent(name),RunEncodingProfile::M10=>schema_m10::intent(name),RunEncodingProfile::CombatV2=>crate::combat_policy::closure_intent(name),RunEncodingProfile::M12=>schema_m12::intent(name),RunEncodingProfile::M13=>schema_m13::intent(name),RunEncodingProfile::M14=>schema_m14::intent(name)}}
+    RunEncodingProfile::CombatV2=>crate::combat_policy::closure_enemy(id),RunEncodingProfile::M12=>schema_m12::enemy(id),RunEncodingProfile::M13=>schema_m13::enemy(id),RunEncodingProfile::M14=>schema_m14::enemy(id),RunEncodingProfile::M15=>schema_m15::enemy(id)}}
+fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id),RunEncodingProfile::M13=>schema_m13::encounter(id),RunEncodingProfile::M14=>schema_m14::encounter(id),RunEncodingProfile::M15=>schema_m15::encounter(id)}}
+fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id),RunEncodingProfile::M13=>schema_m13::relic(id),RunEncodingProfile::M14=>schema_m14::relic(id),RunEncodingProfile::M15=>schema_m15::relic(id)}}
+fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id),RunEncodingProfile::M13=>schema_m13::potion(id),RunEncodingProfile::M14=>schema_m14::potion(id),RunEncodingProfile::M15=>schema_m15::potion(id)}}
+fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id),RunEncodingProfile::M14=>schema_m14::event(id),RunEncodingProfile::M15=>schema_m15::event(id)}}
+fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id),RunEncodingProfile::M14=>schema_m14::room(id),RunEncodingProfile::M15=>schema_m15::room(id)}}
+fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id),RunEncodingProfile::M14=>schema_m14::profile(id),RunEncodingProfile::M15=>schema_m15::profile(id)}}
+fn intent_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>schema::intent(name),RunEncodingProfile::M10=>schema_m10::intent(name),RunEncodingProfile::CombatV2=>crate::combat_policy::closure_intent(name),RunEncodingProfile::M12=>schema_m12::intent(name),RunEncodingProfile::M13=>schema_m13::intent(name),RunEncodingProfile::M14=>schema_m14::intent(name),RunEncodingProfile::M15=>schema_m15::intent(name)}}
 fn power_id(m10:bool,name:&str)->Result<i64,RunSessionError>{if m10{schema_m10::power(name)}else{schema::named(schema::POWERS,name)}}
-fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Ok(schema::choice(kind)),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind)}}
-fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name)}}
+fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Ok(schema::choice(kind)),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind),RunEncodingProfile::M15=>schema_m15::choice(kind)}}
+fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name),RunEncodingProfile::M15=>schema_m15::zone(name)}}
 fn cost_kind(kind:CardCostKind)->i64{match kind{CardCostKind::Fixed=>1,CardCostKind::X=>2,CardCostKind::Unplayable=>3}}
 fn intent_hits(name:&str)->Option<i64>{match name{
     "shield_bash"|"shield_smash"|"heart_echo"=>Some(1),
@@ -56,7 +57,7 @@ impl RunObservation{
     }
 }
 fn terminal(t:Option<RunTerminal>)->i64{match t{None=>0,Some(RunTerminal::Death)=>1,Some(RunTerminal::EmptyDeck)=>2,Some(RunTerminal::Act3NoKeys)=>3,Some(RunTerminal::HeartVictory)=>4}}
-fn outcome(o:Outcome)->i64{match o{Outcome::Victory=>1,Outcome::Death=>2}}
+fn outcome(o:Outcome)->i64{match o{Outcome::Victory=>1,Outcome::Death=>2,Outcome::Escaped=>3}}
 fn card_type(t:CardType)->i64{match t{CardType::Attack=>1,CardType::Skill=>2,CardType::Power=>3,CardType::Status=>4,CardType::Curse=>5}}
 fn permanent(d:&PublicDecision,id:u64)->Result<usize,RunSessionError>{d.objects.iter().position(|c|c.instance==id).ok_or(RunSessionError::Input("public permanent reference missing"))}
 fn position<T:PartialEq>(rows:&[T],id:&T)->Result<usize,RunSessionError>{rows.iter().position(|v|v==id).ok_or(RunSessionError::Input("public row reference missing"))}
@@ -106,6 +107,15 @@ pub fn encode_run_m14(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCap
 }
 fn m14_power(_: bool, name: &str) -> Result<i64, RunSessionError> { schema_m14::power(name) }
 
+pub fn encode_run_m15(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
+    if d.content_profile!=Some(RoomScenario::M15SilentHeart)||d.player.character!=Character::Silent {
+        return Err(RunSessionError::Input("M15 v1 encoder requires the M15 Silent Heart profile"));
+    }
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M15,m15_power)
+}
+fn m15_power(_:bool,name:&str)->Result<i64,RunSessionError>{schema_m15::power(name)}
+
+
 fn m12_power(_:bool,name:&str)->Result<i64,RunSessionError>{schema_m12::power(name)}
 
 pub(crate) fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool)->Result<RunObservation,RunSessionError>{
@@ -116,7 +126,13 @@ pub(crate) fn encode_run_with_power(d:&PublicDecision,map:Option<&PublicMap>,cap
 }
 pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,power:fn(bool,&str)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
     let extended=profile.extended();
-    match profile{RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?,RunEncodingProfile::M13=>schema_m13::validate(caps)?,RunEncodingProfile::M14=>schema_m14::validate(caps)?}
+    if profile!=RunEncodingProfile::M15 && (d.combat.as_ref().is_some_and(|combat|combat.outcome==Some(Outcome::Escaped))||d.last_combat.as_ref().is_some_and(|record|record.outcome==Outcome::Escaped)){return Err(RunSessionError::UnsupportedBoundary("M15 escape requires M15 native profile"))}
+    if profile!=RunEncodingProfile::M15 && d.combat.as_ref().is_some_and(|combat|combat.card_offer.is_some()
+        ||combat.selection.as_ref().is_some_and(|selection|matches!(selection.operation,
+            spire_core::combat::SelectionOperation::Setup|spire_core::combat::SelectionOperation::Bottomdeck|spire_core::combat::SelectionOperation::RetrieveMemories))) {
+        return Err(RunSessionError::UnsupportedBoundary("M15 generated choices require M15 native profile"));
+    }
+    match profile{RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?,RunEncodingProfile::M13=>schema_m13::validate(caps)?,RunEncodingProfile::M14=>schema_m14::validate(caps)?,RunEncodingProfile::M15=>schema_m15::validate(caps)?}
     if !extended&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.parent,spire_core::combat::SelectionParent::Potion{..})
             || !matches!(s.operation,spire_core::combat::SelectionOperation::Move(
@@ -147,6 +163,13 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
     }
     let mut cards:Vec<(&LiveCardView,i64,usize,Option<usize>)>=vec![];
     if let Some(c)=&d.combat{
+        if profile==RunEncodingProfile::M15 {
+            if let Some(offer)=&c.card_offer {
+                capacity("combat_card_offers",offer.cards.len(),caps.offers)?;
+                if offer.cards.is_empty(){return Err(RunSessionError::Input("empty public card offer"))}
+                if c.selection.is_some() || d.selection.is_some(){return Err(RunSessionError::Input("ambiguous simultaneous card offer and selection"))}
+            }
+        }
         capacity("enemies",c.enemies.len(),caps.enemies)?;
         if profile==RunEncodingProfile::M9&&c.enemies.iter().any(|enemy|matches!(enemy.enemy_id,spire_core::content::EnemyId::SpireShield|spire_core::content::EnemyId::SpireSpear)){
             return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode the Shield-and-Spear encounter"));
@@ -229,7 +252,7 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
     let selection_count=if let Some(s)=&d.selection{s.eligible.len()}else{d.combat.as_ref().and_then(|c|c.selection.as_ref()).map_or(0,|s|s.candidates.len())};
     capacity("selection",selection_count,caps.selection)?;
     let mut o=RunObservation{groups:vec![],action_mask:reserved(caps.actions,0)?};
-    for spec in match profile{RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps)}{
+    for spec in match profile{RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps)}{
         let cols=spec.fields.split(',').count();let rows=spec.rows.unwrap_or(1);let mut values=reserved(rows*cols,0)?;
         // Unavailable references in real rows are -1/known0; all padding remains0.
         let occupied_count=match spec.key{"combat_cards"=>cards.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
@@ -245,7 +268,7 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
     ])?;
     // PublicDecision has no ascension field. The named fixed-A0 profiles both
     // fix A0; never infer it for an unknown/unrelated public profile.
-    if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
+    if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
     o.group_mut("player").row(0,&[Some(i64::from(d.player.hp)),Some(i64::from(d.player.max_hp)),Some(i64::from(d.player.gold)),None,None,None,None,None,None,None,None,None])?;
     for (row,card) in d.objects.iter().enumerate(){
         if d.objects[..row].iter().any(|c|c.instance==card.instance){return Err(RunSessionError::Input("duplicate public permanent identity"))}
@@ -291,7 +314,7 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
             o.group_mut("enemies").row(row,&values)?;
         }
         if d.player.character==Character::Defect{for (row,orb) in c.character.orbs.iter().enumerate(){o.group_mut("orbs").row(row,&[Some(match orb{None=>0,Some(OrbKind::Lightning)=>1,Some(OrbKind::Frost)=>2})])?;if orb.is_none(){o.group_mut("orbs").occupied.as_mut().unwrap()[row]=0;}}}
-        if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2) {
+        if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M15) {
             let facing=c.encounter_facing.as_ref();
             let heart=c.enemies.iter().find(|enemy|enemy.enemy_id==spire_core::content::EnemyId::CorruptHeart);
             let remaining=heart.and_then(|enemy|enemy.powers.iter().find(|power|power.id.0=="invincible").map(|power|i64::from(power.amount)));
@@ -313,7 +336,7 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
                 if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2)&&matches!(s.operation,spire_core::combat::SelectionOperation::NightmareCapture) {
                     return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections"));
                 }
-                let operation=match profile{RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M13=>schema_m13::operation(s)?,RunEncodingProfile::M14=>schema_m14::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
+                let operation=match profile{RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M13=>schema_m13::operation(s)?,RunEncodingProfile::M14=>schema_m14::operation(s)?,RunEncodingProfile::M15=>schema_m15::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
                 counts.extend([Some(number(s.minimum)?),Some(number(s.maximum)?),Some(i64::from(confirm)),Some(operation)]);
             }
             o.group_mut("selection_counts").row(0,&counts)?;
@@ -326,7 +349,7 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
         let mut counts=vec![Some(number(s.required)?),Some(number(s.selected_count)?)];
         if extended {
             let confirm=d.candidates.iter().any(|candidate|matches!(candidate.action,GameAction::Confirm));
-            let operation=match profile{RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M13=>schema_m13::select_permanent_operation(),RunEncodingProfile::M14=>schema_m14::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
+            let operation=match profile{RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M13=>schema_m13::select_permanent_operation(),RunEncodingProfile::M14=>schema_m14::select_permanent_operation(),RunEncodingProfile::M15=>schema_m15::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
             counts.extend([Some(number(s.required)?),Some(number(s.required)?),Some(i64::from(confirm)),Some(operation)]);
         }
         o.group_mut("selection_counts").row(0,&counts)?;
@@ -348,6 +371,13 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
         if let Some(s)=&d.selection{values[14]=Some(number(s.required)?);values[15]=Some(number(s.selected_count)?);}
         o.group_mut("offers").row(row,&values)?;
     }
+    if profile==RunEncodingProfile::M15 {
+        if let Some(offer)=d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()) {
+            for (index,id) in offer.cards.iter().enumerate(){
+                o.group_mut("combat_card_offers").row(index,&[Some(card_id(profile,*id)?),Some(number(index)?)])?;
+            }
+        }
+    }
     for (row,candidate) in d.candidates.iter().enumerate(){
         let mut values=[None;8];
         let source=match &candidate.action{
@@ -361,6 +391,18 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
                 CombatAction::PlayCard{instance,target}=>{values[0]=Some(8);encode_target(d,*target,&mut values)?;Some((4,card_row(*instance)?))},
                 CombatAction::SelectCard{instance}=>{values[0]=Some(9);Some((4,card_row(*instance)?))},
                 CombatAction::UsePotion{slot,target}=>{values[0]=Some(6);values[6]=Some(number(*slot)?);encode_target(d,*target,&mut values)?;Some((6,*slot))},
+                CombatAction::ChooseCardOffer{index}=>{
+                    if profile!=RunEncodingProfile::M15{return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
+                    let offer=d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()).ok_or(RunSessionError::Input("card offer action without public offer"))?;
+                    let index=usize::try_from(*index).map_err(|_|RunSessionError::Input("card offer index exceeds usize"))?;
+                    if index>=offer.cards.len(){return Err(RunSessionError::Input("card offer index is not publicly offered"))}
+                    values[0]=Some(12);Some((11,index))
+                },
+                CombatAction::SkipCardOffer=>{
+                    if profile!=RunEncodingProfile::M15{return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
+                    if !d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()).is_some_and(|offer|offer.optional){return Err(RunSessionError::Input("card offer skip is not publicly optional"))}
+                    values[0]=Some(13);None
+                },
                 CombatAction::EndTurn=>{values[0]=Some(10);None},
                 CombatAction::ConfirmSelection=>{if extended{values[0]=Some(11);None}else{return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection"))}},
             },

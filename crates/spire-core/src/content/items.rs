@@ -5,6 +5,73 @@ pub struct RelicDefinition { pub id: RelicId, pub definition_only: bool }
 #[derive(Clone, Copy, Debug)]
 pub struct PotionDefinition { pub id: PotionId, pub definition_only: bool }
 
+/// Source tiers used by the finite M15 Silent relic acquisition producers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelicTier { Starter, Common, Uncommon, Rare, Shop, Boss }
+
+/// Constructor rarity for the source-qualified Silent potion pool.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PotionRarity { Common, Uncommon, Rare }
+
+pub(crate) const SILENT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
+    (RelicId::RingOfTheSnake, RelicTier::Starter),
+    (RelicId::SneckoSkull, RelicTier::Common),
+    (RelicId::NinjaScroll, RelicTier::Uncommon),
+    (RelicId::PaperKrane, RelicTier::Uncommon),
+    (RelicId::TheSpecimen, RelicTier::Rare),
+    (RelicId::Tingsha, RelicTier::Rare),
+    (RelicId::ToughBandages, RelicTier::Rare),
+    (RelicId::TwistedFunnel, RelicTier::Shop),
+    (RelicId::HoveringKite, RelicTier::Boss),
+    (RelicId::RingOfTheSerpent, RelicTier::Boss),
+    (RelicId::WristBlade, RelicTier::Boss),
+];
+
+pub(crate) const SILENT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
+    (PotionId::PoisonPotion, PotionRarity::Common),
+    (PotionId::CunningPotion, PotionRarity::Uncommon),
+    (PotionId::GhostInAJar, PotionRarity::Rare),
+    (PotionId::BlockPotion, PotionRarity::Common),
+    (PotionId::DexterityPotion, PotionRarity::Common),
+    (PotionId::EnergyPotion, PotionRarity::Common),
+    (PotionId::ExplosivePotion, PotionRarity::Common),
+    (PotionId::FirePotion, PotionRarity::Common),
+    (PotionId::StrengthPotion, PotionRarity::Common),
+    (PotionId::SwiftPotion, PotionRarity::Common),
+    (PotionId::WeakPotion, PotionRarity::Common),
+    (PotionId::FearPotion, PotionRarity::Common),
+    (PotionId::AttackPotion, PotionRarity::Common),
+    (PotionId::SkillPotion, PotionRarity::Common),
+    (PotionId::PowerPotion, PotionRarity::Common),
+    (PotionId::ColorlessPotion, PotionRarity::Common),
+    (PotionId::FlexPotion, PotionRarity::Common),
+    (PotionId::SpeedPotion, PotionRarity::Common),
+    (PotionId::BlessingOfTheForge, PotionRarity::Common),
+    (PotionId::RegenPotion, PotionRarity::Uncommon),
+    (PotionId::AncientPotion, PotionRarity::Uncommon),
+    (PotionId::LiquidBronze, PotionRarity::Uncommon),
+    (PotionId::GamblersBrew, PotionRarity::Uncommon),
+    (PotionId::EssenceOfSteel, PotionRarity::Uncommon),
+    (PotionId::DuplicationPotion, PotionRarity::Uncommon),
+    (PotionId::DistilledChaos, PotionRarity::Uncommon),
+    (PotionId::LiquidMemories, PotionRarity::Uncommon),
+    (PotionId::CultistPotion, PotionRarity::Rare),
+    (PotionId::FruitJuice, PotionRarity::Rare),
+    (PotionId::SneckoOil, PotionRarity::Rare),
+    (PotionId::FairyPotion, PotionRarity::Rare),
+    (PotionId::SmokeBomb, PotionRarity::Rare),
+    (PotionId::EntropicBrew, PotionRarity::Rare),
+];
+
+pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
+    (PotionId::BloodPotion, Character::Ironclad),
+    (PotionId::Elixir, Character::Ironclad),
+    (PotionId::HeartOfIron, Character::Ironclad),
+    (PotionId::PoisonPotion, Character::Silent),
+    (PotionId::CunningPotion, Character::Silent),
+    (PotionId::GhostInAJar, Character::Silent),
+];
+
 pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition{id:RelicId::Vajra,definition_only:false},
     RelicDefinition{id:RelicId::OddlySmoothStone,definition_only:false},
@@ -22,6 +89,15 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition{id:RelicId::MarkOfPain,definition_only:false},
     RelicDefinition{id:RelicId::RunicCube,definition_only:false},
     RelicDefinition{id:RelicId::SneckoSkull,definition_only:false},
+    RelicDefinition{id:RelicId::NinjaScroll,definition_only:false},
+    RelicDefinition{id:RelicId::PaperKrane,definition_only:false},
+    RelicDefinition{id:RelicId::TheSpecimen,definition_only:false},
+    RelicDefinition{id:RelicId::Tingsha,definition_only:false},
+    RelicDefinition{id:RelicId::ToughBandages,definition_only:false},
+    RelicDefinition{id:RelicId::TwistedFunnel,definition_only:false},
+    RelicDefinition{id:RelicId::HoveringKite,definition_only:false},
+    RelicDefinition{id:RelicId::RingOfTheSerpent,definition_only:false},
+    RelicDefinition{id:RelicId::WristBlade,definition_only:false},
     RelicDefinition { id: RelicId::BlackBlood, definition_only: false },
     RelicDefinition { id: RelicId::EmptyCage, definition_only: false },
     RelicDefinition { id: RelicId::SlaversCollar, definition_only: false },
@@ -40,6 +116,8 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition { id: RelicId::MarkOfBloom, definition_only: true },
     RelicDefinition { id: RelicId::MagicFlower, definition_only: true },
     RelicDefinition { id: RelicId::ToyOrnithopter, definition_only: true },
+    RelicDefinition { id: RelicId::Sozu, definition_only: false },
+    RelicDefinition { id: RelicId::PotionBelt, definition_only: false },
 ];
 pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
     (Character::Ironclad, RelicId::BurningBlood),
@@ -61,4 +139,27 @@ pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::AncientPotion, definition_only: false },
     PotionDefinition { id: PotionId::Elixir, definition_only: false },
     PotionDefinition { id: PotionId::HeartOfIron, definition_only: false },
+    PotionDefinition { id: PotionId::PoisonPotion, definition_only: false },
+    PotionDefinition { id: PotionId::CunningPotion, definition_only: false },
+    PotionDefinition { id: PotionId::GhostInAJar, definition_only: false },
+    PotionDefinition { id: PotionId::FlexPotion, definition_only: false },
+    PotionDefinition { id: PotionId::SpeedPotion, definition_only: false },
+    PotionDefinition { id: PotionId::RegenPotion, definition_only: false },
+    PotionDefinition { id: PotionId::LiquidBronze, definition_only: false },
+    PotionDefinition { id: PotionId::EssenceOfSteel, definition_only: false },
+    PotionDefinition { id: PotionId::CultistPotion, definition_only: false },
+    PotionDefinition { id: PotionId::BlessingOfTheForge, definition_only: false },
+    PotionDefinition { id: PotionId::SneckoOil, definition_only: false },
+    PotionDefinition {id:PotionId::AttackPotion,definition_only:false},
+    PotionDefinition {id:PotionId::SkillPotion,definition_only:false},
+    PotionDefinition {id:PotionId::PowerPotion,definition_only:false},
+    PotionDefinition {id:PotionId::ColorlessPotion,definition_only:false},
+    PotionDefinition {id:PotionId::SmokeBomb,definition_only:false},
+    PotionDefinition { id: PotionId::FairyPotion, definition_only: false },
+    PotionDefinition { id: PotionId::ExplosivePotion, definition_only: false },
+    PotionDefinition { id: PotionId::GamblersBrew, definition_only: false },
+    PotionDefinition { id: PotionId::LiquidMemories, definition_only: false },
+    PotionDefinition { id: PotionId::DuplicationPotion, definition_only: false },
+    PotionDefinition { id: PotionId::DistilledChaos, definition_only: false },
+    PotionDefinition { id: PotionId::EntropicBrew, definition_only: false },
 ];

@@ -43,7 +43,7 @@ impl ThiefMemory {
 
 /// Active combat currency owner plus receipts earned by killed thieves. Run's
 /// cached currency is synchronized from this state after attempted actions.
-/// This exists only for fights containing a Looter or Mugger.
+/// M15 generated Fatal gold shares this same currency owner.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct ThiefGoldState {
     pub initial_gold: u32,
@@ -294,7 +294,7 @@ pub(in crate::combat) fn apply_effect(
 /// Attach the Run's initial currency once, before the first player or actor action.
 pub(in crate::combat) fn initialize_gold(state: &mut State, gold: u32) -> Result<(), InputError> {
     if !state.full_runtime || !state.enemies.iter().any(|enemy|
-        matches!(&enemy.enemy_id, ActorEnemyId::Full(id) if is_thief_id(*id))) {
+        matches!(&enemy.enemy_id, ActorEnemyId::Full(id) if is_thief_id(*id))) && !has_fatal_gold_support(state) {
         return Err(InputError::Unsupported("initial thief gold requires a native thief encounter".into()));
     }
     let current = state.thief_gold.as_ref()
@@ -315,6 +315,22 @@ pub(in crate::combat) fn initialize_gold(state: &mut State, gold: u32) -> Result
     current.current_gold = gold;
     current.initialized = true;
     Ok(())
+}
+
+/// Opt-in generated gold shares the accepted thief currency owner, with no
+/// second gain journal or settlement replay. Old profiles keep absent custody.
+fn has_fatal_gold_support(state:&State)->bool {
+    state.item_context.as_ref().is_some_and(|items|items.m15_profile())
+        ||state.piles.all(state.in_play.as_ref()).chain(&state.played_powers).chain(&state.inactive_cards)
+            .chain(state.stasis.values()).chain(state.queued_autoplay.values())
+            .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
+            .any(|owned|owned.full().is_some_and(|card|card.id==crate::content::CardId::HandOfGreed))
+}
+
+pub(in crate::combat) fn gain_gold(state:&mut State,amount:u32)->Result<(),InputError> {
+    let gold=state.thief_gold.as_mut().ok_or_else(||InputError::Invariant("Fatal gold custody absent".into()))?;
+    let next=gold.current_gold.checked_add(amount).ok_or_else(||InputError::Unsupported("gold overflow".into()))?;
+    gold.current_gold=next;gold.initialized=true;Ok(())
 }
 
 pub(in crate::combat) fn current_gold(state: &State) -> Option<u32> {
@@ -343,7 +359,7 @@ pub(in crate::combat) fn validate_state(state: &State) -> Result<(), InputError>
         return if thieves.is_empty() { Ok(()) }
             else { Err(InputError::Invariant("thief encounter has no gold custody state".into())) };
     };
-    if thieves.is_empty() {
+    if thieves.is_empty() && !has_fatal_gold_support(state) {
         return Err(InputError::Invariant("non-thief combat has thief gold custody".into()));
     }
     for enemy in &thieves {

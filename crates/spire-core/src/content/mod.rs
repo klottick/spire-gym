@@ -12,7 +12,7 @@ pub use cards::{CardColor, CardDefinition, CardRarity, CardType, ContentProducer
 pub use encounters::{EncounterDefinition, EnemyDefinition};
 pub use events::EventDefinition;
 pub use ids::{CardId, Character, ContentId, EncounterId, EnemyId, EventId, PotionId, RelicId};
-pub use items::{PotionDefinition, RelicDefinition};
+pub use items::{PotionDefinition, PotionRarity, RelicDefinition, RelicTier};
 
 /// Canonical static catalog. Missing entries remain missing; lookups never
 /// substitute starter content.
@@ -49,7 +49,20 @@ impl Catalog {
         Err(RegistryError::IncompletePool)
     }
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
+    pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {
+        items::SILENT_RELIC_TIERS.iter().find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
+    }
     pub fn potion(&self, id: PotionId) -> Option<&'static PotionDefinition> { self.potions.iter().find(|x| x.id == id) }
+    pub fn potion_rarity(&self, id: PotionId) -> Option<PotionRarity> {
+        items::SILENT_POTION_RARITIES.iter().find(|(candidate, _)| *candidate == id).map(|(_, rarity)| *rarity)
+    }
+    /// Character eligibility for a registered potion definition. `None` means
+    /// the ID has no definition; shared potions are eligible for all characters.
+    pub fn potion_eligible_for(&self,id:PotionId,character:Character)->Option<bool>{
+        self.potion(id)?;
+        Some(items::EXCLUSIVE_POTION_CHARACTERS.iter().find(|(candidate,_)|*candidate==id)
+            .is_none_or(|(_,owner)|*owner==character))
+    }
     pub fn enemy(&self, id: EnemyId) -> Option<&'static EnemyDefinition> { self.enemies.iter().find(|x| x.id == id) }
     pub fn encounter(&self, id: EncounterId) -> Option<&'static EncounterDefinition> { self.encounters.iter().find(|x| x.id == id) }
     pub fn event(&self, id: EventId) -> Option<&'static EventDefinition> { self.events.iter().find(|x| x.id == id) }

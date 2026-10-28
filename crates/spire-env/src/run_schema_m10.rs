@@ -245,6 +245,7 @@ pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> i64 {
         CopyToHand { copies: 2 } => "copy_to_hand_2",
         CopyToHand { copies: 3 } => "copy_to_hand_3",
         CopyToHand { .. } => "copy_to_hand_3",
+        Setup|Bottomdeck|RetrieveMemories=>panic!("M10 v2 selection schema cannot encode M15 choices"),
         NightmareCapture => panic!("M10 v2 selection schema cannot encode M11 Nightmare selections"),
         Retain => panic!("M10 v2 selection schema cannot encode M11 retain choices"),
     };
@@ -283,6 +284,11 @@ fn append_strings(vocab: &mut Value, key: &str, values: &[&str]) {
 }
 
 fn domain(group: &str, field: &str, unit: &str, c: &RunCapacities, vocab: &Value) -> Value {
+    // Only the appended M15 offer group uses this field. Existing profile
+    // descriptors retain the same domains and serialized bytes.
+    if group == "combat_card_offers" && field == "offer_index" {
+        return json!({"field":field,"unit":unit,"low":0,"high":c.offers-1});
+    }
     let category = match (group, field) {
         ("combat_cards", "cost_kind") => Some("card_cost_kind"),
         ("enemies", "side") => Some("encounter_side"),

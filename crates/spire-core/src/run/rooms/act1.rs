@@ -56,6 +56,6 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     };
     let screen=match screen{Ok(s)=>s,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("M5 room preparation failed"),"run.m5.room"))};
     if captured.kind==MapNodeKind::Shop{run.state.room_loop.as_mut().unwrap().act1.as_mut().unwrap().shop_visits+=1;}
-    run.next_choice=next;if is_m10(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen;
+    run.next_choice=next;if uses_act4(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen;
     Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
 }

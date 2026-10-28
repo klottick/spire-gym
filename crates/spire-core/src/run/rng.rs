@@ -3,11 +3,13 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
         Self::M10CardOffer=>"run.m10.card.offer",
+        Self::M15PotionGeneration=>"run.m15.potion.generate",
+        Self::M15CardOffer=>"run.m15.card.offer",
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -23,6 +25,8 @@ impl RunRngScope {
     pub fn parse(value:&str)->Result<Self,RunRngScopeError> { match value {
         "run.act3.falling"=>Ok(Self::Act3Falling),
         "run.m10.card.offer"=>Ok(Self::M10CardOffer),
+        "run.m15.potion.generate"=>Ok(Self::M15PotionGeneration),
+        "run.m15.card.offer"=>Ok(Self::M15CardOffer),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
@@ -36,6 +40,27 @@ impl RunRngScope {
         "run.act3.boss_order"=>Ok(Self::Act3BossOrder),
         _=>Err(RunRngScopeError::Unregistered(value.to_owned())),
     }}
+}
+
+#[cfg(test)]
+mod m15_content_rng_tests {
+    use super::*;
+
+    #[test]
+    fn m15_content_checked_rng_exhaustion_is_atomic() {
+        let key = vec![17, 1];
+        let mut rng = RunRng::new([27; 32], Partition::Test, 3);
+        rng.counters.insert((RunRngScope::M15CardOffer, key.clone()), u64::MAX);
+        let before = rng.clone();
+        let error = crate::run::rooms::m15_content::sample_capture_row(
+            &mut rng,
+            &[17],
+            &[crate::content::CardRarity::Common, crate::content::CardRarity::Common],
+        )
+        .unwrap_err();
+        assert_eq!(error, super::super::RunError::Unsupported("run scoped RNG exhausted"));
+        assert_eq!(rng, before, "a later-slot failure rolls back earlier detached draws");
+    }
 }
 
 #[cfg(test)]
@@ -86,7 +111,7 @@ impl RunRng {
     }
     /// Checked draws for detached Falling preparation; do not reuse a saturated
     /// ticket. Existing accepted scopes retain their established implementation.
-    pub(in crate::run) fn bounded_scoped_checked(&mut self,scope:RunRngScope,semantic:&[u64],bound:u64)->Result<usize,super::RunError>{
+    pub(crate) fn bounded_scoped_checked(&mut self,scope:RunRngScope,semantic:&[u64],bound:u64)->Result<usize,super::RunError>{
         if bound==0{return Err(super::RunError::InvalidAction)}
         let zone=u64::MAX-(u64::MAX%bound);
         loop{
