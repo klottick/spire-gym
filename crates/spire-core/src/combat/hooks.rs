@@ -54,6 +54,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         super::enemies::act2::chosen_snecko::card_played(state,source)?;
         super::enemies::act3::awakened::card_played(state,source)?;
         super::cards::ironclad::autoplay::card_played(state,source,target,&mut work)?;
+        super::cards::defect::card_played(state,source,target)?;
         super::cards::silent_power_on_use(state)?;
         super::cards::colorless_power_card_played(state,source)?;
         if state.player_full_powers.iter().any(|p|p.id.0=="a_thousand_cuts"&&p.state.amount>0){
@@ -160,6 +161,8 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             _=>(),
         }
     }
+    if target==Some(&Actor::Player)&&hook==Hook::TurnStartedPreDraw {super::cards::defect::turn_started(state,&mut work)?;}
+    if target==Some(&Actor::Player)&&hook==Hook::PlayerPreEndTurnCards {state.player_full_powers.retain(|p|p.id.0!="amplify");}
     super::generation::start_turn(state,hook,target,&mut work);
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
@@ -255,6 +258,7 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
             "regeneration" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "regenerate" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "vulnerable" | "weak" | "frail" if power.state.monster_source_grace => { power.state.monster_source_grace = false; None }
+            "lock_on" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),
             "vulnerable" | "weak" | "frail" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),
             _ => None,
         };

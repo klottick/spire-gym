@@ -78,7 +78,7 @@ fn install_event(r:&mut Run,event:EventId) {
     r.next_choice=next;r.state.rng=p.rng;let room=r.state.room_loop.as_mut().unwrap();room.screen=p.screen;room.act3_event=Some(p.frame);
 }
 fn deck(r:&mut Run,ids:&[CardId]) {
-    r.state.deck=ids.iter().enumerate().map(|(i,id)|CardInstance{id:*id,instance:i as u64+1,upgrades:0}).collect();r.state.next_instance=ids.len() as u64+1;
+    r.state.deck=ids.iter().enumerate().map(|(i,id)|CardInstance{ misc:0,id:*id,instance:i as u64+1,upgrades:0}).collect();r.state.next_instance=ids.len() as u64+1;
 }
 #[test]
 fn m14_silent_act3_falling_tomb_and_parasite_use_shared_owners() {
@@ -111,7 +111,7 @@ fn writhing(fault:bool)->Run {
     entry.setup.enemies[0].intent=combat::FullIntentId::from_name("writhing_parasite");
     if fault {let id=entry.setup.enemies[0].ai_rng.id().clone();entry.setup.enemies[0].ai_rng=combat::rng::StreamState::new(id,[0;32],1_u128<<64).unwrap();}
     let mut items=Some(crate::items::CombatItemContext::take_from_run(&mut r.state));let c=combat::Combat::enter_with_item_context(entry,&mut items).unwrap();
-    r.state.combat=Some(c);r.state.active_combat=Some(ActiveCombat{visit:0,encounter:EncounterId::WrithingMass,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});r.state.combat_progress=CombatProgress{entered:1,settled:0};r
+    r.state.combat=Some(c);r.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,visit:0,encounter:EncounterId::WrithingMass,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});r.state.combat_progress=CombatProgress{entered:1,settled:0};r
 }
 fn hit(r:&mut Run,slot:Option<usize>,amount:i32) {
     let c=r.state.combat.as_mut().unwrap();let actor=slot.map_or(combat::Actor::Player,|slot|combat::Actor::Enemy(c.public_full().unwrap().enemies[slot].instance_id.clone()));

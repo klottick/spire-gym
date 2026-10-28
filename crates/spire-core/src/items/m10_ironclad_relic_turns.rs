@@ -32,7 +32,7 @@ fn entry(cards:usize,opening_draw:usize,enemies:usize,hp:i32)->CombatEntry {
         player_powers:vec![],character:Character::Ironclad,
         shuffle_rng:crate::combat::rng::StreamState::new(shuffle_id,[152;32],0).unwrap(),
         card_rng:crate::combat::rng::StreamState::new(card_id,[154;32],0).unwrap(),enemies};
-    let cards=(1..=cards as u64).map(|instance|LiveCard{instance:crate::combat::CardInstanceId(instance),
+    let cards=(1..=cards as u64).map(|instance|LiveCard{ misc:0,instance:crate::combat::CardInstanceId(instance),
         id:CardId::Strike,origin:CombatCardRef::Permanent(crate::combat::CardInstanceId(instance)),
         upgrades:0,local:crate::combat::CombatCardData::default(),copy_family:instance,
         copy_provenance:crate::combat::card_state::CopyProvenance::Original}).collect();

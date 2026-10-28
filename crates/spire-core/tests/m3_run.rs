@@ -24,7 +24,7 @@ fn invalid_authored_resources_and_foreign_profiles_reject_before_entry() {
         Box::new(|s| s.deck.clear()), Box::new(|s| s.deck[0].instance=0),
         Box::new(|s| s.deck[0].instance=2), Box::new(|s| s.deck[0].instance=u64::MAX),
         Box::new(|s| s.deck[0].upgrades=2), Box::new(|s| s.deck[0].id=CardId::Unknown("unsupported")),
-        Box::new(|s| s.deck=(1..=1000).map(|instance| CardInstance { instance,id:CardId::Strike,upgrades:0 }).collect()),
+        Box::new(|s| s.deck=(1..=1000).map(|instance| CardInstance { misc:0, instance,id:CardId::Strike,upgrades:0 }).collect()),
         Box::new(|s| s.relics.push(RelicId::Unknown("unsupported"))),
         Box::new(|s| s.relics.push(RelicId::BurningBlood)),
         Box::new(|s| s.potions[0]=Some(PotionId::Unknown("unsupported"))), Box::new(|s| { s.potions.pop(); }),
@@ -227,7 +227,7 @@ fn max_hp_and_potion_consumption_persist_through_settlement_and_next_entry() {
 fn burning_pact_selection_resumes_one_parent_through_the_run_action_menu() {
     let mut start=support::start(); start.relics.clear();
     start.deck=[CardId::Strike,CardId::Strike,CardId::Defend,CardId::Defend,CardId::BurningPact,CardId::PommelStrike]
-        .into_iter().enumerate().map(|(i,id)|CardInstance {instance:i as u64+1,id,upgrades:0}).collect();
+        .into_iter().enumerate().map(|(i,id)|CardInstance { misc:0,instance:i as u64+1,id,upgrades:0}).collect();
     start.potions=vec![Some(PotionId::SwiftPotion),None,None];
     let mut run=Run::from_authored_combat(support::config(),start,support::rng(7)).unwrap();
     run.enter_combat(EncounterId::JawWorm).unwrap(); potion(&mut run,0,None); // Real draw of sixth card.

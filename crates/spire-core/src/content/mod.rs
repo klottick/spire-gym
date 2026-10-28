@@ -7,6 +7,7 @@ mod cards;
 mod items;
 mod encounters;
 mod events;
+pub mod defect;
 
 pub use cards::{CardColor, CardDefinition, CardRarity, CardType, ContentProducer, NoteStorage, RegistryError};
 pub use encounters::{EncounterDefinition, EnemyDefinition};
@@ -50,11 +51,20 @@ impl Catalog {
     }
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
     pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {
-        items::SILENT_RELIC_TIERS.iter().find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
+        items::SILENT_RELIC_TIERS.iter().chain(items::DEFECT_RELIC_TIERS.iter())
+            .find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
+    }
+    /// Character eligibility for a registered relic. `None` means the ID has no definition;
+    /// relics without an exclusive-character row are shared by all characters.
+    pub fn relic_eligible_for(&self, id: RelicId, character: Character) -> Option<bool> {
+        self.relic(id)?;
+        Some(items::EXCLUSIVE_RELIC_CHARACTERS.iter().find(|(candidate, _)| *candidate == id)
+            .is_none_or(|(_, owner)| *owner == character))
     }
     pub fn potion(&self, id: PotionId) -> Option<&'static PotionDefinition> { self.potions.iter().find(|x| x.id == id) }
     pub fn potion_rarity(&self, id: PotionId) -> Option<PotionRarity> {
-        items::SILENT_POTION_RARITIES.iter().find(|(candidate, _)| *candidate == id).map(|(_, rarity)| *rarity)
+        items::SILENT_POTION_RARITIES.iter().chain(items::DEFECT_POTION_RARITIES.iter())
+            .find(|(candidate, _)| *candidate == id).map(|(_, rarity)| *rarity)
     }
     /// Character eligibility for a registered potion definition. `None` means
     /// the ID has no definition; shared potions are eligible for all characters.

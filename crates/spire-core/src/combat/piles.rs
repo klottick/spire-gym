@@ -502,3 +502,11 @@ pub(super) fn draw_action(state:&mut State,effect:&Effect,requested:i32,clear_hi
 
     Ok(())
 }
+
+/// Read-only physical census over the same owners as the shared mutable visitor.
+pub(super) fn owned_full_cards(state:&State)->impl Iterator<Item=&super::LiveCard>{
+    state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
+        .chain(state.in_play.iter()).chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
+        .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values())
+        .filter_map(OwnedCard::full)
+}

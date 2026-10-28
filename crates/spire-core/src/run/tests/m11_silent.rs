@@ -151,7 +151,7 @@ fn m11_silent_authored_factory_keeps_ironclad_m3_acceptance() {
         hp: 80,
         max_hp: 80,
         gold: 99,
-        deck: vec![crate::run::CardInstance { instance: 1, id: CardId::Strike, upgrades: 0 }],
+        deck: vec![crate::run::CardInstance { misc:0, instance: 1, id: CardId::Strike, upgrades: 0 }],
         relics: vec![],
         potions: vec![None; 3],
         relic_counters: Default::default(),

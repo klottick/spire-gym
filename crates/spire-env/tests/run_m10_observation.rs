@@ -25,7 +25,7 @@ fn m10_decision() -> spire_core::run::PublicDecision {
 }
 
 fn align_public_deck(decision: &mut spire_core::run::PublicDecision, cards: &[combat::LiveCard]) {
-    decision.objects = cards.iter().map(|card| spire_core::run::PublicObject {
+    decision.objects = cards.iter().map(|card| spire_core::run::PublicObject { misc:0,
         instance: card.instance.0,
         id: card.id,
         upgrades: card.upgrades,

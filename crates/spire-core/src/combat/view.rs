@@ -22,9 +22,9 @@ pub struct PublicView {
     pub revealed_order: Vec<CardHandle>, pub outcome: Option<Outcome>,
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct LiveCardView { pub instance: CardInstanceId, pub id: crate::content::CardId,
-    pub origin: CombatCardRef, pub upgrades: u32, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
+    pub origin: CombatCardRef, pub upgrades: u32, pub misc:i32, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum CardCostKind { Fixed,X,Unplayable }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -178,10 +178,11 @@ pub(super) fn encounter_facing(state:&State)->Result<Option<EncounterFacingView>
     Ok(Some(EncounterFacingView{player_facing:facing,surrounded,enemies}))
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct CharacterCombatView {
     pub stance: super::characters::Stance,
     pub orbs: Vec<Option<super::characters::OrbKind>>,
+    pub orb_dark_damage:Vec<Option<i32>>,
     pub focus: i32,
 }
 
@@ -191,6 +192,7 @@ pub(super) fn full_player(state: &State) -> Result<FullPlayerView,crate::run::Ru
     let mut powers = p.powers.iter().map(|p| FullPowerView {
         id: super::FullPowerId(p.id.as_str()), amount: p.state.amount,
     }).chain(state.player_full_powers.iter().map(|p| FullPowerView { id: p.id, amount: p.state.amount })).collect::<Vec<_>>();
+    if state.character.focus!=0 {powers.push(FullPowerView{id:FullPowerId("focus"),amount:state.character.focus});}
     powers.sort_by_key(|p| p.id.0);
     // These source-public counters are projections of the existing owners,
     // not extra physical powers or a second timer/callback implementation.
@@ -286,4 +288,19 @@ pub(super) fn public_view(state: &State) -> Result<PublicView, AccessError> {
          discard: cards(&state.piles.discard)?, exhaust: cards(&state.piles.exhaust)?,
         revealed_order: state.public.revealed_order.clone(), outcome: state.outcome,
         hp_before_healing: state.hp_before_healing, hp_after_cleanup: state.hp_after_cleanup })
+}
+
+impl std::fmt::Debug for LiveCardView {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("LiveCardView");d.field("instance",&self.instance).field("id",&self.id).field("origin",&self.origin).field("upgrades",&self.upgrades);
+        if self.misc!=0{d.field("misc",&self.misc);}
+        d.field("effective_cost",&self.effective_cost).field("values",&self.values).finish()
+    }
+}
+impl std::fmt::Debug for CharacterCombatView {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("CharacterCombatView");d.field("stance",&self.stance).field("orbs",&self.orbs);
+        if self.orb_dark_damage.iter().any(Option::is_some){d.field("orb_dark_damage",&self.orb_dark_damage);}
+        d.field("focus",&self.focus).finish()
+    }
 }

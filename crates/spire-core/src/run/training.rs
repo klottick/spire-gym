@@ -64,7 +64,7 @@ impl Run {
     fn prepare_validated_training(mut entry:CombatTrainingEntry,gold:u32,rng:RunRng)->Result<Self,RunError>{
         entry.deck.sort_by_key(|(id,upgrades)|(id.as_str(),*upgrades));entry.relics.sort_by_key(|id|id.as_str());
         let (_,act,_)=TRAINING_ENCOUNTERS_V2.iter().find(|(e,_,_)|*e==entry.encounter).unwrap();
-        let deck=entry.deck.into_iter().enumerate().map(|(i,(id,upgrades))|CardInstance{id,upgrades,instance:i as u64+1}).collect::<Vec<_>>();
+        let deck=entry.deck.into_iter().enumerate().map(|(i,(id,upgrades))|CardInstance{ misc:0,id,upgrades,instance:i as u64+1}).collect::<Vec<_>>();
         let next_instance=deck.len() as u64+1;
         let mut counters=std::collections::BTreeMap::new();
         if entry.relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,entry.neows_lament_remaining.unwrap_or(3));}

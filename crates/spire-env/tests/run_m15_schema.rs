@@ -167,7 +167,7 @@ fn combat() -> CombatPublic {
         enemies: vec![],
         character: CharacterCombatView {
             stance: Stance::Neutral,
-            orbs: vec![],
+            orbs: vec![],orb_dark_damage:vec![],
             focus: 0,
         },
         hand: vec![],
@@ -191,7 +191,7 @@ fn combat() -> CombatPublic {
 }
 
 fn live_card(id: CardId, instance: u64, values: Option<CardPublicValues>) -> LiveCardView {
-    LiveCardView {
+    LiveCardView { misc:0,
         instance: CardInstanceId(instance),
         id,
         origin: CombatCardRef::CombatLocal(instance),
@@ -649,7 +649,7 @@ fn m15_fresh_discovery_offer_uses_shared_combat_and_selects_its_public_index() {
     assert!(!legal.contains(&CombatAction::SkipCardOffer));
 
     let mut decision = fixture_decision();
-    decision.objects=vec![PublicObject{instance:1,id:CardId::Discovery,upgrades:0}];
+    decision.objects=vec![PublicObject{ misc:0,instance:1,id:CardId::Discovery,upgrades:0}];
     decision.combat = Some(public);
     decision.candidates = legal
         .iter()
@@ -856,7 +856,7 @@ fn m15_capacity_unknown_and_old_profile_boundaries_reject_new_offer_state() {
     ));
 
     let mut unknown = fixture_decision();
-    unknown.objects.push(PublicObject {
+    unknown.objects.push(PublicObject { misc:0,
         instance: 1,
         id: CardId::Unknown("m15_unlisted_card"),
         upgrades: 0,

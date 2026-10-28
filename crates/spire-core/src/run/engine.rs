@@ -16,8 +16,8 @@ impl Run {
         // max-HP reduction is applied first as established by bounded setup facts.
         let hp=if config.ascension>=6{(max_hp*9+5)/10}else{max_hp};
         let mut deck=Vec::new();let mut id=1;
-        for card in starter{deck.push(CardInstance{id:*card,instance:id,upgrades:0});id+=1;}
-        if config.ascension>=10{deck.push(CardInstance{id:CardId::AscendersBane,instance:id,upgrades:0});}
+        for card in starter{deck.push(CardInstance{ misc:0,id:*card,instance:id,upgrades:0});id+=1;}
+        if config.ascension>=10{deck.push(CardInstance{ misc:0,id:CardId::AscendersBane,instance:id,upgrades:0});}
         let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,training_encounter:None,last_combat_checkpoint:None,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
             character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
             potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
@@ -61,10 +61,10 @@ impl Run {
     pub fn decision(&self)->Result<PublicDecision,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.combat.is_some() { return self.combat_decision(); }
-        let objects=self.state.deck.iter().map(|c|PublicObject{instance:c.instance,id:c.id,upgrades:c.upgrades}).collect();
+        let objects=self.state.deck.iter().map(|c|PublicObject{ misc:c.misc,instance:c.instance,id:c.id,upgrades:c.upgrades}).collect();
         let candidates=if self.state.terminal.is_some(){vec![]}else if self.state.room_loop.is_some(){super::rooms::candidates(self)?}else{self.candidates.clone()};
         let offers=candidates.iter().filter_map(|c|c.neow_offer.clone()).collect();
-        let selection=self.state.pending.as_ref().map(|p|PublicSelection{required:p.selection.required,selected_count:p.selection.selected.len(),eligible:p.selection.candidates.iter().map(|c|PublicObject{instance:c.card.instance,id:c.card.id,upgrades:c.card.upgrades}).collect()});
+        let selection=self.state.pending.as_ref().map(|p|PublicSelection{required:p.selection.required,selected_count:p.selection.selected.len(),eligible:p.selection.candidates.iter().map(|c|PublicObject{ misc:c.card.misc,instance:c.card.instance,id:c.card.id,upgrades:c.card.upgrades}).collect()});
         Ok(PublicDecision{content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room:self.state.room_loop.as_ref().map(|_|super::rooms::public(self)).transpose()?,reward_total:self.state.reward_ledger.total,combat:None,combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone(),act:self.state.act,floor:self.state.floor,player:PublicPlayer{relic_counters:crate::items::visible_counters(&self.state.relic_counters),character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
     }
     pub fn step(&mut self,action:&GameAction)->Result<RunTransition,RunError>{
@@ -112,7 +112,7 @@ impl Run {
             let id=super::rooms::token(&mut next)?;
             let captured=self.state.pending.as_ref().and_then(|p|p.selection.candidates.iter().find(|c|c.id==selection_id)).unwrap();
             let card=&captured.card;
-            candidates.push(Candidate{id,action:GameAction::Select(selection_id),label:"Select captured instance",neow_offer:None,object:Some(PublicObject{instance:card.instance,id:card.id,upgrades:card.upgrades})});
+            candidates.push(Candidate{id,action:GameAction::Select(selection_id),label:"Select captured instance",neow_offer:None,object:Some(PublicObject{ misc:card.misc,instance:card.instance,id:card.id,upgrades:card.upgrades})});
         }self.next_choice=next;self.candidates=candidates;Ok(())
     }
     fn resume_parent(&mut self)->Result<(),RunError>{

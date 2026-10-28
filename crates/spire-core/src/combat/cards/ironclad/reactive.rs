@@ -49,7 +49,11 @@ pub(in crate::combat) fn after_draw(state:&mut State,card:&LiveCard,owner:&CardH
 }
 
 fn append_before_decision(state:&mut State,effect:Effect){
-    let index=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
+    // The opt-in Defect natural orb phase completes its ordinary gain hooks
+    // before MonsterStart. Frozen predecessor profiles keep their queue bytes.
+    let defect=state.silent.source_character==Some(crate::content::Character::Defect);
+    let index=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision
+        ||defect&&pending.kind==EffectKind::MonsterStart).unwrap_or(state.pending.len());
     state.pending.insert(index,effect);
 }
 

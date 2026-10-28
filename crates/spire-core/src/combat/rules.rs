@@ -71,18 +71,25 @@ pub(super) fn full_normal_damage_given_received(base:i32,strength:i32,weak:bool,
 
 pub(super) fn full_normal_damage_given_received_with_weak_multiplier(base:i32,strength:i32,weak:bool,
     weak_multiplier:f32,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
-    bounded(base, 10_004, "full base damage")?;
+    full_normal_damage_pipeline(base,strength,weak,weak_multiplier,wrath,double,receive,false)
+}
+
+pub(super) fn full_signed_card_damage(base:i32,strength:i32,weak:bool,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
+    full_normal_damage_pipeline(base,strength,weak,0.75_f32,wrath,double,receive,true)
+}
+fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool)->Result<i32,InputError>{
+    if !signed{bounded(base, 10_004, "full base damage")?;}
     if !(-999..=999).contains(&strength) {
         return Err(InputError::Unsupported("full Strength outside supported numeric surface".into()));
     }
-    let total = calculated(base.checked_add(strength))?.max(0);
-    bounded(total, 10_004, "full combined damage")?;
-    let mut value = total as f32;
+    let mut value=if signed{base as f32+strength as f32}else{
+        let total=calculated(base.checked_add(strength))?.max(0);bounded(total,10_004,"full combined damage")?;total as f32
+    };
     if weak { value *= weak_multiplier; }
     if double { value *= 2.0f32; }
     if wrath { value *= 2.0f32; }
     for multiplier in receive {value*=multiplier;}
-    bounded(value.floor() as i32, 30_012, "full modified damage")?;
+    if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
     Ok(value.max(0.0).floor() as i32)
 }
 
@@ -121,11 +128,17 @@ pub fn full_block_after_add(current: i32, amount: i32) -> Result<i32, InputError
 /// Printed card Block: stat addition, binary32 Frail, then one final floor.
 /// Direct Block gains (potions, orbs and enemies) do not call this calculation.
 pub fn full_card_block(base: i32, dexterity: i32, frail: bool) -> Result<i32, InputError> {
-    bounded(base, 1007, "card Block base")?;
+    full_card_block_pipeline(base,dexterity,frail,false)
+}
+pub(super) fn full_signed_card_block(base:i32,dexterity:i32,frail:bool)->Result<i32,InputError>{
+    full_card_block_pipeline(base,dexterity,frail,true)
+}
+fn full_card_block_pipeline(base:i32,dexterity:i32,frail:bool,signed:bool)->Result<i32,InputError>{
+    if !signed{bounded(base, 1007, "card Block base")?;}
     if !(-999..=999).contains(&dexterity) {
         return Err(InputError::Unsupported("Dexterity outside supported native surface".into()));
     }
-    let mut value = (base + dexterity) as f32;
+    let mut value = if signed{base as f32+dexterity as f32}else{(base + dexterity) as f32};
     if frail { value *= 0.75_f32; }
     Ok(value.max(0.0).floor() as i32)
 }
@@ -147,10 +160,7 @@ pub fn full_hp_and_block_after_damage(hp: i32, block: i32, damage: i32)
     bounded(hp, 999, "HP")?;
     bounded(block, 999, "block")?;
     bounded(damage, 30_012, "full damage")?;
-    let absorbed = block.min(damage);
-    let remaining = calculated(damage.checked_sub(absorbed))?;
-    Ok((calculated(hp.checked_sub(remaining))?.max(0),
-        calculated(block.checked_sub(absorbed))?))
+    full_wide_hp_and_block_after_damage(hp,block,damage)
 }
 
 pub fn clamped_strength(current: i32, delta: i32) -> Result<i32, InputError> {
@@ -276,4 +286,11 @@ pub fn choose_enemy_move(kind: EnemyKind, history: &[MoveId], stream: &StreamSta
     // Native RNG errors already carry the latest cursor, including rejection
     // consumption and a completed bucket followed by fallback exhaustion.
     Ok((chosen, draws.stream))
+}
+
+/// Shared nonnegative absorption after producer-specific signed calculation.
+pub(super) fn full_wide_hp_and_block_after_damage(hp:i32,block:i32,damage:i32)->Result<(i32,i32),InputError>{
+    bounded(hp,999,"HP")?;bounded(block,999,"block")?;bounded(damage,i32::MAX,"wide damage")?;
+    let absorbed=block.min(damage);let remaining=i64::from(damage)-i64::from(absorbed);
+    Ok(((i64::from(hp)-remaining).max(0) as i32,block-absorbed))
 }

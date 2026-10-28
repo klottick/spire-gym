@@ -21,6 +21,7 @@ fn stream(s: &StreamState) -> Value {
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
 pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
+        EffectKind::Defect(work)=>("defect",json!({"work":format!("{work:?}")})),
         EffectKind::Alchemize{..}=>panic!("M15 Alchemize is unsupported by M9 v1"),
         EffectKind::SmokeEscape=>panic!("M15 escape is unsupported by M9 v1"),
         EffectKind::Generate(_)=>panic!("M15 generator continuation is unsupported by M9 v1"),
@@ -141,10 +142,13 @@ pub(super) fn effect(e: &Effect) -> Value {
                 super::super::characters::Stance::Calm => "calm" }}),
             super::super::characters::CharacterEffect::Channel(orb) => json!({"channel":match orb {
                 super::super::characters::OrbKind::Lightning => "lightning",
-                super::super::characters::OrbKind::Frost => "frost" }}),
+                super::super::characters::OrbKind::Frost => "frost",
+                super::super::characters::OrbKind::Dark => "dark",
+                super::super::characters::OrbKind::Plasma => "plasma" }}),
             super::super::characters::CharacterEffect::EvokeFront { remove } => json!({"evoke_front":{"remove":remove}}),
             super::super::characters::CharacterEffect::EvokeAt { index } => json!({"evoke_at":{"index":index}}),
             super::super::characters::CharacterEffect::EndTurn => json!({"end_turn_orbs":true}),
+            action @ (CharacterEffect::StartTurn|CharacterEffect::Slots(_)|CharacterEffect::ChannelState{..}|CharacterEffect::Recursion|CharacterEffect::Fission{..}|CharacterEffect::PassiveGroup(_)|CharacterEffect::Lightning{..}|CharacterEffect::OrbEnergy(_)) => json!({"m16_character":format!("{action:?}")}),
         }),
         EffectKind::Damage(DamagePayload::CorpseExplosion{..})=>panic!("M9 v1 cannot encode Corpse Explosion"),
         EffectKind::Silent(_) => panic!("M15 Silent continuation is unsupported by M9 v1"),

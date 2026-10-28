@@ -3,13 +3,13 @@ use crate::{combat::{CombatAction,TargetId},content::{CardId,Character,Encounter
 #[test]
 fn m10_rampage_combat_growth_does_not_mutate_run_master_deck_and_resets_next_entry(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:(1..=4).map(|instance|CardInstance{instance,id:CardId::Strike,upgrades:0}).collect(),
+        deck:(1..=4).map(|instance|CardInstance{ misc:0,instance,id:CardId::Strike,upgrades:0}).collect(),
         relics:vec![],potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([83;32],crate::combat::rng::Partition::Test,0)).unwrap();
-    let deck=vec![CardInstance{instance:1,id:CardId::Rampage,upgrades:0},
-        CardInstance{instance:2,id:CardId::Strike,upgrades:0},CardInstance{instance:3,id:CardId::Strike,upgrades:0},
-        CardInstance{instance:4,id:CardId::Strike,upgrades:0}];
+    let deck=vec![CardInstance{ misc:0,instance:1,id:CardId::Rampage,upgrades:0},
+        CardInstance{ misc:0,instance:2,id:CardId::Strike,upgrades:0},CardInstance{ misc:0,instance:3,id:CardId::Strike,upgrades:0},
+        CardInstance{ misc:0,instance:4,id:CardId::Strike,upgrades:0}];
     run.state.deck=deck.clone();
     run.enter_combat(EncounterId::JawWorm).unwrap();
     let mut saw_grown=false;

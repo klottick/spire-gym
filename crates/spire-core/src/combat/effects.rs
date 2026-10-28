@@ -120,12 +120,17 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
     match &effect.kind {
         EffectKind::Damage(payload) => {
             let poison_tick=is_enemy_poison_tick(state,effect);
+            let already_half_dead=match &effect.target{Some(Actor::Enemy(owner))=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.life==ActorLife::HalfDead),_=>false};
             // The validated target is needed while calculating typed payloads as
             // well as for the shared Block/HP commit below.
             let target = effect.target.as_ref().unwrap();
             let damage = match payload {
-                DamagePayload::Fixed(n) | DamagePayload::Orb(n) | DamagePayload::Thorns(n)
+                DamagePayload::Fixed(n) | DamagePayload::Thorns(n)
                 | DamagePayload::HpLoss(n) => *n,
+                DamagePayload::Orb(n) => {
+                    let lock_on=if let Actor::Enemy(owner)=target{state.enemies.iter().find(|e|&e.instance_id==owner).is_some_and(|e|e.full_powers.iter().any(|p|p.id.0=="lock_on"&&p.state.amount!=0))}else{false};
+                    (if lock_on{((*n as f32)*1.5_f32) as i32}else{*n}).max(0)
+                },
                 DamagePayload::PoisonTickHpLoss { amount, .. } | DamagePayload::CorpseExplosion {amount,..} => *amount,
                 DamagePayload::EnemyMove(id) => {
                     let source = match &effect.source { Source::Actor(Actor::Enemy(id)) => id, _ => unreachable!("validated enemy source") };
@@ -146,8 +151,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     .and_then(|enemy|enemy.full_powers.iter().find(|power|power.id.0=="invincible").map(|power|power.state.amount.max(0)))
             }else{None}}else{None};
             let block_at_entry=match target{Actor::Player=>state.player.block,Actor::Enemy(owner)=>state.enemies.iter().find(|enemy|&enemy.instance_id==owner).expect("validated actor").block};
+            if full_runtime&&*target==Actor::Player {super::cards::defect::on_attacked(state,effect,payload,damage.saturating_sub(block_at_entry).max(0));}
             let damage_event_count=state.damage_events_this_combat;
             if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
+            let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source);
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
                     Actor::Player => (&mut state.player.hp, &mut state.player.block),
@@ -156,6 +163,8 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 let hp_before=*hp;let block_before=*block;
                 let (next_hp,next_block)=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){
                     ((i64::from(hp_before)-i64::from(damage)).max(0) as i32,*block)
+                }else if full_runtime&&(matches!(payload,DamagePayload::Orb(_))||matches!(payload,DamagePayload::Fixed(_))&&wide_mutable_attack){
+                    rules::full_wide_hp_and_block_after_damage(hp_before,*block,damage)?
                 }else if full_runtime{rules::full_hp_and_block_after_damage(hp_before,*block,damage)?}
                 else{rules::hp_and_block_after_damage(hp_before,*block,damage)?};
                 if full_runtime&&*target==Actor::Player&&hp_before>next_hp{
@@ -188,6 +197,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 // exclusions; it is not a fourth original DamageType.
                 if let Some(count)=next_damage_event_count {state.damage_events_this_combat=count;}
                 if damage_result.target==Actor::Player&&damage_result.hp_lost>0 {
+                    if let Some(items)=state.item_context.as_mut().filter(|items|items.owns_relic(crate::content::RelicId::EmotionChip)){items.emotion_chip_armed=true;}
                     let reduce=|owned:&mut super::model::OwnedCard| { if let Some(card)=owned.full_mut().filter(|card|card.id==crate::content::CardId::BloodForBlood) {super::card_state::reduce_blood_for_blood_cost(card);}};
                     for owned in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard){reduce(owned);}
                     super::cards::silent_player_hp_lost(state)?;
@@ -223,7 +233,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     heal_player(state,&heal,amount,true)?;
                 }
             }
-            let half_death=state.full_runtime&&next_hp==0&&match target{Actor::Enemy(owner)=>super::enemies::act3::darklings::down(state,owner,&effect.source)||super::enemies::act3::awakened::down(state,owner,&effect.source),_=>false};
+            let half_death=already_half_dead||(state.full_runtime&&next_hp==0&&match target{Actor::Enemy(owner)=>super::enemies::act3::darklings::down(state,owner,&effect.source)||super::enemies::act3::awakened::down(state,owner,&effect.source),_=>false});
             // Feed's Fatal checkpoint observes the real post-hit lifecycle
             // state (including half-death/revival), before queued retaliation.
             if full_runtime { super::cards::ironclad::fatal::after_damage(state,&damage_result)?; }
@@ -644,6 +654,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Hook(Hook::CombatSettled)});
         }
         EffectKind::Generate(work)=>super::generation::apply(state,effect,work)?,
+        EffectKind::Defect(work)=>super::cards::defect::apply(state,effect,work)?,
         EffectKind::Colorless(work)=>super::cards::apply_colorless(state,effect,work)?,
         EffectKind::OpenRetainSelection{limit}=>super::cards::apply_silent_retain_selection(state,effect,*limit)?,
         EffectKind::Hook(hook) => {

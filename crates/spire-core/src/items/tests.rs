@@ -22,7 +22,7 @@ fn full_entry(character: crate::content::Character, opening_draw: usize, count: 
             intent: FullIntentId::Incantation, powers: vec![],
             ai_rng: StreamState::new(ai_id, [22; 32], 0).unwrap() }],
     };
-    let cards = (1..=count).map(|id| LiveCard { instance: crate::combat::CardInstanceId(id),
+    let cards = (1..=count).map(|id| LiveCard { misc:0, instance: crate::combat::CardInstanceId(id),
         id: CardId::StrikeBlue, origin: CombatCardRef::Permanent(crate::combat::CardInstanceId(id)),
         upgrades: 0, local: CombatCardData::default(),copy_family:id,copy_provenance:crate::combat::card_state::CopyProvenance::Original }).collect();
     CombatEntry { setup, opening_draw, cards }
@@ -726,7 +726,7 @@ fn entered_combat_with_card(player_hp: i32, enemy_hp: i32, card_id: CardId) -> C
             enemy_id: EnemyId::Cultist, hp: enemy_hp, max_hp: 48, block: 0, intent: FullIntentId::Incantation,
             powers: vec![], ai_rng: ai }],
     };
-    let live = LiveCard { instance: crate::combat::CardInstanceId(1), id: card_id,
+    let live = LiveCard { misc:0, instance: crate::combat::CardInstanceId(1), id: card_id,
         origin: CombatCardRef::Permanent(crate::combat::CardInstanceId(1)), upgrades: 0,
         local: CombatCardData::default(),copy_family:1,copy_provenance:crate::combat::card_state::CopyProvenance::Original };
     Combat::enter(CombatEntry { setup, opening_draw: 1, cards: vec![live] }).unwrap()
@@ -1071,3 +1071,4 @@ fn run_hook_heals_only_owned_living_player_and_respects_max_hp() {
     on_hook(silent.state_mut_for_test(), Hook::CombatSettled).unwrap();
     assert_eq!(silent.state().hp, 30, "no phantom Burning Blood on other starts");
 }
+#[path="tests/m16_defect.rs"] mod m16_defect;

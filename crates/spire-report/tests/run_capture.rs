@@ -117,7 +117,7 @@ fn run_rest_records_primitive_heal() {
 fn run_combat_selection_parent() {
     use spire_core::content::{CardId,Character,EncounterId};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},AuthoredRunStart {
-        hp:40,max_hp:80,gold:99,deck:[CardId::BurningPact,CardId::Strike,CardId::Defend].into_iter().enumerate().map(|(i,id)|spire_core::run::CardInstance{instance:i as u64+1,id,upgrades:0}).collect(),
+        hp:40,max_hp:80,gold:99,deck:[CardId::BurningPact,CardId::Strike,CardId::Defend].into_iter().enumerate().map(|(i,id)|spire_core::run::CardInstance{ misc:0,instance:i as u64+1,id,upgrades:0}).collect(),
         relics:vec![],potions:vec![None;3],relic_counters:Default::default()},RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
     run.enter_combat(EncounterId::Cultist).unwrap();
     let mut writer=ReportWriter::new(Vec::new(),native::header()).unwrap();let mut recorder=RunRecorder::new(&mut writer);recorder.start(&run).unwrap();
@@ -133,7 +133,7 @@ fn run_combat_selection_parent() {
 fn report_formats_combat_confirmation_as_distinct_action(){
     use spire_core::content::{CardId,Character,EncounterId};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},AuthoredRunStart {
-        hp:40,max_hp:80,gold:99,deck:[CardId::BurningPact,CardId::Strike,CardId::Defend].into_iter().enumerate().map(|(i,id)|spire_core::run::CardInstance{instance:i as u64+1,id,upgrades:0}).collect(),
+        hp:40,max_hp:80,gold:99,deck:[CardId::BurningPact,CardId::Strike,CardId::Defend].into_iter().enumerate().map(|(i,id)|spire_core::run::CardInstance{ misc:0,instance:i as u64+1,id,upgrades:0}).collect(),
         relics:vec![],potions:vec![None;3],relic_counters:Default::default()},RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
     run.enter_combat(EncounterId::Cultist).unwrap();let mut d=run.decision().unwrap();
     let action=GameAction::Combat(CombatAction::ConfirmSelection);

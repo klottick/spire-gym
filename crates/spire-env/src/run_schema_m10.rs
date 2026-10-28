@@ -311,7 +311,7 @@ fn domain(group: &str, field: &str, unit: &str, c: &RunCapacities, vocab: &Value
     if group == "known_draw" && field == "offset" {
         return json!({"field":field,"unit":unit,"low":0,"high":u32::MAX});
     }
-    if matches!(unit, "damage" | "block" | "magic" | "allowance") {
+    if matches!(unit, "damage" | "block" | "magic" | "allowance" | "signed_int32") {
         return json!({"field":field,"unit":unit,"low":i32::MIN,"high":i32::MAX});
     }
     v1::domain(group, field, unit, c, vocab)

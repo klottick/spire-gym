@@ -40,8 +40,9 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     let retain_player_block=state.full_runtime&&(state.silent.retain_block_next_start||state.player_full_powers.iter().any(|power|power.id.0=="barricade"&&power.state.amount>0));
     state.silent.retain_block_next_start=false;
     if !retain_player_block{state.player.block = 0;}
-    state.player.energy = state.player.max_energy;
-    if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="energized"&&p.state.amount>0).cloned(){
+    let defect=state.silent.source_character==Some(crate::content::Character::Defect);
+    if !defect {state.player.energy = state.player.max_energy;}
+    if let Some(power)=state.player_full_powers.iter().find(|p|!defect&&p.id.0=="energized"&&p.state.amount>0).cloned(){
         state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
         state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
     }

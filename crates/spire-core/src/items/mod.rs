@@ -28,6 +28,7 @@ pub(crate) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{re
 pub struct CombatItemContext {
     pub(crate) battle:NativeBattleContext,
     pub(crate) collar_activated:bool,
+    pub(crate) emotion_chip_armed:bool,
     counters: std::collections::BTreeMap<RelicId,i32>,
     relics: Vec<RelicId>,
     potions: Vec<Option<PotionId>>,
@@ -54,6 +55,7 @@ impl std::fmt::Debug for CombatItemContext{
         value.field("battle",&self.battle).field("collar_activated",&self.collar_activated)
             .field("counters",&self.counters).field("relics",&self.relics).field("potions",&self.potions)
             .field("orichalcum_trigger",&self.orichalcum_trigger).field("lantern_armed",&self.lantern_armed).field("heal_room",&self.heal_room);
+        if self.emotion_chip_armed{value.field("emotion_chip_armed",&self.emotion_chip_armed);}
         if self.kite_triggered{value.field("kite_triggered",&self.kite_triggered);}
         if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}value.finish()
     }
@@ -84,12 +86,12 @@ impl CombatItemContext {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         Self { counters, relics, potions, orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
-            lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false }
+            lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { battle:NativeBattleContext::default(),collar_activated:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
+        Self { battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -151,7 +153,7 @@ impl CombatItemContext {
     pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { battle:self.battle,collar_activated:self.collar_activated,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+        Self { battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
@@ -284,6 +286,9 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
+    let defect_items=context.relics.iter().any(|id|matches!(id,RelicId::DataDisk|RelicId::GoldPlatedCables|RelicId::EmotionChip))
+        ||context.potions.iter().flatten().any(|id|matches!(id,PotionId::FocusPotion|PotionId::PotionOfCapacity));
+    if defect_items&&character!=crate::content::Character::Defect{return Err(RunError::InvalidAction)}
     if !context.m15_profile()&&context.relics.iter().any(|id|matches!(id,RelicId::Sozu|RelicId::PotionBelt)){
         return Err(RunError::Unsupported("generated-potion relic requires M15 profile"))
     }
@@ -313,7 +318,8 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
             | RelicId::Brimstone | RelicId::MarkOfPain | RelicId::RunicCube | RelicId::Orichalcum
             | RelicId::SneckoSkull | RelicId::NinjaScroll | RelicId::PaperKrane | RelicId::TheSpecimen
             | RelicId::Tingsha | RelicId::ToughBandages | RelicId::TwistedFunnel | RelicId::HoveringKite
-            | RelicId::RingOfTheSerpent | RelicId::WristBlade | RelicId::Sozu | RelicId::PotionBelt) {
+            | RelicId::RingOfTheSerpent | RelicId::WristBlade | RelicId::Sozu | RelicId::PotionBelt
+            | RelicId::DataDisk | RelicId::GoldPlatedCables | RelicId::EmotionChip) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }
@@ -329,7 +335,7 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
             | PotionId::ExplosivePotion | PotionId::AttackPotion | PotionId::SkillPotion | PotionId::PowerPotion
             | PotionId::ColorlessPotion | PotionId::GamblersBrew
             | PotionId::DuplicationPotion | PotionId::DistilledChaos | PotionId::LiquidMemories
-            | PotionId::SmokeBomb | PotionId::EntropicBrew) {
+            | PotionId::SmokeBomb | PotionId::EntropicBrew | PotionId::FocusPotion | PotionId::PotionOfCapacity) {
             return Err(RunError::Unsupported("unimplemented combat potion"));
         }
     }

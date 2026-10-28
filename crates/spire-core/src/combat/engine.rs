@@ -58,10 +58,13 @@ fn supported_full_damage(enemy: crate::content::EnemyId, ascension: u8) -> BTree
 
 fn valid_full_powers(powers: &[super::FullPowerEntry]) -> bool {
     let mut ids = BTreeSet::new();
-    powers.iter().all(|p| (if matches!(p.id.0, "strength" | "dexterity") {
+    powers.iter().all(|p| (if matches!(p.id.0, "strength" | "dexterity" | "focus") {
             (-999..=999).contains(&p.state.amount) && p.state.amount != 0
         } else if p.id.0=="wraith_form"{p.state.amount<0}
         else if matches!(p.id.0,"next_turn_block"|"draw_card_next_turn"|"blur"|"choked"|"infinite_blades"|"after_image"|"a_thousand_cuts"|"envenom"|"phantasmal"|"double_damage"|"intangible_player"|"tools_of_the_trade"|"burst"){p.state.amount>0}
+        // Qualified Heatsinks/Bias stacks retain positive int32 amounts;
+        // their intensity is distinct from the clamped Focus owner above.
+        else if matches!(p.id.0,"heatsinks"|"bias"){p.state.amount>0}
         else if p.id.0=="mode_shift" {p.state.amount>0}
         else if p.id.0=="poison" {(1..=9_999).contains(&p.state.amount)}
         else if p.id.0=="slow" {(0..=999).contains(&p.state.amount)}
@@ -165,6 +168,8 @@ pub(super) fn validate_scenario_mode(scenario: &Scenario, full: bool) -> Result<
 }
 
 impl Combat {
+    pub(crate) fn validate_permanent_mutations_for_run(&self)->Result<(),InputError>{super::cards::defect::validate_mutations(&self.state)}
+    pub fn permanent_card_mutations(&self)->&[super::PermanentCardMutation]{&self.state.defect.permanent_mutations}
     pub(crate) fn permanent_gains(&self)->&[super::model::PermanentCardGain]{&self.state.permanent_gains}
     /// Enqueue a typed full-runtime lifecycle event through the authoritative
     /// resolver. Producers supply owned source/target identities; hook handlers
@@ -475,7 +480,7 @@ impl Combat {
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let source_character=setup.character;
         let mut combat = Self::build_full(setup, rng);
-        if entry.cards.iter().any(|card|super::generation::needs_character(card.id))||item_context.as_ref().is_some_and(|items|items.m15_profile()){combat.state.silent.source_character=Some(source_character);}
+        if source_character==crate::content::Character::Defect||entry.cards.iter().any(|card|super::generation::needs_character(card.id))||item_context.as_ref().is_some_and(|items|items.m15_profile()){combat.state.silent.source_character=Some(source_character);}
         combat.state.silent.history_enabled=entry.cards.iter().any(|card|super::cards::requires_draw_history(card.id))||item_context.as_ref().is_some_and(|items|items.m15_profile());
         if combat.state.enemies.iter().any(|enemy|matches!(enemy.enemy_id,ActorEnemyId::Full(crate::content::EnemyId::Looter|crate::content::EnemyId::Mugger)))
             ||entry.cards.iter().any(|card|card.id==crate::content::CardId::HandOfGreed)
@@ -1125,20 +1130,20 @@ impl Combat {
             super::view::ready(&self.state).map_err(|_| crate::run::RunError::InvalidAction)?;
         }
         let cards = |pile: &[OwnedCard]| -> Result<Vec<LiveCardView>, crate::run::RunError> {
-            pile.iter().map(|card| card.full().map(|live| LiveCardView { instance: live.instance,
+            pile.iter().map(|card| card.full().map(|live| LiveCardView { misc:live.misc, instance: live.instance,
                 id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live) })
                 .ok_or(crate::run::RunError::InvalidAction)).collect()
         };
         let card_view=|id:&CardHandle|->Result<LiveCardView,crate::run::RunError>{
             self.state.piles.all(self.state.in_play.as_ref()).find(|owned|owned.handle()==*id)
-                .and_then(OwnedCard::full).map(|live|LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),
+                .and_then(OwnedCard::full).map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),
                     upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),
                     values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)
         };
         let selection = if let Some(pending) = &self.state.pending_selection {
             let candidates = pending.candidates.iter().map(|id| self.state.piles.all(self.state.in_play.as_ref())
                 .find(|card| card.handle() == *id).and_then(OwnedCard::full)
-                .map(|live| LiveCardView { instance: live.instance, id: live.id,
+                .map(|live| LiveCardView { misc:live.misc, instance: live.instance, id: live.id,
                     origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live) }).ok_or(crate::run::RunError::InvalidAction))
                 .collect::<Result<Vec<_>, _>>()?;
             let selected = pending.selected.iter().map(|id| id.as_str().parse::<u64>()
@@ -1151,20 +1156,21 @@ impl Combat {
         for (offset,id) in self.state.public.known_draw_bottom.iter().enumerate(){
             known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:false,offset});
         }
-        let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|LiveCardView{instance:live.instance,id:live.id,
+        let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,
             origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction))
-            .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
+            .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
                 effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}).ok_or(crate::run::RunError::InvalidAction)))
             .collect::<Result<Vec<_>,_>>()?;
         Ok(CombatPublic { card_offer:self.state.silent.card_offer.as_ref().map(|offer|super::view::CombatCardOfferView{cards:offer.cards.clone(),optional:offer.optional}),content_id: self.state.content_id.clone(), turn: self.state.turn,
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
-            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
+            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             player: super::view::full_player(&self.state)?, enemies: super::view::full_enemies(&self.state),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
                 relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
             character: super::view::CharacterCombatView { stance: self.state.character.stance,
-                orbs: self.state.character.orb_slots.clone(), focus: self.state.character.focus },
+                orbs: self.state.character.orb_slots.iter().map(|orb|orb.map(|orb|orb.kind)).collect(),
+                orb_dark_damage:self.state.character.orb_slots.iter().map(|orb|orb.and_then(|orb|orb.dark_damage)).collect(), focus: self.state.character.focus },
             hand: cards(&self.state.piles.hand)?, draw_count: self.state.piles.draw.len(),
             discard: cards(&self.state.piles.discard)?, exhaust: cards(&self.state.piles.exhaust)?,
             outcome: self.state.outcome, hp_before_healing: self.state.hp_before_healing,
@@ -1243,7 +1249,7 @@ impl Combat {
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default() } }
+                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default() } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
@@ -1265,6 +1271,9 @@ impl Combat {
                 life: super::ActorLife::Active }
         }).collect();
         let actor_slots=super::enemies::act2::spawn::initial_slots(&enemies);
+        let mut character=super::characters::CharacterState::for_character(setup.character);
+        character.focus=setup.player_powers.iter().find(|p|p.id.0=="focus").map_or(0,|p|p.state.amount);
+        let player_full_powers=setup.player_powers.into_iter().filter(|p|p.id.0!="focus").collect();
         Self { legacy_cache: Piles { hand: vec![], draw: vec![], discard: vec![], exhaust: vec![] },
             state: State { content_id: CONTENT_ID.into(), phase: Phase::Decision, turn: 1,
                 player: setup.player, enemies, piles: OwnedPiles::default(), card_ids_issued: BTreeSet::new(),
@@ -1272,9 +1281,9 @@ impl Combat {
                  public: PublicKnowledge { revealed_order: vec![],known_draw:vec![],known_draw_bottom:vec![] }, outcome: None, fault: None,
                 hp_before_healing: None, hp_after_cleanup: None, full_runtime: true, pending_selection: None,temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,
                 hook_events: vec![], attempted_action: None, fault_selection: None,
-                player_full_powers: setup.player_powers, item_context: None,
-                character: super::characters::CharacterState::for_character(setup.character),
-                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default() } }
+                player_full_powers, item_context: None,
+                character,
+                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default() } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {
@@ -1362,8 +1371,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         if let Some(Actor::Enemy(target)) = &effect.target {
             let enemy = state.enemies.iter().find(|enemy| &enemy.instance_id == target)
                 .ok_or_else(|| InputError::Invariant("damage target missing".into()))?;
-            require(enemy.life == super::ActorLife::Active && enemy.hp > 0,
-                "damage target must be active")?;
+            require((enemy.life==super::ActorLife::Active&&enemy.hp>0)
+                ||(enemy.life==super::ActorLife::HalfDead&&matches!(effect.kind,EffectKind::Damage(DamagePayload::Orb(_)))
+                    &&super::cards::defect::valid_orb_source(state,&effect.source)),"damage target must be active or a qualified Dark target")?;
         }
     }
     if matches!(&effect.kind, EffectKind::Damage(_) | EffectKind::GainBlock(_)
@@ -1387,9 +1397,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&state.hook_events.iter().any(|event|matches!(event.hook,Hook::Death|Hook::HalfDeath)&&event.target==Some(Actor::Enemy(owner.clone()))),"Corpse Explosion retains an actual death callback owner")?,
         EffectKind::Damage(DamagePayload::Fixed(n)) => {
             let maximum = if state.full_runtime { 30_012 } else { 1_515 };
-            require((0..=maximum).contains(n), "damage payload bounds")?;
+            require((0..=maximum).contains(n)||(state.full_runtime&&*n>=0&&super::cards::defect::valid_mutable_attack_source(state,&effect.source)), "damage payload bounds/producer")?;
         }
-        EffectKind::Damage(DamagePayload::Orb(n)) => require((0..=1515).contains(n), "orb payload bounds")?,
+        EffectKind::Damage(DamagePayload::Orb(n)) => require((0..=1515).contains(n)||super::cards::defect::valid_orb_source(state,&effect.source), "orb payload bounds/producer")?,
         EffectKind::Damage(DamagePayload::HpLoss(n)) =>
             require(state.full_runtime && (0..=999).contains(n), "HP_LOSS mode/bounds")?,
         EffectKind::Damage(DamagePayload::PoisonTickHpLoss { owner, amount }) => {
@@ -1513,17 +1523,17 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 "Specimen transfer requires its owned M15 callback actor and positive captured Poison")?;
         }
         EffectKind::Character(super::characters::CharacterEffect::Focus(delta)) => require(state.full_runtime
-            &&*delta==-1&&state.character.orb_slots.iter().any(Option::is_some)
+            &&((effect.target==Some(Actor::Player)&&super::cards::defect::valid_focus_application(state,&effect.source,*delta))||(*delta==-1&&state.character.orb_slots.iter().any(Option::is_some)
             &&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Player))
                 if state.enemies.iter().any(|enemy|&enemy.instance_id==source
                     &&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::SpireShield)
-                    &&enemy.intent_id.as_str()=="shield_bash")),
-            "Focus loss requires the Defect Orb-Slot Shield Bash branch")?,
+                    &&enemy.intent_id.as_str()=="shield_bash")))),
+            "Focus adjustment requires its actual producer")?,
         EffectKind::ShieldBashFocus => require(state.full_runtime&&matches!((&effect.source,&effect.target),
             (Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|enemy|&enemy.instance_id==source
                 &&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::SpireShield)&&enemy.intent_id.as_str()=="shield_bash"
                 &&enemy.life==ActorLife::Active&&enemy.hp>0)),"Shield Bash Focus continuation owner/intent")?,
-        EffectKind::Character(_) => require(matches!(effect.target.as_ref(), Some(Actor::Player)), "character effect target")?,
+        EffectKind::Character(action) => super::cards::defect::validate_character(state,effect,*action)?,
         EffectKind::GuardianChange(_) => {
             require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Guardian))),"Guardian change source/target")?;
         },
@@ -1723,6 +1733,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             && state.player.max_hp.checked_add(*n).is_some_and(|max| max <= 999),
             "native max-HP increase/queued heal mode/source/target/bounds")?,
         EffectKind::Silent(work)=>super::cards::validate_silent_work(state,effect,work)?,
+        EffectKind::Defect(work)=>super::cards::defect::validate_work(state,effect,work)?,
         EffectKind::Colorless(work)=>super::cards::validate_colorless_work(state,effect,work)?,
         EffectKind::ShuffleDraw=>require(state.full_runtime&&effect.target.is_none()
             &&matches!((&effect.source,&state.in_play),(Source::Card(owner),Some(card)) if owner==&card.handle()),
@@ -1806,6 +1817,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 require(*amount == 3 && cultist_target, "Ritual payload")?;
             }
         }
+        EffectKind::ApplyFullPower{id,amount} if matches!(id.0,"bias"|"loop"|"electrodynamics"|"lock_on"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form")=>super::cards::defect::validate_power_application(state,effect,*id,*amount)?,
         EffectKind::ApplyFullPower { id, amount } if matches!(id.0,"mayhem"|"panache"|"sadistic_nature") =>
             super::cards::validate_colorless_power_application(state,effect,*id,*amount)?,
         EffectKind::ApplyFullPower { id, amount } if id.0=="duplication" => require(state.full_runtime
@@ -1821,9 +1833,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             "Combust application requires its current player card owner and exact payload")?;},
         EffectKind::ApplyFullPower { id, amount } => require(state.full_runtime &&
             (if id.0=="mode_shift"{*amount>0}
-                else if id.0=="focus"{*amount==-1&&state.character.orb_slots.iter().any(Option::is_some)
+                else if id.0=="focus"{(effect.target==Some(Actor::Player)&&super::cards::defect::valid_focus_application(state,&effect.source,*amount))||(*amount==-1&&state.character.orb_slots.iter().any(Option::is_some)
                     &&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Player))
-                        if state.enemies.iter().any(|enemy|&enemy.instance_id==source&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::SpireShield)&&enemy.intent_id.as_str()=="shield_bash"))}
+                        if state.enemies.iter().any(|enemy|&enemy.instance_id==source&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::SpireShield)&&enemy.intent_id.as_str()=="shield_bash")))}
                 else if id.0=="wraith_form"{*amount<0}
                 else if id.0=="strength" { (-1002..=1002).contains(amount) }
                 else if id.0=="dexterity" { (-1002..=1002).contains(amount) && *amount != 0 }
@@ -1936,12 +1948,16 @@ fn validate_exhaust_batch_finish(finish:&super::model::ExhaustBatchFinish,state:
 fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
     let queued_refs=state.pending.iter().chain(state.current.iter()).filter_map(|effect|match &effect.kind{
         EffectKind::Ironclad(super::cards::IroncladEffect::HavocQueued{child,..}|super::cards::IroncladEffect::DoubleTapRepeat{child,..})=>Some(child),
-        EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
+        EffectKind::Defect(super::cards::DefectEffect::Repeat{child,..})
+            |EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
             |EffectKind::Colorless(super::cards::ColorlessEffect::MayhemAutoplay{child,..})=>Some(child),
         EffectKind::Potion(super::PotionEffect::DistilledChaosQueuedChild{child,..}|super::PotionEffect::DuplicationRepeat{child,..})=>Some(child),_=>None
     }).collect::<Vec<_>>();
     let unique_queued=queued_refs.iter().map(|handle|(*handle).clone()).collect::<BTreeSet<_>>();
-    require(unique_queued.len()==queued_refs.len()&&unique_queued.len()==state.queued_autoplay.len()
+    // Terminal deliberately clears action continuations while retaining physical
+    // queued children for exit/Run settlement. Their full census is checked below.
+    let terminal=state.phase==Phase::Terminal&&state.outcome.is_some();
+    require(unique_queued.len()==queued_refs.len()&&(terminal||unique_queued.len()==state.queued_autoplay.len())
         &&unique_queued.iter().all(|handle|state.queued_autoplay.contains_key(handle)
             &&state.card_ids_issued.contains(handle)) ,"queued autoplay card custody/reference")?;
     let faulted_deferred_child=state.play_frames.last().filter(|frame|state.fault.is_some()
@@ -1949,6 +1965,7 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
         &&state.current.as_ref().is_some_and(|effect|matches!(&effect.kind,
             EffectKind::Ironclad(super::cards::IroncladEffect::HavocQueued{child,..}
                 |super::cards::IroncladEffect::DoubleTapRepeat{child,..})
+                |EffectKind::Defect(super::cards::DefectEffect::Repeat{child,..})
                 |EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
                 |EffectKind::Potion(super::PotionEffect::DuplicationRepeat{child,..}) if child==&frame.child)))
         .map(|frame|frame.child.clone());
@@ -1971,7 +1988,7 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
                 (super::model::PlayFrameParentOwner::Card(handle),Some(parent),Some(parent_context))=>
                     parent.full().is_some()&&parent_context.card==parent.handle()&&*handle==parent.handle(),
                 (super::model::PlayFrameParentOwner::Card(handle),None,None)=>state.card_ids_issued.contains(handle)
-                    &&state.piles.all(state.in_play.as_ref()).any(|owned|owned.handle()==*handle),
+                    &&super::piles::owned_full_cards(state).any(|card|super::card_state::handle(card.instance)==*handle),
                 (super::model::PlayFrameParentOwner::Potion{slot,id},None,None)=>valid_potion_slot(state,*slot)
                     &&*id==crate::content::PotionId::DistilledChaos
                     &&state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none),
@@ -2032,6 +2049,9 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
             "Time Warp request requires its owned barrier before a ready boundary")?;
     }else{require(!state.pending.iter().any(|e|e.kind==EffectKind::TimeWarpEndTurn),"Time Warp barrier requires request custody")?;}
     validate_player(&state.player, state.full_runtime)?;
+    super::cards::defect::validate_mutations(state)?;
+    require(!state.player_full_powers.iter().any(|p|p.id.0=="focus"),"Focus has one character owner")?;
+    require(state.character.orb_slots.iter().flatten().all(|orb|(orb.kind==super::OrbKind::Dark)==orb.dark_damage.is_some()),"orb payload kind ownership")?;
     require(state.character.orb_slots.len() <= 10 && (-999..=999).contains(&state.character.focus),
         "character runtime bounds")?;
     require(if state.full_runtime { state.card_rng.as_ref().is_some_and(|rng|

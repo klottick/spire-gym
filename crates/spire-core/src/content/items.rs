@@ -5,11 +5,11 @@ pub struct RelicDefinition { pub id: RelicId, pub definition_only: bool }
 #[derive(Clone, Copy, Debug)]
 pub struct PotionDefinition { pub id: PotionId, pub definition_only: bool }
 
-/// Source tiers used by the finite M15 Silent relic acquisition producers.
+/// Catalog tiers for registered relic metadata; this is not a selector pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RelicTier { Starter, Common, Uncommon, Rare, Shop, Boss }
 
-/// Constructor rarity for the source-qualified Silent potion pool.
+/// Rarity metadata for registered potions; this is not a selector pool.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PotionRarity { Common, Uncommon, Rare }
 
@@ -25,6 +25,20 @@ pub(crate) const SILENT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
     (RelicId::HoveringKite, RelicTier::Boss),
     (RelicId::RingOfTheSerpent, RelicTier::Boss),
     (RelicId::WristBlade, RelicTier::Boss),
+];
+
+pub(crate) const DEFECT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
+    (RelicId::CrackedCore, RelicTier::Starter),
+    (RelicId::DataDisk, RelicTier::Common),
+    (RelicId::GoldPlatedCables, RelicTier::Uncommon),
+    (RelicId::EmotionChip, RelicTier::Rare),
+];
+
+pub(crate) const EXCLUSIVE_RELIC_CHARACTERS: &[(RelicId, Character)] = &[
+    (RelicId::CrackedCore, Character::Defect),
+    (RelicId::DataDisk, Character::Defect),
+    (RelicId::GoldPlatedCables, Character::Defect),
+    (RelicId::EmotionChip, Character::Defect),
 ];
 
 pub(crate) const SILENT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
@@ -63,6 +77,11 @@ pub(crate) const SILENT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
     (PotionId::EntropicBrew, PotionRarity::Rare),
 ];
 
+pub(crate) const DEFECT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
+    (PotionId::FocusPotion, PotionRarity::Common),
+    (PotionId::PotionOfCapacity, PotionRarity::Uncommon),
+];
+
 pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
     (PotionId::BloodPotion, Character::Ironclad),
     (PotionId::Elixir, Character::Ironclad),
@@ -70,6 +89,8 @@ pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
     (PotionId::PoisonPotion, Character::Silent),
     (PotionId::CunningPotion, Character::Silent),
     (PotionId::GhostInAJar, Character::Silent),
+    (PotionId::FocusPotion, Character::Defect),
+    (PotionId::PotionOfCapacity, Character::Defect),
 ];
 
 pub(crate) const RELICS: &[RelicDefinition] = &[
@@ -118,6 +139,9 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition { id: RelicId::ToyOrnithopter, definition_only: true },
     RelicDefinition { id: RelicId::Sozu, definition_only: false },
     RelicDefinition { id: RelicId::PotionBelt, definition_only: false },
+    RelicDefinition { id: RelicId::DataDisk, definition_only: false },
+    RelicDefinition { id: RelicId::GoldPlatedCables, definition_only: false },
+    RelicDefinition { id: RelicId::EmotionChip, definition_only: false },
 ];
 pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
     (Character::Ironclad, RelicId::BurningBlood),
@@ -162,4 +186,6 @@ pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::DuplicationPotion, definition_only: false },
     PotionDefinition { id: PotionId::DistilledChaos, definition_only: false },
     PotionDefinition { id: PotionId::EntropicBrew, definition_only: false },
+    PotionDefinition { id: PotionId::FocusPotion, definition_only: false },
+    PotionDefinition { id: PotionId::PotionOfCapacity, definition_only: false },
 ];

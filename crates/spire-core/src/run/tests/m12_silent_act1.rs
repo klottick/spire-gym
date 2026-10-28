@@ -107,7 +107,7 @@ fn m12_same_topology_encounters_and_first_three_real_reward_rows_keep_green_cust
         let originals=r.state.deck.clone();choose(&mut r,RoomChoiceKind::CardReward);
         let screen=r.decision().unwrap().room.unwrap();assert_eq!(screen.choices.iter().filter_map(|c|match c.kind{RoomChoiceKind::Card{id,..}=>Some(id),_=>None}).collect::<Vec<_>>(),row);
         let id=screen.choices[0].id;let next=r.state.next_instance;
-        choose(&mut r,RoomChoiceKind::Card{id:row[0],upgrades:0});assert_eq!(&r.state.deck[..originals.len()],originals.as_slice());assert_eq!(r.state.deck.last().unwrap(),&CardInstance{id:row[0],instance:next,upgrades:0});
+        choose(&mut r,RoomChoiceKind::Card{id:row[0],upgrades:0});assert_eq!(&r.state.deck[..originals.len()],originals.as_slice());assert_eq!(r.state.deck.last().unwrap(),&CardInstance{ misc:0,id:row[0],instance:next,upgrades:0});
         let before=r.clone();assert!(r.step(&GameAction::Choose(id)).is_err());assert!(r==before);
         choose(&mut r,RoomChoiceKind::Proceed);
     }

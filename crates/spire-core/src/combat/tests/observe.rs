@@ -142,7 +142,7 @@ fn observed_selection_resume() {
 fn observed_terminal_settlement() {
     use crate::run::*;
     let mut run = Run::from_authored_combat(RunConfig { character:Character::Ironclad,ascension:0 },
-        AuthoredRunStart { hp:40,max_hp:80,gold:99,deck:vec![crate::run::CardInstance { instance:1,id:CardId::Strike,upgrades:0 }],
+        AuthoredRunStart { hp:40,max_hp:80,gold:99,deck:vec![crate::run::CardInstance { misc:0, instance:1,id:CardId::Strike,upgrades:0 }],
             relics:vec![RelicId::BurningBlood],potions:vec![Some(PotionId::FirePotion);3],relic_counters:Default::default() },
         RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
     run.enter_combat(EncounterId::JawWorm).unwrap();

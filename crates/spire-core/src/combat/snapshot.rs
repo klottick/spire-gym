@@ -64,7 +64,7 @@ pub fn compare(left: &Snapshot, right: &Snapshot) -> Option<Divergence> {
         actor_slots,facing,spawn_ordinals,spawn_progress,
         stasis,inactive_cards,permanent_gains,next_permanent_gain,played_powers,play_frames,play_context,queued_autoplay,pending_time_warp,
         hp_before_healing, hp_after_cleanup, full_runtime, pending_selection, hook_events, item_context,combust,
-        character, card_rng, replacement_progress, damage_events_this_combat, silent,colorless);
+        character, card_rng, replacement_progress, damage_events_this_combat, silent,colorless,defect);
     None
 }
 

@@ -43,6 +43,9 @@ pub enum CardId {
     ThinkingAhead, Violence,
     Mayhem, Panache, SadisticNature, TheBomb,
     Distraction, Alchemize, Discovery, Chrysalis, Metamorphosis, JackOfAllTrades, Transmutation, Magnetism,
+    Darkness, Fusion, Capacitor, Consume, Defragment, BiasedCognition, Loop,
+    Electrodynamics, Bullseye, Recursion, Fission, StaticDischarge, Storm, Heatsinks,
+    Amplify, EchoForm, GeneticAlgorithm, Claw, SteamBarrier, Streamline,
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
@@ -180,6 +183,15 @@ impl CardId {
         Self::JackOfAllTrades=>"jack_of_all_trades",
         Self::Transmutation=>"transmutation",
         Self::Magnetism=>"magnetism",
+        Self::Darkness => "darkness", Self::Fusion => "fusion", Self::Capacitor => "capacitor",
+        Self::Consume => "consume", Self::Defragment => "defragment",
+        Self::BiasedCognition => "biased_cognition", Self::Loop => "loop",
+        Self::Electrodynamics => "electrodynamics", Self::Bullseye => "bullseye",
+        Self::Recursion => "recursion", Self::Fission => "fission",
+        Self::StaticDischarge => "static_discharge", Self::Storm => "storm",
+        Self::Heatsinks => "heatsinks", Self::Amplify => "amplify", Self::EchoForm => "echo_form",
+        Self::GeneticAlgorithm => "genetic_algorithm", Self::Claw => "claw",
+        Self::SteamBarrier => "steam_barrier", Self::Streamline => "streamline",
         Self::Unknown(value) => value,
     }}
 }

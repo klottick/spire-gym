@@ -19,6 +19,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
     -> super::RelicHookWork
 {
     let mut work = super::RelicHookWork::default();
+    if hook==Hook::CombatSettled {context.emotion_chip_armed=false;}
     if context.owns_relic(RelicId::Orichalcum) {
         if hook==Hook::TurnStarted {context.orichalcum_trigger=false;}
         if hook==Hook::PlayerEndTurn&&(block==0||context.orichalcum_trigger) {
@@ -48,6 +49,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
         for relic in context.relics() {
             if (*relic == RelicId::Anchor) != anchor_pass { continue; }
             let kind = match (hook, *relic) {
+                (Hook::CombatStarted, RelicId::DataDisk) => Some(EffectKind::Character(crate::combat::CharacterEffect::Focus(1))),
                 (Hook::CombatStarted, RelicId::Vajra) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("strength"),amount:1 }),
                 (Hook::CombatStarted, RelicId::OddlySmoothStone) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("dexterity"),amount:1 }),
                 (Hook::CombatStarted, RelicId::BagOfPreparation) => Some(EffectKind::Draw(2)),

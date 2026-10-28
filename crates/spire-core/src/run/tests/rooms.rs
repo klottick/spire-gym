@@ -61,7 +61,7 @@ fn lament_counter_returns_expires_and_potion_use_never_resets_it() {
 #[test]
 fn accepted_startup_fault_keeps_lament_counter_and_move_reward() {
     let mut r=run();choose(&mut r,RoomChoiceKind::NeowLament);r.state.relics.push(RelicId::PureWater);
-    r.state.deck=(1..=999).map(|instance|CardInstance{instance,id:crate::content::CardId::Strike,upgrades:0}).collect();
+    r.state.deck=(1..=999).map(|instance|CardInstance{ misc:0,instance,id:crate::content::CardId::Strike,upgrades:0}).collect();
     let error=r.step(&GameAction::Move(NodeId(2))).unwrap_err();assert!(matches!(error,RunError::Faulted(_)));
     assert_eq!(r.state.reward_ledger.total,1);assert!(r.state.relic_counters.is_empty());
     let items=r.state.combat.as_ref().unwrap().item_context().unwrap();assert_eq!(items.counters().get(&RelicId::NeowsLament),Some(&2));

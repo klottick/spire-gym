@@ -66,7 +66,7 @@ fn empty_combat() -> spire_core::combat::CombatPublic {
     CombatPublic {
         played_powers: vec![], playing_cards: vec![], stasis: vec![], content_id: "synthetic".into(), turn: 1,
         player: FullPlayerView { hp: 50, max_hp: 70, block: 0, energy: 3, max_energy: 3, powers: vec![] },
-        enemies: vec![], character: CharacterCombatView { stance: Stance::Neutral, orbs: vec![], focus: 0 },
+        enemies: vec![], character: CharacterCombatView { stance: Stance::Neutral, orbs: vec![], orb_dark_damage:vec![], focus: 0 },
         hand: vec![], draw_count: 0, discard: vec![], exhaust: vec![], outcome: None,
         hp_before_healing: None, hp_after_cleanup: None, targets: vec![], selection: None,
         known_draw: vec![], encounter_facing: None, inventory: None, card_offer: None,

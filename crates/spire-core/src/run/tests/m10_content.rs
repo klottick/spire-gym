@@ -99,7 +99,7 @@ fn m10_new_cards_remain_eligible_in_existing_shrine_ancient_and_falling_events()
     let mut shrine=super::m7_rooms::continuing();
     shrine.state.room_loop.as_mut().unwrap().scenario=run::RoomScenario::M10IroncladHeart;
     let current=shrine.state.map.as_ref().unwrap().nodes.iter().find(|node|node.floor==18).unwrap().id;shrine.state.map.as_mut().unwrap().current=Some(current);shrine.state.floor=18;
-    shrine.state.deck=vec![run::CardInstance{instance:41,id:CardId::SearingBlow,upgrades:0}];
+    shrine.state.deck=vec![run::CardInstance{ misc:0,instance:41,id:CardId::SearingBlow,upgrades:0}];
     let mut next=shrine.next_choice;
     shrine.state.room_loop.as_mut().unwrap().screen=run::rooms::events::screen(&mut next,crate::content::EventId::UpgradeShrine).unwrap();
     shrine.next_choice=next;
@@ -112,7 +112,7 @@ fn m10_new_cards_remain_eligible_in_existing_shrine_ancient_and_falling_events()
     let mut ancient=super::m7_rooms::continuing();
     ancient.state.room_loop.as_mut().unwrap().scenario=run::RoomScenario::M10IroncladHeart;
     let current=ancient.state.map.as_ref().unwrap().nodes.iter().find(|node|node.floor==18).unwrap().id;ancient.state.map.as_mut().unwrap().current=Some(current);ancient.state.floor=18;
-    ancient.state.deck=vec![run::CardInstance{instance:51,id:CardId::SearingBlow,upgrades:0},run::CardInstance{instance:52,id:CardId::Inflame,upgrades:0}];
+    ancient.state.deck=vec![run::CardInstance{ misc:0,instance:51,id:CardId::SearingBlow,upgrades:0},run::CardInstance{ misc:0,instance:52,id:CardId::Inflame,upgrades:0}];
     let mut next=ancient.next_choice;
     ancient.state.room_loop.as_mut().unwrap().screen=run::rooms::events::screen(&mut next,crate::content::EventId::AncientWriting).unwrap();
     ancient.next_choice=next;
@@ -126,7 +126,7 @@ fn m10_new_cards_remain_eligible_in_existing_shrine_ancient_and_falling_events()
     falling.state.room_loop.as_mut().unwrap().scenario=run::RoomScenario::M10IroncladHeart;
     falling.state.act=3;falling.state.floor=36;
     let map=falling.state.map.as_mut().unwrap();map.act=3;let node=map.nodes[0].id;map.current=Some(node);
-    falling.state.deck=vec![run::CardInstance{instance:61,id:CardId::SearingBlow,upgrades:0},run::CardInstance{instance:62,id:CardId::SearingBlow,upgrades:2},run::CardInstance{instance:63,id:CardId::Disarm,upgrades:0},run::CardInstance{instance:64,id:CardId::Inflame,upgrades:0}];
+    falling.state.deck=vec![run::CardInstance{ misc:0,instance:61,id:CardId::SearingBlow,upgrades:0},run::CardInstance{ misc:0,instance:62,id:CardId::SearingBlow,upgrades:2},run::CardInstance{ misc:0,instance:63,id:CardId::Disarm,upgrades:0},run::CardInstance{ misc:0,instance:64,id:CardId::Inflame,upgrades:0}];
     let mut next=falling.next_choice;
     let prepared=run::rooms::events::act3::prepare(&falling,crate::content::EventId::Falling,node,0,&mut next).unwrap();
     falling.next_choice=next;falling.state.rng=prepared.rng;

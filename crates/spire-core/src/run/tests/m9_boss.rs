@@ -54,7 +54,7 @@ fn m9_boss_settlement_waits_for_actual_lifecycle(){
 
 #[test]
 fn m9_time_warp_keeps_twelfth_card_payload_in_real_run(){
-    let(mut r,node)=source(EncounterId::TimeEater);r.state.deck=vec![CardInstance{instance:1,id:CardId::TwinStrike,upgrades:0}];r.state.next_instance=2;
+    let(mut r,node)=source(EncounterId::TimeEater);r.state.deck=vec![CardInstance{ misc:0,instance:1,id:CardId::TwinStrike,upgrades:0}];r.state.next_instance=2;
     r.step(&GameAction::Move(node)).unwrap();let settled=r.state.combat_progress.settled;
     let combat=r.state.combat.as_mut().unwrap();let actor=Actor::Enemy(combat.public_full().unwrap().enemies[0].instance_id.clone());
     combat.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::ApplyFullPower{id:FullPowerId("time_warp"),amount:11}}],None).unwrap();
@@ -66,7 +66,7 @@ fn m9_time_warp_keeps_twelfth_card_payload_in_real_run(){
 
 #[test]
 fn m9_boss_entry_fault_keeps_accepted_source(){
-    let(mut r,node)=source(EncounterId::TimeEater);r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{instance:u64::MAX,id:CardId::Strike,upgrades:0}];
+    let(mut r,node)=source(EncounterId::TimeEater);r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{ misc:0,instance:u64::MAX,id:CardId::Strike,upgrades:0}];
     let prior=r.state.reward_ledger.total;let err=r.step(&GameAction::Move(node)).unwrap_err();
     assert!(matches!(err,RunError::Faulted(_)));assert_eq!((r.state.floor,r.state.reward_ledger.total,r.state.terminal),(50,prior+1,None));assert!(r.state.combat.is_some()&&r.state.active_combat.is_some());assert!(r.state.relics.is_empty());
     let frozen=r.clone();assert_eq!(r.step(&GameAction::Move(node)),Err(err));assert!(r==frozen);

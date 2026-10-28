@@ -303,6 +303,7 @@ pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bo
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
+    Defect(super::cards::DefectEffect),
     Thief(super::enemies::act1::thieves::ThiefEffect),
     ShelledArmorBreak,
     Damage(DamagePayload), GainBlock(i32), Heal(i32), IncreaseMaxHpThenHeal(i32), NeowsLament, ApplyPower { id: PowerId, amount: i32 },
@@ -472,6 +473,7 @@ pub(super) struct State {
     pub combust:Option<CombustState>,
     pub thief_gold:Option<super::enemies::act1::thieves::ThiefGoldState>,
     pub colorless:ColorlessState,
+    pub defect:super::cards::DefectState,
 }
 
 // Keep established Combat Debug output byte-for-byte when this new owner is
@@ -501,6 +503,7 @@ impl std::fmt::Debug for State {
             .field("combust",&self.combust).field("thief_gold",&self.thief_gold);
         if self.silent.history_enabled||self.silent.source_character.is_some()||self.silent.card_offer.is_some()||self.silent.smoked||self.silent.retain_block_next_start{debug.field("silent",&self.silent);}
         if self.colorless!=ColorlessState::default(){debug.field("colorless",&self.colorless);}
+        if self.defect!=super::cards::DefectState::default(){debug.field("defect",&self.defect);}
         debug.finish()
     }
 }

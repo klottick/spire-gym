@@ -120,3 +120,15 @@ pub fn encode_run_policy(d:&PublicDecision,map:Option<&spire_core::run::map::Pub
     if d.content_profile!=Some(RoomScenario::M10IroncladHeart)||d.player.character!=spire_core::content::Character::Ironclad{return Err(RunSessionError::Input("policy encoder requires M10 Ironclad core profile"))}
     crate::run_observation::encode_run_with_power(d,map,caps,true,policy_power)
 }
+
+pub fn defect_combat_observation_spec(caps:&RunCapacities)->Result<RunObservationSpec,RunSessionError>{
+    crate::run_schema_m16::defect_combat_observation_spec(caps)
+}
+pub fn encode_defect_combat(decision:&PublicDecision,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
+    if decision.player.character!=spire_core::content::Character::Defect||decision.act!=1||decision.content_profile.is_some()
+        ||decision.room.as_ref().is_some_and(|room|room.kind!=RoomViewKind::Combat)
+        ||decision.candidates.iter().any(|candidate|!matches!(candidate.action,GameAction::Combat(_))){
+        return Err(RunSessionError::Input("M16 encoder requires native authored Defect combat"))
+    }
+    crate::run_observation::encode_run_with_schema(decision,None,caps,crate::run_observation::RunEncodingProfile::M16Defect,crate::run_schema_m16::power)
+}

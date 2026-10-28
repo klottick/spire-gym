@@ -24,7 +24,7 @@ fn start_from_public_decision(decision: &spire_core::run::PublicDecision) -> Aut
         hp: decision.player.hp,
         max_hp: decision.player.max_hp,
         gold: decision.player.gold,
-        deck: decision.objects.iter().map(|card| CardInstance {
+        deck: decision.objects.iter().map(|card| CardInstance { misc:0,
             instance: card.instance,
             id: card.id,
             upgrades: card.upgrades,

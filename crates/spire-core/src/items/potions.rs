@@ -133,6 +133,12 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
         return Ok(PotionUseEffects{effects,potions});
     }
     let effect = match potion {
+        PotionId::FocusPotion|PotionId::PotionOfCapacity=>{
+            if character!=Some(Character::Defect)||target.is_some()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
+            let amount=if context.owns_relic(crate::content::RelicId::SacredBark){4}else{2};
+            Effect{source:Source::Potion{slot,id:potion},target:Some(Actor::Player),kind:EffectKind::Character(
+                if potion==PotionId::FocusPotion{crate::combat::CharacterEffect::Focus(amount)}else{crate::combat::CharacterEffect::Slots(amount)})}
+        },
         PotionId::Elixir => {
             if facts.phase != PotionRoomPhase::Combat || facts.turn_ended || facts.live_targets.is_empty() {
                 return Err(RunError::InvalidAction);

@@ -35,7 +35,7 @@ fn m6_prefix_cutoff_waits_for_room_children(){
 #[test]
 fn m6_invalid_move_preflight_is_atomic_but_transferred_entry_fault_is_retained(){
     let mut r=continuing();let frozen=r.clone();assert!(r.step(&GameAction::Move(NodeId(u64::MAX))).is_err());assert!(r==frozen);
-    r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{instance:u64::MAX,id:crate::content::CardId::Strike,upgrades:0}];let action=r.decision().unwrap().candidates.into_iter().find(|c|matches!(c.action,GameAction::Move(_))).unwrap().action;let before=r.state.reward_ledger.total;
+    r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{ misc:0,instance:u64::MAX,id:crate::content::CardId::Strike,upgrades:0}];let action=r.decision().unwrap().candidates.into_iter().find(|c|matches!(c.action,GameAction::Move(_))).unwrap().action;let before=r.state.reward_ledger.total;
     let error=r.step(&action).unwrap_err();assert!(matches!(error,RunError::Faulted(_)));assert_eq!((r.state.floor,r.state.reward_ledger.total,r.state.terminal),(18,before+1,None));assert!(r.state.combat.is_some());assert!(r.state.relics.is_empty());let frozen=r.clone();assert_eq!(r.step(&action),Err(error));assert!(r==frozen);
 }
 

@@ -183,14 +183,14 @@ fn defect_go_for_the_eyes_applies_weak_from_live_attack_intent_and_not_nonattack
 fn defect_barrage_repeats_one_captured_hit_per_occupied_orb() {
     use super::super::characters::OrbKind;
     for (upgrades, hit, orbs) in [(0, 4, vec![None, None, None]),
-        (0, 4, vec![Some(OrbKind::Frost), None, None]),
+        (0, 4, vec![Some(OrbKind::Frost.into()), None, None]),
         (1, 6, vec![None, None, None]),
-        (1, 6, vec![Some(OrbKind::Lightning), None, None]),
-        (0, 4, vec![Some(OrbKind::Frost), None, Some(OrbKind::Lightning)]),
-        (1, 6, vec![Some(OrbKind::Frost), Some(OrbKind::Frost), Some(OrbKind::Lightning)]),
-        (0, 4, vec![Some(OrbKind::Frost);5]),
-        (0, 4, vec![Some(OrbKind::Frost);10]),
-        (1, 6, vec![Some(OrbKind::Frost),None,Some(OrbKind::Frost),None,Some(OrbKind::Frost),None,None,Some(OrbKind::Frost),None,Some(OrbKind::Frost)])] {
+        (1, 6, vec![Some(OrbKind::Lightning.into()), None, None]),
+        (0, 4, vec![Some(OrbKind::Frost.into()), None, Some(OrbKind::Lightning.into())]),
+        (1, 6, vec![Some(OrbKind::Frost.into()), Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into())]),
+        (0, 4, vec![Some(OrbKind::Frost.into());5]),
+        (0, 4, vec![Some(OrbKind::Frost.into());10]),
+        (1, 6, vec![Some(OrbKind::Frost.into()),None,Some(OrbKind::Frost.into()),None,Some(OrbKind::Frost.into()),None,None,Some(OrbKind::Frost.into()),None,Some(OrbKind::Frost.into())])] {
         let mut combat = with_defect_card(crate::content::CardId::Barrage, upgrades);
         combat.state.character.orb_slots = orbs;
         combat.state.enemies[0].block = 5;
@@ -222,8 +222,8 @@ fn defect_compile_driver_counts_distinct_live_orb_kinds_after_hit() {
     use super::super::characters::OrbKind;
     for (upgrades, orbs, draws, damage) in [
         (0, vec![None, None, None], 0, 7),
-        (1, vec![Some(OrbKind::Frost), Some(OrbKind::Frost), None], 1, 10),
-        (0, vec![Some(OrbKind::Frost), Some(OrbKind::Lightning), Some(OrbKind::Frost)], 2, 7),
+        (1, vec![Some(OrbKind::Frost.into()), Some(OrbKind::Frost.into()), None], 1, 10),
+        (0, vec![Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into()), Some(OrbKind::Frost.into())], 2, 7),
     ] {
         let mut combat = with_defect_card(crate::content::CardId::CompileDriver, upgrades);
         combat.state.character.orb_slots = orbs;
@@ -269,7 +269,7 @@ fn lethal_barrage_stops_after_the_first_hit_and_prunes_remaining_hits() {
     use super::super::characters::OrbKind;
     let mut combat = with_defect_card(crate::content::CardId::Barrage, 0);
     combat.state.enemies[0].hp = 4;
-    combat.state.character.orb_slots = vec![Some(OrbKind::Frost), Some(OrbKind::Lightning), None];
+    combat.state.character.orb_slots = vec![Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into()), None];
     let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
     combat.step_full(&CombatAction::PlayCard { instance, target: Some(TargetId(1)) }).unwrap();
     assert_eq!(combat.state.outcome, Some(Outcome::Victory));
@@ -721,7 +721,7 @@ fn normal_damage_modifiers_keep_binary32_intermediates_until_one_floor() {
 #[test]
 fn end_turn_lightning_kills_last_enemy_before_its_attack() {
     let mut combat = with_first_hand_card(crate::content::CardId::Zap, 1);
-    combat.state.character.orb_slots = vec![Some(super::super::characters::OrbKind::Lightning)];
+    combat.state.character.orb_slots = vec![Some(super::super::characters::OrbKind::Lightning.into())];
     combat.state.character.focus = 0;
     combat.state.enemies[0].hp = 3;
     combat.state.enemies[0].intent_id = ActorIntentId::Full(FullIntentId::Attack);
@@ -734,7 +734,7 @@ fn end_turn_lightning_kills_last_enemy_before_its_attack() {
     let after = combat.public_full().unwrap();
     assert_eq!(after.enemies[0].hp, 0, "passive Lightning deals 3 before MonsterStart");
     assert_eq!(after.player.hp, player_hp, "a killed last enemy never executes its queued attack");
-    assert_eq!(combat.state.character.orb_slots, vec![Some(super::super::characters::OrbKind::Lightning)],
+    assert_eq!(combat.state.character.orb_slots, vec![Some(super::super::characters::OrbKind::Lightning.into())],
         "passive evokes but does not remove the orb");
     assert!(combat.state.card_rng.as_ref().unwrap().word_index() > 0,
         "a live target consumes the separate card-random stream");
@@ -1174,7 +1174,7 @@ fn zap_channels_lightning_and_dualcast_invokes_then_removes_it() {
     let zap = combat.state.piles.hand[0].full().unwrap().instance.0;
     combat.step_full(&CombatAction::PlayCard { instance: zap, target: None }).unwrap();
     assert_eq!(combat.public_full().unwrap().player.energy, 3);
-    assert_eq!(combat.state.character.orb_slots[0], Some(super::super::characters::OrbKind::Lightning));
+    assert_eq!(combat.state.character.orb_slots[0], Some(super::super::characters::OrbKind::Lightning.into()));
 
     combat.state.piles.hand[0].full_mut().unwrap().id = crate::content::CardId::Dualcast;
     combat.state.character.focus = 2;
@@ -1208,7 +1208,7 @@ fn defect_cold_snap_and_ball_lightning_order_damage_before_channel() {
         let rng_before = combat.state.card_rng.as_ref().unwrap().clone();
         combat.step_full(&CombatAction::PlayCard { instance, target: Some(TargetId(1)) }).unwrap();
         assert_eq!(combat.public_full().unwrap().enemies[0].hp, 48 - damage, "{id:?}");
-        assert_eq!(combat.state.character.orb_slots[0], Some(orb), "{id:?}");
+        assert_eq!(combat.state.character.orb_slots[0], Some(orb.into()), "{id:?}");
         assert_eq!(combat.state.player.energy, 2, "{id:?}");
         assert_eq!(combat.state.card_rng.as_ref().unwrap(), &rng_before,
             "ordinary channeling does not pick a Lightning target");
@@ -1226,7 +1226,7 @@ fn defect_cold_snap_and_ball_lightning_use_qualified_upgraded_values() {
         let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
         combat.step_full(&CombatAction::PlayCard { instance, target: Some(TargetId(1)) }).unwrap();
         assert_eq!(combat.public_full().unwrap().enemies[0].hp, 48 - damage, "{id:?}");
-        assert_eq!(combat.state.character.orb_slots[0], Some(orb), "{id:?}");
+        assert_eq!(combat.state.character.orb_slots[0], Some(orb.into()), "{id:?}");
         assert_eq!(combat.state.player.energy, 2, "{id:?} retains cost 1 when upgraded");
     }
 }
@@ -1245,7 +1245,7 @@ fn defect_coolheaded_channels_before_drawing_its_base_or_upgraded_count() {
             EffectKind::Character(CharacterEffect::Channel(OrbKind::Frost))));
         assert!(matches!(&prepared.effects[1].kind, EffectKind::Draw(n) if *n == count));
         combat.step_full(&CombatAction::PlayCard { instance, target: None }).unwrap();
-        assert_eq!(combat.state.character.orb_slots[0], Some(OrbKind::Frost));
+        assert_eq!(combat.state.character.orb_slots[0], Some(OrbKind::Frost.into()));
         assert_eq!(combat.public_full().unwrap().hand.iter().map(|card| card.instance.0)
             .collect::<Vec<_>>(), draw_order.iter().take(count as usize)
             .map(|handle| handle.as_str().parse::<u64>().unwrap()).collect::<Vec<_>>());
@@ -1269,15 +1269,15 @@ fn frost_orb_passive_and_evoke_supply_focus_adjusted_block() {
     use super::super::characters::{CharacterEffect, OrbKind};
     let mut passive = with_defect_card(crate::content::CardId::Leap, 0);
     passive.state.character.focus = 3;
-    passive.state.character.orb_slots = vec![Some(OrbKind::Frost), None, None];
+    passive.state.character.orb_slots = vec![Some(OrbKind::Frost.into()), None, None];
     dispatch_native(&mut passive, Effect { source: Source::None, target: Some(Actor::Player),
         kind: EffectKind::Character(CharacterEffect::EndTurn) });
     assert_eq!(passive.public_full().unwrap().player.block, 5, "Frost passive is 2+Focus");
-    assert_eq!(passive.state.character.orb_slots, vec![Some(OrbKind::Frost), None, None]);
+    assert_eq!(passive.state.character.orb_slots, vec![Some(OrbKind::Frost.into()), None, None]);
 
     let mut evoke = with_defect_card(crate::content::CardId::Leap, 0);
     evoke.state.character.focus = 3;
-    evoke.state.character.orb_slots = vec![Some(OrbKind::Frost), None, None];
+    evoke.state.character.orb_slots = vec![Some(OrbKind::Frost.into()), None, None];
     dispatch_native(&mut evoke, Effect { source: Source::None, target: Some(Actor::Player),
         kind: EffectKind::Character(CharacterEffect::EvokeFront { remove: true }) });
     assert_eq!(evoke.public_full().unwrap().player.block, 8, "Frost evoke is 5+Focus");
@@ -1458,7 +1458,7 @@ fn frost_focus_passive_and_evoke_use_mixed_orb_order_and_channel_overflow() {
     use super::super::characters::{CharacterEffect, OrbKind};
     let mut combat = with_defect_card(crate::content::CardId::Coolheaded, 1);
     combat.state.character.focus = 1;
-    combat.state.character.orb_slots = vec![Some(OrbKind::Frost), Some(OrbKind::Lightning), Some(OrbKind::Frost)];
+    combat.state.character.orb_slots = vec![Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into()), Some(OrbKind::Frost.into())];
     let instance = combat.state.piles.hand[0].full().unwrap().instance.0;
     let draw_order = arrange_draw_fixture(&mut combat, instance);
     let before_rng = combat.state.card_rng.as_ref().unwrap().clone();
@@ -1470,7 +1470,7 @@ fn frost_focus_passive_and_evoke_use_mixed_orb_order_and_channel_overflow() {
     assert!(matches!(&prepared.effects[1].kind, EffectKind::Draw(2)));
     combat.step_full(&CombatAction::PlayCard { instance, target: None }).unwrap();
     assert_eq!(combat.public_full().unwrap().player.block, 6, "front Frost evokes for 5+Focus");
-    assert_eq!(combat.state.character.orb_slots, vec![Some(OrbKind::Lightning), Some(OrbKind::Frost), Some(OrbKind::Frost)]);
+    assert_eq!(combat.state.character.orb_slots, vec![Some(OrbKind::Lightning.into()), Some(OrbKind::Frost.into()), Some(OrbKind::Frost.into())]);
     assert_eq!(combat.state.card_rng.as_ref().unwrap(), &before_rng,
         "evoking Frost during channel overflow does not run Lightning");
     assert_eq!(combat.public_full().unwrap().hand.iter().map(|card| card.instance.0)
@@ -1479,12 +1479,12 @@ fn frost_focus_passive_and_evoke_use_mixed_orb_order_and_channel_overflow() {
 
     let mut passive = with_defect_card(crate::content::CardId::Leap, 0);
     passive.state.character.focus = 2;
-    passive.state.character.orb_slots = vec![Some(OrbKind::Frost), Some(OrbKind::Lightning), Some(OrbKind::Frost)];
+    passive.state.character.orb_slots = vec![Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into()), Some(OrbKind::Frost.into())];
     dispatch_native(&mut passive, Effect { source: Source::None, target: Some(Actor::Player),
         kind: EffectKind::Character(CharacterEffect::EndTurn) });
     assert_eq!(passive.public_full().unwrap().player.block, 8, "two Frost passives each supply 2+Focus Block");
     assert_eq!(passive.public_full().unwrap().enemies[0].hp, 43, "existing Lightning passive remains 3+Focus damage");
-    assert_eq!(passive.state.character.orb_slots, vec![Some(OrbKind::Frost), Some(OrbKind::Lightning), Some(OrbKind::Frost)]);
+    assert_eq!(passive.state.character.orb_slots, vec![Some(OrbKind::Frost.into()), Some(OrbKind::Lightning.into()), Some(OrbKind::Frost.into())]);
 }
 
 #[test]

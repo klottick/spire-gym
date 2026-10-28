@@ -40,8 +40,8 @@ pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
 pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
 pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
-pub use card_state::{permanent as permanent_live_card, CombatCardData, LiveCard};
-pub use characters::{CharacterEffect, CharacterState, OrbKind, Stance};
+pub use card_state::{permanent_with_misc as permanent_live_card_with_misc,permanent as permanent_live_card, CombatCardData, LiveCard, PermanentCardMutation};
+pub use characters::{CharacterEffect, CharacterState, OrbKind, OrbState, Stance};
 pub use cards::{resolve,IroncladEffect};
 pub use view::{CardCostKind,CardPublicValues};
 pub use hooks::{Hook, HookEvent};
@@ -49,4 +49,4 @@ pub use selection::{EmptySelection, SelectionDisposition,SelectionOperation,Sele
 pub use snapshot::{Divergence, Snapshot};
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
