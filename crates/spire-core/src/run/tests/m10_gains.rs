@@ -3,7 +3,7 @@ use crate::{run::*,content::{CardId,Character,EncounterId},combat::{CombatAction
 #[test]
 fn m3_authored_profile_keeps_existing_resources_and_rejects_task17_fatal_cards(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
+        deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
         potions:vec![None;3],relic_counters:Default::default()};
     assert!(Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start.clone(),
         RunRng::new([8;32],crate::combat::rng::Partition::Test,0)).is_ok(),"the prior M3 authored profile remains available");
@@ -18,11 +18,11 @@ fn m3_authored_profile_keeps_existing_resources_and_rejects_task17_fatal_cards()
 #[test]
 fn m10_feed_max_hp_is_settled_once_into_the_same_run_player(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
+        deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
         potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([7;32],crate::combat::rng::Partition::Test,0)).unwrap();
-    run.state.deck=(1..=5).map(|instance|CardInstance{instance,id:CardId::Feed,upgrades:0}).collect();
+    run.state.deck=(1..=5).map(|instance|CardInstance{ misc:0,instance,id:CardId::Feed,upgrades:0}).collect();
     run.enter_combat(EncounterId::JawWorm).unwrap();
     for _ in 0..20 {
         if run.state.combat.is_none(){break}
@@ -49,17 +49,17 @@ fn m10_feed_max_hp_is_settled_once_into_the_same_run_player(){
 #[test]
 fn m10_feed_gain_survives_accepted_settlement_fault_without_reapplication(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
+        deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}],relics:vec![],
         potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([73;32],crate::combat::rng::Partition::Test,0)).unwrap();
     // Privileged Task 9 diagnostic setup after a valid M3 Run constructor.
-    run.state.deck=vec![CardInstance{instance:1,id:CardId::Feed,upgrades:0}];
+    run.state.deck=vec![CardInstance{ misc:0,instance:1,id:CardId::Feed,upgrades:0}];
     run.enter_combat(EncounterId::JawWorm).unwrap();
     // Force an existing settlement-census coordinator fault after the accepted
     // Feed action. The extra master-deck row is privileged diagnostic state,
     // not a new injection facility or M3 profile producer.
-    run.state.deck.push(CardInstance{instance:99,id:CardId::Strike,upgrades:0});
+    run.state.deck.push(CardInstance{ misc:0,instance:99,id:CardId::Strike,upgrades:0});
     let enemy=run.decision().unwrap().combat.unwrap().enemies[0].clone();
     run.state.combat.as_mut().unwrap().enqueue_native_effects(vec![crate::combat::Effect{
         source:crate::combat::Source::Actor(crate::combat::Actor::Player),
@@ -92,11 +92,11 @@ fn m10_feed_gain_survives_accepted_settlement_fault_without_reapplication(){
 #[test]
 fn m10_feed_max_hp_and_current_hp_settle_once_on_real_spiker_retaliation_death(){
     let start=AuthoredRunStart{hp:1,max_hp:80,gold:99,
-        deck:vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0}],
+        deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}],
         relics:vec![crate::content::RelicId::MarkOfBloom],potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([79;32],crate::combat::rng::Partition::Test,0)).unwrap();
-    run.state.deck=vec![CardInstance{instance:1,id:CardId::Feed,upgrades:0}];
+    run.state.deck=vec![CardInstance{ misc:0,instance:1,id:CardId::Feed,upgrades:0}];
     // Privileged M10 Run/combat bridge diagnostic: construct the canonical
     // native encounter through the same source entry used by Run ownership,
     // while keeping the M3 authored reset/profile rejection intact.
@@ -111,7 +111,7 @@ fn m10_feed_max_hp_and_current_hp_settle_once_on_real_spiker_retaliation_death()
     let combat=crate::combat::Combat::enter_with_item_context(entry,&mut items).unwrap();
     assert!(items.is_none());
     run.state.combat=Some(combat);
-    run.state.active_combat=Some(ActiveCombat{visit:0,encounter:EncounterId::ThreeShapes,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});
+    run.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,visit:0,encounter:EncounterId::ThreeShapes,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});
     run.state.combat_progress=CombatProgress{entered:1,settled:0};
     let combat_view=run.decision().unwrap().combat.unwrap();
     let spiker=combat_view.enemies.iter().find(|enemy|enemy.enemy_id==crate::content::EnemyId::Spiker).unwrap();

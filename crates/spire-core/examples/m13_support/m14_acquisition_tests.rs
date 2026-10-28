@@ -62,7 +62,7 @@ fn decision(
         last_combat: None,
         objects: cards
             .iter()
-            .map(|(instance, id, upgrades)| PublicObject { instance: *instance, id: *id, upgrades: *upgrades })
+            .map(|(instance, id, upgrades)| PublicObject { misc:0, instance: *instance, id: *id, upgrades: *upgrades })
             .collect(),
         candidates,
         offers: Vec::new(),

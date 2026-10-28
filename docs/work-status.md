@@ -1,6 +1,32 @@
 # Work status
 
-## Current snapshot — 2026-10-28
+## Current snapshot — 2026-10-28, M16 source acceptance
+
+M15 merged through [PR54](https://github.com/klottick/spire-gym/pull/54) at
+`4d7e5be44fd1ce0167729ef1a4f8c9b17b9c5bdf`. Its accepted source and evidence
+grades remain those in the [M15 profile](milestones/m15-silent-heart.md) and
+[review record](superpowers/plans/2026-10-28-m15-native-runtime-review.md).
+
+The manager accepted the independently reviewed M16 finite native authored
+Defect A0 source for publication preparation. The same reviewer’s bounded
+correction recheck is READY: I1/M1/M2 are closed with no additional check required.
+The exact reviewed 785-file source manifest is
+`ae297201e0344182d9e4a322d4ae3093dd7443fac921c23d77af486a590bcd12`.
+Manager publication/main integration remains pending; no M16 merged SHA is claimed.
+
+The [M16 profile](milestones/m16-defect-combat.md) covers 29 finite card kinds,
+four orbs, Focus, slots0–10, four relics, two potions and persistent mutations
+through shared Run/resolver ownership and the opt-in versioned native observation.
+The [public review record](superpowers/plans/2026-10-28-m16-native-runtime-review.md)
+records corrected189 focused checks with zero failures. Initial2,421/0/2 workspace
+and six original fight results/artifact remain pre-correction and were not refreshed.
+Defect normal progression remains M17 onward; the full blue pool remains M20.
+Python delivery and original-runtime parity remain unverified. Future milestones
+retain their own approval/release gates; acceptance of this finite authored
+profile does not start another implementation. Use live Beads and the primary
+session for ownership and authorization.
+
+## Prior snapshot — 2026-10-28, M15 review before PR54
 
 The M15 native Silent A0 implementation has passed one independent senior review,
 its bounded correction recheck and the final required native integration checks.

@@ -147,7 +147,7 @@ fn frozen_run_v1_rejects_confirm_action_and_unrepresentable_selection_contracts(
 fn run_v1_rejects_an_actual_elixir_selection_boundary(){
     use spire_core::{combat::rng::Partition,content::{Character,EncounterId,RelicId}};
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:0,
-        deck:(1..=8).map(|instance|CardInstance{instance,id:CardId::Defend,upgrades:0}).collect(),
+        deck:(1..=8).map(|instance|CardInstance{ misc:0,instance,id:CardId::Defend,upgrades:0}).collect(),
         relics:vec![RelicId::CharonsAshes],potions:vec![Some(PotionId::Elixir),None,None],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([43;32],Partition::Test,0)).unwrap();

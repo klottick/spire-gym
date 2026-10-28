@@ -78,7 +78,7 @@ fn m5_marked_elite_rolls_one_formation_buff_before_lament_and_never_rerolls_faul
         let map=r.state.map.as_mut().unwrap();let target=map.nodes.iter().find(|n|n.kind==MapNodeKind::Elite).unwrap().id;
         let previous=map.nodes.iter_mut().find(|n|n.edges.contains(&target)).unwrap();previous.visited=true;let from=previous.id;r.state.floor=previous.floor;map.current=Some(from);
         for node in &mut map.nodes{node.burning=marked&&node.id==target;}
-        if fault {r.state.relics.push(RelicId::PureWater);r.state.deck=vec![crate::run::CardInstance{instance:u64::MAX,id:CardId::Strike,upgrades:0}];}
+        if fault {r.state.relics.push(RelicId::PureWater);r.state.deck=vec![crate::run::CardInstance{ misc:0,instance:u64::MAX,id:CardId::Strike,upgrades:0}];}
         let mut expected=r.state.rng.clone();let semantic=[1,target.0,0];
         let buff=if marked{Some(expected.bounded_scoped(RunRngScope::BurningEliteBuff,&semantic,4))}else{None};
         let result=r.step(&GameAction::Move(target));assert_eq!(result.is_err(),fault);

@@ -22,7 +22,7 @@ fn training_act_and_boss_context_are_owned(){
 fn training_rejects_invalid_public_resources_and_preserves_authored_limits(){
     let mut e=entry(EncounterId::Cultist);e.deck[0].1=2;assert!(Run::prepare_combat_training(e,RunRng::new([0;32],Partition::Test,0)).is_err());
     let mut e=entry(EncounterId::Cultist);e.deck[0].0=CardId::Neutralize;assert!(Run::prepare_combat_training(e,RunRng::new([0;32],Partition::Test,0)).is_err());
-    let old=AuthoredRunStart{hp:50,max_hp:80,gold:0,deck:vec![CardInstance{id:CardId::Immolate,instance:1,upgrades:0}],relics:vec![],potions:vec![None;3],relic_counters:Default::default()};
+    let old=AuthoredRunStart{hp:50,max_hp:80,gold:0,deck:vec![CardInstance{ misc:0,id:CardId::Immolate,instance:1,upgrades:0}],relics:vec![],potions:vec![None;3],relic_counters:Default::default()};
     assert!(Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},old,RunRng::new([0;32],Partition::Test,0)).is_err());
 }
 #[test]

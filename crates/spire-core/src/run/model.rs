@@ -2,8 +2,14 @@ use std::collections::BTreeMap;
 use crate::{combat::Combat, content::{CardId, Character, RelicId, PotionId}};
 use super::{Candidate, ChoiceId, Key, RunRng};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CardInstance { pub id:CardId, pub instance:u64, pub upgrades:u32 }
+#[derive(Clone, PartialEq, Eq)]
+pub struct CardInstance { pub id:CardId, pub instance:u64, pub upgrades:u32, pub misc:i32 }
+impl std::fmt::Debug for CardInstance {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("CardInstance");d.field("id",&self.id).field("instance",&self.instance).field("upgrades",&self.upgrades);
+        if self.misc!=0{d.field("misc",&self.misc);}d.finish()
+    }
+}
 /// Explicit supplied run resources, not a normal Neow start or snapshot restore.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AuthoredRunStart {
@@ -15,9 +21,9 @@ pub struct AuthoredRunStart {
 pub struct CombatProgress { pub entered:u64, pub settled:u64 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::EncounterId, pub outcome:crate::combat::Outcome }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin,
-    pub applied_gain_ordinal:u64,pub acquired_instances:Vec<u64> }
+    pub applied_gain_ordinal:u64,pub applied_mutation_ordinal:u64,pub acquired_instances:Vec<u64> }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{node:super::NodeId,kind:MapNodeKind} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,3 +116,18 @@ pub struct RunState {
     pub(crate) rng:RunRng, pub(crate) pending:Option<PendingContinuation>,
     pub(crate) next_instance:u64, pub(crate) resume_count:u8,
 }
+
+/// Finite native authored combat, independent of normal Run progression.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub enum M16DefectCombatStart { Canonical, Supplied(AuthoredRunStart) }
+
+impl std::fmt::Debug for ActiveCombat {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("ActiveCombat");d.field("visit",&self.visit).field("encounter",&self.encounter).field("origin",&self.origin).field("applied_gain_ordinal",&self.applied_gain_ordinal).field("acquired_instances",&self.acquired_instances);
+        if self.applied_mutation_ordinal!=0{d.field("applied_mutation_ordinal",&self.applied_mutation_ordinal);}d.finish()
+    }
+}
+
+/// Accepted A0 setup metadata prefix at the M15 merge. Appends are not admission.
+pub const M16_DEFECT_COMBAT_SETUP_PREFIX_LEN:usize=57;
+pub const M16_DEFECT_COMBAT_SETUP_BASE:&str="4d7e5be44fd1ce0167729ef1a4f8c9b17b9c5bdf";

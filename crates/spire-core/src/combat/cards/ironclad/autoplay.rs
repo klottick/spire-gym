@@ -91,6 +91,7 @@ pub(in crate::combat) fn cancel_pending_card_queue(state:&mut State){
     for pending in &mut state.pending{
         match &mut pending.kind{
             EffectKind::Ironclad(IroncladEffect::HavocQueued{cancelled,..}|IroncladEffect::DoubleTapRepeat{cancelled,..})=>*cancelled=true,
+            EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{cancelled,..})=>*cancelled=true,
             EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{cancelled,..})=>*cancelled=true,
             EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{cancelled,..}
                 |crate::combat::PotionEffect::DuplicationRepeat{cancelled,..})=>*cancelled=true,
@@ -102,12 +103,14 @@ pub(in crate::combat) fn cancel_pending_card_queue(state:&mut State){
 pub(in crate::combat) fn defer_parent_finish(state:&mut State,owner:&crate::combat::CardHandle)->Result<bool,InputError>{
     let Some(queued)=state.pending.iter().find(|effect|effect.source==crate::combat::Source::Card(owner.clone())&&matches!(effect.kind,
         EffectKind::Ironclad(IroncladEffect::HavocQueued{..}|IroncladEffect::DoubleTapRepeat{..})
+        |EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{..})
         |EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{..})
         |EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{..}))) else{return Ok(false)};
     let (child,target,energy_on_use,purge,imposed_exhaust)=match &queued.kind{
         EffectKind::Ironclad(IroncladEffect::HavocQueued{child,target,energy_on_use,..})=>(child.clone(),target.as_ref().map(|id|Actor::Enemy(id.clone())),*energy_on_use,false,true),
         EffectKind::Ironclad(IroncladEffect::DoubleTapRepeat{child,target,energy_on_use,..})=>(child.clone(),target.clone(),*energy_on_use,true,false),
-        EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{child,target,energy_on_use,..})
+        EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{child,target,energy_on_use,..})
+        |EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{child,target,energy_on_use,..})
             =>(child.clone(),target.clone(),*energy_on_use,true,false),
         EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{child,target,energy_on_use,..})
             =>(child.clone(),target.clone(),*energy_on_use,true,false),
@@ -382,4 +385,23 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
         IroncladEffect::FinishSuppressed=>finish_suppressed(state,&effect.source),
         _=>Err(InputError::Invariant("autoplay resolver received unrelated Ironclad work".into()).into()),
     }
+}
+
+/// New producers share physical copy allocation, parent finish and autoplay.
+pub(in crate::combat) fn queue_blue_repeat(state:&mut State,source:&crate::combat::Source,target:Option<&Actor>,energy_on_use:i32)->Result<(),EffectError>{
+    let crate::combat::Source::Card(owner)=source else{return Err(InputError::Invariant("repeat parent source".into()).into())};
+    let instance=crate::combat::piles::next_generated_instance(state)?;
+    let mut copied=crate::combat::piles::make_same_instance_family_copy_from_owner(state,owner,instance)?;
+    copied.local.free_play=true;copied.local.purge=true;
+    let child=OwnedCard::Full(copied);let handle=child.handle();
+    state.card_ids_issued.insert(handle.clone());state.queued_autoplay.insert(handle.clone(),child);
+    queue_after_finish(state,source,Effect{source:source.clone(),target:None,kind:EffectKind::Defect(crate::combat::cards::DefectEffect::Repeat{child:handle,target:target.cloned(),energy_on_use,cancelled:false})})
+}
+pub(in crate::combat) fn apply_shared_repeat(state:&mut State,effect:&Effect,child:&crate::combat::CardHandle,target:&Option<Actor>,energy_on_use:i32,cancelled:bool)->Result<(),EffectError>{
+    let crate::combat::Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("repeat parent source".into()).into())};
+    if cancelled {
+        let card=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued repeat custody absent".into()))?;
+        dispose_unplayed(state,card,FinishDisposition::Purge)?;resume_parent(state,child)?;return Ok(())
+    }
+    start_queued_child(state,child,target.clone(),true,false,energy_on_use,PlayFrameParentOwner::Card(parent.clone()))
 }

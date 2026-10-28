@@ -4,12 +4,12 @@ use crate::{combat::{Actor,CombatAction,DamagePayload,Effect,EffectKind,Source},
 #[test]
 fn m10_batch_exhaustion_preserves_permanent_deck_identities_through_real_settlement(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:(1..=3).map(|instance|CardInstance{instance,id:CardId::Strike,upgrades:0}).collect(),
+        deck:(1..=3).map(|instance|CardInstance{ misc:0,instance,id:CardId::Strike,upgrades:0}).collect(),
         relics:vec![],potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([37;32],crate::combat::rng::Partition::Test,0)).unwrap();
-    let deck=vec![CardInstance{instance:1,id:CardId::SecondWind,upgrades:0},
-        CardInstance{instance:2,id:CardId::Defend,upgrades:0},CardInstance{instance:3,id:CardId::Inflame,upgrades:0}];
+    let deck=vec![CardInstance{ misc:0,instance:1,id:CardId::SecondWind,upgrades:0},
+        CardInstance{ misc:0,instance:2,id:CardId::Defend,upgrades:0},CardInstance{ misc:0,instance:3,id:CardId::Inflame,upgrades:0}];
     run.state.deck=deck.clone();
     run.enter_combat(EncounterId::JawWorm).unwrap();
     let initial=run.decision().unwrap().combat.unwrap();

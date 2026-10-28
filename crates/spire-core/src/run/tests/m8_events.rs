@@ -6,7 +6,7 @@ fn base()->Run{
     let mut r=super::rooms::run();choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:8});r.state.act=3;r.state.floor=36;let map=r.state.map.as_mut().unwrap();map.act=3;map.current=Some(NodeId(10));r
 }
 fn install(r:&mut Run,event:EventId){let mut next=r.next_choice;let p=act3::prepare(r,event,NodeId(10),0,&mut next).unwrap();r.state.rng=p.rng;r.next_choice=next;let room=r.state.room_loop.as_mut().unwrap();room.screen=p.screen;room.act3_event=Some(p.frame);}
-fn cards(r:&mut Run,kinds:&[CardId]){r.state.deck=kinds.iter().enumerate().map(|(i,id)|CardInstance{id:*id,instance:i as u64+1,upgrades:0}).collect();}
+fn cards(r:&mut Run,kinds:&[CardId]){r.state.deck=kinds.iter().enumerate().map(|(i,id)|CardInstance{ misc:0,id:*id,instance:i as u64+1,upgrades:0}).collect();}
 fn offered(r:&Run)->Vec<RoomChoiceView>{r.decision().unwrap().room.unwrap().choices}
 
 #[test]

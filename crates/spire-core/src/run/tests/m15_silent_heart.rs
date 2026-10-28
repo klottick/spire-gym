@@ -173,7 +173,7 @@ fn m15_all_green_permanent_instances_use_existing_upgrade_remove_and_event_eligi
         mutations::upgrade_card(&mut state,instance).unwrap();assert_eq!(state.deck.iter().find(|card|card.instance==instance).unwrap().upgrades,1);assert_eq!(mutations::remove_card(&mut state,instance).unwrap().id,*id);
     }
     let mut shrine=base.clone();let node=shrine.state.map.as_ref().unwrap().nodes[0].id;shrine.state.map.as_mut().unwrap().current=Some(node);
-    shrine.state.deck=vec![CardInstance{instance:41,id:CardId::WraithForm,upgrades:0},CardInstance{instance:42,id:CardId::WraithForm,upgrades:0}];shrine.state.next_instance=43;
+    shrine.state.deck=vec![CardInstance{ misc:0,instance:41,id:CardId::WraithForm,upgrades:0},CardInstance{ misc:0,instance:42,id:CardId::WraithForm,upgrades:0}];shrine.state.next_instance=43;
     let mut next=shrine.next_choice;shrine.state.room_loop.as_mut().unwrap().screen=rooms::events::screen(&mut next,crate::content::EventId::UpgradeShrine).unwrap();shrine.next_choice=next;
     super::rooms::choose(&mut shrine,RoomChoiceKind::ShrineUpgrade);let selected=shrine.state.pending.as_ref().unwrap().selection.candidates.iter().find(|candidate|candidate.card.instance==42).unwrap().id;shrine.step(&GameAction::Select(selected)).unwrap();assert_eq!(shrine.state.deck.iter().map(|card|card.upgrades).collect::<Vec<_>>(),vec![0,1]);
 }

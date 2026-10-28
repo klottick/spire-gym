@@ -36,6 +36,7 @@ fn lanes<'a>(state: &'a mut State, actor: &Actor) -> (&'a mut Vec<PowerEntry>, &
 }
 
 fn amount(state: &State, actor: &Actor, id: FullPowerId) -> Result<i32, InputError> {
+    if *actor==Actor::Player&&id.0=="focus"{return Ok(state.character.focus)}
     let (legacy, full) = match actor {
         Actor::Player => (&state.player.powers, &state.player_full_powers),
         Actor::Enemy(owner) => {
@@ -50,6 +51,7 @@ fn amount(state: &State, actor: &Actor, id: FullPowerId) -> Result<i32, InputErr
 }
 
 fn remove(state: &mut State, actor: &Actor, id: FullPowerId) {
+    if *actor==Actor::Player&&id.0=="focus"{state.character.focus=0;}
     let (legacy, full) = lanes(state, actor);
     legacy.retain(|p| p.id.as_str() != id.0);
     full.retain(|p| p.id != id);
@@ -148,7 +150,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "corpse_explosion" | "choked" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "corpse_explosion" | "choked" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"bias"|"lock_on") && delta > 0)
         ||(id.0=="focus"&&delta<0)
         ||(id.0=="wraith_form"&&delta<0) || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
@@ -171,7 +173,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         delta=delta.checked_add(1).ok_or_else(||InputError::Unsupported(
             "Snecko Skull Poison amount overflow".into()))?;
     }
-    if application&&id.0=="focus" {
+    if *actor==Actor::Player&&id.0=="focus" {
         super::characters::apply_focus(state,delta)?;
         return Ok(())
     }
@@ -186,6 +188,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         "energized"=>sum.clamp(0,999),
         "wraith_form"=>sum.min(0),
         "next_turn_block"|"draw_card_next_turn"|"blur"|"choked"|"infinite_blades"|"after_image"|"a_thousand_cuts"|"envenom"|"phantasmal"|"double_damage"|"intangible_player"|"tools_of_the_trade"|"burst"=>sum.max(0),
+        "bias"|"loop"|"electrodynamics"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form"|"lock_on"=>sum.max(0),
         "mode_shift"=>sum.max(0),
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,

@@ -9,6 +9,7 @@ use std::fmt;
 pub struct CombatCardData {
     /// Actual mutable native damage, not target-modified displayed damage.
     pub base_damage: Option<i32>,
+    pub base_block: Option<i32>,
     /// Actual combat-only upgrades, for exact persistent-exit census. Never
     /// infer permanent growth merely from the card's current upgrade count.
     pub temporary_upgrades:u32,
@@ -49,6 +50,7 @@ impl fmt::Debug for CombatCardData {
             .field("ethereal", &self.ethereal)
             .field("innate", &self.innate)
             .field("purge", &self.purge);
+        if self.base_block.is_some(){debug.field("base_block",&self.base_block);}
         if self.mutable_combat_cost.is_some(){debug.field("mutable_combat_cost",&self.mutable_combat_cost);}
         if self.turn_cost.is_some(){debug.field("turn_cost",&self.turn_cost);}
         if self.free_to_play_once{debug.field("free_to_play_once",&self.free_to_play_once);}
@@ -56,12 +58,13 @@ impl fmt::Debug for CombatCardData {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct LiveCard {
     pub instance: CardInstanceId,
     pub id: CardId,
     pub origin: CombatCardRef,
     pub upgrades: u32,
+    pub misc: i32,
     pub local: CombatCardData,
     pub copy_family: u64,
     pub copy_provenance: CopyProvenance,
@@ -82,7 +85,7 @@ pub(super) fn legacy_identity(kind: CardKind, local_id: u64, upgraded: bool) -> 
     let instance = CardInstanceId(local_id);
     LiveCard { instance, id,
         origin: CombatCardRef::CombatLocal(instance.0),
-        upgrades: u32::from(upgraded), local: CombatCardData::default(),copy_family:instance.0,copy_provenance:CopyProvenance::Original }
+        upgrades: u32::from(upgraded), misc:0, local: CombatCardData::default(),copy_family:instance.0,copy_provenance:CopyProvenance::Original }
 }
 
 pub(super) fn card_id(kind: CardKind) -> CardId {
@@ -142,15 +145,16 @@ pub(super) fn upgrade_base_cost(card:&mut LiveCard,original:i32,requested:i32)->
 }
 
 pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCard {
-    LiveCard { instance, id, origin: CombatCardRef::Permanent(instance),
-         upgrades, local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(super::cards::ironclad::rules::reconstructed_searing_damage(upgrades))}else if id==CardId::Rampage{Some(8)}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else if id==CardId::MasterfulStab{Some(if upgrades>0{16}else{12})}else if id==CardId::Eviscerate{Some(if upgrades>0{9}else{7})}else if id==CardId::EndlessAgony{Some(if upgrades>0{6}else{4})}else if id==CardId::GlassKnife{Some(if upgrades>0{12}else{8})}else if id==CardId::Skewer{Some(if upgrades>0{10}else{7})}else{None},mutable_combat_cost:super::cards::starting_cost(id,upgrades),turn_cost:super::cards::starting_cost(id,upgrades),exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering|CardId::Pummel|CardId::Intimidate|CardId::SeeingRed|CardId::Shockwave|CardId::Warcry|CardId::Exhume|CardId::Feed|CardId::Reaper|CardId::FiendFire|CardId::InfernalBlade|CardId::Catalyst|CardId::Nightmare|CardId::Backstab|CardId::Adrenaline|CardId::DieDieDie|CardId::PiercingWail|CardId::CripplingCloud|CardId::Terror|CardId::DarkShackles|CardId::DramaticEntrance|CardId::Panacea|CardId::PanicButton|CardId::MasterOfStrategy|CardId::EndlessAgony|CardId::Doppelganger|CardId::Malaise|CardId::Apotheosis|CardId::Madness|CardId::Purity|CardId::Violence|CardId::Distraction|CardId::Alchemize|CardId::Chrysalis|CardId::Metamorphosis|CardId::JackOfAllTrades|CardId::Transmutation)||(id==CardId::Discovery&&upgrades==0)||(id==CardId::CalculatedGamble&&upgrades==0)||(id==CardId::LimitBreak&&upgrades==0)||(matches!(id,CardId::SecretTechnique|CardId::SecretWeapon|CardId::ThinkingAhead)&&upgrades==0),ethereal:matches!(id,CardId::Carnage|CardId::GhostlyArmor|CardId::Dazed|CardId::Void),innate:(id==CardId::Brutality&&upgrades>0)||id==CardId::Backstab||matches!(id,CardId::AfterImage|CardId::InfiniteBlades)&&upgrades>0||matches!(id,CardId::DramaticEntrance|CardId::MindBlast),x_cost:matches!(id,CardId::Whirlwind|CardId::Skewer|CardId::Doppelganger|CardId::Malaise|CardId::Transmutation), ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Original }
+    let mut card=LiveCard { instance, id, origin: CombatCardRef::Permanent(instance),
+         upgrades, misc:if id.as_str()=="genetic_algorithm"{1}else{0}, local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(super::cards::ironclad::rules::reconstructed_searing_damage(upgrades))}else if id==CardId::Rampage{Some(8)}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else if id==CardId::MasterfulStab{Some(if upgrades>0{16}else{12})}else if id==CardId::Eviscerate{Some(if upgrades>0{9}else{7})}else if id==CardId::EndlessAgony{Some(if upgrades>0{6}else{4})}else if id==CardId::GlassKnife{Some(if upgrades>0{12}else{8})}else if id==CardId::Skewer{Some(if upgrades>0{10}else{7})}else{None},mutable_combat_cost:super::cards::starting_cost(id,upgrades),turn_cost:super::cards::starting_cost(id,upgrades),exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering|CardId::Pummel|CardId::Intimidate|CardId::SeeingRed|CardId::Shockwave|CardId::Warcry|CardId::Exhume|CardId::Feed|CardId::Reaper|CardId::FiendFire|CardId::InfernalBlade|CardId::Catalyst|CardId::Nightmare|CardId::Backstab|CardId::Adrenaline|CardId::DieDieDie|CardId::PiercingWail|CardId::CripplingCloud|CardId::Terror|CardId::DarkShackles|CardId::DramaticEntrance|CardId::Panacea|CardId::PanicButton|CardId::MasterOfStrategy|CardId::EndlessAgony|CardId::Doppelganger|CardId::Malaise|CardId::Apotheosis|CardId::Madness|CardId::Purity|CardId::Violence|CardId::Distraction|CardId::Alchemize|CardId::Chrysalis|CardId::Metamorphosis|CardId::JackOfAllTrades|CardId::Transmutation)||(id==CardId::Discovery&&upgrades==0)||(id==CardId::CalculatedGamble&&upgrades==0)||(id==CardId::LimitBreak&&upgrades==0)||(matches!(id,CardId::SecretTechnique|CardId::SecretWeapon|CardId::ThinkingAhead)&&upgrades==0),ethereal:matches!(id,CardId::Carnage|CardId::GhostlyArmor|CardId::Dazed|CardId::Void),innate:(id==CardId::Brutality&&upgrades>0)||id==CardId::Backstab||matches!(id,CardId::AfterImage|CardId::InfiniteBlades)&&upgrades>0||matches!(id,CardId::DramaticEntrance|CardId::MindBlast),x_cost:matches!(id,CardId::Whirlwind|CardId::Skewer|CardId::Doppelganger|CardId::Malaise|CardId::Transmutation), ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Original };
+    super::cards::defect::initialize(&mut card);card
 }
 
 /// Build a temporary native card with its actual use/disposition state.
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     // Green generation uses the same flags and local writers as permanent
     // descriptors. A template receives no permanent ownership or issued handle.
-    if crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
+    if crate::content::defect::supports_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
         ||crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Colorless&&!row.definition_only&&matches!(row.rarity,crate::content::CardRarity::Uncommon|crate::content::CardRarity::Rare)&&matches!(row.card_type,crate::content::CardType::Attack|crate::content::CardType::Skill|crate::content::CardType::Power)) {
         let mut card=permanent(id,instance,upgrades);
         card.origin=CombatCardRef::CombatLocal(instance.0);
@@ -195,7 +199,7 @@ pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> 
         |CardId::Impatience|CardId::MindBlast|CardId::SwiftStrike|CardId::Trip=>false,
         _ => return None,
     };
-    Some(LiveCard { instance, id, origin: CombatCardRef::CombatLocal(instance.0), upgrades,
+    Some(LiveCard { instance, id, origin: CombatCardRef::CombatLocal(instance.0), upgrades, misc:if id.as_str()=="genetic_algorithm"{1}else{0},
         local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(12)}else if id==CardId::BloodForBlood{Some(if upgrades>0{22}else{18})}else if id==CardId::Feed{Some(if upgrades>0{12}else{10})}else if id==CardId::Reaper{Some(if upgrades>0{5}else{4})}else if id==CardId::Rampage{Some(8)}else if id==CardId::Dropkick{Some(if upgrades>0{8}else{5})}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else if id==CardId::MasterfulStab{Some(if upgrades>0{16}else{12})}else if id==CardId::Eviscerate{Some(if upgrades>0{9}else{7})}else if id==CardId::EndlessAgony{Some(if upgrades>0{6}else{4})}else if id==CardId::GlassKnife{Some(if upgrades>0{12}else{8})}else if id==CardId::Skewer{Some(if upgrades>0{10}else{7})}else{None},mutable_combat_cost:super::cards::starting_cost(id,upgrades),turn_cost:super::cards::starting_cost(id,upgrades),exhaust_on_finish,ethereal:matches!(id,CardId::Carnage|CardId::Dazed|CardId::Void),innate:(id==CardId::Brutality&&upgrades>0)||id==CardId::Backstab||matches!(id,CardId::AfterImage|CardId::InfiniteBlades)&&upgrades>0||matches!(id,CardId::DramaticEntrance|CardId::MindBlast),x_cost:matches!(id,CardId::Whirlwind|CardId::Skewer|CardId::Doppelganger|CardId::Malaise|CardId::Transmutation), ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Generated })
 }
 
@@ -257,7 +261,7 @@ impl LiveCard {
     /// Construct an independent combat copy with equivalent card state.
     pub fn copy_as(&self, instance: CardInstanceId) -> Self {
         Self { instance, id: self.id, origin: CombatCardRef::CombatLocal(instance.0),
-            upgrades: self.upgrades, local: self.local.clone(),copy_family:instance.0,copy_provenance:CopyProvenance::AdapterClone }
+            upgrades: self.upgrades, misc:self.misc, local: self.local.clone(),copy_family:instance.0,copy_provenance:CopyProvenance::AdapterClone }
     }
 
     pub fn stat_equivalent_copy(&self,instance:CardInstanceId)->Self{
@@ -267,7 +271,7 @@ impl LiveCard {
         local.exhaust_on_finish=defaults.exhaust_on_finish;local.ethereal=defaults.ethereal;
         local.x_cost=defaults.x_cost;local.innate=defaults.innate;
         local.temporary_upgrades=0;
-        Self{instance,id:self.id,origin:CombatCardRef::CombatLocal(instance.0),upgrades:self.upgrades,local,
+        Self{instance,id:self.id,origin:CombatCardRef::CombatLocal(instance.0),upgrades:self.upgrades,misc:self.misc,local,
             copy_family:instance.0,copy_provenance:CopyProvenance::StatEquivalent}
     }
 
@@ -295,3 +299,17 @@ mod tests {
         assert_ne!(copy.instance, source.instance);
     }
 }
+
+impl std::fmt::Debug for LiveCard {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("LiveCard");d.field("instance",&self.instance).field("id",&self.id).field("origin",&self.origin).field("upgrades",&self.upgrades);
+        if self.misc!=0{d.field("misc",&self.misc);}
+        d.field("local",&self.local).field("copy_family",&self.copy_family).field("copy_provenance",&self.copy_provenance).finish()
+    }
+}
+pub fn permanent_with_misc(id:CardId,instance:CardInstanceId,upgrades:u32,misc:i32)->LiveCard {
+    let mut card=permanent(id,instance,upgrades);card.misc=misc;card
+}
+
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct PermanentCardMutation {pub ordinal:u64,pub instance:CardInstanceId,pub id:CardId,pub misc:i32}

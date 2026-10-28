@@ -33,13 +33,13 @@ fn m6_joust_wrong_price_overflow_stale_and_ui_draw_no_rng(){
 
 #[test]
 fn m6_ancient_writing_mutates_only_eligible_objects_once(){
-    let mut r=event(EventId::AncientWriting);r.state.deck=[(CardId::Strike,0),(CardId::Defend,0),(CardId::Bash,0),(CardId::TwinStrike,0),(CardId::Strike,1)].into_iter().enumerate().map(|(i,(id,upgrades))|CardInstance{instance:i as u64+1,id,upgrades}).collect();let ids=r.state.deck.iter().map(|c|c.instance).collect::<Vec<_>>();let rng=r.state.rng.clone();let id=row(&r,RoomChoiceKind::AncientSimplicity);
+    let mut r=event(EventId::AncientWriting);r.state.deck=[(CardId::Strike,0),(CardId::Defend,0),(CardId::Bash,0),(CardId::TwinStrike,0),(CardId::Strike,1)].into_iter().enumerate().map(|(i,(id,upgrades))|CardInstance{ misc:0,instance:i as u64+1,id,upgrades}).collect();let ids=r.state.deck.iter().map(|c|c.instance).collect::<Vec<_>>();let rng=r.state.rng.clone();let id=row(&r,RoomChoiceKind::AncientSimplicity);
     r.step(&GameAction::Choose(id)).unwrap();assert_eq!(r.state.deck.iter().map(|c|c.upgrades).collect::<Vec<_>>(),vec![1,1,0,0,1]);assert_eq!(r.state.deck.iter().map(|c|c.instance).collect::<Vec<_>>(),ids);assert_eq!(r.state.rng,rng);let before=r.clone();assert!(r.step(&GameAction::Choose(id)).is_err());assert!(r==before);
 }
 
 #[test]
 fn m6_ancient_elegance_captures_exact_one_and_checks_empty_only_on_callback(){
-    let mut r=event(EventId::AncientWriting);r.state.deck=vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0}];let purge=r.state.room_loop.as_ref().unwrap().purge_cost;let id=row(&r,RoomChoiceKind::AncientElegance);r.step(&GameAction::Choose(id)).unwrap();assert_eq!(r.state.deck.len(),1);assert_eq!(r.state.terminal,None);
+    let mut r=event(EventId::AncientWriting);r.state.deck=vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}];let purge=r.state.room_loop.as_ref().unwrap().purge_cost;let id=row(&r,RoomChoiceKind::AncientElegance);r.step(&GameAction::Choose(id)).unwrap();assert_eq!(r.state.deck.len(),1);assert_eq!(r.state.terminal,None);
     let selected=r.state.pending.as_ref().unwrap().selection.candidates[0].id;let before=r.clone();assert!(r.step(&GameAction::Cancel).is_err());assert!(r==before);let t=r.step(&GameAction::Select(selected)).unwrap();assert_eq!(t.terminal,Some(RunTerminal::EmptyDeck));assert_eq!(t.reward,-1);assert!(r.state.deck.is_empty());assert_eq!(r.state.room_loop.as_ref().unwrap().purge_cost,purge);let settled=r.clone();assert!(r.step(&GameAction::Select(selected)).is_err());assert!(r==settled);
     let mut empty=event(EventId::AncientWriting);empty.state.deck.clear();choose(&mut empty,RoomChoiceKind::AncientElegance);assert!(empty.state.pending.is_none());assert!(empty.state.fault.is_none());assert_eq!(empty.state.terminal,Some(RunTerminal::EmptyDeck));
 }
@@ -74,7 +74,7 @@ fn m6_joust_accepted_payout_invariant_fault_keeps_payment_and_winner(){
 #[test]
 fn m6_ancient_upgrade_removal_feed_native_combat_and_free_removal_keeps_purge_price(){
     use crate::combat::{Combat,CombatAction,TargetId,PlayerState,CardInstanceId,permanent_live_card,enemies::{self,SetupContext}};
-    let mut upgraded=event(EventId::AncientWriting);upgraded.state.deck=vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0},CardInstance{instance:2,id:CardId::Defend,upgrades:0}];choose(&mut upgraded,RoomChoiceKind::AncientSimplicity);choose(&mut upgraded,RoomChoiceKind::Leave);
+    let mut upgraded=event(EventId::AncientWriting);upgraded.state.deck=vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0},CardInstance{ misc:0,instance:2,id:CardId::Defend,upgrades:0}];choose(&mut upgraded,RoomChoiceKind::AncientSimplicity);choose(&mut upgraded,RoomChoiceKind::Leave);
     let mut entry=enemies::setup(crate::content::EncounterId::SphericGuardian,2,0,&mut upgraded.state.rng,SetupContext{
         player:PlayerState{hp:80,max_hp:80,block:0,energy:3,max_energy:3,draw_per_turn:1,powers:vec![]},player_powers:vec![],character:crate::content::Character::Ironclad,
         cards:upgraded.state.deck.iter().map(|c|permanent_live_card(c.id,CardInstanceId(c.instance),c.upgrades)).collect(),opening_draw:2,encounter_visit:0}).unwrap();

@@ -28,7 +28,7 @@ fn fight(cards: &[CardId], opening_draw: usize, potion: PotionId, relics: Vec<Re
     let live_cards = cards.iter().enumerate().map(|(index, id)| {
         let instance = crate::combat::CardInstanceId(index as u64 + 1);
         let live = crate::combat::card_state::permanent(*id, instance, 0);
-        LiveCard { instance, id: *id, origin: CombatCardRef::Permanent(instance), upgrades: 0,
+        LiveCard { misc:0, instance, id: *id, origin: CombatCardRef::Permanent(instance), upgrades: 0,
             local: live.local, copy_family: instance.0,
             copy_provenance: crate::combat::card_state::CopyProvenance::Original }
     }).collect();

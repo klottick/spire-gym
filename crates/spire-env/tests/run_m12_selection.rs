@@ -48,7 +48,7 @@ fn decision_with_silent_combat_at_upgraded(
     let mut items = Some(CombatItemContext::new(vec![RelicId::RingOfTheSnake], vec![None, None, None]));
     let native = Combat::enter_with_item_context(setup, &mut items).unwrap();
     let mut decision = base;
-    decision.objects = cards.iter().enumerate().map(|(index, id)| PublicObject {
+    decision.objects = cards.iter().enumerate().map(|(index, id)| PublicObject { misc:0,
         instance: index as u64 + 1, id: *id, upgrades: upgrades.get(index).copied().unwrap_or(0),
     }).collect();
     decision.player.hp = u32::try_from(hp).unwrap();

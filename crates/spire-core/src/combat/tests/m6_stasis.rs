@@ -10,7 +10,7 @@ fn card(id:CardId,n:u64)->LiveCard{permanent_live_card(id,CardInstanceId(n),0)}
 fn cursor(c:&mut Combat,slot:usize,index:u128){let old=c.state.enemies[slot].full_ai_rng.as_ref().unwrap();c.state.enemies[slot].full_ai_rng=Some(rng::StreamState::new(old.id().clone(),[0;32],index).unwrap());}
 fn roll(c:&mut Combat,slot:usize){let actor=Actor::Enemy(c.state.enemies[slot].instance_id.clone());c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::RollMove}],None).unwrap();}
 fn act(c:&mut Combat,slot:usize){let actor=Actor::Enemy(c.state.enemies[slot].instance_id.clone());c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::EnemyMove}],None).unwrap();}
-fn capture(c:&mut Combat,slot:usize){if c.state.enemies[slot].intent_id.as_str()!="orb_stasis"{cursor(c,slot,1);roll(c,slot);}assert_eq!(c.state.enemies[slot].intent_id.as_str(),"orb_stasis");act(c,slot);}
+pub(super) fn capture(c:&mut Combat,slot:usize){if c.state.enemies[slot].intent_id.as_str()!="orb_stasis"{cursor(c,slot,1);roll(c,slot);}assert_eq!(c.state.enemies[slot].intent_id.as_str(),"orb_stasis");act(c,slot);}
 fn card_rng(c:&mut Combat,index:u128){let old=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(old.id().clone(),[0;32],index).unwrap());}
 fn all(c:&Combat)->Vec<CardInstanceId>{c.state.piles.all(c.state.in_play.as_ref()).chain(c.state.stasis.values()).map(|c|c.full().unwrap().instance).collect()}
 

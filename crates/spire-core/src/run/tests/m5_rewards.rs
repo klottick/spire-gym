@@ -46,7 +46,7 @@ fn m5_marked_elite_relic_and_emerald_are_independent_once_only_claims() {
 #[test]
 fn m5_rare_take_has_one_fresh_permanent_identity_and_status_obtain_rejects() {
     let mut r=victory(MapNodeKind::Boss,false);let next=r.state.next_instance;choose(&mut r,RoomChoiceKind::CardReward);
-    choose(&mut r,RoomChoiceKind::Card{id:CardId::Offering,upgrades:0});assert_eq!(r.state.deck.last().unwrap(),&CardInstance{id:CardId::Offering,instance:next,upgrades:0});assert_eq!(r.state.next_instance,next+1);
+    choose(&mut r,RoomChoiceKind::Card{id:CardId::Offering,upgrades:0});assert_eq!(r.state.deck.last().unwrap(),&CardInstance{ misc:0,id:CardId::Offering,instance:next,upgrades:0});assert_eq!(r.state.next_instance,next+1);
     let before=r.clone();assert!(super::super::mutations::obtain_card(&mut r.state,CardId::Burn,0).is_err());assert!(r==before);
     assert_eq!(r.state.last_combat.as_ref().unwrap().encounter,EncounterId::SlimeBoss);
 }

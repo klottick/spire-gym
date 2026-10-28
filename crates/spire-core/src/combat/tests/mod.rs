@@ -87,3 +87,10 @@ mod m15_smoke;
 mod m15_potion_generation;
 
 mod m15_act4_interactions;
+mod m16_orbs;
+mod m16_mutations;
+mod m16_power_callbacks;
+mod m16_orb_interactions;
+pub(crate) mod m16_support;
+mod m16_content;
+mod m16_review_corrections;

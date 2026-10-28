@@ -7,7 +7,7 @@ pub fn header()->serde_json::Value {serde_json::json!({"record":"header","schema
     "run":{"character":"ironclad","ascension":0,"seed":{"encoding":"native-u64-le","value":"7"},"caller":null}})}
 pub fn lethal()->Run {
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},AuthoredRunStart {
-        hp:40,max_hp:80,gold:99,deck:vec![spire_core::run::CardInstance{instance:1,id:CardId::Strike,upgrades:0}],
+        hp:40,max_hp:80,gold:99,deck:vec![spire_core::run::CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0}],
         relics:vec![RelicId::BurningBlood],potions:vec![Some(PotionId::FirePotion);3],relic_counters:Default::default()},
         RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
     run.enter_combat(EncounterId::JawWorm).unwrap();run

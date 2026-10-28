@@ -10,7 +10,7 @@ pub fn rng(seed: u64) -> RunRng {
 pub fn start() -> AuthoredRunStart {
     AuthoredRunStart { hp: 40, max_hp: 80, gold: 123,
         deck: [CardId::Strike, CardId::Bash, CardId::Anger, CardId::Bloodletting, CardId::Disarm]
-            .into_iter().enumerate().map(|(i,id)| CardInstance { id, instance: i as u64 + 1,
+            .into_iter().enumerate().map(|(i,id)| CardInstance { misc:0, id, instance: i as u64 + 1,
                 upgrades: u32::from(i < 2) }).collect(),
         relics: vec![RelicId::BurningBlood, RelicId::BloodVial, RelicId::Lantern, RelicId::Anchor],
         potions: vec![Some(PotionId::StrengthPotion), Some(PotionId::FirePotion), Some(PotionId::BloodPotion)],

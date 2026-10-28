@@ -179,7 +179,7 @@ fn m10_act4_native_entry_fault_retains_actual_combat_and_owned_inventory(){
     let leave=run.decision().unwrap().room.unwrap().choices.into_iter().find(|row|row.kind==RoomChoiceKind::Leave).unwrap().id;
     run.step(&GameAction::Choose(leave)).unwrap();
     crate::items::acquire_relic(&mut run.state,RelicId::MarkOfPain).unwrap();
-    run.state.deck=(1..=998).map(|instance|CardInstance{instance,id:crate::content::CardId::Strike,upgrades:0}).collect();
+    run.state.deck=(1..=998).map(|instance|CardInstance{ misc:0,instance,id:crate::content::CardId::Strike,upgrades:0}).collect();
     run.state.next_instance=999;
     assert_eq!(run.state.deck.len(),998);
     assert_eq!(run.state.deck.iter().map(|card|card.instance).collect::<std::collections::BTreeSet<_>>().len(),998);
@@ -238,7 +238,7 @@ fn m10_heart_victory_keeps_proceed_and_true_victory_room_as_separate_real_transi
 #[test]
 fn m10_heart_feed_max_hp_gain_survives_run_settlement_and_proceed(){
     let mut run=run_at_act4();complete_elite_rewards_for_supplied_heart_entry(&mut run);
-    run.state.deck=vec![CardInstance{instance:1,id:crate::content::CardId::Feed,upgrades:0}];run.state.next_instance=2;
+    run.state.deck=vec![CardInstance{ misc:0,instance:1,id:crate::content::CardId::Feed,upgrades:0}];run.state.next_instance=2;
     run.state.max_hp=300;run.state.hp=300;
     let heart=run.public_map().unwrap().nodes[3].id;run.step(&GameAction::Move(heart)).unwrap();
     m9_boss::hit(&mut run,0,1_000);run.choose_combat(CombatAction::EndTurn).unwrap();

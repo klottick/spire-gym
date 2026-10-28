@@ -30,7 +30,7 @@ fn entry(cards: &[CardId], opening_draw: usize, enemy_count: usize,
     }).collect();
     let live_cards = cards.iter().enumerate().map(|(index, id)| {
         let instance = crate::combat::CardInstanceId(index as u64 + 1);
-        LiveCard { instance, id: *id, origin: CombatCardRef::Permanent(instance), upgrades: 0,
+        LiveCard { misc:0, instance, id: *id, origin: CombatCardRef::Permanent(instance), upgrades: 0,
             local: CombatCardData::default(), copy_family: instance.0,
             copy_provenance: crate::combat::card_state::CopyProvenance::Original }
     }).collect();

@@ -93,7 +93,7 @@ fn m12_every_advertised_state_has_finite_codec_support() {
     let mut decision = initial_m12_decision();
     for (row, id) in spire_core::run::M12_SILENT_ACT1_CARDS.iter().copied().enumerate() {
         for upgrades in [0, 1] {
-            decision.objects = vec![PublicObject { instance: row as u64 + 1, id, upgrades }];
+            decision.objects = vec![PublicObject { misc:0, instance: row as u64 + 1, id, upgrades }];
             let observation = encode_run_m12(&decision, None, &caps).unwrap();
             let encoded = group(&observation, "permanent_cards");
             assert_eq!(encoded.values[0], (row + 1) as i64, "{id:?} numeric ID");
@@ -101,7 +101,7 @@ fn m12_every_advertised_state_has_finite_codec_support() {
             assert_eq!(&encoded.known[..2], &[1, 1]);
         }
     }
-    decision.objects = vec![PublicObject { instance: 1, id: CardId::Shiv, upgrades: 0 }];
+    decision.objects = vec![PublicObject { misc:0, instance: 1, id: CardId::Shiv, upgrades: 0 }];
     assert!(encode_run_m12(&decision, None, &caps).is_ok(), "generated Shiv is in the transport vocabulary");
     for foreign in [CardId::IronWave, CardId::SearingBlow, CardId::AscendersBane] {
         decision.objects[0].id = foreign;

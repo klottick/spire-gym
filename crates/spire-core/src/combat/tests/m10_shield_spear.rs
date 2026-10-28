@@ -131,7 +131,7 @@ fn m10_shield_bash_uses_focus_branch_for_real_defect_orb_slots(){
     assert_eq!(empty.state.enemies[0].full_ai_rng,no_orb_rng,"no active Orb consumes no AI coin");
 
     let mut combat=Combat::enter(shield_spear_entry_for(Character::Defect)).unwrap();
-    combat.state.character.orb_slots[0]=Some(OrbKind::Frost);
+    combat.state.character.orb_slots[0]=Some(OrbKind::Frost.into());
     select_intent(&mut combat,0,"shield_bash");
     let shield=combat.state.enemies[0].instance_id.clone();
     let focus_stream=combat.state.enemies[0].full_ai_rng.as_ref().unwrap().clone();
@@ -143,7 +143,7 @@ fn m10_shield_bash_uses_focus_branch_for_real_defect_orb_slots(){
     assert_eq!(combat.state.enemies[0].full_ai_rng.as_ref().unwrap().word_index(),focus_stream.word_index()+1,"active-Orb Bash consumes exactly one enemy-AI coin");
 
     let mut combat=Combat::enter(shield_spear_entry_for(Character::Defect)).unwrap();
-    combat.state.character.orb_slots[0]=Some(OrbKind::Frost);
+    combat.state.character.orb_slots[0]=Some(OrbKind::Frost.into());
     select_intent(&mut combat,0,"shield_bash");
     let stream=combat.state.enemies[0].full_ai_rng.as_ref().unwrap().clone();
     combat.state.enemies[0].full_ai_rng=Some(rng::StreamState::new(stream.id().clone(),*stream.key(),stream.word_index()+1).unwrap());
@@ -161,7 +161,7 @@ fn m10_shield_bash_uses_focus_branch_for_real_defect_orb_slots(){
 #[test]
 fn m10_shield_bash_focus_uses_player_artifact_then_applies_after_it_is_spent(){
     let mut combat=Combat::enter(shield_spear_entry_for(Character::Defect)).unwrap();
-    combat.state.character.orb_slots[0]=Some(OrbKind::Frost);
+    combat.state.character.orb_slots[0]=Some(OrbKind::Frost.into());
     combat.state.player_full_powers.push(FullPowerEntry{id:FullPowerId("artifact"),state:PowerState{amount:1,skip_first:false,monster_source_grace:false}});
     let focus_coin_frontier=combat.state.enemies[0].full_ai_rng.clone();
 
@@ -186,7 +186,7 @@ fn m10_shield_bash_focus_uses_player_artifact_then_applies_after_it_is_spent(){
 #[test]
 fn m10_shield_bash_coin_fault_retains_previously_published_hit_without_executing_or_retrying_it(){
     let mut combat=Combat::enter(shield_spear_entry_for(Character::Defect)).unwrap();
-    combat.state.character.orb_slots[0]=Some(OrbKind::Frost);
+    combat.state.character.orb_slots[0]=Some(OrbKind::Frost.into());
     select_intent(&mut combat,0,"shield_bash");
     let owner=combat.state.enemies[0].instance_id.clone();
     let stream=combat.state.enemies[0].full_ai_rng.as_ref().unwrap().clone();
@@ -212,7 +212,7 @@ fn m10_shield_bash_coin_fault_retains_previously_published_hit_without_executing
 #[test]
 fn m10_shield_bash_samples_coin_at_producer_before_hit_then_resolves_hit_before_debuff(){
     let mut combat=Combat::enter(shield_spear_entry_for(Character::Defect)).unwrap();
-    combat.state.character.orb_slots[0]=Some(OrbKind::Frost);
+    combat.state.character.orb_slots[0]=Some(OrbKind::Frost.into());
     select_intent(&mut combat,0,"shield_bash");
     let owner=combat.state.enemies[0].instance_id.clone();
     let ai_before=combat.state.enemies[0].full_ai_rng.as_ref().unwrap().clone();

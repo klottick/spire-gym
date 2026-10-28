@@ -6,9 +6,11 @@ pub use ironclad::IroncladEffect;
 mod shared;
 mod silent;
 mod colorless;
+pub(crate) mod defect;
+pub use defect::{DefectEffect,DefectState};
 pub use silent::{SilentEffect, SilentState};
 pub use colorless::ColorlessEffect;
-pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{silent::requires_draw_history(id)||colorless::requires_draw_history(id)||super::generation::starting_cost(id,0).is_some()}
+pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{crate::content::defect::supports_generated(id)||silent::requires_draw_history(id)||colorless::requires_draw_history(id)||super::generation::starting_cost(id,0).is_some()}
 pub(super) fn apply_silent(state:&mut State,effect:&Effect,work:&SilentEffect)->Result<(),EffectError>{silent::apply(state,effect,work)}
 pub(super) fn validate_silent_work(state:&State,effect:&Effect,work:&SilentEffect)->Result<(),InputError>{silent::validate_work(state,effect,work)}
 pub(super) fn apply_colorless(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Result<(),EffectError>{colorless::apply(state,effect,work)}
@@ -16,7 +18,7 @@ pub(super) fn validate_colorless_work(state:&State,effect:&Effect,work:&Colorles
 pub(super) fn capture_colorless_draw_value(card:&mut LiveCard,draw_count:usize){colorless::capture_draw_value(card,draw_count)}
 pub(super) fn increment_discard(state:&mut State,notify_cards:bool)->Result<(),InputError>{silent::increment_discard(state,notify_cards)}
 pub(super) fn actual_draw(state:&mut State,owner:&super::CardHandle)->Result<(),EffectError>{silent::actual_draw(state,owner)}
-pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{super::generation::starting_cost(id,upgrades).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades))}
+pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades))}
 pub(super) fn silent_player_hp_lost(state:&mut State)->Result<(),EffectError>{Ok(silent::player_hp_lost(state)?)}
 
 #[derive(Clone,Copy,Debug)]
@@ -153,7 +155,7 @@ pub(super) fn apply_defect_continuation(state: &mut State, effect: &Effect,
         DefectContinuation::CompileDriverDraw => {
             let mut kinds = Vec::new();
             for orb in state.character.orb_slots.iter().flatten() {
-                if !kinds.contains(orb) { kinds.push(*orb); }
+                if !kinds.contains(&orb.kind) { kinds.push(orb.kind); }
             }
             let kinds = kinds.len() as i32;
             if kinds > 0 {
@@ -275,6 +277,7 @@ pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
 fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     -> Result<(i32, Vec<(Option<PayloadTarget>, EffectKind)>), crate::run::RunError>
 {
+    if let Some(result) = defect::payload(state,card,target)? { return Ok(result); }
     if let Some(result) = super::generation::payload(state,card,target)? { return Ok(result); }
     if let Some(result) = colorless::payload(state, card, target)? { return Ok(result); }
     if let Some(result) = ironclad::payload(state, card, target)? { return Ok(result); }
@@ -488,15 +491,18 @@ pub(super) fn prepare_autoplay(state:&State,card:&LiveCard,target:Option<&Actor>
 pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool, enemy:&super::model::EnemyState)
     -> Result<i32, crate::run::RunError>
 {
+    normal_damage_pipeline(state,base,strength,weak,enemy,false)
+}
+fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&super::model::EnemyState,signed:bool)->Result<i32,crate::run::RunError>{
     let item_bonus=state.item_context.as_ref().map_or(0,crate::items::CombatItemContext::wrist_blade_bonus);
     let base=base.checked_add(item_bonus)
         .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?;
-    if !(0..=3003).contains(&base) || !(-9990..=9990).contains(&strength) {
+    if !signed&&(!(0..=3003).contains(&base) || !(-9990..=9990).contains(&strength)) {
         return Err(crate::run::RunError::Unsupported("normal damage outside supported numeric surface"));
     }
-    let combined_base = base.checked_add(strength)
-        .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?;
-    if combined_base > 10004 {
+    let combined_base = if signed{0}else{base.checked_add(strength)
+        .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?};
+    if !signed&&combined_base > 10004 {
         return Err(crate::run::RunError::Unsupported("full card damage exceeds supported numeric surface"));
     }
     let mut receive=Vec::new();
@@ -506,6 +512,8 @@ pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool,
         "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
     }}
+    if signed{return rules::full_signed_card_damage(base,strength,weak,state.character.stance==super::characters::Stance::Wrath,
+        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive).map_err(|_|crate::run::RunError::Unsupported("invalid signed card damage"))}
     rules::full_normal_damage_given_received(combined_base.max(0), 0, weak,
         state.character.stance == super::characters::Stance::Wrath, state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0), receive)
         .map_err(|_| crate::run::RunError::Unsupported("invalid card damage"))
@@ -525,21 +533,25 @@ pub(super) fn normal_potion_damage(state:&State,base:i32,enemy:&super::model::En
         .map_err(|_|crate::run::RunError::Unsupported("invalid potion damage"))
 }
 
-fn modified_damage(state: &State, target: u64, base: i32) -> Result<i32, crate::run::RunError> {
+fn modified_damage(state:&State,target:u64,base:i32)->Result<i32,crate::run::RunError>{modified_damage_pipeline(state,target,base,false)}
+fn modified_mutable_damage(state:&State,target:u64,base:i32)->Result<i32,crate::run::RunError>{modified_damage_pipeline(state,target,base,true)}
+fn modified_damage_pipeline(state:&State,target:u64,base:i32,signed:bool)->Result<i32,crate::run::RunError>{
     let enemy = state.enemies.get((target - 1) as usize)
         .filter(|enemy| enemy.hp > 0).ok_or(crate::run::RunError::InvalidAction)?;
     let strength = state.player.powers.iter().find(|p| p.id == PowerId::Strength)
         .map_or(0, |p| p.state.amount)
         + state.player_full_powers.iter().filter(|p| p.id.0 == "strength").map(|p| p.state.amount).sum::<i32>();
     let weak = state.player_full_powers.iter().any(|p| p.id.0 == "weak" && p.state.amount > 0);
-    normal_damage(state, base, strength, weak, enemy)
+    normal_damage_pipeline(state, base, strength, weak, enemy,signed)
 }
 
-fn modified_block(state: &State, base: i32) -> Result<i32, crate::run::RunError> {
+fn modified_block(state:&State,base:i32)->Result<i32,crate::run::RunError>{modified_block_pipeline(state,base,false)}
+fn modified_mutable_block(state:&State,base:i32)->Result<i32,crate::run::RunError>{modified_block_pipeline(state,base,true)}
+fn modified_block_pipeline(state:&State,base:i32,signed:bool)->Result<i32,crate::run::RunError>{
     if state.player_full_powers.iter().any(|power|power.id.0=="no_block"&&power.state.amount>0){return Ok(0)}
     let dexterity = state.player_full_powers.iter().find(|p| p.id.0 == "dexterity").map_or(0, |p| p.state.amount);
     let frail = state.player_full_powers.iter().any(|p| p.id.0 == "frail" && p.state.amount > 0);
-    rules::full_card_block(base, dexterity, frail)
+    (if signed{rules::full_signed_card_block(base,dexterity,frail)}else{rules::full_card_block(base, dexterity, frail)})
         .map_err(|_| crate::run::RunError::Unsupported("invalid calculated card Block"))
 }
 
@@ -549,7 +561,7 @@ fn card_handle(card: &LiveCard) -> CardHandle {
 
 /// One public card-value projection; established Ironclad values stay exact.
 pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
-    super::generation::public_values(card).or_else(||ironclad::rules::public_values(card)).or_else(||silent::public_values(card)).or_else(||colorless::public_values(card))
+    defect::public_values(card).or_else(||super::generation::public_values(card)).or_else(||ironclad::rules::public_values(card)).or_else(||silent::public_values(card)).or_else(||colorless::public_values(card))
         .map(|mut values|{values.free_play=card.local.free_play||card.local.free_to_play_once;values})
 }
 

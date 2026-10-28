@@ -18,7 +18,7 @@ fn supplied_deck(loadout: Loadout) -> Result<Vec<CardInstance>,String> {
         let mut live=crate::combat::permanent_live_card(id,crate::combat::CardInstanceId(instance),0);
         let count=match loadout {Loadout::Silent=>1,Loadout::Searing=>15};
         for _ in 0..count {crate::combat::cards::ironclad::rules::upgrade(&mut live).map_err(|e|format!("supplied actual upgrade: {e:?}"))?;}
-        Ok(CardInstance{instance,id,upgrades:live.upgrades})
+        Ok(CardInstance{ misc:0,instance,id,upgrades:live.upgrades})
     }).collect()
 }
 

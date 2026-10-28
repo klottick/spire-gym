@@ -6,6 +6,15 @@ For the captured normal-start Ironclad A0 **single-Run** API, see the
 It is separate from the supplied-entry combat-v1 API below, with int64 features
 and different seeds/rewards; do not interchange their schemas or records.
 
+The [M16 Defect authored-combat profile](milestones/m16-defect-combat.md) has
+accepted native source, a separate constructor and versioned observation schema;
+manager
+publication/main integration remains pending. Its canonical-resource and supplied
+entries do not establish normal Defect progression, Gym/Python delivery or
+original-runtime parity. Defect progression remains M17 onward; full blue pools
+remain M20. The [review record](superpowers/plans/2026-10-28-m16-native-runtime-review.md)
+preserves the focused and pre-correction evidence boundaries.
+
 ## Supplied-entry combat-v1
 
 The current version is **source-grounded, not original-runtime validated**.

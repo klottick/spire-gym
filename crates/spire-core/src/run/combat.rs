@@ -1,7 +1,7 @@
 //! Thin persistent run/combat ownership bridge over the shared resolver.
 use super::*;
 use crate::{combat::{Combat, CombatEntry, CombatEntryFailure, PlayerState, CardInstanceId,
-    permanent_live_card, enemies::{self, SetupContext}}, content::{Character, CardId, EncounterId},
+    enemies::{self, SetupContext}}, content::{Character, CardId, EncounterId},
     items::{CombatItemContext, PotionRoomPhase}};
 use std::collections::BTreeSet;
 use crate::combat::{CombatAction, CombatExit, CombatCardRef, Outcome};
@@ -21,8 +21,30 @@ fn prepare_gains(state:&RunState)->Result<Option<(Vec<CardInstance>,u64,u64)>,Ru
     let pending=&journal[applied..];if state.deck.len().checked_add(pending.len()).is_none_or(|n|n>999){return Err(RunError::Unsupported("permanent deck capacity exhausted"))}
     let count=u64::try_from(pending.len()).map_err(|_|RunError::InvalidAction)?;
     let next=state.next_instance.checked_add(count).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
-    let mut cards=Vec::with_capacity(pending.len());for (i,gain) in pending.iter().enumerate(){let instance=state.next_instance+i as u64;if instance==0||existing.contains(&instance){return Err(RunError::InvalidAction)}cards.push(CardInstance{instance,id:gain.id,upgrades:gain.upgrades});}
+    let mut cards=Vec::with_capacity(pending.len());for (i,gain) in pending.iter().enumerate(){let instance=state.next_instance+i as u64;if instance==0||existing.contains(&instance){return Err(RunError::InvalidAction)}cards.push(CardInstance{ misc:0,instance,id:gain.id,upgrades:gain.upgrades});}
     Ok(Some((cards,next,journal.last().unwrap().ordinal)))
+}
+
+/// Absolute action-time misc updates; retries never replay a growth delta.
+fn prepare_card_mutations(state:&RunState)->Result<Option<(Vec<(u64,i32)>,u64)>,RunError>{
+    let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let combat=state.combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let journal=combat.permanent_card_mutations();
+    let applied=usize::try_from(active.applied_mutation_ordinal).map_err(|_|RunError::InvalidAction)?;
+    if applied>journal.len(){return Err(RunError::InvalidAction)}
+    if journal.is_empty(){return Ok(None)}
+    combat.validate_permanent_mutations_for_run().map_err(|_|RunError::InvalidAction)?;
+    let mut deck_ids=BTreeSet::new();if state.deck.iter().any(|c|c.instance==0||!deck_ids.insert(c.instance)){return Err(RunError::InvalidAction)}
+    let mut previous=std::collections::BTreeMap::new();let mut next=std::collections::BTreeMap::new();
+    for (index,mutation) in journal.iter().enumerate(){
+        if mutation.ordinal!=index as u64+1||mutation.id!=CardId::GeneticAlgorithm
+            ||!state.deck.iter().any(|card|card.instance==mutation.instance.0&&card.id==mutation.id){return Err(RunError::InvalidAction)}
+        if index<applied {previous.insert(mutation.instance.0,mutation.misc);}
+        else {next.insert(mutation.instance.0,mutation.misc);}
+    }
+    if previous.iter().any(|(instance,misc)|!state.deck.iter().any(|card|card.instance==*instance&&card.misc==*misc)){return Err(RunError::InvalidAction)}
+    if applied==journal.len(){return Ok(None)}
+    Ok(Some((next.into_iter().collect(),journal.last().unwrap().ordinal)))
 }
 
 fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Option<(u8,u64)>),RunError> {
@@ -39,7 +61,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.play_frames).chain(&exit.queued_autoplay).chain(&exit.stasis).chain(&exit.played_powers).chain(&exit.inactive_cards) {
         if let CombatCardRef::Permanent(id)=card.origin {
             if card.instance!=id || active.acquired_instances.contains(&id.0) || !seen.insert(id.0) || !state.deck.iter().any(|original|
-                original.instance==id.0 && original.id==card.id && Some(original.upgrades)==card.upgrades.checked_sub(card.local.temporary_upgrades)) {
+                original.instance==id.0 && original.id==card.id && original.misc==card.misc && Some(original.upgrades)==card.upgrades.checked_sub(card.local.temporary_upgrades)) {
                 return Err(RunError::Unsupported("permanent card exit mismatch"));
             }
         }
@@ -52,6 +74,11 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
 }
 
 fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
+    let m16=state.authored_combat&&state.character==Character::Defect;
+    let m16_metadata=if m16 {
+        if state.ascension!=0||state.act!=1||origin!=CombatOrigin::Authored{return Err(RunError::Unsupported("M16 authored combat requires A0 Act1 context"))}
+        Some(m16_defect_combat_encounter_metadata(encounter).ok_or(RunError::Unsupported("encounter outside frozen M16 Act1 setup prefix"))?)
+    }else{None};
     let m5=super::rooms::uses_captured_act1(state)&&state.act==1&&matches!(encounter,EncounterId::Cultist|EncounterId::JawWorm|EncounterId::TwoLouse|EncounterId::SmallSlimes
         |EncounterId::LargeSlime|EncounterId::ThreeLouse|EncounterId::LotsOfSlimes|EncounterId::GremlinNob|EncounterId::Lagavulin|EncounterId::ThreeSentries
         |EncounterId::Guardian|EncounterId::Hexaghost|EncounterId::SlimeBoss);
@@ -63,16 +90,16 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         (EncounterId::CorruptHeart,CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==54&&n.visited&&n.encounter==Some(encounter))),
         _=>false,
     };
-    if !matches!(origin,CombatOrigin::Training{..})&&!m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    if !m16&&!matches!(origin,CombatOrigin::Training{..})&&!m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let mut battle=crate::items::NativeBattleContext{elite_trigger:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None,m15:super::rooms::is_m15(state)};
-    let mut entry=enemies::setup(encounter,state.act,state.ascension,&mut rng,SetupContext {
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Boss)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None,m15:super::rooms::is_m15(state)};
+    let mut entry=enemies::setup(encounter,m16_metadata.map_or(state.act,|(act,_)|act),state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
         character:state.character,cards:state.deck.iter().map(|card|
-            permanent_live_card(card.id,CardInstanceId(card.instance),card.upgrades)).collect(),
+            crate::combat::permanent_live_card_with_misc(card.id,CardInstanceId(card.instance),card.upgrades,card.misc)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
     })?;
     if m5||m6||m8 {
@@ -106,9 +133,14 @@ impl Run {
             if let Some(gold)=combat.current_combat_gold(){self.state.gold=gold;}
         }
         let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
+        let mutations=match prepare_card_mutations(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent mutation synchronization preflight failed"),"run.combat.permanent-mutations"))};
         if let Some((cards,next,ordinal))=prepared{
             let ids=cards.iter().map(|c|c.instance).collect::<Vec<_>>();self.state.deck.extend(cards);self.state.next_instance=next;
             let active=self.state.active_combat.as_mut().unwrap();active.acquired_instances.extend(ids);active.applied_gain_ordinal=ordinal;
+        }
+        if let Some((values,ordinal))=mutations {
+            for (instance,misc) in values {self.state.deck.iter_mut().find(|card|card.instance==instance).expect("preflight permanent owner").misc=misc;}
+            self.state.active_combat.as_mut().unwrap().applied_mutation_ordinal=ordinal;
         }Ok(())
     }
     pub(super) fn combat_decision(&self) -> Result<PublicDecision,RunError> {
@@ -121,7 +153,7 @@ impl Run {
         let player=PublicPlayer {relic_counters:inventory.relic_counters.clone(),character:self.state.character,hp:combat.player.hp as u32,max_hp:combat.player.max_hp as u32,
             gold:self.state.gold,relics:inventory.relics.clone(),potions:inventory.potions.clone(),keys:self.state.keys};
         Ok(PublicDecision {content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room:self.state.room_loop.as_ref().map(|_|RoomView{kind:RoomViewKind::Combat,choices:vec![]}),reward_total:self.state.reward_ledger.total,act:self.state.act,floor:self.state.floor,player,objects:self.state.deck.iter().map(|c|
-            PublicObject {instance:c.instance,id:c.id,upgrades:c.upgrades}).collect(),candidates,offers:vec![],selection:None,
+            PublicObject { misc:c.misc,instance:c.instance,id:c.id,upgrades:c.upgrades}).collect(),candidates,offers:vec![],selection:None,
             terminal:self.state.terminal,combat:Some(combat),combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone()})
     }
 
@@ -298,7 +330,7 @@ impl Run {
         let visit=self.state.combat_progress.entered;
         self.state.rng=rng;
         self.state.combat=Some(combat);
-        self.state.active_combat=Some(ActiveCombat {visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
+        self.state.active_combat=Some(ActiveCombat { applied_mutation_ordinal:0,visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
         if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}){
             let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),EncounterId::AwakenedOne=>Some("AwakenedOne"),EncounterId::TimeEater=>Some("TimeEater"),EncounterId::DonuAndDeca=>Some("DonuAndDeca"),_=>None};
             if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}
@@ -311,4 +343,37 @@ impl Run {
         if !gold_attached{return Err(self.retain_fault(RunFaultKind::Invariant("combat gold custody attachment failed"),"run.combat.gold"));}
         Ok(RunTransition {reward,terminal:None,committed_events:vec![event]})
     }
+}
+
+impl Run {
+    pub fn from_m16_defect_combat(start:M16DefectCombatStart,rng:RunRng)->Result<Self,RunError>{
+        let config=RunConfig{character:Character::Defect,ascension:0};
+        let (resources,label)=match start {
+            M16DefectCombatStart::Canonical=>{
+                let canonical=Self::new(config,CreationProfile::experienced(),rng.clone())?;
+                let state=canonical.state;
+                (AuthoredRunStart{hp:state.hp,max_hp:state.max_hp,gold:state.gold,deck:state.deck,relics:state.relics,potions:state.potions,relic_counters:state.relic_counters},"M16CanonicalCombat")
+            }
+            M16DefectCombatStart::Supplied(resources)=>(resources,"M16SuppliedCombat"),
+        };
+        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999
+            ||!(1..=999).contains(&resources.deck.len())||resources.potions.len()!=3{return Err(RunError::InvalidAction)}
+        let mut ids=BTreeSet::new();
+        for card in &resources.deck {
+            if card.instance==0||!ids.insert(card.instance)||card.upgrades>1{return Err(RunError::InvalidAction)}
+            if !crate::content::defect::supports_permanent(card.id){return Err(RunError::Unsupported("card outside finite M16 authored profile"))}
+            if card.id!=CardId::GeneticAlgorithm&&card.misc!=0{return Err(RunError::InvalidAction)}
+        }
+        let next=ids.last().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+        let mut relics=BTreeSet::new();
+        if resources.relics.iter().any(|id|!relics.insert(*id))||resources.relic_counters.keys().any(|id|!relics.contains(id)){return Err(RunError::InvalidAction)}
+        crate::items::validate_combat_inventory(&CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone()),Character::Defect)?;
+        let mut run=Self::from_validated_combat_resources(config,resources,rng,next);run.state.room=label;Ok(run)
+    }
+}
+
+/// Admission reuses the frozen prefix of the authoritative setup owner.
+pub fn m16_defect_combat_encounter_metadata(encounter:EncounterId)->Option<(u8,enemies::EncounterKind)>{
+    enemies::A0_ENCOUNTER_SETUPS.get(..M16_DEFECT_COMBAT_SETUP_PREFIX_LEN)?.iter()
+        .find(|(id,act,_)|*id==encounter&&*act==1).map(|(_,act,kind)|(*act,*kind))
 }

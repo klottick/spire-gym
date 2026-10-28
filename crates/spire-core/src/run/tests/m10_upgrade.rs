@@ -4,9 +4,9 @@ use crate::{run::*,content::{CardId,Character,EncounterId,PotionId},combat::{Com
 // on settlement either rejects a valid fight or persists a temporary upgrade.
 #[test]
 fn m10_upgrade_combat_settlement_keeps_master_deck_unchanged(){
-    let deck=vec![CardInstance{instance:1,id:CardId::SearingBlow,upgrades:0},
-        CardInstance{instance:2,id:CardId::Strike,upgrades:0},CardInstance{instance:3,id:CardId::Armaments,upgrades:1}];
-    let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,deck:(1..=3).map(|instance|CardInstance{instance,id:CardId::Strike,upgrades:0}).collect(),relics:vec![],
+    let deck=vec![CardInstance{ misc:0,instance:1,id:CardId::SearingBlow,upgrades:0},
+        CardInstance{ misc:0,instance:2,id:CardId::Strike,upgrades:0},CardInstance{ misc:0,instance:3,id:CardId::Armaments,upgrades:1}];
+    let start=AuthoredRunStart{hp:80,max_hp:80,gold:99,deck:(1..=3).map(|instance|CardInstance{ misc:0,instance,id:CardId::Strike,upgrades:0}).collect(),relics:vec![],
         potions:vec![Some(PotionId::FirePotion),None,None],relic_counters:Default::default()};
     let mut r=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([7;32],crate::combat::rng::Partition::Test,0)).unwrap();
@@ -47,12 +47,12 @@ fn m10_upgrade_smith_accepts_repeat_searing_blow_but_not_upgraded_strike(){
 #[test]
 fn m10_armaments_upgrades_fully_discounted_blood_for_blood_without_invalidating_cost_state(){
     let initial=AuthoredRunStart{hp:80,max_hp:80,gold:99,
-        deck:vec![CardInstance{instance:1,id:CardId::Strike,upgrades:0},CardInstance{instance:2,id:CardId::Strike,upgrades:0}],
+        deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Strike,upgrades:0},CardInstance{ misc:0,instance:2,id:CardId::Strike,upgrades:0}],
         relics:vec![],potions:vec![None;3],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},initial,
         RunRng::new([7;32],crate::combat::rng::Partition::Test,0)).unwrap();
-    let permanent_deck=vec![CardInstance{instance:1,id:CardId::BloodForBlood,upgrades:0},
-        CardInstance{instance:2,id:CardId::Armaments,upgrades:1}];
+    let permanent_deck=vec![CardInstance{ misc:0,instance:1,id:CardId::BloodForBlood,upgrades:0},
+        CardInstance{ misc:0,instance:2,id:CardId::Armaments,upgrades:1}];
     run.state.deck=permanent_deck.clone();
     run.enter_combat(EncounterId::JawWorm).unwrap();
 

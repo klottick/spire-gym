@@ -217,7 +217,7 @@ fn run_bridge_retains_accepted_potion_fault_and_consumed_inventory() {
     use crate::{content::{Character,PotionId},run::{self,Run,RunConfig,RunRng}};
     let start=run::AuthoredRunStart {hp:40,max_hp:80,gold:123,
         deck:[CardId::Strike,CardId::Defend,CardId::Bash].into_iter().enumerate()
-            .map(|(i,id)|run::CardInstance {instance:i as u64+1,id,upgrades:0}).collect(),
+            .map(|(i,id)|run::CardInstance { misc:0,instance:i as u64+1,id,upgrades:0}).collect(),
         relics:vec![],potions:vec![Some(PotionId::SwiftPotion),None,None],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig {character:Character::Ironclad,ascension:0},
         start,RunRng::new([7;32],rng::Partition::Test,0)).unwrap();
@@ -247,7 +247,7 @@ fn successive_same_encounter_run_visits_have_distinct_streams_and_preserve_count
     use crate::{content::{Character,PotionId,RelicId,EncounterId},run::{self,Run,RunConfig,RunRng}};
     let mut counters=std::collections::BTreeMap::new(); counters.insert(RelicId::BurningBlood,7);
     let start=run::AuthoredRunStart {hp:40,max_hp:80,gold:123,
-        deck:vec![run::CardInstance {instance:1,id:CardId::Strike,upgrades:1}],
+        deck:vec![run::CardInstance { misc:0,instance:1,id:CardId::Strike,upgrades:1}],
         relics:vec![RelicId::BurningBlood],potions:vec![Some(PotionId::FirePotion),Some(PotionId::FirePotion),None],
         relic_counters:counters.clone()};
     let mut run=Run::from_authored_combat(RunConfig {character:Character::Ironclad,ascension:0},start,

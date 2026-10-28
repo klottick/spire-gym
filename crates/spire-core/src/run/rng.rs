@@ -72,7 +72,7 @@ mod m8_falling_tests{
         assert_eq!(RunRngScope::parse("run.act3.falling"),Ok(RunRngScope::Act3Falling));
         let mut profile=CreationProfile::experienced();profile.neow_eligible=false;
         let mut run=Run::new_room_scenario(RunConfig{character:Character::Ironclad,ascension:0},profile,RunRng::new([7;32],Partition::Test,0),RoomScenario::M4Act1Prefix).unwrap();
-        let id=run.decision().unwrap().room.unwrap().choices.iter().find(|c|matches!(c.kind,RoomChoiceKind::NeowMaxHp{..})).unwrap().id;run.step(&GameAction::Choose(id)).unwrap();run.state.act=3;run.state.map.as_mut().unwrap().act=3;run.state.deck=vec![CardInstance{id:CardId::Strike,instance:1,upgrades:0}];
+        let id=run.decision().unwrap().room.unwrap().choices.iter().find(|c|matches!(c.kind,RoomChoiceKind::NeowMaxHp{..})).unwrap().id;run.step(&GameAction::Choose(id)).unwrap();run.state.act=3;run.state.map.as_mut().unwrap().act=3;run.state.deck=vec![CardInstance{ misc:0,id:CardId::Strike,instance:1,upgrades:0}];
         let semantic=vec![3,10,0,0];run.state.rng.counters.insert((RunRngScope::Act3Falling,semantic.clone()),u64::MAX);let frozen=run.clone();let mut next=run.next_choice;let token=next;
         assert!(crate::run::rooms::events::act3::prepare(&run,EventId::Falling,NodeId(10),0,&mut next).is_err());assert!(run==frozen);assert_eq!(next,token);
         run.state.rng.counters.insert((RunRngScope::Act3Falling,semantic.clone()),u64::MAX-1);let prepared=crate::run::rooms::events::act3::prepare(&run,EventId::Falling,NodeId(10),0,&mut next).unwrap();assert_eq!(prepared.rng.counters.get(&(RunRngScope::Act3Falling,semantic)),Some(&u64::MAX));

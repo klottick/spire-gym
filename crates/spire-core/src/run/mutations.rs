@@ -5,12 +5,12 @@ pub(super) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
 }
 pub(super) fn supported(id:CardId)->bool {matches!(id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
     |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger|CardId::Bloodletting|CardId::BurningPact|CardId::Disarm)}
-pub(super) fn supported_in(state:&RunState,id:CardId)->bool{if super::rooms::is_m15(state){return super::M15_SILENT_HEART_CARDS.contains(&id)}if super::rooms::is_m14(state){return super::M14_SILENT_ACT3_CARDS.contains(&id)}if super::rooms::is_m12(state)||super::rooms::is_m13(state){return super::M12_SILENT_ACT1_CARDS.contains(&id)}supported(id)||(super::rooms::is_m10(state)&&[crate::content::CardRarity::Basic,crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare].into_iter().any(|rarity|super::rooms::m10_content::red_candidates(rarity).contains(&id)))||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::uses_captured_act3(state)&&state.act==3&&id==CardId::Inflame)}
+pub(super) fn supported_in(state:&RunState,id:CardId)->bool{if state.authored_combat&&state.character==crate::content::Character::Defect{return crate::content::defect::supports_permanent(id)}if super::rooms::is_m15(state){return super::M15_SILENT_HEART_CARDS.contains(&id)}if super::rooms::is_m14(state){return super::M14_SILENT_ACT3_CARDS.contains(&id)}if super::rooms::is_m12(state)||super::rooms::is_m13(state){return super::M12_SILENT_ACT1_CARDS.contains(&id)}supported(id)||(super::rooms::is_m10(state)&&[crate::content::CardRarity::Basic,crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare].into_iter().any(|rarity|super::rooms::m10_content::red_candidates(rarity).contains(&id)))||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::uses_captured_act3(state)&&state.act==3&&id==CardId::Inflame)}
 pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
     if !supported_in(state,id)||upgrades>1||state.deck.len()>=999{return Err(RunError::InvalidAction)}
     let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
     if instance==0||state.deck.iter().any(|c|c.instance==instance){return Err(RunError::InvalidAction)}
-    state.deck.push(CardInstance{id,instance,upgrades});state.next_instance=next;
+    state.deck.push(CardInstance{ misc:if id==CardId::GeneticAlgorithm{1}else{0},id,instance,upgrades});state.next_instance=next;
     crate::items::on_hook(state,crate::combat::Hook::CardAcquired)?;Ok(instance)
 }
 pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunError>{
@@ -24,7 +24,7 @@ pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunEr
 pub(super) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
     let at=state.deck.iter().position(|c|c.instance==id&&can_upgrade(state,c)).ok_or(RunError::InvalidAction)?;
     let original=&state.deck[at];
-    let mut live=crate::combat::permanent_live_card(original.id,crate::combat::CardInstanceId(original.instance),original.upgrades);
+    let mut live=crate::combat::permanent_live_card_with_misc(original.id,crate::combat::CardInstanceId(original.instance),original.upgrades,original.misc);
     crate::combat::cards::ironclad::rules::upgrade(&mut live)?;
     state.deck[at].upgrades=live.upgrades;Ok(())
 }

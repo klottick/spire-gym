@@ -137,7 +137,7 @@ fn m7_boss_cleanup_and_death_reach_one_settlement_owner() {
         // Supplied-resource lifecycle diagnostic, NEVER normal-start evidence.
         r.state.relics.retain(|id|*id!=RelicId::NeowsLament);r.state.relic_counters.remove(&RelicId::NeowsLament);
         r.state.hp=300;r.state.max_hp=300;
-        r.state.deck=[CardId::Bludgeon,CardId::Bludgeon,CardId::Bash,CardId::Disarm,CardId::Impervious,CardId::Offering,CardId::Anger,CardId::ShrugItOff].into_iter().enumerate().map(|(i,id)|CardInstance{instance:i as u64+1,id,upgrades:1}).collect();r.state.next_instance=9;
+        r.state.deck=[CardId::Bludgeon,CardId::Bludgeon,CardId::Bash,CardId::Disarm,CardId::Impervious,CardId::Offering,CardId::Anger,CardId::ShrugItOff].into_iter().enumerate().map(|(i,id)|CardInstance{ misc:0,instance:i as u64+1,id,upgrades:1}).collect();r.state.next_instance=9;
         let deck=r.state.deck.clone();let global=r.state.combat_progress.settled;
         r.step(&GameAction::Move(node)).unwrap();
         for _ in 0..2 {r.choose_combat(CombatAction::EndTurn).unwrap();}
@@ -166,7 +166,7 @@ fn m7_boss_cleanup_and_death_reach_one_settlement_owner() {
 #[test]
 fn m7_boss_entry_fault_keeps_accepted_source() {
     let (mut r,node)=boss_source(EncounterId::Champ);
-    r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{instance:u64::MAX,id:CardId::Strike,upgrades:0}];
+    r.state.relics.push(RelicId::PureWater);r.state.deck=vec![CardInstance{ misc:0,instance:u64::MAX,id:CardId::Strike,upgrades:0}];
     let prior=r.state.reward_ledger.total;let err=r.step(&GameAction::Move(node)).unwrap_err();
     assert!(matches!(err,RunError::Faulted(_)));assert_eq!((r.state.floor,r.state.reward_ledger.total,r.state.terminal),(33,prior+1,None));
     assert!(r.state.combat.is_some());assert!(r.state.relics.is_empty());

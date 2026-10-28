@@ -540,7 +540,7 @@ fn full_entry_owns_generic_card_ids_without_legacy_pile_rows() {
     let cards = vec![unwired];
     let mut combat = Combat::enter(CombatEntry { setup: full_setup(&scenario), opening_draw: 1, cards }).unwrap();
     let ready = combat.public_full().unwrap();
-    assert_eq!(ready.hand, vec![LiveCardView { instance: CardInstanceId(9001),
+    assert_eq!(ready.hand, vec![LiveCardView { misc:0, instance: CardInstanceId(9001),
         id: crate::content::CardId::Unknown("unwired_runtime_fixture"),
         origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None,values:None }]);
     assert_eq!(combat.state.piles.draw.len(), 0);
@@ -627,7 +627,7 @@ fn starter_entry_fault_retains_committed_ring_draw_and_context_without_retry() {
     scenario.rng.enemy_ai = full_stream(Domain::RunCombatEnemyAi, vec!["entry-fault", "enemy-scope-1"]);
     let cards = (1..=10).map(|id| {
         let instance = CardInstanceId(if id == 10 { u64::MAX } else { id });
-        LiveCard { instance, id: crate::content::CardId::Strike,
+        LiveCard { misc:0, instance, id: crate::content::CardId::Strike,
             origin: CombatCardRef::Permanent(instance), upgrades: 0,
             local: super::super::CombatCardData::default(),copy_family:instance.0,copy_provenance:super::super::card_state::CopyProvenance::Original }
     }).collect();

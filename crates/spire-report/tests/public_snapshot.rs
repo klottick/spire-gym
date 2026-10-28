@@ -4,7 +4,7 @@ use spire_report::*;
 use serde_json::Value;
 
 fn align_public_deck(decision: &mut PublicDecision, cards: &[LiveCard]) {
-    decision.objects = cards.iter().map(|card| PublicObject {
+    decision.objects = cards.iter().map(|card| PublicObject { misc:0,
         instance: card.instance.0,
         id: card.id,
         upgrades: card.upgrades,

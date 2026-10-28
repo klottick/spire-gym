@@ -4,7 +4,7 @@ pub enum RelicId { Vajra, OddlySmoothStone, BagOfPreparation, BagOfMarbles, Bron
     Strawberry, Pear, Mango, SacredBark, MarkOfBloom, MagicFlower, ToyOrnithopter, NeowsLament, BlackBlood, EmptyCage, SlaversCollar, RedMask,
     RedSkull, PaperPhrog, ChampionsBelt, CharonsAshes, SelfFormingClay, Orichalcum, Brimstone, MarkOfPain, RunicCube, Unknown(&'static str), SneckoSkull,
     NinjaScroll, PaperKrane, TheSpecimen, Tingsha, ToughBandages, TwistedFunnel, HoveringKite, RingOfTheSerpent, WristBlade,
-    Sozu, PotionBelt }
+    Sozu, PotionBelt, DataDisk, GoldPlatedCables, EmotionChip }
 impl RelicId { pub const fn as_str(self) -> &'static str { match self {
     Self::Vajra=>"vajra",Self::OddlySmoothStone=>"oddly_smooth_stone",Self::BagOfPreparation=>"bag_of_preparation",Self::BagOfMarbles=>"bag_of_marbles",Self::BronzeScales=>"bronze_scales",
     Self::RedMask=>"red_mask",Self::RedSkull=>"red_skull",Self::PaperPhrog=>"paper_phrog",Self::ChampionsBelt=>"champions_belt",Self::CharonsAshes=>"charons_ashes",Self::SelfFormingClay=>"self_forming_clay",Self::Orichalcum=>"orichalcum",Self::Brimstone=>"brimstone",Self::MarkOfPain=>"mark_of_pain",Self::RunicCube=>"runic_cube",
@@ -16,7 +16,9 @@ impl RelicId { pub const fn as_str(self) -> &'static str { match self {
     Self::NinjaScroll=>"ninja_scroll", Self::PaperKrane=>"paper_krane", Self::TheSpecimen=>"the_specimen",
     Self::Tingsha=>"tingsha", Self::ToughBandages=>"tough_bandages", Self::TwistedFunnel=>"twisted_funnel",
     Self::HoveringKite=>"hovering_kite", Self::RingOfTheSerpent=>"ring_of_the_serpent", Self::WristBlade=>"wrist_blade",
-    Self::Sozu=>"sozu",Self::PotionBelt=>"potion_belt"
+    Self::Sozu=>"sozu",Self::PotionBelt=>"potion_belt",
+    Self::DataDisk => "data_disk", Self::GoldPlatedCables => "gold_plated_cables",
+    Self::EmotionChip => "emotion_chip"
 }}}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PotionId { FirePotion, BloodPotion, FruitJuice, BlockPotion, EnergyPotion, StrengthPotion,
@@ -25,7 +27,7 @@ pub enum PotionId { FirePotion, BloodPotion, FruitJuice, BlockPotion, EnergyPoti
     SmokeBomb,
     AttackPotion, SkillPotion, PowerPotion, ColorlessPotion,
     FlexPotion, SpeedPotion, RegenPotion, LiquidBronze, EssenceOfSteel, CultistPotion, BlessingOfTheForge, SneckoOil, FairyPotion,
-    ExplosivePotion, GamblersBrew, LiquidMemories, DuplicationPotion, DistilledChaos, EntropicBrew }
+    ExplosivePotion, GamblersBrew, LiquidMemories, DuplicationPotion, DistilledChaos, EntropicBrew, FocusPotion, PotionOfCapacity }
 impl PotionId { pub const fn as_str(self) -> &'static str { match self {
     Self::FirePotion => "fire_potion", Self::BloodPotion => "blood_potion", Self::FruitJuice => "fruit_juice",
     Self::BlockPotion => "block_potion", Self::EnergyPotion => "energy_potion", Self::StrengthPotion => "strength_potion",
@@ -41,5 +43,6 @@ impl PotionId { pub const fn as_str(self) -> &'static str { match self {
     Self::PoisonPotion=>"poison_potion", Self::CunningPotion=>"cunning_potion", Self::GhostInAJar=>"ghost_in_a_jar"
     ,Self::ExplosivePotion=>"explosive_potion",Self::GamblersBrew=>"gamblers_brew",Self::LiquidMemories=>"liquid_memories",
     Self::DuplicationPotion=>"duplication_potion",Self::DistilledChaos=>"distilled_chaos"
-,Self::EntropicBrew=>"entropic_brew"
+,Self::EntropicBrew=>"entropic_brew",
+    Self::FocusPotion => "focus_potion", Self::PotionOfCapacity => "potion_of_capacity"
 } } }

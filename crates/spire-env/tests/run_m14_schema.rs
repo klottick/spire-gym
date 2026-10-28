@@ -198,11 +198,11 @@ fn m14_every_finite_row_maps_to_its_descriptor_name_and_foreign_rows_reject() {
     for id in M14_SILENT_ACT3_CARDS.iter().copied().chain([
         CardId::Shiv, CardId::Dazed, CardId::Burn, CardId::Slimed, CardId::Wound, CardId::Void,
     ]) {
-        decision.objects = vec![PublicObject { instance: 1, id, upgrades: 0 }];
+        decision.objects = vec![PublicObject { misc:0, instance: 1, id, upgrades: 0 }];
         let encoded = encode_run_m14(&decision, None, &caps).unwrap();
         assert_eq!(group(&encoded, "permanent_cards").values[0], row(vocab, "card", id.as_str()), "{id:?}");
     }
-    decision.objects = vec![PublicObject { instance: 1, id: CardId::IronWave, upgrades: 0 }];
+    decision.objects = vec![PublicObject { misc:0, instance: 1, id: CardId::IronWave, upgrades: 0 }];
     assert!(matches!(encode_run_m14(&decision, None, &caps), Err(RunSessionError::Input(_))));
     decision.objects.clear();
 
@@ -255,7 +255,7 @@ fn m14_every_finite_row_maps_to_its_descriptor_name_and_foreign_rows_reject() {
     assert!(matches!(encode_run_m14(&decision, Some(&map), &caps), Err(RunSessionError::Input(_))));
 
     decision.objects = M14_SILENT_ACT3_CARDS.iter().take(10).enumerate().map(|(index, id)|
-        PublicObject { instance: index as u64 + 1, id: *id, upgrades: 0 }
+        PublicObject { misc:0, instance: index as u64 + 1, id: *id, upgrades: 0 }
     ).collect();
     decision.combat = Some(act3_combat(EncounterId::ThreeShapes, &decision));
     decision.room.as_mut().unwrap().kind = RoomViewKind::Combat;
@@ -312,7 +312,7 @@ fn m14_actual_act3_discard_selection_uses_finite_shared_rows() {
         CardId::Neutralize,
     ];
     let mut decision = initial_m14_decision();
-    decision.objects = cards.iter().enumerate().map(|(index, id)| PublicObject {
+    decision.objects = cards.iter().enumerate().map(|(index, id)| PublicObject { misc:0,
         instance: index as u64 + 1,
         id: *id,
         upgrades: 0,
@@ -410,7 +410,7 @@ fn m14_shared_row_axes_fail_closed_at_capacity() {
     cap_error(decision.clone(), Some(&map_edges), |caps| caps.map_edges = 1, "map_edges");
 
     let mut permanent = decision.clone();
-    permanent.objects.push(PublicObject { instance: 999, id: CardId::StrikeGreen, upgrades: 0 });
+    permanent.objects.push(PublicObject { misc:0, instance: 999, id: CardId::StrikeGreen, upgrades: 0 });
     cap_error(permanent, None, |caps| caps.permanent_cards = 1, "permanent_cards");
 
     let mut combat = decision.clone();
@@ -438,8 +438,8 @@ fn m14_shared_row_axes_fail_closed_at_capacity() {
     selection.selection = Some(spire_core::run::PublicSelection {
         required: 2, selected_count: 0,
         eligible: vec![
-            PublicObject { instance: 11, id: CardId::StrikeGreen, upgrades: 0 },
-            PublicObject { instance: 12, id: CardId::DefendGreen, upgrades: 0 },
+            PublicObject { misc:0, instance: 11, id: CardId::StrikeGreen, upgrades: 0 },
+            PublicObject { misc:0, instance: 12, id: CardId::DefendGreen, upgrades: 0 },
         ],
     });
     cap_error(selection, None, |caps| caps.selection = 1, "selection");

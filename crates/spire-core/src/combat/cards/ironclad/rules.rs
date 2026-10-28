@@ -22,6 +22,7 @@ pub(crate) fn upgrade(card:&mut LiveCard)->Result<(),RunError> {
     if !can_upgrade(card.id,card.upgrades){return Err(RunError::InvalidAction)}
     let next=card.upgrades.checked_add(1).ok_or(RunError::Unsupported("native upgrade count exhausted"))?;
     let temporary=card.local.temporary_upgrades.checked_add(1).ok_or(RunError::Unsupported("native combat upgrade count exhausted"))?;
+    super::super::defect::upgrade_local(card)?;
     super::super::silent::upgrade_local(card)?;
     super::super::colorless::upgrade_local(card)?;
     crate::combat::generation::upgrade_local(card)?;

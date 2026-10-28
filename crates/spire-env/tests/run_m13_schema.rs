@@ -148,11 +148,11 @@ fn m13_every_advertised_content_row_encodes_and_foreign_ids_fail_closed() {
         .chain([CardId::Shiv, CardId::Dazed, CardId::Burn, CardId::Slimed, CardId::Wound])
         .enumerate()
     {
-        decision.objects = vec![PublicObject { instance: 1, id, upgrades: 0 }];
+        decision.objects = vec![PublicObject { misc:0, instance: 1, id, upgrades: 0 }];
         let observation = encode_run_m13(&decision, None, &caps).unwrap();
         assert_eq!(group(&observation, "permanent_cards").values[0], row as i64 + 1, "{id:?}");
     }
-    decision.objects = vec![PublicObject { instance: 1, id: CardId::IronWave, upgrades: 0 }];
+    decision.objects = vec![PublicObject { misc:0, instance: 1, id: CardId::IronWave, upgrades: 0 }];
     assert!(matches!(encode_run_m13(&decision, None, &caps), Err(RunSessionError::Input(_))));
     decision.objects.clear();
 
@@ -226,7 +226,7 @@ fn m13_every_advertised_content_row_encodes_and_foreign_ids_fail_closed() {
     assert!(matches!(encode_run_m13(&act3_choice, None, &caps), Err(RunSessionError::Input(_))));
 
     decision.objects = (1..=10)
-        .map(|instance| PublicObject { instance, id: CardId::StrikeGreen, upgrades: 0 })
+        .map(|instance| PublicObject { misc:0, instance, id: CardId::StrikeGreen, upgrades: 0 })
         .collect();
     let setup_context = || SetupContext {
         player: PlayerState {

@@ -3,7 +3,7 @@ use crate::{combat::{self,CombatAction,DamagePayload,Effect,EffectKind,Source,Ac
 #[test]
 fn m10_elixir_and_heart_of_iron_are_not_usable_outside_combat(){
     for potion in [PotionId::Elixir,PotionId::HeartOfIron]{
-        let start=AuthoredRunStart{hp:50,max_hp:80,gold:0,deck:vec![CardInstance{instance:1,id:CardId::Defend,upgrades:0}],
+        let start=AuthoredRunStart{hp:50,max_hp:80,gold:0,deck:vec![CardInstance{ misc:0,instance:1,id:CardId::Defend,upgrades:0}],
             relics:vec![],potions:vec![Some(potion),None,None],relic_counters:Default::default()};
         let run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
             RunRng::new([31;32],Partition::Test,0)).unwrap();
@@ -14,7 +14,7 @@ fn m10_elixir_and_heart_of_iron_are_not_usable_outside_combat(){
 #[test]
 fn m10_elixir_uses_transferred_run_inventory_and_returns_consumed_belt_to_death_settlement(){
     let start=AuthoredRunStart{hp:80,max_hp:80,gold:0,
-        deck:(1..=12).map(|instance|CardInstance{instance,id:CardId::Defend,upgrades:0}).collect(),
+        deck:(1..=12).map(|instance|CardInstance{ misc:0,instance,id:CardId::Defend,upgrades:0}).collect(),
         relics:vec![RelicId::CharonsAshes],potions:vec![Some(PotionId::Elixir),None,None],relic_counters:Default::default()};
     let mut run=Run::from_authored_combat(RunConfig{character:Character::Ironclad,ascension:0},start,
         RunRng::new([29;32],Partition::Test,0)).unwrap();

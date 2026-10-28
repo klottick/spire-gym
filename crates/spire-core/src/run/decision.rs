@@ -9,7 +9,13 @@ use super::{NeowOffer, RunTerminal};
 pub enum GameAction { Move(NodeId), Combat(CombatAction), Choose(ChoiceId), Select(SelectionId), Confirm, Cancel,
     UsePotion { slot:u32, target:Option<crate::combat::command::TargetId> }, DiscardPotion { slot:u32 } }
 #[derive(Clone, Debug, PartialEq, Eq)] pub struct PublicPlayer { pub relic_counters:Vec<crate::items::RelicCounterView>, pub character:Character, pub hp:u32, pub max_hp:u32, pub gold:u32, pub relics:Vec<RelicId>, pub potions:Vec<Option<PotionId>>, pub keys:[bool;3] }
-#[derive(Clone, Debug, PartialEq, Eq)] pub struct PublicObject { pub instance:u64, pub id:CardId, pub upgrades:u32 }
+#[derive(Clone, PartialEq, Eq)] pub struct PublicObject { pub instance:u64, pub id:CardId, pub upgrades:u32, pub misc:i32 }
+impl std::fmt::Debug for PublicObject {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        let mut d=f.debug_struct("PublicObject");d.field("instance",&self.instance).field("id",&self.id).field("upgrades",&self.upgrades);
+        if self.misc!=0{d.field("misc",&self.misc);}d.finish()
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)] pub struct PublicSelection { pub required:usize, pub selected_count:usize, pub eligible:Vec<PublicObject> }
 #[derive(Clone, Debug, PartialEq, Eq)] pub struct Candidate { pub id:ChoiceId, pub action:GameAction, pub label:&'static str, pub neow_offer:Option<NeowOffer>, pub object:Option<PublicObject> }
 impl Candidate { #[cfg(test)] pub(crate) fn internal_test_parent(id:ChoiceId)->Self { Self{id,action:GameAction::Confirm,label:"test parent",neow_offer:None,object:None} } }
