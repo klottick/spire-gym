@@ -60,3 +60,8 @@ mod tests;
 
 mod run_schema_m16;
 pub use run_schema_m16::M16_DEFECT_COMBAT_OBSERVATION_SCHEMA_ID;
+
+mod run_schema_m17;
+pub use run_schema_m17::{m17_run_observation_spec,RUN_OBSERVATION_M17_SCHEMA_ID};
+pub use run_session::{RUN_RECORD_SCHEMA_ID_M17,RUN_RULES_ID_M17,RUN_CONTENT_ID_M17};
+pub use run_observation::encode_run_m17;

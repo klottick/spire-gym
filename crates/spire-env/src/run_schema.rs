@@ -122,6 +122,7 @@ pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{Ok(match p{
     RoomScenario::M12SilentAct1=>return Err(RunSessionError::Input("M12 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M13SilentAct2=>return Err(RunSessionError::Input("M13 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M15SilentHeart=>return Err(RunSessionError::Input("M15 profile is not representable in the M9 v1 observation schema")),
+    RoomScenario::M17DefectAct1=>return Err(RunSessionError::Input("M17 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M14SilentAct3=>return Err(RunSessionError::Input("M14 profile is not representable in the M9 v1 observation schema")),
 })}
 pub(crate) const CHOICES:&[&str]=&["padding","neow_max_hp","neow_lament","gold","card_reward","card","potion","relic","sapphire","emerald","open_chest","rest","smith","recall","purge","shrine_upgrade","shrine_remove","ancient_elegance","ancient_simplicity","joust_murderer","joust_owner","joust_continue","joust_result","falling_lose","tomb_gold","tomb_offer_gold","leave","proceed","skip","confirm_skip","cancel_skip","act3_continue"];

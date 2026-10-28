@@ -6,14 +6,40 @@ For the captured normal-start Ironclad A0 **single-Run** API, see the
 It is separate from the supplied-entry combat-v1 API below, with int64 features
 and different seeds/rewards; do not interchange their schemas or records.
 
-The [M16 Defect authored-combat profile](milestones/m16-defect-combat.md) has
-accepted native source, a separate constructor and versioned observation schema;
-manager
-publication/main integration remains pending. Its canonical-resource and supplied
-entries do not establish normal Defect progression, Gym/Python delivery or
-original-runtime parity. Defect progression remains M17 onward; full blue pools
-remain M20. The [review record](superpowers/plans/2026-10-28-m16-native-runtime-review.md)
-preserves the focused and pre-correction evidence boundaries.
+The [M16 Defect authored-combat profile](milestones/m16-defect-combat.md) is
+accepted and merged through [PR55](https://github.com/klottick/spire-gym/pull/55)
+at `02ea21175aab4962671d4610f8b72d468a2fdad5`. Its separate authored constructor
+and versioned observation support canonical-resource and supplied fights, which
+remain distinct from normal progression. Its
+[review record](superpowers/plans/2026-10-28-m16-native-runtime-review.md)
+retains corrected-focused versus pre-correction evidence qualifications.
+
+The [M17 Defect Act1 profile](milestones/m17-defect-act1.md) has independently
+reviewed, manager-accepted finite native source; publication/main integration
+remains pending. Canonical Defect A0 short Neow traverses the shared generated
+Act1 route with exactly12 captured encounters,28 obtainable permanent kinds,
+14 relics and five potions; M16 mechanics capability remains29, with no M17
+EchoForm acquisition. All six prescribed canonical boss cases have actual boss
+Victory/records and reach healthy nonterminal Act2Ready at `(2,17)`,82/82 HP.
+Native scalar, portable replay and workers1/2 batches consume the same recorded
+actions, including full-batch reset/None and heterogeneous preflight checks.
+
+Use `RunSession::new_m17`, `RunBatch::new_m17`, `encode_run_m17` and
+`m17_run_observation_spec` with typed
+`RunBossHistory::M17DefectAct1 { act1 }`. The profile/observation/replay IDs are
+explicitly versioned in the profile contract; they are not combat-v1 or Ironclad
+sidecar schemas. At Act2Ready there is no terminal, no legal action or readiness
+bonus; native further stepping reports
+`UnsupportedBoundary("M17 stops at Act2Ready")` while decision/reset/close remain
+healthy. The real boss-treasure floor reward is preserved. `combat_view_id` is
+null, and the Ironclad sidecar rejects without freezing the session.
+
+The [M17 review record](superpowers/plans/2026-10-28-m17-native-runtime-review.md)
+binds the exact reviewed source and current2448/0/2-existing-held native matrix.
+These finite normal-six results establish no all-seed completion, strong policy,
+full blue pool, Act2 play, Defect Python/Gym delivery or original-runtime parity.
+Defect Act2 remains M18, full blue content M20; subsequent releases remain
+manager-controlled. The supplied combat-v1 contract below is unchanged.
 
 ## Supplied-entry combat-v1
 
