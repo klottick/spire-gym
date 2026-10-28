@@ -28,7 +28,13 @@ pub(in crate::combat) fn scripted_cleanup(state:&mut State,owner:&EnemyHandle,ki
     let targets=spawn::ordered_actors(state).into_iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
     state.pending.retain(|e|!((matches!(e.kind,EffectKind::EnemyMove|EffectKind::RollMove)&&matches!(&e.target,Some(Actor::Enemy(id)) if targets.contains(id)))
         ||(matches!(e.kind,EffectKind::Damage(DamagePayload::FullEnemyMove(_)))&&matches!(&e.source,Source::Actor(Actor::Enemy(id)) if targets.contains(id)))));
-    for target in targets{bottom(state,effect(Actor::Enemy(owner.clone()),Actor::Enemy(target),kind.clone()));}
+    for target in targets{
+        let work=effect(Actor::Enemy(owner.clone()),Actor::Enemy(target),kind.clone());
+        // A boss killed by end-turn orbs can precede MonsterStart. Its source
+        // cleanup must complete before that sentinel schedules fresh add turns;
+        // already accepted gameplay payloads keep their original order.
+        if let Some(index)=state.pending.iter().position(|e|e.kind==EffectKind::MonsterStart){state.pending.insert(index,work);}else{bottom(state,work);}
+    }
 }
 pub(in crate::combat) fn suicide(state:&mut State,target:&EnemyHandle){
     let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==target&&e.life==super::super::ActorLife::Active&&e.hp>0)else{return};enemy.hp=0;

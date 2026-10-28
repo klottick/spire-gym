@@ -6,7 +6,7 @@ fn profile(boss:EncounterId)->CreationProfile{
 }
 fn run_boss(boss:EncounterId)->Run{Run::new_room_scenario(RunConfig{character:Character::Defect,ascension:0},profile(boss),RunRng::new([7;32],Partition::Test,0),RoomScenario::M17DefectAct1).expect("canonical Defect short-Neow profile")}
 fn run()->Run{run_boss(EncounterId::Guardian)}
-fn choose(r:&mut Run,kind:RoomChoiceKind)->RunTransition{
+pub(super) fn choose(r:&mut Run,kind:RoomChoiceKind)->RunTransition{
     let d=r.decision().unwrap();let room=d.room.unwrap();let row=room.choices.iter().find(|c|c.kind==kind&&c.status==RoomChoiceStatus::Offered).unwrap_or_else(||panic!("expected {kind:?}, got {room:?}"));
     r.step(&GameAction::Choose(row.id)).unwrap()
 }
@@ -26,14 +26,14 @@ fn m17_canonical_start_and_short_neow_use_catalog_and_initial_history(){
 }
 
 // Supplied predecessor boundaries below test shared owners, not traversal.
-fn diagnostic_room(r:&mut Run,kind:MapNodeKind){
+pub(super) fn diagnostic_room(r:&mut Run,kind:MapNodeKind){
     let map=r.state.map.as_mut().unwrap();
     let target=map.nodes.iter().find(|n|n.kind==kind&&!n.visited&&map.nodes.iter().any(|p|p.edges.contains(&n.id))).unwrap().id;
     let previous=map.nodes.iter_mut().find(|n|n.edges.contains(&target)).unwrap();previous.visited=true;r.state.floor=previous.floor;map.current=Some(previous.id);
     for n in &mut map.nodes{n.burning=false;}
     r.step(&GameAction::Move(target)).unwrap();
 }
-fn settle_lament(r:&mut Run){
+pub(super) fn settle_lament(r:&mut Run){
     for _ in 0..128{
         let d=r.decision().unwrap();if d.combat.is_none(){return}
         let action=d.candidates.iter().find(|c|matches!(c.action,GameAction::Combat(CombatAction::PlayCard{target:Some(_),..})))
@@ -45,7 +45,7 @@ fn victory(visit:u64,kind:MapNodeKind,boss:EncounterId)->Run{
     r.state.combat_progress=CombatProgress{entered:visit,settled:visit};diagnostic_room(&mut r,kind);settle_lament(&mut r);
     assert_eq!(r.state.last_combat.as_ref().unwrap().visit,visit);r
 }
-fn cards(r:&Run)->Vec<CardId>{r.decision().unwrap().room.unwrap().choices.iter().filter_map(|c|if let RoomChoiceKind::Card{id,..}=c.kind{Some(id)}else{None}).collect()}
+pub(super) fn cards(r:&Run)->Vec<CardId>{r.decision().unwrap().room.unwrap().choices.iter().filter_map(|c|if let RoomChoiceKind::Card{id,..}=c.kind{Some(id)}else{None}).collect()}
 #[test]
 fn m17_profile_admission_matches_28_producers_and_29_capability(){
     let mut r=run();assert_eq!((M17_DEFECT_ACT1_CARDS.len(),M17_DEFECT_ACT1_RELICS.len(),M17_DEFECT_ACT1_POTIONS.len()),(28,14,5));

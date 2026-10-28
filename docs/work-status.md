@@ -1,6 +1,46 @@
 # Work status
 
-## Current snapshot — 2026-10-28, M17 source READY; publication pending
+## Current snapshot — 2026-10-28, M18 source accepted; normal coverage open
+
+The primary user approved merging the independently reviewed finite M18 native
+source and conditional M19 dependency release while retaining the OPEN normal
+coverage requirement. One fresh independent senior returned **source accuracy
+READY**, with zero new Critical/Important/Minor technical findings. This explicit
+source-acceptance exception does not establish the full M18 milestone, waive its
+coverage gate or close its parent. Publication/main integration remains a manager
+operation; no M18 merged revision is claimed.
+
+The exact reviewed832-file source manifest is
+`7e7bbedef33c955e9facd6143e44ec649704a4ba34cb27e182c02542e566c335`, based on
+accepted M17 [PR56](https://github.com/klottick/spire-gym/pull/56) at
+`d979954eac2de0f0e741349478abdc5c00d462ad`. The
+[M18 profile](milestones/m18-defect-act2.md),
+[reconciliation](milestones/m18-defect-act2-reconciliation.md) and
+[review record](superpowers/plans/2026-10-28-m18-native-runtime-review.md) bind the
+finite29-card/14-relic/5-potion Acts1–2 boundary and exact acceptance authority.
+
+All six frozen originals remain unchanged: five Deaths and one actual Collector
+Victory through healthy nonterminal Act3Ready3/34 at99/99 HP. Champ has an actual
+same-visit Death record. Neither Automaton-targeted original entered that boss;
+both died earlier at Slavers. **COV1, normal BronzeAutomaton entry plus matching
+record, remains OPEN and unwaived.** The original failed assertion remains active.
+Actual ordinary/elite Act2 and one canonical completion do not replace it.
+
+The retained stable native workspace is2484 passed,1 coverage failure,2 existing
+held M15 tests, across79 suites, exit101. All22 M18 native tests and the five
+released original consumers pass; scalar, portable and workers1/2 agree on the
+same1933 choices, including actual healthy cutoff/reset and EmptyCage child
+custody. This is not a green workspace, fresh Python delivery or original-runtime
+validation. Previous profile and pre-correction evidence retain their own grades.
+
+Primary approval separates M19's source dependency from M18's incomplete normal
+coverage. M19 execution still requires accepted merged M18 source, its previously
+approved plan and named source gates, and a root-assigned checkout/task. This
+administrative preparation does not start M19. No additional episode, seed search,
+strategy/resource tuning or supplied fallback is authorized. Live Beads and the
+primary session remain authoritative; M18's parent/normal coverage stays open.
+
+## Prior snapshot — 2026-10-28, M17 source READY; publication pending
 
 M16 finite native Defect authored combat is accepted and merged through
 [PR55](https://github.com/klottick/spire-gym/pull/55) at

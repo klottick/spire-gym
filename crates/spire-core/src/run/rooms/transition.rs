@@ -4,7 +4,7 @@ use crate::content::EncounterId;
 pub(super) fn begin(run:&mut Run)->Result<RunTransition,RunError>{
     let (from,to,floor,boss_floor)=match run.state.act {
         1 if uses_captured_act1(&run.state)=>(1,2,17,16),
-        2 if is_m7(&run.state)||is_m13(&run.state)||uses_captured_act3(&run.state)=>(2,3,34,33),
+        2 if is_m7(&run.state)||is_m13(&run.state)||is_m18(&run.state)||uses_captured_act3(&run.state)=>(2,3,34,33),
         _=>return Err(RunError::InvalidAction),
     };
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
@@ -53,7 +53,7 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
         if mutations::heal(&mut run.state,amount).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted act healing failed"),"run.act.transition"))}
         run.state.room_loop.as_mut().unwrap().transition.as_mut().unwrap().heal_applied=true;
     }
-    let valid=(frame.from,frame.to,frame.floor)==(1,2,17)||((frame.from,frame.to,frame.floor)==(2,3,34)&&(is_m7(&run.state)||is_m13(&run.state)||uses_captured_act3(&run.state)));
+    let valid=(frame.from,frame.to,frame.floor)==(1,2,17)||((frame.from,frame.to,frame.floor)==(2,3,34)&&(is_m7(&run.state)||is_m13(&run.state)||is_m18(&run.state)||uses_captured_act3(&run.state)));
     if !valid||run.state.floor!=frame.floor||run.state.act!=frame.to{return Err(run.retain_fault(RunFaultKind::Invariant("accepted successor transition invariant"),"run.act.transition"))}
     let (map,rng,order)=match successor(run,&frame){Ok(value)=>value,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted successor map initialization failed"),"run.act.transition"))};
     let event=CommittedEvent::ActAdvanced{from:frame.from,to:frame.to};

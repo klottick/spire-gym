@@ -41,6 +41,44 @@ full blue pool, Act2 play, Defect Python/Gym delivery or original-runtime parity
 Defect Act2 remains M18, full blue content M20; subsequent releases remain
 manager-controlled. The supplied combat-v1 contract below is unchanged.
 
+## Finite native Defect Acts1–2 source
+
+The [M18 profile](milestones/m18-defect-act2.md) has source accuracy READY after
+one fresh independent senior review with zero new technical findings. The primary
+user accepted source merge and conditional M19 dependency release separately from
+the OPEN normal BronzeAutomaton coverage gate. Full M18 remains incomplete; source
+publication/main integration is pending and no M18 merge SHA is claimed.
+
+Use `RunSession::new_m18`, `RunBatch::new_m18`, `encode_run_m18` and
+`m18_run_observation_spec` with
+`RunBossHistory::M18DefectAct2 { act1, act2 }`. Both typed histories bind before
+canonical Defect A0 short-Neow creation; strict raw duplicate/partial/foreign
+history rejection uses the existing codec. Finite content is29 permanent card
+kinds,14 relics,five potions and generated Dazed/Burn/Burn+/Slimed/Wound. One shared
+Run/encoder/session/replay/batch owner handles visible misc/costs, four orb kinds,
+signed Dark payload, logical slots through10, Stasis and actual summons. Hidden
+state remains private; unsupported content/capacity overflow fails closed.
+
+The actual Act3Ready boundary is healthy at `(3,34)`, terminalNone and zero legal
+actions, with no readiness bonus. Further native stepping returns exactly
+`UnsupportedBoundary("M18 stops at Act3Ready")` before mutation; decision/reset/
+close remain healthy. Real boss-treasure floor credit remains. `combat_view_id`
+is null, and the Ironclad sidecar rejects without freezing. There is no M18 Python/
+Gym delivery or playable Act3 contract.
+
+The six unchanged originals are five Deaths and one actual Collector Victory
+through Act3Ready99/99. Champ has an actual matching Death record; neither
+Automaton-targeted run entered that boss. COV1 remains open and its failed normal
+coverage assertion is preserved. Retained native verification is2484 pass,
+1 coverage failure,2 old holds; all22 M18 native tests pass and1933 same original
+actions agree through scalar, portable and workers1/2, including actual cutoff/
+reset and EmptyCage custody. These are retained results, not new administrative
+runtime checks. The [M18 review record](superpowers/plans/2026-10-28-m18-native-runtime-review.md)
+records the source-merge exception and evidence grades. Python-extension matching,
+original-runtime validation and the complete blue pool remain unverified or outside
+this finite profile. M20 retains full blue content; later execution releases remain
+manager-controlled. The supplied combat-v1 contract below is unchanged.
+
 ## Supplied-entry combat-v1
 
 The current version is **source-grounded, not original-runtime validated**.

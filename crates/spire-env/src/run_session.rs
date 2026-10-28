@@ -14,6 +14,9 @@ pub const RUN_RECORD_SCHEMA_ID_M10: &str = "spire-gym-run-replay-v2";
 pub const RUN_RECORD_SCHEMA_ID_M12: &str = "spire-gym-m12-silent-act1-replay-v1";
 pub const RUN_RECORD_SCHEMA_ID_M13: &str = "spire-gym-m13-silent-act2-replay-v1";
 pub const RUN_RECORD_SCHEMA_ID_M14: &str = "spire-gym-m14-silent-act3-replay-v1";
+pub const RUN_RECORD_SCHEMA_ID_M18:&str="spire-gym-m18-defect-act2-replay-v1";
+pub const RUN_RULES_ID_M18:&str="spire-gym-native-m18-rules-v1";
+pub const RUN_CONTENT_ID_M18:&str="spire-gym-m18-defect-a0-acts1-2-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M17:&str="spire-gym-m17-defect-act1-replay-v1";
 pub const RUN_RULES_ID_M17:&str="spire-gym-native-m17-rules-v1";
 pub const RUN_CONTENT_ID_M17:&str="spire-gym-m17-defect-a0-act1-captured-v1";
@@ -50,6 +53,7 @@ pub(crate) enum RunProfile {
     M14SilentAct3,
     M15SilentHeart,
     M17DefectAct1,
+    M18DefectAct2,
 }
 impl RunProfile {
     pub(crate) fn id(self) -> &'static str {
@@ -62,6 +66,7 @@ impl RunProfile {
             Self::M14SilentAct3 => "M14SilentAct3",
             Self::M15SilentHeart => "M15SilentHeart",
             Self::M17DefectAct1 => "M17DefectAct1",
+            Self::M18DefectAct2 => "M18DefectAct2",
         }
     }
     pub(crate) fn schema_id(self) -> &'static str {
@@ -74,6 +79,7 @@ impl RunProfile {
             Self::M14SilentAct3 => RUN_RECORD_SCHEMA_ID_M14,
             Self::M15SilentHeart => RUN_RECORD_SCHEMA_ID_M15,
             Self::M17DefectAct1 => RUN_RECORD_SCHEMA_ID_M17,
+            Self::M18DefectAct2 => RUN_RECORD_SCHEMA_ID_M18,
         }
     }
     pub(crate) fn rules_id(self) -> &'static str {
@@ -85,6 +91,7 @@ impl RunProfile {
             Self::M14SilentAct3 => RUN_RULES_ID_M14,
             Self::M15SilentHeart => RUN_RULES_ID_M15,
             Self::M17DefectAct1 => RUN_RULES_ID_M17,
+            Self::M18DefectAct2 => RUN_RULES_ID_M18,
         }
     }
     pub(crate) fn content_id(self) -> &'static str {
@@ -96,6 +103,7 @@ impl RunProfile {
             Self::M14SilentAct3 => RUN_CONTENT_ID_M14,
             Self::M15SilentHeart => RUN_CONTENT_ID_M15,
             Self::M17DefectAct1 => RUN_CONTENT_ID_M17,
+            Self::M18DefectAct2 => RUN_CONTENT_ID_M18,
         }
     }
     pub(crate) fn observation_spec(
@@ -111,10 +119,11 @@ impl RunProfile {
             Self::M14SilentAct3 => crate::m14_run_observation_spec(caps),
             Self::M15SilentHeart => crate::m15_run_observation_spec(caps),
             Self::M17DefectAct1 => crate::m17_run_observation_spec(caps),
+            Self::M18DefectAct2 => crate::m18_run_observation_spec(caps),
         }
     }
     fn validate(self, config: &RunSessionConfig) -> Result<(), RunSessionError> {
-        let expected_character = if self==Self::M17DefectAct1 { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
+        let expected_character = if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
             Character::Silent
         } else {
             Character::Ironclad
@@ -128,10 +137,12 @@ impl RunProfile {
                 Self::M14SilentAct3 => "M14 requires Silent A0",
                 Self::M15SilentHeart => "M15 requires Silent A0",
             Self::M17DefectAct1 => "M17 requires Defect A0",
+            Self::M18DefectAct2 => "M18 requires Defect A0",
             }));
         }
         let history_matches = match self {
             Self::M17DefectAct1 => matches!(config.boss_history,RunBossHistory::M17DefectAct1{..}),
+            Self::M18DefectAct2 => matches!(config.boss_history,RunBossHistory::M18DefectAct2{..}),
             Self::M12SilentAct1 => matches!(
                 config.boss_history,
                 RunBossHistory::Act1GuardianUnseen
@@ -170,6 +181,7 @@ impl RunProfile {
             Self::M14SilentAct3 => crate::run_schema_m14::validate(&config.capacities),
             Self::M15SilentHeart => crate::run_schema_m15::validate(&config.capacities),
             Self::M17DefectAct1 => crate::run_schema_m17::validate(&config.capacities),
+            Self::M18DefectAct2 => crate::run_schema_m18::validate(&config.capacities),
         }
     }
     pub(crate) fn from_record(schema: &str, profile: &str) -> Result<Self, RunSessionError> {
@@ -182,6 +194,7 @@ impl RunProfile {
             (RUN_RECORD_SCHEMA_ID_M14, "M14SilentAct3") => Ok(Self::M14SilentAct3),
             (RUN_RECORD_SCHEMA_ID_M15, "M15SilentHeart") => Ok(Self::M15SilentHeart),
             (RUN_RECORD_SCHEMA_ID_M17, "M17DefectAct1") => Ok(Self::M17DefectAct1),
+            (RUN_RECORD_SCHEMA_ID_M18, "M18DefectAct2") => Ok(Self::M18DefectAct2),
             _ => Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
         }
     }
@@ -213,6 +226,7 @@ pub enum RunBossHistory {
     Act1HexaghostUnseen,
     Act1SlimeBossUnseen,
     M17DefectAct1 { act1: RunAct1BossTarget },
+    M18DefectAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
     M13SilentAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
     M14SilentAct3 { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
     M15SilentHeart { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
@@ -297,6 +311,7 @@ pub(crate) fn create_run(
         RunBossHistory::M17DefectAct1 { act1: RunAct1BossTarget::SlimeBoss } => vec!["Guardian", "Hexaghost"],
         RunBossHistory::M17DefectAct1 { act1: RunAct1BossTarget::Hexaghost } => vec!["Guardian", "SlimeBoss"],
         RunBossHistory::M17DefectAct1 { act1: RunAct1BossTarget::Guardian } => vec!["Hexaghost", "SlimeBoss"],
+        RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Guardian, .. } => {
             vec!["Hexaghost", "SlimeBoss"]
         }
@@ -306,6 +321,7 @@ pub(crate) fn create_run(
         RunBossHistory::M15SilentHeart { act1: RunAct1BossTarget::Guardian, .. } => {
             vec!["Hexaghost", "SlimeBoss"]
         }
+        RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Hexaghost, .. } => {
             vec!["Guardian", "SlimeBoss"]
         }
@@ -315,6 +331,7 @@ pub(crate) fn create_run(
         RunBossHistory::M15SilentHeart { act1: RunAct1BossTarget::Hexaghost, .. } => {
             vec!["Guardian", "SlimeBoss"]
         }
+        RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } => {
             vec!["Guardian", "Hexaghost"]
         }
@@ -330,8 +347,9 @@ pub(crate) fn create_run(
         _ => vec!["Hexaghost", "SlimeBoss"],
     };
 
-    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart) {
+    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M18DefectAct2) {
         creation.seen_bosses[1] = match config.boss_history {
+            RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Champ, .. } => {
                 vec!["Automaton", "Collector"]
             }
@@ -341,6 +359,7 @@ pub(crate) fn create_run(
             RunBossHistory::M15SilentHeart { act2: RunAct2BossTarget::Champ, .. } => {
                 vec!["Automaton", "Collector"]
             }
+            RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } => {
                 vec!["Champ", "Collector"]
             }
@@ -350,6 +369,7 @@ pub(crate) fn create_run(
             RunBossHistory::M15SilentHeart { act2: RunAct2BossTarget::BronzeAutomaton, .. } => {
                 vec!["Champ", "Collector"]
             }
+            RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Collector, .. } => {
                 vec!["Champ", "Automaton"]
             }
@@ -385,7 +405,7 @@ pub(crate) fn create_run(
             }
             _ => unreachable!("M14 validation requires a triple boss history"),
         };
-    } else if profile != RunProfile::M12SilentAct1 && profile != RunProfile::M13SilentAct2 && profile != RunProfile::M17DefectAct1 {
+    } else if profile != RunProfile::M12SilentAct1 && profile != RunProfile::M13SilentAct2 && profile != RunProfile::M17DefectAct1 && profile != RunProfile::M18DefectAct2 {
         creation.seen_bosses[1] = vec!["Champ", "Collector"];
         creation.seen_bosses[2] = match config.boss_history {
             RunBossHistory::AwakenedUnseen => vec!["TimeEater", "DonuAndDeca"],
@@ -405,6 +425,7 @@ pub(crate) fn create_run(
         RunProfile::M14SilentAct3 => RoomScenario::M14SilentAct3,
         RunProfile::M15SilentHeart => RoomScenario::M15SilentHeart,
         RunProfile::M17DefectAct1 => RoomScenario::M17DefectAct1,
+        RunProfile::M18DefectAct2 => RoomScenario::M18DefectAct2,
     };
     Run::new_room_scenario(
         RunConfig { character: config.character, ascension: config.ascension },
@@ -431,7 +452,7 @@ fn check_boundary(profile: RunProfile, decision: &PublicDecision) -> Result<(), 
             "M12 Act2Ready must be nonterminal with no actions",
         ));
     }
-    if profile == RunProfile::M13SilentAct2
+    if matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2)
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready)
     {
         if decision.terminal.is_none() && decision.candidates.is_empty() {
@@ -489,12 +510,13 @@ fn publish(
             crate::encode_run_m15(&decision, map.as_ref(), &config.capacities)?
         }
         RunProfile::M17DefectAct1 => crate::encode_run_m17(&decision, map.as_ref(), &config.capacities)?,
+        RunProfile::M18DefectAct2 => crate::encode_run_m18(&decision, map.as_ref(), &config.capacities)?,
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1)
         && decision.terminal.is_none()
         && decision.candidates.is_empty()
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act2Ready);
-    let at_m13_cutoff = profile == RunProfile::M13SilentAct2
+    let at_m13_cutoff = matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2)
         && decision.terminal.is_none()
         && decision.candidates.is_empty()
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready);
@@ -524,8 +546,20 @@ impl RunSession{
         let mut descriptor=serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
             "observation_fingerprint":crate::combat_policy::hex(&spec.fingerprint()),"rules_id":self.profile.rules_id(),
             "content_id":self.profile.content_id(),"reward_id":RUN_REWARD_ID,"seed_adapter_id":RUN_SEED_ADAPTER_ID,
-            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1|RunProfile::M18DefectAct2){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
             "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"});
+        if self.profile==RunProfile::M18DefectAct2{
+            descriptor["finite_content"]=serde_json::json!({
+                "permanent_cards":M18_DEFECT_ACT2_CARDS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "generated_and_status_cards":["dazed","burn","slimed","wound"],
+                "relics":M18_DEFECT_ACT2_RELICS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "potions":M18_DEFECT_ACT2_POTIONS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "playable_enemies":crate::run_schema_m13::M13_PLAYABLE_ENEMIES.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "playable_encounters":crate::run_schema_m13::M13_PLAYABLE_ENCOUNTERS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
+                "map_only_boss_icons":crate::run_schema_m13::M13_MAP_ONLY_BOSS_ICONS.iter().map(|id|id.as_str()).collect::<Vec<_>>()
+            });
+            descriptor["cutoff"]=serde_json::json!("Act3Ready: nonterminal, zero actions, no completion reward");
+        }
         if self.profile==RunProfile::M17DefectAct1{
             descriptor["finite_content"]=serde_json::json!({
                 "permanent_cards":M17_DEFECT_ACT1_CARDS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
@@ -596,6 +630,7 @@ impl RunSession{
         Ok(descriptor)
     }
     pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
+        if self.profile==RunProfile::M18DefectAct2{return Err(RunSessionError::UnsupportedBoundary("M18 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M17DefectAct1{return Err(RunSessionError::UnsupportedBoundary("M17 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M12SilentAct1{return Err(RunSessionError::UnsupportedBoundary("M12 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M13SilentAct2{return Err(RunSessionError::UnsupportedBoundary("M13 does not provide the Ironclad combat policy sidecar"))}
@@ -607,6 +642,7 @@ impl RunSession{
     /// Resources are current; snapshot on the settled-count transition. The
     /// visit-keyed last_exit remains sticky across later noncombat decisions.
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
+        if self.profile==RunProfile::M18DefectAct2{return Err(RunSessionError::UnsupportedBoundary("M18 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M17DefectAct1{return Err(RunSessionError::UnsupportedBoundary("M17 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M12SilentAct1{return Err(RunSessionError::UnsupportedBoundary("M12 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M13SilentAct2{return Err(RunSessionError::UnsupportedBoundary("M13 does not provide the Ironclad combat policy sidecar"))}
@@ -628,7 +664,8 @@ impl RunSession{
     /// The existing constructor and public configuration remain M9-compatible.
     pub fn new_m10(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladHeart)}
     pub fn new_m10_policy(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladPolicy)}
-    /// Opt into the finite Silent A0 captured Act1 profile on the shared session owner.
+    /// Opt into the finite Defect A0 Acts 1–2 profile on the shared native owner.
+    pub fn new_m18(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M18DefectAct2)}
     pub fn new_m17(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M17DefectAct1)}
     pub fn new_m12(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M12SilentAct1)}
     /// Opt into the finite Silent A0 captured Acts 1–2 profile on the shared session owner.
@@ -685,7 +722,7 @@ impl RunSession{
         self.usable()?;let published=self.published.as_ref().ok_or(RunSessionError::NotReset)?;
         if token!=published.token{return Err(RunSessionError::StaleToken)}
         if self.at_m12_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M17DefectAct1{"M17 stops at Act2Ready"}else{"M12 stops at Act2Ready"}))}
-        if self.at_m13_cutoff{return Err(RunSessionError::UnsupportedBoundary("M13 stops at Act3Ready"))}
+        if self.at_m13_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M18DefectAct2{"M18 stops at Act3Ready"}else{"M13 stops at Act3Ready"}))}
         if self.at_m14_cutoff{return Err(RunSessionError::UnsupportedBoundary("M14 stops before the Act4 door"))}
         if published.terminal.is_some(){return Err(RunSessionError::Terminal)}
         let index=usize::try_from(index.0).ok().filter(|i|*i<self.actions.len()).ok_or(RunSessionError::Input("action index is not legal"))?;
