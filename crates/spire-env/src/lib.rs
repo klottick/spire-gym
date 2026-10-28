@@ -65,3 +65,8 @@ mod run_schema_m17;
 pub use run_schema_m17::{m17_run_observation_spec,RUN_OBSERVATION_M17_SCHEMA_ID};
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M17,RUN_RULES_ID_M17,RUN_CONTENT_ID_M17};
 pub use run_observation::encode_run_m17;
+
+mod run_schema_m18;
+pub use run_schema_m18::{m18_run_observation_spec,RUN_OBSERVATION_M18_SCHEMA_ID};
+pub use run_observation::encode_run_m18;
+pub use run_session::{RUN_RECORD_SCHEMA_ID_M18,RUN_RULES_ID_M18,RUN_CONTENT_ID_M18};

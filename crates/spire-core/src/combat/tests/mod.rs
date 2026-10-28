@@ -94,3 +94,6 @@ mod m16_orb_interactions;
 pub(crate) mod m16_support;
 mod m16_content;
 mod m16_review_corrections;
+
+pub(crate) mod m18_custody_support;
+mod m18_defect_interactions;

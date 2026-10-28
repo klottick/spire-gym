@@ -65,7 +65,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         (RoomViewKind::Event(EventId::AncientWriting),RoomChoiceKind::AncientSimplicity)=>{
             if row.price.is_some(){return Err(RunError::InvalidAction)}run.next_choice.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;
-            let ids=run.state.deck.iter().filter(|c|(matches!(c.id,CardId::Strike|CardId::Defend)||uses_silent_content(&run.state)&&matches!(c.id,CardId::StrikeGreen|CardId::DefendGreen))&&c.upgrades==0).map(|c|c.instance).collect::<Vec<_>>();for id in ids{mutations::upgrade_card(&mut run.state,id)?;}complete_ancient(run)
+            let ids=run.state.deck.iter().filter(|c|(matches!(c.id,CardId::Strike|CardId::Defend)||uses_silent_content(&run.state)&&matches!(c.id,CardId::StrikeGreen|CardId::DefendGreen)||uses_defect_content(&run.state)&&matches!(c.id,CardId::StrikeBlue|CardId::DefendBlue))&&c.upgrades==0).map(|c|c.instance).collect::<Vec<_>>();for id in ids{mutations::upgrade_card(&mut run.state,id)?;}complete_ancient(run)
         },
         (RoomViewKind::Event(EventId::AncientWriting),RoomChoiceKind::AncientElegance)=>{
             if row.price.is_some(){return Err(RunError::InvalidAction)}if run.state.deck.is_empty(){complete_ancient(run)}else{selection::open(run,id,RoomSelectionOperation::AncientElegance)}

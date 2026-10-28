@@ -16,6 +16,7 @@ encounters have real mechanics, but reward, shop and event pools are bounded.
 | --- | --- | --- |
 | Native Ironclad Runs | Captured Acts 1–3; opt-in Act 4, keys, Shield/Spear and Heart mechanics; all 75 ordinary red card kinds | Normal-start traversal to the Heart and HeartVictory remain unobserved. [Ironclad profile](docs/milestones/m10-heart.md) |
 | Native Silent Runs | Canonical starts, captured Acts 1–4/Heart, all 75 green card kinds and exclusive items; Poison, discard, Shiv, retain, copy and generation mechanics | Finite captured reward/shop/event content; native-only delivery. Canonical normal-start Heart completion remains unproven. [Silent profile](docs/milestones/m15-silent-heart.md) |
+| Native Defect Acts1–2 source | Canonical Defect A0, 29 obtainable card kinds, 14 relics, five potions; native sessions/replay/batching through healthy Act3Ready | Source accepted under explicit primary approval; merge preparation pending. Normal BronzeAutomaton entry/record remains open; full M18 is incomplete. [M18 profile](docs/milestones/m18-defect-act2.md) |
 | Native Defect Act1 Runs | Canonical short-Neow starts, shared generated route and 12 captured encounters; 28 obtainable card kinds, 14 relics and five potions; healthy nonterminal Act2Ready | Source accepted after independent final READY; M17 publication/main integration pending. Six prescribed normal runs complete, without an all-seed or policy-strength claim; native-only. [Act1 profile](docs/milestones/m17-defect-act1.md) |
 | Native Defect authored combat | Finite A0: 29 blue card kinds, four orbs, Focus, slots 0–10, four relics, two potions and persistent card mutations; shared Run and versioned native observation | Authored entry only; merged through [PR55](https://github.com/klottick/spire-gym/pull/55) at `02ea211`. Its fixtures do not establish normal progression or Python delivery. [Defect profile](docs/milestones/m16-defect-combat.md) |
 | Python/Gymnasium Ironclad combat | Full-engine standalone supplied-resource fights, native batches and a common combat view inside Runs | Finite A0 inputs and encounters. [Combat API](docs/combat-training.md) |
@@ -49,6 +50,20 @@ is 2,448 passed, zero failed and two existing held M15 tests. The
 binds these finite outcomes and source relationships. This establishes no
 all-seed completion, strong policy, full blue pool, Act2 play, Python delivery or
 original-runtime fidelity.
+
+M18's independently reviewed source is accepted under the primary user's explicit
+2026-10-28 decision to separate source merge and conditional M19 dependency release
+from the still-open normal coverage gate. The six unchanged originals retain five
+Deaths and one Collector Victory through healthy Act3Ready99/99; Champ has an
+actual matching Death record, while both Automaton-targeted runs die earlier at
+Slavers. The retained workspace is **2,484 passed, one coverage failure and two
+existing held tests**, with all22 M18 native tests passing and1,933 original
+choices agreeing across scalar, portable and workers1/2 replay. The failed normal
+Automaton assertion remains unchanged; full M18 is not established. Merge and M19
+execution dispatch remain manager operations, with no M18 merged revision claimed.
+The [M18 review record](docs/superpowers/plans/2026-10-28-m18-native-runtime-review.md)
+binds the source-only acceptance and native-only limits. This decision adds no
+policy tuning, new episode, Python delivery or original-runtime claim.
 
 The smaller [combat-v1 API](docs/combat-environments.md) remains available for
 supplied first-ready Ironclad states against Cultist or Jaw Worm.

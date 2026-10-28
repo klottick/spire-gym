@@ -25,9 +25,9 @@ pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,
             (RoomChoiceKind::Purge,Some(run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
-    if is_m17(&run.state){
+    if uses_defect_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-        let later=room.act1.as_ref().is_some_and(|p|p.shop_visits>0);
+        let later=if run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
         let mut rows=super::m17_content::shop_cards(later).into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},Some(75))).collect::<Vec<_>>();
         let relic=if later{RelicId::EmotionChip}else{RelicId::GoldPlatedCables};
         if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
