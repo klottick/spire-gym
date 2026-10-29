@@ -133,9 +133,10 @@ fn evoke(state:&mut super::model::State,source:&Source,index:usize,remove:bool)-
         OrbKind::Plasma=>enqueue(state,source.clone(),CharacterEffect::OrbEnergy(2)),
         OrbKind::Lightning=>enqueue(state,source.clone(),CharacterEffect::Lightning{amount:(8+state.character.focus).max(0)}),
         OrbKind::Dark=>{
-            // Dark's local selector deliberately includes half-dead actors. Ties
-            // retain source slot order and do not consume random words.
-            let target=state.enemies.iter().filter(|e|e.life==super::ActorLife::HalfDead||(e.life==super::ActorLife::Active&&e.hp>0))
+            // The constructor's inherited isDeadOrEscaped helper excludes
+            // HalfDead. Ties retain formation order without consuming RNG.
+            // Already captured hits retain their separate lifecycle handling.
+            let target=state.enemies.iter().filter(|e|e.life==super::ActorLife::Active&&e.hp>0)
                 .enumerate().min_by_key(|(index,e)|(e.hp,*index)).map(|(_,e)|e.instance_id.clone());
             if let Some(target)=target {
                 state.pending.push_front(Effect{source:source.clone(),target:Some(Actor::Enemy(target)),

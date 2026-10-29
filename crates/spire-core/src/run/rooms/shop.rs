@@ -27,8 +27,9 @@ pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,
     }
     if uses_defect_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-        let later=if run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
-        let mut rows=super::m17_content::shop_cards(later).into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},Some(75))).collect::<Vec<_>>();
+        let later=if is_m19(&run.state)&&run.state.act==3{room.act3.as_ref().is_some_and(|p|p.shop_visits>0)}else if run.state.act==2{room.act2.as_ref().is_some_and(|p|p.shop_visits>0)}else{room.act1.as_ref().is_some_and(|p|p.shop_visits>0)};
+        let cards=if is_m19(&run.state)&&run.state.act==3{super::m19_content::shop_cards(later)}else{super::m17_content::shop_cards(later)};
+        let mut rows=cards.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},Some(75))).collect::<Vec<_>>();
         let relic=if later{RelicId::EmotionChip}else{RelicId::GoldPlatedCables};
         if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
         rows.extend([(RoomChoiceKind::Potion(if later{PotionId::PotionOfCapacity}else{PotionId::FocusPotion}),Some(50)),(RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);

@@ -36,3 +36,5 @@ pub use combat::m16_defect_combat_encounter_metadata;
 pub use rooms::m17_content::{M17_DEFECT_ACT1_CARDS,M17_DEFECT_ACT1_RELICS,M17_DEFECT_ACT1_POTIONS};
 
 pub use rooms::m18_content::{M18_DEFECT_ACT2_CARDS,M18_DEFECT_ACT2_RELICS,M18_DEFECT_ACT2_POTIONS};
+
+pub use rooms::m19_content::{M19_DEFECT_ACT3_CARDS,M19_DEFECT_ACT3_RELICS,M19_DEFECT_ACT3_POTIONS};

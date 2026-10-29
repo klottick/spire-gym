@@ -258,7 +258,8 @@ fn m18_dark_targets_live_summons_and_preserves_payload() {
         (0, replacement_before - 6, sibling_before));
 
     // Shared predecessor control outside M18 admission: the accepted M16
-    // HalfDead target remains eligible and receives no duplicate death callback.
+    // constructor excludes HalfDead through inherited isDeadOrEscaped; queued
+    // captured-target continuation is tested separately by M19.
     let mut darklings_entry = super::m8_shapes::entry(EncounterId::ThreeDarklings);
     darklings_entry.setup.character = Character::Defect;
     let mut darklings = Combat::enter(darklings_entry).unwrap();
@@ -266,10 +267,13 @@ fn m18_dark_targets_live_summons_and_preserves_payload() {
     let half_dead_hp = enemy_hp(&darklings, &half_dead);
     hit(&mut darklings, &half_dead, half_dead_hp);
     assert_eq!(darklings.state.enemies[0].life, ActorLife::HalfDead);
+    let mut expected = darklings.state.enemies.iter().map(|e|e.hp).collect::<Vec<_>>();
+    let target=(1..expected.len()).min_by_key(|i|(expected[*i],*i)).unwrap();expected[target]-=12;
     let deaths = darklings.state.hook_events.iter().filter(|event| event.hook == Hook::Death || event.hook == Hook::HalfDeath).count();
     darklings.state.character.orb_slots = vec![Some(OrbState { kind: OrbKind::Dark, dark_damage: Some(12) }), None, None];
     character(&mut darklings, CharacterEffect::EvokeFront { remove: true });
     assert_eq!(darklings.state.enemies[0].life, ActorLife::HalfDead);
+    assert_eq!(darklings.state.enemies.iter().map(|e|e.hp).collect::<Vec<_>>(),expected);
     assert_eq!(darklings.state.hook_events.iter().filter(|event| event.hook == Hook::Death || event.hook == Hook::HalfDeath).count(), deaths);
 }
 

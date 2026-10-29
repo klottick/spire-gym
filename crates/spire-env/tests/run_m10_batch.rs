@@ -23,7 +23,7 @@ fn source_history(history: M9BossHistory) -> support::M9BossHistory {
         M9BossHistory::AwakenedUnseen => support::M9BossHistory::AwakenedUnseen,
         M9BossHistory::TimeEaterUnseen => support::M9BossHistory::TimeEaterUnseen,
         M9BossHistory::DonuDecaUnseen => support::M9BossHistory::DonuDecaUnseen,
-        M9BossHistory::Act1GuardianUnseen | M9BossHistory::Act1HexaghostUnseen | M9BossHistory::Act1SlimeBossUnseen | M9BossHistory::M13SilentAct2 { .. } | M9BossHistory::M14SilentAct3 { .. } | M9BossHistory::M15SilentHeart { .. } | M9BossHistory::M17DefectAct1 { .. } | M9BossHistory::M18DefectAct2 { .. } =>
+        M9BossHistory::Act1GuardianUnseen | M9BossHistory::Act1HexaghostUnseen | M9BossHistory::Act1SlimeBossUnseen | M9BossHistory::M13SilentAct2 { .. } | M9BossHistory::M14SilentAct3 { .. } | M9BossHistory::M15SilentHeart { .. } | M9BossHistory::M17DefectAct1 { .. } | M9BossHistory::M18DefectAct2 { .. } | M9BossHistory::M19DefectAct3 { .. } =>
             unreachable!("M10 batch reference only accepts Act 3 history variants"),
     }
 }

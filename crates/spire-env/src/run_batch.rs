@@ -43,6 +43,8 @@ impl RunBatch {
         Self::new_with(configs, workers, RunSession::new_m10)
     }
 
+    /// Construct finite Defect Acts 1–3 lanes using the shared ordered scheduler.
+    pub fn new_m19(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m19)}
     /// Construct finite Defect Acts 1–2 lanes using the shared ordered scheduler.
     pub fn new_m18(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m18)}
     pub fn new_m17(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m17)}

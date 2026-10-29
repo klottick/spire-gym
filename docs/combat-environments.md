@@ -79,6 +79,45 @@ original-runtime validation and the complete blue pool remain unverified or outs
 this finite profile. M20 retains full blue content; later execution releases remain
 manager-controlled. The supplied combat-v1 contract below is unchanged.
 
+## Finite native Defect Acts1–3 source
+
+The [M19 profile](milestones/m19-defect-act3.md) has independently reviewed source
+accuracy READY with zero new Critical, Important or Minor technical findings.
+The primary user approved source merge and conditional M20 dependency release on
+2026-10-28 for reviewed857-file manifest
+`61c186d19a0d0beddf87dc2a2251b3871574354ac32c1fd4520fdaecb4a4724f`.
+Publication/main integration remains pending. M20 execution requires actual merged
+source and an assignment; this is not full M19 acceptance or a coverage waiver.
+M19 uses accepted M18 PR57 merge `9628b77a59c83890012c7e4903679e9ae46d2b7e`;
+earlier profile publication statements retain their dated evidence.
+
+Use `RunSession::new_m19`, `RunBatch::new_m19`, `encode_run_m19` and
+`m19_run_observation_spec` with typed
+`RunBossHistory::M19DefectAct3 { act1, act2, act3 }`. All three histories bind before
+canonical Defect A0 short-Neow creation; shared strict raw parsing rejects duplicate,
+partial and foreign histories. The finite universe is29 blue kinds plus Parasite,
+19 relics, five potions, generated Dazed/Burn/Slimed/Wound/Void, including supported
+Burn upgrades, and the16 named shared Act3 setups. One shared Run/resolver/encoder/
+replay/batch scheduler owns progression and visible signed misc/Dark/orb values.
+Combat-v1, prior profiles, Ironclad sidecars and Python bindings retain their scope.
+
+All six originals ended in Death; no Act3 boss entry/matching record or Act3NoKeys
+was observed. The same2,015 choices agree across scalar sessions, portable replay
+and complete paired workers1/2 lanes. The retained workspace is2529 pass,
+2 normal coverage failures and2 inherited M15 holds, not a green workspace.
+The M19 normal gate and M18 Automaton gate, failed assertions and parents remain
+open. The [review record](superpowers/plans/2026-10-28-m19-native-runtime-review.md)
+distinguishes source acceptance from these unmet requirements.
+
+Actual supplied CORE boss settlement/ending reaches Act3NoKeys or all-key/enabled
+healthy Act4Ready at3/50 through the shared owner. The native private published-boundary characterization checks exact
+`UnsupportedBoundary("M19 stops before the Act4 door")`, stale-token precedence,
+preflight nonmutation, reset and close.
+It does not install an actual late Run or prove a full native ending/session/replay
+receipt. The independent nonattacking branch is compiled but unexecuted. No generic
+public late-state injection API, Python-extension delivery, original-runtime or
+Java RNG/map parity is claimed. The supplied combat-v1 contract below is unchanged.
+
 ## Supplied-entry combat-v1
 
 The current version is **source-grounded, not original-runtime validated**.

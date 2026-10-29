@@ -1,5 +1,56 @@
 # Work status
 
+## Current snapshot — 2026-10-28, M19 source-only merge approved; normal gates open
+
+The primary user approved M19 source merge and conditional M20 dependency release
+for the exact independently reviewed857-file source manifest
+`61c186d19a0d0beddf87dc2a2251b3871574354ac32c1fd4520fdaecb4a4724f`.
+One fresh independent senior returned **source accuracy READY**, with zero new
+Critical, Important or Minor technical findings. The actual approval separates
+source acceptance from full milestone completion. M19 publication/main integration
+remains pending; no M19 merged revision is claimed. M20 execution waits for actual
+merged source and a root-assigned accepted-source checkout/task.
+
+The [M19 profile](milestones/m19-defect-act3.md),
+[reconciliation](milestones/m19-defect-act3-reconciliation.md) and
+[review record](superpowers/plans/2026-10-28-m19-native-runtime-review.md) bind the
+finite29-blue-plus-Parasite/19-relic/5-potion native Acts1–3 source. The accepted
+baseline is M18 [PR57](https://github.com/klottick/spire-gym/pull/57) merge
+`9628b77a59c83890012c7e4903679e9ae46d2b7e`.
+
+All six prescribed originals ran once and ended in Death, with2,015 recorded
+choices. One reached Act3 floor40 and died to GiantHead; none entered an Act3 boss
+or reached Act3NoKeys. **The M19 normal boss entry/matching-record and no-key
+completion gate remains OPEN_UNMET_UNWAIVED.** The inherited M18 normal Automaton
+entry/matching-record gate also remains OPEN and unwaived. Both original failed
+assertions and both milestone parents remain open; no source-only acceptance
+waives them or establishes full M18/M19 completion.
+
+The retained final native workspace is2529 passed,2 coverage failures,2 inherited
+M15 holds, across84 suites, exit101. Those two normal coverage assertions are the
+only failures. All25 M19 native integration tests,18 focused core checks and the
+separately qualified private cutoff characterization pass. Five released native
+consumers agree on the same original choices through scalar/portable and complete
+paired workers1/2 endpoints, plus separate heterogeneous preflight/reset and actual
+EmptyCage child/static-capacity checks. This is not a green workspace or fresh
+Python/original-runtime delivery.
+
+Actual supplied CORE boss/ending/all-key and Falling EmptyDeck diagnostics keep
+their source-owner grade. The native private published-boundary cutoff test is
+not an actual late Run/session receipt. The independent nonattacking caller/CLI
+branch is compiled but unexecuted; it is not a passed death-control episode.
+No strategy/resource tuning, seed search, extra outcome runs or supplied replacement
+followed the originals. Prior source and pre-correction records retain their grades.
+
+The primary user also approved the conditional standing source-only workflow and
+automatic postmerge lifecycle instructions now recorded in [AGENTS](../AGENTS.md).
+Already-approved finite scope, source qualifications, meaningful technical checks
+and fresh independent senior READY remain required. Unmatched normal gates and
+parents stay open; material scope/authority changes return to the primary session.
+The earlier snapshots below retain their original wording and dated evidence.
+
+## Earlier snapshots — retained wording
+
 ## Current snapshot — 2026-10-28, M18 source accepted; normal coverage open
 
 The primary user approved merging the independently reviewed finite M18 native

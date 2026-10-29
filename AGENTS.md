@@ -123,6 +123,23 @@ independent final milestone review. Do not create per-task review swarms unless
 the user asks. An accepted predecessor or open downstream Bead alone does not
 authorize a milestone; check the current session and [work status](docs/work-status.md).
 
+The primary user’s standing authorization permits source merge and dependency
+release for already-approved finite profiles after one fresh independent senior
+source-accuracy READY, resolved material technical findings, named source checks
+and applicable meaningful native/preservation checks at explicit grades, with no
+unexpected unresolved runtime failure. Preserve unmatched normal gates, failed
+assertions, original losses/faults/missing endpoints and open milestone parents;
+source acceptance is not full milestone completion. Do not add strategy tuning,
+extra outcome runs or scope expansion. Material scope or new source limitations
+outside existing authority return to the primary session; do not re-ask approval
+for work already covered by these conditions.
+
+After code is merged and required source/evidence retention, hash verification
+and consumer release are complete, normally close our own completed tasks and
+automatically archive agents/worktrees we spawned. Do not require another user
+cleanup request. Preserve active/future work, independently retained evidence and
+unrelated work; verify ownership and completion before lifecycle cleanup.
+
 Use the existing repository Beads context and a distinct actor for a normal claim:
 
     bd context --json
