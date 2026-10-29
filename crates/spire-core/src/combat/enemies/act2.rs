@@ -88,7 +88,7 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
 
 /// Source ordinary actions precede the source cardQueue and native sentinels.
 pub(in crate::combat) fn bottom(state:&mut State,work:Effect){
-    let index=state.pending.iter().position(|e|super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)).unwrap_or(state.pending.len());
+    let index=state.pending.iter().position(|e|super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)||(super::super::cards::watcher::active(state)&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::EndPlayerTurn))).unwrap_or(state.pending.len());
     state.pending.insert(index,work);
 }
 

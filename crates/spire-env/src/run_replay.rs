@@ -12,7 +12,7 @@ pub struct RunReplayReport{
     /// Completed successful semantic steps; a partial fault attempt is separate.
     pub accepted_count:usize,pub rewards:Vec<i32>,pub terminals:Vec<Option<RunTerminal>>,pub reported_fault:Option<RunRecordedFault>,
 }
-fn incompatible()->RunSessionError{RunSessionError::IncompatibleReplay("invalid Run replay value")}
+pub(crate) fn incompatible()->RunSessionError{RunSessionError::IncompatibleReplay("invalid Run replay value")}
 
 /// Parse raw JSON while rejecting duplicate object keys before serde_json::Value
 /// can collapse them. This is shared across profiles because a duplicate field
@@ -113,14 +113,15 @@ pub(crate) fn parse_unique_json(bytes: &[u8]) -> Result<Value, RunSessionError> 
     deserializer.end().map_err(|_| incompatible())?;
     Ok(value)
 }
-fn exact_fields(value: &Value, expected: &[&str]) -> Result<(), RunSessionError> {
+pub(crate) fn exact_fields(value: &Value, expected: &[&str]) -> Result<(), RunSessionError> {
     let object = value.as_object().ok_or_else(incompatible)?;
     if object.len() != expected.len() || expected.iter().any(|field| !object.contains_key(*field)) {
         return Err(incompatible());
     }
     Ok(())
 }
-fn exact_action_fields(action: &Value) -> Result<(), RunSessionError> {
+fn exact_action_fields(action: &Value) -> Result<(), RunSessionError> {exact_action_fields_for(action,false)}
+pub(crate) fn exact_action_fields_for(action:&Value,watcher:bool)->Result<(),RunSessionError>{
     let fields: &[&str] = match text(&action["verb"])? {
         "move" => &["verb", "node"],
         "choose" => &["verb", "choice"],
@@ -131,6 +132,8 @@ fn exact_action_fields(action: &Value) -> Result<(), RunSessionError> {
         "combat.choose_card_offer" => &["verb", "index"],
         "combat.play_card" => &["verb", "instance", "target"],
         "combat.select_card" => &["verb", "instance"],
+        "combat.deselect_card" if watcher=> &["verb","instance"],
+        "combat.choose_stance" if watcher=> &["verb","stance"],
         _ => return Err(incompatible()),
     };
     exact_fields(action, fields)
@@ -155,48 +158,21 @@ fn strict_profile_json_shape(value: &Value,history_key:&str,acts:&[&str]) -> Res
         exact_fields(step, &["action", "reward", "terminal"])?;
         exact_action_fields(&step["action"])?;
     }
-    if !value["fault"].is_null() {
-        let fault = &value["fault"];
-        exact_fields(fault, &["action", "committed", "gameplay_recorded", "error"])?;
-        if !fault["action"].is_null() {
-            exact_action_fields(&fault["action"])?;
-        }
-        let error = &fault["error"];
-        exact_fields(error, &["kind", "message", "capacity"])?;
-        if !error["capacity"].is_null() {
-            let capacity = &error["capacity"];
-            exact_fields(capacity, &["group", "required", "capacity"])?;
-            // Encoder-derived rows share the configured capacity of their
-            // owning group. Diagnostics retain their emitted row-group name;
-            // this codec check does not claim that a synthetic fault is reachable
-            // from a default-capacity session (or rerun gameplay to prove it).
-            let capacity_owner=match text(&capacity["group"])? {
-                "combat_card_offers"=>"offers",
-                "known_draw"=>"combat_cards",
-                group=>group,
-            };
-            if !matches!(
-                capacity_owner ,
-                "map_nodes" | "map_edges" | "permanent_cards" | "combat_cards" | "enemies"
-                    | "powers" | "relics" | "potions" | "offers" | "selection" | "orbs" | "actions"
-            ) || u(&capacity["required"])? <= u(&capacity["capacity"])? {
-                return Err(incompatible());
-            }
-        }
-    }
+    strict_recorded_fault_shape(&value["fault"],false)?;
     Ok(())
 }
-fn u(v:&Value)->Result<u64,RunSessionError>{v.as_u64().ok_or_else(incompatible)}
-fn size(v:&Value)->Result<usize,RunSessionError>{usize::try_from(u(v)?).map_err(|_|incompatible())}
-fn text(v:&Value)->Result<&str,RunSessionError>{v.as_str().ok_or_else(incompatible)}
-fn flag(v:&Value)->Result<bool,RunSessionError>{v.as_bool().ok_or_else(incompatible)}
-fn array(v:&Value)->Result<&Vec<Value>,RunSessionError>{v.as_array().ok_or_else(incompatible)}
-fn term(t:Option<RunTerminal>)->Value{match t{None=>Value::Null,Some(t)=>json!(match t{RunTerminal::Death=>"death",RunTerminal::EmptyDeck=>"empty_deck",RunTerminal::Act3NoKeys=>"act3_no_keys",RunTerminal::HeartVictory=>"heart_victory"})}}
-fn parse_term(v:&Value)->Result<Option<RunTerminal>,RunSessionError>{if v.is_null(){return Ok(None)}Ok(Some(match text(v)?{"death"=>RunTerminal::Death,"empty_deck"=>RunTerminal::EmptyDeck,"act3_no_keys"=>RunTerminal::Act3NoKeys,"heart_victory"=>RunTerminal::HeartVictory,_=>return Err(incompatible())}))}
+pub(crate) fn u(v:&Value)->Result<u64,RunSessionError>{v.as_u64().ok_or_else(incompatible)}
+pub(crate) fn size(v:&Value)->Result<usize,RunSessionError>{usize::try_from(u(v)?).map_err(|_|incompatible())}
+pub(crate) fn text(v:&Value)->Result<&str,RunSessionError>{v.as_str().ok_or_else(incompatible)}
+pub(crate) fn flag(v:&Value)->Result<bool,RunSessionError>{v.as_bool().ok_or_else(incompatible)}
+pub(crate) fn array(v:&Value)->Result<&Vec<Value>,RunSessionError>{v.as_array().ok_or_else(incompatible)}
+pub(crate) fn term(t:Option<RunTerminal>)->Value{match t{None=>Value::Null,Some(t)=>json!(match t{RunTerminal::Death=>"death",RunTerminal::EmptyDeck=>"empty_deck",RunTerminal::Act3NoKeys=>"act3_no_keys",RunTerminal::HeartVictory=>"heart_victory"})}}
+pub(crate) fn parse_term(v:&Value)->Result<Option<RunTerminal>,RunSessionError>{if v.is_null(){return Ok(None)}Ok(Some(match text(v)?{"death"=>RunTerminal::Death,"empty_deck"=>RunTerminal::EmptyDeck,"act3_no_keys"=>RunTerminal::Act3NoKeys,"heart_victory"=>RunTerminal::HeartVictory,_=>return Err(incompatible())}))}
 fn action(a:&GameAction,profile:RunProfile)->Value{match a{
     GameAction::Move(id)=>json!({"verb":"move","node":id.0}),GameAction::Choose(id)=>json!({"verb":"choose","choice":id.0}),GameAction::Select(id)=>json!({"verb":"select","selection":id.0}),GameAction::Confirm=>json!({"verb":"confirm"}),GameAction::Cancel=>json!({"verb":"cancel"}),
     GameAction::UsePotion{slot,target}=>json!({"verb":"use_potion","slot":slot,"target":target.map(|t|t.0)}),GameAction::DiscardPotion{slot}=>json!({"verb":"discard_potion","slot":slot}),
-      GameAction::Combat(a)=>match a{CombatAction::ChooseCardOffer{index}=>json!({"verb":"combat.choose_card_offer","index":index}),CombatAction::SkipCardOffer=>json!({"verb":"combat.skip_card_offer"}),CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),CombatAction::ConfirmSelection if profile!=RunProfile::M9IroncladAct3=>json!({"verb":"combat.confirm_selection"}),CombatAction::ConfirmSelection=>Value::Null,CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),CombatAction::EndTurn=>json!({"verb":"combat.end_turn"})},
+      GameAction::Combat(CombatAction::ConfirmSelection) if profile==RunProfile::M9IroncladAct3=>Value::Null,
+      GameAction::Combat(a)=>combat_action_value(a,false),
  }}
 fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>{
     let verb = text(&v["verb"])?;
@@ -227,11 +203,11 @@ fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>
     Ok(match verb {
         "move"=>GameAction::Move(NodeId(u(&v["node"])?)),"choose"=>GameAction::Choose(ChoiceId(u(&v["choice"])?)),"select"=>GameAction::Select(SelectionId(u(&v["selection"])?)),"confirm"=>GameAction::Confirm,"cancel"=>GameAction::Cancel,
         "use_potion"=>GameAction::UsePotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?,target:target()?},"discard_potion"=>GameAction::DiscardPotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?},
-        "combat.play_card"=>GameAction::Combat(CombatAction::PlayCard{instance:u(&v["instance"])? ,target:target()?}),"combat.select_card"=>GameAction::Combat(CombatAction::SelectCard{instance:u(&v["instance"])?}),"combat.use_potion"=>GameAction::Combat(CombatAction::UsePotion{slot:size(&v["slot"])? ,target:target()?}),"combat.end_turn"=>GameAction::Combat(CombatAction::EndTurn),_=>return Err(incompatible()),
+        _=>GameAction::Combat(parse_combat_action(v,false)?),
     })
 }
-fn capacities(c:&RunCapacities)->Value{json!({"map_nodes":c.map_nodes,"map_edges":c.map_edges,"permanent_cards":c.permanent_cards,"combat_cards":c.combat_cards,"enemies":c.enemies,"powers":c.powers,"relics":c.relics,"potions":c.potions,"offers":c.offers,"selection":c.selection,"orbs":c.orbs,"actions":c.actions})}
-fn parse_capacities(v:&Value)->Result<RunCapacities,RunSessionError>{Ok(RunCapacities{map_nodes:size(&v["map_nodes"])? ,map_edges:size(&v["map_edges"])? ,permanent_cards:size(&v["permanent_cards"])? ,combat_cards:size(&v["combat_cards"])? ,enemies:size(&v["enemies"])? ,powers:size(&v["powers"])? ,relics:size(&v["relics"])? ,potions:size(&v["potions"])? ,offers:size(&v["offers"])? ,selection:size(&v["selection"])? ,orbs:size(&v["orbs"])? ,actions:size(&v["actions"])?})}
+pub(crate) fn capacities(c:&RunCapacities)->Value{json!({"map_nodes":c.map_nodes,"map_edges":c.map_edges,"permanent_cards":c.permanent_cards,"combat_cards":c.combat_cards,"enemies":c.enemies,"powers":c.powers,"relics":c.relics,"potions":c.potions,"offers":c.offers,"selection":c.selection,"orbs":c.orbs,"actions":c.actions})}
+pub(crate) fn parse_capacities(v:&Value)->Result<RunCapacities,RunSessionError>{Ok(RunCapacities{map_nodes:size(&v["map_nodes"])? ,map_edges:size(&v["map_edges"])? ,permanent_cards:size(&v["permanent_cards"])? ,combat_cards:size(&v["combat_cards"])? ,enemies:size(&v["enemies"])? ,powers:size(&v["powers"])? ,relics:size(&v["relics"])? ,potions:size(&v["potions"])? ,offers:size(&v["offers"])? ,selection:size(&v["selection"])? ,orbs:size(&v["orbs"])? ,actions:size(&v["actions"])?})}
 fn boss_history(history: RunBossHistory) -> Value {
     match history {
         RunBossHistory::M20DefectHeart { act1,act2,act3 } => json!({"m20-defect-heart":{"act1":act1_history_name(act1),"act2":act2_history_name(act2),"act3":act3_history_name(act3)}}),
@@ -377,14 +353,13 @@ fn parse_config(v:&Value)->Result<RunSessionConfig,RunSessionError>{Ok(RunSessio
 fn validate(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{validate_identity(record,None)}
 fn validate_identity(record:&RunEpisodeRecord,expected_fingerprint:Option<[u8;32]>)->Result<RunProfile,RunSessionError>{
     let profile=RunProfile::from_record(&record.schema_id,&record.profile_id)?;
+    if record.steps.iter().map(|s|&s.action).chain(record.fault.iter().filter_map(|f|f.action.as_ref())).any(|a|matches!(a,GameAction::Combat(CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}))){return Err(incompatible())}
+
     if record.rules_id!=profile.rules_id()||record.content_id!=profile.content_id()||record.seed_adapter_id!=RUN_SEED_ADAPTER_ID||record.rng_id!=spire_core::combat::rng::RNG_CONTRACT_ID||record.reward_id!=RUN_REWARD_ID{return Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))}
     validate_config(profile,&record.config).map_err(|_|incompatible())?;
     if record.observation_fingerprint!=expected_fingerprint.unwrap_or(profile.observation_spec(&record.config.capacities)?.fingerprint()){return Err(RunSessionError::IncompatibleReplay("Run observation fingerprint mismatch"))}
-    if let Some(f)=&record.fault{
-        if f.gameplay_recorded&&(!f.committed||f.action.is_none()||f.action.as_ref()!=record.steps.last().map(|s|&s.action))||f.committed&&f.action.is_none(){return Err(incompatible())}
-        if (f.error.kind==RunRecordErrorKind::Capacity)!=f.error.capacity.is_some(){return Err(incompatible())}
-        if f.committed&&!f.gameplay_recorded&&f.error.kind!=RunRecordErrorKind::Core{return Err(incompatible())}
-    }Ok(profile)
+    validate_recorded_fault(record.fault.as_ref(),&record.steps)?;
+    Ok(profile)
 }
 impl RunEpisodeRecord{
     pub fn to_json(&self)->Result<Vec<u8>,RunSessionError>{
@@ -584,4 +559,72 @@ mod m20_internal_replay_installation{
             assert!(replay_m20_diagnostic(&ordinary.record().unwrap().unwrap(),cfg.capacities,&envelope,manifest).is_err());
         }
     }
+}
+
+/// Shared semantic combat codec. Watcher verbs are entitled only by M21.
+pub(crate) fn combat_action_value(a:&CombatAction,watcher:bool)->Value{match a{
+ CombatAction::ChooseStance{stance} if watcher=>json!({"verb":"combat.choose_stance","stance":match stance{spire_core::combat::Stance::Wrath=>"wrath",spire_core::combat::Stance::Calm=>"calm",_=>return Value::Null}}),
+ CombatAction::DeselectCard{instance} if watcher=>json!({"verb":"combat.deselect_card","instance":instance}),
+ CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}=>Value::Null,
+ CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),
+ CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),
+ CombatAction::ConfirmSelection=>json!({"verb":"combat.confirm_selection"}),
+ CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),
+ CombatAction::EndTurn=>json!({"verb":"combat.end_turn"}),
+ CombatAction::ChooseCardOffer{index}=>json!({"verb":"combat.choose_card_offer","index":index}),
+ CombatAction::SkipCardOffer=>json!({"verb":"combat.skip_card_offer"}),
+}}
+pub(crate) fn parse_combat_action(v:&Value,watcher:bool)->Result<CombatAction,RunSessionError>{
+ let target=||if v["target"].is_null(){Ok(None)}else{Ok(Some(TargetId(u(&v["target"])?)))};
+ Ok(match text(&v["verb"])?{
+ "combat.play_card"=>CombatAction::PlayCard{instance:u(&v["instance"])?,target:target()?},
+ "combat.select_card"=>CombatAction::SelectCard{instance:u(&v["instance"])?},
+ "combat.use_potion"=>CombatAction::UsePotion{slot:size(&v["slot"])?,target:target()?},
+ "combat.end_turn"=>CombatAction::EndTurn,
+ "combat.confirm_selection"=>CombatAction::ConfirmSelection,
+ "combat.choose_card_offer"=>CombatAction::ChooseCardOffer{index:u32::try_from(u(&v["index"])?).map_err(|_|incompatible())?},
+ "combat.skip_card_offer"=>CombatAction::SkipCardOffer,
+ "combat.deselect_card" if watcher=>CombatAction::DeselectCard{instance:u(&v["instance"])?},
+ "combat.choose_stance" if watcher=>CombatAction::ChooseStance{stance:match text(&v["stance"])?{"wrath"=>spire_core::combat::Stance::Wrath,"calm"=>spire_core::combat::Stance::Calm,_=>return Err(incompatible())}},
+ _=>return Err(incompatible())})
+}
+pub(crate) fn validate_recorded_fault(fault:Option<&RunRecordedFault>,steps:&[RunRecordedStep])->Result<(),RunSessionError>{
+ if let Some(f)=fault{
+  if f.gameplay_recorded&&(!f.committed||f.action.is_none()||f.action.as_ref()!=steps.last().map(|s|&s.action))||f.committed&&f.action.is_none(){return Err(incompatible())}
+  if (f.error.kind==RunRecordErrorKind::Capacity)!=f.error.capacity.is_some(){return Err(incompatible())}
+  if f.committed&&!f.gameplay_recorded&&f.error.kind!=RunRecordErrorKind::Core{return Err(incompatible())}
+ }Ok(())
+}
+
+pub(crate) fn strict_recorded_fault_shape(value:&Value,watcher:bool)->Result<(),RunSessionError>{
+    if !value.is_null() {
+        let fault = value;
+        exact_fields(fault, &["action", "committed", "gameplay_recorded", "error"])?;
+        if !fault["action"].is_null() {
+            exact_action_fields_for(&fault["action"],watcher)?;
+        }
+        let error = &fault["error"];
+        exact_fields(error, &["kind", "message", "capacity"])?;
+        if !error["capacity"].is_null() {
+            let capacity = &error["capacity"];
+            exact_fields(capacity, &["group", "required", "capacity"])?;
+            // Encoder-derived rows share the configured capacity of their
+            // owning group. Diagnostics retain their emitted row-group name;
+            // this codec check does not claim that a synthetic fault is reachable
+            // from a default-capacity session (or rerun gameplay to prove it).
+            let capacity_owner=match text(&capacity["group"])? {
+                "combat_card_offers"=>"offers",
+                "known_draw"=>"combat_cards",
+                group=>group,
+            };
+            if !matches!(
+                capacity_owner ,
+                "map_nodes" | "map_edges" | "permanent_cards" | "combat_cards" | "enemies"
+                    | "powers" | "relics" | "potions" | "offers" | "selection" | "orbs" | "actions"
+            ) || u(&capacity["required"])? <= u(&capacity["capacity"])? {
+                return Err(incompatible());
+            }
+        }
+    }
+    Ok(())
 }

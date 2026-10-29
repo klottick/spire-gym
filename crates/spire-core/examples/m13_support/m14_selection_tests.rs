@@ -119,7 +119,7 @@ fn supplied_selection(
                 CardInstanceId(instance),
                 0,
             );
-            LiveCardView { misc:live.misc,
+            LiveCardView { misc:live.misc, watcher:None,
                 instance: live.instance,
                 id: live.id,
                 origin: live.origin,

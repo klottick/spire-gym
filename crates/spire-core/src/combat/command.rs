@@ -6,6 +6,8 @@ pub struct TargetId(pub u64);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CombatAction {
+    ChooseStance { stance:super::Stance },
+    DeselectCard { instance:u64 },
     PlayCard { instance: u64, target: Option<TargetId> },
     SelectCard { instance: u64 },
     ConfirmSelection,

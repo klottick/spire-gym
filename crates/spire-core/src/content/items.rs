@@ -160,6 +160,9 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition { id: RelicId::Inserter, definition_only: false },
     RelicDefinition { id: RelicId::NuclearBattery, definition_only: false },
     RelicDefinition { id: RelicId::RunicCapacitor, definition_only: false },
+    RelicDefinition{id:RelicId::VioletLotus,definition_only:false},
+    RelicDefinition{id:RelicId::GoldenEye,definition_only:false},
+    RelicDefinition{id:RelicId::TeardropLocket,definition_only:false},
 ];
 pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
     (Character::Ironclad, RelicId::BurningBlood),
@@ -207,6 +210,9 @@ pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::FocusPotion, definition_only: false },
     PotionDefinition { id: PotionId::PotionOfCapacity, definition_only: false },
     PotionDefinition { id: PotionId::EssenceOfDarkness, definition_only: false },
+    PotionDefinition{id:PotionId::StancePotion,definition_only:false},
+    PotionDefinition{id:PotionId::Ambrosia,definition_only:false},
+    PotionDefinition{id:PotionId::BottledMiracle,definition_only:false},
 ];
 
 #[cfg(test)]

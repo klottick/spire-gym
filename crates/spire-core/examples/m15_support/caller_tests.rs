@@ -64,6 +64,7 @@ fn with_choice_candidates(mut value: PublicDecision) -> PublicDecision {
 fn empty_combat() -> spire_core::combat::CombatPublic {
     use spire_core::combat::{CharacterCombatView, CombatPublic, FullPlayerView, Stance};
     CombatPublic {
+        mantra_gained:None, stance_choice:None,
         played_powers: vec![], playing_cards: vec![], stasis: vec![], content_id: "synthetic".into(), turn: 1,
         player: FullPlayerView { hp: 50, max_hp: 70, block: 0, energy: 3, max_energy: 3, powers: vec![] },
         enemies: vec![], character: CharacterCombatView { stance: Stance::Neutral, orbs: vec![], orb_dark_damage:vec![], focus: 0 },

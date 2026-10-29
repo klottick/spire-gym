@@ -80,3 +80,14 @@ mod run_schema_m20;
 pub use run_schema_m20::{m20_run_observation_spec,RUN_OBSERVATION_M20_SCHEMA_ID};
 pub use run_observation::encode_run_m20;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M20,RUN_RULES_ID_M20,RUN_CONTENT_ID_M20};
+
+pub use combat_policy::{watcher_combat_observation_spec,encode_watcher_combat};
+
+mod run_schema_m21;
+pub use run_schema_m21::M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID;
+
+pub use combat_training::M21WatcherCombatEntry;
+
+pub use combat_training::{M21_WATCHER_COMBAT_PROFILE_ID,M21_WATCHER_COMBAT_CONTENT_ID,M21_WATCHER_COMBAT_RULES_ID,M21_WATCHER_COMBAT_CATALOG_SCHEMA_ID};
+mod combat_replay;
+pub use combat_replay::{CombatEpisodeRecord,CombatReplayReport,replay_m21_combat,M21_WATCHER_COMBAT_REPLAY_SCHEMA_ID};

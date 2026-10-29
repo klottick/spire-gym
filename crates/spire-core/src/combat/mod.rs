@@ -39,7 +39,7 @@ pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
 pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
 pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
-pub use view::{CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
+pub use view::{WatcherCardValues,StanceChoiceView,CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
 pub use card_state::{permanent_with_misc as permanent_live_card_with_misc,permanent as permanent_live_card, CombatCardData, LiveCard, PermanentCardMutation};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, OrbState, Stance};
 pub use cards::{resolve,IroncladEffect};
@@ -50,3 +50,11 @@ pub use snapshot::{Divergence, Snapshot};
 
 #[cfg(test)]
 pub(crate) mod tests;
+
+/// Construct fresh finite-profile card state through the shared physical owner.
+/// Generated-only kinds receive combat-local origin, never permanent admission.
+pub fn m21_watcher_live_card(id:crate::content::CardId,instance:CardInstanceId,upgrades:u32)->Result<LiveCard,InputError>{
+    if instance.0==0||upgrades>1||!crate::content::watcher::supports_generated(id){return Err(InputError::Unsupported("invalid finite M21 card constructor".into()))}
+    let mut card=if crate::content::watcher::supports_permanent(id){card_state::permanent(id,instance,upgrades)}else{card_state::generated(id,instance,upgrades).ok_or_else(||InputError::Unsupported("M21 generated constructor missing".into()))?};
+    cards::watcher::initialize_profile(&mut card)?;Ok(card)
+}

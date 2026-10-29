@@ -540,7 +540,7 @@ fn full_entry_owns_generic_card_ids_without_legacy_pile_rows() {
     let cards = vec![unwired];
     let mut combat = Combat::enter(CombatEntry { setup: full_setup(&scenario), opening_draw: 1, cards }).unwrap();
     let ready = combat.public_full().unwrap();
-    assert_eq!(ready.hand, vec![LiveCardView { misc:0, instance: CardInstanceId(9001),
+    assert_eq!(ready.hand, vec![LiveCardView { watcher:None,misc:0, instance: CardInstanceId(9001),
         id: crate::content::CardId::Unknown("unwired_runtime_fixture"),
         origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None,values:None }]);
     assert_eq!(combat.state.piles.draw.len(), 0);

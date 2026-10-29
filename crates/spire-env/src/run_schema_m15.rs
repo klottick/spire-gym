@@ -417,6 +417,7 @@ pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> {
 
 pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> Result<i64, RunSessionError> {
     let name = match selection.operation {
+        Scry|MeditateReturn=>return Err(RunSessionError::UnsupportedBoundary("Watcher selection requires M21 native profile")),
         HologramRetrieve|SeekRetrieve|Recycle=>return Err(RunSessionError::UnsupportedBoundary("M20 selection requires M20 native profile")),
         Move(Hand) => "move_hand",
         Move(Discard) => "move_discard",

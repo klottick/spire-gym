@@ -164,7 +164,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if full_runtime&&*target==Actor::Player {super::cards::defect::on_attacked(state,effect,payload,damage.saturating_sub(block_at_entry).max(0));}
             let damage_event_count=state.damage_events_this_combat;
             if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
-            let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source);
+            let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source);
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
                     Actor::Player => (&mut state.player.hp, &mut state.player.block),
@@ -460,10 +460,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 target: Some(Actor::Player), kind: EffectKind::Heal(*n) });
         }
         EffectKind::GainEnergy(n) => {
-            state.player.energy = if super::cards::defect::capped_energy_source(state,&effect.source,*n) {
-                state.player.energy.saturating_add(*n).min(999)
-            }else{state.player.energy.checked_add(*n).filter(|energy|*energy<=999)
-                .ok_or_else(||InputError::Unsupported("player energy overflow".into()))?};
+            gain_energy(state,*n,super::cards::defect::capped_energy_source(state,&effect.source,*n)||super::cards::watcher::capped_energy_source(state,&effect.source,*n))?;
         }
         EffectKind::LoseEnergy(n)=>{state.player.energy=(state.player.energy-*n).max(0);},
         EffectKind::ApplyPower { id, amount: delta } => {
@@ -689,6 +686,8 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     crate::items::relic_hook_effects(
                         &mut crate::items::CombatItemContext::default(), callback, hp,state.player.max_hp,state.player.block)
                 };
+                super::cards::watcher::capture(state,&mut work.top)?;
+                super::cards::watcher::capture(state,&mut work.bottom)?;
                 if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
                 if *hook==Hook::CombatStarted{
                     let targets=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
@@ -720,6 +719,11 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     source: effect.source.clone(), target: effect.target.clone() });
             }
         }
+        EffectKind::OpeningHand{count}=>{
+            let count=super::piles::opening_hand_count(state,*count);
+            if count>0{let callback=super::piles::deal_opening_one(state);if count>1{state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::OpeningHand{count:count-1}});}if let Some(callback)=callback{state.pending.push_front(callback);}}
+        },
+        EffectKind::Watcher(work)=>super::cards::watcher::apply(state,effect,work)?,
         EffectKind::Ironclad(work)=>super::cards::ironclad::apply(state,effect,work)?,
         EffectKind::ExhaustBatchStart{filter,random,finish}=>super::exhaust::begin_batch(state,effect,*filter,*random,finish.clone())?,
         EffectKind::ExhaustBatchContinue(batch)=>super::exhaust::continue_batch(state,effect,batch)?,
@@ -794,7 +798,7 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     match &parent{
         super::selection::SelectionParent::Card(card) if state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(card)=>(),
         super::selection::SelectionParent::Potion{slot,..} if state.in_play.is_none()&&super::engine::valid_potion_slot(state,*slot)=>(),
-        super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&id.0=="tools_of_the_trade"
+        super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"))
             &&state.phase==Phase::PlayerStart&&state.in_play.is_none()
             &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)=>(),
         super::selection::SelectionParent::EndTurn{turn} if state.full_runtime&&*turn==state.turn
@@ -810,5 +814,12 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     state.pending_selection = Some(PendingSelection { parent,source_zone,candidates,selected: Vec::new(),operation:SelectionOperation::Move(disposition),
         minimum,maximum, disposition, empty });
     state.phase = Phase::Selection;
+    Ok(())
+}
+
+/// Shared gain owner; source-specific producers decide the qualified local cap.
+pub(in crate::combat) fn gain_energy(state:&mut State,amount:i32,capped:bool)->Result<(),InputError>{
+    state.player.energy=if capped{state.player.energy.saturating_add(amount).min(999)}
+        else{state.player.energy.checked_add(amount).filter(|energy|*energy<=999).ok_or_else(||InputError::Unsupported("player energy overflow".into()))?};
     Ok(())
 }

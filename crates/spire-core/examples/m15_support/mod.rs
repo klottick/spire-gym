@@ -252,6 +252,7 @@ pub(crate) fn native_action_value(action: &spire_core::run::GameAction) -> serde
         GameAction::UsePotion { slot, target } => json!({"verb":"use_potion","slot":slot,"target":target.map(|target|target.0)}),
         GameAction::DiscardPotion { slot } => json!({"verb":"discard_potion","slot":slot}),
         GameAction::Combat(action) => match action {
+            CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}=>panic!("M21 deselect is outside the frozen M15 caller"),
             CombatAction::ChooseCardOffer { index } => json!({"verb":"combat.choose_card_offer","index":index}),
             CombatAction::SkipCardOffer => json!({"verb":"combat.skip_card_offer"}),
             CombatAction::PlayCard { instance, target } => json!({"verb":"combat.play_card","instance":instance,"target":target.map(|target|target.0)}),

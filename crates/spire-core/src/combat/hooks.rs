@@ -7,6 +7,7 @@ pub enum Hook {
     CardAcquired, CardRemoved, RoomEntered, CombatStarted, TurnStartedPreDraw, TurnStarted, TurnEnded,
     PlayerPreEndTurnCards, PlayerEndTurn, EnemyTurnStarted,
     CardPlayed, CardAfterUse, CardDiscarded, CardManuallyDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
+    CombatStartedPreDraw,
     ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,CardAfterPlayed,
 }
 
@@ -176,6 +177,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     super::generation::start_turn(state,hook,target,&mut work);
     super::generation::blue_start_turn(state,hook,target,&mut work)?;
     super::cards::defect::power_hook(state,hook,target,&mut work)?;
+    super::cards::watcher::hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
     let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());

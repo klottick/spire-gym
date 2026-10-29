@@ -14,6 +14,8 @@ pub fn canonical_hash(value: &Value) -> String {
 
 pub fn combat_action_value(action: &CombatAction) -> Value {
     match action {
+        CombatAction::ChooseStance{stance}=>json!(["choose-stance",format!("{stance:?}")]),
+        CombatAction::DeselectCard{instance}=>json!(["deselect-card",instance]),
         CombatAction::PlayCard { instance, target } => json!(["play", instance, target.map(|t| t.0)]),
         CombatAction::SelectCard { instance } => json!(["select", instance]),
         CombatAction::ChooseCardOffer{index}=>json!(["choose-card-offer",index]),

@@ -56,6 +56,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             refresh_hand_values(state);
         }
         EffectKind::DiscardHand => {
+            if super::cards::watcher::active(state){return super::cards::watcher::discard_hand(state,effect)}
             if let Some(retain)=&state.temporary_retain {
                 if retain.turn!=state.turn||retain.cards.iter().any(|handle|!state.piles.hand.iter().any(|card|
                     card.handle()==*handle&&card.full().is_some_and(|live|!live.local.ethereal))){
@@ -546,4 +547,20 @@ pub(super) fn shuffle_all_to_draw(state:&mut State)->Result<(),EffectError>{
         let card=state.piles.hand.remove(index as usize);state.piles.draw.push(card);
     }
     state.public.known_draw.clear();state.public.known_draw_bottom.clear();refresh_hand_values(state);Ok(())
+}
+
+/// Opening and queued profile startup share this exact physical deal owner.
+pub(super) fn opening_hand_count(state:&State,requested:usize)->usize{
+    let innate=state.piles.draw.iter().filter(|c|c.full().is_some_and(|c|c.local.innate)).count();
+    requested.max(innate).min(10).min(10usize.saturating_sub(state.piles.hand.len())).min(state.piles.draw.len())
+}
+pub(super) fn deal_opening_one(state:&mut State)->Option<Effect>{
+    let innate=state.piles.draw.iter().position(|c|c.full().is_some_and(|c|c.local.innate));
+    let card=if let Some(at)=innate{state.piles.draw.remove(at)}else{state.piles.draw.pop().expect("opening count bounded by draw size")};
+    let owner=card.handle();
+    let callback=if state.silent.history_enabled{
+        if let Some(live)=card.full(){state.silent.drawn_cards.push(super::cards::DrawnCard{id:live.id,instance:Some(live.instance)});}
+        Some(Effect{source:Source::Card(owner.clone()),target:Some(Actor::Player),kind:EffectKind::AfterCardDrawn{card:owner.clone()}})
+    }else{None};
+    state.public.revealed_order.push(owner);state.piles.hand.push(card);refresh_hand_values(state);callback
 }

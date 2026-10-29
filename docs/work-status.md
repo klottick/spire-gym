@@ -1,5 +1,51 @@
 # Work status
 
+## Current snapshot — 2026-10-29, M21 source accepted; publication pending
+
+Root accepted finite native M21 source under the primary user's standing
+source-only conditions. The initial comprehensive independent Tasks1–8/all-five-
+focus review found0 Critical/3 Important/0 Minor; the SAME reviewer's scoped
+recheck closed I1/I2/I3 and returned **SOURCE ACCURACY READY,0C/0I/0M remaining**.
+Accepted corrected911-file source manifest:
+`c8dfb42fbd4e7dd774a30fd2df7f53114360667eb98dcb7240a792b8fd1b125b`.
+This is source-only acceptance, not a merged revision or full M21 completion.
+The [profile](milestones/m21-watcher-combat.md),
+[reconciliation](milestones/m21-watcher-source-reconciliation.md) and
+[public review record](superpowers/plans/2026-10-29-m21-native-runtime-review.md)
+bind scope, corrections, exact identities and evidence grades.
+
+Current corrected focused checks pass66 M21 core/5 admission/8 public caller/
+17 native integration/2 native owner. Named predecessor controls pass10 TimeWarp/
+32 autoplay/54 turn/26 Shield-Spear/2 M11. These overlapping scoped counts are
+not a new workspace total. Historical workspace2996PASS/2 known normal-gate
+FAIL/7 inherited ignores remains PRE-METADATA and PRE-REVIEW-CORRECTION.
+All16 once-only outcomes (12Victory/4Death,349 choices) and their same-choice
+native proofs remain immutable PRE-REVIEW-CORRECTION; they were not rerun on the
+corrected source. There were no replacement cases, strategy/resource tuning,
+extra episodes or coverage waivers.
+
+Seed11 retain `meditate_choice` remains **UNMET_UNWAIVED**; full M21 is not
+complete and parent43 stays OPEN. M18/M19 normal gates/parents remain
+OPEN_UNMET_UNWAIVED; M20 canonical normal Heart remains UNPROVEN_OPEN.
+All57 initial native publications prove initial boundaries, not57 completed fights.
+The PureWater child/opening fault is a supplied shared Hook/Create/OpeningHand
+native-guard checkpoint after the child/before draw, not a public pause, Run
+startup episode, canonical reachability or original-frame/cap proof. Qualified
+finite Scry, source-authentication and Python/original-runtime limits remain.
+The review record preserves the early-six executed-binary retention limitation
+and later hash-matched input-byte recovery at its actual grade.
+
+Root owns exact staging, commit/PR/merge, verified accepted export and release.
+M22's source dependency becomes usable only after actual M21 root merge,
+verified accepted-source export and explicit root assignment against the approved
+M22 plan. This snapshot dispatches no M22 implementation. Administrative
+preparation changes exactly six documents and no runtime, test, caller, consumer,
+resource, Cargo, lockfile, fixture or approved-pair bytes.
+
+## Prior status body — 2026-10-29, before M21 source acceptance, retained verbatim
+
+# Work status
+
 ## Current snapshot — 2026-10-29, M20 source accepted; publication pending
 
 Root accepted the finite native M20 source under the primary user's standing
@@ -868,3 +914,11 @@ next work is execution-workspace setup and the first ready registry/foundation
 component, not another historical integration or general
 verifier cycle. Current planning changes documentation/tracker state only:
 no product or dependency changes, new runtime tests, commits, pushes or merges.
+
+### 2026-10-29 — M21 implementation candidate
+
+M21 finite Watcher authored combat is in authorized implementation on accepted M20 merge `71bc56939475dd1a0beb8500c1f58d432ce878da`. The [candidate profile](milestones/m21-watcher-combat.md) and [separate source reconciliation](milestones/m21-watcher-source-reconciliation.md) describe its finite native scope and adopted qualifications. The approved design/plan bytes are unchanged. Combined core, typed native session/whole-catalog replay and prescribed public caller work is being retained outside managed worktrees. The source-stable default native workspace run is retained at 2,996 passes / two inherited M18/M19 failures / seven inherited ignores, explicitly before the subsequent narrow M21 optional metadata correction. Affected current core/native/caller checks pass. The frozen sixteen original demonstrations completed once: twelve Victory, four genuine Death, no faults/budgets, with all sixteen same-choice native replays matching. Seed11 retain lacks the Meditate-choice witness and was not replaced. One independent final review remains pending; this entry makes no source-acceptance or full-milestone completion claim. M18/M19 normal gates remain open/unmet/unwaived and M20 normal Heart remains unproven.
+
+### 2026-10-29 — M21 bounded final-review corrections candidate
+
+The initial comprehensive independent Senior review requested I1/I2 callback/finish fixes and I3 continuation/custody proofs. The corrected candidate preserves installed Hymn/Foresight order and Meditate’s physical finish before the single shared TimeWarp end. Current focused checks pass66 M21 core/5 admission/8 caller/17 native/2 native owner; named predecessor controls pass10 TimeWarp/32 autoplay/54 turn/26 Shield-Spear/2 M11. No broad workspace or prescribed episodes were rerun. Original16 outcomes (12Victory/4Death,349 choices) and same-choice native proofs are PRE-REVIEW-CORRECTION. Seed11 retain meditate_choice remains UNMET_UNWAIVED; inherited normal gates are unchanged. Same-reviewer recheck/source acceptance remain pending. See the [candidate profile](milestones/m21-watcher-combat.md) and [reconciliation](milestones/m21-watcher-source-reconciliation.md).

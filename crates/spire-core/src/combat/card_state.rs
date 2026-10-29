@@ -7,6 +7,9 @@ use std::fmt;
 
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct CombatCardData {
+    pub m21:bool,
+    pub self_retain:bool,
+    pub retain:bool,
     /// Actual mutable native damage, not target-modified displayed damage.
     pub base_damage: Option<i32>,
     pub base_block: Option<i32>,
@@ -59,6 +62,7 @@ impl fmt::Debug for CombatCardData {
         if self.turn_cost.is_some(){debug.field("turn_cost",&self.turn_cost);}
         if self.free_to_play_once{debug.field("free_to_play_once",&self.free_to_play_once);}
         if self.rebound_on_finish{debug.field("rebound_on_finish",&true);}
+        if self.m21{debug.field("m21",&true).field("self_retain",&self.self_retain).field("retain",&self.retain);}
         debug.finish()
     }
 }
@@ -152,14 +156,14 @@ pub(super) fn upgrade_base_cost(card:&mut LiveCard,original:i32,requested:i32)->
 pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCard {
     let mut card=LiveCard { instance, id, origin: CombatCardRef::Permanent(instance),
          upgrades, misc:if id.as_str()=="genetic_algorithm"{1}else{0}, local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(super::cards::ironclad::rules::reconstructed_searing_damage(upgrades))}else if id==CardId::Rampage{Some(8)}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else if id==CardId::MasterfulStab{Some(if upgrades>0{16}else{12})}else if id==CardId::Eviscerate{Some(if upgrades>0{9}else{7})}else if id==CardId::EndlessAgony{Some(if upgrades>0{6}else{4})}else if id==CardId::GlassKnife{Some(if upgrades>0{12}else{8})}else if id==CardId::Skewer{Some(if upgrades>0{10}else{7})}else{None},mutable_combat_cost:super::cards::starting_cost(id,upgrades),turn_cost:super::cards::starting_cost(id,upgrades),exhaust_on_finish: matches!(id,CardId::Disarm|CardId::Impervious|CardId::Offering|CardId::Pummel|CardId::Intimidate|CardId::SeeingRed|CardId::Shockwave|CardId::Warcry|CardId::Exhume|CardId::Feed|CardId::Reaper|CardId::FiendFire|CardId::InfernalBlade|CardId::Catalyst|CardId::Nightmare|CardId::Backstab|CardId::Adrenaline|CardId::DieDieDie|CardId::PiercingWail|CardId::CripplingCloud|CardId::Terror|CardId::DarkShackles|CardId::DramaticEntrance|CardId::Panacea|CardId::PanicButton|CardId::MasterOfStrategy|CardId::EndlessAgony|CardId::Doppelganger|CardId::Malaise|CardId::Apotheosis|CardId::Madness|CardId::Purity|CardId::Violence|CardId::Distraction|CardId::Alchemize|CardId::Chrysalis|CardId::Metamorphosis|CardId::JackOfAllTrades|CardId::Transmutation)||(id==CardId::Discovery&&upgrades==0)||(id==CardId::CalculatedGamble&&upgrades==0)||(id==CardId::LimitBreak&&upgrades==0)||(matches!(id,CardId::SecretTechnique|CardId::SecretWeapon|CardId::ThinkingAhead)&&upgrades==0),ethereal:matches!(id,CardId::Carnage|CardId::GhostlyArmor|CardId::Dazed|CardId::Void),innate:(id==CardId::Brutality&&upgrades>0)||id==CardId::Backstab||matches!(id,CardId::AfterImage|CardId::InfiniteBlades)&&upgrades>0||matches!(id,CardId::DramaticEntrance|CardId::MindBlast),x_cost:matches!(id,CardId::Whirlwind|CardId::Skewer|CardId::Doppelganger|CardId::Malaise|CardId::Transmutation), ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Original };
-    super::cards::defect::initialize(&mut card);card
+    super::cards::defect::initialize(&mut card);super::cards::watcher::initialize(&mut card);card
 }
 
 /// Build a temporary native card with its actual use/disposition state.
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     // Green generation uses the same flags and local writers as permanent
     // descriptors. A template receives no permanent ownership or issued handle.
-    if crate::content::defect::supports_m20_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
+    if (crate::content::watcher::supports_generated(id)&&id!=CardId::Miracle)||crate::content::defect::supports_m20_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
         ||crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Colorless&&!row.definition_only&&matches!(row.rarity,crate::content::CardRarity::Uncommon|crate::content::CardRarity::Rare)&&matches!(row.card_type,crate::content::CardType::Attack|crate::content::CardType::Skill|crate::content::CardType::Power)) {
         let mut card=permanent(id,instance,upgrades);
         card.origin=CombatCardRef::CombatLocal(instance.0);
@@ -348,4 +352,15 @@ pub(super) fn discount_force_field(card:&mut LiveCard){
     if base<=0{return}
     let turn=card.local.turn_cost.unwrap_or(base.saturating_add(card.local.temporary_cost));
     card.local.mutable_combat_cost=Some(base-1);card.local.turn_cost=Some(if turn>0{turn-1}else{turn});card.local.temporary_cost=0;
+}
+
+/// Source modifyCostForCombat: the positive turn price becomes both prices;
+/// a zero turn price instead preserves zero while reducing the combat price.
+pub(super) fn modify_cost_for_combat(card:&mut LiveCard,delta:i32)->Result<(),InputError>{
+    if card.local.x_cost{return Ok(())}
+    let Some(combat)=card.local.mutable_combat_cost.or(card.local.randomized_cost) else{return Ok(())};
+    let turn=card.local.turn_cost.unwrap_or(combat);
+    if combat<0||turn<0{return Ok(())}
+    let next=if turn>0{turn.wrapping_add(delta).max(0)}else{combat.wrapping_add(delta).max(0)};
+    card.local.mutable_combat_cost=Some(next);card.local.turn_cost=Some(if turn>0{next}else{turn});card.local.temporary_cost=0;Ok(())
 }

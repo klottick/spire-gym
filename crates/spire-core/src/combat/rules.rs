@@ -71,13 +71,13 @@ pub(super) fn full_normal_damage_given_received(base:i32,strength:i32,weak:bool,
 
 pub(super) fn full_normal_damage_given_received_with_weak_multiplier(base:i32,strength:i32,weak:bool,
     weak_multiplier:f32,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
-    full_normal_damage_pipeline(base,strength,weak,weak_multiplier,wrath,double,receive,false)
+    full_normal_damage_pipeline(base,strength,weak,weak_multiplier,if wrath{2.0}else{1.0},double,receive,false,false)
 }
 
 pub(super) fn full_signed_card_damage(base:i32,strength:i32,weak:bool,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
-    full_normal_damage_pipeline(base,strength,weak,0.75_f32,wrath,double,receive,true)
+    full_normal_damage_pipeline(base,strength,weak,0.75_f32,if wrath{2.0}else{1.0},double,receive,true,false)
 }
-fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool)->Result<i32,InputError>{
+fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,stance_multiplier:f32,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool,check_width:bool)->Result<i32,InputError>{
     if !signed{bounded(base, 10_004, "full base damage")?;}
     if !(-999..=999).contains(&strength) {
         return Err(InputError::Unsupported("full Strength outside supported numeric surface".into()));
@@ -87,8 +87,9 @@ fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f
     };
     if weak { value *= weak_multiplier; }
     if double { value *= 2.0f32; }
-    if wrath { value *= 2.0f32; }
+    value *= stance_multiplier;
     for multiplier in receive {value*=multiplier;}
+    if check_width{watcher_final_width(value)?;}
     if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
     Ok(value.max(0.0).floor() as i32)
 }
@@ -128,18 +129,20 @@ pub fn full_block_after_add(current: i32, amount: i32) -> Result<i32, InputError
 /// Printed card Block: stat addition, binary32 Frail, then one final floor.
 /// Direct Block gains (potions, orbs and enemies) do not call this calculation.
 pub fn full_card_block(base: i32, dexterity: i32, frail: bool) -> Result<i32, InputError> {
-    full_card_block_pipeline(base,dexterity,frail,false)
+    full_card_block_pipeline(base,dexterity,frail,false,false)
 }
 pub(super) fn full_signed_card_block(base:i32,dexterity:i32,frail:bool)->Result<i32,InputError>{
-    full_card_block_pipeline(base,dexterity,frail,true)
+    full_card_block_pipeline(base,dexterity,frail,true,false)
 }
-fn full_card_block_pipeline(base:i32,dexterity:i32,frail:bool,signed:bool)->Result<i32,InputError>{
+pub(super) fn full_watcher_card_block(base:i32,dexterity:i32,frail:bool)->Result<i32,InputError>{full_card_block_pipeline(base,dexterity,frail,true,true)}
+fn full_card_block_pipeline(base:i32,dexterity:i32,frail:bool,signed:bool,check_width:bool)->Result<i32,InputError>{
     if !signed{bounded(base, 1007, "card Block base")?;}
     if !(-999..=999).contains(&dexterity) {
         return Err(InputError::Unsupported("Dexterity outside supported native surface".into()));
     }
     let mut value = if signed{base as f32+dexterity as f32}else{(base + dexterity) as f32};
     if frail { value *= 0.75_f32; }
+    if check_width{watcher_final_width(value)?;}
     Ok(value.max(0.0).floor() as i32)
 }
 
@@ -293,4 +296,18 @@ pub(super) fn full_wide_hp_and_block_after_damage(hp:i32,block:i32,damage:i32)->
     bounded(hp,999,"HP")?;bounded(block,999,"block")?;bounded(damage,i32::MAX,"wide damage")?;
     let absorbed=block.min(damage);let remaining=i64::from(damage)-i64::from(absorbed);
     Ok(((i64::from(hp)-remaining).max(0) as i32,block-absorbed))
+}
+
+pub(super) fn full_normal_damage_received_for_stance(base:i32,strength:i32,weak:bool,stance:super::Stance,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
+    full_card_damage_for_stance(base,strength,weak,if stance==super::Stance::Wrath{stance}else{super::Stance::Neutral},false,receive,false)
+}
+pub(super) fn full_card_damage_for_stance(base:i32,strength:i32,weak:bool,stance:super::Stance,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool)->Result<i32,InputError>{
+    let multiplier=match stance{super::Stance::Wrath=>2.0,super::Stance::Divinity=>3.0,_=>1.0};
+    full_normal_damage_pipeline(base,strength,weak,0.75_f32,multiplier,double,receive,signed,true)
+}
+
+fn watcher_final_width(value:f32)->Result<(),InputError>{
+    // W-NUM source overflow/conversion remains unclosed. Preserve finite int32
+    // gameplay and report exhausted native representation instead of saturation.
+    if !value.is_finite()||value>=2_147_483_648.0_f32{return Err(InputError::Unsupported("Watcher final float exceeds native int32 representation".into()))}Ok(())
 }

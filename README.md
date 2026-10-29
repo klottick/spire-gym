@@ -7,6 +7,24 @@ models and experiments live outside this repository. There is no graphical clien
 
 ## What works today
 
+M21 finite native Watcher authored-combat **source is accepted; publication is
+pending**. Root applied the primary user's standing source-only workflow after
+one comprehensive independent review and the same reviewer's I1/I2/I3 recheck
+returned READY with zero remaining findings. The [M21 profile](docs/milestones/m21-watcher-combat.md),
+[source reconciliation](docs/milestones/m21-watcher-source-reconciliation.md) and
+[review record](docs/superpowers/plans/2026-10-29-m21-native-runtime-review.md)
+separate current focused checks from historical outcomes. All16 original cases
+(12Victory/4Death,349 choices and native agreement) are PRE-REVIEW-CORRECTION;
+seed11 retain `meditate_choice` remains UNMET_UNWAIVED and full M21 is incomplete.
+M18/M19 normal gates and M20 canonical normal Heart remain open. No M21 merge,
+Python delivery or original-runtime claim follows. M22 waits for actual root
+merge, verified accepted export and explicit assignment against its approved plan.
+
+The prior profile rows, evidence paragraphs, commands and speed metrics below
+retain their dated status, including earlier publication-pending and downstream
+release statements. They do not supersede this M21 source-only acceptance or
+establish current whole-workspace-green or completed normal progression.
+
 Current native source includes **Ironclad and Silent at Ascension 0**, plus
 accepted finite **Defect A0 Acts1–4/Heart and full75-blue source**, with M20
 publication pending. M18/M19 normal gates and M20 normal Heart remain open.
@@ -15,6 +33,7 @@ encounters have real mechanics, but reward, shop and event pools are bounded.
 
 | Surface | Implemented coverage | Current limit |
 | --- | --- | --- |
+| Native Watcher authored-combat source | Finite A0,28 permanent/3 generated kinds, four stances, Mantra, Scry, retain, seven relics/seven potions; shared57 setup boundaries, scalar session and whole-catalog replay | Source accepted; publication pending. All57 initial publications are not57 completed fights; required seed11 Meditate witness remains unmet. [M21 profile](docs/milestones/m21-watcher-combat.md) |
 | Native Ironclad Runs | Captured Acts 1–3; opt-in Act 4, keys, Shield/Spear and Heart mechanics; all 75 ordinary red card kinds | Normal-start traversal to the Heart and HeartVictory remain unobserved. [Ironclad profile](docs/milestones/m10-heart.md) |
 | Native Silent Runs | Canonical starts, captured Acts 1–4/Heart, all 75 green card kinds and exclusive items; Poison, discard, Shiv, retain, copy and generation mechanics | Finite captured reward/shop/event content; native-only delivery. Canonical normal-start Heart completion remains unproven. [Silent profile](docs/milestones/m15-silent-heart.md) |
 | Native Defect Acts1–4/Heart source | All75 ordinary blue kinds, required generated closure, nine exclusive relics/three exclusive potions; normal115-card/26-relic/33-potion vocabulary, keys and shared Act4/Heart | Source accepted after comprehensive review and same-reviewer I1 closure, 0C/0I/0M; publication pending. Six normal Deaths, supplied fault and later110-action supplied victory/native agreement are pre-I1 evidence; canonical normal Heart UNPROVEN. [M20 profile](docs/milestones/m20-defect-heart.md) |

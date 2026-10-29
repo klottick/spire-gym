@@ -2,7 +2,7 @@
 use super::{Actor, DamagePayload, Effect, EffectKind, Source};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Stance { Neutral, Wrath, Calm }
+pub enum Stance { Neutral, Wrath, Calm, Divinity }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OrbKind { Lightning, Frost, Dark, Plasma }
@@ -23,9 +23,10 @@ impl std::fmt::Debug for OrbState {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct CharacterState {
     pub stance: Stance,
+    pub mantra_gained:i32,
     pub orb_slots: Vec<Option<OrbState>>,
     pub focus: i32,
 }
@@ -33,7 +34,7 @@ pub struct CharacterState {
 impl CharacterState {
     pub fn for_character(character: crate::content::Character) -> Self {
         let orb_slots = if character == crate::content::Character::Defect { vec![None; 3] } else { Vec::new() };
-        Self { stance: Stance::Neutral, orb_slots, focus: 0 }
+        Self { stance: Stance::Neutral, mantra_gained:0, orb_slots, focus: 0 }
     }
 }
 
@@ -63,6 +64,7 @@ pub(super) fn apply(state: &mut super::model::State, source: &Source,
                 kind:EffectKind::ApplyFullPower{id:super::FullPowerId("focus"),amount:delta}});
         }
         CharacterEffect::Stance(next) => {
+            if super::cards::watcher::stance_transition(state,next)? {return Ok(())}
             let previous=state.character.stance;
             if previous==next {return Ok(())}
             if previous==Stance::Calm {
@@ -211,4 +213,11 @@ fn lightning(state:&mut super::model::State,source:&Source,amount:i32)->Result<(
         state.pending.push_front(Effect{source:source.clone(),target:Some(Actor::Enemy(target)),kind:EffectKind::Damage(DamagePayload::Orb(amount))});
     }
     Ok(())
+}
+
+impl std::fmt::Debug for CharacterState{
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
+        let mut d=f.debug_struct("CharacterState");d.field("stance",&self.stance).field("orb_slots",&self.orb_slots).field("focus",&self.focus);
+        if self.mantra_gained!=0{d.field("mantra_gained",&self.mantra_gained);}d.finish()
+    }
 }
