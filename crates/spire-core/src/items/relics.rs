@@ -49,6 +49,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
         for relic in context.relics() {
             if (*relic == RelicId::Anchor) != anchor_pass { continue; }
             let kind = match (hook, *relic) {
+                (Hook::CombatStartedPreDraw,RelicId::HolyWater) if context.m22_profile()=>Some(EffectKind::Watcher(crate::combat::cards::watcher::WatcherEffect::CreateRequest{id:crate::content::CardId::Miracle,count:3})),
                 (Hook::CombatStartedPreDraw,RelicId::TeardropLocket) if context.m21_profile()=>Some(EffectKind::Character(crate::combat::CharacterEffect::Stance(crate::combat::Stance::Calm))),
                 (Hook::CombatStarted, RelicId::DataDisk) => Some(EffectKind::Character(crate::combat::CharacterEffect::Focus(1))),
                 (Hook::CombatStarted, RelicId::Vajra) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("strength"),amount:1 }),
@@ -82,6 +83,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
 /// Apply the native acquisition/equipment child for relics whose effect is
 /// defined at obtain time. RunState is the sole owner outside active combat.
 pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError> {
+    if id==RelicId::HolyWater{return replace_pure_water(state)}
     if id==RelicId::FrozenCore{return replace_cracked_core(state)}
     if matches!(id,RelicId::SymbioticVirus|RelicId::Inserter|RelicId::NuclearBattery|RelicId::RunicCapacitor)
         &&(state.character!=crate::content::Character::Defect||state.relics.contains(&id)){return Err(RunError::InvalidAction)}
@@ -156,4 +158,14 @@ fn replace_cracked_core(state:&mut RunState)->Result<(),RunError>{
         ||state.relics.iter().filter(|id|**id==RelicId::CrackedCore).count()!=1{return Err(RunError::InvalidAction)}
     let slot=state.relics.iter().position(|id|*id==RelicId::CrackedCore).unwrap();
     state.relics[slot]=RelicId::FrozenCore;state.relic_counters.remove(&RelicId::CrackedCore);Ok(())
+}
+
+/// Boss obtain replaces the canonical starter slot and equips the new relic once.
+fn replace_pure_water(state:&mut RunState)->Result<(),RunError>{
+    if state.combat.is_some()||state.active_combat.is_some()||state.character!=crate::content::Character::Watcher
+        ||state.relics.first()!=Some(&RelicId::PureWater)||state.relics.contains(&RelicId::HolyWater)
+        ||state.relics.iter().filter(|id|**id==RelicId::PureWater).count()!=1{return Err(RunError::InvalidAction)}
+    state.relics[0]=RelicId::HolyWater;
+    state.relic_counters.remove(&RelicId::PureWater);
+    Ok(())
 }

@@ -15,4 +15,4 @@ sha2 = "=0.10.9"
 
 [dev-dependencies]
 # Explicit test-only feature unification; normal library dependencies stay unchanged.
-spire-core = { workspace = true, features = ["m20-diagnostics"] }
+spire-core = { workspace = true, features = ["m20-diagnostics", "m22-diagnostics"] }

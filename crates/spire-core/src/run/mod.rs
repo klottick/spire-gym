@@ -39,6 +39,9 @@ pub use rooms::m18_content::{M18_DEFECT_ACT2_CARDS,M18_DEFECT_ACT2_RELICS,M18_DE
 
 pub use rooms::m19_content::{M19_DEFECT_ACT3_CARDS,M19_DEFECT_ACT3_RELICS,M19_DEFECT_ACT3_POTIONS};
 
-#[cfg(any(test,feature="m20-diagnostics"))]
+#[cfg(any(test,feature="m20-diagnostics",feature="m22-diagnostics"))]
 pub mod diagnostics;
 pub use rooms::m20_content::{M20_DEFECT_HEART_CARDS,M20_DEFECT_HEART_RELICS,M20_DEFECT_HEART_POTIONS};
+
+pub use rooms::m22_content;
+pub use rooms::m22_content::{M22_WATCHER_ACT1_CARDS,M22_WATCHER_ACT1_RELICS,M22_WATCHER_ACT1_POTIONS};

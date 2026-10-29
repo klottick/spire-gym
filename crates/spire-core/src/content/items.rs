@@ -40,6 +40,7 @@ pub(crate) const DEFECT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
 ];
 
 pub(crate) const EXCLUSIVE_RELIC_CHARACTERS: &[(RelicId, Character)] = &[
+    (RelicId::HolyWater, Character::Watcher),
     (RelicId::CrackedCore, Character::Defect),
     (RelicId::DataDisk, Character::Defect),
     (RelicId::GoldPlatedCables, Character::Defect),
@@ -106,6 +107,7 @@ pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
 ];
 
 pub(crate) const RELICS: &[RelicDefinition] = &[
+    RelicDefinition{id:RelicId::HolyWater,definition_only:false},
     RelicDefinition { id:RelicId::ChemicalX,definition_only:false },
     RelicDefinition{id:RelicId::Vajra,definition_only:false},
     RelicDefinition{id:RelicId::OddlySmoothStone,definition_only:false},

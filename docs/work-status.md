@@ -1,5 +1,97 @@
 # Work status
 
+## Current snapshot — 2026-10-29, M22 source accepted; publication pending
+
+Root accepted finite native Watcher A0 Act1 source under the primary standing
+source-only workflow after ONE fresh comprehensive independent senior review
+covered Tasks0–7 and all five focus classes with **SOURCE ACCURACY READY,
+0 Critical / 0 Important / 0 Minor findings**. The reviewed932-file source
+manifest is `1e929636cb90588f646220f113be78840911712f150ce3ef740d7241afd7245f`.
+The [M22 profile](milestones/m22-watcher-act1.md),
+[reconciliation](milestones/m22-watcher-act1-reconciliation.md) and
+[public review record](superpowers/plans/2026-10-29-m22-native-runtime-review.md)
+state exact scope, source lineage and composition grades. Publication is pending;
+no M22 merge SHA or full milestone completion is claimed. Parent44 stays OPEN.
+
+Current corrected scoped proof includes268 affected core passes/two inherited
+holds; startup7/turn17/resolver17; actual native9; M21/M22 native17/15;
+M21/M22 caller8/8/data4; corrective preflight1 and source-bound builds.
+These overlapping counts are not a new workspace total. The narrow Anchor
+correction resolved the real startup defect without relaxing strict Decision.
+One separately frozen seed11/SlimeBoss corrective normal case ended in Death324
+without an operational fault; only its new transcript was consumed by corrected
+scalar/strictJSON/portable/full-pair workers1/2. Three first supplied boss attempts
+reached actual Victory/Act2Ready with1 bootstrap plus37/31/25 policy actions,
+total38/32/26. Supplied and constructed diagnostics never become normal witnesses.
+
+The original six cases remain four Deaths, one healthy SlimeBoss cutoff and one
+Anchor fault:1050 successful/1051 actual accepted actions. Their original native
+agreement and separate retained M15 coexistence32 prefixes, together with the
+3071PASS/2knownM18M19normalFAIL/7inherited-hold workspace, remain permanently
+PRE-ANCHOR-CORRECTION. All original losses/faults and failed assertions are retained.
+Normal Guardian/Hexaghost matching Victory plus healthy Act2Ready remains
+UNPROVEN_OPEN; the sole normal SlimeBoss witness belongs to original source.
+
+The independent review distinguishes executed actual-owner/constructed/supplied
+proof from source-composition analysis where a combined checkpoint was not run.
+There is no exhaustive late-fault, all-six corrected-source completion, original
+runtime or Python-delivery claim. This administrative preparation runs no build,
+test, policy, replay or episode and changes only six authorized documents.
+M18/M19 normal gates/parents remain OPEN_UNMET_UNWAIVED; M20 normal Heart remains
+UNPROVEN_OPEN; M21 seed11 retain `meditate_choice`/parent43 remains OPEN_UNMET_UNWAIVED.
+
+Root owns staging, publication/merge, verified accepted export and lifecycle.
+M23 dependency release requires actual M22 merge plus verified accepted export;
+implementation also requires explicit root assignment against its already-approved
+plan. Source acceptance alone dispatches no M23 work. The complete prior status
+body below is retained byte-for-byte as dated history.
+
+## Prior status body — 2026-10-29, before M22 source-only acceptance, retained verbatim
+
+# Work status
+
+## Current snapshot — 2026-10-29, M22 finite native Act1 candidate
+
+M22 implementation and prescribed evidence are ready for one fresh independent
+final review; no final-review READY, root acceptance or publication is claimed.
+The actual accepted predecessor is M21 PR60 merge
+`f75eed197a5a51a612f2508caddb9f1477e4e7a8`, independently retained as912 files.
+The [M22 profile](milestones/m22-watcher-act1.md) and
+[reconciliation](milestones/m22-watcher-act1-reconciliation.md) bind the immutable
+approved pair, finite28-card/18-relic/7-potion native scope and exact evidence.
+
+Six once-only original normal cases produced four Deaths, one healthy Act2Ready
+and one real Anchor startup fault:1050 successful/1051 actual accepted actions.
+Original source/freeze and all-six native scalar/strictJSON/portable/full-pair
+workers1/2 agreement, plus separate M15 coexistence32 prefixes, remain
+PRE-ANCHOR-CORRECTION. No original receipt was replaced.
+
+The minimal shared bottom-work correction preserves strict Decision and has
+meaningful RED/GREEN plus affected current core/native/caller/old controls.
+One separately frozen root-authorized seed11/SlimeBoss correction ended in
+Death324 without a fault; its first152 complete rows match the original prefix.
+Only that corrective transcript was consumed on matching corrected native
+scalar/replay/full-pair workers1/2. The eligible fixed-three supplied boss series
+ran for the first and only time: Guardian/Hexaghost/SlimeBoss actual Victory and
+healthy Act2Ready, with1 bootstrap plus37/31/25 policy actions. Supplied outcomes
+and constructed child/fault tests do not prove normal traversal.
+
+Normal Guardian/Hexaghost completion remains UNPROVEN_OPEN. Original seed7
+SlimeBoss is the sole normal Victory/healthy cutoff witness, on original source.
+The joined3071PASS/2knownM18M19normalFAIL/7inheritedignores workspace is explicitly
+PRE-ANCHOR-CORRECTION; current corrected proof is focused checks and separately
+frozen scoped outcomes, not a new full-workspace result. M18/M19 normal gates,
+M20 canonical normal Heart and M21 seed11 retain meditate_choice remain open and
+unwaived. No Python extension build/import/test, game run or M23 release occurred.
+
+Root owns the fresh comprehensive final review, acceptance, publication and
+lifecycle disposition. The prior dated status below retains its original grades
+and pending prose as history; it does not override the actual M21 merge/M22 release.
+
+## Prior status body — before M22 candidate, retained verbatim
+
+# Work status
+
 ## Current snapshot — 2026-10-29, M21 source accepted; publication pending
 
 Root accepted finite native M21 source under the primary user's standing

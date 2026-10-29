@@ -7,6 +7,38 @@ models and experiments live outside this repository. There is no graphical clien
 
 ## What works today
 
+M22 finite native Watcher A0 Act1 **source is accepted; publication is pending**.
+Root applied the primary standing source-only workflow after one fresh
+comprehensive independent senior review returned **SOURCE ACCURACY READY,
+0 Critical / 0 Important / 0 Minor findings**. This is source acceptance, not
+full M22 completion. The [M22 profile](docs/milestones/m22-watcher-act1.md),
+[source reconciliation](docs/milestones/m22-watcher-act1-reconciliation.md) and
+[review record](docs/superpowers/plans/2026-10-29-m22-native-runtime-review.md)
+bind the finite scope, source identities and explicit evidence grades.
+
+| Surface | Accepted native source | Remaining boundary |
+| --- | --- | --- |
+| Watcher A0 Act1 | Canonical short Neow;28 permanent kinds/18 relics/7 potions;12 shared Act1 setups; scalar sessions, semantic replay and ordered batches through healthy nonterminal Act2Ready `(2,17)` | Publication pending; normal Guardian/Hexaghost completion UNPROVEN_OPEN. Supplied wins do not prove normal traversal, Act2 play or Python delivery. |
+
+Original six cases retain four Deaths, one healthy SlimeBoss cutoff and one
+Anchor startup fault, with matching original-source native consumers. Those
+results and the3071PASS/2knownM18M19normalFAIL/7inherited-hold workspace remain
+**PRE-ANCHOR-CORRECTION**. The narrow startup correction has current focused
+checks, one separate seed11/SlimeBoss Death324 with corrected native agreement,
+and three first supplied boss victories/healthy cutoffs totaling38/32/26 actual
+accepted actions, each including one bootstrap. Original losses/fault remain
+preserved. M18/M19 normal gates/parents, M20 canonical normal Heart and M21 seed11
+retain `meditate_choice`/parent43 remain open and unwaived.
+
+M21 actually merged through [PR60](https://github.com/klottick/spire-gym/pull/60)
+at `f75eed197a5a51a612f2508caddb9f1477e4e7a8` and supplies M22's accepted
+predecessor. No M22 merged revision is claimed while publication is pending.
+M23 dependency release requires actual M22 merge and a verified accepted export;
+implementation additionally requires explicit root assignment against its
+already-approved plan. No M23 implementation release follows from source acceptance.
+
+## Prior capability snapshot — 2026-10-29, before M22 source acceptance
+
 M21 finite native Watcher authored-combat **source is accepted; publication is
 pending**. Root applied the primary user's standing source-only workflow after
 one comprehensive independent review and the same reviewer's I1/I2/I3 recheck

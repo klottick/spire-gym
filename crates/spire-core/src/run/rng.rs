@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
@@ -11,6 +11,7 @@ impl RunRngScope {
         Self::M15PotionGeneration=>"run.m15.potion.generate",
         Self::M15CardOffer=>"run.m15.card.offer",
         Self::M20CardOffer=>"run.m20.card.offer",
+        Self::M22RelicCapture=>super::rooms::m22_content::RELIC_CAPTURE_SCOPE_NAME,
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -29,6 +30,7 @@ impl RunRngScope {
         "run.m15.potion.generate"=>Ok(Self::M15PotionGeneration),
         "run.m15.card.offer"=>Ok(Self::M15CardOffer),
         "run.m20.card.offer"=>Ok(Self::M20CardOffer),
+        super::rooms::m22_content::RELIC_CAPTURE_SCOPE_NAME=>Ok(Self::M22RelicCapture),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
@@ -147,5 +149,55 @@ mod m20_content_rng_tests{
         assert_eq!(RunRngScope::parse("run.m20.card.offer"),Ok(RunRngScope::M20CardOffer));
         let mut rng=RunRng::new([27;32],Partition::Test,3);rng.counters.insert((RunRngScope::M20CardOffer,vec![17,1]),u64::MAX);
         let before=rng.clone();assert_eq!(crate::run::rooms::m20_content::sample_capture_row(&mut rng,&[17],&[CardRarity::Common,CardRarity::Uncommon]),Err(crate::run::RunError::Unsupported("run scoped RNG exhausted")));assert_eq!(rng,before);
+    }
+}
+
+#[cfg(test)]
+mod m22_capture_tests{
+    use super::*;
+    use crate::{content::RelicId,run::{rooms::{m22_content as data,rewards::capture_m22_relic},*}};
+    #[test]
+    fn m22_relic_capture_uses_eligible_order_singleton_empty_and_exact_scoped_request(){
+        assert_eq!(RunRngScope::parse("run.m22.relic.capture"),Ok(RunRngScope::M22RelicCapture));
+        for pool in [&data::ELITE_RELICS[..],&data::CHEST_RELICS[..]]{
+            for unowned in pool{
+                let owned=pool.iter().copied().filter(|id|id!=unowned).collect::<Vec<_>>();
+                let mut rng=RunRng::new([37;32],Partition::Test,0);let key=[1,8,42,6,0];let mut expected=rng.clone();
+                assert_eq!(expected.bounded_scoped_checked(RunRngScope::M22RelicCapture,&key,1),Ok(0));
+                assert_eq!(capture_m22_relic(&mut rng,&key,pool,&owned),Ok(Some(*unowned)));assert_eq!(rng,expected);
+            }
+            let mut rng=RunRng::new([37;32],Partition::Test,0);let before=rng.clone();assert_eq!(capture_m22_relic(&mut rng,&[1,8,42,6,0],pool,pool),Ok(None));assert_eq!(rng,before);
+            let owned=[pool[0],RelicId::PureWater];let eligible=pool.iter().copied().filter(|id|!owned.contains(id)).collect::<Vec<_>>();
+            let key=[1,8,42,6,0];let mut actual=before.clone();let mut expected=before.clone();let index=expected.bounded_scoped_checked(RunRngScope::M22RelicCapture,&key,eligible.len() as u64).unwrap();
+            assert_eq!(capture_m22_relic(&mut actual,&key,pool,&owned),Ok(Some(eligible[index])));assert_eq!(actual,expected);
+        }
+        // Source-qualified checked owner uses strict '< zone'; MAX is rejected even at1.
+        let zone=u64::MAX-(u64::MAX%1);assert!(!(u64::MAX<zone));
+    }
+    #[test]
+    fn m22_relic_capture_saturation_is_atomic_and_semantic_keys_are_distinct(){
+        let key=vec![1,8,42,6,0];let mut rng=RunRng::new([37;32],Partition::Test,0);
+        rng.counters.insert((RunRngScope::M22RelicCapture,key.clone()),u64::MAX);let before=rng.clone();
+        assert_eq!(capture_m22_relic(&mut rng,&key,&data::ELITE_RELICS,&[]),Err(RunError::Unsupported("run scoped RNG exhausted")));assert_eq!(rng,before);
+        assert_eq!(capture_m22_relic(&mut rng,&key,&[RelicId::Vajra],&[]),Err(RunError::Unsupported("run scoped RNG exhausted")));assert_eq!(rng,before);
+        for other in [[1,8,43,6,0],[1,8,42,7,0],[1,8,42,6,1]]{assert!(capture_m22_relic(&mut rng,&other,&data::ELITE_RELICS,&[]).unwrap().is_some());assert_eq!(rng.counters.get(&(RunRngScope::M22RelicCapture,other.to_vec())),Some(&1));}
+        assert_eq!(rng.counters.get(&(RunRngScope::M22RelicCapture,key)),Some(&u64::MAX));
+        for scope in [RunRngScope::M20CardOffer,RunRngScope::MapTopology,RunRngScope::CombatGoldReward]{assert_eq!(rng.clone().draw(scope),before.clone().draw(scope));}
+    }
+    #[test]
+    fn m22_relic_capture_chest_failure_and_accepted_capture_are_retained(){
+        let mut p=CreationProfile::experienced();p.neow_eligible=false;
+        let mut r=Run::new_room_scenario(RunConfig{character:crate::content::Character::Watcher,ascension:0},p,RunRng::new([7;32],Partition::Test,0),RoomScenario::M22WatcherAct1).unwrap();
+        let id=r.decision().unwrap().room.unwrap().choices[1].id;r.step(&GameAction::Choose(id)).unwrap();
+        // Construct only map position; enter/open through real room owners.
+        let map=r.state.map.as_mut().unwrap();let target=map.nodes.iter().find(|n|n.kind==MapNodeKind::Treasure).unwrap().id;
+        let prev=map.nodes.iter_mut().find(|n|n.edges.contains(&target)).unwrap();prev.visited=true;r.state.floor=prev.floor;map.current=Some(prev.id);
+        r.step(&GameAction::Move(target)).unwrap();let id=r.decision().unwrap().room.unwrap().choices.iter().find(|c|c.kind==RoomChoiceKind::OpenChest).unwrap().id;
+        let key=vec![1,r.state.floor as u64,target.0,r.state.combat_progress.entered,1];r.state.rng.counters.insert((RunRngScope::M22RelicCapture,key.clone()),u64::MAX);let before=r.clone();
+        assert_eq!(r.step(&GameAction::Choose(id)),Err(RunError::Unsupported("run scoped RNG exhausted")));assert_eq!(r,before);
+        r.state.rng.counters.remove(&(RunRngScope::M22RelicCapture,key.clone()));let mut expected=r.state.rng.clone();let index=expected.bounded_scoped_checked(RunRngScope::M22RelicCapture,&key,3).unwrap();
+        r.step(&GameAction::Choose(id)).unwrap();assert_eq!(r.state.rng,expected);let screen=r.decision().unwrap().room.unwrap();assert!(screen.choices.iter().any(|c|c.kind==RoomChoiceKind::Relic(data::CHEST_RELICS[index])));
+        let before=r.clone();assert_eq!(r.decision().unwrap().room.unwrap(),screen);assert_eq!(r.decision().unwrap().room.unwrap(),screen);assert!(r.step(&GameAction::Choose(id)).is_err());assert_eq!(r,before);
+        let proceed=screen.choices.iter().find(|c|c.kind==RoomChoiceKind::Proceed).unwrap().id;r.step(&GameAction::Choose(proceed)).unwrap();assert_eq!(r.state.rng,expected);
     }
 }

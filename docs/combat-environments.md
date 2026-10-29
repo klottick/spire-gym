@@ -1,6 +1,38 @@
 # Headless environments
 
-## Finite native Watcher authored combat — source accepted
+## Finite native Watcher Act1 — source accepted; publication pending
+
+The [M22 profile](milestones/m22-watcher-act1.md) extends the accepted shared Run
+through canonical Watcher A0 short Neow, finite28 permanent/18 relic/7 potion
+producers, Act1 combat/rewards/shops/boss children and healthy Act2Ready `(2,17)`.
+`RunSession::new_m22`, `RunBatch::new_m22` and shared semantic replay use the
+versioned public encoder. Only three Act1 histories are public; Act2 is map-only,
+with no legal cutoff action, terminal or readiness bonus. There is no Python/Gym
+constructor, arbitrary supplied-run API, full Watcher closure or M23 release.
+
+Root accepted this finite source after one fresh comprehensive independent senior
+review returned SOURCE ACCURACY READY with0 Critical/Important/Minor findings.
+Publication is pending; full M22 and parent44 remain open. The
+[review record](superpowers/plans/2026-10-29-m22-native-runtime-review.md) separates
+current corrected source proof from historical outcomes. Original six normal
+outcomes (four Deaths, one healthy cutoff, one Anchor fault) and original
+same-choice native evidence are PRE-ANCHOR-CORRECTION. A narrowly authorized
+correction and one separate seed11/SlimeBoss Death324, plus fixed-three supplied
+Victory/Act2Ready first attempts, retain distinct source/provenance grades.
+Normal Guardian/Hexaghost completion remains unproven. The
+[reconciliation](milestones/m22-watcher-act1-reconciliation.md) records strict
+ordinal identity, actual diagnostic-owner and inherited source limits. The
+pre-correction3071/2knownFAIL/7ignore workspace is distinct from current focused
+checks. No Python delivery or original-runtime validation is claimed.
+
+Current corrected native324 agreement and supplied38/32/26 actual accepted
+actions (each including one bootstrap) are separately retained. Source-composition
+assessment does not imply an executed late M22 fault at every combined checkpoint.
+Normal Guardian/Hexaghost completion remains UNPROVEN_OPEN. M23 dependency release
+requires actual M22 merge and verified accepted export; implementation also
+requires explicit root assignment. No M22 merge SHA or M23 release is claimed.
+
+## M21 authored-combat status before M22 — retained snapshot
 
 The [M21 profile](milestones/m21-watcher-combat.md) has root source-only
 acceptance under the primary standing workflow; publication remains pending.

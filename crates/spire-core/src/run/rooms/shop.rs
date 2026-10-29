@@ -5,6 +5,16 @@ pub(in crate::run) fn screen_with_rng(run:&Run,next:&mut u64,rng:&mut RunRng)->R
     screen_with_rng_at(run,next,rng,(run.state.act,run.state.floor,node))
 }
 pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,destination:(u8,u32,NodeId))->Result<RoomView,RunError>{
+    if is_m22(&run.state){
+        let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
+        let later=room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0;
+        let mut rows=super::m22_content::shop_cards(later).into_iter().zip(super::m22_content::SHOP_CARD_PRICES)
+            .map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
+        let relic=super::m22_content::SHOP_RELICS[usize::from(later)];
+        if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(super::m22_content::SHOP_RELIC_PRICE)));}
+        rows.extend([(RoomChoiceKind::Potion(super::m22_content::SHOP_POTIONS[usize::from(later)]),Some(super::m22_content::SHOP_POTION_PRICE)),(RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);
+        return view(next,RoomViewKind::Shop,rows)
+    }
     if is_m15(&run.state)||is_m20(&run.state){
         let (act,floor,node)=destination;let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let visit=match act{1=>room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,2=>room.act2.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,3=>room.act3.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,4=>0,_=>return Err(RunError::InvalidAction)};

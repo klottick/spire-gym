@@ -44,6 +44,7 @@ impl RunBatch {
     }
 
     /// Construct finite Defect Acts 1–3 lanes using the shared ordered scheduler.
+    pub fn new_m22(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m22)}
     pub fn new_m20(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m20)}
     pub fn new_m19(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m19)}
     /// Construct finite Defect Acts 1–2 lanes using the shared ordered scheduler.
@@ -268,4 +269,15 @@ mod m20_diagnostic_batch_installation{
 #[cfg(test)]
 impl RunBatch{
     pub(crate) fn m20_test_tokens(&self)->Vec<RunDecisionToken>{self.sessions.iter().map(|s|s.decision().unwrap().token).collect()}
+}
+
+#[cfg(test)]
+mod m22_actual_batch_tests{
+ use super::*;
+ use spire_core::{content::Character,combat::rng::Partition,run::diagnostics::{M22Diagnostic as D,M22DiagnosticBoss as B,M22DiagnosticBranch as R}};
+ fn config()->RunSessionConfig{RunSessionConfig{character:Character::Watcher,ascension:0,partition:Partition::Test,boss_history:crate::RunBossHistory::Act1GuardianUnseen,capacities:crate::RunCapacities::m10_default(),record_replay:true}}
+ #[test]
+ fn m22_batch_actual_cutoff_slot_rejects_every_peer_before_dispatch(){for workers in [1,2]{let mut b=RunBatch::new_m22(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();b.sessions[1]=RunSession::from_m22_diagnostic(config(),D::Act2Ready{boss:B::Guardian,branch:R::HolyWater}).unwrap();let tokens=b.sessions.iter().map(|s|s.decision().unwrap().token).collect::<Vec<_>>();let before=[b.reproduction(0).unwrap(),b.reproduction(1).unwrap()];assert!(matches!(b.step(&tokens,&[RunActionIndex(0);2]),Err(RunBatchError::Input{slot:Some(1),error:RunSessionError::UnsupportedBoundary("M22 stops at Act2Ready")})));assert_eq!([b.reproduction(0).unwrap(),b.reproduction(1).unwrap()],before);assert!(b.fault.is_none());b.reset(&[Some(7),None]).unwrap();assert!(b.sessions.iter().all(|s|s.decision().unwrap().observation.action_mask.iter().any(|n|*n==1)));}}
+ #[test]
+ fn m22_batch_actual_core_fault_retains_owners_and_delivery_lost(){for workers in [1,2]{let mut b=RunBatch::new_m22(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();b.sessions[1]=RunSession::from_m22_diagnostic(config(),D::BeforeStartupFault).unwrap();let tokens=b.sessions.iter().map(|s|s.decision().unwrap().token).collect::<Vec<_>>();let d=b.reproduction(1).unwrap().latest_decision.unwrap().unwrap();let i=d.candidates.iter().position(|c|matches!(c.action,spire_core::run::GameAction::Move(_))).unwrap();let error=b.step(&tokens,&[RunActionIndex(0),RunActionIndex(i as i64)]).unwrap_err();let RunBatchError::Fault{slots}=error else{panic!("expected execution fault")};assert_eq!(slots.len(),2);assert!(slots[0].committed&&slots[0].delivery_lost);assert!(slots[1].committed&&!slots[1].delivery_lost);let first=b.record(0).unwrap().unwrap();let second=b.record(1).unwrap().unwrap();assert_eq!(first.steps.len(),1);assert!(second.steps.is_empty());assert!(second.fault.as_ref().unwrap().committed);let before=[b.reproduction(0).unwrap(),b.reproduction(1).unwrap()];assert!(b.step(&tokens,&[RunActionIndex(0);2]).is_err());assert_eq!([b.reproduction(0).unwrap(),b.reproduction(1).unwrap()],before);b.close().unwrap();assert!(b.record(0).unwrap().unwrap().closed);assert!(b.record(1).unwrap().unwrap().closed);}}
 }

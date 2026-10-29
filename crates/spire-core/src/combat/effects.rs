@@ -704,10 +704,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 }
                 for effect in work.bottom {
                     super::engine::validate_effect(&effect, state)?;
-                    // M20 has an explicit opening Decision marker. Ordinary
+                    // These startup profiles have an explicit opening Decision marker. Ordinary
                     // relic actions remain before that marker, after already
                     // queued start callbacks, through the shared bottom owner.
-                    if *hook==Hook::CombatStarted&&state.item_context.as_ref().is_some_and(|items|items.m20_profile()){
+                    if *hook==Hook::CombatStarted&&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile()){
                         super::enemies::act2::bottom(state,effect);
                     }else{state.pending.push_back(effect);}
                 }
