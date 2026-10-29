@@ -1,5 +1,46 @@
 # Work status
 
+## Current snapshot — 2026-10-29, M20 source accepted; publication pending
+
+Root accepted the finite native M20 source under the primary user's standing
+source-only workflow. One fresh independent senior completed comprehensive
+Tasks0–9/all-five-class review: initial0C/1I/0M, then the SAME reviewer's scoped
+recheck closed I1 and its same-GainEnergy M20 Sunder/EnergyPotion extensions with
+**SOURCE ACCURACY READY,0C/0I/0M remaining**. Exact reviewed890-source manifest:
+`89d1e95f5ffdbd85f19760289130b59648dec96c648bda88f87158c1cebff0bc`.
+Publication remains pending; no M20 merged revision or completed milestone is
+claimed. This administrative change preserves every runtime/test/build input.
+
+The [M20 profile](milestones/m20-defect-heart.md),
+[execution ledger](milestones/m20-defect-heart-execution-ledger.md),
+[reconciliation](milestones/m20-defect-heart-reconciliation.md) and
+[review record](superpowers/plans/2026-10-29-m20-native-runtime-review.md) state
+full75-blue source, required generated closure, nine exclusive relics/three
+exclusive potions, normal115/26/33 vocabulary, finite captures and shared keys/
+Act4/ShieldSpear/Heart/finalProceed. Current focused checks pass52blue,27M20items,
+23native plus named old energy/orb/Power/potion/startup controls; non-test core
+and env library checks exit0. These overlapping checks are not a current complete
+workspace result or original-runtime/Python-extension validation.
+
+All prior workspace2906PASS/2FAIL/6ignored, six original normal Deaths on Act1
+floor8, original supplied Anchor fault, corrective110-action supplied Defect
+HeartVictory and both native agreement proofs are **PRE-I1-CORRECTION**, retained
+on their exact historical source/artifacts. No episodes, policy or recorded-outcome
+replay were rerun for I1. Strong remains UNEXECUTED: original BLOCKED after fault,
+corrective SKIPPED after Defect success. Supplied keys/prior visit0 are declared
+inputs and never earned normal traversal. The original failed normal assertions
+are neither waived nor removed.
+
+M18 normal Automaton and M19 normal Act3 boss/NoKeys gates and milestone parents
+remain OPEN_UNMET_UNWAIVED. M20 canonical normal Heart remains UNPROVEN/open;
+its parent stays open. Source acceptance is distinct from normal coverage and
+full milestone completion. M21 release requires actual merged M20 source,
+verified accepted-source export and explicit root assignment/ownership; this
+snapshot authorizes no M21 implementation. Root owns staging, publication and
+later lifecycle after retention/release verification.
+
+## Prior snapshot body — retained verbatim
+
 ## Current snapshot — 2026-10-28, M19 source-only merge approved; normal gates open
 
 The primary user approved M19 source merge and conditional M20 dependency release

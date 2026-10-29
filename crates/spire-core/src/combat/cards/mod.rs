@@ -8,9 +8,9 @@ mod silent;
 mod colorless;
 pub(crate) mod defect;
 pub use defect::{DefectEffect,DefectState};
-pub use silent::{SilentEffect, SilentState};
+pub use silent::{SilentEffect, SilentState, DrawnCard};
 pub use colorless::ColorlessEffect;
-pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{crate::content::defect::supports_generated(id)||silent::requires_draw_history(id)||colorless::requires_draw_history(id)||super::generation::starting_cost(id,0).is_some()}
+pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{crate::content::defect::supports_m20_generated(id)||silent::requires_draw_history(id)||colorless::requires_draw_history(id)||super::generation::starting_cost(id,0).is_some()}
 pub(super) fn apply_silent(state:&mut State,effect:&Effect,work:&SilentEffect)->Result<(),EffectError>{silent::apply(state,effect,work)}
 pub(super) fn validate_silent_work(state:&State,effect:&Effect,work:&SilentEffect)->Result<(),InputError>{silent::validate_work(state,effect,work)}
 pub(super) fn apply_colorless(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Result<(),EffectError>{colorless::apply(state,effect,work)}
@@ -194,7 +194,7 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
     let (cost, payloads) = payload_with_wrist_blade(&combat.state, card, target.map(|id| id.0))?;
     let corruption_skill=ironclad::exhaust::corruption_skill_active(&combat.state)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Skill);
-    let payment = if card.id==crate::content::CardId::Whirlwind&&card.local.x_cost&&!card.local.free_play {
+    let payment = if matches!(card.id,crate::content::CardId::Whirlwind|crate::content::CardId::ReinforcedBody|crate::content::CardId::Tempest|crate::content::CardId::MultiCast)&&card.local.x_cost&&!card.local.free_play {
         Ok(super::card_state::Payment{remaining_energy:captured_energy,paid:0})
     }else if corruption_skill&&!card.local.free_play&&!card.local.x_cost{
         super::card_state::effective_cost(card,cost).map_err(|_|crate::run::RunError::InvalidAction)?;
@@ -576,7 +576,7 @@ pub(super) fn silent_power_on_use(state:&mut State)->Result<(),EffectError>{sile
 pub(super) fn silent_power_after_played(state:&mut State){silent::power_after_played(state)}
 pub(super) fn silent_power_after_damage(state:&mut State,result:&super::model::DamageResult){silent::power_after_damage(state,result)}
 
-pub(super) fn capture_silent_targets(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{silent::capture_targets(state,effects)?;super::generation::capture(state,effects)}
+pub(super) fn capture_silent_targets(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{silent::capture_targets(state,effects)?;defect::capture_direct(state,effects)?;super::generation::capture(state,effects)}
 pub(super) fn silent_poison_death_work(state:&State,target:Option<&Actor>)->Result<Vec<Effect>,InputError>{silent::poison_death_work(state,target)}
 
 pub(in crate::combat) fn captured_x(state:&State,card:&LiveCard)->Result<i32,crate::run::RunError>{

@@ -124,6 +124,7 @@ enum CallerProfile {
     M13,
     M14,
     M15,
+    M20,
 }
 
 enum SharedOutcome {
@@ -140,6 +141,7 @@ pub struct Caller {
     act3_elite_reached: bool,
     act3_ordinary_reached: bool,
     failed_action: Option<GameAction>,
+    failed_error: Option<RunError>,
     pub nonattacking: bool,
     pub trace: Vec<TraceStep>,
     pub final_decision: Option<PublicDecision>,
@@ -194,6 +196,12 @@ impl Caller {
         Ok(Self::with_profile(limit, CallerProfile::M15))
     }
 
+    /// M20 uses the same trace owner and loop with its frozen public policy.
+    pub fn new_m20(limit:usize)->Result<Self,String>{
+        if limit>8192{return Err("M20 caller limit must be in 0..=8192".into())}
+        Ok(Self::with_profile(limit,CallerProfile::M20))
+    }
+
     fn with_profile(limit: usize, profile: CallerProfile) -> Self {
         Self {
             limit,
@@ -203,6 +211,7 @@ impl Caller {
             act3_elite_reached: false,
             act3_ordinary_reached: false,
             failed_action: None,
+            failed_error: None,
             nonattacking: false,
             trace: Vec::new(),
             final_decision: None,
@@ -218,7 +227,10 @@ impl Caller {
         self.failed_action.as_ref()
     }
 
-    fn route_progress(&self, act: u8) -> (bool, bool) {
+    /// Raw accepted M20 error for receipt consumers; old caller text/Debug stays frozen.
+    pub fn failed_error_for_diagnostics(&self)->Option<&RunError>{self.failed_error.as_ref()}
+
+    pub fn route_progress(&self, act: u8) -> (bool, bool) {
         match act {
             1 | 2 => {
                 let index = (act - 1) as usize;
@@ -325,7 +337,7 @@ pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Resul
     if caller.profile != CallerProfile::M13 {
         return Err("M13 rollout requires an M13 caller".into());
     }
-    match rollout_shared(run, caller, CallerProfile::M13, None)? {
+    match rollout_shared(run, caller, CallerProfile::M13, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
         SharedOutcome::M15(_) => Err("M13 rollout received an M15 finish result".into()),
     }
@@ -343,7 +355,7 @@ pub fn rollout_m14(run: &mut Run, caller: &mut Caller, death_control: bool) -> R
         return Err("M14 rollout requires the M14SilentAct3 Run profile".into());
     }
     caller.nonattacking = death_control;
-    match rollout_shared(run, caller, CallerProfile::M14, None)? {
+    match rollout_shared(run, caller, CallerProfile::M14, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
         SharedOutcome::M15(_) => Err("M14 rollout received an M15 finish result".into()),
     }
@@ -362,9 +374,23 @@ pub fn rollout_m15(
     if initial.content_profile != Some(RoomScenario::M15SilentHeart) {
         return Err("M15 rollout requires the M15SilentHeart Run profile".into());
     }
-    match rollout_shared(run, caller, CallerProfile::M15, Some(key_action))? {
+    match rollout_shared(run, caller, CallerProfile::M15, Some(key_action), None)? {
         SharedOutcome::M15(outcome) => Ok(outcome),
         SharedOutcome::Legacy(_) => Err("M15 rollout received a legacy finish result".into()),
+    }
+}
+
+/// One loop/TraceStep/ending owner; this callback receives only public data.
+pub type M20CallerOutcome=M15CallerOutcome;
+pub fn rollout_m20(run:&mut Run,caller:&mut Caller,
+    policy:fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&Caller)->Result<GameAction,String>)
+    ->Result<M20CallerOutcome,String>{
+    if caller.profile!=CallerProfile::M20{return Err("M20 rollout requires an M20 caller".into())}
+    if run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M20DefectHeart){
+        return Err("M20 rollout requires the M20DefectHeart Run profile".into())
+    }
+    match rollout_shared(run,caller,CallerProfile::M20,None,Some(policy))? {
+        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)=>Err("M20 received a legacy finish result".into())
     }
 }
 
@@ -386,6 +412,7 @@ fn rollout_shared(
     caller: &mut Caller,
     profile: CallerProfile,
     key_action: Option<fn(&PublicDecision, Option<&spire_core::run::map::PublicMap>) -> Option<GameAction>>,
+    policy:Option<fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&Caller)->Result<GameAction,String>>,
 ) -> Result<SharedOutcome, String> {
     loop {
         let decision = run.decision().map_err(classify_run_error)?;
@@ -410,18 +437,24 @@ fn rollout_shared(
             if decision.terminal.is_some() {
                 return Err(format!("unexpected native terminal state: {:?}", decision.terminal));
             }
-        } else if let Some(outcome) = m15_stop_or_budget(&decision, caller.trace.last(), caller.accepted(), caller.limit)? {
-            return Ok(SharedOutcome::M15(outcome));
+        } else {
+            let expected=if profile==CallerProfile::M20{RoomScenario::M20DefectHeart}else{RoomScenario::M15SilentHeart};
+            if let Some(outcome)=heart_stop_outcome(&decision,caller.trace.last(),expected)? {
+                return Ok(SharedOutcome::M15(outcome));
+            }
+            if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M15(M15CallerOutcome::BudgetExhausted))}
         }
-        if profile != CallerProfile::M15 && caller.accepted() >= caller.limit {
+        if !matches!(profile,CallerProfile::M15|CallerProfile::M20) && caller.accepted() >= caller.limit {
             return Ok(match profile {
                 CallerProfile::M13 | CallerProfile::M14 => SharedOutcome::Legacy(CallerOutcome::BudgetExhausted),
-                CallerProfile::M15 => unreachable!("M15 budget handled before the shared legacy budget branch"),
+                CallerProfile::M15 | CallerProfile::M20 => unreachable!("M15 budget handled before the shared legacy budget branch"),
             });
         }
 
         let action = if caller.nonattacking && decision.combat.is_some() {
             GameAction::Combat(CombatAction::EndTurn)
+        } else if let Some(policy)=policy {
+            policy(&decision,map.as_ref(),caller)?
         } else {
             let override_action = key_action.and_then(|policy| policy(&decision, map.as_ref()));
             if let Some(action) = override_action {
@@ -449,6 +482,7 @@ fn rollout_shared(
         let transition = match run.step(&action) {
             Ok(transition) => transition,
             Err(error) if profile != CallerProfile::M13 => {
+                if profile==CallerProfile::M20{caller.failed_error=Some(error.clone());}
                 caller.failed_action = Some(action.clone());
                 return Err(format!(
                     "{} at act {} floor {} while applying {action:?}",
@@ -587,6 +621,14 @@ pub fn m15_stop_outcome(
     if decision.content_profile != Some(RoomScenario::M15SilentHeart) {
         return Err("M15 stop check requires the M15SilentHeart profile".into());
     }
+    heart_stop_outcome(decision,last,RoomScenario::M15SilentHeart)
+}
+
+fn heart_stop_outcome(decision:&PublicDecision,last:Option<&TraceStep>,expected:RoomScenario)
+    ->Result<Option<M15CallerOutcome>,String>{
+    if decision.content_profile != Some(expected) {
+        return Err("M15 stop check requires the M15SilentHeart profile".into());
+    }
     match decision.terminal {
         None => Ok(None),
         Some(RunTerminal::Death) => Ok(Some(M15CallerOutcome::Death)),
@@ -600,7 +642,7 @@ pub fn m15_stop_outcome(
             }
             let trace = last.ok_or("HeartVictory terminal has no accepted final Proceed trace")?;
             let before = &trace.decision;
-            if before.content_profile != Some(RoomScenario::M15SilentHeart)
+            if before.content_profile != Some(expected)
                 || before.act != 4 || before.floor != 54
                 || before.terminal.is_some()
                 || !before.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::HeartVictory)

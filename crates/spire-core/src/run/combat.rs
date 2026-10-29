@@ -69,7 +69,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     let originals=state.deck.iter().filter(|c|!active.acquired_instances.contains(&c.instance)).map(|c|c.instance).collect::<BTreeSet<_>>();
     if seen!=originals { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    let local_visits=if super::rooms::uses_act4(state)&&state.act==4{Some((4,state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act4 settled visit exhausted"))?))}else if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else{None};
+    let local_visits=if super::rooms::uses_act4(state)&&state.act==4{Some((4,state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act4 settled visit exhausted"))?))}else if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else if super::rooms::is_m20(state)&&state.act==1{Some((1,state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("M20 Act1 settled visit exhausted"))?))}else{None};
     Ok((exit,record,settled,local_visits))
 }
 
@@ -94,7 +94,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Boss)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None,m15:super::rooms::is_m15(state)};
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Boss)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
     let mut entry=enemies::setup(encounter,m16_metadata.map_or(state.act,|(act,_)|act),state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
@@ -205,7 +205,7 @@ impl Run {
         };
         let rewards=match if ending.is_some()||heart_victory.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{
             Ok(prepared)=>prepared,
-            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
+            Err(error)=>{let kind=if super::rooms::is_m20(&self.state){match error{RunError::Unsupported(message)=>RunFaultKind::UnsupportedBoundary(message),_=>RunFaultKind::Invariant("combat reward preparation failed")}}else{RunFaultKind::Invariant("combat reward preparation failed")};return Err(self.retain_fault(kind,"run.combat.rewards"))},
         };
         let checkpoint=match self.state.combat.as_ref().unwrap().public_full(){
             Ok(view)=>match (view.hp_before_healing,view.hp_after_cleanup){
@@ -225,7 +225,7 @@ impl Run {
         self.state.hp=exit.hp as u32;
         self.state.max_hp=exit.max_hp as u32;
         self.state.combat_progress.settled=settled;
-        if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();match act{2=>room.act2.as_mut().unwrap().combat_visits=visits,3=>room.act3.as_mut().unwrap().combat_visits=visits,4=>room.act4.as_mut().unwrap().combat_visits=visits,_=>unreachable!()}}
+        if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();match act{1=>room.act1.as_mut().unwrap().combat_visits=visits,2=>room.act2.as_mut().unwrap().combat_visits=visits,3=>room.act3.as_mut().unwrap().combat_visits=visits,4=>room.act4.as_mut().unwrap().combat_visits=visits,_=>unreachable!()}}
         self.state.last_combat_checkpoint=Some(checkpoint);
         self.state.last_combat=Some(record.clone());
         self.state.active_combat=None;

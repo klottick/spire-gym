@@ -48,3 +48,9 @@ mod m17_defect_act1;
 mod m18_defect_act2;
 
 mod m19_defect_act3;
+
+mod m20_defect_content;
+
+mod m20_diagnostic_support;
+
+mod m20_supplied;

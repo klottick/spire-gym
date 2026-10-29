@@ -81,6 +81,9 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
 /// Apply the native acquisition/equipment child for relics whose effect is
 /// defined at obtain time. RunState is the sole owner outside active combat.
 pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError> {
+    if id==RelicId::FrozenCore{return replace_cracked_core(state)}
+    if matches!(id,RelicId::SymbioticVirus|RelicId::Inserter|RelicId::NuclearBattery|RelicId::RunicCapacitor)
+        &&(state.character!=crate::content::Character::Defect||state.relics.contains(&id)){return Err(RunError::InvalidAction)}
     if id==RelicId::BlackBlood{return replace_burning_blood(state)}
     if id==RelicId::RingOfTheSerpent{return replace_ring_of_the_snake(state)}
     if matches!(id,RelicId::EmptyCage|RelicId::SlaversCollar|RelicId::RedMask)&&state.relics.contains(&id){return Err(RunError::InvalidAction)}
@@ -116,6 +119,7 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
 
     state.relics.push(id);
     if id==RelicId::NeowsLament{state.relic_counters.insert(id,3);}
+    if id==RelicId::Inserter{state.relic_counters.insert(id,0);}
     state.max_hp = max_hp;
     let hp_before=state.hp;
     state.hp = hp;
@@ -144,4 +148,11 @@ pub(super) fn replace_ring_of_the_snake(state:&mut RunState)->Result<(),RunError
     state.relics[0]=RelicId::RingOfTheSerpent;
     state.relic_counters.remove(&RelicId::RingOfTheSnake);
     Ok(())
+}
+
+fn replace_cracked_core(state:&mut RunState)->Result<(),RunError>{
+    if state.combat.is_some()||state.character!=crate::content::Character::Defect||state.relics.contains(&RelicId::FrozenCore)
+        ||state.relics.iter().filter(|id|**id==RelicId::CrackedCore).count()!=1{return Err(RunError::InvalidAction)}
+    let slot=state.relics.iter().position(|id|*id==RelicId::CrackedCore).unwrap();
+    state.relics[slot]=RelicId::FrozenCore;state.relic_counters.remove(&RelicId::CrackedCore);Ok(())
 }

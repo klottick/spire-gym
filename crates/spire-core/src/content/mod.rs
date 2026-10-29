@@ -9,7 +9,10 @@ mod encounters;
 mod events;
 pub mod defect;
 
-pub use cards::{CardColor, CardDefinition, CardRarity, CardType, ContentProducer, NoteStorage, RegistryError};
+pub use cards::{
+    BlueCardMetadata, CardColor, CardCost, CardDefinition, CardFaceMetadata, CardKeywords,
+    CardRarity, CardTag, CardTarget, CardType, ContentProducer, NoteStorage, RegistryError,
+};
 pub use encounters::{EncounterDefinition, EnemyDefinition};
 pub use events::EventDefinition;
 pub use ids::{CardId, Character, ContentId, EncounterId, EnemyId, EventId, PotionId, RelicId};

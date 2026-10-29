@@ -57,6 +57,7 @@ pub fn describe_run_action(d:&PublicDecision,a:&GameAction,id:&str)->Result<Valu
 pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
     use SelectionDisposition::*;use SelectionOperation::*;
     match operation {
+        HologramRetrieve=>"hologram_retrieve",SeekRetrieve=>"seek_retrieve",Recycle=>"recycle",
         Move(Hand)=>"move_hand",Move(Discard)=>"move_discard",Move(Exhaust)=>"move_exhaust",Move(DrawTop)=>"move_draw_top",
         Upgrade=>"upgrade",Topdeck=>"topdeck",ReturnFromExhaust=>"return_from_exhaust",
         CopyToHand{copies:1}=>"copy_to_hand_1",CopyToHand{copies:2}=>"copy_to_hand_2",CopyToHand{copies:_}=>"copy_to_hand_3",

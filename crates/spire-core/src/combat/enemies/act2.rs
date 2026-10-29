@@ -86,9 +86,9 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::Centurion|EnemyId::Mystic))){Ok(partners::move_work(state,owner)?)}else{gremlin_leader::take_turn(state,owner)}
 }
 
-/// Source-bottom work precedes only native scheduler sentinels, never gameplay payloads.
+/// Source ordinary actions precede the source cardQueue and native sentinels.
 pub(in crate::combat) fn bottom(state:&mut State,work:Effect){
-    let index=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)).unwrap_or(state.pending.len());
+    let index=state.pending.iter().position(|e|super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)).unwrap_or(state.pending.len());
     state.pending.insert(index,work);
 }
 

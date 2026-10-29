@@ -22,7 +22,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
     state.card_rng=Some(next);
     let id=candidates[index as usize];
     let instance=super::super::super::piles::next_generated_instance(state)?;
-    let mut generated=card_state::generated_with_combat_history(id,instance,0,state.damage_events_this_combat)
+    let mut generated=card_state::generated_with_history(id,instance,0,super::super::super::card_state::CardConstructionHistory::from_state(state))
         .ok_or_else(||InputError::Invariant("Infernal Blade selected unsupported generated card".into()))?;
     generated.origin=crate::combat::CombatCardRef::CombatLocal(instance.0);
     generated.copy_provenance=card_state::CopyProvenance::Generated;

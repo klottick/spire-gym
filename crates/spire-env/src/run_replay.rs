@@ -208,7 +208,7 @@ fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>
         };
     }
     if verb == "combat.choose_card_offer" {
-        return if profile == RunProfile::M15SilentHeart {
+        return if matches!(profile,RunProfile::M15SilentHeart|RunProfile::M20DefectHeart) {
             Ok(GameAction::Combat(CombatAction::ChooseCardOffer {
                 index: u32::try_from(u(&v["index"])?).map_err(|_| incompatible())?,
             }))
@@ -217,7 +217,7 @@ fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>
         };
     }
     if verb == "combat.skip_card_offer" {
-        return if profile == RunProfile::M15SilentHeart {
+        return if matches!(profile,RunProfile::M15SilentHeart|RunProfile::M20DefectHeart) {
             Ok(GameAction::Combat(CombatAction::SkipCardOffer))
         } else {
             Err(incompatible())
@@ -234,6 +234,7 @@ fn capacities(c:&RunCapacities)->Value{json!({"map_nodes":c.map_nodes,"map_edges
 fn parse_capacities(v:&Value)->Result<RunCapacities,RunSessionError>{Ok(RunCapacities{map_nodes:size(&v["map_nodes"])? ,map_edges:size(&v["map_edges"])? ,permanent_cards:size(&v["permanent_cards"])? ,combat_cards:size(&v["combat_cards"])? ,enemies:size(&v["enemies"])? ,powers:size(&v["powers"])? ,relics:size(&v["relics"])? ,potions:size(&v["potions"])? ,offers:size(&v["offers"])? ,selection:size(&v["selection"])? ,orbs:size(&v["orbs"])? ,actions:size(&v["actions"])?})}
 fn boss_history(history: RunBossHistory) -> Value {
     match history {
+        RunBossHistory::M20DefectHeart { act1,act2,act3 } => json!({"m20-defect-heart":{"act1":act1_history_name(act1),"act2":act2_history_name(act2),"act3":act3_history_name(act3)}}),
         RunBossHistory::M19DefectAct3 { act1,act2,act3 } => json!({"m19-defect-act3":{"act1":act1_history_name(act1),"act2":act2_history_name(act2),"act3":act3_history_name(act3)}}),
         RunBossHistory::M18DefectAct2 { act1,act2 } => json!({"m18-defect-act2":{"act1":act1_history_name(act1),"act2":act2_history_name(act2)}}),
         RunBossHistory::M17DefectAct1 { act1 } => json!({"m17-defect-act1":{"act1":act1_history_name(act1)}}),
@@ -299,6 +300,10 @@ fn parse_boss_history(value: &Value) -> Result<RunBossHistory, RunSessionError> 
     }
     let Some(outer) = value.as_object() else { return Err(incompatible()) };
     if outer.len() != 1 { return Err(incompatible()) }
+    if let Some(triple)=outer.get("m20-defect-heart").and_then(Value::as_object){
+        if triple.len()!=3 || !triple.contains_key("act1") || !triple.contains_key("act2") || !triple.contains_key("act3"){return Err(incompatible())}
+        return Ok(RunBossHistory::M20DefectHeart{act1:parse_act1_history(&triple["act1"])?,act2:parse_act2_history(&triple["act2"])?,act3:parse_act3_history(&triple["act3"])?});
+    }
     if let Some(triple)=outer.get("m19-defect-act3").and_then(Value::as_object){
         if triple.len()!=3 || !triple.contains_key("act1") || !triple.contains_key("act2") || !triple.contains_key("act3"){return Err(incompatible())}
         return Ok(RunBossHistory::M19DefectAct3{act1:parse_act1_history(&triple["act1"])?,act2:parse_act2_history(&triple["act2"])?,act3:parse_act3_history(&triple["act3"])?});
@@ -369,11 +374,12 @@ fn parse_config(v:&Value)->Result<RunSessionConfig,RunSessionError>{Ok(RunSessio
     partition:match text(&v["partition"])?{"train"=>Partition::Train,"selection"=>Partition::Selection,"final"=>Partition::Final,"test"=>Partition::Test,_=>return Err(incompatible())},
     boss_history:parse_boss_history(&v["boss_history"])? ,capacities:parse_capacities(&v["capacities"])? ,record_replay:flag(&v["record_replay"])? ,
 })}
-fn validate(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{
+fn validate(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{validate_identity(record,None)}
+fn validate_identity(record:&RunEpisodeRecord,expected_fingerprint:Option<[u8;32]>)->Result<RunProfile,RunSessionError>{
     let profile=RunProfile::from_record(&record.schema_id,&record.profile_id)?;
     if record.rules_id!=profile.rules_id()||record.content_id!=profile.content_id()||record.seed_adapter_id!=RUN_SEED_ADAPTER_ID||record.rng_id!=spire_core::combat::rng::RNG_CONTRACT_ID||record.reward_id!=RUN_REWARD_ID{return Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))}
     validate_config(profile,&record.config).map_err(|_|incompatible())?;
-    if record.observation_fingerprint!=profile.observation_spec(&record.config.capacities)?.fingerprint(){return Err(RunSessionError::IncompatibleReplay("Run observation fingerprint mismatch"))}
+    if record.observation_fingerprint!=expected_fingerprint.unwrap_or(profile.observation_spec(&record.config.capacities)?.fingerprint()){return Err(RunSessionError::IncompatibleReplay("Run observation fingerprint mismatch"))}
     if let Some(f)=&record.fault{
         if f.gameplay_recorded&&(!f.committed||f.action.is_none()||f.action.as_ref()!=record.steps.last().map(|s|&s.action))||f.committed&&f.action.is_none(){return Err(incompatible())}
         if (f.error.kind==RunRecordErrorKind::Capacity)!=f.error.capacity.is_some(){return Err(incompatible())}
@@ -384,7 +390,7 @@ impl RunEpisodeRecord{
     pub fn to_json(&self)->Result<Vec<u8>,RunSessionError>{
         let profile=validate(self)?;
         let m15_action=|action:&GameAction|matches!(action,GameAction::Combat(CombatAction::ChooseCardOffer{..}|CombatAction::SkipCardOffer));
-        if profile != RunProfile::M15SilentHeart && (self.steps.iter().any(|step|m15_action(&step.action))
+        if !matches!(profile,RunProfile::M15SilentHeart|RunProfile::M20DefectHeart) && (self.steps.iter().any(|step|m15_action(&step.action))
             ||self.fault.as_ref().and_then(|fault|fault.action.as_ref()).is_some_and(m15_action)) {
             return Err(RunSessionError::UnsupportedBoundary("generated offer actions require M15 replay profile"));
         }
@@ -402,6 +408,7 @@ impl RunEpisodeRecord{
         if profile == RunProfile::M15SilentHeart {
             strict_profile_json_shape(&v,"m15-silent-heart",&["act1","act2","act3"])?;
         }
+        if profile == RunProfile::M20DefectHeart { strict_profile_json_shape(&v,"m20-defect-heart",&["act1","act2","act3"])?; }
         if profile == RunProfile::M19DefectAct3 { strict_profile_json_shape(&v,"m19-defect-act3",&["act1","act2","act3"])?; }
         if profile == RunProfile::M18DefectAct2 { strict_profile_json_shape(&v,"m18-defect-act2",&["act1","act2"])?; }
         if profile == RunProfile::M17DefectAct1 { strict_profile_json_shape(&v,"m17-defect-act1",&["act1"])?; }
@@ -452,14 +459,18 @@ impl RunEpisodeRecord{
 }
 pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplayReport,RunSessionError>{
     let profile=validate(record)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?,RunProfile::M14SilentAct3=>crate::run_schema_m14::validate(&caps)?,RunProfile::M15SilentHeart=>crate::run_schema_m15::validate(&caps)?,RunProfile::M17DefectAct1=>crate::run_schema_m17::validate(&caps)?,RunProfile::M18DefectAct2=>crate::run_schema_m18::validate(&caps)?,RunProfile::M19DefectAct3=>crate::run_schema_m19::validate(&caps)?}
+    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?,RunProfile::M14SilentAct3=>crate::run_schema_m14::validate(&caps)?,RunProfile::M15SilentHeart=>crate::run_schema_m15::validate(&caps)?,RunProfile::M17DefectAct1=>crate::run_schema_m17::validate(&caps)?,RunProfile::M18DefectAct2=>crate::run_schema_m18::validate(&caps)?,RunProfile::M19DefectAct3=>crate::run_schema_m19::validate(&caps)?,RunProfile::M20DefectHeart=>crate::run_schema_m20::validate(&caps)?}
     if profile==RunProfile::M9IroncladAct3&&(record.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
         ||record.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection)))){
         return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
     }
-    let mut run=create_run(profile,&record.config,record.seed,record.ordinal)?;
+    let run=create_run(profile,&record.config,record.seed,record.ordinal)?;
+    replay_with_initial_run(record,caps,profile,run,None)
+}
+type ReplayEncoder=fn(&PublicDecision,Option<&PublicMap>,&RunCapacities)->Result<crate::RunObservation,RunSessionError>;
+fn replay_with_initial_run(record:&RunEpisodeRecord,caps:RunCapacities,profile:RunProfile,mut run:Run,encoder:Option<ReplayEncoder>)->Result<RunReplayReport,RunSessionError>{
     let mut decision=run.decision().map_err(RunSessionError::Core)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?};
+    if let Some(encode)=encoder{encode(&decision,run.public_map().as_ref(),&caps)?;}else{match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M20DefectHeart=>crate::encode_run_m20(&decision,run.public_map().as_ref(),&caps)?};}
     let mut rewards=Vec::new();let mut terminals=Vec::new();
     rewards.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
     terminals.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
@@ -468,7 +479,7 @@ pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplay
         let t=run.step(&step.action).map_err(RunSessionError::Core)?;
         if (t.reward,t.terminal)!=(step.reward,step.terminal){return Err(RunSessionError::IncompatibleReplay("Run reward or terminal mismatch"))}
         decision=run.decision().map_err(RunSessionError::Core)?;
-        match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?};
+        if let Some(encode)=encoder{encode(&decision,run.public_map().as_ref(),&caps)?;}else{match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M20DefectHeart=>crate::encode_run_m20(&decision,run.public_map().as_ref(),&caps)?};}
         rewards.push(t.reward);terminals.push(t.terminal);
     }
     if decision.terminal!=record.terminal{return Err(RunSessionError::IncompatibleReplay("Run final terminal mismatch"))}
@@ -517,6 +528,60 @@ mod m15_review_capacity_groups {
                 let mut bad_value=value.clone();bad_value["fault"]["error"]["capacity"][key]=bad;
                 assert!(RunEpisodeRecord::from_json(&serde_json::to_vec(&bad_value).unwrap()).is_err(),"{group} malformed {key}");
             }
+        }
+    }
+}
+
+/// Envelope is internal test evidence, never a portable replay initializer.
+#[cfg(test)]
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub(crate) struct M20DiagnosticEnvelope{
+    pub loadout:spire_core::run::diagnostics::M20DiagnosticLoadout,
+    pub initial_manifest_sha256:[u8;32],
+    pub initial_public_sha256:[u8;32],
+}
+#[cfg(test)]
+pub(crate) fn m20_initial_public_sha256(run:&Run)->Result<[u8;32],RunSessionError>{
+    use sha2::{Digest,Sha256};
+    let d=run.decision().map_err(RunSessionError::Core)?;
+    Ok(Sha256::digest(format!("{d:?}\n{:?}\n{:?}",run.public_map(),run.combat_checkpoint()).as_bytes()).into())
+}
+#[cfg(test)]
+pub(crate) fn replay_m20_diagnostic(record:&RunEpisodeRecord,caps:RunCapacities,envelope:&M20DiagnosticEnvelope,expected_manifest:[u8;32])->Result<RunReplayReport,RunSessionError>{
+    crate::run_session::validate_m20_diagnostic_config(&record.config)?;
+    if record.seed!=7||record.ordinal!=0||envelope.initial_manifest_sha256!=expected_manifest{
+        return Err(RunSessionError::IncompatibleReplay("fixed M20 diagnostic manifest mismatch"))
+    }
+    let fingerprint=crate::run_schema_m20::diagnostic_spec(&record.config.capacities)?.fingerprint();
+    let profile=validate_identity(record,Some(fingerprint))?;
+    if profile!=RunProfile::M20DefectHeart{return Err(incompatible())}
+    crate::run_schema_m20::validate(&caps)?;
+    let run=spire_core::run::diagnostics::m20_supplied_act4(envelope.loadout).map_err(RunSessionError::Core)?;
+    if m20_initial_public_sha256(&run)?!=envelope.initial_public_sha256{
+        return Err(RunSessionError::IncompatibleReplay("fixed M20 diagnostic initial snapshot mismatch"))
+    }
+    replay_with_initial_run(record,caps,profile,run,Some(crate::run_observation::encode_run_m20_diagnostic))
+}
+
+#[cfg(test)]
+mod m20_internal_replay_installation{
+    use super::*;
+    use spire_core::run::diagnostics::M20DiagnosticLoadout;
+    #[test]
+    fn m20_internal_same_initializer_empty_prefix_is_bound_and_not_portable(){
+        for loadout in [M20DiagnosticLoadout::Defect,M20DiagnosticLoadout::Strong]{
+            let cfg=crate::run_session::m20_test_config();
+            let run=spire_core::run::diagnostics::m20_supplied_act4(loadout).unwrap();
+            let s=crate::RunSession::from_m20_diagnostic(cfg.clone(),loadout).unwrap();let record=s.record().unwrap().unwrap();
+            // This is an initialization/negative witness, not a released receipt or gameplay run.
+            let manifest=[1;32];let envelope=M20DiagnosticEnvelope{loadout,initial_manifest_sha256:manifest,initial_public_sha256:m20_initial_public_sha256(&run).unwrap()};
+            let r=replay_m20_diagnostic(&record,cfg.capacities.clone(),&envelope,manifest).unwrap();
+            assert_eq!(r.accepted_count,0);assert_eq!(r.final_decision,run.decision().unwrap());assert_eq!(r.final_map,run.public_map());
+            assert!(replay_run(&record,cfg.capacities.clone()).is_err());
+            assert!(replay_m20_diagnostic(&record,cfg.capacities.clone(),&envelope,[2;32]).is_err());
+            let mut bad=envelope.clone();bad.initial_public_sha256[0]^=1;assert!(replay_m20_diagnostic(&record,cfg.capacities.clone(),&bad,manifest).is_err());
+            let mut ordinary=crate::RunSession::new_m20(cfg.clone()).unwrap();ordinary.reset(Some(7)).unwrap();
+            assert!(replay_m20_diagnostic(&ordinary.record().unwrap().unwrap(),cfg.capacities,&envelope,manifest).is_err());
         }
     }
 }

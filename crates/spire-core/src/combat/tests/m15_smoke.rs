@@ -7,7 +7,7 @@ fn fight(encounter:EncounterId,relics:Vec<RelicId>,elite:bool)->Combat{
         player:PlayerState{hp:300,max_hp:300,block:0,energy:3,max_energy:3,draw_per_turn:1,powers:vec![]},player_powers:vec![],character:Character::Silent,
         cards:vec![permanent_live_card(CardId::DefendGreen,CardInstanceId(1),0)],opening_draw:1,encounter_visit:0,
     }).unwrap();
-    let context=crate::items::CombatItemContext::new(relics,vec![Some(smoke())]).with_battle_context(crate::items::NativeBattleContext{elite_trigger:elite,boss:false,burning:None,m15:true});
+    let context=crate::items::CombatItemContext::new(relics,vec![Some(smoke())]).with_battle_context(crate::items::NativeBattleContext{elite_trigger:elite,boss:false,burning:None,m15:true,m20:false});
     Combat::enter_with_item_context(entry,&mut Some(context)).unwrap()
 }
 #[test]

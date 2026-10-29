@@ -46,6 +46,13 @@ pub enum CardId {
     Darkness, Fusion, Capacitor, Consume, Defragment, BiasedCognition, Loop,
     Electrodynamics, Bullseye, Recursion, Fission, StaticDischarge, Storm, Heatsinks,
     Amplify, EchoForm, GeneticAlgorithm, Claw, SteamBarrier, Streamline,
+    ChargeBattery, Hologram, Rebound, Stack, Turbo,
+    Aggregate, AutoShields, Blizzard, BootSequence, Chaos, Chill, DoomAndGloom,
+    DoubleEnergy, Equilibrium, ForceField, FTL, Glacier, HelloWorld, Melter,
+    Overclock, Recycle, ReinforcedBody, Reprogram, RipAndTear, Scrape, SelfRepair,
+    Skim, Sunder, Tempest, WhiteNoise,
+    AllForOne, Buffer, CoreSurge, CreativeAI, Hyperbeam, MachineLearning,
+    MeteorStrike, MultiCast, Rainbow, Reboot, Seek, ThunderStrike,
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
@@ -192,6 +199,23 @@ impl CardId {
         Self::Heatsinks => "heatsinks", Self::Amplify => "amplify", Self::EchoForm => "echo_form",
         Self::GeneticAlgorithm => "genetic_algorithm", Self::Claw => "claw",
         Self::SteamBarrier => "steam_barrier", Self::Streamline => "streamline",
+        Self::ChargeBattery => "charge_battery", Self::Hologram => "hologram",
+        Self::Rebound => "rebound", Self::Stack => "stack", Self::Turbo => "turbo",
+        Self::Aggregate => "aggregate", Self::AutoShields => "auto_shields",
+        Self::Blizzard => "blizzard", Self::BootSequence => "boot_sequence",
+        Self::Chaos => "chaos", Self::Chill => "chill", Self::DoomAndGloom => "doom_and_gloom",
+        Self::DoubleEnergy => "double_energy", Self::Equilibrium => "equilibrium",
+        Self::ForceField => "force_field", Self::FTL => "ftl", Self::Glacier => "glacier",
+        Self::HelloWorld => "hello_world", Self::Melter => "melter", Self::Overclock => "overclock",
+        Self::Recycle => "recycle", Self::ReinforcedBody => "reinforced_body",
+        Self::Reprogram => "reprogram", Self::RipAndTear => "rip_and_tear",
+        Self::Scrape => "scrape", Self::SelfRepair => "self_repair", Self::Skim => "skim",
+        Self::Sunder => "sunder", Self::Tempest => "tempest", Self::WhiteNoise => "white_noise",
+        Self::AllForOne => "all_for_one", Self::Buffer => "buffer", Self::CoreSurge => "core_surge",
+        Self::CreativeAI => "creative_ai", Self::Hyperbeam => "hyperbeam",
+        Self::MachineLearning => "machine_learning", Self::MeteorStrike => "meteor_strike",
+        Self::MultiCast => "multi_cast", Self::Rainbow => "rainbow", Self::Reboot => "reboot",
+        Self::Seek => "seek", Self::ThunderStrike => "thunder_strike",
         Self::Unknown(value) => value,
     }}
 }

@@ -44,6 +44,7 @@ impl RunBatch {
     }
 
     /// Construct finite Defect Acts 1–3 lanes using the shared ordered scheduler.
+    pub fn new_m20(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m20)}
     pub fn new_m19(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m19)}
     /// Construct finite Defect Acts 1–2 lanes using the shared ordered scheduler.
     pub fn new_m18(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m18)}
@@ -228,4 +229,43 @@ impl RunBatch {
         }
         Ok(())
     }
+}
+
+#[cfg(test)]
+impl RunBatch{
+    pub(crate) fn from_m20_diagnostic(configs:Vec<RunSessionConfig>,workers:usize,loadout:spire_core::run::diagnostics::M20DiagnosticLoadout)->Result<Self,RunBatchError>{
+        use spire_core::run::diagnostics::M20DiagnosticLoadout;
+        let constructor:fn(RunSessionConfig)->Result<RunSession,RunSessionError>=match loadout{
+            M20DiagnosticLoadout::Defect=>|c|RunSession::from_m20_diagnostic(c,M20DiagnosticLoadout::Defect),
+            M20DiagnosticLoadout::Strong=>|c|RunSession::from_m20_diagnostic(c,M20DiagnosticLoadout::Strong),
+        };
+        Self::new_with(configs,workers,constructor)
+    }
+}
+#[cfg(test)]
+mod m20_diagnostic_batch_installation{
+    use super::*;
+    use spire_core::run::diagnostics::M20DiagnosticLoadout;
+    #[test]
+    fn m20_native_diagnostic_paired_installation_and_full_reset(){
+        for workers in [1,2]{for loadout in [M20DiagnosticLoadout::Defect,M20DiagnosticLoadout::Strong]{
+            let config=crate::run_session::m20_test_config();
+            let mut batch=RunBatch::from_m20_diagnostic(vec![config.clone();2],workers,loadout).unwrap();
+            let single=RunSession::from_m20_diagnostic(config.clone(),loadout).unwrap();
+            for i in 0..2{assert_eq!(batch.reproduction(i).unwrap(),single.reproduction().unwrap());assert_eq!(batch.record(i).unwrap(),single.record().unwrap());}
+            let before=(0..2).map(|i|batch.reproduction(i).unwrap()).collect::<Vec<_>>();
+            assert!(batch.reset(&[None]).is_err());for i in 0..2{assert_eq!(batch.reproduction(i).unwrap(),before[i]);}
+            let reset=batch.reset(&[Some(7),None]).unwrap();
+            for i in 0..2{
+                let mut expected=RunSession::new_m20(config.clone()).unwrap();
+                // None is a full next-ordinal reset, not an untouched slot.
+                expected.reset(Some(7)).unwrap();let b=if i==0{expected.reset(Some(7)).unwrap()}else{expected.reset(None).unwrap()};
+                assert_eq!(reset[i].observation,b.observation);assert_eq!(batch.reproduction(i).unwrap(),expected.reproduction().unwrap());
+            }
+        }}
+    }
+}
+#[cfg(test)]
+impl RunBatch{
+    pub(crate) fn m20_test_tokens(&self)->Vec<RunDecisionToken>{self.sessions.iter().map(|s|s.decision().unwrap().token).collect()}
 }

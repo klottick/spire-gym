@@ -77,7 +77,29 @@ const SILENT_LIMITED_POTIONS: &[PotionId] = &[
 
 /// Complete constructor pool. Other characters are rejected rather than mapped
 /// to a partial shared subset.
+pub(crate) const DEFECT_POTIONS:&[PotionId]=&[
+    PotionId::FocusPotion,PotionId::PotionOfCapacity,PotionId::EssenceOfDarkness,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,PotionId::FruitJuice,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+const DEFECT_LIMITED_POTIONS:&[PotionId]=&[
+    PotionId::FocusPotion,PotionId::PotionOfCapacity,PotionId::EssenceOfDarkness,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+
 pub(crate) fn candidates(character: Character, limited: bool) -> Result<&'static [PotionId], InputError> {
+    if character==Character::Defect{return Ok(if limited{DEFECT_LIMITED_POTIONS}else{DEFECT_POTIONS})}
     if character != Character::Silent {
         return Err(InputError::Unsupported("Silent potion generation requires actual Silent character".into()));
     }
@@ -86,16 +108,16 @@ pub(crate) fn candidates(character: Character, limited: bool) -> Result<&'static
 
 fn rarity(id: PotionId) -> PotionRarity {
     match id {
-        PotionId::PoisonPotion | PotionId::BlockPotion | PotionId::DexterityPotion
+        PotionId::FocusPotion | PotionId::PoisonPotion | PotionId::BlockPotion | PotionId::DexterityPotion
         | PotionId::EnergyPotion | PotionId::ExplosivePotion | PotionId::FirePotion
         | PotionId::StrengthPotion | PotionId::SwiftPotion | PotionId::WeakPotion
         | PotionId::FearPotion | PotionId::AttackPotion | PotionId::SkillPotion
         | PotionId::PowerPotion | PotionId::ColorlessPotion | PotionId::FlexPotion
         | PotionId::SpeedPotion | PotionId::BlessingOfTheForge => PotionRarity::Common,
-        PotionId::CunningPotion | PotionId::RegenPotion | PotionId::AncientPotion
+        PotionId::PotionOfCapacity | PotionId::CunningPotion | PotionId::RegenPotion | PotionId::AncientPotion
         | PotionId::LiquidBronze | PotionId::GamblersBrew | PotionId::EssenceOfSteel
         | PotionId::DuplicationPotion | PotionId::DistilledChaos | PotionId::LiquidMemories => PotionRarity::Uncommon,
-        PotionId::GhostInAJar | PotionId::CultistPotion | PotionId::FruitJuice
+        PotionId::EssenceOfDarkness | PotionId::GhostInAJar | PotionId::CultistPotion | PotionId::FruitJuice
         | PotionId::SneckoOil | PotionId::FairyPotion | PotionId::SmokeBomb
         | PotionId::EntropicBrew => PotionRarity::Rare,
         _ => unreachable!("only complete Silent potion pools reach the factory"),

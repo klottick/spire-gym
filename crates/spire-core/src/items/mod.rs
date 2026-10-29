@@ -18,7 +18,7 @@ use crate::{combat::{Combat, Effect, EnemyHandle, Hook, InputError}, content::{C
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RelicCounterView {pub relic:RelicId,pub value:i32}
 pub(crate) fn visible_counters(counters:&std::collections::BTreeMap<RelicId,i32>)->Vec<RelicCounterView>{
-    counters.get(&RelicId::NeowsLament).map(|value|RelicCounterView{relic:RelicId::NeowsLament,value:*value}).into_iter().collect()
+    [RelicId::NeowsLament,RelicId::Inserter].into_iter().filter_map(|relic|counters.get(&relic).map(|value|RelicCounterView{relic,value:*value})).collect()
 }
 pub(crate) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{relics::replace_burning_blood(state)}
 
@@ -33,6 +33,7 @@ pub struct CombatItemContext {
     relics: Vec<RelicId>,
     potions: Vec<Option<PotionId>>,
     pub(crate) orichalcum_trigger: bool,
+    runic_capacitor_armed: bool,
     kite_triggered: bool,
     wrist_blade_bonus: i32,
     lantern_armed: bool,
@@ -40,13 +41,13 @@ pub struct CombatItemContext {
 }
 
 #[derive(Clone,Copy,Default,PartialEq,Eq)]
-pub(crate) struct NativeBattleContext {pub elite_trigger:bool,pub boss:bool,pub burning:Option<crate::combat::enemies::BurningBuff>,pub m15:bool}
+pub(crate) struct NativeBattleContext {pub elite_trigger:bool,pub boss:bool,pub burning:Option<crate::combat::enemies::BurningBuff>,pub m15:bool,pub m20:bool}
 
 impl std::fmt::Debug for NativeBattleContext{
     fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
         let mut value=f.debug_struct("NativeBattleContext");
         value.field("elite_trigger",&self.elite_trigger).field("boss",&self.boss).field("burning",&self.burning);
-        if self.m15{value.field("m15",&self.m15);}value.finish()
+        if self.m15{value.field("m15",&self.m15);}if self.m20{value.field("m20",&true);}value.finish()
     }
 }
 impl std::fmt::Debug for CombatItemContext{
@@ -55,6 +56,7 @@ impl std::fmt::Debug for CombatItemContext{
         value.field("battle",&self.battle).field("collar_activated",&self.collar_activated)
             .field("counters",&self.counters).field("relics",&self.relics).field("potions",&self.potions)
             .field("orichalcum_trigger",&self.orichalcum_trigger).field("lantern_armed",&self.lantern_armed).field("heal_room",&self.heal_room);
+        if self.runic_capacitor_armed{value.field("runic_capacitor_armed",&true);}
         if self.emotion_chip_armed{value.field("emotion_chip_armed",&self.emotion_chip_armed);}
         if self.kite_triggered{value.field("kite_triggered",&self.kite_triggered);}
         if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}value.finish()
@@ -75,7 +77,7 @@ impl RelicHookWork {
 impl CombatItemContext {
     /// Damage-path rescue consumes the first live Fairy without potion-use hooks.
     pub(crate) fn consume_fairy_for_rescue(&mut self,max_hp:i32)->Option<(usize,i32)> {
-        if !self.m15_profile()||self.owns_relic(RelicId::MarkOfBloom){return None}
+        if !self.shared_generated_profile()||self.owns_relic(RelicId::MarkOfBloom){return None}
         let slot=self.potions.iter().position(|potion|*potion==Some(PotionId::FairyPotion))?;
         let percent=if self.owns_relic(RelicId::SacredBark){60.0_f32}else{30.0_f32};
         let amount=((max_hp as f32)*(percent/100.0_f32)) as i32;
@@ -85,13 +87,14 @@ impl CombatItemContext {
     pub fn new(relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Self {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
-        Self { counters, relics, potions, orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
+        if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
+        Self { counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
+        Self { runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -130,6 +133,9 @@ impl CombatItemContext {
     /// Task9's Run entry seam is the only production caller.
     pub(crate) fn with_m15_profile(mut self)->Self{self.battle.m15=true;self}
     pub(crate) fn m15_profile(&self)->bool{self.battle.m15}
+    pub(crate) fn with_m20_profile(mut self)->Self{self.battle.m20=true;self}
+    pub(crate) fn m20_profile(&self)->bool{self.battle.m20}
+    pub(crate) fn shared_generated_profile(&self)->bool{self.battle.m15||self.battle.m20}
     #[cfg(test)]
     pub(crate) fn kite_triggered(&self)->bool{self.kite_triggered}
     pub(crate) fn wrist_blade_bonus(&self)->i32{self.wrist_blade_bonus}
@@ -138,7 +144,7 @@ impl CombatItemContext {
     pub(crate) fn potions(&self) -> &[Option<PotionId>] { &self.potions }
     pub(crate) fn counters(&self)->&std::collections::BTreeMap<RelicId,i32>{&self.counters}
     pub(crate) fn counter(&self,id:RelicId)->i32{self.counters.get(&id).copied().unwrap_or(0)}
-    pub(crate) fn set_counter(&mut self,id:RelicId,value:i32){if value==0{self.counters.remove(&id);}else{self.counters.insert(id,value);}}
+    pub(crate) fn set_counter(&mut self,id:RelicId,value:i32){if value==0&&id!=RelicId::Inserter{self.counters.remove(&id);}else{self.counters.insert(id,value);}}
     pub(crate) fn with_counters(mut self,counters:std::collections::BTreeMap<RelicId,i32>)->Self{self.counters=counters;self}
     pub(crate) fn heal_room(&self) -> NativeHealRoom { self.heal_room }
 
@@ -153,7 +159,7 @@ impl CombatItemContext {
     pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+        Self { runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
@@ -286,10 +292,21 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
-    let defect_items=context.relics.iter().any(|id|matches!(id,RelicId::DataDisk|RelicId::GoldPlatedCables|RelicId::EmotionChip))
-        ||context.potions.iter().flatten().any(|id|matches!(id,PotionId::FocusPotion|PotionId::PotionOfCapacity));
+    if context.m20_profile()&&character!=Character::Defect{return Err(RunError::InvalidAction)}
+    let new_blue_relics=[RelicId::SymbioticVirus,RelicId::FrozenCore,RelicId::Inserter,RelicId::NuclearBattery,RelicId::RunicCapacitor];
+    if (!context.m20_profile()&&context.relics.iter().any(|id|new_blue_relics.contains(id)))
+        || (!context.m20_profile()&&context.potions.iter().flatten().any(|id|*id==PotionId::EssenceOfDarkness)){
+        return Err(RunError::Unsupported("M20 exclusive item requires M20 profile"))
+    }
+    if new_blue_relics.iter().any(|id|context.relics.iter().filter(|owned|*owned==id).count()>1)
+        ||context.owns_relic(RelicId::FrozenCore)&&context.owns_relic(RelicId::CrackedCore)
+        ||context.counters.get(&RelicId::Inserter).is_some_and(|value|!context.owns_relic(RelicId::Inserter)||!(-1..=1).contains(value)){
+        return Err(RunError::InvalidAction)
+    }
+    let defect_items=context.relics.iter().any(|id|matches!(id,RelicId::DataDisk|RelicId::GoldPlatedCables|RelicId::EmotionChip|RelicId::SymbioticVirus|RelicId::FrozenCore|RelicId::Inserter|RelicId::NuclearBattery|RelicId::RunicCapacitor))
+        ||context.potions.iter().flatten().any(|id|matches!(id,PotionId::FocusPotion|PotionId::PotionOfCapacity|PotionId::EssenceOfDarkness));
     if defect_items&&character!=crate::content::Character::Defect{return Err(RunError::InvalidAction)}
-    if !context.m15_profile()&&context.relics.iter().any(|id|matches!(id,RelicId::Sozu|RelicId::PotionBelt)){
+    if !context.shared_generated_profile()&&context.relics.iter().any(|id|matches!(id,RelicId::Sozu|RelicId::PotionBelt)){
         return Err(RunError::Unsupported("generated-potion relic requires M15 profile"))
     }
     let has_m15_relic=context.relics.iter().any(|id|matches!(id,RelicId::NinjaScroll|RelicId::PaperKrane|RelicId::TheSpecimen
@@ -301,13 +318,16 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
         |PotionId::FairyPotion|PotionId::AttackPotion|PotionId::SkillPotion|PotionId::PowerPotion
         |PotionId::ColorlessPotion|PotionId::ExplosivePotion|PotionId::GamblersBrew|PotionId::LiquidMemories
         |PotionId::DuplicationPotion|PotionId::DistilledChaos|PotionId::SmokeBomb|PotionId::EntropicBrew));
-    if has_new_shared_potion&&!context.m15_profile(){return Err(RunError::Unsupported("M15 shared potion requires M15 profile"))}
+    if has_new_shared_potion&&!context.shared_generated_profile(){return Err(RunError::Unsupported("M15 shared potion requires M15 profile"))}
     let has_m15_potion=context.potions.iter().flatten().any(|id|matches!(id,PotionId::PoisonPotion|PotionId::CunningPotion|PotionId::GhostInAJar));
     if (has_m15_relic||has_m15_potion)&&!context.m15_profile(){return Err(RunError::Unsupported("M15 exclusive item requires M15 profile"));}
     if (has_m15_relic||has_m15_potion)&&character!=crate::content::Character::Silent{return Err(RunError::InvalidAction);}
     if context.owns_relic(RelicId::BurningBlood)&&context.owns_relic(RelicId::BlackBlood){return Err(RunError::InvalidAction)}
     if context.owns_relic(RelicId::NeowsLament)&&!matches!(context.counters.get(&RelicId::NeowsLament),Some(1..=3)|Some(-2)){return Err(RunError::InvalidAction)}
     for id in &context.relics {
+        // Approved blue-X modifier is diagnostic-only: ordinary M20 producer
+        // and encoder vocabularies exclude it; old startup admission stays shut.
+        if *id==RelicId::ChemicalX&&context.m20_profile(){continue}
         if !matches!(id, RelicId::BurningBlood | RelicId::RingOfTheSnake | RelicId::CrackedCore
             | RelicId::PureWater | RelicId::BloodVial | RelicId::Anchor | RelicId::Lantern
             | RelicId::Strawberry | RelicId::Pear | RelicId::Mango | RelicId::SacredBark
@@ -319,7 +339,8 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
             | RelicId::SneckoSkull | RelicId::NinjaScroll | RelicId::PaperKrane | RelicId::TheSpecimen
             | RelicId::Tingsha | RelicId::ToughBandages | RelicId::TwistedFunnel | RelicId::HoveringKite
             | RelicId::RingOfTheSerpent | RelicId::WristBlade | RelicId::Sozu | RelicId::PotionBelt
-            | RelicId::DataDisk | RelicId::GoldPlatedCables | RelicId::EmotionChip) {
+            | RelicId::DataDisk | RelicId::GoldPlatedCables | RelicId::EmotionChip
+            | RelicId::SymbioticVirus | RelicId::FrozenCore | RelicId::Inserter | RelicId::NuclearBattery | RelicId::RunicCapacitor) {
             return Err(RunError::Unsupported("unimplemented combat relic"));
         }
     }
@@ -335,7 +356,7 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
             | PotionId::ExplosivePotion | PotionId::AttackPotion | PotionId::SkillPotion | PotionId::PowerPotion
             | PotionId::ColorlessPotion | PotionId::GamblersBrew
             | PotionId::DuplicationPotion | PotionId::DistilledChaos | PotionId::LiquidMemories
-            | PotionId::SmokeBomb | PotionId::EntropicBrew | PotionId::FocusPotion | PotionId::PotionOfCapacity) {
+            | PotionId::SmokeBomb | PotionId::EntropicBrew | PotionId::FocusPotion | PotionId::PotionOfCapacity | PotionId::EssenceOfDarkness) {
             return Err(RunError::Unsupported("unimplemented combat potion"));
         }
     }
@@ -393,7 +414,7 @@ pub(crate) fn use_combat_potion(combat: &mut Combat, slot: usize,
 /// This deliberately does not create a public action or advance room progression.
 pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
     turn_ended: bool, we_meet_again: bool) -> Result<(), RunError> {
-    if crate::run::rooms::is_m15(state)&&state.potions.get(slot).copied().flatten()==Some(PotionId::EntropicBrew){
+    if (crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state))&&state.potions.get(slot).copied().flatten()==Some(PotionId::EntropicBrew){
         if turn_ended{return Err(RunError::InvalidAction)}
         return use_m15_entropic_brew_outside(state,slot,we_meet_again)
     }
@@ -443,7 +464,7 @@ pub(crate) fn apply_accepted_run_potion_obtain(state: &mut RunState, id: PotionI
     }
 }
 
-/// Accepted outside-combat M15 Entropic Brew. Sozu consumes Brew before any
+/// Shared accepted outside-combat Entropic Brew. Sozu consumes Brew before any
 /// proposal draw; otherwise all unrestricted proposals are captured before the
 /// slot is vacated and first-empty-slot obtains begin.
 pub(crate) fn use_m15_entropic_brew_outside(
@@ -485,7 +506,8 @@ pub(crate) fn use_m15_entropic_brew_outside(
 fn validate_m15_entropic_brew_outside(state:&RunState,slot:usize,we_meet_again:bool)->Result<(),RunError>{
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
     if state.terminal.is_some() { return Err(RunError::Terminal); }
-    if state.combat.is_some() || state.character != Character::Silent || we_meet_again
+    if state.combat.is_some() || !(state.character == Character::Silent
+        || state.character == Character::Defect && crate::run::rooms::is_m20(state)) || we_meet_again
         || state.max_hp == 0 || state.max_hp > 999 || state.hp > state.max_hp
         || state.potions.get(slot).copied().flatten() != Some(PotionId::EntropicBrew)
         || !valid_potion_capacity(&state.relics, &state.potions)
@@ -496,7 +518,7 @@ fn validate_m15_entropic_brew_outside(state:&RunState,slot:usize,we_meet_again:b
 }
 pub(crate) fn can_use_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->bool{
     prepare_run_potion(state,slot,turn_ended,we_meet_again).is_ok()
-        ||crate::run::rooms::is_m15(state)&&!turn_ended&&validate_m15_entropic_brew_outside(state,slot,we_meet_again).is_ok()
+        ||(crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state))&&!turn_ended&&validate_m15_entropic_brew_outside(state,slot,we_meet_again).is_ok()
 }
 pub(crate) fn prepare_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->Result<(u32,u32,Vec<Option<PotionId>>),RunError>{
     prepare_run_potion_inner(state,slot,turn_ended,we_meet_again,|_,_,_|{})
@@ -560,3 +582,53 @@ fn apply_run_potion_use_hook(state: &mut RunState) {
 pub(crate) mod potion_generation;
 #[cfg(test)]
 mod m15_potion_generation_tests;
+
+/// Relic atPreBattle requests. The shared engine owns invocation and dispatch.
+/// No slots or orbs are stored by this callback owner.
+pub(crate) fn defect_pre_battle_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
+    if !context.m20_profile(){return Ok(vec![])}
+    validate_defect_relic_counters(context)?;
+    context.runic_capacitor_armed=context.owns_relic(RelicId::RunicCapacitor);
+    let mut work=Vec::new();
+    for relic in context.relics(){
+        let orb=match relic{RelicId::SymbioticVirus=>crate::combat::OrbKind::Dark,RelicId::NuclearBattery=>crate::combat::OrbKind::Plasma,_=>continue};
+        work.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(orb)));
+    }
+    Ok(work)
+}
+/// Exactly one source relic atTurnStart pass, before player powers/orbs.
+/// Counter commit occurs even when the later ordinary Slots request caps at10.
+pub(crate) fn defect_turn_start_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
+    if !context.m20_profile(){return Ok(vec![])}
+    validate_defect_relic_counters(context)?;
+    let mut work=Vec::new();
+    for index in 0..context.relics.len(){
+        match context.relics[index]{
+            RelicId::RunicCapacitor if context.runic_capacitor_armed=>{
+                context.runic_capacitor_armed=false;work.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(3)));
+            },
+            RelicId::Inserter=>{
+                let old=context.counter(RelicId::Inserter);let next=if old<0{1}else{old+1};
+                context.set_counter(RelicId::Inserter,if next==2{0}else{next});
+                if next==2{work.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(1)));}
+            },
+            _=>{},
+        }
+    }
+    Ok(work)
+}
+/// `has_empty_orb` is the real slot owner's source callback-time predicate.
+/// The ordinary channel later owns full-slot eviction and any accepted fault.
+pub(crate) fn defect_end_turn_work(context:&CombatItemContext,has_empty_orb:bool)->Vec<Effect>{
+    if context.m20_profile()&&context.owns_relic(RelicId::FrozenCore)&&has_empty_orb{
+        vec![defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Frost))]
+    }else{vec![]}
+}
+fn defect_relic_effect(effect:crate::combat::CharacterEffect)->Effect{
+    Effect{source:crate::combat::Source::None,target:Some(crate::combat::Actor::Player),kind:crate::combat::EffectKind::Character(effect)}
+}
+fn validate_defect_relic_counters(context:&CombatItemContext)->Result<(),InputError>{
+    if context.counters.get(&RelicId::Inserter).is_some_and(|n|!context.owns_relic(RelicId::Inserter)||!(-1..=1).contains(n)){
+        return Err(InputError::Invariant("M20 Inserter counter invalid".into()))
+    }Ok(())
+}

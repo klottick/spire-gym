@@ -27,3 +27,18 @@ pub(crate) fn set_defect_items(combat:&mut Combat,items:crate::items::CombatItem
     combat.state.silent.source_character=Some(crate::content::Character::Defect);combat.state.item_context=Some(items);
 }
 pub(crate) fn ready_fixture()->Combat{super::full_runtime::entered_combat(3,3, |_|{})}
+
+/// Read-only accepted-prefix facts after the ordinary public view fails closed.
+pub(crate) fn m20_item_fault_facts(combat:&Combat)->(i32,usize){
+    (combat.state.enemies[0].hp,combat.state.character.orb_slots.iter().flatten().filter(|orb|orb.kind==OrbKind::Dark).count())
+}
+
+pub(crate) fn m20_item_card_rng_counter(combat:&Combat)->u128{
+    combat.state.card_rng.as_ref().expect("M20 item fixture card RNG").word_index()
+}
+
+/// Literal unit-fixture input, before any potion use; never a production import.
+pub(crate) fn m20_item_set_orbs(combat:&mut Combat,orbs:&[Option<OrbKind>]){
+    assert!(orbs.len()<=10);
+    combat.state.character.orb_slots=orbs.iter().map(|kind|kind.map(OrbState::new)).collect();
+}

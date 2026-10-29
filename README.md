@@ -8,7 +8,8 @@ models and experiments live outside this repository. There is no graphical clien
 ## What works today
 
 Current native source includes **Ironclad and Silent at Ascension 0**, plus
-accepted finite **Defect A0 Acts1–3 source**. M19 normal completion remains open.
+accepted finite **Defect A0 Acts1–4/Heart and full75-blue source**, with M20
+publication pending. M18/M19 normal gates and M20 normal Heart remain open.
 They use generated maps with finite captured content: supported cards and
 encounters have real mechanics, but reward, shop and event pools are bounded.
 
@@ -16,12 +17,31 @@ encounters have real mechanics, but reward, shop and event pools are bounded.
 | --- | --- | --- |
 | Native Ironclad Runs | Captured Acts 1–3; opt-in Act 4, keys, Shield/Spear and Heart mechanics; all 75 ordinary red card kinds | Normal-start traversal to the Heart and HeartVictory remain unobserved. [Ironclad profile](docs/milestones/m10-heart.md) |
 | Native Silent Runs | Canonical starts, captured Acts 1–4/Heart, all 75 green card kinds and exclusive items; Poison, discard, Shiv, retain, copy and generation mechanics | Finite captured reward/shop/event content; native-only delivery. Canonical normal-start Heart completion remains unproven. [Silent profile](docs/milestones/m15-silent-heart.md) |
+| Native Defect Acts1–4/Heart source | All75 ordinary blue kinds, required generated closure, nine exclusive relics/three exclusive potions; normal115-card/26-relic/33-potion vocabulary, keys and shared Act4/Heart | Source accepted after comprehensive review and same-reviewer I1 closure, 0C/0I/0M; publication pending. Six normal Deaths, supplied fault and later110-action supplied victory/native agreement are pre-I1 evidence; canonical normal Heart UNPROVEN. [M20 profile](docs/milestones/m20-defect-heart.md) |
 | Native Defect Acts1–3 source | Canonical Defect A0, 29 blue kinds plus Parasite, 19 relics and five potions; shared native sessions/replay/batching | Source-only merge approved after independent READY with zero technical findings. All six originals are Deaths; no Act3 boss entry or Act3NoKeys. Full M19 remains open. [M19 profile](docs/milestones/m19-defect-act3.md) |
 | Native Defect Acts1–2 source | Canonical Defect A0, 29 obtainable card kinds, 14 relics, five potions; native sessions/replay/batching through healthy Act3Ready | Source accepted under explicit primary approval; merge preparation pending. Normal BronzeAutomaton entry/record remains open; full M18 is incomplete. [M18 profile](docs/milestones/m18-defect-act2.md) |
 | Native Defect Act1 Runs | Canonical short-Neow starts, shared generated route and 12 captured encounters; 28 obtainable card kinds, 14 relics and five potions; healthy nonterminal Act2Ready | Source accepted after independent final READY; M17 publication/main integration pending. Six prescribed normal runs complete, without an all-seed or policy-strength claim; native-only. [Act1 profile](docs/milestones/m17-defect-act1.md) |
 | Native Defect authored combat | Finite A0: 29 blue card kinds, four orbs, Focus, slots 0–10, four relics, two potions and persistent card mutations; shared Run and versioned native observation | Authored entry only; merged through [PR55](https://github.com/klottick/spire-gym/pull/55) at `02ea211`. Its fixtures do not establish normal progression or Python delivery. [Defect profile](docs/milestones/m16-defect-combat.md) |
 | Python/Gymnasium Ironclad combat | Full-engine standalone supplied-resource fights, native batches and a common combat view inside Runs | Finite A0 inputs and encounters. [Combat API](docs/combat-training.md) |
 | Python/Gymnasium Ironclad Runs | Captured single-Run environment, legal-action masks, numeric observations and replay; explicit M10 opt-in | Silent progression is native-only; native acceptance does not establish delivery by an installed Python extension. [Run API](docs/milestones/m10-heart.md#opt-in-usage) |
+
+M20 finite native source is accepted; publication is pending. The initial
+comprehensive review requested one Important energy-cap correction. The same
+reviewer closed I1 and the bounded M20 Sunder/EnergyPotion extensions with zero
+remaining Critical, Important or Minor findings. Current source-bound checks
+pass52 blue,27 M20 item and23 native tests plus named older preservation controls
+and non-test core/env library checks; overlapping counts are not a full-suite total.
+The [M20 review record](docs/superpowers/plans/2026-10-29-m20-native-runtime-review.md)
+separates those current checks from all earlier workspace2906/2/6 and outcome
+receipts, which remain explicitly **PRE-I1-CORRECTION**. Strong remains unexecuted
+(original BLOCKED, corrective SKIPPED). There is no current whole-workspace-green,
+normal Heart, Python-extension or original-runtime claim. M21 release requires
+actual merged M20 source, verified accepted export and explicit root assignment;
+no M21 implementation release is claimed here.
+
+The older profile rows and status paragraphs below retain their dated publication
+and evidence statements. They do not override the current M20 source-accepted,
+publication-pending disposition or close M18/M19 normal gates.
 
 The primary user approved M19 source merge and conditional M20 dependency release
 on 2026-10-28 after one fresh independent senior returned source accuracy READY

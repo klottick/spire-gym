@@ -125,6 +125,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             if matches!(target,Actor::Player)&&id.0=="combust"{state.combust=None;}
             let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
             let plated=id.0=="plated_armor"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.full_powers.iter().any(|power|power.id==id)),_=>false};
+            if *target==Actor::Player&&id.0=="draw"{state.player.draw_per_turn=state.player.draw_per_turn.wrapping_sub(amount(state,target,id)?);}
             remove(state, effect.target.as_ref().unwrap(), id);
             super::cards::colorless_power_removed(state,target,id);
             if plated{if let Actor::Enemy(owner)=target{if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::ShelledParasite)){
@@ -178,6 +179,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         return Ok(())
     }
     let previous = amount(state, actor, id)?;
+    if application&&id.0=="rebound"&&previous==0&&*actor==Actor::Player{state.defect.rebound_just_applied=true;}
     if !application && previous == 0 { return Ok(()); }
     let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
     let next = match id.0 {
@@ -185,10 +187,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         // DoubleDamagePower constructs at one; ApplyPower's application
         // amount is the delta only when an existing matching power stacks.
         "double_damage" if application&&previous==0=>1,
-        "energized"=>sum.clamp(0,999),
+        "energized"|"energized_blue"=>sum.clamp(0,999),
         "wraith_form"=>sum.min(0),
         "next_turn_block"|"draw_card_next_turn"|"blur"|"choked"|"infinite_blades"|"after_image"|"a_thousand_cuts"|"envenom"|"phantasmal"|"double_damage"|"intangible_player"|"tools_of_the_trade"|"burst"=>sum.max(0),
-        "bias"|"loop"|"electrodynamics"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form"|"lock_on"=>sum.max(0),
+        "buffer"|"repair"|"draw"|"hello_world"|"creative_ai"|"equilibrium"|"rebound"|"bias"|"loop"|"electrodynamics"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form"|"lock_on"=>sum.max(0),
         "mode_shift"=>sum.max(0),
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,

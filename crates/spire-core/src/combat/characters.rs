@@ -118,7 +118,12 @@ pub(super) fn channel(state:&mut super::model::State,source:&Source,orb:OrbState
         return Err(super::InputError::Invariant("orb payload ownership".into()).into())
     }
     if state.character.orb_slots.len()>10 {return Err(super::InputError::Invariant("orb capacity exceeds ten".into()).into())}
-    if let Some(slot)=state.character.orb_slots.iter_mut().find(|slot|slot.is_none()) {*slot=Some(orb);}
+    if let Some(slot)=state.character.orb_slots.iter_mut().find(|slot|slot.is_none()) {
+        let history=match orb.kind {OrbKind::Frost=>Some(&mut state.defect.frost_channeled),OrbKind::Lightning=>Some(&mut state.defect.lightning_channeled),_=>None};
+        if let Some(history)=history{*history=history.checked_add(1).ok_or_else(||super::InputError::Unsupported("native successful channel history exhausted".into()))?;}
+        *slot=Some(orb);
+        super::piles::refresh_hand_values(state);
+    }
     else if evict&&!state.character.orb_slots.is_empty() {
         enqueue(state,source.clone(),CharacterEffect::ChannelState{orb,evict});
         enqueue(state,source.clone(),CharacterEffect::EvokeFront{remove:true});

@@ -119,7 +119,7 @@ fn m15_silent_history_absent_draw_differs_from_draw_zero(){
         while let Some(index)=gamble.state.piles.hand.iter().position(|c|c.handle().as_str()!="3"){
             let card=gamble.state.piles.hand.remove(index);gamble.state.inactive_cards.push(card);
         }
-        gamble.state.silent.drawn_cards=vec![CardId::DefendGreen];
+        gamble.state.silent.drawn_cards=vec![CardId::DefendGreen.into()];
         play(&mut gamble,false);
         assert_eq!(gamble.state.silent.drawn_cards,[CardId::DefendGreen]);
         assert_eq!(gamble.state.piles.exhaust.len(),usize::from(up==0));
@@ -128,7 +128,7 @@ fn m15_silent_history_absent_draw_differs_from_draw_zero(){
 
         let mut expertise=fight("expertise",up);
         for n in 100..106{add(&mut expertise,CardId::DefendGreen,n,false)}
-        expertise.state.silent.drawn_cards=vec![CardId::Tactician];
+        expertise.state.silent.drawn_cards=vec![CardId::Tactician.into()];
         play(&mut expertise,false);
         assert_eq!(expertise.state.silent.drawn_cards,[CardId::Tactician]);
     }
