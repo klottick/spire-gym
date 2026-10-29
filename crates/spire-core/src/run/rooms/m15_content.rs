@@ -244,16 +244,27 @@ pub(in crate::run) fn sample_capture_row(
     semantic: &[u64],
     rarities: &[CardRarity],
 ) -> Result<Vec<CardId>, RunError> {
+    sample_capture_row_for(rng,semantic,rarities,green_candidates,RunRngScope::M15CardOffer,
+        "M15 captured card row has an incomplete Green rarity family",
+        "M15 captured card row has no remaining Green candidate")
+}
+
+/// Shared staged sampler; profiles supply complete families and their RNG scope.
+pub(in crate::run) fn sample_capture_row_for(
+    rng:&mut RunRng,semantic:&[u64],rarities:&[CardRarity],
+    family:fn(CardRarity)->&'static [CardId],scope:RunRngScope,
+    incomplete:&'static str,empty:&'static str,
+)->Result<Vec<CardId>,RunError>{
     let catalog = Catalog::standard();
     for rarity in rarities {
-        let candidates = green_candidates(*rarity);
+        let candidates = family(*rarity);
         if candidates.is_empty()
             || candidates.iter().any(|id| {
                 catalog.card(*id).is_none_or(|definition| definition.definition_only)
             })
         {
             return Err(RunError::Unsupported(
-                "M15 captured card row has an incomplete Green rarity family",
+                incomplete,
             ));
         }
     }
@@ -261,20 +272,20 @@ pub(in crate::run) fn sample_capture_row(
     let mut staged = rng.clone();
     let mut chosen = Vec::with_capacity(rarities.len());
     for (slot, rarity) in rarities.iter().enumerate() {
-        let remaining = green_candidates(*rarity)
+        let remaining = family(*rarity)
             .iter()
             .copied()
             .filter(|id| !chosen.contains(id))
             .collect::<Vec<_>>();
         if remaining.is_empty() {
             return Err(RunError::Unsupported(
-                "M15 captured card row has no remaining Green candidate",
+                empty,
             ));
         }
         let mut key = semantic.to_vec();
         key.push(slot as u64);
         let index = staged.bounded_scoped_checked(
-            RunRngScope::M15CardOffer,
+            scope,
             &key,
             remaining.len() as u64,
         )?;

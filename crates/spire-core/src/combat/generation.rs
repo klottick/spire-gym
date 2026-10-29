@@ -4,7 +4,7 @@ use super::model::State;
 use crate::content::{CardId,CardType,CardColor,CardRarity,Catalog,Character};
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum GenerationPool { Attack,Skill,Power,Any,Colorless }
+pub enum GenerationPool { Attack,Skill,Power,Any,Colorless,Common }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum GenerationCost { Ordinary,TurnZero,CombatZero }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -32,17 +32,25 @@ pub(super) fn pool(character:Option<Character>,kind:GenerationPool)->Result<Vec<
         }
         rows
     }else{
-        if character!=Some(Character::Silent){return Err(InputError::Unsupported("actual character generator support unavailable".into()))}
-        let mut rows=catalog.cards().iter().filter(|row|row.color==CardColor::Green
+        let (color,excluded,expected)=match character {
+            Some(Character::Silent) if kind!=GenerationPool::Common=>(CardColor::Green,"alchemize",70),
+            Some(Character::Defect)=>(CardColor::Blue,"self_repair",70),
+            _=>return Err(InputError::Unsupported("actual character generator support unavailable".into())),
+        };
+        let mut rows=catalog.cards().iter().filter(|row|row.color==color
             &&matches!(row.rarity,CardRarity::Common|CardRarity::Uncommon|CardRarity::Rare)
-            &&row.id!=CardId::Alchemize).collect::<Vec<_>>();
-        if rows.len()!=70||rows.iter().any(|row|row.definition_only){return Err(InputError::Unsupported("complete Silent generator support unavailable".into()))}
+            &&(kind==GenerationPool::Common||row.id.as_str()!=excluded)).collect::<Vec<_>>();
+        let expected=expected+usize::from(kind==GenerationPool::Common);
+        if rows.len()!=expected||rows.iter().any(|row|row.definition_only){return Err(InputError::Unsupported("complete actual character generator support unavailable".into()))}
         rows.sort_by_key(|row|(match row.rarity{CardRarity::Common=>0,CardRarity::Uncommon=>1,_=>2},row.id.as_str()));
         rows.into_iter().filter(|row|match kind{GenerationPool::Attack=>row.card_type==CardType::Attack,
-            GenerationPool::Skill=>row.card_type==CardType::Skill,GenerationPool::Power=>row.card_type==CardType::Power,_=>true}).collect()
+            GenerationPool::Skill=>row.card_type==CardType::Skill,GenerationPool::Power=>row.card_type==CardType::Power,
+            GenerationPool::Common=>row.rarity==CardRarity::Common,_=>true}).collect()
     };
     if kind==GenerationPool::Colorless{rows.sort_by_key(|row|row.id.as_str());}
-    let expected=match kind{GenerationPool::Attack=>26,GenerationPool::Skill=>33,GenerationPool::Power=>11,GenerationPool::Any=>70,GenerationPool::Colorless=>34};
+    let blue=character==Some(Character::Defect);
+    let expected=match kind{GenerationPool::Attack=>if blue{23}else{26},GenerationPool::Skill=>if blue{34}else{33},
+        GenerationPool::Power=>if blue{13}else{11},GenerationPool::Any=>70,GenerationPool::Colorless=>34,GenerationPool::Common=>18};
     if rows.len()!=expected||rows.iter().any(|row|super::card_state::generated(row.id,CardInstanceId(0),0).is_none()){
         return Err(InputError::Unsupported("complete generator constructors unavailable".into()))
     }
@@ -54,7 +62,7 @@ fn request(pool:GenerationPool,count:u32,destination:CardDestination,cost:Genera
 }
 
 pub(super) fn starting_cost(id:CardId,upgrades:u32)->Option<i32>{
-    use CardId::*;Some(match id{Distraction|Alchemize=>if upgrades>0{0}else{1},Discovery=>1,
+    use CardId::*;Some(match id{WhiteNoise|Distraction|Alchemize=>if upgrades>0{0}else{1},Discovery=>1,
         Chrysalis|Metamorphosis=>2,JackOfAllTrades=>0,Transmutation=>0,Magnetism=>if upgrades>0{1}else{2},_=>return None})
 }
 
@@ -71,6 +79,7 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)->Result<Op
     }
     if card.id==Magnetism{return Ok(Some((price,vec![(Some(cards::PayloadTarget::Player),EffectKind::ApplyFullPower{id:FullPowerId("magnetism"),amount:1})])))}
     let work=match card.id{
+        WhiteNoise=>request(GenerationPool::Power,1,CardDestination::Hand,GenerationCost::TurnZero,false,None),
         Distraction=>request(GenerationPool::Skill,1,CardDestination::Hand,GenerationCost::TurnZero,false,None),
         Discovery=>request(GenerationPool::Any,3,CardDestination::Hand,GenerationCost::TurnZero,false,Some((false,1))),
         JackOfAllTrades=>request(GenerationPool::Colorless,if upgraded{2}else{1},CardDestination::Hand,GenerationCost::Ordinary,false,None),
@@ -108,7 +117,7 @@ pub(super) fn capture(state:&mut State,effects:&mut [Effect])->Result<(),EffectE
     for effect in effects{
         // Discovery/Transmutation construct their proposals in the queued action.
         // These four cards sample synchronously during their own use method.
-        let synchronous=matches!(&effect.source,Source::Card(owner) if state.in_play.as_ref().filter(|card|card.handle()==*owner).or_else(||state.queued_autoplay.get(owner)).and_then(|card|card.full()).is_some_and(|card|matches!(card.id,CardId::Alchemize|CardId::Distraction|CardId::JackOfAllTrades|CardId::Chrysalis|CardId::Metamorphosis)));
+        let synchronous=matches!(&effect.source,Source::Card(owner) if state.in_play.as_ref().filter(|card|card.handle()==*owner).or_else(||state.queued_autoplay.get(owner)).and_then(|card|card.full()).is_some_and(|card|matches!(card.id,CardId::WhiteNoise|CardId::Alchemize|CardId::Distraction|CardId::JackOfAllTrades|CardId::Chrysalis|CardId::Metamorphosis)));
         if synchronous{
             if let EffectKind::Generate(work)=&mut effect.kind{capture_one(state,work)?;}
             if let EffectKind::Alchemize{proposal}=&mut effect.kind{
@@ -143,7 +152,11 @@ pub(super) fn validate(state:&State,effect:&Effect,work:&GenerationWork)->Result
             "skill_potion"=>Some(request(GenerationPool::Skill,3,CardDestination::Hand,GenerationCost::TurnZero,false,Some((true,potion_copies(state))))),
             "power_potion"=>Some(request(GenerationPool::Power,3,CardDestination::Hand,GenerationCost::TurnZero,false,Some((true,potion_copies(state))))),
             "colorless_potion"=>Some(request(GenerationPool::Colorless,3,CardDestination::Hand,GenerationCost::TurnZero,false,Some((false,potion_copies(state))))),_=>None},
-        Source::Actor(Actor::Player) if state.player_full_powers.iter().any(|power|power.id.0=="magnetism"&&power.state.amount>0)=>Some(request(GenerationPool::Colorless,1,CardDestination::Hand,GenerationCost::Ordinary,false,None)),
+        Source::Actor(Actor::Player)=>{
+            let id=match work.pool{GenerationPool::Colorless=>"magnetism",GenerationPool::Common=>"hello_world",GenerationPool::Power=>"creative_ai",_=>""};
+            state.player_full_powers.iter().any(|power|power.id.0==id&&power.state.amount>0)
+                .then(||request(work.pool,1,CardDestination::Hand,GenerationCost::Ordinary,false,None))
+        },
         _=>None,
     }.ok_or_else(||InputError::Invariant("generator source/request owner mismatch".into()))?;
     let mut shape=work.clone();shape.captured=false;shape.cards.clear();shape.next=0;
@@ -167,10 +180,10 @@ pub(super) fn apply(state:&mut State,effect:&Effect,request:&GenerationWork)->Re
     }
     for index in work.next..work.cards.len(){
         let instance=super::piles::next_generated_instance(state)?;
-        let mut template=super::card_state::generated(work.cards[index],CardInstanceId(0),0).ok_or_else(||InputError::Invariant("generated constructor absent".into()))?;
-        if work.upgraded{super::cards::ironclad::rules::upgrade(&mut template).map_err(|_|InputError::Invariant("generated upgrade unavailable".into()))?;}
+        let white_noise=matches!(&effect.source,Source::Card(owner) if state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|card|card.full()).is_some_and(|card|card.id==CardId::WhiteNoise));
+        let mut template=creation_template(state,&work,work.cards[index],white_noise)?;
         let mut card=super::cards::make_stat_equivalent_copy(&mut template,instance,super::cards::copy_history(state))?;
-        if !card.local.x_cost&&!matches!(card.id,CardId::Reflex|CardId::Tactician){
+        if !white_noise&&!card.local.x_cost&&!matches!(card.id,CardId::Reflex|CardId::Tactician){
             match work.cost{GenerationCost::Ordinary=>(),GenerationCost::TurnZero=>card.local.turn_cost=Some(0),
                 GenerationCost::CombatZero=>{card.local.mutable_combat_cost=Some(0);card.local.turn_cost=Some(0);card.local.temporary_cost=0;}}
         }
@@ -181,7 +194,20 @@ pub(super) fn apply(state:&mut State,effect:&Effect,request:&GenerationWork)->Re
     Ok(())
 }
 
+/// One creation checkpoint, also accepting the existing typed upgraded request.
+/// WhiteNoise assigns turn cost before the creation action upgrades its template.
+pub(super) fn creation_template(state:&State,work:&GenerationWork,id:CardId,white_noise:bool)->Result<LiveCard,EffectError>{
+    let mut template=super::card_state::generated_with_history(id,CardInstanceId(0),0,super::card_state::CardConstructionHistory::from_state(state))
+        .ok_or_else(||InputError::Invariant("generated constructor absent".into()))?;
+    if white_noise&&!template.local.x_cost{template.local.turn_cost=Some(0);}
+    if work.upgraded{super::cards::ironclad::rules::upgrade(&mut template).map_err(|_|InputError::Invariant("generated upgrade unavailable".into()))?;}
+    Ok(template)
+}
+
 pub(super) fn start_turn(state:&State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>){
+    // M20's required L34 callback uses source-time capture below. The frozen
+    // older profiles retain their existing deferred-generation checkpoint.
+    if state.item_context.as_ref().is_some_and(|items|items.m20_profile()){return}
     if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)||!state.enemies.iter().any(|enemy|enemy.hp>0&&enemy.life==ActorLife::Active){return}
     let count=state.player_full_powers.iter().find(|power|power.id.0=="magnetism").map_or(0,|power|power.state.amount);
     for _ in 0..count{work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Generate(request(GenerationPool::Colorless,1,CardDestination::Hand,GenerationCost::Ordinary,false,None))});}
@@ -199,3 +225,31 @@ pub(crate) fn offer_request(pool:GenerationPool,optional:bool,copies:u8)->Effect
 }
 
 fn potion_copies(state:&State)->u8{if state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::SacredBark)){2}else{1}}
+
+fn not_basically_dead(state:&State)->bool{
+    state.enemies.iter().any(|enemy|enemy.life==ActorLife::HalfDead||enemy.life==ActorLife::Active&&enemy.hp>0)
+}
+
+/// M20 required start callbacks select now; generated delivery remains queued.
+/// Older-profile Magnetism invocation/capture behavior is unchanged.
+pub(super) fn blue_start_turn(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)||state.silent.source_character!=Some(Character::Defect){return Ok(())}
+    for power in state.player_full_powers.clone(){
+        let pool=match power.id.0 {
+            "hello_world" if not_basically_dead(state)=>GenerationPool::Common,
+            "creative_ai"=>GenerationPool::Power,
+            "magnetism" if state.item_context.as_ref().is_some_and(|items|items.m20_profile())&&not_basically_dead(state)=>GenerationPool::Colorless,
+            _=>continue,
+        };
+        for _ in 0..power.state.amount.max(0){
+            let mut request=request(pool,1,CardDestination::Hand,GenerationCost::Ordinary,false,None);
+            let result=capture_one(state,&mut request);
+            let effect=Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Generate(request)};
+            if let Err(error)=result{
+                for accepted in work.drain(..).rev(){state.pending.push_front(accepted);}
+                state.current=Some(effect);return Err(error)
+            }
+            work.push(effect);
+        }
+    }Ok(())
+}

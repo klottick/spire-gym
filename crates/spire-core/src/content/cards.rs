@@ -1,4 +1,5 @@
 use super::{CardId, Character};
+use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CardType { Attack, Skill, Power, Status, Curse }
@@ -13,7 +14,45 @@ pub enum ContentProducer { OrdinaryReward, ShardOrdinaryReward, NoteForYourself,
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RegistryError { UnknownDefinition, UnknownProducer, IncompletePool, MissingStarterDeck }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardCost { Energy(u8), X }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardTarget { Enemy, AllEnemies, SelfTarget, None }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CardKeywords {
+    pub exhaust: bool,
+    pub innate: bool,
+    pub ethereal: bool,
+}
+
+impl CardKeywords {
+    pub const NONE: Self = Self { exhaust: false, innate: false, ethereal: false };
+    pub const EXHAUST: Self = Self { exhaust: true, innate: false, ethereal: false };
+    pub const EXHAUST_INNATE: Self = Self { exhaust: true, innate: true, ethereal: false };
+    pub const INNATE: Self = Self { exhaust: false, innate: true, ethereal: false };
+    pub const ETHEREAL: Self = Self { exhaust: false, innate: false, ethereal: true };
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CardTag { Strike, StarterStrike, StarterDefend, Healing }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CardFaceMetadata {
+    pub cost: CardCost,
+    pub target: CardTarget,
+    pub keywords: CardKeywords,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlueCardMetadata {
+    pub base: CardFaceMetadata,
+    pub upgraded: CardFaceMetadata,
+    pub tags: &'static [CardTag],
+}
+
+#[derive(Clone, Copy)]
 pub struct CardDefinition {
     pub id: CardId,
     pub color: CardColor,
@@ -23,6 +62,21 @@ pub struct CardDefinition {
     /// Definitions are registered, but executable support belongs to later
     /// mechanics components. No foundation row claims a run handler.
     pub definition_only: bool,
+    /// Source-backed base/upgraded catalog facts for the blue card family.
+    pub blue_metadata: Option<BlueCardMetadata>,
+}
+
+impl fmt::Debug for CardDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CardDefinition")
+            .field("id", &self.id)
+            .field("color", &self.color)
+            .field("rarity", &self.rarity)
+            .field("card_type", &self.card_type)
+            .field("note_storage", &self.note_storage)
+            .field("definition_only", &self.definition_only)
+            .finish()
+    }
 }
 
 impl CardDefinition {
@@ -100,10 +154,10 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::DefendGreen, CardColor::Green, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
     supported(CardId::Neutralize, CardColor::Green, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::Survivor, CardColor::Green, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::StrikeBlue, CardColor::Blue, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::DefendBlue, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Zap, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Dualcast, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
+    with_blue_metadata(supported(CardId::StrikeBlue, CardColor::Blue, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::Strike, CardTag::StarterStrike])),
+    with_blue_metadata(supported(CardId::DefendBlue, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::StarterDefend])),
+    with_blue_metadata(supported(CardId::Zap, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Dualcast, CardColor::Blue, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::None, CardKeywords::NONE, CardKeywords::NONE, &[])),
     supported(CardId::StrikePurple, CardColor::Purple, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::DefendPurple, CardColor::Purple, CardRarity::Basic, CardType::Skill, NoteStorage::RemovablePermanent),
     supported(CardId::Eruption, CardColor::Purple, CardRarity::Basic, CardType::Attack, NoteStorage::RemovablePermanent),
@@ -128,19 +182,19 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::HeavyBlade, CardColor::Red, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::PerfectedStrike, CardColor::Red, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::Thunderclap, CardColor::Red, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::BallLightning, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::ColdSnap, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::Coolheaded, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Leap, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
+    with_blue_metadata(supported(CardId::BallLightning, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::ColdSnap, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Coolheaded, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Leap, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
     supported(CardId::Consecrate, CardColor::Purple, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::EmptyBody, CardColor::Purple, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
     supported(CardId::EmptyFist, CardColor::Purple, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::EmptyMind, CardColor::Purple, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::BeamCell, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::GoForTheEyes, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::Barrage, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::CompileDriver, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::SweepingBeam, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
+    with_blue_metadata(supported(CardId::BeamCell, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::GoForTheEyes, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Barrage, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::CompileDriver, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::SweepingBeam, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[])),
     supported(CardId::DeadlyPoison, CardColor::Green, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
     supported(CardId::PoisonedStab, CardColor::Green, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
     supported(CardId::Catalyst, CardColor::Green, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
@@ -258,34 +312,99 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::JackOfAllTrades,CardColor::Colorless,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
     supported(CardId::Transmutation,CardColor::Colorless,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
     supported(CardId::Magnetism,CardColor::Colorless,CardRarity::Rare,CardType::Power,NoteStorage::RemovablePermanent),
-    supported(CardId::Darkness, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Fusion, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Capacitor, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Consume, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Defragment, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::BiasedCognition, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Loop, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Electrodynamics, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Bullseye, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::Recursion, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Fission, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::StaticDischarge, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Storm, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Heatsinks, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::Amplify, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::EchoForm, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent),
-    supported(CardId::GeneticAlgorithm, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Claw, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
-    supported(CardId::SteamBarrier, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent),
-    supported(CardId::Streamline, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent),
+    with_blue_metadata(supported(CardId::Darkness, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Fusion, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Capacitor, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Consume, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Defragment, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::BiasedCognition, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Loop, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Electrodynamics, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Bullseye, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Recursion, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Fission, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::None, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::StaticDischarge, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Storm, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::INNATE, &[])),
+    with_blue_metadata(supported(CardId::Heatsinks, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Amplify, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::EchoForm, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(3), CardCost::Energy(3), CardTarget::SelfTarget, CardKeywords::ETHEREAL, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::GeneticAlgorithm, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::Claw, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::SteamBarrier, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Streamline, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::ChargeBattery, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Hologram, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Rebound, CardColor::Blue, CardRarity::Common, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Stack, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Turbo, CardColor::Blue, CardRarity::Common, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Aggregate, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::AutoShields, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Blizzard, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::BootSequence, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::EXHAUST_INNATE, CardKeywords::EXHAUST_INNATE, &[])),
+    with_blue_metadata(supported(CardId::Chaos, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Chill, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST_INNATE, &[])),
+    with_blue_metadata(supported(CardId::DoomAndGloom, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::DoubleEnergy, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::Equilibrium, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::ForceField, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(4), CardCost::Energy(4), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::FTL, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Glacier, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::HelloWorld, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::INNATE, &[])),
+    with_blue_metadata(supported(CardId::Melter, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Overclock, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Recycle, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::ReinforcedBody, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::X, CardCost::X, CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Reprogram, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::None, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::RipAndTear, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Scrape, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::SelfRepair, CardColor::Blue, CardRarity::Uncommon, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::Healing])),
+    with_blue_metadata(supported(CardId::Skim, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::None, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Sunder, CardColor::Blue, CardRarity::Uncommon, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(3), CardCost::Energy(3), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Tempest, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::X, CardCost::X, CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::WhiteNoise, CardColor::Blue, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(0), CardTarget::None, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::AllForOne, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Buffer, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::CoreSurge, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::Enemy, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::CreativeAI, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(3), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Hyperbeam, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::MachineLearning, CardColor::Blue, CardRarity::Rare, CardType::Power, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(1), CardCost::Energy(1), CardTarget::SelfTarget, CardKeywords::NONE, CardKeywords::INNATE, &[])),
+    with_blue_metadata(supported(CardId::MeteorStrike, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(5), CardCost::Energy(5), CardTarget::Enemy, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::Strike])),
+    with_blue_metadata(supported(CardId::MultiCast, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::X, CardCost::X, CardTarget::None, CardKeywords::NONE, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Rainbow, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(2), CardCost::Energy(2), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::NONE, &[])),
+    with_blue_metadata(supported(CardId::Reboot, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::Seek, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::None, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
+    with_blue_metadata(supported(CardId::ThunderStrike, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(3), CardCost::Energy(3), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::Strike])),
 ];
 
 const fn card(id: CardId, color: CardColor, rarity: CardRarity, card_type: CardType, note_storage: NoteStorage) -> CardDefinition {
-    CardDefinition { id, color, rarity, card_type, note_storage, definition_only: true }
+    CardDefinition { id, color, rarity, card_type, note_storage, definition_only: true, blue_metadata: None }
 }
 
 const fn supported(id: CardId, color: CardColor, rarity: CardRarity, card_type: CardType, note_storage: NoteStorage) -> CardDefinition {
-    CardDefinition { id, color, rarity, card_type, note_storage, definition_only: false }
+    CardDefinition { id, color, rarity, card_type, note_storage, definition_only: false, blue_metadata: None }
+}
+
+const fn blue_metadata(
+    base_cost: CardCost,
+    upgraded_cost: CardCost,
+    target: CardTarget,
+    base_keywords: CardKeywords,
+    upgraded_keywords: CardKeywords,
+    tags: &'static [CardTag],
+) -> BlueCardMetadata {
+    BlueCardMetadata {
+        base: CardFaceMetadata { cost: base_cost, target, keywords: base_keywords },
+        upgraded: CardFaceMetadata { cost: upgraded_cost, target, keywords: upgraded_keywords },
+        tags,
+    }
+}
+
+const fn with_blue_metadata(
+    mut definition: CardDefinition,
+    metadata: BlueCardMetadata,
+) -> CardDefinition {
+    definition.blue_metadata = Some(metadata);
+    definition
 }
 
 const IC: &[CardId] = &[CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike,
@@ -299,3 +418,72 @@ const WATCHER: &[CardId] = &[CardId::StrikePurple, CardId::StrikePurple, CardId:
 pub(crate) static STARTERS: &[(Character, &[CardId])] = &[
     (Character::Ironclad, IC), (Character::Silent, SILENT), (Character::Defect, DEFECT), (Character::Watcher, WATCHER),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        CardColor, CardCost, CardKeywords, CardRarity, CardTag, CardTarget, CardType,
+    };
+    use crate::content::{defect::M20_DEFECT_CARDS, CardId, Catalog};
+
+    #[test]
+    fn m20_blue_catalog_has_all_source_roster_metadata() {
+        let catalog = Catalog::standard();
+        assert_eq!(M20_DEFECT_CARDS.len(), 75);
+        let mut rarity_counts = [0usize; 4];
+        let mut type_counts = [0usize; 3];
+
+        for id in M20_DEFECT_CARDS {
+            let definition = catalog.card(*id).expect("M20 blue card catalog row");
+            assert_eq!(definition.color, CardColor::Blue);
+            let metadata = definition.blue_metadata.expect("base/upgraded blue metadata");
+            assert_eq!(metadata.base.target, metadata.upgraded.target);
+
+            match definition.rarity {
+                CardRarity::Basic => rarity_counts[0] += 1,
+                CardRarity::Common => rarity_counts[1] += 1,
+                CardRarity::Uncommon => rarity_counts[2] += 1,
+                CardRarity::Rare => rarity_counts[3] += 1,
+                _ => panic!("unexpected M20 blue rarity for {id:?}"),
+            }
+            match definition.card_type {
+                CardType::Attack => type_counts[0] += 1,
+                CardType::Skill => type_counts[1] += 1,
+                CardType::Power => type_counts[2] += 1,
+                _ => panic!("unexpected M20 blue type for {id:?}"),
+            }
+        }
+        assert_eq!(rarity_counts, [4, 18, 36, 17]);
+        assert_eq!(type_counts, [24, 37, 14]);
+
+        let zap = catalog.card(CardId::Zap).unwrap().blue_metadata.unwrap();
+        assert_eq!(zap.base.cost, CardCost::Energy(1));
+        assert_eq!(zap.upgraded.cost, CardCost::Energy(0));
+        let boot = catalog.card(CardId::BootSequence).unwrap().blue_metadata.unwrap();
+        assert_eq!(boot.base.keywords, CardKeywords::EXHAUST_INNATE);
+        assert_eq!(boot.upgraded.keywords, CardKeywords::EXHAUST_INNATE);
+        let chill = catalog.card(CardId::Chill).unwrap().blue_metadata.unwrap();
+        assert_eq!(chill.base.keywords, CardKeywords::EXHAUST);
+        assert_eq!(chill.upgraded.keywords, CardKeywords::EXHAUST_INNATE);
+        let echo = catalog.card(CardId::EchoForm).unwrap().blue_metadata.unwrap();
+        assert_eq!(echo.base.keywords, CardKeywords::ETHEREAL);
+        assert_eq!(echo.upgraded.keywords, CardKeywords::NONE);
+        let self_repair = catalog.card(CardId::SelfRepair).unwrap().blue_metadata.unwrap();
+        assert_eq!(self_repair.tags, &[CardTag::Healing]);
+        let reprogram = catalog.card(CardId::Reprogram).unwrap().blue_metadata.unwrap();
+        assert_eq!(reprogram.base.target, CardTarget::None);
+        assert_eq!(reprogram.upgraded.target, CardTarget::None);
+        let seek = catalog.card(CardId::Seek).unwrap().blue_metadata.unwrap();
+        assert_eq!(seek.base.keywords, CardKeywords::EXHAUST);
+        assert_eq!(seek.upgraded.keywords, CardKeywords::EXHAUST);
+    }
+
+    #[test]
+    fn blue_metadata_preserves_legacy_catalog_debug_shape() {
+        let zap = Catalog::standard().card(CardId::Zap).unwrap();
+        assert_eq!(
+            format!("{zap:?}"),
+            "CardDefinition { id: Zap, color: Blue, rarity: Basic, card_type: Skill, note_storage: RemovablePermanent, definition_only: false }",
+        );
+    }
+}

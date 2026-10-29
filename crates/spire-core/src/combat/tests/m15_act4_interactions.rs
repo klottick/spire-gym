@@ -5,7 +5,7 @@ fn entered(encounter:EncounterId,cards:&[CardId],relics:Vec<RelicId>,potions:Vec
     let entry=enemies::setup(encounter,4,0,&mut RunRng::new([81;32],rng::Partition::Test,0),enemies::SetupContext{
         player:PlayerState{hp:999,max_hp:999,block:0,energy:9,max_energy:9,draw_per_turn:5,powers:vec![]},player_powers:vec![],character:Character::Silent,
         cards:cards.iter().enumerate().map(|(index,id)|permanent_live_card(*id,CardInstanceId(index as u64+1),0)).collect(),opening_draw:cards.len(),encounter_visit:0}).unwrap();
-    let mut items=Some(CombatItemContext::new(relics,potions).with_battle_context(NativeBattleContext{elite_trigger:encounter==EncounterId::ShieldAndSpear,boss:encounter==EncounterId::CorruptHeart,burning:None,m15:true}));
+    let mut items=Some(CombatItemContext::new(relics,potions).with_battle_context(NativeBattleContext{elite_trigger:encounter==EncounterId::ShieldAndSpear,boss:encounter==EncounterId::CorruptHeart,burning:None,m15:true,m20:false}));
     Combat::enter_with_item_context(entry,&mut items).unwrap()
 }
 fn amount(c:&Combat,actor:Actor,name:&str)->i32{match actor{Actor::Player=>&c.state.player_full_powers,Actor::Enemy(ref owner)=>&c.state.enemies.iter().find(|enemy|&enemy.instance_id==owner).unwrap().full_powers}.iter().find(|power|power.id.0==name).map_or(0,|power|power.state.amount)}

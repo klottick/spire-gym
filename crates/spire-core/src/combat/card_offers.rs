@@ -46,7 +46,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
             state.phase=Phase::Selection;
         }
         EffectKind::DeliverCardOffer{id,copies,next,zero_cost}=>{
-            let mut template=super::card_state::generated(*id,CardInstanceId(0),0)
+            let mut template=super::card_state::generated_with_history(*id,CardInstanceId(0),0,super::card_state::CardConstructionHistory::from_state(state))
                 .ok_or_else(||InputError::Unsupported("generated offer template unavailable".into()))?;
             for index in *next..*copies {
                 let instance=super::piles::next_generated_instance(state)?;

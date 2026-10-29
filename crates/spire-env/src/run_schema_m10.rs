@@ -234,6 +234,7 @@ pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> {
 pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> i64 {
     use spire_core::combat::{SelectionDisposition::*, SelectionOperation::*};
     let name = match selection.operation {
+        HologramRetrieve|SeekRetrieve|Recycle=>panic!("M20 selection requires M20 native profile"),
         Move(Hand) => "move_hand",
         Move(Discard) => "move_discard",
         Move(Exhaust) => "move_exhaust",

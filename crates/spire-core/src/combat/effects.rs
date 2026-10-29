@@ -151,6 +151,16 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     .and_then(|enemy|enemy.full_powers.iter().find(|power|power.id.0=="invincible").map(|power|power.state.amount.max(0)))
             }else{None}}else{None};
             let block_at_entry=match target{Actor::Player=>state.player.block,Actor::Enemy(owner)=>state.enemies.iter().find(|enemy|&enemy.instance_id==owner).expect("validated actor").block};
+            if full_runtime&&*target==Actor::Player&&state.player_full_powers.iter().any(|power|power.id.0=="buffer"&&power.state.amount>0){
+                let ignores_block=matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..});
+                let incoming=if ignores_block{damage}else{damage.saturating_sub(block_at_entry)};
+                if incoming>0 {
+                    state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ReduceFullPower{id:FullPowerId("buffer"),amount:1}});
+                    damage=if ignores_block{0}else{damage.min(block_at_entry)};
+                }
+            }
+            // AbstractPlayer.damage passes the post-change-damage local to
+            // onAttacked. Buffer's zero prevents Discharge, independently of HP.
             if full_runtime&&*target==Actor::Player {super::cards::defect::on_attacked(state,effect,payload,damage.saturating_sub(block_at_entry).max(0));}
             let damage_event_count=state.damage_events_this_combat;
             if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
@@ -450,9 +460,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 target: Some(Actor::Player), kind: EffectKind::Heal(*n) });
         }
         EffectKind::GainEnergy(n) => {
-            state.player.energy = state.player.energy.checked_add(*n)
-                .filter(|energy| *energy <= 999)
-                .ok_or_else(|| InputError::Unsupported("player energy overflow".into()))?;
+            state.player.energy = if super::cards::defect::capped_energy_source(state,&effect.source,*n) {
+                state.player.energy.saturating_add(*n).min(999)
+            }else{state.player.energy.checked_add(*n).filter(|energy|*energy<=999)
+                .ok_or_else(||InputError::Unsupported("player energy overflow".into()))?};
         }
         EffectKind::LoseEnergy(n)=>{state.player.energy=(state.player.energy-*n).max(0);},
         EffectKind::ApplyPower { id, amount: delta } => {
@@ -662,9 +673,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 // Darkling downing calls the same source death callbacks without
                 // becoming final actor death or combat settlement.
                 let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
+                if *hook==Hook::CombatSettled{state.hp_before_healing=Some(state.player.hp);}
                 super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
                 let hp = state.player.hp;
-                if *hook==Hook::CombatSettled {state.hp_before_healing=Some(hp);}
+
                 if *hook==Hook::CombatSettled&&hp>0 {
                     if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
                         state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;
@@ -693,7 +705,12 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 }
                 for effect in work.bottom {
                     super::engine::validate_effect(&effect, state)?;
-                    state.pending.push_back(effect);
+                    // M20 has an explicit opening Decision marker. Ordinary
+                    // relic actions remain before that marker, after already
+                    // queued start callbacks, through the shared bottom owner.
+                    if *hook==Hook::CombatStarted&&state.item_context.as_ref().is_some_and(|items|items.m20_profile()){
+                        super::enemies::act2::bottom(state,effect);
+                    }else{state.pending.push_back(effect);}
                 }
                 for effect in work.top.into_iter().rev() {
                     super::engine::validate_effect(&effect, state)?;

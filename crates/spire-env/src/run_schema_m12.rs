@@ -140,6 +140,7 @@ pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> { m10::zone(name)
 pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> Result<i64, RunSessionError> {
     use spire_core::combat::{SelectionDisposition::*, SelectionOperation::*};
     let name = match selection.operation {
+        HologramRetrieve|SeekRetrieve|Recycle=>return Err(RunSessionError::UnsupportedBoundary("M20 selection requires M20 native profile")),
         Move(Hand) => "move_hand",
         Move(Discard) => "move_discard",
         Move(Exhaust) => "move_exhaust",

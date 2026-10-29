@@ -111,7 +111,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&SilentEffec
             if state.piles.hand.len()<*size{state.pending.push_front(child(EffectKind::Draw((*size-state.piles.hand.len()) as i32)));}
         }
         SilentEffect::EscapePlanBlock{block}=>{
-            if state.silent.drawn_cards.iter().any(|id|Catalog::standard().card(*id).is_some_and(|c|c.card_type==CardType::Skill)){
+            if state.silent.drawn_cards.iter().any(|id|Catalog::standard().card(id.id).is_some_and(|c|c.card_type==CardType::Skill)){
                 state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(*block)});
             }
         }

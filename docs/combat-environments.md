@@ -118,6 +118,44 @@ receipt. The independent nonattacking branch is compiled but unexecuted. No gene
 public late-state injection API, Python-extension delivery, original-runtime or
 Java RNG/map parity is claimed. The supplied combat-v1 contract below is unchanged.
 
+## Finite native Defect Acts1–4/Heart source
+
+The [M20 profile](milestones/m20-defect-heart.md) has root source acceptance;
+publication remains pending. The initial comprehensive independent review had
+one Important finding, then the same reviewer's scoped recheck closed I1 and its
+M20 Sunder/EnergyPotion extensions: source accuracy READY,0C/0I/0M remaining.
+The [review record](superpowers/plans/2026-10-29-m20-native-runtime-review.md)
+binds exact reviewed source and current focused validation. Preceding M16–M19
+paragraphs retain their dated history; no M20 merge SHA is claimed.
+
+Use `RunSession::new_m20`, `RunBatch::new_m20`, `encode_run_m20` and
+`m20_run_observation_spec` with typed
+`RunBossHistory::M20DefectHeart { act1, act2, act3 }`. One shared Run/resolver/
+encoder/replay/batch scheduler owns actual Defect A0 and finite captured content:
+all75 blue kinds plus Parasite permanent admission, full required L34/status
+closure, normal115-card/26-relic/33-potion vocabulary, keys, shared Act4 door,
+Shield/Spear, Heart and actual final Proceed. Strict histories, public current
+values, hidden-pile privacy and explicit capacity faults retain the shared
+contract. No normal supplied configuration/reset/wire selector is added.
+
+Only the default-off core `m20-diagnostics` feature exposes the two frozen fixed
+Rust constructors. Native supplied installation is cfg(test), with distinct
+Strong-only diagnostic projection and internal same-initializer replay;
+ordinary portable replay rejects that supplied envelope. Env dev-dependency
+feature unification is qualified separately from normal non-test builds. Current
+focused source-bound checks pass52blue/27M20items/23native plus named old controls;
+non-test core/env checks exit0, without a current full-workspace-green claim.
+
+Earlier workspace2906/2/6, six normal Deaths, original supplied Anchor fault,
+corrective110-action Defect HeartVictory and both native agreement proofs remain
+PRE-I1-CORRECTION evidence on their respective exact sources. Strong is unexecuted
+(original BLOCKED/corrective SKIPPED). No normal M20 Heart completion is proven;
+M18/M19 normal gates and parents remain open and unwaived. This is finite native
+source acceptance, not Python/Gym delivery, original-runtime parity or full-game
+content. M21 execution needs actual merge, verified accepted export and explicit
+root assignment. The supplied combat-v1 contract and all prior history below are
+unchanged.
+
 ## Supplied-entry combat-v1
 
 The current version is **source-grounded, not original-runtime validated**.

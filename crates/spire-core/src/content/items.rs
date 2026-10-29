@@ -32,6 +32,11 @@ pub(crate) const DEFECT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
     (RelicId::DataDisk, RelicTier::Common),
     (RelicId::GoldPlatedCables, RelicTier::Uncommon),
     (RelicId::EmotionChip, RelicTier::Rare),
+    (RelicId::SymbioticVirus, RelicTier::Uncommon),
+    (RelicId::FrozenCore, RelicTier::Boss),
+    (RelicId::Inserter, RelicTier::Boss),
+    (RelicId::NuclearBattery, RelicTier::Boss),
+    (RelicId::RunicCapacitor, RelicTier::Shop),
 ];
 
 pub(crate) const EXCLUSIVE_RELIC_CHARACTERS: &[(RelicId, Character)] = &[
@@ -39,6 +44,11 @@ pub(crate) const EXCLUSIVE_RELIC_CHARACTERS: &[(RelicId, Character)] = &[
     (RelicId::DataDisk, Character::Defect),
     (RelicId::GoldPlatedCables, Character::Defect),
     (RelicId::EmotionChip, Character::Defect),
+    (RelicId::SymbioticVirus, Character::Defect),
+    (RelicId::FrozenCore, Character::Defect),
+    (RelicId::Inserter, Character::Defect),
+    (RelicId::NuclearBattery, Character::Defect),
+    (RelicId::RunicCapacitor, Character::Defect),
 ];
 
 pub(crate) const SILENT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
@@ -80,6 +90,7 @@ pub(crate) const SILENT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
 pub(crate) const DEFECT_POTION_RARITIES: &[(PotionId, PotionRarity)] = &[
     (PotionId::FocusPotion, PotionRarity::Common),
     (PotionId::PotionOfCapacity, PotionRarity::Uncommon),
+    (PotionId::EssenceOfDarkness, PotionRarity::Rare),
 ];
 
 pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
@@ -91,9 +102,11 @@ pub(crate) const EXCLUSIVE_POTION_CHARACTERS: &[(PotionId, Character)] = &[
     (PotionId::GhostInAJar, Character::Silent),
     (PotionId::FocusPotion, Character::Defect),
     (PotionId::PotionOfCapacity, Character::Defect),
+    (PotionId::EssenceOfDarkness, Character::Defect),
 ];
 
 pub(crate) const RELICS: &[RelicDefinition] = &[
+    RelicDefinition { id:RelicId::ChemicalX,definition_only:false },
     RelicDefinition{id:RelicId::Vajra,definition_only:false},
     RelicDefinition{id:RelicId::OddlySmoothStone,definition_only:false},
     RelicDefinition{id:RelicId::BagOfPreparation,definition_only:false},
@@ -142,6 +155,11 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition { id: RelicId::DataDisk, definition_only: false },
     RelicDefinition { id: RelicId::GoldPlatedCables, definition_only: false },
     RelicDefinition { id: RelicId::EmotionChip, definition_only: false },
+    RelicDefinition { id: RelicId::SymbioticVirus, definition_only: false },
+    RelicDefinition { id: RelicId::FrozenCore, definition_only: false },
+    RelicDefinition { id: RelicId::Inserter, definition_only: false },
+    RelicDefinition { id: RelicId::NuclearBattery, definition_only: false },
+    RelicDefinition { id: RelicId::RunicCapacitor, definition_only: false },
 ];
 pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
     (Character::Ironclad, RelicId::BurningBlood),
@@ -188,4 +206,35 @@ pub(crate) const POTIONS: &[PotionDefinition] = &[
     PotionDefinition { id: PotionId::EntropicBrew, definition_only: false },
     PotionDefinition { id: PotionId::FocusPotion, definition_only: false },
     PotionDefinition { id: PotionId::PotionOfCapacity, definition_only: false },
+    PotionDefinition { id: PotionId::EssenceOfDarkness, definition_only: false },
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::{Character, PotionId, PotionRarity, RelicId, RelicTier};
+
+    #[test]
+    fn m20_defect_item_rows_are_implemented_and_character_scoped() {
+        let catalog = crate::content::Catalog::standard();
+        let relics = [
+            (RelicId::SymbioticVirus, RelicTier::Uncommon),
+            (RelicId::FrozenCore, RelicTier::Boss),
+            (RelicId::Inserter, RelicTier::Boss),
+            (RelicId::NuclearBattery, RelicTier::Boss),
+            (RelicId::RunicCapacitor, RelicTier::Shop),
+        ];
+        for (id, tier) in relics {
+            let definition = catalog.relic(id).expect("M20 relic definition");
+            assert!(!definition.definition_only);
+            assert_eq!(catalog.relic_tier(id), Some(tier));
+            assert_eq!(catalog.relic_eligible_for(id, Character::Defect), Some(true));
+            assert_eq!(catalog.relic_eligible_for(id, Character::Silent), Some(false));
+        }
+
+        let potion = catalog.potion(PotionId::EssenceOfDarkness).expect("M20 potion definition");
+        assert!(!potion.definition_only);
+        assert_eq!(catalog.potion_rarity(PotionId::EssenceOfDarkness), Some(PotionRarity::Rare));
+        assert_eq!(catalog.potion_eligible_for(PotionId::EssenceOfDarkness, Character::Defect), Some(true));
+        assert_eq!(catalog.potion_eligible_for(PotionId::EssenceOfDarkness, Character::Silent), Some(false));
+    }
+}

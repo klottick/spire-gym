@@ -6,8 +6,10 @@ use super::model::{FinishDisposition,OwnedCard, State};
 /// refresh the hand. Card owners update only their own values here.
 pub(super) fn refresh_hand_values(state:&mut State){
     let draw_count=state.piles.draw.len();
+    let discard_count=state.piles.discard.len();
+    let (frost,lightning)=(state.defect.frost_channeled,state.defect.lightning_channeled);
     for owned in &mut state.piles.hand {
-        if let Some(card)=owned.full_mut(){super::cards::capture_colorless_draw_value(card,draw_count);}
+        if let Some(card)=owned.full_mut(){super::cards::capture_colorless_draw_value(card,draw_count);super::cards::defect::refresh_values(card,frost,lightning,discard_count);}
     }
 }
 
@@ -76,7 +78,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 if state.public.known_draw_bottom.get(bottom_offset)==Some(&handle){state.public.known_draw_bottom.remove(bottom_offset);}
                 else{state.public.known_draw_bottom.clear();}
             }
-            if state.silent.history_enabled{if let Some(card)=card.full(){state.silent.drawn_cards.push(card.id);}}
+            if state.silent.history_enabled{if let Some(card)=card.full(){state.silent.drawn_cards.push(super::cards::DrawnCard{id:card.id,instance:Some(card.instance)});}}
             state.public.revealed_order.push(handle.clone());state.piles.hand.push(card);
             refresh_hand_values(state);
             state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::AfterCardDrawn{card:handle}});
@@ -87,7 +89,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         },
         EffectKind::CreateCard { id, destination, upgrades } => {
             let instance = next_generated_instance(state)?;
-            let card = super::card_state::generated_with_combat_history(*id, instance, *upgrades,state.damage_events_this_combat)
+            let card = super::card_state::generated_with_history(*id, instance, *upgrades,super::card_state::CardConstructionHistory::from_state(state))
                 .ok_or_else(|| InputError::Unsupported("generated card constructor unavailable".into()))?;
             insert_generated(state, card, *destination)?;
         }
@@ -320,6 +322,7 @@ pub(super) fn after_draw(state:&mut State,owner:&CardHandle)->Result<(),EffectEr
         let (cost,next)=super::rng::uniform_below(stream,4)?;
         let local=&mut state.piles.hand.iter_mut().find(|c|c.handle()==*owner).unwrap().full_mut().unwrap().local;
         local.randomized_cost=Some(cost as i32);local.temporary_cost=0;
+        if card.id==crate::content::CardId::ForceField{local.mutable_combat_cost=Some(cost as i32);}
         // Blood for Blood retains its accepted randomized/temporary price owner;
         // its HP-loss callback updates that representation rather than turn_cost.
         local.turn_cost=if card.id==crate::content::CardId::BloodForBlood{None}else{Some(cost as i32)};
@@ -346,12 +349,15 @@ pub(super) fn exhaust_owned_card(state: &mut State, card: OwnedCard) -> Result<(
 /// UseCard's purge checkpoint precedes Power retirement; Power cards never
 /// become drawable discard. Suppressed/cancelled cards use finish_owned_card
 /// directly because they did not actually complete a use.
-pub(super) fn finish_played_card(state:&mut State,card:OwnedCard,disposition:FinishDisposition)->Result<(),InputError>{
+pub(super) fn finish_played_card(state:&mut State,mut card:OwnedCard,disposition:FinishDisposition)->Result<(),InputError>{
     let purge=disposition==FinishDisposition::Purge||card.full().is_some_and(|live|live.local.purge);
     let power=card.full().is_some_and(|live|crate::content::Catalog::standard().card(live.id)
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Power));
     if purge {return finish_owned_card(state,card,FinishDisposition::Purge,true)}
     if power {state.played_powers.push(card);return Ok(())}
+    let rebound=card.full().is_some_and(|live|live.local.rebound_on_finish&&!live.local.exhaust_on_finish)&&disposition==FinishDisposition::Natural;
+    if let Some(live)=card.full_mut(){live.local.rebound_on_finish=false;}
+    if rebound{let handle=card.handle();topdeck_owned_card(state,card,handle);return Ok(())}
     finish_owned_card(state,card,disposition,true)
 }
 
@@ -377,7 +383,7 @@ pub(super) fn finish_owned_card(state:&mut State,card:OwnedCard,override_disposi
             if state.full_runtime{state.pending.push_front(Effect{source:Source::Card(handle),target:None,kind:EffectKind::Hook(Hook::CardDiscarded)});}
         }
     }
-    Ok(())
+    refresh_hand_values(state);Ok(())
 }
 
 /// Move one selected Liquid Memories instance from discard into the real hand.
@@ -509,4 +515,35 @@ pub(super) fn owned_full_cards(state:&State)->impl Iterator<Item=&super::LiveCar
         .chain(state.in_play.iter()).chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
         .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values())
         .filter_map(OwnedCard::full)
+}
+
+/// Ordinary same-object retrieval: stale requests/full hands leave discard alone.
+pub(super) fn retrieve_ordinary_from_discard(state:&mut State,handle:&CardHandle)->Result<bool,InputError>{
+    if state.piles.hand.len()>=10{return Ok(false)}
+    let Some(index)=state.piles.discard.iter().position(|card|card.handle()==*handle)else{return Ok(false)};
+    let card=state.piles.discard.remove(index);state.piles.hand.push(card);refresh_hand_values(state);Ok(true)
+}
+
+/// Recycle's gain is queued before actual exhaust hooks insert their children.
+pub(super) fn recycle_hand_card(state:&mut State,source:&Source,handle:&CardHandle)->Result<(),EffectError>{
+    let Some(index)=state.piles.hand.iter().position(|card|card.handle()==*handle)else{return Err(InputError::Invariant("Recycle chosen owner".into()).into())};
+    let card=state.piles.hand.remove(index);
+    let gain=card.full().map_or(0,|card|if card.local.x_cost{state.player.energy}else{
+        card.local.turn_cost.or_else(||super::card_state::combat_price(card,super::cards::base_cost(state,card).unwrap_or(-2)).ok()).unwrap_or(-2).max(0)
+    });
+    if gain>0{state.pending.push_front(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::GainEnergy(gain)});}
+    exhaust_owned_card(state,card)?;Ok(())
+}
+
+/// Reboot's ordered ShuffleAll transfer; later final draw shuffle remains queued.
+pub(super) fn shuffle_all_to_draw(state:&mut State)->Result<(),EffectError>{
+    let (discard,next)=super::rng::shuffle(&state.rng.shuffle,&state.piles.discard)?;
+    state.rng.shuffle=next;state.piles.discard.clear();state.piles.draw.extend(discard);
+    while !state.piles.hand.is_empty(){
+        let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Reboot card random owner".into()))?;
+        let (index,next)=if state.piles.hand.len()==1{let(_,next)=super::rng::draw_u64(stream)?;(0,next)}
+            else{super::rng::uniform_below(stream,state.piles.hand.len() as u128)?};state.card_rng=Some(next);
+        let card=state.piles.hand.remove(index as usize);state.piles.draw.push(card);
+    }
+    state.public.known_draw.clear();state.public.known_draw_bottom.clear();refresh_hand_values(state);Ok(())
 }

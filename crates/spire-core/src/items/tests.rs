@@ -1072,3 +1072,5 @@ fn run_hook_heals_only_owned_living_player_and_respects_max_hp() {
     assert_eq!(silent.state().hp, 30, "no phantom Burning Blood on other starts");
 }
 #[path="tests/m16_defect.rs"] mod m16_defect;
+
+mod m20_defect;

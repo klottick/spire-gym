@@ -2,6 +2,20 @@
 use super::*;
 use crate::combat::model::OwnedCard;
 
+/// One actual draw entry: identity survives later movement and field changes.
+/// Debug retains the historical ID-only transcript projection.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct DrawnCard { pub id:crate::content::CardId, pub instance:Option<crate::combat::CardInstanceId> }
+impl std::fmt::Debug for DrawnCard {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{self.id.fmt(f)}
+}
+impl PartialEq<crate::content::CardId> for DrawnCard {
+    fn eq(&self,other:&crate::content::CardId)->bool{self.id==*other}
+}
+impl From<crate::content::CardId> for DrawnCard {
+    fn from(id:crate::content::CardId)->Self{Self{id,instance:None}}
+}
+
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct SilentState {
     /// New profile/card history support opts into explicit draw continuations.
@@ -12,7 +26,9 @@ pub struct SilentState {
     pub retain_block_next_start: bool,
     pub played_this_turn: Vec<crate::content::CardId>,
     pub discarded_this_turn: u32,
-    pub drawn_cards: Vec<crate::content::CardId>,
+    pub drawn_cards: Vec<DrawnCard>,
+    /// Actual notified Power uses, including retired originals and repeats.
+    pub powers_played_this_combat:u32,
     pub(in crate::combat) card_offer:Option<crate::combat::card_offers::PendingCardOffer>,
 }
 

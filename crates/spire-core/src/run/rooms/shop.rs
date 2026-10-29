@@ -5,13 +5,14 @@ pub(in crate::run) fn screen_with_rng(run:&Run,next:&mut u64,rng:&mut RunRng)->R
     screen_with_rng_at(run,next,rng,(run.state.act,run.state.floor,node))
 }
 pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,destination:(u8,u32,NodeId))->Result<RoomView,RunError>{
-    if is_m15(&run.state){
+    if is_m15(&run.state)||is_m20(&run.state){
         let (act,floor,node)=destination;let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let visit=match act{1=>room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,2=>room.act2.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,3=>room.act3.as_ref().ok_or(RunError::InvalidAction)?.shop_visits,4=>0,_=>return Err(RunError::InvalidAction)};
-        let cards=super::m15_content::sample_capture_row(rng,&[u64::from(act),u64::from(floor),node.0],&[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare])?;
+        let cards=if is_m20(&run.state){super::m20_content::sample_capture_row(rng,&[u64::from(act),u64::from(floor),node.0],&[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare])?}else{super::m15_content::sample_capture_row(rng,&[u64::from(act),u64::from(floor),node.0],&[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare])?};
         let mut rows=cards.into_iter().zip([50,75,150]).map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
-        if !run.state.relics.contains(&RelicId::TwistedFunnel){rows.push((RoomChoiceKind::Relic(RelicId::TwistedFunnel),Some(150)));}
-        rows.extend([(RoomChoiceKind::Potion(super::m15_content::M15_POTION_CYCLE[visit%6]),Some(50)),(RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);
+        let relic=if is_m20(&run.state){RelicId::RunicCapacitor}else{RelicId::TwistedFunnel};
+        if !run.state.relics.contains(&relic){rows.push((RoomChoiceKind::Relic(relic),Some(150)));}
+        rows.extend([(RoomChoiceKind::Potion(if is_m20(&run.state){super::m20_content::POTION_CYCLE[visit%11]}else{super::m15_content::M15_POTION_CYCLE[visit%6]}),Some(50)),(RoomChoiceKind::Purge,Some(room.purge_cost)),(RoomChoiceKind::Leave,None)]);
         return view(next,RoomViewKind::Shop,rows)
     }
     if is_m10(&run.state){

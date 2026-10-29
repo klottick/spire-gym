@@ -22,6 +22,12 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     let mut work = Vec::new();
     let mut after_use_bottom=Vec::new();
     let mut exhaust_top = Vec::new();
+    if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
+        if let Some(items)=state.item_context.as_mut(){work.extend(crate::items::defect_turn_start_effects(items)?);}
+    }
+    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player){
+        if let Some(items)=state.item_context.as_ref(){work.extend(crate::items::defect_end_turn_work(items,state.character.orb_slots.iter().any(Option::is_none)));}
+    }
     if hook==Hook::Death {
         work.extend(super::cards::silent_poison_death_work(state,target)?);
         super::enemies::act2::stasis::on_death(state,target);
@@ -46,6 +52,10 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             if let Some(card)=state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|c|c.full()) {
                 state.silent.history_enabled|=super::cards::requires_draw_history(card.id);
                 state.silent.played_this_turn.push(card.id);
+                if crate::content::Catalog::standard().card(card.id).is_some_and(|row|row.card_type==crate::content::CardType::Power){
+                    state.silent.powers_played_this_combat=state.silent.powers_played_this_combat.checked_add(1)
+                        .ok_or_else(||super::InputError::Unsupported("native combat Power history exhausted".into()))?;
+                }
             }
         }
         super::cards::ironclad::reactive::card_played(state,source)?;
@@ -164,9 +174,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     if target==Some(&Actor::Player)&&hook==Hook::TurnStartedPreDraw {super::cards::defect::turn_started(state,&mut work)?;}
     if target==Some(&Actor::Player)&&hook==Hook::PlayerPreEndTurnCards {state.player_full_powers.retain(|p|p.id.0!="amplify");}
     super::generation::start_turn(state,hook,target,&mut work);
+    super::generation::blue_start_turn(state,hook,target,&mut work)?;
+    super::cards::defect::power_hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
-    let m15_player=state.item_context.as_ref().is_some_and(|items|items.m15_profile());
+    let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());
     if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&m15_player {
         for power in &state.player_full_powers {
             if power.id.0=="ritual"&&power.state.amount>0 {

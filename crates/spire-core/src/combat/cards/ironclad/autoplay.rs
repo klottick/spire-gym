@@ -81,6 +81,15 @@ fn dispose_unplayed(state:&mut State,card:OwnedCard,disposition:FinishDispositio
     Ok(())
 }
 
+/// These continuations stand for source cardQueue dispatch, after ordinary
+/// actions. Their retained card ownership is separate from a fresh action.
+pub(in crate::combat) fn is_queued_card_dispatch(kind:&EffectKind)->bool{
+    matches!(kind,EffectKind::Ironclad(IroncladEffect::HavocQueued{..}|IroncladEffect::DoubleTapRepeat{..})
+        |EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{..})
+        |EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{..})
+        |EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{..}|crate::combat::PotionEffect::DistilledChaosQueuedChild{..}))
+}
+
 fn queue_after_finish(state:&mut State,parent:&crate::combat::Source,work:Effect)->Result<(),EffectError>{
     let at=state.pending.iter().position(|pending|pending.source==*parent&&pending.kind==EffectKind::FinishCard)
         .ok_or_else(||InputError::Invariant("autoplay parent has no retained finish continuation".into()))?;
@@ -128,15 +137,26 @@ pub(in crate::combat) fn defer_parent_finish(state:&mut State,owner:&crate::comb
 }
 
 pub(in crate::combat) fn capture_random_enemy_target(state:&mut State)->Result<Option<crate::combat::EnemyHandle>,InputError>{
+    capture_random_enemy_target_with(state,false).map_err(|error|match error{
+        EffectError::Invalid(error)=>error,
+        EffectError::Random(error)=>InputError::Unsupported(format!("Havoc target RNG unavailable: {error:?}")),
+    })
+}
+
+/// Blue random-hit actions call the source random(0,0) path even for a singleton.
+/// The accepted legacy selector and uniform_below(bound1) contracts stay frozen.
+pub(in crate::combat) fn capture_blue_random_enemy_target(state:&mut State)->Result<Option<crate::combat::EnemyHandle>,EffectError>{
+    capture_random_enemy_target_with(state,true)
+}
+fn capture_random_enemy_target_with(state:&mut State,consume_singleton:bool)->Result<Option<crate::combat::EnemyHandle>,EffectError>{
     let mut living=state.enemies.iter().filter(|enemy|enemy.life==ActorLife::Active&&enemy.hp>0)
         .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
     living.sort_by_key(|owner|state.actor_slots.get(owner).copied().unwrap_or(u8::MAX));
     if living.is_empty(){return Ok(None)}
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Havoc card-random stream absent".into()))?;
-    let (index,next)=super::super::super::rng::uniform_below(stream,living.len() as u128)
-        .map_err(|error|InputError::Unsupported(format!("Havoc target RNG unavailable: {error:?}")))?;
-    state.card_rng=Some(next);
-    Ok(Some(living[index as usize].clone()))
+    let (index,next)=if consume_singleton&&living.len()==1{let (_,next)=super::super::super::rng::draw_u64(stream)?;(0,next)}
+        else{super::super::super::rng::uniform_below(stream,living.len() as u128)?};
+    state.card_rng=Some(next);Ok(Some(living[index as usize].clone()))
 }
 
 pub(in crate::combat) fn capture_havoc_target(state:&mut State)->Result<Option<crate::combat::EnemyHandle>,InputError>{

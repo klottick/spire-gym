@@ -19,4 +19,4 @@ pub enum SelectionParent {
 
 /// A nonmoving upgrade is not an exhaust/discard with a cosmetic label.
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum SelectionOperation { Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8}, Retain, NightmareCapture, Setup, Bottomdeck, RetrieveMemories }
+pub enum SelectionOperation { HologramRetrieve, SeekRetrieve, Recycle, Move(SelectionDisposition), Upgrade, Topdeck, ReturnFromExhaust, CopyToHand{copies:u8}, Retain, NightmareCapture, Setup, Bottomdeck, RetrieveMemories }

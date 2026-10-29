@@ -19,13 +19,16 @@ pub(super) fn use_potion_for_character(context: &CombatItemContext, slot: usize,
 fn use_potion_inner(context: &CombatItemContext, slot: usize,
     target: Option<EnemyHandle>, facts: &NativePotionUseContext<'_>, character: Option<Character>) -> Result<PotionUseEffects, RunError> {
     let potion = context.potions.get(slot).copied().flatten().ok_or(RunError::InvalidAction)?;
+    if context.m20_profile()&&character!=Some(Character::Defect){return Err(RunError::InvalidAction)}
+    if matches!(potion,PotionId::PoisonPotion|PotionId::CunningPotion|PotionId::GhostInAJar)
+        &&character.is_some_and(|c|c!=Character::Silent){return Err(RunError::InvalidAction)}
     if facts.we_meet_again { return Err(RunError::InvalidAction); }
     if facts.max_hp == 0 || facts.max_hp > 999 || facts.hp > facts.max_hp {
         return Err(RunError::InvalidAction);
     }
     if potion == PotionId::EntropicBrew {
         let character = character.ok_or(RunError::Unsupported("actual character required for Entropic Brew"))?;
-        if !context.m15_profile() || character != Character::Silent || target.is_some()
+        if !(context.m15_profile()&&character==Character::Silent||context.m20_profile()&&character==Character::Defect) || target.is_some()
             || facts.phase != PotionRoomPhase::Combat || facts.turn_ended
             || !context.valid_potion_capacity() {
             return Err(RunError::InvalidAction);
@@ -48,12 +51,12 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
         return Err(RunError::InvalidAction);
     }
     if potion==PotionId::SmokeBomb{
-        if !context.m15_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
+        if !context.shared_generated_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
         let mut potions=context.potions.clone();potions[slot]=None;
         return Ok(PotionUseEffects{potions,effects:vec![Effect{source:Source::Potion{slot,id:potion},target:None,kind:EffectKind::SmokeEscape}]});
     }
     if matches!(potion,PotionId::AttackPotion|PotionId::SkillPotion|PotionId::PowerPotion|PotionId::ColorlessPotion){
-        if !context.m15_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
+        if !context.shared_generated_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
         let pool=match potion{PotionId::AttackPotion=>crate::combat::GenerationPool::Attack,PotionId::SkillPotion=>crate::combat::GenerationPool::Skill,PotionId::PowerPotion=>crate::combat::GenerationPool::Power,_=>crate::combat::GenerationPool::Colorless};
         let copies=if context.owns_relic(crate::content::RelicId::SacredBark){2}else{1};
         let mut potions=context.potions.clone();potions[slot]=None;
@@ -61,7 +64,7 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
     }
     if matches!(potion,PotionId::FlexPotion|PotionId::SpeedPotion|PotionId::RegenPotion
         |PotionId::LiquidBronze|PotionId::EssenceOfSteel|PotionId::CultistPotion) {
-        if !context.m15_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){
+        if !context.shared_generated_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){
             return Err(RunError::InvalidAction);
         }
         let factor=if context.owns_relic(crate::content::RelicId::SacredBark){2}else{1};
@@ -82,7 +85,7 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
         return Ok(PotionUseEffects{effects,potions});
     }
     if matches!(potion,PotionId::BlessingOfTheForge|PotionId::SneckoOil) {
-        if !context.m15_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){
+        if !context.shared_generated_profile()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){
             return Err(RunError::InvalidAction);
         }
         let source=Source::Potion{slot,id:potion};
@@ -133,6 +136,11 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
         return Ok(PotionUseEffects{effects,potions});
     }
     let effect = match potion {
+        PotionId::EssenceOfDarkness=>{
+            if !context.m20_profile()||character!=Some(Character::Defect)||target.is_some()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
+            Effect{source:Source::Potion{slot,id:potion},target:Some(Actor::Player),kind:EffectKind::Defect(crate::combat::cards::DefectEffect::EssenceOfDarkness{
+                potency:if context.owns_relic(crate::content::RelicId::SacredBark){2}else{1}})}
+        },
         PotionId::FocusPotion|PotionId::PotionOfCapacity=>{
             if character!=Some(Character::Defect)||target.is_some()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
             let amount=if context.owns_relic(crate::content::RelicId::SacredBark){4}else{2};
@@ -237,7 +245,8 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
                     id: crate::combat::FullPowerId("vulnerable"), amount: if bark { 6 } else { 3 } },
                 _ => unreachable!("finite combat potion arm"),
             };
-            Effect { source: Source::Actor(Actor::Player), target: Some(actor_target), kind }
+            let source=if potion==PotionId::EnergyPotion&&context.m20_profile(){Source::Potion{slot,id:potion}}else{Source::Actor(Actor::Player)};
+            Effect { source, target: Some(actor_target), kind }
         }
         PotionId::CunningPotion => unreachable!("Cunning Potion returns its three or six work items above"),
         PotionId::FairyPotion => return Err(RunError::InvalidAction),

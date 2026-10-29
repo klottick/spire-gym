@@ -3,13 +3,14 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
         Self::M10CardOffer=>"run.m10.card.offer",
         Self::M15PotionGeneration=>"run.m15.potion.generate",
         Self::M15CardOffer=>"run.m15.card.offer",
+        Self::M20CardOffer=>"run.m20.card.offer",
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -27,6 +28,7 @@ impl RunRngScope {
         "run.m10.card.offer"=>Ok(Self::M10CardOffer),
         "run.m15.potion.generate"=>Ok(Self::M15PotionGeneration),
         "run.m15.card.offer"=>Ok(Self::M15CardOffer),
+        "run.m20.card.offer"=>Ok(Self::M20CardOffer),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
@@ -133,5 +135,17 @@ impl RunRng {
         let id=StreamId::new(domain,scope)?;
         let key=hmac_sha256(&self.root,format!("spire-lab/run-combat-stream/v1/{combat_identity}").as_bytes());
         make_stream(&key,self.partition,&combat_identity,&id)
+    }
+}
+
+#[cfg(test)]
+mod m20_content_rng_tests{
+    use super::*;
+    #[test]
+    fn m20_defect_content_staged_sampler_rolls_back_earlier_slots_on_rng_exhaustion(){
+        use crate::content::CardRarity;
+        assert_eq!(RunRngScope::parse("run.m20.card.offer"),Ok(RunRngScope::M20CardOffer));
+        let mut rng=RunRng::new([27;32],Partition::Test,3);rng.counters.insert((RunRngScope::M20CardOffer,vec![17,1]),u64::MAX);
+        let before=rng.clone();assert_eq!(crate::run::rooms::m20_content::sample_capture_row(&mut rng,&[17],&[CardRarity::Common,CardRarity::Uncommon]),Err(crate::run::RunError::Unsupported("run scoped RNG exhausted")));assert_eq!(rng,before);
     }
 }

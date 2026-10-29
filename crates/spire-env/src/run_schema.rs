@@ -123,6 +123,7 @@ pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{Ok(match p{
     RoomScenario::M13SilentAct2=>return Err(RunSessionError::Input("M13 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M15SilentHeart=>return Err(RunSessionError::Input("M15 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M18DefectAct2=>return Err(RunSessionError::Input("M18 profile is not representable in the M9 v1 observation schema")),
+    RoomScenario::M20DefectHeart=>return Err(RunSessionError::Input("M20 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M19DefectAct3=>return Err(RunSessionError::Input("M19 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M17DefectAct1=>return Err(RunSessionError::Input("M17 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M14SilentAct3=>return Err(RunSessionError::Input("M14 profile is not representable in the M9 v1 observation schema")),

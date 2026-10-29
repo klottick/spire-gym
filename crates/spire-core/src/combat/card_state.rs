@@ -10,6 +10,8 @@ pub struct CombatCardData {
     /// Actual mutable native damage, not target-modified displayed damage.
     pub base_damage: Option<i32>,
     pub base_block: Option<i32>,
+    /// Current source-public magic value for dynamic card calculations.
+    pub magic_number:Option<i32>,
     /// Actual combat-only upgrades, for exact persistent-exit census. Never
     /// infer permanent growth merely from the card's current upgrade count.
     pub temporary_upgrades:u32,
@@ -32,6 +34,7 @@ pub struct CombatCardData {
     /// Innate opening-hand entitlement for the explicitly supported card rows.
     pub innate: bool,
     pub purge: bool,
+    pub rebound_on_finish:bool,
 }
 
 impl fmt::Debug for CombatCardData {
@@ -51,9 +54,11 @@ impl fmt::Debug for CombatCardData {
             .field("innate", &self.innate)
             .field("purge", &self.purge);
         if self.base_block.is_some(){debug.field("base_block",&self.base_block);}
+        if self.magic_number.is_some(){debug.field("magic_number",&self.magic_number);}
         if self.mutable_combat_cost.is_some(){debug.field("mutable_combat_cost",&self.mutable_combat_cost);}
         if self.turn_cost.is_some(){debug.field("turn_cost",&self.turn_cost);}
         if self.free_to_play_once{debug.field("free_to_play_once",&self.free_to_play_once);}
+        if self.rebound_on_finish{debug.field("rebound_on_finish",&true);}
         debug.finish()
     }
 }
@@ -154,7 +159,7 @@ pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCar
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     // Green generation uses the same flags and local writers as permanent
     // descriptors. A template receives no permanent ownership or issued handle.
-    if crate::content::defect::supports_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
+    if crate::content::defect::supports_m20_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
         ||crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Colorless&&!row.definition_only&&matches!(row.rarity,crate::content::CardRarity::Uncommon|crate::content::CardRarity::Rare)&&matches!(row.card_type,crate::content::CardType::Attack|crate::content::CardType::Skill|crate::content::CardType::Power)) {
         let mut card=permanent(id,instance,upgrades);
         card.origin=CombatCardRef::CombatLocal(instance.0);
@@ -203,10 +208,31 @@ pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> 
         local: CombatCardData { base_damage:if id==CardId::SearingBlow{Some(12)}else if id==CardId::BloodForBlood{Some(if upgrades>0{22}else{18})}else if id==CardId::Feed{Some(if upgrades>0{12}else{10})}else if id==CardId::Reaper{Some(if upgrades>0{5}else{4})}else if id==CardId::Rampage{Some(8)}else if id==CardId::Dropkick{Some(if upgrades>0{8}else{5})}else if id==CardId::SeverSoul{Some(if upgrades>0{22}else{16})}else if id==CardId::FiendFire{Some(if upgrades>0{10}else{7})}else if id==CardId::MasterfulStab{Some(if upgrades>0{16}else{12})}else if id==CardId::Eviscerate{Some(if upgrades>0{9}else{7})}else if id==CardId::EndlessAgony{Some(if upgrades>0{6}else{4})}else if id==CardId::GlassKnife{Some(if upgrades>0{12}else{8})}else if id==CardId::Skewer{Some(if upgrades>0{10}else{7})}else{None},mutable_combat_cost:super::cards::starting_cost(id,upgrades),turn_cost:super::cards::starting_cost(id,upgrades),exhaust_on_finish,ethereal:matches!(id,CardId::Carnage|CardId::Dazed|CardId::Void),innate:(id==CardId::Brutality&&upgrades>0)||id==CardId::Backstab||matches!(id,CardId::AfterImage|CardId::InfiniteBlades)&&upgrades>0||matches!(id,CardId::DramaticEntrance|CardId::MindBlast),x_cost:matches!(id,CardId::Whirlwind|CardId::Skewer|CardId::Doppelganger|CardId::Malaise|CardId::Transmutation), ..CombatCardData::default() },copy_family:instance.0,copy_provenance:CopyProvenance::Generated })
 }
 
-pub(super) fn generated_with_combat_history(id:CardId,instance:CardInstanceId,upgrades:u32,damage_events:u32)->Option<LiveCard>{
+/// Derived constructor input from the existing damage and notified-play owners.
+#[derive(Clone,Copy,Default,Debug,PartialEq,Eq)]
+pub(super) struct CardConstructionHistory {
+    pub player_hp_loss_events:u32,
+    pub powers_played_this_combat:u32,
+}
+impl CardConstructionHistory {
+    pub(super) fn from_state(state:&super::model::State)->Self {
+        Self{player_hp_loss_events:state.damage_events_this_combat,powers_played_this_combat:state.silent.powers_played_this_combat}
+    }
+}
+
+pub(super) fn generated_with_history(id:CardId,instance:CardInstanceId,upgrades:u32,history:CardConstructionHistory)->Option<LiveCard>{
     let mut card=generated(id,instance,upgrades)?;
-    if id==CardId::BloodForBlood {for _ in 0..damage_events.min(4){reduce_blood_for_blood_cost(&mut card);}}
+    if id==CardId::BloodForBlood {for _ in 0..history.player_hp_loss_events.min(4){reduce_blood_for_blood_cost(&mut card);}}
+    if id==CardId::ForceField {
+        let price=4_i32-(history.powers_played_this_combat.min(4) as i32);
+        card.local.mutable_combat_cost=Some(price);card.local.turn_cost=Some(price);
+    }
     Some(card)
+}
+
+// Preserve the accepted adapter for callers that only supply HP-loss history.
+pub(super) fn generated_with_combat_history(id:CardId,instance:CardInstanceId,upgrades:u32,damage_events:u32)->Option<LiveCard>{
+    generated_with_history(id,instance,upgrades,CardConstructionHistory{player_hp_loss_events:damage_events,..CardConstructionHistory::default()})
 }
 
 pub(super) fn reduce_blood_for_blood_cost(card:&mut LiveCard){
@@ -271,6 +297,8 @@ impl LiveCard {
         local.exhaust_on_finish=defaults.exhaust_on_finish;local.ethereal=defaults.ethereal;
         local.x_cost=defaults.x_cost;local.innate=defaults.innate;
         local.temporary_upgrades=0;
+        // Rebound belongs to the particular UseCardAction, not its stat copy.
+        local.rebound_on_finish=false;
         Self{instance,id:self.id,origin:CombatCardRef::CombatLocal(instance.0),upgrades:self.upgrades,misc:self.misc,local,
             copy_family:instance.0,copy_provenance:CopyProvenance::StatEquivalent}
     }
@@ -313,3 +341,11 @@ pub fn permanent_with_misc(id:CardId,instance:CardInstanceId,upgrades:u32,misc:i
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct PermanentCardMutation {pub ordinal:u64,pub instance:CardInstanceId,pub id:CardId,pub misc:i32}
+
+/// Source updateCost(-1) for a notified ForceField; waiver flags are separate.
+pub(super) fn discount_force_field(card:&mut LiveCard){
+    let base=card.local.mutable_combat_cost.or(card.local.randomized_cost).unwrap_or(4);
+    if base<=0{return}
+    let turn=card.local.turn_cost.unwrap_or(base.saturating_add(card.local.temporary_cost));
+    card.local.mutable_combat_cost=Some(base-1);card.local.turn_cost=Some(if turn>0{turn-1}else{turn});card.local.temporary_cost=0;
+}

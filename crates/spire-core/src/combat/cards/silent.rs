@@ -12,7 +12,7 @@ mod powers;
 mod state;
 mod costs;
 mod x_repeat;
-pub use state::{SilentEffect, SilentState};
+pub use state::{SilentEffect, SilentState, DrawnCard};
 pub(super) use state::validate_work;
 pub(super) use history::apply;
 

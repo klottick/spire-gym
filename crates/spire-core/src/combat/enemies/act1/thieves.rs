@@ -320,7 +320,7 @@ pub(in crate::combat) fn initialize_gold(state: &mut State, gold: u32) -> Result
 /// Opt-in generated gold shares the accepted thief currency owner, with no
 /// second gain journal or settlement replay. Old profiles keep absent custody.
 fn has_fatal_gold_support(state:&State)->bool {
-    state.item_context.as_ref().is_some_and(|items|items.m15_profile())
+    state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile())
         ||state.piles.all(state.in_play.as_ref()).chain(&state.played_powers).chain(&state.inactive_cards)
             .chain(state.stasis.values()).chain(state.queued_autoplay.values())
             .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))

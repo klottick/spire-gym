@@ -316,7 +316,7 @@ fn m5_collar_prepares_temporary_master_energy_by_source_and_cleans_up_on_victory
     use crate::{content::RelicId,items::{CombatItemContext,NativeBattleContext}};
     for (elite_trigger,boss,want) in [(false,false,3),(true,false,4),(false,true,4)] {
         let mut e=super::m5_elites::entry(crate::content::EncounterId::Cultist);e.cards=vec![permanent_live_card(CardId::Defend,CardInstanceId(1),0),permanent_live_card(CardId::Strike,CardInstanceId(2),0)];e.opening_draw=2;e.setup.player.draw_per_turn=2;
-        let mut items=Some(CombatItemContext::new(vec![RelicId::SlaversCollar,RelicId::NeowsLament],vec![]).with_battle_context(NativeBattleContext{elite_trigger,boss,burning:None,m15:false}));
+        let mut items=Some(CombatItemContext::new(vec![RelicId::SlaversCollar,RelicId::NeowsLament],vec![]).with_battle_context(NativeBattleContext{elite_trigger,boss,burning:None,m15:false,m20:false}));
         let mut c=Combat::enter_with_item_context(e,&mut items).unwrap();assert_eq!((c.state.player.max_energy,c.state.player.energy),(want,want));assert_eq!(c.item_context().unwrap().collar_activated,want==4);
         c.step_full(&CombatAction::PlayCard{instance:1,target:None}).unwrap();c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.player.energy,want);
         c.step_full(&CombatAction::PlayCard{instance:2,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.player.max_energy,3);assert!(!c.item_context().unwrap().collar_activated);

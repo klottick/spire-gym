@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 
 # The core keeps no Python, tensor-library, renderer, or training dependency.
+[features]
+default = []
+m20-diagnostics = []
+
 [dependencies]
 hmac = "=0.12.1"
 serde = { version = "1.0.229", features = ["derive"] }

@@ -40,10 +40,10 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let screen=public(run)?;let row=screen.choices.iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered&&c.price.is_none()).cloned().ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind.clone()){
         (RoomViewKind::BossTreasure,RoomChoiceKind::OpenChest)=>{
-            let mut next=run.next_choice;let mut rows=if is_m15(&run.state){super::m15_content::M15_BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if uses_silent_content(&run.state)||uses_defect_content(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
+            let mut next=run.next_choice;let mut rows=if is_m20(&run.state){super::m20_content::BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if is_m15(&run.state){super::m15_content::M15_BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if uses_silent_content(&run.state)||uses_defect_content(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
             if is_m10(&run.state){rows.extend([(RoomChoiceKind::Relic(RelicId::MarkOfPain),None),(RoomChoiceKind::Relic(RelicId::RunicCube),None)]);}
             rows.push((RoomChoiceKind::Skip,None));let mut screen=view(&mut next,RoomViewKind::BossRelicChoice,rows)?;
-            for row in &mut screen.choices{if let RoomChoiceKind::Relic(relic)=row.kind{if run.state.relics.contains(&relic)||(relic==RelicId::RingOfTheSerpent&&!run.state.relics.contains(&RelicId::RingOfTheSnake))||(relic==RelicId::BlackBlood&&run.state.relics.first()!=Some(&RelicId::BurningBlood)){row.status=RoomChoiceStatus::Disabled;}}}
+            for row in &mut screen.choices{if let RoomChoiceKind::Relic(relic)=row.kind{if run.state.relics.contains(&relic)||(relic==RelicId::FrozenCore&&!run.state.relics.contains(&RelicId::CrackedCore))||(relic==RelicId::RingOfTheSerpent&&!run.state.relics.contains(&RelicId::RingOfTheSnake))||(relic==RelicId::BlackBlood&&run.state.relics.first()!=Some(&RelicId::BurningBlood)){row.status=RoomChoiceStatus::Disabled;}}}
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:true})?;
             run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=screen;
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpenedAfter{boss:true})?;
@@ -56,7 +56,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         (RoomViewKind::BossRelicChild,RoomChoiceKind::Proceed)=>return leave(run,false),
         (RoomViewKind::BossRelicChoice,RoomChoiceKind::Relic(relic))=>{
             if run.state.room_loop.as_ref().unwrap().boss.as_ref().unwrap().selected.is_some()||run.state.relics.contains(&relic){return Err(RunError::InvalidAction)}
-            if !(is_m15(&run.state)&&super::m15_content::M15_BOSS_RELICS.contains(&relic)||!is_m15(&run.state)&&(matches!(relic,RelicId::BlackBlood|RelicId::EmptyCage|RelicId::SlaversCollar)||is_m10(&run.state)&&matches!(relic,RelicId::MarkOfPain|RelicId::RunicCube))){return Err(RunError::InvalidAction)}
+            if !(is_m20(&run.state)&&super::m20_content::BOSS_RELICS.contains(&relic)||is_m15(&run.state)&&super::m15_content::M15_BOSS_RELICS.contains(&relic)||!is_m15(&run.state)&&(matches!(relic,RelicId::BlackBlood|RelicId::EmptyCage|RelicId::SlaversCollar)||is_m10(&run.state)&&matches!(relic,RelicId::MarkOfPain|RelicId::RunicCube))){return Err(RunError::InvalidAction)}
             let cards=if relic==RelicId::EmptyCage{eligible(&run.state)}else{vec![]};let grid=relic==RelicId::EmptyCage&&cards.len()>2;
             if !cards.is_empty()&&!grid&&cards.len()==run.state.deck.len(){reward::preflight(&run.state,&[CommittedEvent::Ended(RunTerminal::EmptyDeck)])?;}
             let mut next=run.next_choice;

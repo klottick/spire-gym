@@ -2,8 +2,8 @@
 use super::*;
 use crate::content::EncounterId;
 
-#[derive(Clone,Debug,PartialEq,Eq)]
-pub(crate) struct Act1Progress {pub boss_order:Vec<EncounterId>,pub question_visits:usize,pub shop_visits:usize,pub elite_relic_cursor:usize}
+#[derive(Clone,PartialEq,Eq)]
+pub(crate) struct Act1Progress {pub boss_order:Vec<EncounterId>,pub question_visits:usize,pub shop_visits:usize,pub elite_relic_cursor:usize,pub combat_visits:u64}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(in crate::run) struct CapturedRoom {pub kind:MapNodeKind,pub encounter:Option<EncounterId>,pub event:Option<EventId>}
 
@@ -15,7 +15,7 @@ pub(super) fn start(run:&mut Run)->Result<(),RunError>{
     else{for i in (1..bosses.len()).rev(){let j=rng.bounded(RunRngScope::Act1BossOrder,(i+1) as u64);bosses.swap(i,j);}}
     let mut map=super::super::map::generate(1,&mut rng,super::super::map::MapEligibility::from_run(&run.state))?;
     map.boss_icon=Some(bosses[0]);run.state.map=Some(map);run.state.rng=rng;
-    run.state.room_loop.as_mut().unwrap().act1=Some(Act1Progress{boss_order:bosses,question_visits:0,shop_visits:0,elite_relic_cursor:0});Ok(())
+    run.state.room_loop.as_mut().unwrap().act1=Some(Act1Progress{boss_order:bosses,question_visits:0,shop_visits:0,elite_relic_cursor:0,combat_visits:0});Ok(())
 }
 pub(super) fn capture_room(state:&RunState,node:NodeId)->Result<CapturedRoom,RunError>{
     let map=state.map.as_ref().ok_or(RunError::InvalidAction)?;
@@ -58,4 +58,12 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if captured.kind==MapNodeKind::Shop{run.state.room_loop.as_mut().unwrap().act1.as_mut().unwrap().shop_visits+=1;}
     run.next_choice=next;if uses_act4(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=rng;}run.state.room_loop.as_mut().unwrap().screen=screen;
     Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
+}
+
+// The new M20 settlement ordinal is private; keep earlier Debug contracts.
+impl std::fmt::Debug for Act1Progress {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
+        f.debug_struct("Act1Progress").field("boss_order",&self.boss_order).field("question_visits",&self.question_visits)
+            .field("shop_visits",&self.shop_visits).field("elite_relic_cursor",&self.elite_relic_cursor).finish()
+    }
 }
