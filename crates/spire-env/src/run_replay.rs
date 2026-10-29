@@ -1,4 +1,5 @@
 //! Versioned semantic Run replay; no snapshots or simulator implementation here.
+use crate::RunRecordError;
 use spire_core::{combat::{CombatAction,TargetId,rng::Partition},content::Character,run::{*,map::PublicMap}};
 use crate::{RunEpisodeRecord,RunSessionError,RunCapacities,RunRecordedFault,RunRecordedStep,RunSessionConfig,RunBossHistory,RunRecordErrorKind};
 use crate::run_session::{create_run,validate_config,RunProfile,RUN_SEED_ADAPTER_ID,RUN_REWARD_ID};
@@ -172,7 +173,7 @@ fn action(a:&GameAction,profile:RunProfile)->Value{match a{
     GameAction::Move(id)=>json!({"verb":"move","node":id.0}),GameAction::Choose(id)=>json!({"verb":"choose","choice":id.0}),GameAction::Select(id)=>json!({"verb":"select","selection":id.0}),GameAction::Confirm=>json!({"verb":"confirm"}),GameAction::Cancel=>json!({"verb":"cancel"}),
     GameAction::UsePotion{slot,target}=>json!({"verb":"use_potion","slot":slot,"target":target.map(|t|t.0)}),GameAction::DiscardPotion{slot}=>json!({"verb":"discard_potion","slot":slot}),
       GameAction::Combat(CombatAction::ConfirmSelection) if profile==RunProfile::M9IroncladAct3=>Value::Null,
-      GameAction::Combat(a)=>combat_action_value(a,false),
+      GameAction::Combat(a)=>combat_action_value(a,profile==RunProfile::M22WatcherAct1),
  }}
 fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>{
     let verb = text(&v["verb"])?;
@@ -203,7 +204,7 @@ fn parse_action(v:&Value,profile:RunProfile)->Result<GameAction,RunSessionError>
     Ok(match verb {
         "move"=>GameAction::Move(NodeId(u(&v["node"])?)),"choose"=>GameAction::Choose(ChoiceId(u(&v["choice"])?)),"select"=>GameAction::Select(SelectionId(u(&v["selection"])?)),"confirm"=>GameAction::Confirm,"cancel"=>GameAction::Cancel,
         "use_potion"=>GameAction::UsePotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?,target:target()?},"discard_potion"=>GameAction::DiscardPotion{slot:u32::try_from(u(&v["slot"])?).map_err(|_|incompatible())?},
-        _=>GameAction::Combat(parse_combat_action(v,false)?),
+        _=>GameAction::Combat(parse_combat_action(v,profile==RunProfile::M22WatcherAct1)?),
     })
 }
 pub(crate) fn capacities(c:&RunCapacities)->Value{json!({"map_nodes":c.map_nodes,"map_edges":c.map_edges,"permanent_cards":c.permanent_cards,"combat_cards":c.combat_cards,"enemies":c.enemies,"powers":c.powers,"relics":c.relics,"potions":c.potions,"offers":c.offers,"selection":c.selection,"orbs":c.orbs,"actions":c.actions})}
@@ -353,12 +354,17 @@ fn parse_config(v:&Value)->Result<RunSessionConfig,RunSessionError>{Ok(RunSessio
 fn validate(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{validate_identity(record,None)}
 fn validate_identity(record:&RunEpisodeRecord,expected_fingerprint:Option<[u8;32]>)->Result<RunProfile,RunSessionError>{
     let profile=RunProfile::from_record(&record.schema_id,&record.profile_id)?;
-    if record.steps.iter().map(|s|&s.action).chain(record.fault.iter().filter_map(|f|f.action.as_ref())).any(|a|matches!(a,GameAction::Combat(CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}))){return Err(incompatible())}
+    if profile!=RunProfile::M22WatcherAct1 && record.steps.iter().map(|s|&s.action).chain(record.fault.iter().filter_map(|f|f.action.as_ref())).any(|a|matches!(a,GameAction::Combat(CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}))){return Err(incompatible())}
 
     if record.rules_id!=profile.rules_id()||record.content_id!=profile.content_id()||record.seed_adapter_id!=RUN_SEED_ADAPTER_ID||record.rng_id!=spire_core::combat::rng::RNG_CONTRACT_ID||record.reward_id!=RUN_REWARD_ID{return Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))}
     validate_config(profile,&record.config).map_err(|_|incompatible())?;
     if record.observation_fingerprint!=expected_fingerprint.unwrap_or(profile.observation_spec(&record.config.capacities)?.fingerprint()){return Err(RunSessionError::IncompatibleReplay("Run observation fingerprint mismatch"))}
     validate_recorded_fault(record.fault.as_ref(),&record.steps)?;
+    if profile==RunProfile::M22WatcherAct1{
+        let fault=record.fault.as_ref().map(|f|json!({"action":f.action.as_ref().map(|a|action(a,profile)),"committed":f.committed,"gameplay_recorded":f.gameplay_recorded,"error":f.error})).unwrap_or(Value::Null);
+        strict_recorded_fault_shape(&fault,true)?;
+        if record.terminal!=record.steps.last().and_then(|s|s.terminal)||record.steps.iter().take(record.steps.len().saturating_sub(1)).any(|s|s.terminal.is_some()){return Err(incompatible())}
+    }
     Ok(profile)
 }
 impl RunEpisodeRecord{
@@ -387,6 +393,7 @@ impl RunEpisodeRecord{
         if profile == RunProfile::M19DefectAct3 { strict_profile_json_shape(&v,"m19-defect-act3",&["act1","act2","act3"])?; }
         if profile == RunProfile::M18DefectAct2 { strict_profile_json_shape(&v,"m18-defect-act2",&["act1","act2"])?; }
         if profile == RunProfile::M17DefectAct1 { strict_profile_json_shape(&v,"m17-defect-act1",&["act1"])?; }
+        if profile==RunProfile::M22WatcherAct1{strict_m22_shape(&v)?;}
         let rows=array(&v["steps"])?;
         let mut steps=Vec::new();
         steps.try_reserve_exact(rows.len()).map_err(|_|RunSessionError::DeliveryFault("Run record import allocation failed"))?;
@@ -434,7 +441,7 @@ impl RunEpisodeRecord{
 }
 pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplayReport,RunSessionError>{
     let profile=validate(record)?;
-    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?,RunProfile::M14SilentAct3=>crate::run_schema_m14::validate(&caps)?,RunProfile::M15SilentHeart=>crate::run_schema_m15::validate(&caps)?,RunProfile::M17DefectAct1=>crate::run_schema_m17::validate(&caps)?,RunProfile::M18DefectAct2=>crate::run_schema_m18::validate(&caps)?,RunProfile::M19DefectAct3=>crate::run_schema_m19::validate(&caps)?,RunProfile::M20DefectHeart=>crate::run_schema_m20::validate(&caps)?}
+    match profile{RunProfile::M9IroncladAct3=>crate::run_schema::validate(&caps)?,RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>crate::run_schema_m10::validate(&caps)?,RunProfile::M12SilentAct1=>crate::run_schema_m12::validate(&caps)?,RunProfile::M13SilentAct2=>crate::run_schema_m13::validate(&caps)?,RunProfile::M14SilentAct3=>crate::run_schema_m14::validate(&caps)?,RunProfile::M15SilentHeart=>crate::run_schema_m15::validate(&caps)?,RunProfile::M17DefectAct1=>crate::run_schema_m17::validate(&caps)?,RunProfile::M18DefectAct2=>crate::run_schema_m18::validate(&caps)?,RunProfile::M19DefectAct3=>crate::run_schema_m19::validate(&caps)?,RunProfile::M20DefectHeart=>crate::run_schema_m20::validate(&caps)?,RunProfile::M22WatcherAct1=>crate::run_schema_m22::validate(&caps)?}
     if profile==RunProfile::M9IroncladAct3&&(record.steps.iter().any(|s|matches!(s.action,GameAction::Combat(CombatAction::ConfirmSelection)))
         ||record.fault.as_ref().and_then(|f|f.action.as_ref()).is_some_and(|a|matches!(a,GameAction::Combat(CombatAction::ConfirmSelection)))){
         return Err(RunSessionError::IncompatibleReplay("ConfirmSelection is not representable in replay v1"));
@@ -445,24 +452,28 @@ pub fn replay_run(record:&RunEpisodeRecord,caps:RunCapacities)->Result<RunReplay
 type ReplayEncoder=fn(&PublicDecision,Option<&PublicMap>,&RunCapacities)->Result<crate::RunObservation,RunSessionError>;
 fn replay_with_initial_run(record:&RunEpisodeRecord,caps:RunCapacities,profile:RunProfile,mut run:Run,encoder:Option<ReplayEncoder>)->Result<RunReplayReport,RunSessionError>{
     let mut decision=run.decision().map_err(RunSessionError::Core)?;
-    if let Some(encode)=encoder{encode(&decision,run.public_map().as_ref(),&caps)?;}else{match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M20DefectHeart=>crate::encode_run_m20(&decision,run.public_map().as_ref(),&caps)?};}
-    let mut rewards=Vec::new();let mut terminals=Vec::new();
+    replay_publication(record,0,replay_encode(profile,&decision,&run,&caps,encoder))?;
+    let mut rewards=Vec::new();let mut terminals=Vec::new();let mut final_decision_error=None;
     rewards.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
     terminals.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run replay allocation failed"))?;
     for step in &record.steps{
         if !decision.candidates.iter().any(|c|c.action==step.action){return Err(RunSessionError::IncompatibleReplay("Run action not currently offered"))}
         let t=run.step(&step.action).map_err(RunSessionError::Core)?;
         if (t.reward,t.terminal)!=(step.reward,step.terminal){return Err(RunSessionError::IncompatibleReplay("Run reward or terminal mismatch"))}
-        decision=run.decision().map_err(RunSessionError::Core)?;
-        if let Some(encode)=encoder{encode(&decision,run.public_map().as_ref(),&caps)?;}else{match profile{RunProfile::M9IroncladAct3=>crate::encode_run(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(&decision,run.public_map().as_ref(),&caps)?,RunProfile::M20DefectHeart=>crate::encode_run_m20(&decision,run.public_map().as_ref(),&caps)?};}
+        match run.decision(){Ok(next)=>decision=next,Err(error)=>{
+            if profile!=RunProfile::M22WatcherAct1||rewards.len()+1!=record.steps.len()||!record.fault.as_ref().is_some_and(|f|f.committed&&f.gameplay_recorded&&f.error==RunRecordError::from_error(&RunSessionError::Core(error.clone()))){return Err(RunSessionError::Core(error))}
+            final_decision_error=Some(error);rewards.push(t.reward);terminals.push(t.terminal);break;
+        }}
+        replay_publication(record,rewards.len()+1,replay_encode(profile,&decision,&run,&caps,encoder))?;
         rewards.push(t.reward);terminals.push(t.terminal);
     }
     if decision.terminal!=record.terminal{return Err(RunSessionError::IncompatibleReplay("Run final terminal mismatch"))}
-    let mut final_decision_error=None;
     if let Some(f)=&record.fault{if f.committed&&!f.gameplay_recorded{
         let action=f.action.as_ref().ok_or_else(incompatible)?;
         if !decision.candidates.iter().any(|c|&c.action==action){return Err(incompatible())}
-        if !matches!(run.step(action),Err(RunError::Faulted(_))){return Err(RunSessionError::IncompatibleReplay("recorded core fault no longer occurs"))}
+        let actual=run.step(action);
+        if !matches!(&actual,Err(RunError::Faulted(_))){return Err(RunSessionError::IncompatibleReplay("recorded core fault no longer occurs"))}
+        if profile==RunProfile::M22WatcherAct1 && actual.err().as_ref().map(|e|RunRecordError::from_error(&RunSessionError::Core(e.clone())))!=Some(f.error.clone()){return Err(RunSessionError::IncompatibleReplay("recorded core fault checkpoint mismatch"))}
         final_decision_error=run.decision().err();
     }}
     Ok(RunReplayReport{final_decision:decision,final_decision_error,final_map:run.public_map(),accepted_count:record.steps.len(),rewards,terminals,reported_fault:record.fault.clone()})
@@ -627,4 +638,33 @@ pub(crate) fn strict_recorded_fault_shape(value:&Value,watcher:bool)->Result<(),
         }
     }
     Ok(())
+}
+
+fn strict_m22_shape(v:&Value)->Result<(),RunSessionError>{
+ exact_fields(v,&["schema_id","profile_id","rules_id","content_id","seed_adapter_id","rng_id","reward_id","observation_fingerprint","config","seed","ordinal","steps","terminal","fault","closed"])?;
+ exact_fields(&v["config"],&["character","ascension","partition","boss_history","capacities","record_replay"])?;
+ exact_fields(&v["config"]["capacities"],&["map_nodes","map_edges","permanent_cards","combat_cards","enemies","powers","relics","potions","offers","selection","orbs","actions"])?;
+ // Existing Act1 unseen-history string spellings are preserved by parse_config.
+ text(&v["config"]["boss_history"])?;
+ for step in array(&v["steps"])?{exact_fields(step,&["action","reward","terminal"])?;exact_action_fields_for(&step["action"],true)?;}
+ strict_recorded_fault_shape(&v["fault"],true)
+}
+
+#[cfg(test)]
+pub(crate) fn replay_m22_diagnostic(record:&RunEpisodeRecord,caps:RunCapacities,fixture:spire_core::run::diagnostics::M22Diagnostic)->Result<RunReplayReport,RunSessionError>{
+ let fp=crate::run_schema_m22::diagnostic_spec(&record.config.capacities,fixture)?.fingerprint();
+ let profile=validate_identity(record,Some(fp))?;
+ if profile!=RunProfile::M22WatcherAct1||record.seed!=7||record.ordinal!=0{return Err(incompatible())}
+ let run=spire_core::run::diagnostics::m22_diagnostic(fixture).map_err(RunSessionError::Core)?;
+ replay_with_initial_run(record,caps,profile,run,None)
+}
+
+fn replay_encode(profile:RunProfile,decision:&PublicDecision,run:&Run,caps:&RunCapacities,encoder:Option<ReplayEncoder>)->Result<crate::RunObservation,RunSessionError>{
+ if let Some(encode)=encoder{encode(decision,run.public_map().as_ref(),caps)}else{Ok(match profile{RunProfile::M9IroncladAct3=>crate::encode_run(decision,run.public_map().as_ref(),caps)?,RunProfile::M10IroncladHeart=>crate::encode_run_m10(decision,run.public_map().as_ref(),caps)?,RunProfile::M10IroncladPolicy=>crate::encode_run_policy(decision,run.public_map().as_ref(),caps)?,RunProfile::M12SilentAct1=>crate::encode_run_m12(decision,run.public_map().as_ref(),caps)?,RunProfile::M13SilentAct2=>crate::encode_run_m13(decision,run.public_map().as_ref(),caps)?,RunProfile::M14SilentAct3=>crate::encode_run_m14(decision,run.public_map().as_ref(),caps)?,RunProfile::M15SilentHeart=>crate::encode_run_m15(decision,run.public_map().as_ref(),caps)?,RunProfile::M17DefectAct1=>crate::encode_run_m17(decision,run.public_map().as_ref(),caps)?,RunProfile::M18DefectAct2=>crate::encode_run_m18(decision,run.public_map().as_ref(),caps)?,RunProfile::M19DefectAct3=>crate::encode_run_m19(decision,run.public_map().as_ref(),caps)?,RunProfile::M20DefectHeart=>crate::encode_run_m20(decision,run.public_map().as_ref(),caps)?,RunProfile::M22WatcherAct1=>crate::encode_run_m22(decision,run.public_map().as_ref(),caps)?})}
+}
+fn replay_publication(record:&RunEpisodeRecord,accepted:usize,result:Result<crate::RunObservation,RunSessionError>)->Result<(),RunSessionError>{
+ match result{Ok(_)=>Ok(()),Err(error)=>{
+  if record.profile_id=="M22WatcherAct1" && accepted==record.steps.len() && record.fault.as_ref().is_some_and(|f|f.gameplay_recorded==(accepted>0)&&!matches!(f.error.kind,RunRecordErrorKind::Core)&&f.error==RunRecordError::from_error(&error)){return Ok(())}
+  Err(error)
+ }}
 }

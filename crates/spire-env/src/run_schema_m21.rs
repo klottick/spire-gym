@@ -6,7 +6,7 @@ use spire_core::{content::*,combat::{SelectionOperation,SelectionView}};
 use std::sync::OnceLock;
 pub const M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID:&str="spire-gym-m21-watcher-combat-observation-v1";
 pub(crate) const GROUPS:&[&str]=&["player","permanent_cards","combat_cards","enemies","powers","relics","potions","selection","selection_counts","actions","combat_state","known_draw","stance_choices"];
-fn vocabulary()->Value{
+pub(crate) fn vocabulary()->Value{
  let mut v=crate::combat_policy::combat_policy_observation_spec_v2().expect("fixed shared vocabulary").descriptor()["vocabularies"].clone();
  v["card"]=json!(std::iter::once("padding").chain(watcher::M21_WATCHER_CARDS.iter().chain(watcher::M21_WATCHER_GENERATED).map(|id|id.as_str())).chain(["dazed","slimed","wound","burn","void","parasite"]).collect::<Vec<_>>());
  v["relic"]=json!(std::iter::once("padding").chain(spire_core::run::M21_WATCHER_RELICS.iter().map(|id|id.as_str())).collect::<Vec<_>>());
@@ -45,6 +45,9 @@ pub fn watcher_combat_observation_spec(c:&RunCapacities)->Result<RunObservationS
  "amounts":"signed int32 public fields transported as native int64; no artificial gameplay clamp"
  }),groups(c),b"spire-gym/m21-watcher-combat/observation/v1\0")?.descriptor();
  d["tensors"].as_array_mut().unwrap().retain(|t|{let key=t["key"].as_str().unwrap();key=="action_mask"||GROUPS.iter().any(|g|key==*g||key==format!("{g}_known")||key==format!("{g}_occupied"))});
- for t in d["tensors"].as_array_mut().unwrap(){if t["key"]=="actions"{t["low"][8]=json!(-1);t["high"][8]=json!(1);t["columns"][8]=json!({"field":"stance_choice_ref","unit":"stance_choice_row","low":-1,"high":1,"reference":"stance_choices","unavailable":-1});}}
+ finalize_stance_descriptor(&mut d);
  let mut h=Sha256::new();h.update(b"spire-gym/m21-watcher-combat/observation/v1\0");h.update(crate::canonical_json(&d).map_err(|_|RunSessionError::Input("invalid M21 descriptor"))?);Ok(RunObservationSpec{descriptor:d,fingerprint:h.finalize().into()})
+}
+pub(crate) fn finalize_stance_descriptor(d:&mut Value){
+ for t in d["tensors"].as_array_mut().unwrap(){if t["key"]=="actions"{t["low"][8]=json!(-1);t["high"][8]=json!(1);t["columns"][8]=json!({"field":"stance_choice_ref","unit":"stance_choice_row","low":-1,"high":1,"reference":"stance_choices","unavailable":-1});}}
 }

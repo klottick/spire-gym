@@ -102,6 +102,10 @@ impl fmt::Display for CallerOutcome {
     }
 }
 
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum M22CallerOutcome{Act2Ready,Death,EmptyDeck,BudgetExhausted}
+impl fmt::Display for M22CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{write!(f,"{self:?}")}}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
     pub seed: u64,
@@ -125,11 +129,13 @@ enum CallerProfile {
     M14,
     M15,
     M20,
+    M22,
 }
 
 enum SharedOutcome {
     Legacy(CallerOutcome),
     M15(M15CallerOutcome),
+    M22(M22CallerOutcome),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -144,6 +150,7 @@ pub struct Caller {
     failed_error: Option<RunError>,
     pub nonattacking: bool,
     pub trace: Vec<TraceStep>,
+    pub m22_observed:Vec<(Vec<spire_core::combat::ResolvedEffect>,Vec<spire_core::combat::CombatBoundary>)>,
     pub final_decision: Option<PublicDecision>,
     pub final_map: Option<spire_core::run::map::PublicMap>,
 }
@@ -202,6 +209,10 @@ impl Caller {
         Ok(Self::with_profile(limit,CallerProfile::M20))
     }
 
+    pub fn new_m22(limit:usize)->Result<Self,String>{
+        if limit>32768{return Err("M22 caller limit must be in 0..=32768".into())}
+        Ok(Self::with_profile(limit,CallerProfile::M22))
+    }
     fn with_profile(limit: usize, profile: CallerProfile) -> Self {
         Self {
             limit,
@@ -214,6 +225,7 @@ impl Caller {
             failed_error: None,
             nonattacking: false,
             trace: Vec::new(),
+            m22_observed:Vec::new(),
             final_decision: None,
             final_map: None,
         }
@@ -339,7 +351,7 @@ pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Resul
     }
     match rollout_shared(run, caller, CallerProfile::M13, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) => Err("M13 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) => Err("M13 rollout received an M15 finish result".into()),
     }
 }
 
@@ -357,7 +369,7 @@ pub fn rollout_m14(run: &mut Run, caller: &mut Caller, death_control: bool) -> R
     caller.nonattacking = death_control;
     match rollout_shared(run, caller, CallerProfile::M14, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) => Err("M14 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) => Err("M14 rollout received an M15 finish result".into()),
     }
 }
 
@@ -376,7 +388,7 @@ pub fn rollout_m15(
     }
     match rollout_shared(run, caller, CallerProfile::M15, Some(key_action), None)? {
         SharedOutcome::M15(outcome) => Ok(outcome),
-        SharedOutcome::Legacy(_) => Err("M15 rollout received a legacy finish result".into()),
+        SharedOutcome::Legacy(_) | SharedOutcome::M22(_) => Err("M15 rollout received a legacy finish result".into()),
     }
 }
 
@@ -390,8 +402,16 @@ pub fn rollout_m20(run:&mut Run,caller:&mut Caller,
         return Err("M20 rollout requires the M20DefectHeart Run profile".into())
     }
     match rollout_shared(run,caller,CallerProfile::M20,None,Some(policy))? {
-        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)=>Err("M20 received a legacy finish result".into())
+        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)|SharedOutcome::M22(_)=>Err("M20 received a legacy finish result".into())
     }
+}
+
+/// M22 extends the accepted shared trace/rollout owner with its own healthy cutoff.
+pub fn rollout_m22(run:&mut Run,caller:&mut Caller,
+    policy:fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&Caller)->Result<GameAction,String>)
+    ->Result<M22CallerOutcome,String>{
+    if caller.profile!=CallerProfile::M22||run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M22WatcherAct1){return Err("M22 rollout requires its M22 caller and Run profile".into())}
+    match rollout_shared(run,caller,CallerProfile::M22,None,Some(policy))?{SharedOutcome::M22(outcome)=>Ok(outcome),_=>Err("M22 received a foreign finish result".into())}
 }
 
 pub(crate) fn m14_stop_outcome(decision: &PublicDecision) -> Option<CallerOutcome> {
@@ -437,6 +457,18 @@ fn rollout_shared(
             if decision.terminal.is_some() {
                 return Err(format!("unexpected native terminal state: {:?}", decision.terminal));
             }
+        } else if profile==CallerProfile::M22{
+            match decision.terminal{
+                Some(RunTerminal::Death)=>return Ok(SharedOutcome::M22(M22CallerOutcome::Death)),
+                Some(RunTerminal::EmptyDeck)=>return Ok(SharedOutcome::M22(M22CallerOutcome::EmptyDeck)),
+                Some(other)=>return Err(format!("unexpected M22 terminal: {other:?}")),
+                None=>(),
+            }
+            if decision.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act2Ready){
+                if (decision.act,decision.floor)!=(2,17)||decision.player.hp==0||decision.objects.is_empty()||!decision.candidates.is_empty(){return Err("invalid M22 healthy cutoff".into())}
+                return Ok(SharedOutcome::M22(M22CallerOutcome::Act2Ready))
+            }
+            if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M22(M22CallerOutcome::BudgetExhausted))}
         } else {
             let expected=if profile==CallerProfile::M20{RoomScenario::M20DefectHeart}else{RoomScenario::M15SilentHeart};
             if let Some(outcome)=heart_stop_outcome(&decision,caller.trace.last(),expected)? {
@@ -444,10 +476,10 @@ fn rollout_shared(
             }
             if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M15(M15CallerOutcome::BudgetExhausted))}
         }
-        if !matches!(profile,CallerProfile::M15|CallerProfile::M20) && caller.accepted() >= caller.limit {
+        if !matches!(profile,CallerProfile::M15|CallerProfile::M20|CallerProfile::M22) && caller.accepted() >= caller.limit {
             return Ok(match profile {
                 CallerProfile::M13 | CallerProfile::M14 => SharedOutcome::Legacy(CallerOutcome::BudgetExhausted),
-                CallerProfile::M15 | CallerProfile::M20 => unreachable!("M15 budget handled before the shared legacy budget branch"),
+                CallerProfile::M15 | CallerProfile::M20 | CallerProfile::M22 => unreachable!("M15 budget handled before the shared legacy budget branch"),
             });
         }
 
@@ -479,10 +511,11 @@ fn rollout_shared(
             }
             return Err(format!("caller selected an action outside the public menu: {action:?}"));
         }
-        let transition = match run.step(&action) {
+        let result=if profile==CallerProfile::M22{let observed=run.step_observed(&action);caller.m22_observed.push((observed.effects,observed.boundaries));observed.result}else{run.step(&action)};
+        let transition = match result {
             Ok(transition) => transition,
             Err(error) if profile != CallerProfile::M13 => {
-                if profile==CallerProfile::M20{caller.failed_error=Some(error.clone());}
+                if matches!(profile,CallerProfile::M20|CallerProfile::M22){caller.failed_error=Some(error.clone());}
                 caller.failed_action = Some(action.clone());
                 return Err(format!(
                     "{} at act {} floor {} while applying {action:?}",

@@ -30,6 +30,7 @@ pub enum CombatStartupProfile{#[default] Legacy,M21Watcher}
 pub struct CombatItemContext {
     pub(crate) battle:NativeBattleContext,
     startup_profile:CombatStartupProfile,
+    watcher_progression:bool,
     potion_potencies:Vec<Option<i32>>,
     last_potion_use:Option<(usize,PotionId,i32)>,
     pub(crate) collar_activated:bool,
@@ -65,6 +66,7 @@ impl std::fmt::Debug for CombatItemContext{
         if self.emotion_chip_armed{value.field("emotion_chip_armed",&self.emotion_chip_armed);}
         if self.kite_triggered{value.field("kite_triggered",&self.kite_triggered);}
         if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}
+        if self.m22_profile(){value.field("watcher_progression",&true);}
         if self.m21_profile(){value.field("startup_profile",&self.startup_profile).field("potion_potencies",&self.potion_potencies).field("last_potion_use",&self.last_potion_use);}value.finish()
     }
 }
@@ -94,13 +96,13 @@ impl CombatItemContext {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -128,6 +130,8 @@ impl CombatItemContext {
     pub(crate) fn consumed_potion_potency(&self,slot:usize,id:PotionId)->Option<i32>{
         self.last_potion_use.filter(|(s,p,_)|*s==slot&&*p==id&&self.potions.get(slot)==Some(&None)).map(|(_,_,amount)|amount)
     }
+    pub(crate) fn with_m22_profile(mut self)->Self{self.watcher_progression=true;self.with_startup_profile(CombatStartupProfile::M21Watcher)}
+    pub(crate) fn m22_profile(&self)->bool{self.watcher_progression}
     pub(crate) fn m21_profile(&self)->bool{self.startup_profile==CombatStartupProfile::M21Watcher}
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
     pub(crate) fn valid_potion_capacity(&self) -> bool {
@@ -180,7 +184,7 @@ impl CombatItemContext {
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { potion_potencies:if self.m21_profile(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
             last_potion_use:if self.m21_profile(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
-            startup_profile:self.startup_profile,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
@@ -313,6 +317,18 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
+    if context.m22_profile(){
+        let mut seen=std::collections::BTreeSet::new();
+        if !context.m21_profile()||character!=Character::Watcher||context.battle.m15||context.battle.m20||context.potions.len()!=3
+            ||context.relics.iter().any(|id|!crate::run::M22_WATCHER_ACT1_RELICS.contains(id)||!seen.insert(*id))
+            ||context.potions.iter().flatten().any(|id|!crate::run::M22_WATCHER_ACT1_POTIONS.contains(id))
+            ||context.owns_relic(RelicId::PureWater)&&context.owns_relic(RelicId::HolyWater)
+            ||context.counters.iter().any(|(id,n)|*id!=RelicId::NeowsLament||!context.owns_relic(*id)||!matches!(*n,1..=3|-2))
+            ||context.owns_relic(RelicId::NeowsLament)&&!matches!(context.counters.get(&RelicId::NeowsLament),Some(1..=3)|Some(-2)){
+            return Err(RunError::InvalidAction)
+        }
+        return Ok(())
+    }
     if context.m21_profile(){
         let mut seen=std::collections::BTreeSet::new();
         if character!=Character::Watcher||context.battle.m15||context.battle.m20||context.potions.len()!=3||!context.counters.is_empty()

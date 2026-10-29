@@ -316,7 +316,7 @@ impl Run {
         let context=CombatItemContext::take_from_run(&mut self.state)
             .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle);
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
-        let context=if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
+        let context=if super::rooms::is_m22(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {

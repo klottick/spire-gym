@@ -55,6 +55,7 @@ impl Catalog {
     }
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
     pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {
+        if id==RelicId::HolyWater{return Some(RelicTier::Boss)}
         items::SILENT_RELIC_TIERS.iter().chain(items::DEFECT_RELIC_TIERS.iter())
             .find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
     }

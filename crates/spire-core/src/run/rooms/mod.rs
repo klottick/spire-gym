@@ -11,8 +11,9 @@ pub(crate) mod m17_content;
 pub(crate) mod m18_content;
 pub(crate) mod m19_content;
 pub(crate) mod m20_content;
+pub mod m22_content;
 mod neow;
-mod act1;
+pub(super) mod act1;
 pub(super) mod act2;
 pub(super) mod act3;
 pub(super) mod act3_end;
@@ -25,7 +26,7 @@ pub(super) mod events;
 mod rest;
 pub(super) mod selection;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart, M22WatcherAct1 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -109,7 +110,8 @@ pub(in crate::run) fn uses_act4(state:&RunState)->bool{is_m10(state)||is_m15(sta
 pub(in crate::run) fn is_m14(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M14SilentAct3)}
 pub(in crate::run) fn uses_silent_content(state:&RunState)->bool{is_m12(state)||is_m13(state)||is_m14(state)||is_m15(state)}
 pub(in crate::run) fn uses_full_act3(state:&RunState)->bool{is_m9(state)||is_m10(state)||is_m14(state)||is_m15(state)||is_m19(state)||is_m20(state)}
-pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m17(state)||is_m5(state)||is_m10(state)||is_m12(state)||is_m13(state)||uses_captured_act2(state)}
+pub(crate) fn is_m22(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|r|r.scenario==RoomScenario::M22WatcherAct1)}
+pub(in crate::run) fn uses_captured_act1(state:&RunState)->bool{is_m22(state)||is_m17(state)||is_m5(state)||is_m10(state)||is_m12(state)||is_m13(state)||uses_captured_act2(state)}
 pub(super) fn token(next:&mut u64)->Result<ChoiceId,RunError>{let id=*next;*next=next.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;Ok(ChoiceId(id))}
 pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
     let mut staged=*next;let choices=rows.into_iter().map(|(kind,price)|Ok(RoomChoiceView{id:token(&mut staged)?,kind,price,status:RoomChoiceStatus::Offered})).collect::<Result<_,RunError>>()?;
@@ -126,8 +128,8 @@ pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
 impl Run {
     pub fn new_room_scenario(config:RunConfig,profile:CreationProfile,rng:RunRng,scenario:RoomScenario)->Result<Self,RunError>{
         let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart);
-        let character=if matches!(scenario,RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3|RoomScenario::M20DefectHeart){crate::content::Character::Defect}else if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
-        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M20DefectHeart=>"M20 requires Defect A0 short Neow",RoomScenario::M19DefectAct3=>"M19 requires Defect A0 short Neow",RoomScenario::M18DefectAct2=>"M18 requires Defect A0 short Neow",RoomScenario::M17DefectAct1=>"M17 requires Defect A0 short Neow",RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",RoomScenario::M15SilentHeart=>"M15 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
+        let character=if scenario==RoomScenario::M22WatcherAct1{crate::content::Character::Watcher}else if matches!(scenario,RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3|RoomScenario::M20DefectHeart){crate::content::Character::Defect}else if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
+        if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M22WatcherAct1=>"M22 requires Watcher A0 short Neow",RoomScenario::M20DefectHeart=>"M20 requires Defect A0 short Neow",RoomScenario::M19DefectAct3=>"M19 requires Defect A0 short Neow",RoomScenario::M18DefectAct2=>"M18 requires Defect A0 short Neow",RoomScenario::M17DefectAct1=>"M17 requires Defect A0 short Neow",RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",RoomScenario::M15SilentHeart=>"M15 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();

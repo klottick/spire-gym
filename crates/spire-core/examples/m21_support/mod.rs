@@ -1,6 +1,5 @@
 //! Frozen public-only M21 demonstration inputs and caller.
 use spire_core::{combat::CombatAction,content::{CardId,EncounterId,PotionId,RelicId},run::*};
-use serde_json::{Value,json};
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum Scenario{Starter,Stance,Mantra,Scry,Retain,Creation,Potions,Death}
 pub const SCENARIOS:[Scenario;8]=[Scenario::Starter,Scenario::Stance,Scenario::Mantra,Scenario::Scry,Scenario::Retain,Scenario::Creation,Scenario::Potions,Scenario::Death];
@@ -43,14 +42,5 @@ pub fn pick(d:&PublicDecision,scenario:Scenario)->Result<CombatAction,String>{
     if let Some(action)=offered.iter().find(|a|matches!(a,CombatAction::PlayCard{..})){return Ok((*action).clone())}
     offered.iter().find(|a|matches!(a,CombatAction::EndTurn)).map(|a|(*a).clone()).ok_or_else(missing)
 }
-/// Output uses the shared native replay verb/field convention. This serializer
-/// reads an already-chosen public action; it does not parse or execute rules.
-pub fn action_value(action:&CombatAction)->Value{match action{
-    CombatAction::PlayCard{instance,target}=>json!({"verb":"combat.play_card","instance":instance,"target":target.map(|t|t.0)}),
-    CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),
-    CombatAction::DeselectCard{instance}=>json!({"verb":"combat.deselect_card","instance":instance}),
-    CombatAction::ChooseStance{stance}=>json!({"verb":"combat.choose_stance","stance":match stance{spire_core::combat::Stance::Neutral=>"neutral",spire_core::combat::Stance::Wrath=>"wrath",spire_core::combat::Stance::Calm=>"calm",spire_core::combat::Stance::Divinity=>"divinity"}}),
-    CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),
-    CombatAction::EndTurn=>json!({"verb":"combat.end_turn"}),CombatAction::ConfirmSelection=>json!({"verb":"combat.confirm_selection"}),
-    CombatAction::ChooseCardOffer{index}=>json!({"verb":"combat.choose_card_offer","index":index}),CombatAction::SkipCardOffer=>json!({"verb":"combat.skip_card_offer"}),
-}}
+#[path="../shared/semantic_actions.rs"]mod semantic_actions;
+pub use semantic_actions::combat_action_value as action_value;

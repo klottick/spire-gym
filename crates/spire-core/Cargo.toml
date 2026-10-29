@@ -9,6 +9,7 @@ rust-version.workspace = true
 [features]
 default = []
 m20-diagnostics = []
+m22-diagnostics = []
 
 [dependencies]
 hmac = "=0.12.1"

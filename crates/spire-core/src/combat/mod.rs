@@ -7,6 +7,8 @@ pub mod rules;
 mod content;
 mod model;
 mod engine;
+#[cfg(any(test,feature="m22-diagnostics"))]
+mod m22_diagnostics;
 mod effects;
 mod card_offers;
 mod generation;
