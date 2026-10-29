@@ -24,9 +24,14 @@ pub(crate) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{re
 
 /// Item ownership is transferred into active full combat and returned with its
 /// exit payload. Outside combat, RunState remains the permanent authority.
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+pub enum CombatStartupProfile{#[default] Legacy,M21Watcher}
 #[derive(Clone, Default, PartialEq, Eq)]
 pub struct CombatItemContext {
     pub(crate) battle:NativeBattleContext,
+    startup_profile:CombatStartupProfile,
+    potion_potencies:Vec<Option<i32>>,
+    last_potion_use:Option<(usize,PotionId,i32)>,
     pub(crate) collar_activated:bool,
     pub(crate) emotion_chip_armed:bool,
     counters: std::collections::BTreeMap<RelicId,i32>,
@@ -59,7 +64,8 @@ impl std::fmt::Debug for CombatItemContext{
         if self.runic_capacitor_armed{value.field("runic_capacitor_armed",&true);}
         if self.emotion_chip_armed{value.field("emotion_chip_armed",&self.emotion_chip_armed);}
         if self.kite_triggered{value.field("kite_triggered",&self.kite_triggered);}
-        if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}value.finish()
+        if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}
+        if self.m21_profile(){value.field("startup_profile",&self.startup_profile).field("potion_potencies",&self.potion_potencies).field("last_potion_use",&self.last_potion_use);}value.finish()
     }
 }
 
@@ -88,13 +94,13 @@ impl CombatItemContext {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
-        Self { counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -110,6 +116,19 @@ impl CombatItemContext {
         Ok(())
     }
 
+    pub(crate) fn with_startup_profile(mut self,profile:CombatStartupProfile)->Self{self.startup_profile=profile;self.reinitialize_potion_potencies();self}
+    pub(crate) fn reinitialize_potion_potencies(&mut self){
+        self.potion_potencies=if self.m21_profile(){self.potions.iter().map(|p|p.map(|id|self.initial_potency(id))).collect()}else{vec![]};
+    }
+    fn initial_potency(&self,id:PotionId)->i32{
+        let base=match id{PotionId::StancePotion=>0,PotionId::Ambrosia|PotionId::BottledMiracle|PotionId::EnergyPotion|PotionId::DexterityPotion=>2,PotionId::BlockPotion=>12,PotionId::AncientPotion=>1,_=>0};
+        base*if self.owns_relic(RelicId::SacredBark){2}else{1}
+    }
+    pub(crate) fn potion_potency(&self,slot:usize)->Option<i32>{self.potion_potencies.get(slot).copied().flatten()}
+    pub(crate) fn consumed_potion_potency(&self,slot:usize,id:PotionId)->Option<i32>{
+        self.last_potion_use.filter(|(s,p,_)|*s==slot&&*p==id&&self.potions.get(slot)==Some(&None)).map(|(_,_,amount)|amount)
+    }
+    pub(crate) fn m21_profile(&self)->bool{self.startup_profile==CombatStartupProfile::M21Watcher}
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
     pub(crate) fn valid_potion_capacity(&self) -> bool {
         valid_potion_capacity(&self.relics, &self.potions)
@@ -159,7 +178,9 @@ impl CombatItemContext {
     pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+        Self { potion_potencies:if self.m21_profile(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
+            last_potion_use:if self.m21_profile(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
+            startup_profile:self.startup_profile,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
@@ -292,6 +313,13 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
+    if context.m21_profile(){
+        let mut seen=std::collections::BTreeSet::new();
+        if character!=Character::Watcher||context.battle.m15||context.battle.m20||context.potions.len()!=3||!context.counters.is_empty()
+            ||context.relics.iter().any(|id|!crate::run::M21_WATCHER_RELICS.contains(id)||!seen.insert(*id))
+            ||context.potions.iter().flatten().any(|id|!crate::run::M21_WATCHER_POTIONS.contains(id)) {return Err(RunError::InvalidAction)}
+        return Ok(())
+    }
     if context.m20_profile()&&character!=Character::Defect{return Err(RunError::InvalidAction)}
     let new_blue_relics=[RelicId::SymbioticVirus,RelicId::FrozenCore,RelicId::Inserter,RelicId::NuclearBattery,RelicId::RunicCapacitor];
     if (!context.m20_profile()&&context.relics.iter().any(|id|new_blue_relics.contains(id)))

@@ -8,6 +8,7 @@ mod items;
 mod encounters;
 mod events;
 pub mod defect;
+pub mod watcher;
 
 pub use cards::{
     BlueCardMetadata, CardColor, CardCost, CardDefinition, CardFaceMetadata, CardKeywords,

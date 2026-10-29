@@ -82,7 +82,7 @@ impl fmt::Debug for CardDefinition {
 impl CardDefinition {
     pub fn eligible_for(&self, producer: ContentProducer, character: Character) -> Result<bool, RegistryError> {
         let character_color = match character { Character::Ironclad => CardColor::Red, Character::Silent => CardColor::Green, Character::Defect => CardColor::Blue, Character::Watcher => CardColor::Purple };
-        let ordinary_pool_candidate = matches!(self.color, CardColor::Red | CardColor::Green | CardColor::Blue | CardColor::Purple | CardColor::Colorless)
+        let ordinary_pool_candidate = !matches!(self.id, CardId::FlurryOfBlows|CardId::Prostrate|CardId::Worship|CardId::Brilliance|CardId::Devotion|CardId::ThirdEye|CardId::CutThroughFate|CardId::JustLucky|CardId::Weave|CardId::Foresight|CardId::Nirvana|CardId::WindmillStrike|CardId::Perseverance|CardId::SandsOfTime|CardId::Establishment|CardId::Meditate|CardId::CarveReality|CardId::DeceiveReality|CardId::MasterReality|CardId::BattleHymn|CardId::MentalFortress|CardId::Rushdown|CardId::LikeWater|CardId::Smite|CardId::Safety) && matches!(self.color, CardColor::Red | CardColor::Green | CardColor::Blue | CardColor::Purple | CardColor::Colorless)
             && !matches!(self.rarity, CardRarity::Basic | CardRarity::Status | CardRarity::Curse | CardRarity::Special);
         Ok(match producer {
             ContentProducer::OrdinaryReward => self.color == character_color && ordinary_pool_candidate
@@ -374,6 +374,31 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     with_blue_metadata(supported(CardId::Reboot, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::SelfTarget, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
     with_blue_metadata(supported(CardId::Seek, CardColor::Blue, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(0), CardCost::Energy(0), CardTarget::None, CardKeywords::EXHAUST, CardKeywords::EXHAUST, &[])),
     with_blue_metadata(supported(CardId::ThunderStrike, CardColor::Blue, CardRarity::Rare, CardType::Attack, NoteStorage::RemovablePermanent), blue_metadata(CardCost::Energy(3), CardCost::Energy(3), CardTarget::AllEnemies, CardKeywords::NONE, CardKeywords::NONE, &[CardTag::Strike])),
+    supported(CardId::FlurryOfBlows,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Prostrate,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Worship,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Brilliance,CardColor::Purple,CardRarity::Rare,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Devotion,CardColor::Purple,CardRarity::Rare,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::ThirdEye,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::CutThroughFate,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::JustLucky,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Weave,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Foresight,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Nirvana,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::WindmillStrike,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Perseverance,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::SandsOfTime,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Establishment,CardColor::Purple,CardRarity::Rare,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Meditate,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::CarveReality,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::DeceiveReality,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::MasterReality,CardColor::Purple,CardRarity::Rare,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::BattleHymn,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::MentalFortress,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Rushdown,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::LikeWater,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Smite,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::TemporaryOnly),
+    supported(CardId::Safety,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::TemporaryOnly),
 ];
 
 const fn card(id: CardId, color: CardColor, rarity: CardRarity, card_type: CardType, note_storage: NoteStorage) -> CardDefinition {

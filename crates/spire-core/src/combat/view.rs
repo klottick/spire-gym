@@ -24,7 +24,11 @@ pub struct PublicView {
 }
 #[derive(Clone, PartialEq, Eq)]
 pub struct LiveCardView { pub instance: CardInstanceId, pub id: crate::content::CardId,
-    pub origin: CombatCardRef, pub upgrades: u32, pub misc:i32, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
+    pub origin: CombatCardRef, pub upgrades: u32, pub misc:i32, pub watcher:Option<WatcherCardValues>, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct WatcherCardValues{pub combat_cost:Option<i32>,pub turn_cost:Option<i32>,pub self_retain:bool,pub retain:bool}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct StanceChoiceView{pub options:Vec<super::Stance>}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum CardCostKind { Fixed,X,Unplayable }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -53,6 +57,8 @@ pub struct CombatInventoryView {
 pub struct CombatCardOfferView { pub cards:Vec<crate::content::CardId>,pub optional:bool }
 #[derive(Clone, PartialEq, Eq)]
 pub struct CombatPublic {
+    pub mantra_gained:Option<i32>,
+    pub stance_choice:Option<StanceChoiceView>,
     pub played_powers:Vec<LiveCardView>,
     /// Cards whose accepted use has started, in suspended-parent to active-child order.
     pub playing_cards:Vec<LiveCardView>,
@@ -93,6 +99,8 @@ impl std::fmt::Debug for CombatPublic {
         value.field("encounter_facing",&self.encounter_facing);
         value.field("inventory",&self.inventory);
         if self.card_offer.is_some(){value.field("card_offer",&self.card_offer);}
+        if self.mantra_gained.is_some(){value.field("mantra_gained",&self.mantra_gained);}
+        if self.stance_choice.is_some(){value.field("stance_choice",&self.stance_choice);}
         value.finish()
     }
 }
@@ -294,7 +302,7 @@ impl std::fmt::Debug for LiveCardView {
     fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
         let mut d=f.debug_struct("LiveCardView");d.field("instance",&self.instance).field("id",&self.id).field("origin",&self.origin).field("upgrades",&self.upgrades);
         if self.misc!=0{d.field("misc",&self.misc);}
-        d.field("effective_cost",&self.effective_cost).field("values",&self.values).finish()
+        d.field("effective_cost",&self.effective_cost).field("values",&self.values);if self.watcher.is_some(){d.field("watcher",&self.watcher);}d.finish()
     }
 }
 impl std::fmt::Debug for CharacterCombatView {

@@ -74,7 +74,7 @@ pub(crate) fn lifecycle_v2(d:&PublicDecision,checkpoint:Option<&CombatCheckpoint
     }
     info
 }
-fn lifecycle_for_view(d:&PublicDecision,checkpoint:Option<&CombatCheckpoint>,view_id:&str)->Value{
+pub(crate) fn lifecycle_for_view(d:&PublicDecision,checkpoint:Option<&CombatCheckpoint>,view_id:&str)->Value{
     let combat=d.combat.as_ref();let selection=combat.and_then(|c|c.selection.as_ref());
     let owner=selection.map(|s|match s.parent{SelectionParent::Card(_)=>"card",SelectionParent::Potion{..}=>"potion",SelectionParent::EndTurn{..}=>"end_turn",SelectionParent::Power{..}=>"power"});
     let routing=if combat.is_none(){"noncombat"}else if selection.is_some(){"combat_selection"}else{"combat"};
@@ -131,4 +131,19 @@ pub fn encode_defect_combat(decision:&PublicDecision,caps:&RunCapacities)->Resul
         return Err(RunSessionError::Input("M16 encoder requires native authored Defect combat"))
     }
     crate::run_observation::encode_run_with_schema(decision,None,caps,crate::run_observation::RunEncodingProfile::M16Defect,crate::run_schema_m16::power)
+}
+
+/// Opt-in public Watcher authored-combat projection.
+pub fn watcher_combat_observation_spec(caps:&RunCapacities)->Result<RunObservationSpec,RunSessionError>{
+    crate::run_schema_m21::watcher_combat_observation_spec(caps)
+}
+pub fn encode_watcher_combat(d:&PublicDecision,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
+    if d.player.character!=spire_core::content::Character::Watcher||d.content_profile.is_some()||!(1..=4).contains(&d.act){return Err(RunSessionError::Input("M21 requires standalone Watcher combat"))}
+    if let Some(c)=&d.combat{
+        if c.stance_choice.is_some()&&(c.selection.is_some()||c.card_offer.is_some()) {return Err(RunSessionError::Input("ambiguous Watcher modal owners"))}
+        if c.stance_choice.as_ref().is_some_and(|choice|choice.options!=[spire_core::combat::Stance::Wrath,spire_core::combat::Stance::Calm]){return Err(RunSessionError::Input("unsupported Watcher stance options"))}
+    }
+    let mut d=d.clone();d.room=None;d.offers.clear();if d.combat.is_none(){d.candidates.clear();d.selection=None;}
+    let mut o=crate::run_observation::encode_run_with_schema(&d,None,caps,crate::run_observation::RunEncodingProfile::M21Watcher,crate::run_schema_m21::power)?;
+    o.groups.retain(|g|crate::run_schema_m21::GROUPS.contains(&g.key));Ok(o)
 }

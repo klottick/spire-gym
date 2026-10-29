@@ -25,6 +25,15 @@ pub fn describe_run_action(d:&PublicDecision,a:&GameAction,id:&str)->Result<Valu
                 value["targets"]=json!([actor_ref(&Actor::Enemy(e.instance_id.clone()),id)]);
             }
             match action {
+                CombatAction::ChooseStance{stance}=>{
+                    if !c.stance_choice.as_ref().is_some_and(|choice|choice.options.contains(stance)){return Err(ReportError::Invalid("stance is not publicly offered".into()))}
+                    value["preActionOffer"]=json!({"stance":format!("{stance:?}")});value["description"]=json!(format!("Choose {stance:?}"));
+                },
+                CombatAction::DeselectCard{instance}=>{
+                    let selection=c.selection.as_ref().filter(|s|s.selected.iter().any(|id|id.0==*instance)).ok_or_else(||ReportError::Invalid("deselected card is not publicly selected".into()))?;
+                    let card=selection.candidates.iter().find(|c|c.instance.0==*instance).ok_or_else(||ReportError::Invalid("deselected card is not a public candidate".into()))?;
+                    value["preActionOffer"]=crate::snapshot::live_card(card,id);value["description"]=json!(format!("Deselect {}",card.id.as_str()));
+                },
                 CombatAction::PlayCard {instance,..}=> {
                     let card=c.hand.iter().find(|c|c.instance.0==*instance).ok_or_else(||ReportError::Invalid("played card not in public hand".into()))?;
                     value["card"]=crate::snapshot::live_card(card,id);value["source"]=value["card"]["ref"].clone();value["description"]=json!(format!("Play {}",card.id.as_str()));
@@ -57,6 +66,7 @@ pub fn describe_run_action(d:&PublicDecision,a:&GameAction,id:&str)->Result<Valu
 pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
     use SelectionDisposition::*;use SelectionOperation::*;
     match operation {
+        Scry=>"scry",MeditateReturn=>"meditate_return",
         HologramRetrieve=>"hologram_retrieve",SeekRetrieve=>"seek_retrieve",Recycle=>"recycle",
         Move(Hand)=>"move_hand",Move(Discard)=>"move_discard",Move(Exhaust)=>"move_exhaust",Move(DrawTop)=>"move_draw_top",
         Upgrade=>"upgrade",Topdeck=>"topdeck",ReturnFromExhaust=>"return_from_exhaust",
@@ -65,14 +75,14 @@ pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
         Retain=>"retain",Setup=>"setup",Bottomdeck=>"bottomdeck",RetrieveMemories=>"retrieve_memories",
     }
 }
-fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::ChooseCardOffer{..}=>"choose_card_offer",CombatAction::SkipCardOffer=>"skip_card_offer",CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}
+fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::ChooseStance{..}=>"choose_stance",CombatAction::DeselectCard{..}=>"deselect_card",CombatAction::ChooseCardOffer{..}=>"choose_card_offer",CombatAction::SkipCardOffer=>"skip_card_offer",CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}
 pub(crate) fn option_key(a:&GameAction)->String {
     let target=|t:Option<TargetId>|t.map(|t|t.0.to_string()).unwrap_or_else(||"none".into());
     match a {
         GameAction::Move(id)=>format!("move/{}",id.0),GameAction::Choose(id)=>format!("choose/{}",id.0),GameAction::Select(id)=>format!("select/{}",id.0),
         GameAction::Confirm=>"confirm".into(),GameAction::Cancel=>"cancel".into(),
         GameAction::UsePotion{slot,target:t}=>format!("use_potion/{slot}/{}",target(*t)),GameAction::DiscardPotion{slot}=>format!("discard_potion/{slot}"),
-        GameAction::Combat(c)=>match c {CombatAction::ChooseCardOffer{index}=>format!("combat/choose_card_offer/{index}"),CombatAction::SkipCardOffer=>"combat/skip_card_offer".into(),CombatAction::EndTurn=>"combat/end_turn".into(),CombatAction::PlayCard{instance,target:t}=>format!("combat/play/{instance}/{}",target(*t)),
+        GameAction::Combat(c)=>match c {CombatAction::ChooseStance{stance}=>format!("combat/choose_stance/{stance:?}"),CombatAction::DeselectCard{instance}=>format!("combat/deselect/{instance}"),CombatAction::ChooseCardOffer{index}=>format!("combat/choose_card_offer/{index}"),CombatAction::SkipCardOffer=>"combat/skip_card_offer".into(),CombatAction::EndTurn=>"combat/end_turn".into(),CombatAction::PlayCard{instance,target:t}=>format!("combat/play/{instance}/{}",target(*t)),
             CombatAction::UsePotion{slot,target:t}=>format!("combat/potion/{slot}/{}",target(*t)),CombatAction::SelectCard{instance}=>format!("combat/select/{instance}"),CombatAction::ConfirmSelection=>"combat/confirm_selection".into()},
     }
 }

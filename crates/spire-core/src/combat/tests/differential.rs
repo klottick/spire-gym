@@ -21,6 +21,8 @@ fn stream(s: &StreamState) -> Value {
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
 pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
+        EffectKind::OpeningHand{..}=>panic!("M21 opening continuation is unsupported by M9 v1"),
+        EffectKind::Watcher(_)=>panic!("M21 Watcher continuation is unsupported by M9 v1"),
         EffectKind::Defect(work)=>("defect",json!({"work":format!("{work:?}")})),
         EffectKind::Alchemize{..}=>panic!("M15 Alchemize is unsupported by M9 v1"),
         EffectKind::SmokeEscape=>panic!("M15 escape is unsupported by M9 v1"),
@@ -139,7 +141,8 @@ pub(super) fn effect(e: &Effect) -> Value {
             super::super::characters::CharacterEffect::Stance(stance) => json!({"stance":match stance {
                 super::super::characters::Stance::Neutral => "neutral",
                 super::super::characters::Stance::Wrath => "wrath",
-                super::super::characters::Stance::Calm => "calm" }}),
+                super::super::characters::Stance::Calm => "calm",
+                super::super::characters::Stance::Divinity=>panic!("Divinity is unsupported by M9 v1") }}),
             super::super::characters::CharacterEffect::Channel(orb) => json!({"channel":match orb {
                 super::super::characters::OrbKind::Lightning => "lightning",
                 super::super::characters::OrbKind::Frost => "frost",
@@ -171,6 +174,7 @@ fn fault(f: &FaultRecord) -> Value {
     json!({"kind":kind,"resolved_effects":f.resolved_effects})
 }
 fn combat_action(a: &CombatAction) -> Value { match a {
+    CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}=>panic!("M21 deselect is unsupported by M9 v1"),
     CombatAction::ChooseCardOffer{..}|CombatAction::SkipCardOffer=>panic!("M15 offer actions are unsupported by M9 v1"),
     CombatAction::PlayCard { instance, target } => json!({"play_card":{"instance":instance,"target":target.map(|t|t.0)}}),
     CombatAction::SelectCard { instance } => json!({"select_card":{"instance":instance}}),

@@ -81,3 +81,41 @@ impl Run {
     }
     pub fn combat_checkpoint(&self)->Option<CombatCheckpoint>{self.state.last_combat_checkpoint.clone()}
 }
+
+/// Finite Watcher authored resources, without hidden combat state or progression.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub enum M21WatcherCombatStart{Canonical,Supplied(AuthoredRunStart)}
+pub const M21_WATCHER_RELICS:&[RelicId]=&[RelicId::PureWater,RelicId::VioletLotus,RelicId::GoldenEye,RelicId::TeardropLocket,RelicId::SacredBark,RelicId::Vajra,RelicId::OddlySmoothStone];
+pub const M21_WATCHER_POTIONS:&[PotionId]=&[PotionId::StancePotion,PotionId::Ambrosia,PotionId::BottledMiracle,PotionId::BlockPotion,PotionId::EnergyPotion,PotionId::DexterityPotion,PotionId::AncientPotion];
+impl M21WatcherCombatStart{
+    /// Normalize public multisets once, keeping physical permanent identities.
+    pub fn normalized(self)->Result<Self,RunError>{
+        let Self::Supplied(mut resources)=self else{return Ok(self)};
+        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=128).contains(&resources.deck.len())||resources.potions.len()!=3{return Err(RunError::InvalidAction)}
+        let mut ids=std::collections::BTreeSet::new();
+        if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||c.upgrades>1||c.misc!=0||!crate::content::watcher::supports_permanent(c.id)){
+            return Err(RunError::Unsupported("card outside finite M21 permanent profile"))
+        }
+        if ids.last().is_none_or(|id|*id==u64::MAX){return Err(RunError::Unsupported("permanent identity exhausted"))}
+        crate::items::validate_combat_inventory(&crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone()).with_startup_profile(crate::items::CombatStartupProfile::M21Watcher),Character::Watcher)?;
+        resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));resources.relics.sort_by_key(|r|r.as_str());Ok(Self::Supplied(resources))
+    }
+}
+pub fn m21_watcher_combat_encounter_metadata(encounter:EncounterId)->Option<(u8,crate::combat::enemies::EncounterKind)>{
+    TRAINING_ENCOUNTERS_V2.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,kind)|(*act,*kind))
+}
+impl Run{
+    pub fn prepare_m21_watcher_combat(start:M21WatcherCombatStart,encounter:EncounterId,rng:RunRng)->Result<Self,RunError>{
+        let (act,_)=m21_watcher_combat_encounter_metadata(encounter).ok_or(RunError::InvalidAction)?;
+        let config=RunConfig{character:Character::Watcher,ascension:0};
+        let (resources,label)=match start.normalized()?{
+            M21WatcherCombatStart::Canonical=>{
+                let canonical=Self::new(config,CreationProfile::experienced(),rng.clone())?;let s=canonical.state;
+                (AuthoredRunStart{hp:s.hp,max_hp:s.max_hp,gold:s.gold,deck:s.deck,relics:s.relics,potions:s.potions,relic_counters:s.relic_counters},"M21CanonicalCombat")
+            },
+            M21WatcherCombatStart::Supplied(resources)=>(resources,"M21SuppliedCombat"),
+        };
+        let next=resources.deck.iter().map(|c|c.instance).max().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+        let mut run=Self::from_validated_combat_resources(config,resources,rng,next);run.state.training_encounter=Some(encounter);run.state.act=act;run.state.room=label;Ok(run)
+    }
+}

@@ -303,6 +303,8 @@ pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bo
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
+    OpeningHand {count:usize},
+    Watcher(super::cards::watcher::WatcherEffect),
     Defect(super::cards::DefectEffect),
     Thief(super::enemies::act1::thieves::ThiefEffect),
     ShelledArmorBreak,
@@ -474,6 +476,7 @@ pub(super) struct State {
     pub thief_gold:Option<super::enemies::act1::thieves::ThiefGoldState>,
     pub colorless:ColorlessState,
     pub defect:super::cards::DefectState,
+    pub watcher:super::cards::watcher::WatcherState,
 }
 
 // Keep established Combat Debug output byte-for-byte when this new owner is
@@ -504,6 +507,7 @@ impl std::fmt::Debug for State {
         if self.silent.history_enabled||self.silent.source_character.is_some()||self.silent.card_offer.is_some()||self.silent.smoked||self.silent.retain_block_next_start{debug.field("silent",&self.silent);}
         if self.colorless!=ColorlessState::default(){debug.field("colorless",&self.colorless);}
         if self.defect!=super::cards::DefectState::default(){debug.field("defect",&self.defect);}
+        if self.watcher!=super::cards::watcher::WatcherState::default(){debug.field("watcher",&self.watcher);}
         debug.finish()
     }
 }

@@ -5,8 +5,8 @@ pub enum RelicId { Vajra, OddlySmoothStone, BagOfPreparation, BagOfMarbles, Bron
     RedSkull, PaperPhrog, ChampionsBelt, CharonsAshes, SelfFormingClay, Orichalcum, Brimstone, MarkOfPain, RunicCube, Unknown(&'static str), SneckoSkull,
     NinjaScroll, PaperKrane, TheSpecimen, Tingsha, ToughBandages, TwistedFunnel, HoveringKite, RingOfTheSerpent, WristBlade,
     Sozu, PotionBelt, DataDisk, GoldPlatedCables, EmotionChip,
-    SymbioticVirus, FrozenCore, Inserter, NuclearBattery, RunicCapacitor, ChemicalX }
-impl RelicId { pub const fn as_str(self) -> &'static str { match self {
+    SymbioticVirus, FrozenCore, Inserter, NuclearBattery, RunicCapacitor, ChemicalX, VioletLotus, GoldenEye, TeardropLocket }
+impl RelicId { pub const fn as_str(self) -> &'static str { match self { Self::TeardropLocket=>"teardrop_locket", Self::GoldenEye=>"golden_eye", Self::VioletLotus=>"violet_lotus",
     Self::Vajra=>"vajra",Self::OddlySmoothStone=>"oddly_smooth_stone",Self::BagOfPreparation=>"bag_of_preparation",Self::BagOfMarbles=>"bag_of_marbles",Self::BronzeScales=>"bronze_scales",
     Self::RedMask=>"red_mask",Self::RedSkull=>"red_skull",Self::PaperPhrog=>"paper_phrog",Self::ChampionsBelt=>"champions_belt",Self::CharonsAshes=>"charons_ashes",Self::SelfFormingClay=>"self_forming_clay",Self::Orichalcum=>"orichalcum",Self::Brimstone=>"brimstone",Self::MarkOfPain=>"mark_of_pain",Self::RunicCube=>"runic_cube",
     Self::BlackBlood=>"black_blood",Self::EmptyCage=>"empty_cage",Self::SlaversCollar=>"slavers_collar",
@@ -32,8 +32,9 @@ pub enum PotionId { FirePotion, BloodPotion, FruitJuice, BlockPotion, EnergyPoti
     AttackPotion, SkillPotion, PowerPotion, ColorlessPotion,
     FlexPotion, SpeedPotion, RegenPotion, LiquidBronze, EssenceOfSteel, CultistPotion, BlessingOfTheForge, SneckoOil, FairyPotion,
     ExplosivePotion, GamblersBrew, LiquidMemories, DuplicationPotion, DistilledChaos, EntropicBrew, FocusPotion, PotionOfCapacity,
-    EssenceOfDarkness }
+    EssenceOfDarkness, StancePotion, Ambrosia, BottledMiracle }
 impl PotionId { pub const fn as_str(self) -> &'static str { match self {
+    Self::StancePotion=>"stance_potion",Self::Ambrosia=>"ambrosia",Self::BottledMiracle=>"bottled_miracle",
     Self::FirePotion => "fire_potion", Self::BloodPotion => "blood_potion", Self::FruitJuice => "fruit_juice",
     Self::BlockPotion => "block_potion", Self::EnergyPotion => "energy_potion", Self::StrengthPotion => "strength_potion",
     Self::SwiftPotion => "swift_potion", Self::WeakPotion => "weak_potion", Self::FearPotion => "fear_potion",

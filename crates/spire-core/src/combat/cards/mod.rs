@@ -4,6 +4,7 @@ use super::model::State;
 pub(crate) mod ironclad;
 pub use ironclad::IroncladEffect;
 mod shared;
+pub(crate) mod watcher;
 mod silent;
 mod colorless;
 pub(crate) mod defect;
@@ -18,7 +19,7 @@ pub(super) fn validate_colorless_work(state:&State,effect:&Effect,work:&Colorles
 pub(super) fn capture_colorless_draw_value(card:&mut LiveCard,draw_count:usize){colorless::capture_draw_value(card,draw_count)}
 pub(super) fn increment_discard(state:&mut State,notify_cards:bool)->Result<(),InputError>{silent::increment_discard(state,notify_cards)}
 pub(super) fn actual_draw(state:&mut State,owner:&super::CardHandle)->Result<(),EffectError>{silent::actual_draw(state,owner)}
-pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades))}
+pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{watcher::starting_cost(id,upgrades).or_else(||defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades)))}
 pub(super) fn silent_player_hp_lost(state:&mut State)->Result<(),EffectError>{Ok(silent::player_hp_lost(state)?)}
 
 #[derive(Clone,Copy,Debug)]
@@ -277,6 +278,7 @@ pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
 fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     -> Result<(i32, Vec<(Option<PayloadTarget>, EffectKind)>), crate::run::RunError>
 {
+    if let Some(result) = watcher::payload(state,card,target)? {return Ok(result)}
     if let Some(result) = defect::payload(state,card,target)? { return Ok(result); }
     if let Some(result) = super::generation::payload(state,card,target)? { return Ok(result); }
     if let Some(result) = colorless::payload(state, card, target)? { return Ok(result); }
@@ -512,6 +514,8 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
         "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
     }}
+    if watcher::active(state){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,
+        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive,signed).map_err(|_|crate::run::RunError::Unsupported("invalid Watcher card damage"))}
     if signed{return rules::full_signed_card_damage(base,strength,weak,state.character.stance==super::characters::Stance::Wrath,
         state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive).map_err(|_|crate::run::RunError::Unsupported("invalid signed card damage"))}
     rules::full_normal_damage_given_received(combined_base.max(0), 0, weak,
@@ -551,7 +555,7 @@ fn modified_block_pipeline(state:&State,base:i32,signed:bool)->Result<i32,crate:
     if state.player_full_powers.iter().any(|power|power.id.0=="no_block"&&power.state.amount>0){return Ok(0)}
     let dexterity = state.player_full_powers.iter().find(|p| p.id.0 == "dexterity").map_or(0, |p| p.state.amount);
     let frail = state.player_full_powers.iter().any(|p| p.id.0 == "frail" && p.state.amount > 0);
-    (if signed{rules::full_signed_card_block(base,dexterity,frail)}else{rules::full_card_block(base, dexterity, frail)})
+    (if watcher::active(state){rules::full_watcher_card_block(base,dexterity,frail)}else if signed{rules::full_signed_card_block(base,dexterity,frail)}else{rules::full_card_block(base, dexterity, frail)})
         .map_err(|_| crate::run::RunError::Unsupported("invalid calculated card Block"))
 }
 
@@ -561,7 +565,7 @@ fn card_handle(card: &LiveCard) -> CardHandle {
 
 /// One public card-value projection; established Ironclad values stay exact.
 pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
-    defect::public_values(card).or_else(||super::generation::public_values(card)).or_else(||ironclad::rules::public_values(card)).or_else(||silent::public_values(card)).or_else(||colorless::public_values(card))
+    watcher::public_values(card).or_else(||defect::public_values(card)).or_else(||super::generation::public_values(card)).or_else(||ironclad::rules::public_values(card)).or_else(||silent::public_values(card)).or_else(||colorless::public_values(card))
         .map(|mut values|{values.free_play=card.local.free_play||card.local.free_to_play_once;values})
 }
 
@@ -576,7 +580,7 @@ pub(super) fn silent_power_on_use(state:&mut State)->Result<(),EffectError>{sile
 pub(super) fn silent_power_after_played(state:&mut State){silent::power_after_played(state)}
 pub(super) fn silent_power_after_damage(state:&mut State,result:&super::model::DamageResult){silent::power_after_damage(state,result)}
 
-pub(super) fn capture_silent_targets(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{silent::capture_targets(state,effects)?;defect::capture_direct(state,effects)?;super::generation::capture(state,effects)}
+pub(super) fn capture_silent_targets(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{silent::capture_targets(state,effects)?;defect::capture_direct(state,effects)?;super::generation::capture(state,effects)?;watcher::capture(state,effects)?;Ok(())}
 pub(super) fn silent_poison_death_work(state:&State,target:Option<&Actor>)->Result<Vec<Effect>,InputError>{silent::poison_death_work(state,target)}
 
 pub(in crate::combat) fn captured_x(state:&State,card:&LiveCard)->Result<i32,crate::run::RunError>{

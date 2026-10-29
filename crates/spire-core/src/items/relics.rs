@@ -49,6 +49,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
         for relic in context.relics() {
             if (*relic == RelicId::Anchor) != anchor_pass { continue; }
             let kind = match (hook, *relic) {
+                (Hook::CombatStartedPreDraw,RelicId::TeardropLocket) if context.m21_profile()=>Some(EffectKind::Character(crate::combat::CharacterEffect::Stance(crate::combat::Stance::Calm))),
                 (Hook::CombatStarted, RelicId::DataDisk) => Some(EffectKind::Character(crate::combat::CharacterEffect::Focus(1))),
                 (Hook::CombatStarted, RelicId::Vajra) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("strength"),amount:1 }),
                 (Hook::CombatStarted, RelicId::OddlySmoothStone) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("dexterity"),amount:1 }),
@@ -59,7 +60,7 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
                 (Hook::CombatStarted, RelicId::RingOfTheSnake) => Some(EffectKind::Draw(2)),
                 (Hook::CombatStarted, RelicId::CrackedCore) => Some(EffectKind::Character(
                     crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Lightning))),
-                (Hook::CombatStarted, RelicId::PureWater) => Some(EffectKind::CreateCard {
+                (Hook::CombatStarted|Hook::CombatStartedPreDraw, RelicId::PureWater) if (hook==Hook::CombatStartedPreDraw)==context.m21_profile() => Some(EffectKind::CreateCard {
                     id: crate::content::CardId::Miracle,
                     destination: crate::combat::CardDestination::Hand,
                     upgrades: 0,

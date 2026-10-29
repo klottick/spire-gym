@@ -41,8 +41,9 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     state.silent.retain_block_next_start=false;
     if !retain_player_block{state.player.block = 0;}
     let defect=state.silent.source_character==Some(crate::content::Character::Defect);
-    if !defect {state.player.energy = state.player.max_energy;}
-    if let Some(power)=state.player_full_powers.iter().find(|p|!defect&&p.id.0=="energized"&&p.state.amount>0).cloned(){
+    let deferred=defect||super::cards::watcher::active(state);
+    if !deferred {state.player.energy = state.player.max_energy;}
+    if let Some(power)=state.player_full_powers.iter().find(|p|!deferred&&p.id.0=="energized"&&p.state.amount>0).cloned(){
         state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
         state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
     }
@@ -99,6 +100,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     kind: EffectKind::Character(super::characters::CharacterEffect::EndTurn) });
             }
             state.pending.push_front(work(EffectKind::DiscardHand));
+            if super::cards::watcher::active(state){if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="establishment"){
+                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Watcher(super::cards::watcher::WatcherEffect::EstablishmentDiscount{amount:power.state.amount})});
+            }}
             if state.full_runtime {for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}}
             if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerPreEndTurnCards)});}
         }

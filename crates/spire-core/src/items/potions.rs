@@ -26,6 +26,23 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
     if facts.max_hp == 0 || facts.max_hp > 999 || facts.hp > facts.max_hp {
         return Err(RunError::InvalidAction);
     }
+    if context.m21_profile(){
+        if character!=Some(Character::Watcher)||target.is_some()||facts.phase!=PotionRoomPhase::Combat||facts.turn_ended||facts.live_targets.is_empty(){return Err(RunError::InvalidAction)}
+        let potency=context.potion_potency(slot).ok_or(RunError::InvalidAction)?;
+        use crate::combat::cards::watcher::WatcherEffect as W;
+        let kind=match potion{
+            PotionId::StancePotion=>EffectKind::Watcher(W::OpenStanceChoice),
+            PotionId::Ambrosia=>EffectKind::Character(crate::combat::CharacterEffect::Stance(crate::combat::Stance::Divinity)),
+            PotionId::BottledMiracle=>EffectKind::Watcher(W::CreateRequest{id:crate::content::CardId::Miracle,count:potency as u32}),
+            PotionId::EnergyPotion=>EffectKind::Watcher(W::PotionEnergy{slot,amount:potency}),
+            PotionId::BlockPotion=>EffectKind::GainBlock(potency),
+            PotionId::DexterityPotion=>EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("dexterity"),amount:potency},
+            PotionId::AncientPotion=>EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("artifact"),amount:potency},
+            _=>return Err(RunError::InvalidAction),
+        };
+        let mut potions=context.potions.clone();potions[slot]=None;
+        return Ok(PotionUseEffects{effects:vec![Effect{source:Source::Potion{slot,id:potion},target:Some(Actor::Player),kind}],potions})
+    }
     if potion == PotionId::EntropicBrew {
         let character = character.ok_or(RunError::Unsupported("actual character required for Entropic Brew"))?;
         if !(context.m15_profile()&&character==Character::Silent||context.m20_profile()&&character==Character::Defect) || target.is_some()
@@ -250,7 +267,7 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
         }
         PotionId::CunningPotion => unreachable!("Cunning Potion returns its three or six work items above"),
         PotionId::FairyPotion => return Err(RunError::InvalidAction),
-        PotionId::BlessingOfTheForge | PotionId::SneckoOil | PotionId::Unknown(_) | PotionId::FlexPotion | PotionId::SpeedPotion | PotionId::RegenPotion
+        PotionId::BlessingOfTheForge | PotionId::SneckoOil | PotionId::StancePotion | PotionId::Ambrosia | PotionId::BottledMiracle | PotionId::Unknown(_) | PotionId::FlexPotion | PotionId::SpeedPotion | PotionId::RegenPotion
         | PotionId::LiquidBronze | PotionId::EssenceOfSteel | PotionId::CultistPotion
         | PotionId::ExplosivePotion | PotionId::AttackPotion | PotionId::SkillPotion | PotionId::PowerPotion
         | PotionId::ColorlessPotion | PotionId::GamblersBrew | PotionId::DuplicationPotion

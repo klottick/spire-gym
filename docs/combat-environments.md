@@ -1,5 +1,42 @@
 # Headless environments
 
+## Finite native Watcher authored combat — source accepted
+
+The [M21 profile](milestones/m21-watcher-combat.md) has root source-only
+acceptance under the primary standing workflow; publication remains pending.
+The initial comprehensive review's0C/3I/0M became SAME-reviewer READY0C/0I/0M
+with I1/I2/I3 closed at explicit supplied/native grades. The
+[review record](superpowers/plans/2026-10-29-m21-native-runtime-review.md) and
+[source reconciliation](milestones/m21-watcher-source-reconciliation.md) bind
+all identities and source limits. This is finite native authored combat, not a
+normal Watcher Run, new batch API or Python/Gym constructor.
+
+The existing `CombatTrainingCatalog::m21`, `CombatTrainingSession::new_m21` and
+`replay_m21_combat` use shared Run/combat/setup/encoder/session/replay owners.
+Admission is28 permanent/3 generated kinds and seven relics/seven potions.
+All57 initial setup publications are initial-boundary proof, not57 completed
+fights. The PureWater startup fault test runs real shared Hook/Create/OpeningHand
+owners at a supplied native-guard checkpoint after the child/before opening draw;
+it does not demonstrate a public entry pause, Run startup episode, canonical
+reachability or original-frame/cap equivalence.
+
+Corrected focused checks pass66core/5admission/8caller/17native/2owner and named
+10TimeWarp/32autoplay/54turn/26Shield-Spear/2M11 controls; counts overlap.
+Historical workspace2996/2 known normal failures/7 inherited ignores remains
+PRE-METADATA/PRE-REVIEW-CORRECTION. All16 original12Victory/4Death,349 choices and
+native matches are PRE-REVIEW-CORRECTION, with no outcome rerun or replacement.
+Seed11 retain `meditate_choice` remains UNMET_UNWAIVED; full M21/parent43 stays
+open. M18/M19 normal gates/parents and M20 canonical normal Heart remain open.
+No whole-workspace-green, Python delivery, authenticated original build or
+original-runtime parity is claimed. M22 waits for actual root merge, verified
+accepted export and explicit assignment against its approved plan.
+
+## Prior environment history — retained without changes
+
+The prior statements and full supplied combat-v1 contract below retain their
+dated evidence, command fences and limits; older publication/release statements
+do not supersede the current M21 source-only disposition.
+
 For the captured normal-start Ironclad A0 **single-Run** API, see the
 [M9 RunEnv profile](milestones/m9-act3.md) and the
 [Python/Gym lane and artifact guidance](development.md#agent-lane-selection-and-artifact-identity).

@@ -54,3 +54,5 @@ mod m20_defect_content;
 mod m20_diagnostic_support;
 
 mod m20_supplied;
+
+mod m21_watcher;

@@ -106,3 +106,12 @@ mod m20_defect_direct;
 mod m20_defect_powers;
 
 mod m20_defect_interactions;
+
+mod m21_watcher_stances;
+
+mod m21_watcher_retain;
+
+mod m21_watcher_scry;
+
+mod m21_watcher_creation;
+mod m21_watcher_review;

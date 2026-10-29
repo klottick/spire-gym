@@ -179,10 +179,26 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         return Ok(())
     }
     let previous = amount(state, actor, id)?;
+    if *actor==Actor::Player&&id.0=="master_reality"&&super::cards::watcher::active(state){
+        if application&&previous==0{set(state,effect,id,-1);}
+        return Ok(())
+    }
+    if application&&*actor==Actor::Player&&id.0=="mantra"&&super::cards::watcher::active(state){
+        let existed=state.player_full_powers.iter().any(|p|p.id==id);
+        let mut next=if existed&&previous!=-1{previous.checked_add(delta).ok_or_else(||InputError::Unsupported("Watcher Mantra amount int32 exhausted".into()))?}else{delta};
+        let threshold=existed&&next>=10;
+        if threshold{next=next.wrapping_sub(10);}
+        set(state,effect,id,next);
+        if threshold{super::enemies::act2::bottom(state,Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(super::CharacterEffect::Stance(super::Stance::Divinity))});}
+        return super::effects::refresh_enemy_values(state);
+    }
+
     if application&&id.0=="rebound"&&previous==0&&*actor==Actor::Player{state.defect.rebound_just_applied=true;}
     if !application && previous == 0 { return Ok(()); }
     let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
     let next = match id.0 {
+        "like_water" if super::cards::watcher::active(state)=>sum.clamp(0,999),
+        _ if super::cards::watcher::active(state)&&super::cards::watcher::power_id(id)=>sum.max(0),
         "strength" => sum.clamp(-999, 999),
         // DoubleDamagePower constructs at one; ApplyPower's application
         // amount is the delta only when an existing matching power stacks.
