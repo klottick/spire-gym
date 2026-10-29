@@ -97,3 +97,5 @@ mod m16_review_corrections;
 
 pub(crate) mod m18_custody_support;
 mod m18_defect_interactions;
+
+pub(crate) mod m19_defect_interactions;

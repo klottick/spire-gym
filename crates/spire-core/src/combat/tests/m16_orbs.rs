@@ -147,12 +147,13 @@ fn m16_orbs_focus_has_one_public_power_owner(){
 }
 
 #[test]
-fn m16_orbs_dark_selects_half_dead_without_duplicate_death(){
+fn m16_orbs_dark_excludes_already_half_dead_without_duplicate_death(){
     let mut combat=Combat::enter(super::m8_shapes::entry(crate::content::EncounterId::ThreeDarklings)).unwrap();
     combat.state.character=CharacterState::for_character(crate::content::Character::Defect);combat.state.silent.source_character=Some(crate::content::Character::Defect);
     let hp=combat.state.enemies[0].hp;super::m5_elites::hit(&mut combat,0,hp);
     assert_eq!(combat.state.enemies[0].life,ActorLife::HalfDead);
-    let others=combat.state.enemies.iter().skip(1).map(|e|e.hp).collect::<Vec<_>>();
+    let mut others=combat.state.enemies.iter().skip(1).map(|e|e.hp).collect::<Vec<_>>();
+    let target=others.iter().enumerate().min_by_key(|(i,hp)|(**hp,*i)).unwrap().0;others[target]-=12;
     let deaths=combat.state.hook_events.iter().filter(|e|matches!(e.hook,Hook::Death|Hook::HalfDeath)).count();
     combat.state.character.orb_slots=vec![Some(OrbState{kind:OrbKind::Dark,dark_damage:Some(12)}),None,None];
     generated_play(&mut combat,crate::content::CardId::Recursion,1,None);
