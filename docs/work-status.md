@@ -1,6 +1,13 @@
 # Work status
 
-## Current snapshot — 2026-10-30, scope reconciliation; M23 candidate in progress
+## Current snapshot — 2026-10-30, M23 merged; M18–M23 parents closed
+
+- M23 merged: PR62, `5afcc7c09fe21140557a5211451bc433cb73f788` (feature `bb4a54c1412d6d8e21657405081e7a68f6137fed`). The final independent review returned READY with no findings on its second round. See the [M23 profile](milestones/m23-watcher-act2.md) and [reconciliation](milestones/m23-watcher-act2-reconciliation.md).
+- M20 current-source supplied witness: on main `5afcc7c0`, the frozen supplied Defect Heart setup reached HeartVictory in 110 accepted actions (floor 55 TrueVictory, HP 43/89); all eight initial snapshots matched the retained M20 corrective initials byte-for-byte and native scalar/replay/batch agreed. This is a supplied native Rust witness, not normal-start completion.
+- Under the 2026-10-30 gameplay-not-strategy scope, parents M18–M23 (spire-dxo.40–.45) are closed. All original losses and supplied-versus-normal provenance are preserved.
+- Next milestone (M24, Watcher through Act3) needs its own design, plan, independent review and primary approval before execution.
+
+## Prior status body — 2026-10-30, scope reconciliation; M23 candidate in progress, retained verbatim
 
 - Primary scope clarification (2026-10-30, receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`): the repository's scope is the ability to play the game, not strategy, and a supplied victory is acceptable. PM disposition: `35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`.
 - M22 merged: PR61, `02839be64c2fb94195aa2045aee8062656199894`.
