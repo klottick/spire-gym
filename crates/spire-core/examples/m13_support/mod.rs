@@ -105,6 +105,9 @@ impl fmt::Display for CallerOutcome {
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum M22CallerOutcome{Act2Ready,Death,EmptyDeck,BudgetExhausted}
 impl fmt::Display for M22CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{write!(f,"{self:?}")}}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum M23CallerOutcome{Act3Ready,Death,EmptyDeck,BudgetExhausted}
+impl fmt::Display for M23CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{write!(f,"{self:?}")}}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -130,12 +133,14 @@ enum CallerProfile {
     M15,
     M20,
     M22,
+    M23,
 }
 
 enum SharedOutcome {
     Legacy(CallerOutcome),
     M15(M15CallerOutcome),
     M22(M22CallerOutcome),
+    M23(M23CallerOutcome),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -212,6 +217,11 @@ impl Caller {
     pub fn new_m22(limit:usize)->Result<Self,String>{
         if limit>32768{return Err("M22 caller limit must be in 0..=32768".into())}
         Ok(Self::with_profile(limit,CallerProfile::M22))
+    }
+    /// M23 uses the same trace owner/loop and observed-step capture as M22.
+    pub fn new_m23(limit:usize)->Result<Self,String>{
+        if limit>32768{return Err("M23 caller limit must be in 0..=32768".into())}
+        Ok(Self::with_profile(limit,CallerProfile::M23))
     }
     fn with_profile(limit: usize, profile: CallerProfile) -> Self {
         Self {
@@ -351,7 +361,7 @@ pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Resul
     }
     match rollout_shared(run, caller, CallerProfile::M13, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) | SharedOutcome::M22(_) => Err("M13 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) => Err("M13 rollout received an M15 finish result".into()),
     }
 }
 
@@ -369,7 +379,7 @@ pub fn rollout_m14(run: &mut Run, caller: &mut Caller, death_control: bool) -> R
     caller.nonattacking = death_control;
     match rollout_shared(run, caller, CallerProfile::M14, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) | SharedOutcome::M22(_) => Err("M14 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) => Err("M14 rollout received an M15 finish result".into()),
     }
 }
 
@@ -388,7 +398,7 @@ pub fn rollout_m15(
     }
     match rollout_shared(run, caller, CallerProfile::M15, Some(key_action), None)? {
         SharedOutcome::M15(outcome) => Ok(outcome),
-        SharedOutcome::Legacy(_) | SharedOutcome::M22(_) => Err("M15 rollout received a legacy finish result".into()),
+        SharedOutcome::Legacy(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) => Err("M15 rollout received a legacy finish result".into()),
     }
 }
 
@@ -402,7 +412,7 @@ pub fn rollout_m20(run:&mut Run,caller:&mut Caller,
         return Err("M20 rollout requires the M20DefectHeart Run profile".into())
     }
     match rollout_shared(run,caller,CallerProfile::M20,None,Some(policy))? {
-        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)|SharedOutcome::M22(_)=>Err("M20 received a legacy finish result".into())
+        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)|SharedOutcome::M22(_)|SharedOutcome::M23(_)=>Err("M20 received a legacy finish result".into())
     }
 }
 
@@ -412,6 +422,14 @@ pub fn rollout_m22(run:&mut Run,caller:&mut Caller,
     ->Result<M22CallerOutcome,String>{
     if caller.profile!=CallerProfile::M22||run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M22WatcherAct1){return Err("M22 rollout requires its M22 caller and Run profile".into())}
     match rollout_shared(run,caller,CallerProfile::M22,None,Some(policy))?{SharedOutcome::M22(outcome)=>Ok(outcome),_=>Err("M22 received a foreign finish result".into())}
+}
+
+/// M23 continues the same shared owner through Act2 to its healthy Act3Ready cutoff.
+pub fn rollout_m23(run:&mut Run,caller:&mut Caller,
+    policy:fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&Caller)->Result<GameAction,String>)
+    ->Result<M23CallerOutcome,String>{
+    if caller.profile!=CallerProfile::M23||run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M23WatcherAct2){return Err("M23 rollout requires its M23 caller and Run profile".into())}
+    match rollout_shared(run,caller,CallerProfile::M23,None,Some(policy))?{SharedOutcome::M23(outcome)=>Ok(outcome),_=>Err("M23 received a foreign finish result".into())}
 }
 
 pub(crate) fn m14_stop_outcome(decision: &PublicDecision) -> Option<CallerOutcome> {
@@ -469,6 +487,18 @@ fn rollout_shared(
                 return Ok(SharedOutcome::M22(M22CallerOutcome::Act2Ready))
             }
             if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M22(M22CallerOutcome::BudgetExhausted))}
+        } else if profile==CallerProfile::M23{
+            match decision.terminal{
+                Some(RunTerminal::Death)=>return Ok(SharedOutcome::M23(M23CallerOutcome::Death)),
+                Some(RunTerminal::EmptyDeck)=>return Ok(SharedOutcome::M23(M23CallerOutcome::EmptyDeck)),
+                Some(other)=>return Err(format!("unexpected M23 terminal: {other:?}")),
+                None=>(),
+            }
+            if decision.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act3Ready){
+                if (decision.act,decision.floor)!=(3,34)||decision.player.hp==0||decision.objects.is_empty()||!decision.candidates.is_empty()||decision.combat.is_some(){return Err("invalid M23 healthy cutoff".into())}
+                return Ok(SharedOutcome::M23(M23CallerOutcome::Act3Ready))
+            }
+            if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M23(M23CallerOutcome::BudgetExhausted))}
         } else {
             let expected=if profile==CallerProfile::M20{RoomScenario::M20DefectHeart}else{RoomScenario::M15SilentHeart};
             if let Some(outcome)=heart_stop_outcome(&decision,caller.trace.last(),expected)? {
@@ -476,10 +506,10 @@ fn rollout_shared(
             }
             if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M15(M15CallerOutcome::BudgetExhausted))}
         }
-        if !matches!(profile,CallerProfile::M15|CallerProfile::M20|CallerProfile::M22) && caller.accepted() >= caller.limit {
+        if !matches!(profile,CallerProfile::M15|CallerProfile::M20|CallerProfile::M22|CallerProfile::M23) && caller.accepted() >= caller.limit {
             return Ok(match profile {
                 CallerProfile::M13 | CallerProfile::M14 => SharedOutcome::Legacy(CallerOutcome::BudgetExhausted),
-                CallerProfile::M15 | CallerProfile::M20 | CallerProfile::M22 => unreachable!("M15 budget handled before the shared legacy budget branch"),
+                CallerProfile::M15 | CallerProfile::M20 | CallerProfile::M22 | CallerProfile::M23 => unreachable!("M15 budget handled before the shared legacy budget branch"),
             });
         }
 
@@ -511,11 +541,11 @@ fn rollout_shared(
             }
             return Err(format!("caller selected an action outside the public menu: {action:?}"));
         }
-        let result=if profile==CallerProfile::M22{let observed=run.step_observed(&action);caller.m22_observed.push((observed.effects,observed.boundaries));observed.result}else{run.step(&action)};
+        let result=if matches!(profile,CallerProfile::M22|CallerProfile::M23){let observed=run.step_observed(&action);caller.m22_observed.push((observed.effects,observed.boundaries));observed.result}else{run.step(&action)};
         let transition = match result {
             Ok(transition) => transition,
             Err(error) if profile != CallerProfile::M13 => {
-                if matches!(profile,CallerProfile::M20|CallerProfile::M22){caller.failed_error=Some(error.clone());}
+                if matches!(profile,CallerProfile::M20|CallerProfile::M22|CallerProfile::M23){caller.failed_error=Some(error.clone());}
                 caller.failed_action = Some(action.clone());
                 return Err(format!(
                     "{} at act {} floor {} while applying {action:?}",

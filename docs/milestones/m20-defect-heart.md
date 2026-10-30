@@ -221,3 +221,7 @@ ownership, and returned READY with zero remaining findings. This is source
 acceptance at the finite scope, distinct from historical supplied success.
 M21 release remains conditional on actual merged M20 source, verified accepted
 export and explicit root assignment; no implementation release is claimed.
+
+## Scope reconciliation (2026-10-30)
+
+The primary user clarified that this repository's scope is the ability to play the game, not strategy, and that a supplied victory is acceptable (receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`). Under the PM disposition (`35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`), the canonical normal Heart gate is a strategy-only outcome gate. The only supplied Defect HeartVictory (110 actions, freeze `c69b2a31…`) predates the I1 energy-cap correction. Parent spire-dxo.42 therefore stays OPEN until one current-source supplied Heart witness runs after the M23 merge (task spire-dxo.42.11). All original outcomes and supplied-versus-normal provenance above are preserved.

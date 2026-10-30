@@ -6,7 +6,7 @@ pub enum M22DiagnosticBoss{Guardian,Hexaghost,SlimeBoss}
 impl M22DiagnosticBoss{pub fn encounter(self)->EncounterId{match self{Self::Guardian=>EncounterId::Guardian,Self::Hexaghost=>EncounterId::Hexaghost,Self::SlimeBoss=>EncounterId::SlimeBoss}}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum M22DiagnosticBranch{HolyWater,VioletLotus,SacredBark,EmptyCage,SlaversCollar,Skip}
-impl M22DiagnosticBranch{fn relic(self)->Option<RelicId>{Some(match self{Self::HolyWater=>RelicId::HolyWater,Self::VioletLotus=>RelicId::VioletLotus,Self::SacredBark=>RelicId::SacredBark,Self::EmptyCage=>RelicId::EmptyCage,Self::SlaversCollar=>RelicId::SlaversCollar,Self::Skip=>return None})}}
+impl M22DiagnosticBranch{pub(super) fn relic(self)->Option<RelicId>{Some(match self{Self::HolyWater=>RelicId::HolyWater,Self::VioletLotus=>RelicId::VioletLotus,Self::SacredBark=>RelicId::SacredBark,Self::EmptyCage=>RelicId::EmptyCage,Self::SlaversCollar=>RelicId::SlaversCollar,Self::Skip=>return None})}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum M22Diagnostic{
     BossRewards{boss:M22DiagnosticBoss},BossRelicMenu{boss:M22DiagnosticBoss},
@@ -18,7 +18,7 @@ pub enum M22Diagnostic{
 fn random()->RunRng{let mut root=[0;32];root[..8].copy_from_slice(&7u64.to_le_bytes());RunRng::new(root,Partition::Test,0)}
 fn creation(boss:M22DiagnosticBoss)->CreationProfile{let mut p=CreationProfile::experienced();p.neow_eligible=false;p.seen_bosses[0]=match boss{M22DiagnosticBoss::Guardian=>vec!["Hexaghost","SlimeBoss"],M22DiagnosticBoss::Hexaghost=>vec!["Guardian","SlimeBoss"],M22DiagnosticBoss::SlimeBoss=>vec!["Guardian","Hexaghost"]};p}
 fn canonical(boss:M22DiagnosticBoss)->Result<Run,RunError>{Run::new_room_scenario(RunConfig{character:Character::Watcher,ascension:0},creation(boss),random(),RoomScenario::M22WatcherAct1)}
-fn choose(run:&mut Run,kind:RoomChoiceKind)->Result<(),RunError>{let id=run.decision()?.room.ok_or(RunError::InvalidAction)?.choices.iter().find(|r|r.kind==kind&&r.status==RoomChoiceStatus::Offered).ok_or(RunError::InvalidAction)?.id;run.step(&GameAction::Choose(id))?;Ok(())}
+pub(super) fn choose(run:&mut Run,kind:RoomChoiceKind)->Result<(),RunError>{let id=run.decision()?.room.ok_or(RunError::InvalidAction)?.choices.iter().find(|r|r.kind==kind&&r.status==RoomChoiceStatus::Offered).ok_or(RunError::InvalidAction)?.id;run.step(&GameAction::Choose(id))?;Ok(())}
 fn source_map(run:&mut Run,boss:M22DiagnosticBoss){
     let node=NodeId(0xF220_0016);run.state.floor=16;run.state.room="M22ConstructedBossSource";
     run.state.map=Some(RunMap{act:1,boss_icon:Some(boss.encounter()),current:Some(node),nodes:vec![MapNode{id:node,floor:16,label:"Boss",edges:vec![],x:0,y:15,kind:MapNodeKind::Boss,hidden_kind:None,visited:true,revealed:true,encounter:Some(boss.encounter()),burning:false}],..RunMap::default()});
@@ -41,7 +41,7 @@ fn boss_child(boss:M22DiagnosticBoss,branch:M22DiagnosticBranch)->Result<Run,Run
     if let Some(id)=branch.relic(){choose(&mut r,RoomChoiceKind::Relic(id))?;}else{choose(&mut r,RoomChoiceKind::Skip)?;}
     Ok(r)
 }
-fn play_kind(r:&mut Run,kind:CardId)->Result<(),RunError>{
+pub(super) fn play_kind(r:&mut Run,kind:CardId)->Result<(),RunError>{
     let d=r.decision()?;let c=d.combat.as_ref().ok_or(RunError::InvalidAction)?;
     let action=d.candidates.iter().find(|row|matches!(row.action,GameAction::Combat(CombatAction::PlayCard{instance,..}) if c.hand.iter().any(|card|card.instance.0==instance&&card.id==kind))).ok_or(RunError::InvalidAction)?.action.clone();
     r.step(&action)?;Ok(())
@@ -118,7 +118,7 @@ pub struct M22DiagnosticCheckpoint{
 }
 /// Reads actual owners even after a fault. It cannot install or resume state.
 pub fn m22_diagnostic_checkpoint(run:&Run)->Result<M22DiagnosticCheckpoint,RunError>{
-    if !rooms::is_m22(&run.state){return Err(RunError::InvalidAction)}
+    if !rooms::uses_watcher_content(&run.state){return Err(RunError::InvalidAction)}
     Ok(M22DiagnosticCheckpoint{
         transition:run.state.room_loop.as_ref().and_then(|r|r.transition.as_ref()).map(|f|M22TransitionCheckpoint{from:f.from,to:f.to,floor:f.floor,reset_applied:f.reset_applied,heal_applied:f.heal_applied,initialized:f.initialized}),
         combat:run.state.combat.as_ref().map(crate::combat::Combat::m22_diagnostic_checkpoint),

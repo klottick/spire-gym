@@ -5,9 +5,10 @@ pub(in crate::run) fn screen_with_rng(run:&Run,next:&mut u64,rng:&mut RunRng)->R
     screen_with_rng_at(run,next,rng,(run.state.act,run.state.floor,node))
 }
 pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,destination:(u8,u32,NodeId))->Result<RoomView,RunError>{
-    if is_m22(&run.state){
+    if uses_watcher_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
-        let later=room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0;
+        // The destination act's pre-increment visit selects first/later stock.
+        let later=if is_m23(&run.state)&&destination.0==2{room.act2.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0};
         let mut rows=super::m22_content::shop_cards(later).into_iter().zip(super::m22_content::SHOP_CARD_PRICES)
             .map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
         let relic=super::m22_content::SHOP_RELICS[usize::from(later)];

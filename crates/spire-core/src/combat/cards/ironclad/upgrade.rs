@@ -25,9 +25,10 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
             }
         },
         IroncladEffect::UpgradeCard{instance}=>{
-            let card=state.piles.hand.iter_mut().filter_map(|c|c.full_mut()).find(|c|c.instance==*instance)
+            let card=state.piles.hand.iter().filter_map(|c|c.full()).find(|c|c.instance==*instance).cloned()
                 .ok_or_else(||InputError::Invariant("upgrade candidate left its captured hand".into()))?;
-            rules::upgrade(card).map_err(|error|InputError::Unsupported(format!("owned card upgrade failed: {error:?}")))?;
+            let upgraded=crate::combat::card_state::upgrade_live_card(state,&card).map_err(|error|InputError::Unsupported(format!("owned card upgrade failed: {error:?}")))?;
+            *state.piles.hand.iter_mut().filter_map(|c|c.full_mut()).find(|c|c.instance==*instance).unwrap()=upgraded;
         },
         IroncladEffect::SwordBoomerangHit{damage}=>{
             let candidates=state.enemies.iter().filter(|enemy|enemy.life==super::super::super::ActorLife::Active&&enemy.hp>0)

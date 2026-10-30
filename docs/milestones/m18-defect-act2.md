@@ -186,3 +186,7 @@ used for this candidate. Full source/evidence is retained outside managed sessio
 This is native source-grounded evidence only: Python build/import/source matching,
 original-runtime validation, full Defect pools, Act3 and Heart remain unverified
 or outside this finite profile.
+
+## Scope reconciliation (2026-10-30)
+
+The primary user clarified that this repository's scope is the ability to play the game, not strategy, and that a supplied victory is acceptable (receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`). Under the PM disposition (`35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`), the normal BronzeAutomaton entry/record gate is a strategy-only outcome gate. It no longer blocks this milestone, and parent spire-dxo.40 is closed under scope. Non-strategy coverage is `m18_lightning_respects_artifact_block_and_bypasses_flight` (actual BronzeAutomaton setup) plus the M23 Stasis/BronzeAutomaton composition tests. The test `m18_from_start_fixed_pairs_require_actual_boss_entry_and_completion` is marked `#[ignore]` with this reason; its assertions are unchanged, and it still fails under `--ignored`. All original outcomes and supplied-versus-normal provenance above are preserved.

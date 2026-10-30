@@ -141,3 +141,7 @@ use M14’s supplied waiver. Independent final source review is READY. Actual pr
 narrower source merge/dependency disposition; normal milestone completion is
 unproven. The same reviewer’s narrow administrative qualification and manager
 publication/main integration remain pending.
+
+## Scope reconciliation (2026-10-30)
+
+The primary user clarified that this repository's scope is the ability to play the game, not strategy, and that a supplied victory is acceptable (receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`). Under the PM disposition (`35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`), the gate requiring normal records for all three Act3 bosses and a normal Act3NoKeys is a strategy-only outcome gate. It no longer blocks this milestone, and parent spire-dxo.41 is closed under scope. Non-strategy coverage is `m19_defect_act3_boss_ending_is_not_loot_or_heart` (constructed Act3 boss Victory followed by Act3NoKeys). The test `m19_six_fixed_triples_require_actual_boss_records_and_normal_no_keys` is marked `#[ignore]` with this reason; its assertions are unchanged, and it still fails under `--ignored`. All original outcomes and supplied-versus-normal provenance above are preserved.

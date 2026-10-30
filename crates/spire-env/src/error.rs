@@ -52,7 +52,16 @@ pub(crate) fn setup(message: impl Into<String>) -> EnvError {
 /// Check representable capacity and fallible preallocation before filling a buffer.
 /// This does not claim recovery from process aborts or all allocator failures.
 pub(crate) fn reserved<T>(len: usize) -> Result<Vec<T>, EnvError> {
+    #[cfg(test)]
+    if FAIL_RESERVED_AFTER.with(|n| match n.get() { Some(0) => { n.set(None); true }, Some(k) => { n.set(Some(k - 1)); false }, None => false }) {
+        return Err(setup("setup allocation exceeds available capacity"));
+    }
     let mut values = Vec::new();
     values.try_reserve_exact(len).map_err(|_| setup("setup allocation exceeds available capacity"))?;
     Ok(values)
 }
+
+// Private env unit-test support only: fail the Nth subsequent `reserved` call on
+// the current thread with the ordinary setup error. No production failure backend.
+#[cfg(test)]
+thread_local!{pub(crate) static FAIL_RESERVED_AFTER:std::cell::Cell<Option<usize>>=const{std::cell::Cell::new(None)};}

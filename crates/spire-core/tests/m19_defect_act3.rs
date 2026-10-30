@@ -11,6 +11,7 @@ fn m19_death_budget_and_fault_remain_distinct(){
     let mut r=make_run(7,scenario).unwrap();let before=r.clone();assert!(r.step(&GameAction::Confirm).is_err());assert_eq!(r,before);
 }
 #[test]
+#[ignore = "strategy outcome gate (normal-start policy must reach/beat bosses); out of repo scope per primary scope clarification 2026-10-30; run with --ignored"]
 fn m19_six_fixed_triples_require_actual_boss_records_and_normal_no_keys(){
     let root=std::env::var_os("M19_CASE_RECEIPTS").map(std::path::PathBuf::from).unwrap_or_else(||std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/m19"));
     // Load and preserve all attempts before any aggregate gate can fail.

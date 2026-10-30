@@ -96,3 +96,8 @@ mod run_schema_m22;
 pub use run_schema_m22::{m22_run_observation_spec,RUN_OBSERVATION_M22_SCHEMA_ID};
 pub use run_observation::encode_run_m22;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M22,RUN_RULES_ID_M22,RUN_CONTENT_ID_M22};
+
+mod run_schema_m23;
+pub use run_schema_m23::{m23_run_observation_spec,RUN_OBSERVATION_M23_SCHEMA_ID};
+pub use run_observation::encode_run_m23;
+pub use run_session::{RUN_RECORD_SCHEMA_ID_M23,RUN_RULES_ID_M23,RUN_CONTENT_ID_M23};
