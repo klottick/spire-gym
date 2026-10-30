@@ -291,9 +291,11 @@ fn play_confused(combat: &mut Combat, instance: CardInstanceId, id: CardId, base
     energy_gain: i32) -> i32 {
     let card = hand_card(combat, instance);
     assert_eq!(card.id, id);
-    assert_eq!(card.local.mutable_combat_cost, Some(base_cost));
     let cost = card.local.randomized_cost.expect("actual Confused draw exposes its randomized price");
     assert!((0..=3).contains(&cost));
+    // Source ConfusionPower.onCardDraw sets the drawn instance's combat cost.
+    assert_eq!(card.local.mutable_combat_cost, Some(cost));
+    assert_eq!(crate::combat::cards::base_cost(&combat.state, card), Some(base_cost));
     assert_eq!(card.local.turn_cost, Some(cost));
     let visible = combat.public_full().unwrap().hand.into_iter().find(|card| card.instance == instance).unwrap();
     assert_eq!(visible.effective_cost, Some(cost));
@@ -302,8 +304,10 @@ fn play_confused(combat: &mut Combat, instance: CardInstanceId, id: CardId, base
     let energy = combat.state.player.energy;
     combat.step_full(&action).unwrap();
     assert_eq!(combat.state.player.energy, energy - cost + energy_gain);
-    assert_eq!(owned_card(combat, instance).local.mutable_combat_cost, Some(base_cost),
-        "Confused current-turn price does not rewrite the permanent card's base cost");
+    assert_eq!(owned_card(combat, instance).local.mutable_combat_cost, Some(cost),
+        "Confused price is the combat instance's cost for the rest of combat");
+    assert_eq!(crate::combat::cards::base_cost(&combat.state, owned_card(combat, instance)), Some(base_cost),
+        "the permanent card's printed base cost is unchanged");
     cost
 }
 

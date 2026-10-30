@@ -10,6 +10,8 @@ rust-version.workspace = true
 default = []
 m20-diagnostics = []
 m22-diagnostics = []
+# Default-off fixed M23 supplied/played starts; reuses the read-only Watcher checkpoint.
+m23-diagnostics = ["m22-diagnostics"]
 
 [dependencies]
 hmac = "=0.12.1"

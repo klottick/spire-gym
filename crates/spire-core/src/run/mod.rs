@@ -45,3 +45,5 @@ pub use rooms::m20_content::{M20_DEFECT_HEART_CARDS,M20_DEFECT_HEART_RELICS,M20_
 
 pub use rooms::m22_content;
 pub use rooms::m22_content::{M22_WATCHER_ACT1_CARDS,M22_WATCHER_ACT1_RELICS,M22_WATCHER_ACT1_POTIONS};
+pub use rooms::m23_content;
+pub use rooms::m23_content::{M23_WATCHER_ACT2_CARDS,M23_WATCHER_ACT2_RELICS,M23_WATCHER_ACT2_POTIONS};

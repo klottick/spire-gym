@@ -310,10 +310,11 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         }
         EffectKind::CardOffer{..}|EffectKind::DeliverCardOffer{..}=>super::card_offers::apply(state,effect)?,
         EffectKind::Potion(super::PotionEffect::UpgradeHand) => {
-            for owned in &mut state.piles.hand {
-                if let Some(card)=owned.full_mut().filter(|card|super::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)) {
-                    super::cards::ironclad::rules::upgrade(card)
+            for index in 0..state.piles.hand.len() {
+                if let Some(card)=state.piles.hand[index].full().filter(|card|super::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)).cloned() {
+                    let upgraded=super::card_state::upgrade_live_card(state,&card)
                         .map_err(|error|InputError::Unsupported(format!("accepted hand upgrade failed: {error:?}")))?;
+                    if let Some(slot)=state.piles.hand[index].full_mut(){*slot=upgraded;}
                 }
             }
             super::piles::refresh_hand_values(state);
@@ -328,9 +329,11 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Snecko Oil card stream absent".into()))?;
                 let (cost,next)=super::rng::uniform_below(stream,4)?;
                 state.card_rng=Some(next);
+                let card=state.piles.hand.iter_mut().filter_map(super::model::OwnedCard::full_mut)
+                    .find(|card|card.instance==instance).ok_or_else(||InputError::Invariant("Snecko Oil hand owner absent".into()))?;
+                // Source RandomizeHandCostAction clears freeToPlayOnce for every eligible card.
+                card.local.free_play=false;card.local.free_to_play_once=false;
                 if cost as i32!=old {
-                    let card=state.piles.hand.iter_mut().filter_map(super::model::OwnedCard::full_mut)
-                        .find(|card|card.instance==instance).ok_or_else(||InputError::Invariant("Snecko Oil hand owner absent".into()))?;
                     card.local.randomized_cost=Some(cost as i32);card.local.turn_cost=Some(cost as i32);
                     if card.local.mutable_combat_cost.is_some(){card.local.mutable_combat_cost=Some(cost as i32);}
                     card.local.temporary_cost=0;

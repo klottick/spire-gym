@@ -17,6 +17,9 @@ pub const RUN_RECORD_SCHEMA_ID_M14: &str = "spire-gym-m14-silent-act3-replay-v1"
 pub const RUN_RECORD_SCHEMA_ID_M22:&str="spire-gym-m22-watcher-act1-replay-v1";
 pub const RUN_RULES_ID_M22:&str="spire-gym-native-m22-rules-v1";
 pub const RUN_CONTENT_ID_M22:&str="spire-gym-m22-watcher-a0-act1-captured-v1";
+pub const RUN_RECORD_SCHEMA_ID_M23:&str="spire-gym-m23-watcher-act2-replay-v1";
+pub const RUN_RULES_ID_M23:&str="spire-gym-native-m23-rules-v1";
+pub const RUN_CONTENT_ID_M23:&str="spire-gym-m23-watcher-a0-acts1-2-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M20:&str="spire-gym-m20-defect-heart-replay-v1";
 pub const RUN_RULES_ID_M20:&str="spire-gym-native-m20-rules-v1";
 pub const RUN_CONTENT_ID_M20:&str="spire-gym-m20-defect-a0-heart-captured-v1";
@@ -66,6 +69,7 @@ pub(crate) enum RunProfile {
     M19DefectAct3,
     M20DefectHeart,
     M22WatcherAct1,
+    M23WatcherAct2,
 }
 impl RunProfile {
     pub(crate) fn id(self) -> &'static str {
@@ -82,6 +86,7 @@ impl RunProfile {
             Self::M19DefectAct3 => "M19DefectAct3",
             Self::M20DefectHeart => "M20DefectHeart",
             Self::M22WatcherAct1 => "M22WatcherAct1",
+            Self::M23WatcherAct2 => "M23WatcherAct2",
         }
     }
     pub(crate) fn schema_id(self) -> &'static str {
@@ -98,6 +103,7 @@ impl RunProfile {
             Self::M19DefectAct3 => RUN_RECORD_SCHEMA_ID_M19,
             Self::M20DefectHeart => RUN_RECORD_SCHEMA_ID_M20,
             Self::M22WatcherAct1 => RUN_RECORD_SCHEMA_ID_M22,
+            Self::M23WatcherAct2 => RUN_RECORD_SCHEMA_ID_M23,
         }
     }
     pub(crate) fn rules_id(self) -> &'static str {
@@ -113,6 +119,7 @@ impl RunProfile {
             Self::M19DefectAct3 => RUN_RULES_ID_M19,
             Self::M20DefectHeart => RUN_RULES_ID_M20,
             Self::M22WatcherAct1 => RUN_RULES_ID_M22,
+            Self::M23WatcherAct2 => RUN_RULES_ID_M23,
         }
     }
     pub(crate) fn content_id(self) -> &'static str {
@@ -128,6 +135,7 @@ impl RunProfile {
             Self::M19DefectAct3 => RUN_CONTENT_ID_M19,
             Self::M20DefectHeart => RUN_CONTENT_ID_M20,
             Self::M22WatcherAct1 => RUN_CONTENT_ID_M22,
+            Self::M23WatcherAct2 => RUN_CONTENT_ID_M23,
         }
     }
     pub(crate) fn observation_spec(
@@ -147,10 +155,11 @@ impl RunProfile {
             Self::M19DefectAct3 => crate::m19_run_observation_spec(caps),
             Self::M20DefectHeart => crate::m20_run_observation_spec(caps),
             Self::M22WatcherAct1 => crate::m22_run_observation_spec(caps),
+            Self::M23WatcherAct2 => crate::m23_run_observation_spec(caps),
         }
     }
     fn validate(self, config: &RunSessionConfig) -> Result<(), RunSessionError> {
-        let expected_character = if self==Self::M22WatcherAct1 { Character::Watcher } else if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2|Self::M19DefectAct3|Self::M20DefectHeart) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
+        let expected_character = if matches!(self,Self::M22WatcherAct1|Self::M23WatcherAct2) { Character::Watcher } else if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2|Self::M19DefectAct3|Self::M20DefectHeart) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
             Character::Silent
         } else {
             Character::Ironclad
@@ -168,6 +177,7 @@ impl RunProfile {
             Self::M19DefectAct3 => "M19 requires Defect A0",
             Self::M20DefectHeart => "M20 requires Defect A0",
             Self::M22WatcherAct1 => "M22 requires Watcher A0",
+            Self::M23WatcherAct2 => "M23 requires Watcher A0",
             }));
         }
         let history_matches = match self {
@@ -175,6 +185,7 @@ impl RunProfile {
             Self::M18DefectAct2 => matches!(config.boss_history,RunBossHistory::M18DefectAct2{..}),
             Self::M19DefectAct3 => matches!(config.boss_history,RunBossHistory::M19DefectAct3{..}),
             Self::M20DefectHeart => matches!(config.boss_history,RunBossHistory::M20DefectHeart{..}),
+            Self::M23WatcherAct2 => matches!(config.boss_history,RunBossHistory::M23WatcherAct2{..}),
             Self::M12SilentAct1 | Self::M22WatcherAct1 => matches!(
                 config.boss_history,
                 RunBossHistory::Act1GuardianUnseen
@@ -217,6 +228,7 @@ impl RunProfile {
             Self::M19DefectAct3 => crate::run_schema_m19::validate(&config.capacities),
             Self::M20DefectHeart => crate::run_schema_m20::validate(&config.capacities),
             Self::M22WatcherAct1 => crate::run_schema_m22::validate(&config.capacities),
+            Self::M23WatcherAct2 => crate::run_schema_m23::validate(&config.capacities),
         }
     }
     pub(crate) fn from_record(schema: &str, profile: &str) -> Result<Self, RunSessionError> {
@@ -233,6 +245,7 @@ impl RunProfile {
             (RUN_RECORD_SCHEMA_ID_M19, "M19DefectAct3") => Ok(Self::M19DefectAct3),
             (RUN_RECORD_SCHEMA_ID_M20, "M20DefectHeart") => Ok(Self::M20DefectHeart),
             (RUN_RECORD_SCHEMA_ID_M22, "M22WatcherAct1") => Ok(Self::M22WatcherAct1),
+            (RUN_RECORD_SCHEMA_ID_M23, "M23WatcherAct2") => Ok(Self::M23WatcherAct2),
             _ => Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
         }
     }
@@ -270,6 +283,7 @@ pub enum RunBossHistory {
     M13SilentAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
     M14SilentAct3 { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
     M15SilentHeart { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
+    M23WatcherAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
 }
 pub type M9BossHistory = RunBossHistory;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -336,13 +350,23 @@ pub struct RunSession{
     #[cfg(test)]
     m22_diagnostic:Option<spire_core::run::diagnostics::M22Diagnostic>,
     #[cfg(test)]
+    m23_diagnostic:Option<spire_core::run::diagnostics::M23Diagnostic>,
+    #[cfg(test)]
+    test_reset_panic:Option<TestResetPanic>,
+    #[cfg(test)]
     m20_diagnostic:Option<spire_core::run::diagnostics::M20DiagnosticLoadout>,
     config:RunSessionConfig,profile:RunProfile,id:u64,serial:u64,run:Option<Run>,published:Option<RunBoundary>,
     actions:Vec<GameAction>,seed:Option<u64>,ordinal:u64,record:Option<RunEpisodeRecord>,
     fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,at_m12_cutoff:bool,at_m13_cutoff:bool,at_m14_cutoff:bool,
 }
+/// TEST-ONLY reset worker-panic stage for the shared RunBatch catch_unwind path. Not a production hook.
+#[cfg(test)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) enum TestResetPanic{BeforeMutation,AfterStartup}
 #[cfg(test)]
 thread_local!{static M22_INITIALIZATIONS:std::cell::RefCell<Vec<u64>>=const{std::cell::RefCell::new(Vec::new())};}
+#[cfg(test)]
+thread_local!{static M23_INITIALIZATIONS:std::cell::RefCell<Vec<u64>>=const{std::cell::RefCell::new(Vec::new())};}
 pub(crate) fn create_run(
     profile: RunProfile,
     config: &RunSessionConfig,
@@ -350,6 +374,7 @@ pub(crate) fn create_run(
     ordinal: u64,
 ) -> Result<Run, RunSessionError> {
     #[cfg(test)] if profile==RunProfile::M22WatcherAct1{M22_INITIALIZATIONS.with(|v|v.borrow_mut().push(ordinal));}
+    #[cfg(test)] if profile==RunProfile::M23WatcherAct2{M23_INITIALIZATIONS.with(|v|v.borrow_mut().push(ordinal));}
     let mut root = [0; 32];
     root[..8].copy_from_slice(&seed.to_le_bytes());
     let mut creation = CreationProfile::experienced();
@@ -361,6 +386,7 @@ pub(crate) fn create_run(
         RunBossHistory::M20DefectHeart { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M19DefectAct3 { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Guardian, .. } |
+        RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Guardian, .. } => {
             vec!["Hexaghost", "SlimeBoss"]
         }
@@ -373,6 +399,7 @@ pub(crate) fn create_run(
         RunBossHistory::M20DefectHeart { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M19DefectAct3 { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Hexaghost, .. } |
+        RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Hexaghost, .. } => {
             vec!["Guardian", "SlimeBoss"]
         }
@@ -385,6 +412,7 @@ pub(crate) fn create_run(
         RunBossHistory::M20DefectHeart { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M19DefectAct3 { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } |
+        RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } => {
             vec!["Guardian", "Hexaghost"]
         }
@@ -400,11 +428,12 @@ pub(crate) fn create_run(
         _ => vec!["Hexaghost", "SlimeBoss"],
     };
 
-    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart) {
+    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M23WatcherAct2) {
         creation.seen_bosses[1] = match config.boss_history {
             RunBossHistory::M20DefectHeart { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M19DefectAct3 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Champ, .. } |
+            RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Champ, .. } => {
                 vec!["Automaton", "Collector"]
             }
@@ -417,6 +446,7 @@ pub(crate) fn create_run(
             RunBossHistory::M20DefectHeart { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M19DefectAct3 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
+            RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } => {
                 vec!["Champ", "Collector"]
             }
@@ -429,6 +459,7 @@ pub(crate) fn create_run(
             RunBossHistory::M20DefectHeart { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M19DefectAct3 { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Collector, .. } |
+            RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Collector, .. } => {
                 vec!["Champ", "Automaton"]
             }
@@ -470,7 +501,7 @@ pub(crate) fn create_run(
             }
             _ => unreachable!("M14 validation requires a triple boss history"),
         };
-    } else if profile != RunProfile::M12SilentAct1 && profile != RunProfile::M13SilentAct2 && profile != RunProfile::M17DefectAct1 && profile != RunProfile::M18DefectAct2 && profile != RunProfile::M22WatcherAct1 {
+    } else if profile != RunProfile::M12SilentAct1 && profile != RunProfile::M13SilentAct2 && profile != RunProfile::M17DefectAct1 && profile != RunProfile::M18DefectAct2 && profile != RunProfile::M22WatcherAct1 && profile != RunProfile::M23WatcherAct2 {
         creation.seen_bosses[1] = vec!["Champ", "Collector"];
         creation.seen_bosses[2] = match config.boss_history {
             RunBossHistory::AwakenedUnseen => vec!["TimeEater", "DonuAndDeca"],
@@ -494,6 +525,7 @@ pub(crate) fn create_run(
         RunProfile::M19DefectAct3 => RoomScenario::M19DefectAct3,
         RunProfile::M20DefectHeart => RoomScenario::M20DefectHeart,
             RunProfile::M22WatcherAct1 => RoomScenario::M22WatcherAct1,
+            RunProfile::M23WatcherAct2 => RoomScenario::M23WatcherAct2,
     };
     Run::new_room_scenario(
         RunConfig { character: config.character, ascension: config.ascension },
@@ -520,7 +552,7 @@ fn check_boundary(profile: RunProfile, decision: &PublicDecision) -> Result<(), 
             "M12 Act2Ready must be nonterminal with no actions",
         ));
     }
-    if matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2)
+    if matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2|RunProfile::M23WatcherAct2)
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready)
     {
         if decision.terminal.is_none() && decision.candidates.is_empty() {
@@ -588,13 +620,14 @@ fn publish(
         RunProfile::M19DefectAct3 => crate::encode_run_m19(&decision, map.as_ref(), &config.capacities)?,
         RunProfile::M20DefectHeart => crate::encode_run_m20(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M22WatcherAct1 => crate::encode_run_m22(&decision, map.as_ref(), &config.capacities)?,
+            RunProfile::M23WatcherAct2 => crate::encode_run_m23(&decision, map.as_ref(), &config.capacities)?,
     }
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1|RunProfile::M22WatcherAct1)
         && decision.terminal.is_none()
         && decision.candidates.is_empty()
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act2Ready);
-    let at_m13_cutoff = matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2)
+    let at_m13_cutoff = matches!(profile,RunProfile::M13SilentAct2|RunProfile::M18DefectAct2|RunProfile::M23WatcherAct2)
         && decision.terminal.is_none()
         && decision.candidates.is_empty()
         && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ready);
@@ -624,9 +657,10 @@ impl RunSession{
         let mut descriptor=serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
             "observation_fingerprint":crate::combat_policy::hex(&spec.fingerprint()),"rules_id":self.profile.rules_id(),
             "content_id":self.profile.content_id(),"reward_id":RUN_REWARD_ID,"seed_adapter_id":RUN_SEED_ADAPTER_ID,
-            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1|RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M22WatcherAct1){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1|RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M22WatcherAct1|RunProfile::M23WatcherAct2){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
             "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"});
         if self.profile==RunProfile::M22WatcherAct1{descriptor["finite_content"]=crate::run_schema_m22::finite_content();descriptor["cutoff"]=serde_json::json!("Act2Ready: healthy nonterminal zero actions; no completion bonus");}
+        if self.profile==RunProfile::M23WatcherAct2{descriptor["finite_content"]=crate::run_schema_m23::finite_content();descriptor["cutoff"]=serde_json::json!("Act3Ready: healthy nonterminal zero actions after actual Act2 boss settlement; no completion bonus");}
         if self.profile==RunProfile::M20DefectHeart{
             descriptor["finite_content"]=crate::run_schema_m20::finite_content();
             descriptor["ending"]=serde_json::json!("HeartVictory after the actual Act4 Proceed action");
@@ -718,6 +752,7 @@ impl RunSession{
     }
     pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
+        if self.profile==RunProfile::M23WatcherAct2{return Err(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M20DefectHeart{return Err(RunSessionError::UnsupportedBoundary("M20 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M19DefectAct3{return Err(RunSessionError::UnsupportedBoundary("M19 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M18DefectAct2{return Err(RunSessionError::UnsupportedBoundary("M18 does not provide the Ironclad combat policy sidecar"))}
@@ -733,6 +768,7 @@ impl RunSession{
     /// visit-keyed last_exit remains sticky across later noncombat decisions.
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
+        if self.profile==RunProfile::M23WatcherAct2{return Err(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M20DefectHeart{return Err(RunSessionError::UnsupportedBoundary("M20 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M19DefectAct3{return Err(RunSessionError::UnsupportedBoundary("M19 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M18DefectAct2{return Err(RunSessionError::UnsupportedBoundary("M18 does not provide the Ironclad combat policy sidecar"))}
@@ -759,6 +795,8 @@ impl RunSession{
     pub fn new_m10_policy(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M10IroncladPolicy)}
     /// Opt into the finite Defect A0 Acts 1–3 profile on the shared native owner.
     pub fn new_m22(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M22WatcherAct1)}
+    /// Opt into the finite Watcher A0 Acts 1–2 profile on the shared native owner.
+    pub fn new_m23(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M23WatcherAct2)}
     pub fn new_m20(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M20DefectHeart)}
     pub fn new_m19(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M19DefectAct3)}
     /// Opt into the finite Defect A0 Acts 1–2 profile on the shared native owner.
@@ -787,6 +825,23 @@ impl RunSession{
         match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
+    /// TEST-ONLY owner inconsistency for the shared batch panic path: drops the Run owner while the published
+    /// boundary remains, so the next accepted step job panics inside RunBatch's catch_unwind. Not a production hook.
+    #[cfg(test)]
+    pub(crate) fn m23_test_detach_run_owner(&mut self){self.run=None;}
+    /// TEST-ONLY: the next reset panics at the given stage (consumed once).
+    #[cfg(test)]
+    pub(crate) fn set_test_reset_panic(&mut self,stage:TestResetPanic){self.test_reset_panic=Some(stage);}
+    /// Fixed constructed M23 owner stage; absent from normal builds and config/JSON.
+    #[cfg(test)]
+    pub(crate) fn from_m23_diagnostic(config:RunSessionConfig,fixture:spire_core::run::diagnostics::M23Diagnostic)->Result<Self,RunSessionError>{
+        let mut s=Self::new_m23(config)?;
+        let run=spire_core::run::diagnostics::m23_diagnostic(fixture).map_err(RunSessionError::Core)?;
+        s.m23_diagnostic=Some(fixture);s.run=Some(run);s.seed=Some(7);s.serial=1;
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        Ok(s)
+    }
     #[cfg(test)]
     pub(crate) fn from_m20_diagnostic(config:RunSessionConfig,loadout:spire_core::run::diagnostics::M20DiagnosticLoadout)->Result<Self,RunSessionError>{
         validate_m20_diagnostic_config(&config)?;
@@ -802,11 +857,12 @@ impl RunSession{
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
         let id=allocate_run_session_id()?;
-        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false})
+        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false})
     }
     /// The immutable numeric action/observation contract selected by this session.
     pub fn observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
         #[cfg(test)] if let Some(fixture)=self.m22_diagnostic{return crate::run_schema_m22::diagnostic_spec(&self.config.capacities,fixture)}
+        #[cfg(test)] if let Some(fixture)=self.m23_diagnostic{return crate::run_schema_m23::diagnostic_spec(&self.config.capacities,fixture)}
         #[cfg(test)] if self.m20_diagnostic.is_some(){return crate::run_schema_m20::diagnostic_spec(&self.config.capacities)}
         self.profile.observation_spec(&self.config.capacities)
     }
@@ -834,13 +890,16 @@ impl RunSession{
     }
     pub fn reset(&mut self,seed:Option<u64>)->Result<RunBoundary,RunSessionError>{
         let (seed,ordinal,serial)=self.preflight_reset(seed)?;
+        #[cfg(test)] if self.test_reset_panic==Some(TestResetPanic::BeforeMutation){self.test_reset_panic=None;panic!("TEST-ONLY injected reset worker panic before mutation");}
         #[cfg(test)] {self.m20_diagnostic=None;}
         // Healthy reset intentionally abandons the old episode, never a fault.
         #[cfg(test)] {self.m22_diagnostic=None;}
+        #[cfg(test)] {self.m23_diagnostic=None;}
         let record=if self.config.record_replay{Some(new_record(self.profile,&self.config,seed,ordinal)?)}else{None};
         self.record=record;self.seed=Some(seed);self.ordinal=ordinal;self.last_step=None;self.published=None;self.actions.clear();
         let run=match create_run(self.profile,&self.config,seed,ordinal){Ok(run)=>run,Err(error)=>{self.run=None;return Err(self.freeze(error.clone(),error,None,false,false))}};
         self.run=Some(run);self.serial=serial;
+        #[cfg(test)] if self.test_reset_panic==Some(TestResetPanic::AfterStartup){self.test_reset_panic=None;panic!("TEST-ONLY injected reset worker panic after startup");}
         let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current(serial){
             Ok(result)=>result,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false)),
         };
@@ -852,7 +911,7 @@ impl RunSession{
         self.usable()?;let published=self.published.as_ref().ok_or(RunSessionError::NotReset)?;
         if token!=published.token{return Err(RunSessionError::StaleToken)}
         if self.at_m12_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M22WatcherAct1{"M22 stops at Act2Ready"}else if self.profile==RunProfile::M17DefectAct1{"M17 stops at Act2Ready"}else{"M12 stops at Act2Ready"}))}
-        if self.at_m13_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M18DefectAct2{"M18 stops at Act3Ready"}else{"M13 stops at Act3Ready"}))}
+        if self.at_m13_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M23WatcherAct2{"M23 stops at Act3Ready"}else if self.profile==RunProfile::M18DefectAct2{"M18 stops at Act3Ready"}else{"M13 stops at Act3Ready"}))}
         if self.at_m14_cutoff{return Err(RunSessionError::UnsupportedBoundary(if self.profile==RunProfile::M19DefectAct3{"M19 stops before the Act4 door"}else{"M14 stops before the Act4 door"}))}
         if published.terminal.is_some(){return Err(RunSessionError::Terminal)}
         let index=usize::try_from(index.0).ok().filter(|i|*i<self.actions.len()).ok_or(RunSessionError::Input("action index is not legal"))?;
@@ -2552,4 +2611,110 @@ mod m22_preinitializer_tests{
  fn config()->RunSessionConfig{RunSessionConfig{character:Character::Watcher,ascension:0,partition:spire_core::combat::rng::Partition::Test,boss_history:RunBossHistory::Act1GuardianUnseen,capacities:RunCapacities::m10_default(),record_replay:true}}
  #[test]
  fn m22_replay_identity_preflight_and_direct_ordinal_one_do_not_start_other_runs(){let mut s=RunSession::new_m22(config()).unwrap();s.reset(Some(7)).unwrap();s.reset(None).unwrap();let record=s.record().unwrap().unwrap();M22_INITIALIZATIONS.with(|v|v.borrow_mut().clear());let report=crate::replay_run(&record,config().capacities).unwrap();assert_eq!(report.final_decision,s.run.as_ref().unwrap().decision().unwrap());M22_INITIALIZATIONS.with(|v|assert_eq!(&*v.borrow(),&[1]));let mut variants=Vec::new();for field in 0..9{let mut r=record.clone();match field{0=>r.profile_id="wrong".into(),1=>r.schema_id="wrong".into(),2=>r.rules_id="wrong".into(),3=>r.content_id="wrong".into(),4=>r.seed_adapter_id="wrong".into(),5=>r.rng_id="wrong".into(),6=>r.reward_id="wrong".into(),7=>r.observation_fingerprint[0]^=1,_=>r.config.boss_history=RunBossHistory::AwakenedUnseen}variants.push(r);}for r in variants{M22_INITIALIZATIONS.with(|v|v.borrow_mut().clear());assert!(crate::replay_run(&r,config().capacities).is_err());M22_INITIALIZATIONS.with(|v|assert!(v.borrow().is_empty()));}}
+}
+#[cfg(test)]
+mod m23_owner_tests{
+ use super::*;
+ fn config()->RunSessionConfig{RunSessionConfig{character:Character::Watcher,ascension:0,partition:spire_core::combat::rng::Partition::Test,boss_history:RunBossHistory::M23WatcherAct2{act1:RunAct1BossTarget::SlimeBoss,act2:RunAct2BossTarget::BronzeAutomaton},capacities:RunCapacities::m10_default(),record_replay:true}}
+ fn count()->Vec<u64>{M23_INITIALIZATIONS.with(|v|v.borrow().clone())}
+ fn clear(){M23_INITIALIZATIONS.with(|v|v.borrow_mut().clear());}
+ #[test]
+ fn m23_config_history_rejection_precedes_initializer_and_ordinal_one_is_direct(){
+  let bad=[RunSessionConfig{boss_history:RunBossHistory::Act1SlimeBossUnseen,..config()},RunSessionConfig{boss_history:RunBossHistory::M18DefectAct2{act1:RunAct1BossTarget::SlimeBoss,act2:RunAct2BossTarget::Champ},..config()},RunSessionConfig{character:Character::Silent,..config()},RunSessionConfig{ascension:1,..config()},RunSessionConfig{capacities:RunCapacities{actions:0,..RunCapacities::m10_default()},..config()}];
+  clear();for c in bad{assert!(RunSession::new_m23(c).is_err());}assert!(count().is_empty(),"rejected configs never reach the initializer");
+  let mut s=RunSession::new_m23(config()).unwrap();assert!(count().is_empty(),"construction alone does not start a Run");s.reset(Some(7)).unwrap();s.reset(None).unwrap();assert_eq!(count(),vec![0,1]);
+  let record=s.record().unwrap().unwrap();clear();let report=crate::replay_run(&record,config().capacities).unwrap();assert_eq!(report.final_decision,s.run.as_ref().unwrap().decision().unwrap());assert_eq!(count(),vec![1],"recorded implicit ordinal initialized directly");
+  let mut variants=Vec::new();for field in 0..11{let mut r=record.clone();match field{0=>r.profile_id="M22WatcherAct1".into(),1=>r.schema_id=RUN_RECORD_SCHEMA_ID_M22.into(),2=>r.rules_id=RUN_RULES_ID_M22.into(),3=>r.content_id=RUN_CONTENT_ID_M22.into(),4=>r.seed_adapter_id="wrong".into(),5=>r.rng_id="wrong".into(),6=>r.reward_id="wrong".into(),7=>r.observation_fingerprint[0]^=1,8=>r.config.boss_history=RunBossHistory::Act1SlimeBossUnseen,9=>r.config.character=Character::Defect,_=>r.config.capacities.actions=1}variants.push(r);}
+  for r in variants{clear();assert!(matches!(crate::replay_run(&r,config().capacities),Err(RunSessionError::IncompatibleReplay(_))));assert!(count().is_empty(),"identity preflight precedes startup");}
+ }
+ #[test]
+ fn m23_act3ready_boundary_and_labelled_forced_cutoff_are_healthy_nonfaulting(){
+  // Constructed public boundary (labelled): no retained M23 transcript reaches the Act2 boss yet.
+  let mut s=RunSession::new_m23(config()).unwrap();s.reset(Some(7)).unwrap();let mut d=s.run.as_ref().unwrap().decision().unwrap();d.act=3;d.floor=34;d.room.as_mut().unwrap().kind=RoomViewKind::Act3Ready;d.room.as_mut().unwrap().choices.clear();let with_actions=d.clone();d.candidates.clear();
+  assert_eq!(check_boundary(RunProfile::M23WatcherAct2,&d),Ok(()));assert!(check_boundary(RunProfile::M23WatcherAct2,&with_actions).is_err());
+  let mut other=d.clone();other.room.as_mut().unwrap().kind=RoomViewKind::Map;assert_eq!(check_boundary(RunProfile::M23WatcherAct2,&other),Err(RunSessionError::UnsupportedBoundary("nonterminal Run has no legal actions")));
+  // TEST-ONLY forced cutoff flag on a real session: not normal-play proof.
+  s.at_m13_cutoff=true;let b=s.decision().unwrap();let before=s.reproduction().unwrap();let serial=s.serial;
+  assert_eq!(s.step(b.token,crate::RunActionIndex(0)),Err(RunSessionError::UnsupportedBoundary("M23 stops at Act3Ready")));assert_eq!(s.preflight_step(b.token,crate::RunActionIndex(0)),Err(RunSessionError::UnsupportedBoundary("M23 stops at Act3Ready")));
+  assert_eq!(s.reproduction().unwrap(),before);assert!(s.fault.is_none());assert_eq!(s.serial,serial);assert!(s.record().unwrap().unwrap().fault.is_none());
+  let next=s.reset(None).unwrap();assert!(!s.at_m13_cutoff);assert!(next.observation.action_mask.iter().any(|m|*m==1));assert_eq!(s.ordinal,1);s.close().unwrap();assert!(s.record().unwrap().unwrap().closed);
+  let mut t=RunSession::new_m23(config()).unwrap();assert_eq!(t.combat_observation_spec().err(),Some(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar")));t.reset(Some(7)).unwrap();assert_eq!(t.combat_view().err(),Some(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar")));assert!(t.fault.is_none());
+  let env=t.environment_spec().unwrap();assert_eq!(env["profile_id"],"M23WatcherAct2");assert!(env["combat_view_id"].is_null());assert_eq!(env["finite_content"],crate::run_schema_m23::finite_content());assert!(env["cutoff"].as_str().unwrap().starts_with("Act3Ready"));
+ }
+}
+#[cfg(test)]
+mod m23_actual_owner_tests{
+ //! Constructed/supplied actual core owner stages (spire_core::run::diagnostics::M23Diagnostic): a constructed (1,2,17)
+ //! predecessor and visit0 boss record. Internal SAME-initializer replay only; never normal portable replay or played Victory.
+ use super::*;
+ use spire_core::{combat::{CombatAction,Stance},content::{EncounterId,RelicId},run::diagnostics::{M23Diagnostic as D,M23DiagnosticBoss as B,M22DiagnosticBranch as R}};
+ const BRANCHES:[R;6]=[R::HolyWater,R::VioletLotus,R::SacredBark,R::EmptyCage,R::SlaversCollar,R::Skip];
+ fn config(b:B)->RunSessionConfig{RunSessionConfig{character:Character::Watcher,ascension:0,partition:spire_core::combat::rng::Partition::Test,boss_history:RunBossHistory::M23WatcherAct2{act1:RunAct1BossTarget::Guardian,act2:match b{B::Champ=>RunAct2BossTarget::Champ,B::BronzeAutomaton=>RunAct2BossTarget::BronzeAutomaton,B::Collector=>RunAct2BossTarget::Collector}},capacities:RunCapacities::m10_default(),record_replay:true}}
+ fn decision(s:&RunSession)->PublicDecision{s.run.as_ref().unwrap().decision().unwrap()}
+ fn dispatch(s:&mut RunSession,a:GameAction)->Result<RunStepResult,RunSessionError>{let b=s.decision()?;let i=decision(s).candidates.iter().position(|c|c.action==a).expect("offered");s.step(b.token,crate::RunActionIndex(i as i64))}
+ fn choose(s:&mut RunSession,kind:RoomChoiceKind)->RunStepResult{let d=decision(s);let id=d.room.unwrap().choices.iter().find(|c|c.kind==kind&&c.status==RoomChoiceStatus::Offered).unwrap_or_else(||panic!("{kind:?} offered")).id;dispatch(s,GameAction::Choose(id)).unwrap()}
+ fn internal_replay(s:&RunSession,fixture:D){let r=s.record().unwrap().unwrap();assert!(crate::replay_run(&r,s.config.capacities.clone()).is_err(),"constructed initializer is never ordinary portable proof");assert!(r.to_json().is_err(),"constructed records are not portable JSON");let report=crate::run_replay::replay_m23_diagnostic(&r,s.config.capacities.clone(),fixture).unwrap();assert_eq!(report.final_decision,decision(s));assert_eq!(report.final_map,s.run.as_ref().unwrap().public_map());assert_eq!(report.accepted_count,r.steps.len());}
+ fn assert_act3ready(s:&mut RunSession){
+  let b=s.decision().unwrap();let d=decision(s);assert_eq!((d.act,d.floor,d.room.as_ref().unwrap().kind),(3,34,RoomViewKind::Act3Ready));assert!(d.candidates.is_empty()&&d.terminal.is_none()&&b.terminal.is_none());assert_eq!(b.observation.action_mask,vec![0;s.config.capacities.actions]);
+  let map=s.run.as_ref().unwrap().public_map().unwrap();assert_eq!(map.act,3);let icon=map.boss.unwrap();assert!(matches!(icon,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca),"{icon:?}");
+  assert_eq!(b.observation.group("context").unwrap().values[11],crate::run_schema_m23::encounter(icon).unwrap(),"Act3 map-only boss icon encoded");
+  let spec=s.observation_spec().unwrap().descriptor();assert!(!spec["semantics"]["finite_content"]["playable_encounters"].as_array().unwrap().contains(&serde_json::json!(icon.as_str())));
+  let before=s.reproduction().unwrap();let serial=s.serial;assert_eq!(s.step(b.token,crate::RunActionIndex(0)),Err(RunSessionError::UnsupportedBoundary("M23 stops at Act3Ready")));assert_eq!(s.preflight_step(b.token,crate::RunActionIndex(0)),Err(RunSessionError::UnsupportedBoundary("M23 stops at Act3Ready")));
+  assert_eq!(s.reproduction().unwrap(),before);assert!(s.fault.is_none());assert_eq!(s.serial,serial);assert!(s.record().unwrap().unwrap().fault.is_none());
+ }
+ #[test]
+ fn m23_lifecycle_actual_boss_choices_reach_healthy_act3ready_for_every_branch(){
+  for boss in B::ALL{
+   let s=RunSession::from_m23_diagnostic(config(boss),D::BossRewards{boss}).unwrap();let d=decision(&s);assert_eq!((d.act,d.floor,d.room.as_ref().unwrap().kind),(2,33,RoomViewKind::Rewards));assert_eq!(d.content_profile,Some(RoomScenario::M23WatcherAct2));internal_replay(&s,D::BossRewards{boss});
+   let menu=RunSession::from_m23_diagnostic(config(boss),D::BossRelicMenu{boss}).unwrap();let md=decision(&menu);assert_eq!((md.floor,md.room.as_ref().unwrap().kind),(34,RoomViewKind::BossRelicChoice));
+   let offered=md.room.as_ref().unwrap().choices.iter().map(|c|c.kind.clone()).collect::<Vec<_>>();for id in spire_core::run::m22_content::BOSS_RELICS{assert!(offered.contains(&RoomChoiceKind::Relic(id)),"{id:?}");}assert!(offered.contains(&RoomChoiceKind::Skip));internal_replay(&menu,D::BossRelicMenu{boss});
+   for branch in BRANCHES{
+    // Constructed child stage, then the actual child/Proceed through the env session to the real (2,3,34) transition.
+    let fixture=D::BossChild{boss,branch};let mut c=RunSession::from_m23_diagnostic(config(boss),fixture).unwrap();assert!(c.fault.is_none(),"{boss:?}/{branch:?}");internal_replay(&c,fixture);
+    while let Some(a)=decision(&c).candidates.iter().find(|x|matches!(x.action,GameAction::Select(_))).map(|x|x.action.clone()){dispatch(&mut c,a).unwrap();}
+    choose(&mut c,if branch==R::Skip{RoomChoiceKind::ConfirmSkip}else{RoomChoiceKind::Proceed});assert_act3ready(&mut c);internal_replay(&c,fixture);
+    // Same cutoff from the actual Rewards stage, every step through the env session.
+    let mut e=RunSession::from_m23_diagnostic(config(boss),D::BossRewards{boss}).unwrap();choose(&mut e,RoomChoiceKind::Proceed);choose(&mut e,RoomChoiceKind::OpenChest);
+    if branch==R::Skip{choose(&mut e,RoomChoiceKind::Skip);}else{let id=match branch{R::HolyWater=>RelicId::HolyWater,R::VioletLotus=>RelicId::VioletLotus,R::SacredBark=>RelicId::SacredBark,R::EmptyCage=>RelicId::EmptyCage,R::SlaversCollar=>RelicId::SlaversCollar,R::Skip=>unreachable!()};choose(&mut e,RoomChoiceKind::Relic(id));assert!(decision(&e).player.relics.contains(&id)||branch==R::HolyWater&&decision(&e).player.relics[0]==RelicId::HolyWater);}
+    while let Some(a)=decision(&e).candidates.iter().find(|x|matches!(x.action,GameAction::Select(_))).map(|x|x.action.clone()){dispatch(&mut e,a).unwrap();}
+    choose(&mut e,if branch==R::Skip{RoomChoiceKind::ConfirmSkip}else{RoomChoiceKind::Proceed});assert_act3ready(&mut e);internal_replay(&e,D::BossRewards{boss});
+    // Constructed Act3Ready stage itself; healthy reset leaves the diagnostic owner.
+    let fixture=D::Act3Ready{boss,branch};let mut r=RunSession::from_m23_diagnostic(config(boss),fixture).unwrap();assert_act3ready(&mut r);internal_replay(&r,fixture);
+    let next=r.reset(None).unwrap();assert!(r.m23_diagnostic.is_none());assert!(next.observation.action_mask.iter().any(|n|*n==1));assert_eq!(r.ordinal,1);
+   }
+  }
+ }
+ #[test]
+ fn m23_semantic_actual_scry_meditate_and_stance_replay_with_m23_identity(){
+  let cfg=config(B::Champ);let fixture=D::ScryChoice;let mut s=RunSession::from_m23_diagnostic(cfg.clone(),fixture).unwrap();assert_eq!(decision(&s).content_profile,Some(RoomScenario::M23WatcherAct2));
+  let sel=decision(&s).combat.unwrap().selection.unwrap();assert_eq!(sel.operation,spire_core::combat::SelectionOperation::Scry);let (a,b)=(sel.candidates[0].instance.0,sel.candidates[1].instance.0);
+  for x in [CombatAction::SelectCard{instance:a},CombatAction::SelectCard{instance:b},CombatAction::DeselectCard{instance:a},CombatAction::SelectCard{instance:a}]{dispatch(&mut s,GameAction::Combat(x)).unwrap();}
+  assert_eq!(decision(&s).combat.unwrap().selection.unwrap().selected.iter().map(|x|x.0).collect::<Vec<_>>(),vec![b,a]);let o=s.decision().unwrap().observation;let g=o.group("selection").unwrap();assert_eq!((g.values[4],g.values[5],g.values[10],g.values[11]),(0,2,1,1));
+  assert_eq!(o.group("context").unwrap().values[17],1,"M23 content profile row");internal_replay(&s,fixture);dispatch(&mut s,GameAction::Combat(CombatAction::ConfirmSelection)).unwrap();internal_replay(&s,fixture);
+  let mut zero=RunSession::from_m23_diagnostic(cfg.clone(),fixture).unwrap();dispatch(&mut zero,GameAction::Combat(CombatAction::ConfirmSelection)).unwrap();internal_replay(&zero,fixture);
+  let fixture=D::MeditateChoice;let mut m=RunSession::from_m23_diagnostic(cfg.clone(),fixture).unwrap();let sel=decision(&m).combat.unwrap().selection.unwrap();assert_eq!(sel.operation,spire_core::combat::SelectionOperation::MeditateReturn);
+  assert_eq!(m.decision().unwrap().observation.group("selection").unwrap().occupied.as_ref().unwrap().iter().filter(|x|**x==1).count(),sel.candidates.len());internal_replay(&m,fixture);dispatch(&mut m,GameAction::Combat(CombatAction::SelectCard{instance:sel.candidates[0].instance.0})).unwrap();dispatch(&mut m,GameAction::Combat(CombatAction::ConfirmSelection)).unwrap();internal_replay(&m,fixture);
+  let fixture=D::StanceChoice;let mut t=RunSession::from_m23_diagnostic(cfg,fixture).unwrap();assert_eq!(t.decision().unwrap().observation.group("stance_choices").unwrap().values,vec![1,2]);internal_replay(&t,fixture);
+  dispatch(&mut t,GameAction::Combat(CombatAction::ChooseStance{stance:Stance::Calm})).unwrap();assert_eq!(decision(&t).combat.unwrap().character.stance,Stance::Calm);assert_eq!(t.decision().unwrap().observation.group("player").unwrap().values[8],2);internal_replay(&t,fixture);
+  // Diagnostic descriptors are distinct from the normal M23 fingerprint; ordinary M23 stays exportable.
+  assert_ne!(t.observation_spec().unwrap().fingerprint(),crate::m23_run_observation_spec(&RunCapacities::m10_default()).unwrap().fingerprint());
+ }
+ #[test]
+ fn m23_delivery_fault_record_preserves_committed_semantics_with_actual_core_faults(){
+  let fixture=D::BeforeStartupFault;let mut s=RunSession::from_m23_diagnostic(config(B::Champ),fixture).unwrap();let d=decision(&s);assert!(d.player.relics.contains(&RelicId::HolyWater));
+  let a=d.candidates.iter().find(|c|matches!(c.action,GameAction::Move(_))).unwrap().action.clone();let serial=s.serial;let token=s.decision().unwrap().token;
+  let err=dispatch(&mut s,a.clone()).unwrap_err();assert!(matches!(err,RunSessionError::Core(RunError::Faulted(_))));assert_eq!(s.fault.as_ref(),Some(&err),"first structured error retained");assert_eq!(s.serial,serial);
+  let run=s.run.as_ref().unwrap();let owner=run.clone();let cp=spire_core::run::diagnostics::m22_diagnostic_checkpoint(run).unwrap();assert_eq!(*run,owner,"checkpoint is read-only");let combat=cp.combat.unwrap();assert!(combat.fault.is_some());assert!(combat.inventory_relics.contains(&RelicId::HolyWater));
+  let rec=s.record().unwrap().unwrap();assert!(rec.steps.is_empty());let f=rec.fault.as_ref().unwrap();assert!(f.committed&&!f.gameplay_recorded);assert_eq!(f.action.as_ref(),Some(&a));assert_eq!(f.error.kind,RunRecordErrorKind::Core);assert!(f.error.diagnostic_json().is_ok());
+  let report=crate::run_replay::replay_m23_diagnostic(&rec,config(B::Champ).capacities,fixture).unwrap();assert!(report.final_decision_error.is_some(),"core fault reproduced once at its checkpoint");assert_eq!(report.reported_fault,rec.fault);assert_eq!(report.accepted_count,0);
+  let mut tampered=rec.clone();tampered.fault.as_mut().unwrap().error.message="other checkpoint".into();assert!(crate::run_replay::replay_m23_diagnostic(&tampered,config(B::Champ).capacities,fixture).is_err(),"checkpoint must match");
+  let before=s.reproduction().unwrap();assert!(s.reset(Some(9)).is_err());assert!(s.reset(None).is_err());assert_eq!(s.step(token,crate::RunActionIndex(0)),Err(err.clone()));s.fail_delivery("later").unwrap();assert_eq!(s.reproduction().unwrap(),before,"faulted owner cannot retry into a new loss");
+  s.close().unwrap();assert!(s.record().unwrap().unwrap().closed);assert!(s.reproduction().unwrap().closed);assert_eq!(s.reproduction().unwrap().fault,Some(err));
+  for fixture in [D::TransitionResetFault,D::TransitionHealFault]{
+   let mut s=RunSession::from_m23_diagnostic(config(B::Champ),fixture).unwrap();assert!(matches!(s.fault,Some(RunSessionError::Core(RunError::Faulted(_)))));let run=s.run.as_ref().unwrap();let cp=spire_core::run::diagnostics::m22_diagnostic_checkpoint(run).unwrap();
+   let frame=cp.transition.unwrap();assert!(frame.reset_applied);assert_eq!(frame.heal_applied,fixture==D::TransitionHealFault);assert!(!frame.initialized);assert!(cp.run_fault.is_some());
+   let rec=s.record().unwrap().unwrap();let f=rec.fault.as_ref().unwrap();assert!(!f.committed&&!f.gameplay_recorded&&f.action.is_none());assert_eq!(f.error.kind,RunRecordErrorKind::Core);
+   let before=s.reproduction().unwrap();assert!(s.reset(Some(7)).is_err());assert_eq!(s.reproduction().unwrap(),before,"no reheal/regenerate");assert!(crate::run_replay::replay_m23_diagnostic(&rec,config(B::Champ).capacities,fixture).is_err());s.close().unwrap();assert!(s.record().unwrap().unwrap().closed);
+  }
+ }
 }

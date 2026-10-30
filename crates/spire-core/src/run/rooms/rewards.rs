@@ -31,7 +31,7 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     let minimum=if m5{match kind{MapNodeKind::Elite=>25,MapNodeKind::Boss=>95,_=>10}}else{10};
     let all_escaped=run.state.combat.as_ref().is_some_and(|combat|combat.all_enemies_escaped());
     let gold=if all_escaped{None}else{Some(minimum+rng.bounded_scoped(RunRngScope::CombatGoldReward,&semantic,11) as u32)};
-    let ordinal=(local%3) as usize;let potion=if is_m22(&run.state){super::m22_content::combat_potion(record.visit)}else if m20{super::m20_content::POTION_CYCLE[(local%11) as usize]}else if is_m19(&run.state)&&run.state.act==3{super::m19_content::combat_potion(local)}else if uses_defect_content(&run.state){super::m17_content::combat_potion(local)}else if m15{super::m15_content::M15_POTION_CYCLE[(local%6) as usize]}else if is_m14(&run.state)&&run.state.act==3{super::m14_content::combat_potion(local)}else if (is_m13(&run.state)||is_m14(&run.state))&&run.state.act==2{super::m13_content::combat_potion(local)}else if uses_silent_content(&run.state){super::m12_content::combat_potion(record.visit)}else if m10{[PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron][ordinal]}else if m5{[PotionId::FirePotion,PotionId::StrengthPotion,PotionId::WeakPotion][ordinal]}else{PotionId::FirePotion};
+    let ordinal=(local%3) as usize;let potion=if uses_watcher_content(&run.state){super::m22_content::combat_potion(record.visit)}else if m20{super::m20_content::POTION_CYCLE[(local%11) as usize]}else if is_m19(&run.state)&&run.state.act==3{super::m19_content::combat_potion(local)}else if uses_defect_content(&run.state){super::m17_content::combat_potion(local)}else if m15{super::m15_content::M15_POTION_CYCLE[(local%6) as usize]}else if is_m14(&run.state)&&run.state.act==3{super::m14_content::combat_potion(local)}else if (is_m13(&run.state)||is_m14(&run.state))&&run.state.act==2{super::m13_content::combat_potion(local)}else if uses_silent_content(&run.state){super::m12_content::combat_potion(record.visit)}else if m10{[PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron][ordinal]}else if m5{[PotionId::FirePotion,PotionId::StrengthPotion,PotionId::WeakPotion][ordinal]}else{PotionId::FirePotion};
     let mut rows=Vec::new();if let Some(gold)=gold{rows.push((RoomChoiceKind::Gold(gold),None));}
     for stolen in run.state.combat.as_ref().map(|combat|combat.stolen_gold_rewards()).unwrap_or_default(){
         rows.push((RoomChoiceKind::Gold(stolen),None));
@@ -39,9 +39,9 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
     rows.extend([(RoomChoiceKind::CardReward,None),(RoomChoiceKind::Potion(potion),None)]);let mut elite_cursor=None;
     if m5&&kind==MapNodeKind::Elite {
         let owned=run.state.combat.as_ref().and_then(|c|c.item_context()).map_or(run.state.relics.as_slice(),|c|c.relics());
-        if is_m22(&run.state){
+        if uses_watcher_content(&run.state){
             let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,record.visit,super::m22_content::ELITE_SOURCE_TAG];
-            if let Some(relic)=capture_m22_relic(&mut rng,&key,&super::m22_content::ELITE_RELICS,owned)?{rows.push((RoomChoiceKind::Relic(relic),None));}
+            if let Some(relic)=capture_relic_in_scope(&mut rng,super::m23_content::relic_capture_scope(&run.state),&key,&super::m22_content::ELITE_RELICS,owned)?{rows.push((RoomChoiceKind::Relic(relic),None));}
         }else{
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let start=if m10||m15||m20{room.m10_elite_relic_cursor}else if m8{room.act3.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else if m6{room.act2.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor};
@@ -58,7 +58,7 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
         return Ok(Some(PreparedRoomRewards{screen,rng,next,captured:None,elite_cursor,act:run.state.act,m10:m10||m15||m20}))
     }
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
-    let captured=if is_m22(&run.state){
+    let captured=if uses_watcher_content(&run.state){
         let cards=super::m22_content::reward_cards(kind==MapNodeKind::Boss,record.visit);
         let mut rows=cards.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},None)).collect::<Vec<_>>();rows.push((RoomChoiceKind::Skip,None));
         Some(CapturedRewards{cards:view(&mut next,RoomViewKind::CardReward,rows)?,return_to:if kind==MapNodeKind::Boss{RewardReturn::BossTreasure}else{RewardReturn::Map}})
@@ -119,11 +119,11 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         RoomChoiceKind::OpenChest=>{
             if screen.kind!=RoomViewKind::Treasure{return Err(RunError::InvalidAction)}
-            if is_m22(&run.state){
+            if uses_watcher_content(&run.state){
                 let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
                 let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,run.state.combat_progress.entered,super::m22_content::CHEST_SOURCE_TAG];
                 let mut rng=run.state.rng.clone();
-                let relic=capture_m22_relic(&mut rng,&key,&super::m22_content::CHEST_RELICS,&run.state.relics)?;
+                let relic=capture_relic_in_scope(&mut rng,super::m23_content::relic_capture_scope(&run.state),&key,&super::m22_content::CHEST_RELICS,&run.state.relics)?;
                 let mut rows=Vec::new();if let Some(id)=relic{rows.push((RoomChoiceKind::Relic(id),None));}
                 rows.extend([(RoomChoiceKind::Sapphire,None),(RoomChoiceKind::Proceed,None)]);
                 let mut next=run.next_choice;let mut prepared=view(&mut next,RoomViewKind::Treasure,rows)?;
@@ -201,9 +201,13 @@ fn exclude_base(run:&mut Run){
 /// M22 finite capture: ownership filtering precedes every nonempty checked request.
 /// Stage even the rejection loop so a failed preparation leaves its caller intact.
 pub(in crate::run) fn capture_m22_relic(rng:&mut RunRng,key:&[u64],pool:&[RelicId],owned:&[RelicId])->Result<Option<RelicId>,RunError>{
+    capture_relic_in_scope(rng,super::m22_content::RELIC_CAPTURE_SCOPE,key,pool,owned)
+}
+/// The single finite capture implementation; callers supply only the scope.
+pub(in crate::run) fn capture_relic_in_scope(rng:&mut RunRng,scope:RunRngScope,key:&[u64],pool:&[RelicId],owned:&[RelicId])->Result<Option<RelicId>,RunError>{
     let eligible=pool.iter().copied().filter(|id|!owned.contains(id)).collect::<Vec<_>>();
     if eligible.is_empty(){return Ok(None)}
     let mut staged=rng.clone();
-    let index=staged.bounded_scoped_checked(super::m22_content::RELIC_CAPTURE_SCOPE,key,eligible.len() as u64)?;
+    let index=staged.bounded_scoped_checked(scope,key,eligible.len() as u64)?;
     *rng=staged;Ok(Some(eligible[index]))
 }

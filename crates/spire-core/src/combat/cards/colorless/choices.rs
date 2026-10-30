@@ -127,18 +127,23 @@ pub(super) fn apply(state: &mut State, effect: &Effect, work: &ColorlessEffect) 
 }
 
 fn upgrade_all_piles(state: &mut State) -> Result<(), EffectError> {
-    for owned in &mut state.piles.hand { upgrade_if_possible(owned)?; }
-    for owned in &mut state.piles.draw { upgrade_if_possible(owned)?; }
-    for owned in &mut state.piles.discard { upgrade_if_possible(owned)?; }
-    for owned in &mut state.piles.exhaust { upgrade_if_possible(owned)?; }
+    for pile in 0..4 {
+        for index in 0..pile_of(state, pile).len() { upgrade_if_possible(state, pile, index)?; }
+    }
     Ok(())
 }
 
-fn upgrade_if_possible(owned: &mut OwnedCard) -> Result<(), EffectError> {
-    let Some(card) = owned.full_mut() else { return Ok(()); };
+fn pile_of(state: &State, pile: usize) -> &Vec<OwnedCard> {
+    match pile { 0 => &state.piles.hand, 1 => &state.piles.draw, 2 => &state.piles.discard, _ => &state.piles.exhaust }
+}
+
+fn upgrade_if_possible(state: &mut State, pile: usize, index: usize) -> Result<(), EffectError> {
+    let Some(card) = pile_of(state, pile)[index].full().cloned() else { return Ok(()); };
     if !super::super::ironclad::rules::can_upgrade(card.id, card.upgrades) { return Ok(()); }
-    super::super::ironclad::rules::upgrade(card).map_err(|error|
+    let upgraded = crate::combat::card_state::upgrade_live_card(state, &card).map_err(|error|
         InputError::Unsupported(format!("Apotheosis combat upgrade failed: {error:?}")))?;
+    let owned = match pile { 0 => &mut state.piles.hand, 1 => &mut state.piles.draw, 2 => &mut state.piles.discard, _ => &mut state.piles.exhaust };
+    if let Some(slot) = owned[index].full_mut() { *slot = upgraded; }
     Ok(())
 }
 

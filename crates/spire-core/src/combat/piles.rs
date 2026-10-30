@@ -320,14 +320,25 @@ pub(super) fn after_draw(state:&mut State,owner:&CardHandle)->Result<(),EffectEr
     // callback; the reactive powers below only enqueue their later actions.
     if state.player_full_powers.iter().any(|p|p.id.0=="confused"&&p.state.amount>0)&&!card.local.x_cost&&super::cards::base_cost(state,&card).is_some(){
         let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Confused stream absent".into()))?;
-        let (cost,next)=super::rng::uniform_below(stream,4)?;
+        let (cost,next)=super::rng::uniform_below(stream,4)?;let cost=cost as i32;
+        let base=super::cards::base_cost(state,&card).unwrap_or(0);
         let local=&mut state.piles.hand.iter_mut().find(|c|c.handle()==*owner).unwrap().full_mut().unwrap().local;
-        local.randomized_cost=Some(cost as i32);local.temporary_cost=0;
-        if card.id==crate::content::CardId::ForceField{local.mutable_combat_cost=Some(cost as i32);}
-        // Blood for Blood retains its accepted randomized/temporary price owner;
-        // its HP-loss callback updates that representation rather than turn_cost.
-        local.turn_cost=if card.id==crate::content::CardId::BloodForBlood{None}else{Some(cost as i32)};
-        local.free_play=false;state.card_rng=Some(next);
+        // Source onCardDraw: only a roll different from the current cost sets the
+        // combat cost and costForTurn; an equal roll keeps this turn's price.
+        let current=if card.id==crate::content::CardId::BloodForBlood&&local.randomized_cost.is_none(){base.saturating_sub(local.combat_cost_reduction).max(0)}else{local.mutable_combat_cost.or(local.randomized_cost).unwrap_or(base)};
+        let changed=cost!=current;local.randomized_cost=Some(cost);
+        if changed{
+            local.temporary_cost=0;
+            // Any existing combat-cost owner carries the roll (as Snecko Oil does),
+            // so turn expiry cannot revert it.
+            if card.id==crate::content::CardId::ForceField||local.mutable_combat_cost.is_some(){local.mutable_combat_cost=Some(cost);}
+            // Blood for Blood retains its accepted randomized/temporary price owner;
+            // its HP-loss callback updates that representation rather than turn_cost.
+            local.turn_cost=if card.id==crate::content::CardId::BloodForBlood{None}else{Some(cost)};
+        }
+        // Source onCardDraw ends with freeToPlayOnce=false; the engine carries that
+        // flag as free_play and as Setup/Forethought's free_to_play_once.
+        local.free_play=false;local.free_to_play_once=false;state.card_rng=Some(next);
     }
     super::cards::ironclad::reactive::after_draw(state,&card,owner)
 }

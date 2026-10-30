@@ -1,5 +1,18 @@
 # Work status
 
+## Current snapshot — 2026-10-30, scope reconciliation; M23 candidate in progress
+
+- Primary scope clarification (2026-10-30, receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`): the repository's scope is the ability to play the game, not strategy, and a supplied victory is acceptable. PM disposition: `35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`.
+- M22 merged: PR61, `02839be64c2fb94195aa2045aee8062656199894`.
+- M18 (spire-dxo.40) and M19 (spire-dxo.41): their normal gates were strategy-only, so both are closed under scope. Their two strategy-gate tests are `#[ignore]` with the scope reason; their assertions are unchanged.
+- M21 (spire-dxo.43) and M22 (spire-dxo.44): satisfied. Their Beads closure follows M20 in the dependency chain.
+- M20 (spire-dxo.42): pending one current-source supplied Defect Heart witness (spire-dxo.42.11) after the M23 merge.
+- M23 (spire-dxo.45): the finite native Watcher Acts 1–2 candidate is in preparation. See the [M23 profile](milestones/m23-watcher-act2.md) and [reconciliation](milestones/m23-watcher-act2-reconciliation.md).
+
+## Prior status body — 2026-10-30, before scope reconciliation, retained verbatim
+
+# Work status
+
 ## Current snapshot — 2026-10-29, M22 source accepted; publication pending
 
 Root accepted finite native Watcher A0 Act1 source under the primary standing

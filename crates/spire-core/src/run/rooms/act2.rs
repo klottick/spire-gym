@@ -5,7 +5,7 @@ pub(crate) struct Act2Progress {pub question_visits:usize,pub shop_visits:usize,
 pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::act1::CapturedRoom,RunError>{
     if !uses_captured_act2(state)||state.act!=2{return Err(RunError::InvalidAction)}
     let map=state.map.as_ref().filter(|m|m.act==2).ok_or(RunError::InvalidAction)?;let n=map.nodes.iter().find(|n|n.id==node).ok_or(RunError::InvalidAction)?;
-    let continues_to_boss=is_m7(state)||is_m13(state)||is_m18(state)||uses_captured_act3(state);
+    let continues_to_boss=uses_act2_boss(state);
     let last=if continues_to_boss{33}else{26};
     if !(18..=last).contains(&n.floor){return Err(RunError::InvalidAction)}
     let p=state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?;let mut kind=n.kind;let mut event=None;
@@ -65,7 +65,7 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
 pub(super) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !uses_captured_act2(&run.state)||run.state.act!=2||run.state.combat.is_some()||run.state.active_combat.is_some()||run.state.pending.is_some()||room.reward_parent.is_some(){return Err(RunError::InvalidAction)}
-    let continues_to_boss=is_m7(&run.state)||is_m13(&run.state)||is_m18(&run.state)||uses_captured_act3(&run.state);
+    let continues_to_boss=uses_act2_boss(&run.state);
     let kind=if continues_to_boss&&(18..=32).contains(&run.state.floor){RoomViewKind::Map}else if run.state.floor==26{
         if room.screen.kind!=RoomViewKind::Treasure||!run.state.map.as_ref().is_some_and(|m|m.current.is_some_and(|id|m.nodes.iter().any(|n|n.id==id&&n.floor==26&&n.kind==MapNodeKind::Treasure&&n.visited))){return Err(RunError::InvalidAction)}
         if continues_to_boss{RoomViewKind::Map}else{RoomViewKind::Act2PrefixComplete}

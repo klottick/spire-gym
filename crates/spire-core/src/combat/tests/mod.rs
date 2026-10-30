@@ -117,3 +117,6 @@ mod m21_watcher_creation;
 mod m21_watcher_review;
 
 mod m22_watcher_progression;
+mod m23_watcher_act2;
+mod m23_confused_cost;
+mod m23_cost_law;

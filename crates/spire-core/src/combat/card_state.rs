@@ -137,6 +137,21 @@ pub(super) fn combat_price(card:&LiveCard,base_cost:i32)->Result<i32,InputError>
         .ok_or_else(||InputError::Invariant("temporary card cost overflow".into()))
 }
 
+/// In-combat upgrade of a live instance. Source upgradeBaseCost rebases a
+/// randomized or modified cost to the upgraded printed cost (a 0 turn price stays
+/// 0). Character upgrade_local owners already rebase their own cards; this covers
+/// payload-priced cards. Blood for Blood keeps its own upgrade law.
+pub(super) fn upgrade_live_card(state:&super::model::State,card:&LiveCard)->Result<LiveCard,crate::run::RunError>{
+    let mut after=card.clone();super::cards::ironclad::rules::upgrade(&mut after)?;
+    let modified=card.local.randomized_cost.is_some()||card.local.mutable_combat_cost.is_some()||card.local.turn_cost.is_some()||card.local.temporary_cost!=0;
+    if after.id!=CardId::BloodForBlood&&modified{
+        if let (Some(old),Some(new))=(super::cards::base_cost(state,card),super::cards::base_cost(state,&after)){
+            if old!=new&&after.local.mutable_combat_cost!=Some(new){upgrade_base_cost(&mut after,old,new)?;}
+        }
+    }
+    Ok(after)
+}
+
 /// Shared source upgradeBaseCost writer, independent from a payment waiver.
 pub(super) fn upgrade_base_cost(card:&mut LiveCard,original:i32,requested:i32)->Result<(),crate::run::RunError>{
     use crate::run::RunError;

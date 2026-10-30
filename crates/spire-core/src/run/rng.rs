@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture,M23RelicCapture }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
@@ -12,6 +12,7 @@ impl RunRngScope {
         Self::M15CardOffer=>"run.m15.card.offer",
         Self::M20CardOffer=>"run.m20.card.offer",
         Self::M22RelicCapture=>super::rooms::m22_content::RELIC_CAPTURE_SCOPE_NAME,
+        Self::M23RelicCapture=>super::rooms::m23_content::ACT2_RELIC_CAPTURE_SCOPE_NAME,
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -31,6 +32,7 @@ impl RunRngScope {
         "run.m15.card.offer"=>Ok(Self::M15CardOffer),
         "run.m20.card.offer"=>Ok(Self::M20CardOffer),
         super::rooms::m22_content::RELIC_CAPTURE_SCOPE_NAME=>Ok(Self::M22RelicCapture),
+        super::rooms::m23_content::ACT2_RELIC_CAPTURE_SCOPE_NAME=>Ok(Self::M23RelicCapture),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),
@@ -123,6 +125,9 @@ impl RunRng {
             let value=self.draw_scoped(scope,semantic);if value<zone{return Ok((value%bound) as usize)}
         }
     }
+    /// Test-only counter placement for exhaustion/saturation controls.
+    #[cfg(test)]
+    pub(crate) fn set_counter_for_test(&mut self,scope:RunRngScope,semantic:&[u64],value:u64){self.counters.insert((scope,semantic.to_vec()),value);}
     /// Derive a native combat stream from the same run identity while keeping
     /// every actor's AI stream distinct from shuffle and peer actors.
     pub fn derive_combat_stream(&self, domain:Domain, act:u8, encounter:&str,
