@@ -46,6 +46,7 @@ impl RunBatch {
     /// Construct finite Defect Acts 1–3 lanes using the shared ordered scheduler.
     pub fn new_m22(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m22)}
     pub fn new_m23(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m23)}
+    pub fn new_m24(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m24)}
     pub fn new_m20(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m20)}
     pub fn new_m19(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m19)}
     /// Construct finite Defect Acts 1–2 lanes using the shared ordered scheduler.
@@ -362,4 +363,89 @@ mod m23_actual_batch_tests{
  }}}
  fn tokens_or_stale(_:&RunReproduction)->Vec<RunDecisionToken>{vec![RunDecisionToken::from([0,0]);2]}
 
+}
+
+#[cfg(test)]
+mod m24_actual_batch_tests{
+ //! Constructed actual core owner stages (M24 diagnostics) installed into homogeneous M24 batches; labelled, not normal play.
+ use super::*;
+ use crate::run_session::M24DiagnosticStart as S;
+ use spire_core::{content::Character,combat::rng::Partition,run::{GameAction,RoomChoiceKind,RoomChoiceStatus,RoomViewKind,RunTerminal,diagnostics::{M24Diagnostic as D,M24DiagnosticBoss as B}}};
+ fn config()->RunSessionConfig{RunSessionConfig{character:Character::Watcher,ascension:0,partition:Partition::Test,boss_history:crate::RunBossHistory::M24WatcherAct3{act1:crate::RunAct1BossTarget::Guardian,act2:crate::RunAct2BossTarget::Champ,act3:crate::RunAct3BossTarget::TimeEater},capacities:crate::RunCapacities::m10_default(),record_replay:true}}
+ fn snapshot(b:&RunBatch)->Vec<RunReproduction>{(0..b.sessions.len()).map(|i|b.reproduction(i).unwrap()).collect()}
+ fn tokens(b:&RunBatch)->Vec<RunDecisionToken>{b.sessions.iter().map(|s|s.decision().unwrap().token).collect()}
+ fn latest(s:&RunSession)->spire_core::run::PublicDecision{s.reproduction().unwrap().latest_decision.unwrap().unwrap()}
+ /// Accept one offered room choice on a single session through the public token/index API.
+ fn choose(s:&mut RunSession,kind:RoomChoiceKind){let d=latest(s);let id=d.room.as_ref().unwrap().choices.iter().find(|c|c.kind==kind&&c.status==RoomChoiceStatus::Offered).unwrap().id;let i=d.candidates.iter().position(|c|c.action==GameAction::Choose(id)).unwrap();let t=s.decision().unwrap().token;s.step(t,RunActionIndex(i as i64)).unwrap();}
+ /// Constructed boss source driven through the actual ending owner to Act4Ready (all keys) or the Act3NoKeys terminal.
+ fn ended(keys:[bool;3])->RunSession{let mut s=RunSession::from_m24_diagnostic(config(),S::Stage(D::BossSource{boss:B::TimeEater,keys})).unwrap();choose(&mut s,RoomChoiceKind::Proceed);for stage in 1..=3{choose(&mut s,RoomChoiceKind::Act3Continue{stage});}if keys!=[true;3]{choose(&mut s,RoomChoiceKind::Act3Continue{stage:4});}s}
+ #[test]
+ fn m24_batch_rejects_step_with_cutoff_slot(){for workers in [1,2]{
+  for (keys,want) in [([true;3],RunSessionError::UnsupportedBoundary("M24 stops before the Act4 door")),([true,false,true],RunSessionError::Terminal)]{
+   let mut b=RunBatch::new_m24(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();b.sessions[1]=ended(keys);
+   let d=latest(&b.sessions[1]);if keys==[true;3]{assert_eq!((d.act,d.floor,d.room.as_ref().unwrap().kind,d.terminal),(3,50,RoomViewKind::Act4Ready,None));}else{assert_eq!(d.terminal,Some(RunTerminal::Act3NoKeys));}
+   assert!(b.sessions[1].decision().unwrap().observation.action_mask.iter().all(|n|*n==0));let before=snapshot(&b);
+   // The whole step rejects before any peer changes; no cutoff/terminal auto-skip.
+   assert_eq!(b.step(&tokens(&b),&[RunActionIndex(0);2]),Err(RunBatchError::Input{slot:Some(1),error:want.clone()}));assert_eq!(snapshot(&b),before,"no peer mutation");assert!(b.fault.is_none());
+   // Replaying the Act4Ready (or Act3NoKeys) record ends at the same healthy cutoff (or terminal).
+   let rec=b.record(1).unwrap().unwrap();let report=crate::run_replay::replay_m24_diagnostic(&rec,config().capacities,S::Stage(D::BossSource{boss:B::TimeEater,keys})).unwrap();assert_eq!(report.final_decision,d);assert!(report.final_decision_error.is_none());
+   // Full reset only.
+   b.reset(&[Some(7),None]).unwrap();assert!(b.sessions.iter().all(|s|s.decision().unwrap().observation.action_mask.iter().any(|n|*n==1)));assert_eq!(b.record(1).unwrap().unwrap().ordinal,1);
+  }
+ }}
+ #[test]
+ fn m24_batch_postdispatch_faults_with_actual_core_errors(){for workers in [1,2]{
+  // Step-time core rejection (EndingPreflightReject): the slot's owner keeps its first error uncommitted; the peer's committed row is delivery_lost.
+  let mut b=RunBatch::new_m24(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();b.sessions[1]=RunSession::from_m24_diagnostic(config(),S::Stage(D::EndingPreflightReject)).unwrap();
+  let RunBatchError::Fault{slots}=b.step(&tokens(&b),&[RunActionIndex(0);2]).unwrap_err() else{panic!("expected execution fault")};assert_eq!(slots.len(),2);
+  assert_eq!((slots[0].slot,slots[0].committed,slots[0].delivery_lost),(0,true,true));assert_eq!((slots[1].slot,slots[1].committed,slots[1].delivery_lost),(1,false,false));assert_eq!(slots[1].error,RunSessionError::Core(spire_core::run::RunError::Unsupported("choice identity exhausted")));
+  let (first,second)=(b.record(0).unwrap().unwrap(),b.record(1).unwrap().unwrap());assert_eq!(first.steps.len(),1);assert_eq!(first.fault.as_ref().unwrap().error.kind,crate::RunRecordErrorKind::DeliveryFault);assert!(second.steps.is_empty());assert!(!second.fault.as_ref().unwrap().committed);
+  assert_eq!(crate::replay_run(&first,config().capacities).unwrap().accepted_count,1);
+  let before=snapshot(&b);assert!(b.step(&tokens_or_zero(&b),&[RunActionIndex(0);2]).is_err());assert!(b.reset(&[Some(7);2]).is_err());assert_eq!(snapshot(&b),before,"retry cannot replay either action");b.close().unwrap();
+  // A slot already holding the actual ending source fault rejects the whole step in preflight (indexed), nothing dispatched.
+  let mut b=RunBatch::new_m24(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();b.sessions[1]=RunSession::from_m24_diagnostic(config(),S::Stage(D::EndingSourceFault)).unwrap();let before=snapshot(&b);
+  let t=vec![b.sessions[0].decision().unwrap().token,RunDecisionToken::from([0,0])];let err=b.step(&t,&[RunActionIndex(0);2]).unwrap_err();
+  assert!(matches!(err,RunBatchError::Input{slot:Some(1),error:RunSessionError::Core(spire_core::run::RunError::Faulted(_))}),"{err:?}");assert_eq!(snapshot(&b),before);assert!(b.reset(&[Some(7);2]).is_err(),"faulted owner cannot reset into a new loss");assert_eq!(snapshot(&b),before);
+ }}
+ fn tokens_or_zero(b:&RunBatch)->Vec<RunDecisionToken>{b.sessions.iter().map(|s|s.decision().map(|x|x.token).unwrap_or(RunDecisionToken::from([0,0]))).collect()}
+ #[test]
+ fn m24_batch_worker_panic_retains_original_ownership(){for workers in [1,2]{
+  let mut b=RunBatch::new_m24(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();let t=tokens(&b);
+  b.sessions[1].m23_test_detach_run_owner();let peer_before=b.reproduction(0).unwrap();
+  let RunBatchError::Fault{slots}=b.step(&t,&[RunActionIndex(0);2]).unwrap_err() else{panic!("expected panic fault")};
+  assert_eq!((slots[0].slot,slots[0].committed,slots[0].delivery_lost),(0,true,true));assert_eq!((slots[1].slot,slots[1].committed,slots[1].delivery_lost),(1,false,false));assert_eq!(slots[1].error,RunSessionError::DeliveryFault("Run batch session operation panicked"));
+  let (first,second)=(b.record(0).unwrap().unwrap(),b.record(1).unwrap().unwrap());assert_eq!(first.steps.len(),1);assert_eq!(first.steps[0].action,peer_before.latest_decision.unwrap().unwrap().candidates[0].action);
+  assert!(second.steps.is_empty());let f=second.fault.as_ref().unwrap();assert!(!f.committed&&!f.gameplay_recorded&&f.action.is_none());
+  let before=snapshot(&b);assert!(b.step(&t,&[RunActionIndex(0);2]).is_err());assert!(b.reset(&[Some(7);2]).is_err());assert_eq!(snapshot(&b),before,"no retry or replay after the panic");
+  b.close().unwrap();assert!(b.record(0).unwrap().unwrap().closed&&b.record(1).unwrap().unwrap().closed);
+ }}
+ #[test]
+ fn m24_batch_reset_worker_panic_retains_original_ownership(){for workers in [1,2]{for stage in [crate::run_session::TestResetPanic::BeforeMutation,crate::run_session::TestResetPanic::AfterStartup]{
+  let mut b=RunBatch::new_m24(vec![config();2],workers).unwrap();b.reset(&[Some(7);2]).unwrap();let t=tokens(&b);b.step(&t,&[RunActionIndex(0);2]).unwrap();let old=b.reproduction(1).unwrap();
+  b.sessions[1].set_test_reset_panic(stage);
+  let RunBatchError::Fault{slots}=b.reset(&[None,None]).unwrap_err() else{panic!("expected reset panic fault")};
+  assert_eq!((slots[0].slot,slots[0].committed,slots[0].delivery_lost),(0,false,true));assert_eq!((slots[1].slot,slots[1].committed,slots[1].delivery_lost),(1,false,false));assert_eq!(slots[1].error,RunSessionError::DeliveryFault("Run batch session operation panicked"));
+  let rep=b.reproduction(1).unwrap();match stage{
+   crate::run_session::TestResetPanic::BeforeMutation=>{assert_eq!((rep.seed,rep.ordinal),(old.seed,old.ordinal));assert_eq!(rep.latest_decision,old.latest_decision);assert_eq!(rep.last_accepted_step,old.last_accepted_step);}
+   crate::run_session::TestResetPanic::AfterStartup=>{assert_eq!((rep.seed,rep.ordinal),(Some(7),1));assert!(rep.record.unwrap().steps.is_empty());assert!(rep.last_accepted_step.is_none());}
+  }
+  let after=snapshot(&b);assert!(b.reset(&[None,None]).is_err());assert_eq!(snapshot(&b),after,"no retry or second reset");
+ }}}
+ fn state(b:&RunBatch)->Vec<(RunReproduction,Option<RunEpisodeRecord>,u64)>{(0..b.sessions.len()).map(|i|(b.reproduction(i).unwrap(),b.record(i).unwrap(),b.sessions[i].publication_serial())).collect()}
+ fn fail_reservation(n:usize){crate::error::FAIL_RESERVED_AFTER.with(|c|c.set(Some(n)));}
+ fn reservation_hook_consumed()->bool{crate::error::FAIL_RESERVED_AFTER.with(|c|{let fired=c.get().is_none();c.set(None);fired})}
+ #[test]
+ fn m24_batch_preflight_reservation_failure_on_step_and_reset_leaves_every_slot_unchanged(){for workers in [1,2]{
+  // TEST-ONLY injected reservation failure (crate::error::FAIL_RESERVED_AFTER) at each pre-dispatch reservation of step and reset.
+  let configs=vec![config(),RunSessionConfig{boss_history:crate::RunBossHistory::M24WatcherAct3{act1:crate::RunAct1BossTarget::SlimeBoss,act2:crate::RunAct2BossTarget::Collector,act3:crate::RunAct3BossTarget::DonuAndDeca},..config()}];
+  let mut b=RunBatch::new_m24(configs.clone(),workers).unwrap();let mut reference=RunBatch::new_m24(configs,workers).unwrap();
+  b.reset(&[Some(7),Some(11)]).unwrap();reference.reset(&[Some(7),Some(11)]).unwrap();let t=tokens(&b);b.step(&t,&[RunActionIndex(0);2]).unwrap();let t2=tokens(&reference);reference.step(&t2,&[RunActionIndex(0);2]).unwrap();
+  let before=state(&b);let t=tokens(&b);
+  for n in 0..4{
+   fail_reservation(n);assert_eq!(b.step(&t,&[RunActionIndex(0);2]),Err(RunBatchError::Setup(crate::EnvError::Setup{slot:None,message:"setup allocation exceeds available capacity".into()})),"step reservation {n}");assert!(reservation_hook_consumed());assert_eq!(state(&b),before);assert!(b.fault.is_none());
+   fail_reservation(n);assert_eq!(b.reset(&[None,Some(13)]),Err(RunBatchError::Setup(crate::EnvError::Setup{slot:None,message:"setup allocation exceeds available capacity".into()})),"reset reservation {n}");assert!(reservation_hook_consumed());assert_eq!(state(&b),before);assert!(b.fault.is_none());
+  }
+  let rows=b.step(&t,&[RunActionIndex(0);2]).unwrap();let rrows=reference.step(&tokens(&reference),&[RunActionIndex(0);2]).unwrap();for (x,y) in rows.iter().zip(&rrows){assert_eq!((&x.boundary.observation,x.reward,x.terminated),(&y.boundary.observation,y.reward,y.terminated));}
+  b.reset(&[None,Some(13)]).unwrap();reference.reset(&[None,Some(13)]).unwrap();for i in 0..2{assert_eq!(b.reproduction(i).unwrap(),reference.reproduction(i).unwrap());assert_eq!(b.record(i).unwrap(),reference.record(i).unwrap());}
+ }}
 }

@@ -1074,3 +1074,19 @@ fn run_hook_heals_only_owned_living_player_and_respects_max_hp() {
 #[path="tests/m16_defect.rs"] mod m16_defect;
 
 mod m20_defect;
+
+#[test]
+fn m24_watcher_act3_context_admits_red_mask_and_survives_rebuild(){
+    use crate::content::{Character,PotionId,RelicId};
+    let relics=vec![RelicId::PureWater,RelicId::RedMask];let potions=vec![Some(PotionId::BlockPotion),None,None];
+    let m24=CombatItemContext::new(relics.clone(),potions.clone()).with_m24_profile();
+    assert!(m24.m22_profile()&&m24.m21_profile(),"M24 keeps every M22 Watcher-progression rule");
+    assert_eq!(validate_combat_inventory(&m24,Character::Watcher),Ok(()),"Red Mask is in the M24 union");
+    assert!(validate_combat_inventory(&CombatItemContext::new(relics.clone(),potions.clone()).with_m22_profile(),Character::Watcher).is_err(),"M22/M23 unions unchanged");
+    assert!(validate_combat_inventory(&CombatItemContext::new(vec![RelicId::PureWater,RelicId::CrackedCore],potions.clone()).with_m24_profile(),Character::Watcher).is_err(),"only the M24 union");
+    // Every reconstruction copies the flag (review N3).
+    let rebuilt=m24.with_potions(vec![None,None,None]);assert!(rebuilt.watcher_act3);assert_eq!(validate_combat_inventory(&rebuilt,Character::Watcher),Ok(()));
+    assert!(format!("{rebuilt:?}").contains("watcher_act3: true"));
+    // M22/M23 Debug text is unchanged: the field prints only when set.
+    let m22=format!("{:?}",CombatItemContext::new(vec![RelicId::PureWater],potions.clone()).with_m22_profile());assert!(!m22.contains("watcher_act3"));
+}

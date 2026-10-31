@@ -1,6 +1,14 @@
 # Work status
 
-## Current snapshot — 2026-10-30, M23 merged; M18–M23 parents closed
+## Current snapshot — 2026-10-30, M24 candidate ready for final review
+
+- M24 (finite native Watcher A0 Acts 1–3) is a source candidate awaiting one fresh independent final review; it is not accepted. See the [M24 profile](milestones/m24-watcher-act3.md) and [reconciliation](milestones/m24-watcher-act3-reconciliation.md).
+- The six canonical normal cases reproduced the M23 Deaths exactly (policy outcomes). A supplied Time Eater Victory reached the real `Act3NoKeys` ending; `Act4Ready` has constructed coverage only.
+- Global correction M24-D1 (all characters): ordinary work queued after Time Eater's twelfth card now resolves before the early end.
+
+## Prior status body — 2026-10-30, M23 merged, retained verbatim
+
+### Snapshot — 2026-10-30, M23 merged; M18–M23 parents closed
 
 - M23 merged: PR62, `5afcc7c09fe21140557a5211451bc433cb73f788` (feature `bb4a54c1412d6d8e21657405081e7a68f6137fed`). The final independent review returned READY with no findings on its second round. See the [M23 profile](milestones/m23-watcher-act2.md) and [reconciliation](milestones/m23-watcher-act2-reconciliation.md).
 - M20 current-source supplied witness: on main `5afcc7c0`, the frozen supplied Defect Heart setup reached HeartVictory in 110 accepted actions (floor 55 TrueVictory, HP 43/89); all eight initial snapshots matched the retained M20 corrective initials byte-for-byte and native scalar/replay/batch agreed. This is a supplied native Rust witness, not normal-start completion.

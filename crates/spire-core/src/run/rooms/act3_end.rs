@@ -3,7 +3,7 @@ use super::*;
 use crate::{combat::Outcome,content::EncounterId};
 
 pub(in crate::run) fn fault_checkpoint(state:&RunState)->&'static str {
-    if is_m20(state){"run.m20.act3.end"}else if is_m15(state){"run.m15.act3.end"}else if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
+    if is_m24(state){"run.m24.act3.end"}else if is_m20(state){"run.m20.act3.end"}else if is_m15(state){"run.m15.act3.end"}else if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
 }
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]

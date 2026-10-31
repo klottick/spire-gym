@@ -118,6 +118,7 @@ pub(crate) fn room(k:RoomViewKind)->Result<i64,RunSessionError>{Ok(match k{RoomV
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{Ok(match p{
     RoomScenario::M22WatcherAct1=>return Err(RunSessionError::Input("M22 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M23WatcherAct2=>return Err(RunSessionError::Input("M23 profile is not representable in the M9 v1 observation schema")),
+    RoomScenario::M24WatcherAct3=>return Err(RunSessionError::Input("M24 profile is not representable in the M9 v1 observation schema")),
     RoomScenario::M4Act1Prefix=>1,RoomScenario::M5Act1Captured=>2,RoomScenario::M6Act2Prefix=>3,
     RoomScenario::M7Act2Captured=>4,RoomScenario::M8Act3Prefix=>5,RoomScenario::M9IroncladAct3=>6,
     RoomScenario::M10IroncladHeart=>return Err(RunSessionError::Input("M10 profile is not representable in the M9 v1 observation schema")),

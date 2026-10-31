@@ -48,7 +48,17 @@ pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
 }
 
 pub(in crate::combat) fn force_end(state:&mut State,effect:&Effect)->Result<(),InputError>{
-    if state.in_play.is_some()||state.pending_selection.is_some()||state.pending.len()!=1||state.pending.front().is_none_or(|e|e.kind!=EffectKind::Decision){return Err(InputError::Invariant("Time Warp reached before owned card work completed".into()))}
+    if state.in_play.is_some()||state.pending_selection.is_some()||state.pending.back().is_none_or(|e|e.kind!=EffectKind::Decision){return Err(InputError::Invariant("Time Warp reached before owned card work completed".into()))}
+    // Source early end (GameActionManager.callEndTurnEarlySequence) starts the end turn
+    // only once every ordinary action has drained, including actions queued after the
+    // twelfth card's request by owners that anchor on the decision (e.g. Void's draw
+    // callback). Such ordinary work runs first; the single barrier then re-checks.
+    if state.pending.len()>1{
+        let ordinary=state.pending.iter().take(state.pending.len()-1).all(|e|!super::super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)
+            &&!matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::EndPlayerTurn|EffectKind::MonsterStart|EffectKind::TimeWarpEndTurn));
+        if !ordinary{return Err(InputError::Invariant("Time Warp reached before owned card work completed".into()))}
+        let at=state.pending.len()-1;state.pending.insert(at,effect.clone());return Ok(())
+    }
     state.pending.pop_front();state.pending_time_warp=None;state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::EndPlayerTurn});Ok(())
 }
 
