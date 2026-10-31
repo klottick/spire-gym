@@ -47,3 +47,5 @@ pub use rooms::m22_content;
 pub use rooms::m22_content::{M22_WATCHER_ACT1_CARDS,M22_WATCHER_ACT1_RELICS,M22_WATCHER_ACT1_POTIONS};
 pub use rooms::m23_content;
 pub use rooms::m23_content::{M23_WATCHER_ACT2_CARDS,M23_WATCHER_ACT2_RELICS,M23_WATCHER_ACT2_POTIONS};
+pub use rooms::m24_content;
+pub use rooms::m24_content::{M24_WATCHER_ACT3_CARDS,M24_WATCHER_ACT3_RELICS,M24_WATCHER_ACT3_POTIONS};

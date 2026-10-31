@@ -387,6 +387,9 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
 /// Old bare factories retain their accepted fallback fields and Debug output.
 pub(in crate::combat) fn initialize_profile(card:&mut LiveCard)->Result<(),InputError>{
     use crate::content::CardId::*;
+    // A Curse permanent (e.g. Writhing Mass's Parasite) keeps the shared constructor's
+    // unplayable, costless fields in every Watcher combat profile; it gets no Watcher state.
+    if crate::content::Catalog::standard().card(card.id).is_some_and(|def|def.card_type==crate::content::CardType::Curse){return Ok(())}
     if !crate::content::watcher::supports_generated(card.id)||card.upgrades>1{return Err(InputError::Unsupported("card outside finite M21 construction profile".into()))}
     initialize(card);let up=card.upgrades>0;card.local.m21=true;
     let cost=match card.id{StrikePurple|DefendPurple|EmptyFist=>1,Eruption=>if up{1}else{2},Vigilance=>2,Miracle=>0,_=>starting_cost(card.id,card.upgrades).unwrap()};

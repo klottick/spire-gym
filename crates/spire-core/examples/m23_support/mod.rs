@@ -19,6 +19,10 @@ pub fn policy(d:&PublicDecision,map:Option<&spire_core::run::map::PublicMap>,cal
 pub fn attempt_path(directory:&Path,seed:u64,scenario:Scenario,label:&str,budget:usize)->PathBuf{directory.join(format!("seed-{seed}-{}-{label}-budget-{budget}.attempt.json",scenario.name()))}
 pub fn case(act1_boss:spire_core::content::EncounterId,scenario:Scenario)->Value{json!({"act1_boss":act1_boss.as_str(),"act2_boss":scenario.act2().as_str()})}
 pub fn persist(path:&Path,seed:u64,case:Value,budget:usize,label:&str,freeze:&str,initial:&Value,caller:&Caller,run:Option<&Run>,result:&Result<M23CallerOutcome,String>)->Result<(),String>{
+    write_new(path,&receipt(RECEIPT_SCHEMA_ID,CALLER_POLICY_REVISION,seed,case,budget,label,freeze,initial,caller,run,&result.as_ref().map(ToString::to_string).map_err(Clone::clone)))
+}
+/// Profile-independent receipt body over the shared caller trace (M23 bytes unchanged).
+pub fn receipt(schema_id:&str,caller_revision:&str,seed:u64,case:Value,budget:usize,label:&str,freeze:&str,initial:&Value,caller:&Caller,run:Option<&Run>,result:&Result<String,String>)->Value{
     let live=run.map(Run::decision);let map=run.and_then(Run::public_map);
     let steps=caller.trace.iter().enumerate().map(|(i,s)|{
         let (post,post_map)=if let Some(next)=caller.trace.get(i+1){(Some(Ok(next.decision.clone())),next.map.clone())}else if caller.failed_action_for_diagnostics().is_some(){(caller.final_decision.clone().map(Ok),caller.final_map.clone())}else{(live.clone(),map.clone())};
@@ -30,7 +34,7 @@ pub fn persist(path:&Path,seed:u64,case:Value,budget:usize,label:&str,freeze:&st
     let bootstrap_successful=initial["supplied_entry"]["successful"].as_bool().unwrap_or(false) as usize;
     let policy_fault=usize::from(matches!(caller.failed_error_for_diagnostics(),Some(RunError::Faulted(_))));
     let policy_accepted=caller.accepted()+policy_fault;
-    write_new(path,&json!({"bootstrap_accepted_count":bootstrap_accepted,"bootstrap_successful_count":bootstrap_successful,"policy_accepted_count":policy_accepted,"policy_successful_count":caller.accepted(),"policy_committed_fault_count":policy_fault,"total_actual_accepted_run_actions":bootstrap_accepted+policy_accepted,"schema_id":RECEIPT_SCHEMA_ID,"caller_revision":CALLER_POLICY_REVISION,"source_freeze_sha256":freeze,"seed":seed,"scenario":case,"provenance":{"kind":label,"initial":initial},"action_budget":budget,"outcome":result.as_ref().ok().map(ToString::to_string),"error":result.as_ref().err(),"accepted_action_count":caller.accepted(),"steps":steps,"failed_action":failed,"endpoint":endpoint}))
+    json!({"bootstrap_accepted_count":bootstrap_accepted,"bootstrap_successful_count":bootstrap_successful,"policy_accepted_count":policy_accepted,"policy_successful_count":caller.accepted(),"policy_committed_fault_count":policy_fault,"total_actual_accepted_run_actions":bootstrap_accepted+policy_accepted,"schema_id":schema_id,"caller_revision":caller_revision,"source_freeze_sha256":freeze,"seed":seed,"scenario":case,"provenance":{"kind":label,"initial":initial},"action_budget":budget,"outcome":result.as_ref().ok(),"error":result.as_ref().err(),"accepted_action_count":caller.accepted(),"steps":steps,"failed_action":failed,"endpoint":endpoint})
 }
 
 /// Public Task3 script facts from the same fixture's accepted trace.

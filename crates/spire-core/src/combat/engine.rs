@@ -171,6 +171,7 @@ pub(super) fn validate_scenario_mode(scenario: &Scenario, full: bool) -> Result<
 }
 
 impl Combat {
+    #[cfg(test)] pub(crate) fn mark_watcher_act3_for_test(&mut self){if let Some(context)=self.state.item_context.as_mut(){context.mark_watcher_act3_for_test();}}
     pub(crate) fn validate_permanent_mutations_for_run(&self)->Result<(),InputError>{super::cards::defect::validate_mutations(&self.state)}
     pub fn permanent_card_mutations(&self)->&[super::PermanentCardMutation]{&self.state.defect.permanent_mutations}
     pub(crate) fn permanent_gains(&self)->&[super::model::PermanentCardGain]{&self.state.permanent_gains}

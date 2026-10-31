@@ -31,17 +31,19 @@ impl M23PlayedFixture{
 }
 
 fn random()->RunRng{let mut root=[0;32];root[..8].copy_from_slice(&7u64.to_le_bytes());RunRng::new(root,Partition::Test,0)}
-fn creation(act2:EncounterId)->CreationProfile{
+/// `act3: None` keeps the experienced() Act3 history used by M23 itself.
+pub(super) fn creation(act2:EncounterId,act3:Option<EncounterId>)->CreationProfile{
     let mut p=CreationProfile::experienced();p.neow_eligible=false;p.seen_bosses[0]=vec!["Hexaghost","SlimeBoss"];
-    p.seen_bosses[1]=match act2{EncounterId::BronzeAutomaton=>vec!["Champ","Collector"],EncounterId::Collector=>vec!["Champ","Automaton"],_=>vec!["Automaton","Collector"]};p
+    p.seen_bosses[1]=match act2{EncounterId::BronzeAutomaton=>vec!["Champ","Collector"],EncounterId::Collector=>vec!["Champ","Automaton"],_=>vec!["Automaton","Collector"]};
+    if let Some(act3)=act3{p.seen_bosses[2]=match act3{EncounterId::TimeEater=>vec!["AwakenedOne","DonuAndDeca"],EncounterId::DonuAndDeca=>vec!["AwakenedOne","TimeEater"],_=>vec!["TimeEater","DonuAndDeca"]};}p
 }
-fn resources(deck:impl IntoIterator<Item=(CardId,bool)>,relics:&[RelicId],potions:[Option<PotionId>;3])->AuthoredRunStart{
+pub(super) fn resources(deck:impl IntoIterator<Item=(CardId,bool)>,relics:&[RelicId],potions:[Option<PotionId>;3])->AuthoredRunStart{
     AuthoredRunStart{hp:72,max_hp:72,gold:99,deck:deck.into_iter().enumerate().map(|(i,(id,up))|CardInstance{instance:i as u64+1,id,upgrades:u32::from(up),misc:0}).collect(),relics:relics.to_vec(),potions:potions.to_vec(),relic_counters:Default::default()}
 }
 /// One edge before the actual captured room selected by shared act2::capture_room.
 fn supplied(start:AuthoredRunStart,encounter:EncounterId,boss:EncounterId)->Result<Run,RunError>{
     let config=RunConfig{character:Character::Watcher,ascension:0};let rng=random();
-    let template=Run::new_room_scenario(config,creation(boss),rng.clone(),RoomScenario::M23WatcherAct2)?;
+    let template=Run::new_room_scenario(config,creation(boss,None),rng.clone(),RoomScenario::M23WatcherAct2)?;
     // Reuse accepted complete resource validation, keeping the pinned ID/order bytes.
     M21WatcherCombatStart::Supplied(start.clone()).normalized()?;
     let next=start.deck.len() as u64+1;
@@ -89,11 +91,20 @@ pub enum M23Diagnostic{
     ScryChoice,MeditateChoice,StanceChoice,BeforeStartupFault,
     TransitionResetFault,TransitionHealFault,
 }
-fn canonical(boss:EncounterId)->Result<Run,RunError>{Run::new_room_scenario(RunConfig{character:Character::Watcher,ascension:0},creation(boss),random(),RoomScenario::M23WatcherAct2)}
+pub(super) fn canonical(boss:EncounterId,scenario:RoomScenario,act3:Option<EncounterId>)->Result<Run,RunError>{Run::new_room_scenario(RunConfig{character:Character::Watcher,ascension:0},creation(boss,act3),random(),scenario)}
 /// Explicitly constructed Act2 boss source (completed (1,2,17) predecessor,
 /// visit0 Victory record), never a played receipt or earned Act1.
-fn boss_source(boss:M23DiagnosticBoss)->Result<Run,RunError>{
-    let mut r=canonical(boss.encounter())?;super::m22::choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:7})?;
+/// `resources: None` keeps the canonical Catalog start with short-Neow max HP; `Some`
+/// installs validated supplied resources on the same scenario template (M24 traversal).
+pub(super) fn boss_source(boss:M23DiagnosticBoss,scenario:RoomScenario,act3:Option<EncounterId>,resources:Option<AuthoredRunStart>)->Result<Run,RunError>{
+    let mut r=match resources{
+        None=>{let mut r=canonical(boss.encounter(),scenario,act3)?;super::m22::choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:7})?;r}
+        Some(start)=>{
+            M21WatcherCombatStart::Supplied(start.clone()).normalized()?;let template=canonical(boss.encounter(),scenario,act3)?;
+            let next=start.deck.len() as u64+1;let mut r=Run::from_validated_combat_resources(RunConfig{character:Character::Watcher,ascension:0},start,random(),next);
+            r.state.authored_combat=false;r.state.room_loop=template.state.room_loop;r.state.seen_bosses=template.state.seen_bosses;r
+        }
+    };
     let node=NodeId(0xF231_0033);r.state.act=2;r.state.floor=33;r.state.room="M23ConstructedBossSource";
     r.state.map=Some(RunMap{act:2,boss_icon:Some(boss.encounter()),current:Some(node),nodes:vec![MapNode{id:node,floor:33,label:"Boss",edges:vec![],x:0,y:15,kind:MapNodeKind::Boss,hidden_kind:None,visited:true,revealed:true,encounter:Some(boss.encounter()),burning:false}],..RunMap::default()});
     let record=CombatRecord{visit:0,encounter:boss.encounter(),outcome:crate::combat::Outcome::Victory};
@@ -106,14 +117,14 @@ fn boss_source(boss:M23DiagnosticBoss)->Result<Run,RunError>{
     let captured=rooms::rewards::CapturedRewards{cards:rooms::view(&mut r.next_choice,RoomViewKind::CardReward,cards)?,return_to:rooms::rewards::RewardReturn::BossTreasure};
     let room=r.state.room_loop.as_mut().unwrap();room.screen=screen;room.active_rewards=Some(captured);r.candidates.clear();Ok(r)
 }
-fn boss_menu(boss:M23DiagnosticBoss)->Result<Run,RunError>{let mut r=boss_source(boss)?;super::m22::choose(&mut r,RoomChoiceKind::Proceed)?;super::m22::choose(&mut r,RoomChoiceKind::OpenChest)?;Ok(r)}
+fn boss_menu(boss:M23DiagnosticBoss)->Result<Run,RunError>{let mut r=boss_source(boss,RoomScenario::M23WatcherAct2,None,None)?;super::m22::choose(&mut r,RoomChoiceKind::Proceed)?;super::m22::choose(&mut r,RoomChoiceKind::OpenChest)?;Ok(r)}
 fn boss_child(boss:M23DiagnosticBoss,branch:super::M22DiagnosticBranch)->Result<Run,RunError>{
     let mut r=boss_menu(boss)?;r.state.hp=31;r.state.potions[0]=Some(PotionId::BottledMiracle);
     if let Some(id)=branch.relic(){super::m22::choose(&mut r,RoomChoiceKind::Relic(id))?;}else{super::m22::choose(&mut r,RoomChoiceKind::Skip)?;}
     Ok(r)
 }
 fn combat_choice(fixture:M23Diagnostic)->Result<Run,RunError>{
-    let mut r=canonical(EncounterId::Champ)?;super::m22::choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:7})?;
+    let mut r=canonical(EncounterId::Champ,RoomScenario::M23WatcherAct2,None)?;super::m22::choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:7})?;
     if fixture==M23Diagnostic::ScryChoice{r.state.deck.iter_mut().for_each(|c|c.id=CardId::ThirdEye);}
     if fixture==M23Diagnostic::MeditateChoice{r.state.deck.iter_mut().for_each(|c|c.id=CardId::Meditate);}
     if fixture==M23Diagnostic::StanceChoice{r.state.potions[0]=Some(PotionId::StancePotion);}
@@ -133,7 +144,7 @@ fn combat_choice(fixture:M23Diagnostic)->Result<Run,RunError>{
 }
 /// Finite typed constructed stages only; callers must label the provenance.
 pub fn m23_diagnostic(fixture:M23Diagnostic)->Result<Run,RunError>{match fixture{
-    M23Diagnostic::BossRewards{boss}=>boss_source(boss),M23Diagnostic::BossRelicMenu{boss}=>boss_menu(boss),
+    M23Diagnostic::BossRewards{boss}=>boss_source(boss,RoomScenario::M23WatcherAct2,None,None),M23Diagnostic::BossRelicMenu{boss}=>boss_menu(boss),
     M23Diagnostic::BossChild{boss,branch}=>boss_child(boss,branch),
     M23Diagnostic::Act3Ready{boss,branch}=>{let mut r=boss_child(boss,branch)?;
         while r.state.pending.is_some(){let id=r.decision()?.candidates.iter().find_map(|c|if let GameAction::Select(id)=c.action{Some(id)}else{None}).ok_or(RunError::InvalidAction)?;r.step(&GameAction::Select(id))?;}

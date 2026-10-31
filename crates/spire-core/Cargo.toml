@@ -12,6 +12,8 @@ m20-diagnostics = []
 m22-diagnostics = []
 # Default-off fixed M23 supplied/played starts; reuses the read-only Watcher checkpoint.
 m23-diagnostics = ["m22-diagnostics"]
+# Default-off fixed M24 supplied/played starts and constructed Act3 stages.
+m24-diagnostics = ["m23-diagnostics"]
 
 [dependencies]
 hmac = "=0.12.1"

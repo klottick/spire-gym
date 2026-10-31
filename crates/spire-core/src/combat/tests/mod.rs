@@ -120,3 +120,5 @@ mod m22_watcher_progression;
 mod m23_watcher_act2;
 mod m23_confused_cost;
 mod m23_cost_law;
+mod m24_watcher_act3;
+mod m24_time_warp_barrier;

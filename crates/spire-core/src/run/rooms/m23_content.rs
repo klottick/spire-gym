@@ -19,7 +19,10 @@ pub const STATUSES: &[CardId] = &[CardId::Dazed, CardId::Burn, CardId::Slimed, C
 pub const ACT2_RELIC_CAPTURE_SCOPE: crate::run::RunRngScope = crate::run::RunRngScope::M23RelicCapture;
 pub const ACT2_RELIC_CAPTURE_SCOPE_NAME: &str = "run.m23.relic.capture";
 
-/// Act1 keeps `run.m22.relic.capture`; only M23 Act2 appends its own scope.
+/// Act1 keeps `run.m22.relic.capture`; M23/M24 Act2 use the M23 scope and M24 Act3
+/// appends its own scope.
 pub(crate) fn relic_capture_scope(state: &crate::run::RunState) -> crate::run::RunRngScope {
-    if super::is_m23(state) && state.act == 2 { ACT2_RELIC_CAPTURE_SCOPE } else { m22::RELIC_CAPTURE_SCOPE }
+    if (super::is_m23(state) || super::is_m24(state)) && state.act == 2 { ACT2_RELIC_CAPTURE_SCOPE }
+    else if super::is_m24(state) && state.act == 3 { super::m24_content::ACT3_RELIC_CAPTURE_SCOPE }
+    else { m22::RELIC_CAPTURE_SCOPE }
 }

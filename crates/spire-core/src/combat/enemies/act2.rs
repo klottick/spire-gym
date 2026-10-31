@@ -86,9 +86,11 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::Centurion|EnemyId::Mystic))){Ok(partners::move_work(state,owner)?)}else{gremlin_leader::take_turn(state,owner)}
 }
 
-/// Source ordinary actions precede the source cardQueue and native sentinels.
+/// Source ordinary actions precede the source cardQueue and native sentinels,
+/// including Time Warp's early-end sentinel: source GameActionManager runs every
+/// ordinary action (also ones queued after the 12th card) before the end turn.
 pub(in crate::combat) fn bottom(state:&mut State,work:Effect){
-    let index=state.pending.iter().position(|e|super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)||(super::super::cards::watcher::active(state)&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::EndPlayerTurn))).unwrap_or(state.pending.len());
+    let index=state.pending.iter().position(|e|super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::TimeWarpEndTurn)||(super::super::cards::watcher::active(state)&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::EndPlayerTurn))).unwrap_or(state.pending.len());
     state.pending.insert(index,work);
 }
 
