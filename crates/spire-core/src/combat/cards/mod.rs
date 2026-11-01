@@ -464,7 +464,7 @@ fn payload(state: &State, card: &LiveCard, target: Option<u64>)
         Consecrate => {
             if target.is_some() { return Err(crate::run::RunError::InvalidAction); }
             let mut effects = Vec::new();
-            for (index, enemy) in state.enemies.iter().enumerate().filter(|(_, enemy)| enemy.hp > 0) {
+            for (index, enemy) in state.enemies.iter().enumerate().filter(|(_, enemy)| enemy.targetable()) {
                 let damage = modified_damage(state, index as u64 + 1, if upgraded { 8 } else { 5 })?;
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::Damage(DamagePayload::Fixed(damage))));

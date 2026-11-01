@@ -205,6 +205,10 @@ pub struct EnemyState {
     pub intent_damage: Option<i32>,
     pub life: ActorLife,
 }
+/// One all-enemy targeting rule (source-check-damage-all-enemies-v1): the generic all-enemy action
+/// skips every monster that is dying, half-dead or escaped. Active with HP is exactly what damage
+/// admission accepts, so a producer that selects by this never queues a hit admission rejects.
+impl EnemyState { pub(crate) fn targetable(&self)->bool{self.life==ActorLife::Active&&self.hp>0} }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EnemyReplacementDiagnostics {
     pub parent: EnemyHandle,

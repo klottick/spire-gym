@@ -389,7 +389,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
             let source=effect.source.clone();
             let mut batch=Vec::with_capacity(hits.len()+1);
             for (owner,damage) in hits{
-                if state.enemies.iter().any(|enemy|enemy.instance_id==*owner&&enemy.life==ActorLife::Active&&enemy.hp>0){
+                if state.enemies.iter().any(|enemy|enemy.instance_id==*owner&&enemy.targetable()){
                     batch.push(Effect{source:source.clone(),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::Damage(DamagePayload::Fixed(*damage))});
                 }
             }

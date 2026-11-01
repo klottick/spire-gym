@@ -40,7 +40,8 @@ pub(super) fn select_acid(id: EnemyId, history: &[FullIntentId], memory: &EnemyM
         EnemyId::AcidSlimeM | EnemyId::AcidSlimeL => &[AcidSpit, AcidTackle, AcidLick],
         _ => return Err(InputError::Invariant("Acid selector identity mismatch".into()).into()),
     };
-    if history.iter().any(|mv| !moves.contains(mv)) {
+    // A Large Slime's damage handler records Split before its queued roll runs.
+    if history.iter().any(|mv| !moves.contains(mv) && !(id == EnemyId::AcidSlimeL && *mv == FullIntentId::AcidSplit)) {
         return Err(InputError::Unsupported("Acid Slime history/identity mismatch".into()).into());
     }
     let (intent, next) = if id == EnemyId::AcidSlimeS {
@@ -100,7 +101,7 @@ pub(super) fn select_spike(id: EnemyId, history: &[FullIntentId], memory: &Enemy
         EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL => &[SpikeFlameTackle, SpikeLick],
         _ => return Err(InputError::Invariant("Spike selector identity mismatch".into()).into()),
     };
-    if history.iter().any(|mv| !moves.contains(mv)) {
+    if history.iter().any(|mv| !moves.contains(mv) && !(id == EnemyId::SpikeSlimeL && *mv == FullIntentId::SpikeSplit)) {
         return Err(InputError::Unsupported("Spike Slime history/identity mismatch".into()).into());
     }
     let (intent, next) = match id {

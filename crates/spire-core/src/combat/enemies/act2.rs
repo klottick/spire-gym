@@ -38,6 +38,7 @@ pub(in crate::combat) fn scripted_cleanup(state:&mut State,owner:&EnemyHandle,ki
 }
 pub(in crate::combat) fn suicide(state:&mut State,target:&EnemyHandle){
     let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==target&&e.life==super::super::ActorLife::Active&&e.hp>0)else{return};enemy.hp=0;
+    super::super::effects::cancel_queued_hits_at(state,&Actor::Enemy(target.clone()));
     if combat_victory_ready(state)&&state.player.hp>0{queue_victory(state,&Source::None);}
     state.pending.push_front(Effect{source:Source::None,target:Some(Actor::Enemy(target.clone())),kind:EffectKind::Hook(super::super::Hook::Death)});
 }

@@ -90,7 +90,7 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
         Whirlwind=>{
             if target.is_some(){return Err(crate::run::RunError::InvalidAction)}
             let mut hits=Vec::new();
-            for enemy in state.enemies.iter().filter(|enemy|enemy.life==super::super::ActorLife::Active&&enemy.hp>0){
+            for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
                 hits.push((enemy.instance_id.clone(),modified_damage_for_enemy(state,enemy,if upgraded{8}else{5})?));
             }
             let energy_on_use=state.play_context.as_ref().filter(|context|context.card==card_handle(card))
@@ -155,7 +155,7 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
         Cleave => {
             if target.is_some() { return Err(crate::run::RunError::InvalidAction); }
             let mut effects = Vec::new();
-            for enemy in state.enemies.iter().filter(|enemy| enemy.hp > 0) {
+            for enemy in state.enemies.iter().filter(|enemy| enemy.targetable()) {
                 let damage = modified_damage_for_enemy(state, enemy, if upgraded { 11 } else { 8 })?;
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::Damage(DamagePayload::Fixed(damage))));
@@ -210,12 +210,12 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
         Thunderclap => {
             if target.is_some() { return Err(crate::run::RunError::InvalidAction); }
             let mut effects = Vec::new();
-            for enemy in state.enemies.iter().filter(|enemy| enemy.hp > 0) {
+            for enemy in state.enemies.iter().filter(|enemy| enemy.targetable()) {
                 let damage = modified_damage_for_enemy(state, enemy, if upgraded { 7 } else { 4 })?;
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::Damage(DamagePayload::Fixed(damage))));
             }
-            for enemy in state.enemies.iter().filter(|enemy| enemy.hp > 0) {
+            for enemy in state.enemies.iter().filter(|enemy| enemy.targetable()) {
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::ApplyFullPower { id: FullPowerId("vulnerable"), amount: 1 }));
             }

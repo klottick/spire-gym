@@ -13,7 +13,7 @@ pub(super) fn dispatch(state:&State,source:&Source)->Result<(Vec<Effect>,Vec<Eff
 
     // Relic listeners may own top-queued children; power and card callback
     // children retain their established placement behind the batch continuation.
-    let enemies=state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
+    let enemies=state.enemies.iter().filter(|enemy|enemy.targetable()).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
     let top=state.item_context.as_ref().map_or_else(Vec::new,|context|crate::items::relic_exhaust_effects(context,source,&enemies));
     let mut work=Vec::new();
     work.extend(super::powers::on_card_exhausted(state,source));
@@ -95,8 +95,13 @@ fn advance_batch(state:&mut State,source:Source,mut batch:ExhaustBatch)->Result<
     let _=state.pending.pop_front();
     let count=usize::try_from(batch.committed).map_err(|_|InputError::Unsupported("exhaust batch count exceeds platform".into()))?;
     let mut after=Vec::new();
+    // The original damage action does nothing once its target is dead or half-dead
+    // (source-check-half-dead-hits-v1). The batch's own exhausts (Charon's Ashes) can
+    // down the chosen target before these finish hits exist, so none is queued then.
+    let downed=|target:&Actor|matches!(target,Actor::Enemy(owner) if !state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.targetable()));
     match batch.finish{
         ExhaustBatchFinish::BlockPerExhaust(block)=>after.extend((0..count).map(|_|Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(block)})),
+        ExhaustBatchFinish::DamagePerExhaust{target,..}|ExhaustBatchFinish::DamageAfterBatch{target,..} if downed(&target)=>{},
         ExhaustBatchFinish::DamagePerExhaust{target,damage}=>after.extend((0..count).map(|_|Effect{source:source.clone(),target:Some(target.clone()),kind:EffectKind::Damage(super::DamagePayload::Fixed(damage))})),
         ExhaustBatchFinish::DamageAfterBatch{target,damage}=>after.push(Effect{source:source.clone(),target:Some(target),kind:EffectKind::Damage(super::DamagePayload::Fixed(damage))}),
     }

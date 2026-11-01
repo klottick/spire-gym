@@ -180,3 +180,46 @@ fn m8_shapes_conditional_ai_redirects_and_executed_counters_are_not_flat_rates()
         let selected=enemies::select_move(species,&[],&memory,&exhausted).unwrap();assert_eq!(selected.intent.as_str(),want);assert_eq!(selected.stream,exhausted);
     }
 }
+
+/// spire-14g wide soak: Fire Breathing's per-target DamageAllEnemies hits were expanded while the
+/// Exploder lived; its suicide then left one at a corpse, which faulted admission. The original
+/// action picks targets when it runs and skips the dead, so that hit does nothing.
+#[test]
+fn n14g_fire_breathing_hit_queued_before_an_exploder_suicide_skips_the_corpse(){
+    let mut e=entry(EncounterId::FourShapes);supplied_actor(&mut e.setup.enemies[0],EnemyId::Exploder);
+    let mut c=Combat::enter(e).unwrap();
+    assert!(c.state.enemies.len()>=2&&c.state.enemies[0].enemy_id==ActorEnemyId::Full(EnemyId::Exploder));
+    c.state.player_full_powers.push(power("fire_breathing",10));
+    c.state.enemies[0].intent_id=ActorIntentId::Full(FullIntentId::from_name("exploder_explode"));
+    c.state.enemies[0].selected_move=c.state.enemies[0].intent_id.clone();
+    let (exploder,other)=(Actor::Enemy(c.state.enemies[0].instance_id.clone()),Actor::Enemy(c.state.enemies[1].instance_id.clone()));
+    let other_hp=c.state.enemies[1].hp;
+    let hit=|target:&Actor|Effect{source:Source::None,target:Some(target.clone()),kind:EffectKind::Damage(DamagePayload::Thorns(10))};
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(exploder.clone()),target:Some(exploder.clone()),kind:EffectKind::ShapeSuicide},hit(&exploder),hit(&other)],None)
+        .expect("the Fire Breathing hit at the suicided Exploder does nothing");
+    assert!(c.state.fault.is_none());
+    assert_eq!(c.state.enemies[0].hp,0);
+    assert_eq!(c.state.enemies[1].hp,other_hp-10,"the live target still takes its hit");
+    c.public_full().unwrap();
+}
+
+/// source-check-damage-all-enemies-v1: the generic all-enemy action skips a dead slot whatever its
+/// damage type. A Cleave-style card-sourced NORMAL per-target hit already queued at an Exploder that
+/// then suicides does nothing; the live slot's hit still lands.
+#[test]
+fn n14g_card_all_enemy_hit_queued_before_an_exploder_suicide_skips_the_dead_slot(){
+    let mut e=entry(EncounterId::FourShapes);supplied_actor(&mut e.setup.enemies[0],EnemyId::Exploder);
+    let mut c=Combat::enter(e).unwrap();
+    c.state.enemies[0].intent_id=ActorIntentId::Full(FullIntentId::from_name("exploder_explode"));
+    c.state.enemies[0].selected_move=c.state.enemies[0].intent_id.clone();
+    let (exploder,other)=(Actor::Enemy(c.state.enemies[0].instance_id.clone()),Actor::Enemy(c.state.enemies[1].instance_id.clone()));
+    let other_hp=c.state.enemies[1].hp;
+    let card=Source::Card(card_state::handle(CardInstanceId(1)));
+    let hit=|target:&Actor|Effect{source:card.clone(),target:Some(target.clone()),kind:EffectKind::Damage(DamagePayload::Fixed(8))};
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(exploder.clone()),target:Some(exploder.clone()),kind:EffectKind::ShapeSuicide},hit(&exploder),hit(&other)],None)
+        .expect("the per-target hit at the suicided Exploder does nothing");
+    assert!(c.state.fault.is_none());
+    assert_eq!(c.state.enemies[0].hp,0);
+    assert_eq!(c.state.enemies[1].hp,other_hp-8,"the live slot still takes its NORMAL hit");
+    c.public_full().unwrap();
+}

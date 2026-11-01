@@ -88,7 +88,7 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
             no_target()?;
             let damage = card.local.base_damage.ok_or(RunError::InvalidAction)?;
             let mut effects = state.enemies.iter().enumerate()
-                .filter(|(_, enemy)| enemy.life == ActorLife::Active && enemy.hp > 0)
+                .filter(|(_, enemy)| enemy.targetable())
                 .map(|(slot, enemy)| Ok((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::Damage(DamagePayload::Fixed(super::super::modified_mutable_damage(state,slot as u64+1,damage)?))))
                 ).collect::<Result<Vec<_>, RunError>>()?;

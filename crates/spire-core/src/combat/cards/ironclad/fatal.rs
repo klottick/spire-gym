@@ -17,7 +17,7 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
         CardId::Reaper=>{
             if target.is_some(){return Err(crate::run::RunError::InvalidAction)}
             let mut targets=Vec::new();
-            for enemy in state.enemies.iter().filter(|enemy|enemy.hp>0&&enemy.life==super::super::ActorLife::Active){
+            for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
                 let damage=super::modified_damage_for_enemy(state,enemy,if up{5}else{4})?;
                 targets.push((enemy.instance_id.clone(),damage));
             }
@@ -87,7 +87,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
         // Retain the exact next target and prior actual HP loss before entering
         // the fallible shared damage resolver. A retained fault cannot retry it.
         retain_progress(state,targets,index,total)?;
-        let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner&&enemy.life==super::super::ActorLife::Active&&enemy.hp>0)else{
+        let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner&&enemy.targetable())else{
             retain_progress(state,targets,index+1,total)?;continue
         };
         if enemy.life!=super::super::ActorLife::Active||enemy.hp<=0{retain_progress(state,targets,index+1,total)?;continue}

@@ -106,7 +106,7 @@ pub(super) fn hook(state: &State, hook: Hook, target: Option<&Actor>, work: &mut
                     kind: create_shuffled_action(state, CardId::Insight, count)? });
             }
             "omega" if power.state.amount > 0 => {
-                for enemy in state.enemies.iter().filter(|enemy| enemy.life == ActorLife::Active && enemy.hp > 0) {
+                for enemy in state.enemies.iter().filter(|enemy| enemy.targetable()) {
                     work.push(Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Enemy(enemy.instance_id.clone())),
                         kind: EffectKind::Damage(DamagePayload::Thorns(power.state.amount)) });
                 }

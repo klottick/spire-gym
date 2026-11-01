@@ -457,3 +457,24 @@ fn m10_ironclad_relics_charons_ashes_committed_top_child_survives_effect_budget_
     assert_eq!(c.state.fault.as_ref().unwrap().kind,FaultKind::EffectGuard,"existing finite dispatch budget is the first retained fault");
     let frozen=c.state.clone();engine::dispatch_one(&mut c.state);assert_eq!(c.state,frozen,"accepted Ashes damage and source exhaust are not retried after first fault");
 }
+
+/// spire-14g soak: Charon's Ashes downs the chosen target during Sever Soul's or Fiend Fire's
+/// exhaust batch; the card's batch-finish hit at that corpse faulted the admission check.
+#[test]
+fn n14g_charons_ashes_killing_the_target_mid_batch_drops_the_cards_finish_hits(){
+    for card in [CardId::SeverSoul,CardId::FiendFire]{
+        let mut e=super::m8_shapes::entry(EncounterId::DonuAndDeca);
+        e.cards=(1..=5).map(|id|permanent_live_card(if id==1{card}else{CardId::Defend},CardInstanceId(id),0)).collect();
+        e.opening_draw=5;e.setup.player.draw_per_turn=5;
+        let mut c=Combat::enter_with_item_context(e,&mut Some(acquired(&[RelicId::CharonsAshes]))).unwrap();
+        c.state.enemies[1].hp=3;let survivor=c.state.enemies[0].hp;
+        c.step_full(&CombatAction::PlayCard{instance:1,target:Some(TargetId(2))}).unwrap_or_else(|e|panic!("{card:?}: {e:?}"));
+        assert!(c.state.fault.is_none(),"{card:?}");
+        assert_eq!(c.state.enemies[1].hp,0,"{card:?}: the first Charon's Ashes hit kills the target");
+        // Four Defends exhaust; Fiend Fire also exhausts itself. Only Charon's Ashes reaches the survivor.
+        let exhausts=if card==CardId::FiendFire{5}else{4};
+        assert_eq!(c.state.enemies[0].hp,survivor-3*exhausts,"{card:?}: the card's own hits at the corpse do nothing");
+        assert_eq!(c.state.phase,Phase::Decision,"{card:?}");
+        c.public_full().unwrap();
+    }
+}

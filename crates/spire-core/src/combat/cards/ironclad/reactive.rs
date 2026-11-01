@@ -39,7 +39,7 @@ pub(in crate::combat) fn after_draw(state:&mut State,card:&LiveCard,owner:&CardH
         };
         if let Some(effect)=reactive{callbacks.push(effect);}
         if power.id.0=="fire_breathing"&&power.state.amount>0&&matches!(typ,Some(CardType::Status|CardType::Curse)){
-        let targets=state.enemies.iter().filter(|enemy|enemy.life==super::super::super::ActorLife::Active&&enemy.hp>0).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
+        let targets=state.enemies.iter().filter(|enemy|enemy.targetable()).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
             for target in targets{callbacks.push(Effect{source:Source::None,target:Some(Actor::Enemy(target)),kind:EffectKind::Damage(DamagePayload::Thorns(power.state.amount))});}
         }
     }

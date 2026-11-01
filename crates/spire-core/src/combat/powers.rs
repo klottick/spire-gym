@@ -186,6 +186,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         _ => return Err(InputError::Invariant("power owner received non-power work".into())),
     };
     let actor = effect.target.as_ref().unwrap();
+    // ApplyPowerAction ends at once when its target already has No Draw: no stack,
+    // no Artifact, no apply-time callbacks (source-check-nodraw-slime-v1).
+    if application && id.0=="no_draw" && amount(state, actor, id)? != 0 { return Ok(()); }
     let alive = match actor {
         Actor::Player => state.player.hp > 0,
         Actor::Enemy(owner) => state.enemies.iter().any(|e| &e.instance_id == owner
