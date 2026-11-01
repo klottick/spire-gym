@@ -269,6 +269,20 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     // when other actors keep combat live. Keep unrelated hits,
                     // earned healing and FinishCard; never relax stale admission.
                     state.pending.retain(|queued|queued.target.as_ref()!=Some(target)||!matches!(queued.kind,EffectKind::Damage(_)));
+                    // The original damage action does nothing once its owner is dying or
+                    // half-dead; THORNS-type damage is exempt (source-settled by static
+                    // analysis, source-check-half-dead-hits-v1, and the 2026-11-01 user ruling;
+                    // partial repo coverage: docs/research/2026-10-19-act1-content-silent.md:632,
+                    // data/enemies/m8-static-findings.md:333-335). So a downed attacker,
+                    // dead or half-dead, drops its own remaining queued hits: Byrd pecks,
+                    // Darkling Chomp, phase-one Soul Strike. HP loss is not a damage hit.
+                    // Book of Stabbing and The Maw queue later hits as owner continuations.
+                    state.pending.retain(|queued|!(matches!(&queued.source,Source::Actor(source) if source==target)
+                        &&match &queued.kind{
+                            EffectKind::Damage(payload)=>!matches!(payload,DamagePayload::Thorns(_)|DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}),
+                            EffectKind::BookStab{..}|EffectKind::MawNom{..}=>queued.target.as_ref()==Some(target),
+                            _=>false,
+                        }));
                 }
                 let outcome = match target {
                     _ if half_death=>None,

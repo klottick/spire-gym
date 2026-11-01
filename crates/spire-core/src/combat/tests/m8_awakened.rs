@@ -99,3 +99,20 @@ fn m8_curiosity_resolves_after_power_payload_before_its_disposition(){
     engine::dispatch_one(&mut c.state);engine::dispatch_one(&mut c.state);assert_eq!(c.state.player_full_powers.iter().find(|p|p.id.0=="strength").unwrap().state.amount,2);assert_eq!(amount(&c,2,"strength"),0);assert!(c.state.in_play.is_some()&&c.state.played_powers.is_empty());
     engine::dispatch_one(&mut c.state);assert_eq!(amount(&c,2,"strength"),1);assert!(c.state.in_play.is_some());engine::resolve(&mut c.state);assert!(c.state.fault.is_none());assert!(c.state.in_play.is_none());assert_eq!(c.public_full().unwrap().played_powers[0].id,CardId::Inflame);
 }
+
+// spire-bhl follow-up: half-dead hits stop (user ruling 2026-11-01; source-settled by static
+// analysis). Phase-one Awakened One downed by THORNS on Soul Strike's first hit drops its
+// remaining three queued hits; no fault.
+#[test]
+fn bhl_thorns_half_death_on_first_soul_strike_cancels_remaining_hits(){
+    let mut e=entry(EncounterId::AwakenedOne);e.cards=vec![permanent_live_card(CardId::Strike,CardInstanceId(1),0)];e.opening_draw=1;
+    let mut c=Combat::enter(e).unwrap();hit(&mut c,0,60);hit(&mut c,1,60);hit(&mut c,2,297);assert_eq!(c.state.enemies[2].hp,3);
+    set(&mut c,"awa_soul");
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:3}}],None).unwrap();
+    let soul=c.state.enemies[2].intent_damage.unwrap();let before=c.state.player.hp;
+    c.step_full(&CombatAction::EndTurn).unwrap();
+    assert!(c.state.fault.is_none(),"half-dead attacker's queued hits must not fault: {:?}",c.state.fault);
+    assert_eq!(c.state.outcome,None,"phase one cannot lose");
+    assert_eq!(c.state.player.hp,before-soul,"only the first Soul Strike hit lands");
+    assert!(c.public_full().unwrap().enemies[2].half_dead);
+}

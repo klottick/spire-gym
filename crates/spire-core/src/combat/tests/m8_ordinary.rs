@@ -72,3 +72,43 @@ fn m8_fading_fault_retains_fifth_attack_and_pending_actual_suicide(){
     c.state.resolved_effects=99_999;engine::dispatch_one(&mut c.state);assert!(c.state.fault.is_some());assert!(c.state.pending.iter().any(|e|e.kind==EffectKind::TransientFade));
     let before=c.snapshot();assert!(c.step_full(&CombatAction::EndTurn).is_err());assert_eq!(c.snapshot(),before);
 }
+
+// spire-bhl review: Book of Stabbing and The Maw queue later hits as owner continuations
+// (BookStab/MawNom). A downed owner must drop them under the same rule as queued hits.
+// Each normally fights alone, so a constructed partner keeps combat live.
+fn with_partner(mut e:CombatEntry,partner:CombatEntry)->CombatEntry{
+    let slot=e.setup.enemies.len() as u32;
+    for ((s,intent),base) in partner.setup.enemy_damage_bases{if s==0{e.setup.enemy_damage_bases.insert((slot,intent),base);}}
+    let mut actor=partner.setup.enemies[0].clone();
+    let name=actor.instance_id.as_str().rsplitn(2,'-').nth(1).unwrap().to_owned();
+    actor.instance_id=EnemyHandle::parse(&format!("{name}-{slot}")).unwrap();
+    let scope=e.setup.shuffle_rng.id().scope()[0].clone();
+    actor.ai_rng=rng::StreamState::new(rng::StreamId::new(rng::Domain::RunCombatEnemyAi,vec![scope,format!("partner-{slot}")]).unwrap(),[0;32],0).unwrap();
+    e.setup.enemies.push(actor);e
+}
+fn thorns_and_move(c:&mut Combat){
+    let owner=Actor::Enemy(c.state.enemies[0].instance_id.clone());
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:3}}],None).unwrap();
+    let result=c.enqueue_native_effects(vec![Effect{source:Source::Actor(owner.clone()),target:Some(owner),kind:EffectKind::EnemyMove}],None);
+    assert!(result.is_ok(),"{result:?} fault={:?}",c.state.fault);
+}
+#[test]
+fn bhl_thorns_lethal_book_stab_drops_its_remaining_stab_continuation(){
+    let mut c=Combat::enter(with_partner(super::m6_ordinary::entry(EncounterId::BookOfStabbing),super::m6_ordinary::entry(EncounterId::ThreeByrds))).unwrap();
+    assert_eq!(c.state.enemies[0].intent_id.as_str(),"book_multi");c.state.enemies[0].hp=3;
+    let stab=c.state.enemies[0].intent_damage.unwrap();let before=c.state.player.hp;
+    thorns_and_move(&mut c);
+    assert!(c.state.fault.is_none(),"{:?}",c.state.fault);assert_eq!(c.state.outcome,None);
+    assert_eq!(c.state.enemies[0].hp,0);assert_eq!(c.state.player.hp,before-stab,"only the first stab lands");
+    assert!(!c.state.pending.iter().any(|e|matches!(e.kind,EffectKind::BookStab{..})));
+}
+#[test]
+fn bhl_thorns_lethal_maw_nom_drops_its_remaining_nom_continuation(){
+    let mut c=Combat::enter(with_partner(entry(EncounterId::Maw),entry(EncounterId::OrbWalker))).unwrap();
+    c.state.enemies[0].full_memory=Some(EnemyMemory::Maw{turns:3,roared:true});set(&mut c,"maw_nom");c.state.enemies[0].hp=3;
+    let nom=c.state.enemies[0].intent_damage.unwrap();let before=c.state.player.hp;
+    thorns_and_move(&mut c);
+    assert!(c.state.fault.is_none(),"{:?}",c.state.fault);assert_eq!(c.state.outcome,None);
+    assert_eq!(c.state.enemies[0].hp,0);assert_eq!(c.state.player.hp,before-nom,"only the first of two Noms lands");
+    assert!(!c.state.pending.iter().any(|e|matches!(e.kind,EffectKind::MawNom{..})));
+}

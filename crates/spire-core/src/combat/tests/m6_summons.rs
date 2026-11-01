@@ -189,3 +189,18 @@ fn m6_invalid_leader_formation_rejects_before_inventory_or_hooks() {
     let mut items=Some(crate::items::CombatItemContext::new(vec![crate::content::RelicId::Anchor],vec![]));let before=items.clone();
     assert!(matches!(Combat::enter_with_item_context(e,&mut items),Err(CombatEntryFailure::Rejected(_))));assert_eq!(items,before);
 }
+
+// spire-bhl review: Gremlin Leader killed by THORNS on Stab 1/3 drops its two remaining
+// stabs (no fault), its living adds escape, and the fight ends in Victory.
+#[test]
+fn bhl_thorns_lethal_leader_stab_drops_remaining_stabs_and_wins(){
+    let mut c=Combat::enter(entry()).unwrap();roll(&mut c,2,0);
+    let actor=Actor::Enemy(c.state.enemies[2].instance_id.clone());c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),kind:EffectKind::EnemyMove}],None).unwrap();
+    assert_eq!(c.state.enemies[2].intent_id.as_str(),"leader_stab");c.state.enemies[2].hp=3;
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:3}}],None).unwrap();
+    let before=c.state.player.hp;
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::EnemyMove}],None).unwrap();
+    assert!(c.state.fault.is_none(),"{:?}",c.state.fault);
+    assert_eq!(c.state.player.hp,before-9,"only the first 6+3 Strength stab lands");
+    assert_eq!(c.state.outcome,Some(Outcome::Victory));assert!(c.state.enemies[..2].iter().all(|e|e.life!=ActorLife::Active));
+}

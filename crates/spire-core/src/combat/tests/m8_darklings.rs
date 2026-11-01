@@ -116,3 +116,19 @@ fn m8_darkling_native_ai_preserves_center_redirects_and_half_dead_no_draw(){
     let id=c.state.enemies[0].full_ai_rng.as_ref().unwrap().id().clone();let exhausted=rng::StreamState::new(id,[0;32],1_u128<<64).unwrap();c.state.enemies[0].full_ai_rng=Some(exhausted.clone());
     quiet_allies(&mut c);c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.enemies[0].intent_id.as_str(),"darkling_reincarnate");assert_eq!(c.state.enemies[0].full_ai_rng,Some(exhausted));
 }
+
+// spire-bhl follow-up: half-dead hits stop (user ruling 2026-11-01; source-settled by static
+// analysis). A Darkling downed by THORNS on Chomp's first hit drops its second queued hit,
+// like a dead attacker; no fault.
+#[test]
+fn bhl_thorns_half_death_on_first_chomp_cancels_the_second_hit(){
+    let mut c=combat();quiet_allies(&mut c);set(&mut c,0,"darkling_chomp");
+    let max=c.state.enemies[0].max_hp;hit(&mut c,0,max-3);assert_eq!(c.state.enemies[0].hp,3);
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:3}}],None).unwrap();
+    let chomp=c.state.enemies[0].intent_damage.unwrap();let before=c.state.player.hp;
+    c.step_full(&CombatAction::EndTurn).unwrap();
+    assert!(c.state.fault.is_none(),"half-dead attacker's queued hit must not fault: {:?}",c.state.fault);
+    assert_eq!((c.state.enemies[0].life,c.state.enemies[0].hp),(ActorLife::HalfDead,0));
+    assert_eq!(c.state.player.hp,before-chomp,"only the first Chomp hit lands");
+    assert_eq!(c.state.outcome,None);
+}
