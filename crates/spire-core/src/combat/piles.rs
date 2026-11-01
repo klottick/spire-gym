@@ -334,6 +334,13 @@ pub(super) fn take_hand_card(state:&mut State,handle:&CardHandle)->Option<OwnedC
     Some(state.piles.hand.remove(index))
 }
 
+/// A card taken out of the middle of the draw pile leaves both known prefixes;
+/// the remaining known cards keep their order, so each prefix stays actual.
+pub(super) fn forget_known_draw(state:&mut State,handle:&CardHandle){
+    state.public.known_draw.retain(|known|known!=handle);
+    state.public.known_draw_bottom.retain(|known|known!=handle);
+}
+
 /// Move an existing draw-pile card without treating retrieval as an actual draw.
 /// Secret retrieval and Violence use this shared pile/public-knowledge owner.
 pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:super::command::CardDestination)->Result<(),InputError>{
@@ -344,8 +351,7 @@ pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:sup
         .ok_or_else(||InputError::Invariant("retrieved draw card is no longer owned".into()))?;
     let card=state.piles.draw.remove(index);
     state.public.revealed_order.push(handle.clone());
-    state.public.known_draw.retain(|known|known!=handle);
-    state.public.known_draw_bottom.retain(|known|known!=handle);
+    forget_known_draw(state,handle);
     let destination=if destination==super::command::CardDestination::Hand&&state.piles.hand.len()>=10{
         super::command::CardDestination::Discard
     }else{destination};

@@ -110,13 +110,27 @@ pub(super) fn apply_effect_with_receipt(state:&mut State,effect:&Effect)
     (result,damage_result)
 }
 
+/// Queued damage at an enemy that left combat without a damage death does nothing, as the damage
+/// death branch above already does for its corpse. DamageAction cancels on a dead or escaped target,
+/// and DamageAllEnemiesAction skips dying, half-dead and escaped monsters when it resolves
+/// (source-check-half-dead-hits-v1, source-check-damage-all-enemies-v1). Called by every non-damage
+/// departure: suicide, escape, split replacement, Instant Kill. It drops only work that admission
+/// would reject: a qualified Dark orb hit at a half-dead target is kept. Admission stays strict.
+pub(in crate::combat) fn cancel_queued_hits_at(state:&mut State,target:&Actor){
+    let half_dead=matches!(target,Actor::Enemy(owner) if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.life==ActorLife::HalfDead));
+    state.pending.retain(|queued|queued.target.as_ref()!=Some(target)||!matches!(queued.kind,EffectKind::Damage(_))
+        ||half_dead&&matches!(queued.kind,EffectKind::Damage(DamagePayload::Orb(_))));
+}
+
 pub(in crate::combat) fn instant_kill(state:&mut State,effect:&Effect)->Result<(),EffectError>{
     let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Instant Kill target absent".into()).into())};
     let enemy=state.enemies.iter_mut().find(|enemy|&enemy.instance_id==owner)
         .ok_or_else(||InputError::Invariant("Instant Kill target custody absent".into()))?;
     enemy.hp=0;
-    if super::enemies::act3::darklings::down(state,owner,&effect.source)
-        ||super::enemies::act3::awakened::down(state,owner,&effect.source){return Ok(())}
+    let downed=super::enemies::act3::darklings::down(state,owner,&effect.source)
+        ||super::enemies::act3::awakened::down(state,owner,&effect.source);
+    cancel_queued_hits_at(state,&Actor::Enemy(owner.clone()));
+    if downed{return Ok(())}
     if super::enemies::act2::combat_victory_ready(state)&&state.player.hp>0{
         super::enemies::act2::queue_victory(state,&effect.source);
     }

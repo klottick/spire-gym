@@ -345,6 +345,45 @@ fn m10_battle_trance_can_be_drawn_and_played_again_after_not_exhausting(){
     assert!(c.state.piles.exhaust.iter().all(|card|card.handle().as_str()!="3"));
 }
 
+/// spire-14g: a second Battle Trance stacked No Draw to 2, which the runtime
+/// validator rejects; the next selection (Burning Pact's exhaust choice) then faulted.
+#[test]
+fn n14g_second_battle_trance_keeps_one_no_draw_and_a_later_selection_publishes(){
+    let mut c=with_card(crate::content::CardId::BattleTrance,false);add_draw(&mut c,8);
+    let pact=card_state::permanent(crate::content::CardId::BurningPact,CardInstanceId(80),1);
+    c.state.card_ids_issued.insert(card_state::handle(pact.instance));c.state.piles.hand.push(OwnedCard::Full(pact));
+    c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
+    let at=c.state.piles.discard.iter().position(|card|card.handle().as_str()=="3").unwrap();
+    c.state.piles.hand.push(c.state.piles.discard.remove(at));
+    c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
+    let no_draw=c.state.player_full_powers.iter().filter(|p|p.id.0=="no_draw").map(|p|p.state.amount).collect::<Vec<_>>();
+    assert_eq!(no_draw,vec![1],"No Draw does not stack");
+    let hand=c.state.piles.hand.len();
+    c.step_full(&CombatAction::PlayCard{instance:80,target:None}).unwrap();
+    assert_eq!(c.state.phase,Phase::Selection);
+    c.public_full().expect("the Burning Pact exhaust selection publishes");
+    let choice=c.state.pending_selection.as_ref().unwrap().candidates[0].as_str().parse().unwrap();
+    c.step_full(&CombatAction::SelectCard{instance:choice}).unwrap();
+    assert_eq!(c.state.piles.hand.len(),hand-2,"Pact and the exhausted card leave; No Draw suppresses the draw");
+    c.public_full().unwrap();
+}
+
+/// ApplyPowerAction exits before Artifact or any callback when No Draw is already present
+/// (source-check-nodraw-slime-v1): the second application is a complete no-op.
+#[test]
+fn n14g_second_no_draw_application_is_a_no_op_that_spends_no_artifact(){
+    let mut c=with_card(crate::content::CardId::BattleTrance,false);add_draw(&mut c,8);
+    c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
+    c.state.player_full_powers.push(FullPowerEntry{id:FullPowerId("artifact"),state:PowerState{amount:1,skip_first:false,monster_source_grace:false}});
+    let at=c.state.piles.discard.iter().position(|card|card.handle().as_str()=="3").unwrap();
+    c.state.piles.hand.push(c.state.piles.discard.remove(at));
+    let powers=c.state.player_full_powers.clone();let hand=c.state.piles.hand.len();
+    let observed=c.step_full_observed(&CombatAction::PlayCard{instance:3,target:None});observed.result.unwrap();
+    assert_eq!(c.state.player_full_powers,powers,"No Draw stays 1 and Artifact is not spent");
+    assert_eq!(c.state.piles.hand.len(),hand-1,"the existing No Draw suppresses the draw");
+    assert!(!observed.effects.iter().any(|event|format!("{:?}",event.kind).contains("Power")),"no power change is observed");
+}
+
 #[test]
 fn m10_battle_trance_artifact_resists_no_draw_after_the_card_draws(){
     let mut c=with_card(crate::content::CardId::BattleTrance,false);

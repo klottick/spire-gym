@@ -89,7 +89,7 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
             0
         }
         DramaticEntrance=>{
-            for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,enemy)|enemy.life==ActorLife::Active&&enemy.hp>0){
+            for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,enemy)|enemy.targetable()){
                 let damage=super::super::modified_damage(state,index as u64+1,if up{12}else{8})?;
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),EffectKind::Damage(DamagePayload::Fixed(damage))));
             }

@@ -26,7 +26,7 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
         DaggerSpray | DieDieDie => {
             let (damage,hits) = if card.id==DaggerSpray {(if up{6}else{4},2)} else {(if up{17}else{13},1)};
             for _ in 0..hits {
-                for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,enemy)|enemy.hp>0) {
+                for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,enemy)|enemy.targetable()) {
                     effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())), EffectKind::Damage(DamagePayload::Fixed(
                         super::super::modified_damage(state,index as u64+1,damage)?))));
                 }

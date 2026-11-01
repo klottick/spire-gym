@@ -377,3 +377,92 @@ fn second_mug_branch_is_committed_before_faulting_ledger_and_is_not_redrawn() {
     assert_eq!(selection.intent, branch);
     assert_eq!(selection.stream, after_coin, "the committed branch consumes no second draw");
 }
+
+// spire-14g item 7 (source-check-damage-all-enemies-v1): the all-enemy action skips an escaped
+// monster. With the Looter escaped (it keeps its HP) and the Mugger alive, Cleave hits only the
+// Mugger; before the shared targetable rule it queued a hit at the escaped Looter and faulted.
+#[test]
+fn n14g_cleave_after_a_thief_escapes_hits_only_the_live_ally(){
+    let mut combat = encounter(&[EnemyId::Looter, EnemyId::Mugger], 30);
+    let history = [full_intent(EnemyId::Looter, "mug"), full_intent(EnemyId::Looter, "mug"),
+        full_intent(EnemyId::Looter, "smoke_bomb"), full_intent(EnemyId::Looter, "escape")];
+    force_move(&mut combat, 0, full_intent(EnemyId::Looter, "escape"), &history);
+    enemy_move(&mut combat, 0);
+    assert_eq!(combat.state.enemies[0].life, ActorLife::Escaped);
+    assert!(combat.state.enemies[0].hp > 0 && combat.state.enemies[1].targetable(), "escaped thief keeps HP; the ally is live");
+    let cleave = card_state::permanent(CardId::Cleave, CardInstanceId(80), 0);
+    combat.state.card_ids_issued.insert(card_state::handle(cleave.instance));
+    combat.state.piles.hand.push(super::super::model::OwnedCard::Full(cleave));
+    combat.state.player.energy = 3;
+    let (looter, mugger) = (combat.state.enemies[0].hp, combat.state.enemies[1].hp);
+    combat.step_full(&CombatAction::PlayCard { instance: 80, target: None }).expect("Cleave with an escaped thief must not fault");
+    assert!(combat.state.fault.is_none());
+    assert_eq!(combat.state.enemies[0].hp, looter, "the escaped Looter is not targeted");
+    assert_eq!(combat.state.enemies[1].hp, mugger - 8, "only the live Mugger takes Cleave's 8");
+    combat.public_full().unwrap();
+}
+
+// spire-14g review F2: each non-damage departure owner drops the hits already queued at the departing
+// enemy and keeps the live ally's (effects::cancel_queued_hits_at). One test per call site.
+fn queued_hits(combat: &Combat) -> Vec<Actor> {
+    combat.state.pending.iter().filter(|e| matches!(e.kind, EffectKind::Damage(_))).filter_map(|e| e.target.clone()).collect()
+}
+fn queue_hits_at_both(combat: &mut Combat) -> (Actor, Actor) {
+    let (gone, live) = (Actor::Enemy(combat.state.enemies[0].instance_id.clone()), Actor::Enemy(combat.state.enemies[1].instance_id.clone()));
+    for target in [&gone, &live] {
+        combat.state.pending.push_back(Effect { source: Source::None, target: Some(target.clone()), kind: EffectKind::Damage(DamagePayload::Fixed(5)) });
+    }
+    (gone, live)
+}
+#[test]
+fn n14g_departure_escape_drops_hits_queued_at_the_escaped_thief() {
+    let mut combat = encounter(&[EnemyId::Looter, EnemyId::Mugger], 30);
+    let (gone, live) = queue_hits_at_both(&mut combat);
+    let owner = combat.state.enemies[0].instance_id.clone();
+    super::super::enemies::act2::gremlin_leader::escape(&mut combat.state, &owner);
+    assert_eq!(combat.state.enemies[0].life, ActorLife::Escaped);
+    assert_eq!(queued_hits(&combat), vec![live]); let _ = gone;
+}
+#[test]
+fn n14g_departure_reptomancer_cleanup_drops_hits_queued_at_the_suicided_actor() {
+    let mut combat = encounter(&[EnemyId::Looter, EnemyId::Mugger], 30);
+    let (_, live) = queue_hits_at_both(&mut combat);
+    let owner = combat.state.enemies[0].instance_id.clone();
+    super::super::enemies::act3::reptomancer::cleanup_suicide(&mut combat.state, &owner);
+    assert_eq!(combat.state.enemies[0].hp, 0);
+    assert_eq!(queued_hits(&combat), vec![live]);
+}
+#[test]
+fn n14g_departure_instant_kill_drops_hits_queued_at_the_killed_actor() {
+    let mut combat = encounter(&[EnemyId::Looter, EnemyId::Mugger], 30);
+    let (gone, live) = queue_hits_at_both(&mut combat);
+    let kill = Effect { source: Source::Actor(Actor::Player), target: Some(gone), kind: EffectKind::Damage(DamagePayload::Fixed(0)) };
+    effects::instant_kill(&mut combat.state, &kill).unwrap();
+    assert_eq!(combat.state.enemies[0].hp, 0);
+    assert_eq!(queued_hits(&combat), vec![live]);
+}
+
+// spire-14g review F2: every all-enemy producer that used hp > 0 alone now selects by targetable().
+// With the Looter escaped (HP kept) and the Mugger live, no producer aims any payload at the Looter.
+#[test]
+fn n14g_all_enemy_producers_do_not_target_an_escaped_thief() {
+    let mut combat = encounter(&[EnemyId::Looter, EnemyId::Mugger], 30);
+    let history = [full_intent(EnemyId::Looter, "mug"), full_intent(EnemyId::Looter, "mug"),
+        full_intent(EnemyId::Looter, "smoke_bomb"), full_intent(EnemyId::Looter, "escape")];
+    force_move(&mut combat, 0, full_intent(EnemyId::Looter, "escape"), &history);
+    enemy_move(&mut combat, 0);
+    assert_eq!(combat.state.enemies[0].life, ActorLife::Escaped);
+    assert!(combat.state.enemies[0].hp > 0);
+    let (looter, mugger) = (combat.state.enemies[0].instance_id.clone(), combat.state.enemies[1].instance_id.clone());
+    combat.state.piles.draw.clear();
+    for id in [CardId::Cleave, CardId::Thunderclap, CardId::Immolate, CardId::Consecrate, CardId::DaggerSpray,
+        CardId::DieDieDie, CardId::AllOutAttack, CardId::GrandFinale] {
+        let card = card_state::permanent(id, CardInstanceId(80), 0);
+        let (_, payloads) = super::super::cards::payload_with_wrist_blade(&combat.state, &card, None)
+            .unwrap_or_else(|e| panic!("{id:?}: {e:?}"));
+        let aimed = payloads.iter().filter_map(|(target, _)| match target {
+            Some(super::super::cards::PayloadTarget::Enemy(owner)) => Some(owner.clone()), _ => None }).collect::<Vec<_>>();
+        assert!(!aimed.contains(&looter), "{id:?} aims at the escaped Looter: {aimed:?}");
+        assert!(aimed.contains(&mugger), "{id:?} still hits the live Mugger");
+    }
+}

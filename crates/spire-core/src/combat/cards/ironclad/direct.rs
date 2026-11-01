@@ -26,7 +26,7 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
         Uppercut=>{effects.push((Some(super::super::PayloadTarget::SelectedEnemy),EffectKind::Damage(DamagePayload::Fixed(super::super::modified_damage(state,target.unwrap(),13)?))));
             for id in ["weak","vulnerable"]{effects.push((Some(super::super::PayloadTarget::SelectedEnemy),EffectKind::ApplyFullPower{id:FullPowerId(id),amount:if upgraded{2}else{1}}))}2},
         Immolate=>{
-            for enemy in state.enemies.iter().filter(|e|e.hp>0){
+            for enemy in state.enemies.iter().filter(|e|e.targetable()){
                 let damage=super::modified_damage_for_enemy(state,enemy,if upgraded{28}else{21})?;
                 effects.push((Some(super::super::PayloadTarget::Enemy(enemy.instance_id.clone())),
                     EffectKind::Damage(DamagePayload::Fixed(damage))));

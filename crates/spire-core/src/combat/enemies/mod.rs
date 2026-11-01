@@ -358,6 +358,8 @@ pub(super) fn apply_replacement(state: &mut State, parent_handle: &EnemyHandle,
     state.enemies = candidate.enemies;
     state.actor_slots=candidate.actor_slots;
     state.replacement_progress = None;
+    // The live queue, not the detached candidate: hits already queued at the retired parent do nothing.
+    super::effects::cancel_queued_hits_at(state, &Actor::Enemy(parent_handle.clone()));
     Ok(())
 }
 
@@ -656,6 +658,17 @@ pub(super) fn on_hit(state: &mut State, target: &EnemyHandle, source: &Source,
             enemy.selected_move = selected.clone();
             enemy.move_history.push(selected);
             enemy.intent_damage = None;
+            // Downed to half during its own move (retaliation): the original also queues
+            // SetMoveAction(Split) at the bottom, so the already-queued roll consumes its AI
+            // roll and Split then overwrites it (source-check-nodraw-slime-v1).
+            let large = matches!(split_intent, FullIntentId::AcidSplit | FullIntentId::SpikeSplit);
+            let actor = Actor::Enemy(target.clone());
+            if let Some(roll) = state.pending.iter().position(|work| large && work.kind == EffectKind::RollMove
+                && work.target.as_ref() == Some(&actor)) {
+                state.pending.insert(roll + 1, Effect { source: Source::Actor(actor.clone()), target: Some(actor),
+                    kind: EffectKind::SetEnemyMove { intent: split_intent } });
+            }
+            return; // Only Louse Curl Up follows; a splitting Slime has none.
         }
     }
     if !normal_damage || matches!(source, Source::None) || hp_damage <= 0 || hp_damage >= hp_before { return; }

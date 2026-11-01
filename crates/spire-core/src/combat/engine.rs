@@ -237,7 +237,7 @@ impl Combat {
             return Err(crate::run::RunError::InvalidAction);
         }
         let live_targets = self.state.enemies.iter()
-            .filter(|enemy| enemy.life == super::ActorLife::Active && enemy.hp > 0)
+            .filter(|enemy| enemy.targetable())
             .map(|enemy| enemy.instance_id.clone()).collect();
         Ok((self.state.phase, self.state.player.hp, self.state.player.max_hp, live_targets))
     }
@@ -1822,7 +1822,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::RallyGremlins{remaining}=>require(state.full_runtime&&(1..=2).contains(remaining)&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinLeader)&&e.life==super::ActorLife::Active&&e.hp>0)),"Rally producer/count")?,
         EffectKind::ProtectGremlin=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinShield)&&e.life==super::ActorLife::Active&&e.hp>0)),"Shield Protect producer")?,
         EffectKind::SetEnemyMove{intent}=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&match (&e.enemy_id,intent.as_str()){
-            (ActorEnemyId::Full(crate::content::EnemyId::GremlinMad),"gremlin_scratch")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinSneaky),"gremlin_puncture")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinShield),"gremlin_protect"|"gremlin_bash")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinWizard),"gremlin_charge"|"gremlin_blast")|(ActorEnemyId::Full(crate::content::EnemyId::TorchHead),"torch_attack")=>true,_=>false})),"deterministic actor SetMove producer/intent")?,
+            (ActorEnemyId::Full(crate::content::EnemyId::GremlinMad),"gremlin_scratch")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinSneaky),"gremlin_puncture")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinShield),"gremlin_protect"|"gremlin_bash")|(ActorEnemyId::Full(crate::content::EnemyId::GremlinWizard),"gremlin_charge"|"gremlin_blast")|(ActorEnemyId::Full(crate::content::EnemyId::TorchHead),"torch_attack")
+            |(ActorEnemyId::Full(crate::content::EnemyId::AcidSlimeL),"acid_split")|(ActorEnemyId::Full(crate::content::EnemyId::SpikeSlimeL),"spike_split")=>true,_=>false})),"deterministic actor SetMove producer/intent")?,
         EffectKind::EscapeEnemy=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source!=target&&state.enemies.iter().any(|e|e.instance_id==*source&&e.hp==0&&(e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::GremlinLeader)||e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::AwakenedOne)&&matches!(e.full_memory,Some(super::EnemyMemory::AwakenedOne{phase:super::enemies::AwakenedPhase::Second,..}))&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Cultist))))),"qualified final-death escape source/target")?,
         EffectKind::Damage(DamagePayload::FullEnemyMove(id)) => {
             let owner = match &effect.source { Source::Actor(Actor::Enemy(id)) => id,

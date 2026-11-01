@@ -105,3 +105,22 @@ fn m6_stasis_public_capture_does_not_publish_remaining_order_or_future_ai(){
     c.state.piles.draw.swap(0,1);let ai=c.state.enemies[2].full_ai_rng.as_ref().unwrap();c.state.enemies[2].full_ai_rng=Some(rng::StreamState::new(ai.id().clone(),*ai.key(),ai.word_index()+1).unwrap());
     assert_ne!(c.snapshot(),snapshot,"hidden state really differs");assert_eq!(c.public_full().unwrap(),public);assert_eq!(c.legal_actions_full().unwrap(),actions,"the stolen known identity is visible, not untouched candidates/order/future rolls");
 }
+
+/// spire-14g soak: a topdecked card that Stasis then took kept its handle in
+/// the known-draw prefix and the next public view faulted. The taken card leaves both prefixes.
+#[test]
+fn n14g_stasis_capture_drops_the_taken_card_from_known_draw_prefixes(){
+    let mut c=combat(vec![card(CardId::Strike,1),card(CardId::Defend,3),card(CardId::Impervious,2)]);
+    let order=|id:CardId,c:&Combat|c.state.piles.draw.iter().position(|card|card.full().unwrap().id==id).unwrap();
+    let mut draw=Vec::new();for id in [CardId::Strike,CardId::Defend,CardId::Impervious]{let at=order(id,&c);draw.push(c.state.piles.draw.remove(at));}
+    c.state.piles.draw=draw;
+    let handle=|n:u64|card_state::handle(CardInstanceId(n));
+    c.state.public.known_draw=vec![handle(2),handle(3)];c.state.public.known_draw_bottom=vec![handle(1)];
+    c.validate_runtime_for_test().unwrap();
+    capture(&mut c,1);
+    assert_eq!(c.state.stasis.values().next().unwrap().full().unwrap().instance,CardInstanceId(2));
+    assert_eq!((c.state.public.known_draw.clone(),c.state.public.known_draw_bottom.clone()),(vec![handle(3)],vec![handle(1)]));
+    c.validate_runtime_for_test().unwrap();
+    let view=c.public_full().expect("known draw names only cards still in the draw pile");
+    assert_eq!(view.known_draw.iter().map(|k|(k.card.instance,k.from_top)).collect::<Vec<_>>(),vec![(CardInstanceId(3),true),(CardInstanceId(1),false)]);
+}

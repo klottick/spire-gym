@@ -65,6 +65,7 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&super::super::sup
 
 pub(in crate::combat) fn cleanup_suicide(state:&mut State,owner:&EnemyHandle){
     let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner&&e.hp>0&&e.life==super::super::super::ActorLife::Active)else{return};enemy.hp=0;
+    super::super::super::effects::cancel_queued_hits_at(state,&Actor::Enemy(owner.clone()));
     if state.player.hp>0&&act2::combat_victory_ready(state){
         // Finish already accepted gameplay before terminal cleanup; never erase
         // prepared child insertion or earned player healing.

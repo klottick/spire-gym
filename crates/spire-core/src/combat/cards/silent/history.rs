@@ -43,7 +43,7 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
         }
         AllOutAttack|GrandFinale=>{
             let base=if card.id==AllOutAttack{if up{14}else{10}}else{if up{60}else{50}};
-            for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,e)|e.hp>0){
+            for (index,enemy) in state.enemies.iter().enumerate().filter(|(_,e)|e.targetable()){
                 effects.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),EffectKind::Damage(DamagePayload::Fixed(super::super::modified_damage(state,index as u64+1,base)?))));
             }
             if card.id==AllOutAttack{effects.push(work(SilentEffect::Discard{count:1,random:true}));1}else{0}

@@ -50,7 +50,7 @@ fn target_damage(state:&State,target:u64,base:i32)->Result<i32,RunError> {
 
 fn damage_all(state:&State,base:i32,work:&mut Vec<(Option<PayloadTarget>,EffectKind)>)->Result<(),RunError> {
     for (index,enemy) in state.enemies.iter().enumerate() {
-        if enemy.life!=ActorLife::Active||enemy.hp<=0 { continue; }
+        if !enemy.targetable() { continue; }
         let damage=target_damage(state,index as u64+1,base)?;
         work.push((Some(PayloadTarget::Enemy(enemy.instance_id.clone())),EffectKind::Damage(DamagePayload::Fixed(damage))));
     }

@@ -83,7 +83,8 @@ pub(super) fn after_damage(state:&mut State,result:&super::super::super::model::
 }
 
 pub(in crate::combat) fn escape(state:&mut State,owner:&EnemyHandle){
-    if let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner&&e.hp>0&&e.life==ActorLife::Active){enemy.life=ActorLife::Escaped;}
+    if let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner&&e.hp>0&&e.life==ActorLife::Active){enemy.life=ActorLife::Escaped;
+        super::super::super::effects::cancel_queued_hits_at(state,&Actor::Enemy(owner.clone()));}
     if state.player.hp>0&&combat_victory_ready(state){
         state.pending.push_front(Effect{source:Source::None,target:None,kind:EffectKind::Terminal(super::super::super::Outcome::Victory)});
         state.pending.push_front(Effect{source:Source::None,target:None,kind:EffectKind::Hook(super::super::super::Hook::CombatSettled)});

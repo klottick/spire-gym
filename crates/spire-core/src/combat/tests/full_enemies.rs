@@ -1496,3 +1496,63 @@ fn closure_fungi_and_slaver_selection_keep_proposals_history_and_owned_rng(){
         }
     }
 }
+
+/// spire-14g soak: Bronze Scales THORNS drops a Large Slime to half during its own attack. The
+/// damage handler sets Split and queues SetMove(Split) at the bottom; the attack's already-queued
+/// roll still consumes its AI roll, then Split overwrites it (source-check-nodraw-slime-v1).
+#[test]
+fn n14g_large_slime_halved_by_thorns_in_its_own_attack_rolls_then_keeps_split(){
+    let mut seen=Vec::new();
+    for seed in 0..64u8{
+        let player=super::support::base_scenario().player;
+        let mut run_rng=crate::run::RunRng::new([seed;32],rng::Partition::Test,19);
+        let entry=enemies::setup(crate::content::EncounterId::LargeSlime,1,0,&mut run_rng,
+            enemies::SetupContext{player,player_powers:vec![],character:crate::content::Character::Ironclad,
+                cards:vec![live_card(crate::content::CardId::Strike,CardInstanceId(901),0)],opening_draw:1,encounter_visit:4}).unwrap();
+        let mut c=Combat::enter(entry).unwrap();
+        let id=match c.state.enemies[0].enemy_id{ActorEnemyId::Full(id)=>id,_=>unreachable!()};
+        if seen.contains(&id){continue}seen.push(id);
+        let (tackle,split)=if id==EnemyId::AcidSlimeL{(FullIntentId::AcidTackle,FullIntentId::AcidSplit)}else{(FullIntentId::SpikeFlameTackle,FullIntentId::SpikeSplit)};
+        let slime=c.state.enemies[0].instance_id.clone();let actor=Actor::Enemy(slime.clone());
+        c.state.enemies[0].hp=c.state.enemies[0].max_hp/2+3;
+        c.state.enemies[0].intent_id=ActorIntentId::Full(tackle);c.state.enemies[0].selected_move=ActorIntentId::Full(tackle);
+        c.state.enemies[0].move_history=vec![ActorIntentId::Full(tackle)];
+        c.state.player_full_powers.push(FullPowerEntry{id:FullPowerId("thorns"),state:PowerState{amount:3,skip_first:false,monster_source_grace:false}});
+        let before=c.state.enemies[0].full_ai_rng.clone().unwrap();
+        c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::EnemyMove}],None)
+            .unwrap_or_else(|e|panic!("{id:?}: {e:?}"));
+        assert!(c.state.fault.is_none(),"{id:?}");
+        let s=&c.state.enemies[0];assert_eq!(s.instance_id,slime);
+        assert_eq!(s.hp,s.max_hp/2,"{id:?}: THORNS 3 halves it and it has not split yet");
+        assert_eq!(s.intent_id,ActorIntentId::Full(split),"{id:?}: the queued SetMove restores Split");
+        assert_eq!(s.full_ai_rng.as_ref().unwrap(),&rng::uniform_below(&before,100).unwrap().1,"{id:?}: the queued roll consumed one AI roll");
+        let h=&s.move_history;assert_eq!(h.len(),4,"{id:?}: tackle, Split (damage), rolled move, Split (SetMove)");
+        assert_eq!((&h[0],&h[1],&h[3]),(&ActorIntentId::Full(tackle),&ActorIntentId::Full(split),&ActorIntentId::Full(split)));
+        assert_ne!(h[2],ActorIntentId::Full(split));
+        assert_eq!(c.public_full().unwrap().enemies[0].intent,split);
+    }
+    assert_eq!(seen.len(),2,"both Acid and Spike Large Slimes are covered");
+}
+
+/// spire-14g review F2: split replacement drops hits already queued at the retired parent.
+#[test]
+fn n14g_departure_split_replacement_drops_hits_queued_at_the_parent(){
+    let player=super::support::base_scenario().player;
+    let mut run_rng=crate::run::RunRng::new([67;32],rng::Partition::Test,19);
+    let entry=enemies::setup(crate::content::EncounterId::LargeSlime,1,0,&mut run_rng,
+        enemies::SetupContext{player,player_powers:vec![],character:crate::content::Character::Defect,
+            cards:vec![live_card(crate::content::CardId::Strike,CardInstanceId(901),0)],opening_draw:1,encounter_visit:4}).unwrap();
+    let mut c=Combat::enter(entry).unwrap();
+    let parent=c.state.enemies[0].instance_id.clone();
+    let threshold=c.state.enemies[0].max_hp/2;c.state.enemies[0].hp=threshold+2;
+    let hit=|target:&EnemyHandle|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(target.clone())),kind:EffectKind::Damage(DamagePayload::Fixed(2))};
+    c.state.pending.push_back(hit(&parent));super::super::engine::resolve(&mut c.state);
+    assert!(matches!(c.state.enemies[0].intent_id,ActorIntentId::Full(FullIntentId::AcidSplit|FullIntentId::SpikeSplit)));
+    let actor=Actor::Enemy(parent.clone());
+    // The split move, then a hit queued at the parent behind it: the replacement retires the parent first.
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::EnemyMove},hit(&parent)],None)
+        .expect("a hit queued at a replaced Slime does nothing");
+    assert!(c.state.fault.is_none());
+    assert_eq!(c.state.enemies.iter().find(|e|e.instance_id==parent).unwrap().life,ActorLife::Replaced);
+    assert!(c.state.enemies.iter().filter(|e|e.life==ActorLife::Active).count()>=2,"two children replace it");
+}

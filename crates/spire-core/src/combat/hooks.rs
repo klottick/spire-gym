@@ -187,7 +187,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
                     let damage=state.player_full_powers.iter().find(|power|power.id.0=="combust").map_or(0,|power|power.state.amount);
                     if damage>0 {
                         work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(copies))});
-                        for enemy in state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0){
+                        for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
                             work.push(Effect{source:Source::None,target:Some(Actor::Enemy(enemy.instance_id.clone())),kind:EffectKind::Damage(super::DamagePayload::Thorns(damage))});
                         }
                     }
