@@ -7,15 +7,27 @@ pub(super) fn supported(id:CardId)->bool {matches!(id,CardId::Strike|CardId::Def
     |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger|CardId::Bloodletting|CardId::BurningPact|CardId::Disarm)}
 pub(super) fn supported_in(state:&RunState,id:CardId)->bool{if super::rooms::is_m25(state){return super::M25_WATCHER_HEART_CARDS.contains(&id)}if super::rooms::is_m24(state){return super::M24_WATCHER_ACT3_CARDS.contains(&id)}if super::rooms::uses_watcher_content(state){return super::M22_WATCHER_ACT1_CARDS.contains(&id)}if super::rooms::is_m20(state){return id==CardId::Parasite||crate::content::defect::supports_m20_permanent(id)}if super::rooms::is_m19(state){return super::M19_DEFECT_ACT3_CARDS.contains(&id)&&(id==CardId::Parasite||crate::content::defect::supports_permanent(id))}if super::rooms::is_m18(state){return super::M18_DEFECT_ACT2_CARDS.contains(&id)&&crate::content::defect::supports_permanent(id)}if super::rooms::is_m17(state){return super::M17_DEFECT_ACT1_CARDS.contains(&id)}if state.authored_combat&&state.character==crate::content::Character::Defect{return crate::content::defect::supports_permanent(id)}if super::rooms::is_m15(state){return super::M15_SILENT_HEART_CARDS.contains(&id)}if super::rooms::is_m14(state){return super::M14_SILENT_ACT3_CARDS.contains(&id)}if super::rooms::is_m12(state)||super::rooms::is_m13(state){return super::M12_SILENT_ACT1_CARDS.contains(&id)}supported(id)||(super::rooms::is_m10(state)&&[crate::content::CardRarity::Basic,crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare].into_iter().any(|rarity|super::rooms::m10_content::red_candidates(rarity).contains(&id)))||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::uses_captured_act3(state)&&state.act==3&&id==CardId::Inflame)}
 pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
+    if state.card_admission==CardAdmission::Complete{
+        // Design §8.1: any complete permanent card; Searing Blow any count, curses 0, others 0 or 1.
+        if !crate::content::complete::supports_permanent(id)||!super::training::complete_upgrades_valid(id,upgrades){return Err(RunError::InvalidAction)}
+        return push_card(state,id,upgrades,super::training::complete_obtain_misc(id));
+    }
     if (super::rooms::is_m20(state)||super::rooms::is_m24(state)||super::rooms::is_m25(state))&&id==CardId::Parasite&&upgrades!=0{return Err(RunError::InvalidAction)}
-    if !supported_in(state,id)||upgrades>1||state.deck.len()>=999{return Err(RunError::InvalidAction)}
+    if !supported_in(state,id)||upgrades>1{return Err(RunError::InvalidAction)}
+    push_card(state,id,upgrades,if id==CardId::GeneticAlgorithm{1}else{0})
+}
+/// The one physical-instance allocator for obtain, duplicate and note retrieval.
+fn push_card(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<u64,RunError>{
+    if state.deck.len()>=999{return Err(RunError::InvalidAction)}
     let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
     if instance==0||state.deck.iter().any(|c|c.instance==instance){return Err(RunError::InvalidAction)}
-    state.deck.push(CardInstance{ misc:if id==CardId::GeneticAlgorithm{1}else{0},id,instance,upgrades});state.next_instance=next;
+    state.deck.push(CardInstance{misc,id,instance,upgrades});state.next_instance=next;
     crate::items::on_hook(state,crate::combat::Hook::CardAcquired)?;Ok(instance)
 }
 pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunError>{
     let at=state.deck.iter().position(|c|c.instance==id).ok_or(RunError::InvalidAction)?;
+    // Design §8.2: CurseOfTheBell, Necronomicurse and Ascender's Bane are never removed.
+    if !removable(state.deck[at].id){return Err(RunError::InvalidAction)}
     let parasite=state.deck[at].id==CardId::Parasite;
     if parasite&&(state.combat.is_some()||state.max_hp==0||state.max_hp>999||state.hp>state.max_hp){return Err(RunError::InvalidAction)}
     let card=state.deck.remove(at);
@@ -30,8 +42,72 @@ pub(super) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
     state.deck[at].upgrades=live.upgrades;Ok(())
 }
 pub(super) fn can_upgrade(state:&RunState,card:&CardInstance)->bool{
+    if state.card_admission==CardAdmission::Complete{
+        return crate::content::complete::supports_permanent(card.id)&&crate::combat::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)
+    }
     (supported_in(state,card.id)||!super::rooms::uses_watcher_content(state)&&!super::rooms::is_m20(state)&&!super::rooms::uses_silent_content(state)&&matches!(card.id,CardId::Armaments|CardId::SearingBlow))
         &&crate::combat::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)
+}
+fn removable(id:CardId)->bool{!crate::content::complete::supports_permanent(id)||crate::content::complete::is_removable(id)}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+fn admits(state:&RunState,id:CardId)->bool{
+    if state.card_admission==CardAdmission::Complete{crate::content::complete::supports_permanent(id)}else{supported_in(state,id)}
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+fn pool_error(_:crate::content::RegistryError)->RunError{RunError::Unsupported("card pool is incomplete")}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// Design §8.3: remove a removable card (Parasite's loss applies) and obtain one fresh card
+/// drawn uniformly from `Transform(character, input)`. Preflights before any mutation.
+pub(super) fn transform_card(state:&mut RunState,instance:u64,auto_upgrade:bool,key:&[u64])->Result<u64,RunError>{
+    let input=state.deck.iter().find(|c|c.instance==instance).ok_or(RunError::InvalidAction)?.id;
+    if !removable(input)||!admits(state,input){return Err(RunError::InvalidAction)}
+    let support=crate::content::pools::cards(crate::content::pools::CardPool::Transform{character:state.character,input}).map_err(pool_error)?;
+    let mut staged=state.clone();
+    let index=staged.rng.bounded_scoped_checked(super::RunRngScope::M26CardTransform,key,support.len() as u64)?;
+    let output=support[index];
+    let upgrades=u32::from(auto_upgrade&&crate::combat::cards::ironclad::rules::can_upgrade(output,0));
+    remove_card(&mut staged,instance)?;
+    let created=obtain_fresh(&mut staged,output,upgrades)?;
+    *state=staged;Ok(created)
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// A fresh card of a pool output: obtain admission, base `misc`.
+fn obtain_fresh(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
+    if !admits(state,id){return Err(RunError::InvalidAction)}
+    push_card(state,id,upgrades,super::training::complete_obtain_misc(id))
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// Design §8.4: a new physical instance with the same id, upgrades and `misc`.
+pub(super) fn duplicate_card(state:&mut RunState,instance:u64)->Result<u64,RunError>{
+    let card=state.deck.iter().find(|c|c.instance==instance).ok_or(RunError::InvalidAction)?.clone();
+    if !admits(state,card.id){return Err(RunError::InvalidAction)}
+    let mut staged=state.clone();let created=push_card(&mut staged,card.id,card.upgrades,card.misc)?;*state=staged;Ok(created)
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// Design §8.5: a stored card returns fresh, its upgrades applied through the shared upgrade
+/// rule (a stored Searing Blow keeps its count) and base `misc`.
+pub(super) fn obtain_stored_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
+    let storable=crate::content::pools::cards(crate::content::pools::CardPool::NoteForYourself).map_err(pool_error)?;
+    if !storable.contains(&id)||!admits(state,id){return Err(RunError::InvalidAction)}
+    let misc=super::training::complete_obtain_misc(id);
+    let mut live=crate::combat::permanent_live_card_with_misc(id,crate::combat::CardInstanceId(1),0,misc);
+    for _ in 0..upgrades{if !crate::combat::cards::ironclad::rules::can_upgrade(id,live.upgrades){return Err(RunError::InvalidAction)}crate::combat::cards::ironclad::rules::upgrade(&mut live)?;}
+    let mut staged=state.clone();let created=push_card(&mut staged,id,live.upgrades,misc)?;*state=staged;Ok(created)
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// Design §7.3: one uniform draw from a Run pool (`run.m26.card.curse` for the curse pool,
+/// otherwise `run.m26.card.offer`); RNG commits only on success.
+pub(super) fn draw_card(state:&mut RunState,pool:crate::content::pools::CardPool,key:&[u64])->Result<CardId,RunError>{
+    Ok(draw_distinct(state,pool,1,key)?[0])
+}
+#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
+/// `count` distinct cards from one pool through the shared staged sampler.
+pub(super) fn draw_distinct(state:&mut RunState,pool:crate::content::pools::CardPool,count:usize,key:&[u64])->Result<Vec<CardId>,RunError>{
+    if count==0{return Err(RunError::InvalidAction)}
+    let family=crate::content::pools::cards(pool).map_err(pool_error)?;
+    let scope=if pool==crate::content::pools::CardPool::Curse{super::RunRngScope::M26CardCurse}else{super::RunRngScope::M26CardOffer};
+    let slots=vec![family.as_slice();count];
+    super::rooms::m15_content::sample_capture_row_for(&mut state.rng,key,&slots,scope,"card pool is incomplete","card pool has too few distinct cards")
 }
 pub(super) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     if state.max_hp==0||state.max_hp>999||state.hp>state.max_hp{return Err(RunError::InvalidAction)}

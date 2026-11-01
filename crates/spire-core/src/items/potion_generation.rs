@@ -98,8 +98,53 @@ const DEFECT_LIMITED_POTIONS:&[PotionId]=&[
     PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
 ];
 
+/// M26 class pools (design §6.2, F16): the 30 shared potions and the class's three, in the
+/// accepted class-first order. Ironclad rows are settled; the Watcher's are disclosed decision F16.
+pub(crate) const IRONCLAD_POTIONS:&[PotionId]=&[
+    PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,PotionId::FruitJuice,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+const IRONCLAD_LIMITED_POTIONS:&[PotionId]=&[
+    PotionId::BloodPotion,PotionId::Elixir,PotionId::HeartOfIron,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+pub(crate) const WATCHER_POTIONS:&[PotionId]=&[
+    PotionId::BottledMiracle,PotionId::StancePotion,PotionId::Ambrosia,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,PotionId::FruitJuice,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+const WATCHER_LIMITED_POTIONS:&[PotionId]=&[
+    PotionId::BottledMiracle,PotionId::StancePotion,PotionId::Ambrosia,
+    PotionId::BlockPotion,PotionId::DexterityPotion,PotionId::EnergyPotion,PotionId::ExplosivePotion,
+    PotionId::FirePotion,PotionId::StrengthPotion,PotionId::SwiftPotion,PotionId::WeakPotion,PotionId::FearPotion,
+    PotionId::AttackPotion,PotionId::SkillPotion,PotionId::PowerPotion,PotionId::ColorlessPotion,PotionId::FlexPotion,
+    PotionId::SpeedPotion,PotionId::BlessingOfTheForge,PotionId::RegenPotion,PotionId::AncientPotion,
+    PotionId::LiquidBronze,PotionId::GamblersBrew,PotionId::EssenceOfSteel,PotionId::DuplicationPotion,
+    PotionId::DistilledChaos,PotionId::LiquidMemories,PotionId::CultistPotion,
+    PotionId::SneckoOil,PotionId::FairyPotion,PotionId::SmokeBomb,PotionId::EntropicBrew,
+];
+
 pub(crate) fn candidates(character: Character, limited: bool) -> Result<&'static [PotionId], InputError> {
     if character==Character::Defect{return Ok(if limited{DEFECT_LIMITED_POTIONS}else{DEFECT_POTIONS})}
+    if character==Character::Ironclad{return Ok(if limited{IRONCLAD_LIMITED_POTIONS}else{IRONCLAD_POTIONS})}
+    if character==Character::Watcher{return Ok(if limited{WATCHER_LIMITED_POTIONS}else{WATCHER_POTIONS})}
     if character != Character::Silent {
         return Err(InputError::Unsupported("Silent potion generation requires actual Silent character".into()));
     }
@@ -113,13 +158,15 @@ fn rarity(id: PotionId) -> PotionRarity {
         | PotionId::StrengthPotion | PotionId::SwiftPotion | PotionId::WeakPotion
         | PotionId::FearPotion | PotionId::AttackPotion | PotionId::SkillPotion
         | PotionId::PowerPotion | PotionId::ColorlessPotion | PotionId::FlexPotion
-        | PotionId::SpeedPotion | PotionId::BlessingOfTheForge => PotionRarity::Common,
+        | PotionId::SpeedPotion | PotionId::BlessingOfTheForge
+        | PotionId::BloodPotion | PotionId::BottledMiracle => PotionRarity::Common,
         PotionId::PotionOfCapacity | PotionId::CunningPotion | PotionId::RegenPotion | PotionId::AncientPotion
         | PotionId::LiquidBronze | PotionId::GamblersBrew | PotionId::EssenceOfSteel
-        | PotionId::DuplicationPotion | PotionId::DistilledChaos | PotionId::LiquidMemories => PotionRarity::Uncommon,
+        | PotionId::DuplicationPotion | PotionId::DistilledChaos | PotionId::LiquidMemories
+        | PotionId::Elixir | PotionId::StancePotion => PotionRarity::Uncommon,
         PotionId::EssenceOfDarkness | PotionId::GhostInAJar | PotionId::CultistPotion | PotionId::FruitJuice
         | PotionId::SneckoOil | PotionId::FairyPotion | PotionId::SmokeBomb
-        | PotionId::EntropicBrew => PotionRarity::Rare,
+        | PotionId::EntropicBrew | PotionId::HeartOfIron | PotionId::Ambrosia => PotionRarity::Rare,
         _ => unreachable!("only complete Silent potion pools reach the factory"),
     }
 }

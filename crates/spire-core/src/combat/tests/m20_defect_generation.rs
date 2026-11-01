@@ -15,7 +15,9 @@ fn m20_defect_generators_complete_support_and_capture(){
         }
     }
     assert_eq!(generation::pool(Some(Character::Defect),GenerationPool::Colorless).unwrap().len(),34);
-    assert!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).is_err(),"no unsupported actual-character substitution");
+    // pre-M26: assert!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).is_err(),"no unsupported actual-character substitution");
+    // M26 G4 (disclosed amendment): the Ironclad now has its own complete combat pool, never a substituted one.
+    assert_eq!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).unwrap().len(),70);
     for (pool,count) in [(GenerationPool::Attack,26),(GenerationPool::Skill,33),(GenerationPool::Power,11),(GenerationPool::Any,70)] {
         assert_eq!(generation::pool(Some(Character::Silent),pool).unwrap().len(),count,"accepted Silent domain remains unchanged");
     }

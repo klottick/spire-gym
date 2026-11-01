@@ -66,11 +66,19 @@ pub enum StanceEnergy { CalmExit, DivinityEntry, VioletLotus }
 pub(in crate::combat) fn active(state:&State)->bool {
     state.silent.source_character==Some(crate::content::Character::Watcher)
 }
+/// M26 §6.3 class L: Watcher card laws run for the Watcher or under the complete capability.
+pub(in crate::combat) fn cards_active(state:&State)->bool {
+    active(state)||complete(state)
+}
+/// M26 complete card capability of this combat.
+pub(in crate::combat) fn complete(state:&State)->bool {
+    state.item_context.as_ref().is_some_and(|items|items.complete_cards())
+}
 fn bottom(state:&mut State,kind:EffectKind) {
     super::super::enemies::act2::bottom(state,Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind});
 }
 pub(in crate::combat) fn stance_transition(state:&mut State,next:Stance)->Result<bool,EffectError> {
-    if !active(state){return Ok(false)}
+    if !cards_active(state){return Ok(false)}
     let previous=state.character.stance;
     if previous==next||state.player_full_powers.iter().any(|p|p.id.0=="cannot_change_stance"){return Ok(true)}
     for power in state.player_full_powers.clone() {
@@ -215,7 +223,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
     }Ok(())
 }
 pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffect)->Result<(),InputError> {
-    if !active(state)||(!matches!(work,WatcherEffect::JudgmentKill{..})&&effect.target!=Some(Actor::Player)){
+    if !cards_active(state)||(!matches!(work,WatcherEffect::JudgmentKill{..})&&effect.target!=Some(Actor::Player)){
         return Err(InputError::Invariant("Watcher effect lacks its character/target owner".into()))
     }
     let invalid=||InputError::Invariant("Watcher payload lost its owned source/cursor/template".into());
@@ -225,13 +233,13 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
         WatcherEffect::OpenStanceChoice=>if !matches!(effect.source,Source::Potion{slot,id:crate::content::PotionId::StancePotion} if potion_capture(slot,crate::content::PotionId::StancePotion,0)){return Err(invalid())},
         WatcherEffect::CreateRequest{id,count}=>if *id!=crate::content::CardId::Miracle||!matches!(effect.source,Source::Potion{slot,id:crate::content::PotionId::BottledMiracle} if i32::try_from(*count).is_ok_and(|n|potion_capture(slot,crate::content::PotionId::BottledMiracle,n))){return Err(invalid())},
         WatcherEffect::Create{template,count,next}=>{
-            let m25=state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+            let m25=state.item_context.as_ref().is_some_and(|items|items.m25_cards())
                 &&crate::content::watcher::supports_m25_generated(template.id);
             if next>count||*count>i32::MAX as u32||!(crate::content::watcher::M21_WATCHER_GENERATED.contains(&template.id)||m25)
                 ||template.instance!=CardInstanceId(0)||template.origin!=CombatCardRef::CombatLocal(0)||template.upgrades>1||!template.local.m21{return Err(invalid())}
         },
         WatcherEffect::CreateShuffled{template,count,next}=>{
-            let m25=state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+            let m25=state.item_context.as_ref().is_some_and(|items|items.m25_cards())
                 &&crate::content::watcher::supports_m25_generated(template.id);
             let card_parent=matches!((&effect.source,&state.in_play),
                 (Source::Card(owner),Some(card)) if owner==&card.handle()&&card.full().is_some_and(|live|matches!(live.id,
@@ -250,7 +258,7 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
                 &&card.full().is_some_and(|live|live.id==crate::content::CardId::Wish));
             let finish=state.pending.iter().any(|pending|pending.kind==EffectKind::FinishCard&&pending.source==effect.source);
             if !crate::content::watcher::M25_WATCHER_CHOICES.contains(option)
-                ||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())||!parent||!finish{return Err(invalid())}
+                ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())||!parent||!finish{return Err(invalid())}
         },
         WatcherEffect::CommitSelection{selection,next}=>{
             let unique=selection.selected.iter().collect::<std::collections::BTreeSet<_>>();
@@ -263,25 +271,25 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
         WatcherEffect::ReturnDiscard{card}=>if !state.card_ids_issued.contains(card){return Err(invalid())},
         WatcherEffect::OpenOmniscience=>if !matches!((&effect.source,&state.in_play),
             (Source::Card(owner),Some(card)) if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Omniscience)
-                &&state.item_context.as_ref().is_some_and(|items|items.m25_profile())){return Err(invalid())},
+                &&state.item_context.as_ref().is_some_and(|items|items.m25_cards())){return Err(invalid())},
         WatcherEffect::PressurePoints=>if !matches!((&effect.source,&state.in_play),
             (Source::Card(owner),Some(OwnedCard::Full(card))) if owner==&super::super::card_state::handle(card.instance)
                 &&card.id==crate::content::CardId::PressurePoints&&card.local.magic_number.is_some()
-                &&state.item_context.as_ref().is_some_and(|items|items.m25_profile())){return Err(invalid())},
+                &&state.item_context.as_ref().is_some_and(|items|items.m25_cards())){return Err(invalid())},
         WatcherEffect::GrantExtraTurn=>if !matches!((&effect.source,&state.in_play),
             (Source::Card(owner),Some(OwnedCard::Full(card))) if owner==&super::super::card_state::handle(card.instance)
-                &&card.id==crate::content::CardId::Vault&&state.item_context.as_ref().is_some_and(|items|items.m25_profile())){return Err(invalid())},
+                &&card.id==crate::content::CardId::Vault&&state.item_context.as_ref().is_some_and(|items|items.m25_cards())){return Err(invalid())},
         WatcherEffect::ExhaustDrawnDeus{card}=>if !matches!(&effect.source,Source::Card(owner) if owner==card)
             ||!state.piles.hand.iter().any(|owned|owned.handle()==*card&&owned.full().is_some_and(|live|live.id==crate::content::CardId::DeusExMachina))
-            ||!state.item_context.as_ref().is_some_and(|items|items.m25_profile()){return Err(invalid())},
+            ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards()){return Err(invalid())},
         WatcherEffect::DevaRecharge{amount}=>if *amount<=0||effect.source!=Source::Actor(Actor::Player)
             ||state.turn<=1||state.phase!=Phase::PlayerStart
-            ||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+            ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())
             ||state.watcher.deva_energy_gain!=*amount
             ||!state.player_full_powers.iter().any(|power|power.id.0=="deva_form"&&power.state.amount>0){return Err(invalid())},
         WatcherEffect::OpenForeignInfluence=>if !matches!((&effect.source,&state.in_play),
             (Source::Card(owner),Some(card)) if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::ForeignInfluence)
-                &&state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+                &&state.item_context.as_ref().is_some_and(|items|items.m25_cards())
                 &&crate::content::watcher::foreign_influence_support().len()==106){return Err(invalid())},
         WatcherEffect::JudgmentKill{threshold}=>{
             let valid=matches!((&effect.source,&effect.target,&state.in_play,&state.play_context),
@@ -289,7 +297,7 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
                     if owner==&super::super::card_state::handle(card.instance)&&context.card==*owner
                         &&context.target==Some(Actor::Enemy(target.clone()))&&card.id==crate::content::CardId::Judgment
                         &&card.local.magic_number==Some(*threshold));
-            if !state.full_runtime||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+            if !state.full_runtime||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())
                 ||!(30..=40).contains(threshold)||!valid
                 ||!state.enemies.iter().any(|enemy|matches!(&effect.target,Some(Actor::Enemy(owner)) if &enemy.instance_id==owner&&enemy.life==ActorLife::Active&&enemy.hp>0)){
                 return Err(invalid())
@@ -475,7 +483,7 @@ pub(in crate::combat) fn validate_permanent_upgrades(state:&State)->Result<(),In
 }
 pub(in crate::combat) fn validate_deva_state(state:&State)->Result<(),InputError>{
     let growth=state.player_full_powers.iter().find(|power|power.id.0=="deva_form").map_or(0,|power|power.state.amount);
-    if !state.item_context.as_ref().is_some_and(|items|items.m25_profile()){
+    if !state.item_context.as_ref().is_some_and(|items|items.m25_cards()){
         if growth!=0||state.watcher.deva_energy_gain!=0{return Err(InputError::Invariant("Deva state requires M25 profile".into()))}
     }else if (growth==0)!=(state.watcher.deva_energy_gain==0)||growth<0||state.watcher.deva_energy_gain<growth{
         return Err(InputError::Invariant("Deva growth step/current energy gain mismatch".into()))
@@ -526,7 +534,7 @@ pub(in crate::combat) fn validate_selection(state:&State,s:&PendingSelection)->R
         let expected=canonical_omniscience_candidates(state);
         let valid_parent=matches!((&s.parent,&state.in_play),
             (SelectionParent::Card(parent),Some(owner)) if parent==&owner.handle()&&owner.full().is_some_and(|card|card.id==crate::content::CardId::Omniscience));
-        if !active(state)||!state.full_runtime||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+        if !cards_active(state)||!state.full_runtime||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())
             ||!valid_parent||s.source_zone!=SelectionSourceZone::Draw||s.disposition!=SelectionDisposition::Exhaust
             ||s.minimum!=1||s.maximum!=1||s.empty!=EmptySelection::Continue||s.candidates.is_empty()
             ||s.candidates!=expected||s.selected.len()>1{
@@ -547,7 +555,7 @@ pub(in crate::combat) fn validate_selection(state:&State,s:&PendingSelection)->R
                 &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard))),
         _=>false,
     };
-    if !active(state)||!valid_parent||state.watcher.resume_phase.is_none()
+    if !cards_active(state)||!valid_parent||state.watcher.resume_phase.is_none()
         ||s.source_zone!=if s.operation==SelectionOperation::Scry{SelectionSourceZone::Draw}else{SelectionSourceZone::Discard}
         ||s.disposition!=if s.operation==SelectionOperation::Scry{SelectionDisposition::Discard}else{SelectionDisposition::Hand}{
         return Err(InputError::Invariant("Watcher selection lost exact operation/parent/resume ownership".into()))
@@ -610,7 +618,7 @@ pub(in crate::combat) fn construct_mantra(state:&mut State,amount:i32)->Result<E
     Ok(EffectKind::ApplyFullPower{id:FullPowerId("mantra"),amount})
 }
 pub(in crate::combat) fn capture(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{
-    if !active(state){return Ok(())}
+    if !cards_active(state){return Ok(())}
     for effect in effects{
         if let EffectKind::Watcher(WatcherEffect::GainMantra{amount})=effect.kind{effect.kind=construct_mantra(state,amount)?;}
         if let EffectKind::Watcher(WatcherEffect::CreateRequest{id,count})=effect.kind{effect.kind=create_action(state,id,count)?;}
@@ -626,10 +634,16 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
         let source=state.current.as_ref().map_or(Source::None,|effect|effect.source.clone());
         m25_powers::after_card_use(state,&source);
     }
-    if !active(state)||target!=Some(&Actor::Player){return Ok(())}
+    // M26 §6.3 split: Divinity exit is S (any character in Divinity), the power callbacks are L
+    // (`cards_active`, each still requiring its power), the recharge is C (Watcher only).
+    // The Watcher's own order is unchanged.
+    let watcher=active(state);
+    let laws=cards_active(state);
+    if !(laws||state.character.stance==Stance::Divinity)||target!=Some(&Actor::Player){return Ok(())}
     let source=Source::Actor(Actor::Player);
     if hook==Hook::TurnStartedPreDraw{
         if state.character.stance==Stance::Divinity{work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Neutral))});}
+        if !laws{return Ok(())}
         if state.turn>1&&state.player_full_powers.iter().any(|power|power.id.0=="blasphemer"&&power.state.amount>0){
             work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Damage(super::super::DamagePayload::HpLoss(99_999))});
         }
@@ -668,7 +682,7 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
         }}
         // Source recharge is synchronous after pre-draw callback construction.
         // Energized is granted on recharge (and removed); Energy Down then loses energy, floored at 0.
-        if state.turn>1{
+        if watcher&&state.turn>1{
             let energy_down=state.player_full_powers.iter().find(|power|power.id.0=="energy_down")
                 .map_or(0,|power|power.state.amount.max(0));
             let mut energy=state.player.max_energy;
@@ -688,6 +702,7 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
             state.pending.insert(at,Effect{source:source.clone(),target:Some(Actor::Player),kind});
         }}
     }
+    if !laws{return Ok(())}
     if hook==Hook::PlayerPreEndTurnCards&&state.character.stance==Stance::Calm{
         for power in &state.player_full_powers{if power.id.0=="like_water"{work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});}}
     }
@@ -730,7 +745,7 @@ pub(in crate::combat) fn initialize_profile(card:&mut LiveCard)->Result<(),Input
 
 fn installed_master_reality(state:&State)->bool{state.player_full_powers.iter().any(|p|p.id.0=="master_reality")}
 pub(in crate::combat) fn create_action(state:&State,id:crate::content::CardId,count:u32)->Result<EffectKind,InputError>{
-    let m25=state.item_context.as_ref().is_some_and(|items|items.m25_profile());
+    let m25=state.item_context.as_ref().is_some_and(|items|items.m25_cards());
     if !crate::content::watcher::M21_WATCHER_GENERATED.contains(&id)
         &&!(m25&&crate::content::watcher::supports_m25_generated(id)){
         return Err(InputError::Invariant("fixed Watcher child route kind".into()))
@@ -791,14 +806,14 @@ pub(in crate::combat) fn validate_choice(state:&State)->Result<(),InputError>{
 /// Miracle reaches the same source addEnergy helper as stance and potion gains.
 /// The opt-in binding leaves legacy bare-profile overflow behavior unchanged.
 pub(in crate::combat) fn capped_energy_source(state:&State,source:&Source,amount:i32)->bool{
-    active(state)&&matches!(source,Source::Card(owner) if state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).is_some_and(|c|c.id==crate::content::CardId::Miracle&&amount==if c.upgrades>0{2}else{1}))
+    cards_active(state)&&matches!(source,Source::Card(owner) if state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).is_some_and(|c|c.id==crate::content::CardId::Miracle&&amount==if c.upgrades>0{2}else{1}))
 }
 
 pub(in crate::combat) fn power_id(id:FullPowerId)->bool{matches!(id.0,"devotion"|"foresight"|"nirvana"|"establishment"|"master_reality"|"battle_hymn"|"mental_fortress"|"rushdown"|"like_water"|"mantra"
     |"vigor"|"wave_of_the_hand"|"free_attack"|"simmering_fury"|"energy_down"|"deva_form"|"collect"|"blasphemer"|"study"|"omega")}
 
 pub(in crate::combat) fn valid_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->bool{
-    if !active(state)||effect.target!=Some(Actor::Player){return false}
+    if !cards_active(state)||effect.target!=Some(Actor::Player){return false}
     if !matches!(id.0,"vigor"|"wave_of_the_hand"|"free_attack"|"simmering_fury"|"energy_down"|"deva_form"|"collect"|"blasphemer"|"study"|"omega"){
         return if id.0=="master_reality"{amount== -1}else{amount>0};
     }
@@ -807,7 +822,7 @@ pub(in crate::combat) fn valid_power_application(state:&State,effect:&Effect,id:
         state.piles.hand.iter().find(|owned|owned.handle()==*card_owner));
     let Some(card)=card.and_then(OwnedCard::full) else{return false};
     if super::super::card_state::handle(card.instance)!=*card_owner{return false}
-    let Some(items)=state.item_context.as_ref().filter(|items|items.m25_profile()) else{return false};
+    let Some(items)=state.item_context.as_ref().filter(|items|items.m25_cards()) else{return false};
     let _=items;
     match id.0{
         "vigor"=>card.id==crate::content::CardId::WreathOfFlame&&card.local.magic_number==Some(amount)&&amount>0,
@@ -830,5 +845,5 @@ pub(in crate::combat) fn valid_power_application(state:&State,effect:&Effect,id:
 }
 
 pub(in crate::combat) fn valid_mutable_attack_source(state:&State,source:&Source)->bool{
-    active(state)&&matches!(source,Source::Card(owner) if state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).is_some_and(|c|crate::content::watcher::supports_generated(c.id)&&c.local.base_damage.is_some()))
+    cards_active(state)&&matches!(source,Source::Card(owner) if state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).is_some_and(|c|crate::content::watcher::supports_generated(c.id)&&c.local.base_damage.is_some()))
 }

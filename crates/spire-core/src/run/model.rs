@@ -100,7 +100,7 @@ pub struct VisitedRoom { pub act:u8, pub floor:u32, pub label:&'static str }
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RunHistory { pub rooms:Vec<VisitedRoom>, pub events:Vec<CommittedEvent> }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RunState {
     pub(crate) room_loop:Option<super::rooms::RoomLoop>,
     pub(crate) reward_ledger:super::reward::RunRewardLedger,
@@ -117,6 +117,64 @@ pub struct RunState {
     pub last_selection:Option<Vec<CardInstance>>, pub last_resumed_parent:Option<ChoiceId>,
     pub(crate) rng:RunRng, pub(crate) pending:Option<PendingContinuation>,
     pub(crate) next_instance:u64, pub(crate) resume_count:u8,
+    /// M26 card admission selector; `Profile` keeps every scenario's finite law.
+    pub(crate) card_admission:CardAdmission,
+}
+
+/// The derived field text, with `card_admission` printed only when `Complete`
+/// (M25 prefix tests compare RunState Debug text).
+impl std::fmt::Debug for RunState {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
+        let mut value=f.debug_struct("RunState");
+        value.field("room_loop",&self.room_loop);
+        value.field("reward_ledger",&self.reward_ledger);
+        value.field("authored_combat",&self.authored_combat);
+        value.field("training_encounter",&self.training_encounter);
+        value.field("last_combat_checkpoint",&self.last_combat_checkpoint);
+        value.field("combat_progress",&self.combat_progress);
+        value.field("active_combat",&self.active_combat);
+        value.field("last_combat",&self.last_combat);
+        value.field("character",&self.character);
+        value.field("ascension",&self.ascension);
+        value.field("hp",&self.hp);
+        value.field("max_hp",&self.max_hp);
+        value.field("gold",&self.gold);
+        value.field("deck",&self.deck);
+        value.field("relics",&self.relics);
+        value.field("potions",&self.potions);
+        value.field("keys",&self.keys);
+        value.field("act",&self.act);
+        value.field("floor",&self.floor);
+        value.field("room",&self.room);
+        value.field("act4_enabled",&self.act4_enabled);
+        value.field("neow_eligible",&self.neow_eligible);
+        value.field("seen_bosses",&self.seen_bosses);
+        value.field("stored_note",&self.stored_note);
+        value.field("terminal",&self.terminal);
+        value.field("map",&self.map);
+        value.field("history",&self.history);
+        value.field("relic_counters",&self.relic_counters);
+        value.field("combat",&self.combat);
+        value.field("selected_neow",&self.selected_neow);
+        value.field("fault",&self.fault);
+        value.field("last_selection",&self.last_selection);
+        value.field("last_resumed_parent",&self.last_resumed_parent);
+        value.field("rng",&self.rng);
+        value.field("pending",&self.pending);
+        value.field("next_instance",&self.next_instance);
+        value.field("resume_count",&self.resume_count);
+        if self.card_admission!=CardAdmission::Profile{value.field("card_admission",&self.card_admission);}
+        value.finish()
+    }
+}
+
+/// Which card set the Run's mutation owners and combat entry admit (design §5.3).
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+pub enum CardAdmission{
+    /// Each scenario's finite profile law (`run::mutations::supported_in`).
+    #[default] Profile,
+    /// The complete permanent union (`content::complete::supports_permanent`).
+    Complete,
 }
 
 /// Finite native authored combat, independent of normal Run progression.

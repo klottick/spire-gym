@@ -34,7 +34,11 @@ fn m15_potion_factory_exposes_the_complete_silent_roster_and_limited_exclusion()
     assert_eq!(expected.iter().filter(|id| Catalog::standard().potion_rarity(**id) == Some(PotionRarity::Common)).count(), 17);
     assert_eq!(expected.iter().filter(|id| Catalog::standard().potion_rarity(**id) == Some(PotionRarity::Uncommon)).count(), 9);
     assert_eq!(expected.iter().filter(|id| Catalog::standard().potion_rarity(**id) == Some(PotionRarity::Rare)).count(), 7);
-    assert!(matches!(potion_generation::candidates(Character::Ironclad, true), Err(InputError::Unsupported(_))));
+    // M26 amendment (design §6.2 / F16, disclosed): every class has a potion pool; the Ironclad's
+    // limited pool is its three class potions plus the 30 shared minus Fruit Juice. Original line:
+    // assert!(matches!(potion_generation::candidates(Character::Ironclad, true), Err(InputError::Unsupported(_))));
+    let ironclad = potion_generation::candidates(Character::Ironclad, true).unwrap();
+    assert_eq!((ironclad.len(), &ironclad[..3]), (32, &[PotionId::BloodPotion, PotionId::Elixir, PotionId::HeartOfIron][..]));
 }
 
 #[test]

@@ -62,3 +62,7 @@ mod m23_watcher_act2;
 mod m24_watcher_act3;
 mod m25_watcher_heart;
 mod m25_watcher_content;
+mod m26_capability;
+mod m26_pools;
+mod m26_card_mutations;
+mod m26_supplied;

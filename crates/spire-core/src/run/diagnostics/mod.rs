@@ -23,3 +23,8 @@ pub use m24::{M24DiagnosticBoss,M24PlayedFixture,M24Diagnostic,m24_supplied_trav
 mod m25;
 #[cfg(any(test,feature="m25-diagnostics"))]
 pub use m25::{M25DiagnosticBoss,M25DiagnosticLoadout,M25PlayedFixture,M25Diagnostic,m25_supplied_traversal,m25_supplied_act4,m25_played_fixture,m25_diagnostic};
+
+#[cfg(any(test,feature="m26-diagnostics"))]
+mod m26;
+#[cfg(any(test,feature="m26-diagnostics"))]
+pub use m26::{complete_run,complete_combat};

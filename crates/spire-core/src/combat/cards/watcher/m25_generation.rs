@@ -10,7 +10,7 @@ fn no_target(target: Option<u64>) -> Result<(), RunError> {
 }
 
 fn create_shuffled_action(state: &State, id: CardId, count: u32) -> Result<EffectKind, InputError> {
-    if !state.item_context.as_ref().is_some_and(|items| items.m25_profile())
+    if !state.item_context.as_ref().is_some_and(|items| items.m25_cards())
         || !crate::content::watcher::supports_m25_generated(id)
         || count == 0 || count > i32::MAX as u32 {
         return Err(InputError::Invariant("M25 shuffled child route kind/count/capability".into()));
@@ -37,7 +37,7 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
         | Insight | ThroughViolence | Beta | Omega | Expunger) {
         return Ok(None);
     }
-    if !state.item_context.as_ref().is_some_and(|items| items.m25_profile()) {
+    if !state.item_context.as_ref().is_some_and(|items| items.m25_cards()) {
         return Err(RunError::InvalidAction);
     }
     let cost = super::m25::m25_cost(card.id, card.upgrades > 0).ok_or(RunError::InvalidAction)?;
@@ -95,7 +95,7 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
 
 pub(super) fn hook(state: &State, hook: Hook, target: Option<&Actor>, work: &mut Vec<Effect>) -> Result<(), EffectError> {
     if hook != Hook::PlayerEndTurn || target != Some(&Actor::Player)
-        || !state.item_context.as_ref().is_some_and(|items| items.m25_profile()) {
+        || !state.item_context.as_ref().is_some_and(|items| items.m25_cards()) {
         return Ok(());
     }
     for power in &state.player_full_powers {

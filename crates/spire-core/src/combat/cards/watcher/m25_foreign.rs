@@ -91,8 +91,8 @@ pub(in crate::combat) fn validate_payload_with_support(
     support: &[CardId],
 ) -> Result<(), RunError> {
     if card.id != CardId::ForeignInfluence { return Err(RunError::InvalidAction) }
-    if target.is_some() || !state.full_runtime || !active(state)
-        || !state.item_context.as_ref().is_some_and(|items| items.m25_profile())
+    if target.is_some() || !state.full_runtime || !cards_active(state)
+        || !state.item_context.as_ref().is_some_and(|items| items.m25_cards())
         || !card.local.m21 {
         return Err(RunError::InvalidAction);
     }
@@ -126,7 +126,7 @@ pub(super) fn open(state: &mut State, effect: &Effect) -> Result<(), EffectError
 
 pub(in crate::combat) fn output_template(state: &State, id: CardId, upgrades: u32) -> Result<LiveCard, InputError> {
     if upgrades > 1 || !crate::content::watcher::foreign_influence_support().contains(&id)
-        || !state.item_context.as_ref().is_some_and(|items| items.m25_profile()) {
+        || !state.item_context.as_ref().is_some_and(|items| items.m25_cards()) {
         return Err(InputError::Unsupported("Foreign Influence output outside M25 admission".into()));
     }
     let mut template = crate::combat::card_state::generated_with_history(id, CardInstanceId(0), upgrades,

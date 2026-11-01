@@ -16,7 +16,10 @@ pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
         ||effect.target.is_some()
         ||!state.full_runtime
     {return Err(InputError::Invariant("Infernal Blade generation owner/target/runtime mismatch".into()).into())}
-    let candidates=crate::run::rooms::m10_content::infernal_candidates();
+    // M26 §7.1: the player's combat Attack pool; without a source character (frozen M10
+    // contexts) the Ironclad pool, whose order is M10's accepted Infernal Blade list.
+    let character=state.silent.source_character.unwrap_or(crate::content::Character::Ironclad);
+    let candidates=super::super::super::generation::pool(Some(character),super::super::super::generation::GenerationPool::Attack)?;
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Infernal Blade card-random stream absent".into()))?;
     let (index,next)=super::super::super::rng::uniform_below(stream,candidates.len() as u128)?;
     state.card_rng=Some(next);

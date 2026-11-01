@@ -1,6 +1,28 @@
 # Work status
 
-## Current snapshot — 2026-10-31, M25 candidate ready for final review
+## Current snapshot — 2026-11-01, M25 merged; M26 candidate ready for final review
+
+- M25 (finite native Watcher A0 Acts 1–4 and Heart) merged as PR65 (`3729b29eed33317cd2d6573b9d5ad7d1c7fc441c`,
+  feature `ac87e978a1ee5af0c03daa7ff0f8d11c73cfe849`). The M25 body below predates that merge.
+- M26 (shared and off-colour card coverage) is a source candidate awaiting one fresh independent final review; it is
+  not accepted. It is a native card layer with no public profile, descriptor or Python surface: 369 of the 370 card
+  rows are executable (Pride excluded), any character can play any legal card under the complete-card overlay,
+  every producer pool has one owner, and permanent deck changes are shared. See the
+  [M26 profile](milestones/m26-shared-cards.md), [coverage ledger](milestones/m26-shared-cards-coverage-ledger.md)
+  and [reconciliation](milestones/m26-shared-cards-reconciliation.md).
+- M26 was built early on the frozen M25 tree and rebased onto merged M25. Final review v1 was NOT READY (three shared defects); they
+  were fixed globally, a sweep of 40 accepted M14/M15 receipts replayed identically, and the freeze v2 tree
+  (1035 files) passes the workspace suite (3461 passed, 0 failed, 11 ignored) and the `m26-diagnostics` core
+  suite (2835, 0, 5). The grades
+  are Constructed and Supplied played only; M26 has no normal-start cases and no once-only outcome runs.
+- Global corrections: the planned G1–G7, plus red generated constructors, Clash's base cost (a frozen-M10 Ironclad Infernal Blade fault) and
+  the non-removable curse rule; after final review v1, just-applied end-of-turn debuffs (Doubt, Shame), retained
+  self-playing cards discarding themselves (M25 R4 generalized), Fatal on the final Darkling, and Master Reality
+  on Searing Blow copies. M25 owns the generated-Watcher initializer and Deus Ex Machina fixes (M25 G1 and G2).
+  All are disclosed in the reconciliation, with the amended accepted assertions.
+- M27 (relics and potions) and M28 (events, Neow, shops and standard pools) are the first callers of the M26 owners.
+
+## Prior status body — 2026-10-31, M25 candidate ready for final review, retained verbatim
 
 - M25 (finite native Watcher A0 Acts 1–4 and Heart, complete Watcher A0 content) is a source
   candidate awaiting one fresh independent final review; it is not accepted. See the

@@ -490,8 +490,11 @@ fn m25_act4_card_families_complete_or_reject(){
     assert!(all.iter().all(|id|M25_WATCHER_HEART_CARDS.contains(id)));
     let mut rng=RunRng::new([7;32],Partition::Test,0);let before=rng.clone();
     assert_eq!(c25::sample_capture_row_with(&mut rng,&[4,52,1],&[CardRarity::Common],short_common),Err(RunError::Unsupported("M25 incomplete Purple rarity family")),"the wrapper's size check");assert_eq!(rng,before);
-    assert_eq!(definition_only_family(CardRarity::Common).len(),1,"a definition-only catalog row exists");
-    assert_eq!(rooms::m15_content::sample_capture_row_for(&mut rng,&[4,52,1],&[CardRarity::Common],definition_only_family,RunRngScope::M25CardOffer,"incomplete","empty"),Err(RunError::Unsupported("incomplete")),"the shared sampler's check");
+    // M26 (design §5.1) made Regret and Ascender's Bane executable, so no definition-only row remains;
+    // the empty family exercises the same shared incomplete-family rejection.
+    assert!(Catalog::standard().cards().iter().all(|row|!row.definition_only),"M26: no definition-only catalog row");
+    assert!(definition_only_family(CardRarity::Common).is_empty());
+    assert_eq!(rooms::m15_content::sample_capture_row_for(&mut rng,&[4,52,1],&[definition_only_family(CardRarity::Common)],RunRngScope::M25CardOffer,"incomplete","empty"),Err(RunError::Unsupported("incomplete")),"the shared sampler's check");
     assert_eq!(rng,before,"no RNG request before either rejection");
     assert_eq!(RunRngScope::parse("run.m25.card.offer"),Ok(RunRngScope::M25CardOffer));assert_eq!(RunRngScope::parse("run.m25.relic.capture"),Ok(RunRngScope::M25RelicCapture));
     let r=act4(EncounterId::AwakenedOne);assert_eq!(rooms::m23_content::relic_capture_scope(&r.state),RunRngScope::M25RelicCapture,"M25 scope only in act 4");

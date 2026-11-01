@@ -8,6 +8,7 @@ pub(crate) mod watcher;
 mod silent;
 mod colorless;
 pub(crate) mod defect;
+pub(crate) mod curses;
 pub use defect::{DefectEffect,DefectState};
 pub use silent::{SilentEffect, SilentState, DrawnCard};
 pub use colorless::ColorlessEffect;
@@ -22,7 +23,7 @@ pub(super) fn actual_draw(state:&mut State,owner:&super::CardHandle)->Result<(),
     silent::actual_draw(state,owner)?;
     watcher::actual_draw(state,owner)
 }
-pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{watcher::starting_cost(id,upgrades).or_else(||defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades)))}
+pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{watcher::starting_cost(id,upgrades).or_else(||ironclad::starting_cost(id)).or_else(||defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades)))}
 pub(super) fn silent_player_hp_lost(state:&mut State)->Result<(),EffectError>{Ok(silent::player_hp_lost(state)?)}
 
 #[derive(Clone,Copy,Debug)]
@@ -236,6 +237,7 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
 /// Shared accepted-use legality used by both ordinary hand plays and autoplay
 /// children. Payload production remains read-only; payment is a separate owner.
 pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<(),crate::run::RunError>{
+    if curses::play_blocked(state){return Err(crate::run::RunError::InvalidAction)}
     if card.id==crate::content::CardId::SignatureMove {
         let owner=card_handle(card);
         if state.piles.hand.iter().any(|owned|owned.handle()!=owner&&owned.full().is_some_and(|live|
@@ -245,7 +247,7 @@ pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<Target
     }
     if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane
         // Shared fix (M25, same shape as M26): Deus Ex Machina is Unplayable; only its on-draw trigger acts, so one
         // that reaches the hand without a draw (a Stasis return, Discovery, copies) is unplayable, never Unsupported.
         |crate::content::CardId::DeusExMachina){return Err(crate::run::RunError::InvalidAction);}
@@ -283,20 +285,34 @@ pub fn resolve(combat: &mut Combat, action: &CombatAction) -> Result<(), crate::
 #[derive(Clone)]
 pub(in crate::combat) enum PayloadTarget { Player, SelectedEnemy, Enemy(EnemyHandle) }
 
+/// M26 colour dispatcher (design §5.2): under the complete capability a card is
+/// initialized by its own colour's existing owner, whatever the player's character.
+/// Watcher kinds (purple roster and Watcher children) use the M25 Watcher owner, blue
+/// cards the Defect metadata; Red, Green, Colorless, curses and statuses keep the shared
+/// constructor defaults. Choice-only options never become physical cards.
+pub(crate) fn initialize_complete(card:&mut LiveCard)->Result<(),InputError>{
+    if !crate::content::complete::supports_generated(card.id)||!crate::run::complete_upgrades_valid(card.id,card.upgrades){
+        return Err(InputError::Unsupported("card outside the complete card union".into()))
+    }
+    if crate::content::watcher::supports_m25_generated(card.id){return watcher::initialize_m25_base_profile(card)}
+    if crate::content::Catalog::standard().card(card.id).is_some_and(|row|row.color==crate::content::CardColor::Blue){defect::initialize(card);}
+    Ok(())
+}
+
 /// Obtain price from the same read-only payload producer as actual play, not a second table.
 pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
     if let Some(cost)=starting_cost(card.id,card.upgrades){return Some(cost)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void){return None}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane){return None}
     payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)
 }
 pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
     if card.local.x_cost{
-        if watcher::active(state)&&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
+        if watcher::cards_active(state)&&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
             &&state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0){return Some(0)}
         return None
     }
     let cost=super::card_state::effective_cost(card,base_cost(state,card)?).ok()?;
-    if watcher::active(state)&&!card.local.free_play&&!card.local.free_to_play_once
+    if watcher::cards_active(state)&&!card.local.free_play&&!card.local.free_to_play_once
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
         &&cost>0&&state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0){return Some(0)}
     if ironclad::exhaust::corruption_skill_active(state)&&crate::content::Catalog::standard().card(card.id)
@@ -471,7 +487,7 @@ pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option
     ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
     let attack=crate::content::Catalog::standard().card(card.id)
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
-    let vigor=if watcher::active(state)&&attack{state.player_full_powers.iter()
+    let vigor=if watcher::cards_active(state)&&attack{state.player_full_powers.iter()
         .find(|power|power.id.0=="vigor").map_or(0,|power|power.state.amount.max(0))}else{0};
     let eligible=state.item_context.as_ref().is_some_and(|items|
         items.m15_profile()&&items.owns_relic(crate::content::RelicId::WristBlade))
@@ -551,7 +567,9 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
         "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
     }}
-    if watcher::active(state){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,
+    // M26 §6.3 S: the stance pipeline runs once a stance or Vigor exists for any character.
+    if watcher::active(state)||state.character.stance!=super::characters::Stance::Neutral
+        ||state.player_full_powers.iter().any(|p|p.id.0=="vigor"){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,
         state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive,signed).map_err(|_|crate::run::RunError::Unsupported("invalid Watcher card damage"))}
     if signed{return rules::full_signed_card_damage(base,strength,weak,state.character.stance==super::characters::Stance::Wrath,
         state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive).map_err(|_|crate::run::RunError::Unsupported("invalid signed card damage"))}

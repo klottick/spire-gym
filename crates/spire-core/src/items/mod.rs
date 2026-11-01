@@ -35,6 +35,8 @@ pub struct CombatItemContext {
     watcher_act3:bool,
     /// M25 Watcher Acts 1–4 and Heart (`with_m25_profile`).
     watcher_heart:bool,
+    /// M26 complete card capability overlay (`with_complete_cards`).
+    complete_cards:bool,
     potion_potencies:Vec<Option<i32>>,
     last_potion_use:Option<(usize,PotionId,i32)>,
     pub(crate) collar_activated:bool,
@@ -73,6 +75,7 @@ impl std::fmt::Debug for CombatItemContext{
         if self.m22_profile(){value.field("watcher_progression",&true);}
         if self.watcher_act3{value.field("watcher_act3",&true);}
         if self.watcher_heart{value.field("watcher_heart",&true);}
+        if self.complete_cards{value.field("complete_cards",&true);}
         if self.m21_profile(){value.field("startup_profile",&self.startup_profile).field("potion_potencies",&self.potion_potencies).field("last_potion_use",&self.last_potion_use);}value.finish()
     }
 }
@@ -102,13 +105,13 @@ impl CombatItemContext {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
             potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -146,6 +149,13 @@ impl CombatItemContext {
     /// `watcher_act3` stays false.
     pub(crate) fn with_m25_profile(self)->Self{let mut context=self.with_m22_profile();context.watcher_heart=true;context}
     pub(crate) fn m25_profile(&self)->bool{self.watcher_heart}
+    /// M26: overlay the complete card capability on an existing character context.
+    /// Relic and potion validation stay the base context's.
+    pub(crate) fn with_complete_cards(mut self)->Self{self.complete_cards=true;self}
+    pub(crate) fn complete_cards(&self)->bool{self.complete_cards}
+    /// M26 §6.3 class L: an M25 Watcher card law is reachable under the M25 profile or the
+    /// complete card capability (seam map §3; one helper, no per-site character list).
+    pub(crate) fn m25_cards(&self)->bool{self.watcher_heart||self.complete_cards}
     pub(crate) fn m22_profile(&self)->bool{self.watcher_progression}
     pub(crate) fn m21_profile(&self)->bool{self.startup_profile==CombatStartupProfile::M21Watcher}
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
@@ -199,7 +209,7 @@ impl CombatItemContext {
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { potion_potencies:if self.m21_profile(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
             last_potion_use:if self.m21_profile(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
-            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
@@ -332,6 +342,17 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
+    // M26 overlay potion-belt admission: under the complete capability a held potion is admitted
+    // when it is in the player's class pool (Alchemize gains settle there); relics, counters and
+    // belt shape stay the base context's rules, checked with those potions set aside.
+    if context.complete_cards(){
+        let pool=potion_generation::candidates(character,false).map_err(|_|RunError::InvalidAction)?;
+        if context.potions.iter().flatten().any(|id|!pool.contains(id)){return Err(RunError::InvalidAction)}
+        let mut base=context.clone();
+        base.complete_cards=false;
+        base.potions=base.potions.iter().map(|_|None).collect();
+        return validate_combat_inventory(&base,character)
+    }
     if context.m22_profile(){
         let mut seen=std::collections::BTreeSet::new();
         if !context.m21_profile()||character!=Character::Watcher||context.battle.m15||context.battle.m20||context.potions.len()!=3

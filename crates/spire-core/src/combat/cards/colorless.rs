@@ -43,7 +43,9 @@ pub(super) fn upgrade_local(card:&mut LiveCard)->Result<(),crate::run::RunError>
     Ok(())
 }
 
-pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{powers::starting_cost(id,upgrades).or_else(||choices::starting_cost(id,upgrades))}
+pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{
+    direct::starting_cost(id,upgrades).or_else(||powers::starting_cost(id,upgrades)).or_else(||choices::starting_cost(id,upgrades))
+}
 
 pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{direct::requires_draw_history(id)||choices::requires_draw_history(id)}
 

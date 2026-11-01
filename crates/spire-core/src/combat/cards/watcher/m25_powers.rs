@@ -104,7 +104,7 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
 /// actions use the Watcher creation owner, then a typed continuation exhausts
 /// the still-hand-owned drawn card.
 pub(in crate::combat) fn actual_draw(state: &mut State, owner: &CardHandle) -> Result<(), EffectError> {
-    if !state.item_context.as_ref().is_some_and(|items| items.m25_profile()) { return Ok(()) }
+    if !state.item_context.as_ref().is_some_and(|items| items.m25_cards()) { return Ok(()) }
     let Some(card) = state.piles.hand.iter().find(|owned| owned.handle() == *owner)
         .and_then(OwnedCard::full).cloned().filter(|card| card.id == CardId::DeusExMachina) else { return Ok(()) };
     let count = u32::try_from(card.local.magic_number.ok_or_else(|| InputError::Invariant("Deus Ex Machina draw count absent".into()))?)

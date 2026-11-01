@@ -61,6 +61,13 @@ pub fn m21_watcher_live_card(id:crate::content::CardId,instance:CardInstanceId,u
     cards::watcher::initialize_profile(&mut card)?;Ok(card)
 }
 
+/// Construct fresh complete-capability (M26) card state through the shared physical owner
+/// and the colour dispatcher. Generated-only kinds receive combat-local origin.
+pub fn complete_live_card(id:crate::content::CardId,instance:CardInstanceId,upgrades:u32)->Result<LiveCard,InputError>{
+    if instance.0==0||!crate::content::complete::supports_generated(id){return Err(InputError::Unsupported("invalid complete M26 card constructor".into()))}
+    let mut card=if crate::content::complete::supports_permanent(id){card_state::permanent(id,instance,upgrades)}else{card_state::generated(id,instance,upgrades).ok_or_else(||InputError::Unsupported("M26 generated constructor missing".into()))?};
+    cards::initialize_complete(&mut card)?;Ok(card)
+}
 /// Construct fresh complete-Watcher (M25) card state through the shared physical owner.
 /// Generated-only children receive combat-local origin, never permanent admission.
 pub fn m25_watcher_live_card(id:crate::content::CardId,instance:CardInstanceId,upgrades:u32)->Result<LiveCard,InputError>{

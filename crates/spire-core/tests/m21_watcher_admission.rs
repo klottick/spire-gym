@@ -187,13 +187,17 @@ fn m21_watcher_catalog_metadata_matches_source_rarity_and_card_kinds() {
             &mut mismatches,
             format!("{:?}.ordinary_reward", expected.id),
             catalog.eligibility(expected.id, ContentProducer::OrdinaryReward, Character::Watcher),
-            Ok(expected.id == CardId::EmptyFist),
+            // pre-M26: Ok(expected.id == CardId::EmptyFist),
+            // M26 G1: Watcher fence removed
+            Ok(matches!(expected.rarity, CardRarity::Common | CardRarity::Uncommon | CardRarity::Rare)),
         );
         record_mismatch(
             &mut mismatches,
             format!("{:?}.shard_ordinary_reward", expected.id),
             catalog.eligibility(expected.id, ContentProducer::ShardOrdinaryReward, Character::Watcher),
-            Ok(expected.id == CardId::EmptyFist),
+            // pre-M26: Ok(expected.id == CardId::EmptyFist),
+            // M26 G1: Watcher fence removed
+            Ok(matches!(expected.rarity, CardRarity::Common | CardRarity::Uncommon | CardRarity::Rare)),
         );
         record_mismatch(
             &mut mismatches,
@@ -213,11 +217,10 @@ fn m21_watcher_catalog_metadata_matches_source_rarity_and_card_kinds() {
         );
     }
 
-    assert_eq!(
-        catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Watcher),
-        Err(RegistryError::IncompletePool),
-        "finite admission must not turn into an ordinary reward selector",
-    );
+    // pre-M26: assert_eq!(catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Watcher), Err(RegistryError::IncompletePool), "finite admission must not turn into an ordinary reward selector");
+    let watcher_pool = catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Watcher)
+        .expect("M26 G1 Watcher ordinary rewards are complete");
+    assert_eq!(watcher_pool.len(), 71, "M26 G1 Watcher ordinary reward selector has 71 purple cards");
     assert!(mismatches.is_empty(), "source-backed catalog mismatch:\n{}", mismatches.join("\n"));
 }
 

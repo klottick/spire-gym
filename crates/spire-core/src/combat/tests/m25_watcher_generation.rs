@@ -132,8 +132,9 @@ fn m25_identity_catalog_rows_and_capability() {
     assert_eq!(m21_generated, set(m21_permanent.iter().copied().chain([Miracle, Smite, Safety])));
     for id in M25_NEW_KINDS { assert!(!watcher::supports_generated(*id), "{id:?} stays outside the finite M21 profile"); }
 
-    // One card-tag owner: six HEALING kinds, thirteen STRIKE kinds, Defect metadata unchanged.
-    assert_eq!(set(all.iter().copied().filter(|id| is_healing(*id))), set([Feed, Reaper, Alchemize, SelfRepair, LessonLearned, Wish]));
+    // One card-tag owner: six HEALING kinds (plus Bandage Up, which M26 design §5.1 adds),
+    // thirteen STRIKE kinds, Defect metadata unchanged.
+    assert_eq!(set(all.iter().copied().filter(|id| is_healing(*id))), set([Feed, Reaper, Alchemize, SelfRepair, LessonLearned, Wish, BandageUp]));
     assert!(!is_healing(HandOfGreed));
     assert_eq!(set(all.iter().copied().filter(|id| is_strike(*id))), set([Strike, StrikeGreen, StrikeBlue, StrikePurple, PerfectedStrike, PommelStrike,
         TwinStrike, WildStrike, SwiftStrike, SneakyStrike, ThunderStrike, MeteorStrike, WindmillStrike]));

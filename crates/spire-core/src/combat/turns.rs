@@ -43,9 +43,17 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     let defect=state.silent.source_character==Some(crate::content::Character::Defect);
     let deferred=defect||super::cards::watcher::active(state);
     if !deferred {state.player.energy = state.player.max_energy;}
-    if let Some(power)=state.player_full_powers.iter().find(|p|!deferred&&p.id.0=="energized"&&p.state.amount>0).cloned(){
-        state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
-        state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
+    // G7 next-turn energy law (design §6.3, disclosed): energized, then energized_blue (each applied
+    // once and removed), then Energy Down (persists), floored at 0 — the Watcher owner's order.
+    for id in ["energized","energized_blue"]{
+        if let Some(power)=state.player_full_powers.iter().find(|p|!deferred&&p.id.0==id&&p.state.amount>0).cloned(){
+            state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
+            state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
+        }
+    }
+    if !deferred{
+        let energy_down=state.player_full_powers.iter().find(|p|p.id.0=="energy_down").map_or(0,|p|p.state.amount.max(0));
+        state.player.energy=(state.player.energy-energy_down).max(0);
     }
     for enemy in &mut state.enemies { enemy.intent_id = enemy.selected_move.clone(); }
     super::effects::refresh_enemy_values(state)?;
@@ -108,7 +116,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
                     kind:EffectKind::Hook(Hook::CloakClaspBeforeCleanup{hand_size:state.piles.hand.len()})});
             }
-            if super::cards::watcher::active(state){if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="establishment"){
+            if super::cards::watcher::cards_active(state){if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="establishment"){
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Watcher(super::cards::watcher::WatcherEffect::EstablishmentDiscount{amount:power.state.amount})});
             }}
             if state.full_runtime {for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}}

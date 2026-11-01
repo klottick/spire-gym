@@ -184,12 +184,14 @@ mod tests {
             assert!(!supports_m20_generated(non_blue));
         }
 
+        // pre-M26: assert_eq!(crate::content::Catalog::standard().selectable_pool(ContentProducer::OrdinaryReward, Character::Defect), Err(RegistryError::IncompletePool));
         assert_eq!(
             crate::content::Catalog::standard().selectable_pool(
                 ContentProducer::OrdinaryReward,
                 Character::Defect,
-            ),
-            Err(RegistryError::IncompletePool),
+            ).map(|pool| pool.len()),
+            Ok(71),
+            "M26 ordinary Defect pool has 71 kinds",
         );
     }
 }

@@ -32,6 +32,14 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
 
 fn is_darkling(enemy:&EnemyState)->bool{enemy.enemy_id==ActorEnemyId::Full(EnemyId::Darkling)}
 
+/// The last Darkling down ends the group: in the source `Darkling.damage` clears `halfDead`
+/// and calls `die()` for every Darkling, so a Fatal check on that hit passes. A non-final
+/// Darkling stays half-dead and is not Fatal.
+pub(in crate::combat) fn final_down(state:&State,owner:&EnemyHandle)->bool{
+    state.enemies.iter().any(|e|&e.instance_id==owner&&is_darkling(e)&&e.life==ActorLife::HalfDead)
+        &&state.enemies.iter().filter(|e|is_darkling(e)).all(|e|e.life==ActorLife::HalfDead)
+}
+
 /// Returns true when this lethal payload belongs to a revival lifecycle. Source
 /// callbacks survive, but generic corpse death/Victory cannot steal its ownership.
 pub(in crate::combat) fn down(state:&mut State,owner:&EnemyHandle,source:&Source)->bool{

@@ -18,6 +18,7 @@ pub(super) fn dispatch(state:&State,source:&Source)->Result<(Vec<Effect>,Vec<Eff
     let mut work=Vec::new();
     work.extend(super::powers::on_card_exhausted(state,source));
     work.extend(super::cards::on_card_exhausted(state,source,card)?);
+    super::cards::curses::on_exhaust(state,card,&mut work);
     Ok((top,work))
 }
 
