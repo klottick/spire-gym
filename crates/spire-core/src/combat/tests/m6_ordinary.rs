@@ -100,3 +100,43 @@ fn m6_three_byrds_have_independent_native_setup_and_existing_profiles_stay_close
         assert!(enemies::setup(EncounterId::ThreeByrds,act,ascension,&mut rng,context).is_err());assert_eq!(rng,before);
     }
 }
+
+// spire-bhl: a multi-hit attacker killed by the player's THORNS retaliation must stop
+// its own remaining queued hits (the original damage action does nothing once its owner is
+// dying; source-settled by static analysis), mirroring the corpse-target rule, not fault.
+fn pecking_byrds(byrd_hp:i32)->(Combat,i32,i32){
+    for seed in 1..=64u8 {
+        let mut e=enemies::setup(EncounterId::ThreeByrds,2,0,&mut crate::run::RunRng::new([seed;32],rng::Partition::Test,0),enemies::SetupContext {
+            player:PlayerState{hp:80,max_hp:80,block:0,energy:3,max_energy:3,draw_per_turn:1,powers:vec![]},
+            player_powers:vec![],character:Character::Ironclad,
+            cards:vec![permanent_live_card(CardId::Strike,CardInstanceId(1),0)],opening_draw:1,encounter_visit:0,
+        }).unwrap();
+        if e.setup.enemies[0].intent.as_str()!="byrd_peck"||e.setup.enemies[1].intent.as_str()!="byrd_caw"{continue}
+        e.setup.enemies.truncate(2);e.setup.enemies[0].hp=byrd_hp;
+        let mut c=Combat::enter(e).unwrap();
+        c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:3}}],None).unwrap();
+        let peck=c.state.enemies[0].intent_damage.unwrap();let partner=c.state.enemies[1].hp;
+        return (c,peck,partner)
+    }
+    panic!("no fixture seed gives a pecking lead Byrd beside a cawing partner")
+}
+
+#[test]
+fn bhl_thorns_lethal_on_first_peck_cancels_the_dying_byrds_remaining_hits() {
+    let (mut c,peck,partner)=pecking_byrds(3);let before=c.state.player.hp;
+    c.step_full(&CombatAction::EndTurn).unwrap();
+    assert!(c.state.fault.is_none(),"the dying Byrd's queued pecks must not fault: {:?}",c.state.fault);
+    assert_eq!(c.state.outcome,None,"the cawing partner keeps combat live");
+    assert_eq!(c.state.enemies[0].hp,0,"THORNS 3 kills the 3-HP Byrd on its first peck");
+    assert_eq!(c.state.player.hp,before-peck,"only the first of five pecks lands");
+    assert_eq!(c.state.enemies[1].hp,partner,"the partner's Caw deals and receives no damage");
+}
+
+#[test]
+fn bhl_nonlethal_thorns_keeps_all_five_pecks() {
+    let (mut c,peck,_)=pecking_byrds(20);let before=c.state.player.hp;
+    c.step_full(&CombatAction::EndTurn).unwrap();
+    assert!(c.state.fault.is_none());
+    assert_eq!(c.state.enemies[0].hp,5,"five THORNS 3 retaliations against 20 HP");
+    assert_eq!(c.state.player.hp,before-5*peck,"a surviving attacker resolves every queued hit");
+}
