@@ -19,7 +19,7 @@ pub(super) fn on_card_exhausted(state:&State,source:&super::Source)->Vec<super::
 /// Finite source-qualified ordinary cleanse categories. Shackled has a separate
 /// unconditional removal at the named Champ/Awakened phase transitions.
 pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
-     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"wraith_form"|"choked"|"corpse_explosion"=>true,
+     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"wraith_form"|"choked"|"corpse_explosion"|"mark"|"block_return"|"energy_down"=>true,
     "strength"|"dexterity"=>power.state.amount<=0,
     "thievery"|"plated_armor"|"spore_cloud"|"metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"|"burst"|"mayhem"|"panache"|"sadistic_nature"|"magnetism"=>false,
     _=>return None,
@@ -112,6 +112,34 @@ pub(super) fn player_thorns_after_damage(state:&mut State,result:&super::model::
     state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(attacker.clone())),kind:EffectKind::Damage(DamagePayload::Thorns(thorns))});
 }
 
+/// Character-neutral Block-gain listeners. The committed Block owner calls
+/// this once for the incoming positive amount, so zero-gain paths stay quiet.
+pub(super) fn player_block_gained(state:&mut State,target:&Actor,amount:i32){
+    if !state.full_runtime||*target!=Actor::Player||amount<=0{return}
+    let Some(weak)=state.player_full_powers.iter().find(|power|power.id.0=="wave_of_the_hand")
+        .map(|power|power.state.amount).filter(|amount|*amount>0) else{return};
+    let effects=state.enemies.iter().filter(|enemy|enemy.life==ActorLife::Active&&enemy.hp>0)
+        .map(|enemy|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(enemy.instance_id.clone())),
+            kind:EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:weak}}).collect::<Vec<_>>();
+    for effect in effects.into_iter().rev(){state.pending.push_front(effect);}
+}
+
+/// Block Return observes every committed NORMAL Attack hit, even when Block,
+/// zero damage, or Invincible leaves no HP loss. Other damage types are excluded.
+pub(super) fn enemy_block_return_after_damage(state:&mut State,result:&super::model::DamageResult){
+    if !state.full_runtime||!result.normal{return}
+    let (Actor::Enemy(owner),Source::Card(card_owner))=(&result.target,&result.source) else{return};
+    let attack=state.in_play.as_ref().filter(|card|card.handle()==*card_owner)
+        .and_then(super::model::OwnedCard::full).is_some_and(|card|
+            crate::content::Catalog::standard().card(card.id)
+                .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack));
+    if !attack{return}
+    let Some(amount)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner)
+        .and_then(|enemy|enemy.full_powers.iter().find(|power|power.id.0=="block_return"))
+        .map(|power|power.state.amount).filter(|amount|*amount>0) else{return};
+    state.pending.push_front(Effect{source:result.source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(amount)});
+}
+
 /// Only ordinary supported applications spend Artifact. Reductions/removals
 /// reach this same owner without being reclassified as fresh applications.
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), InputError> {
@@ -123,6 +151,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         EffectKind::RemoveFullPower(id) => {
             let target=effect.target.as_ref().unwrap();
             if matches!(target,Actor::Player)&&id.0=="combust"{state.combust=None;}
+            if matches!(target,Actor::Player)&&id.0=="deva_form"{state.watcher.deva_energy_gain=0;}
             let flight=id.0=="flight"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.full_powers.iter().any(|p|p.id==id)),_=>false};
             let plated=id.0=="plated_armor"&&match target{Actor::Enemy(owner)=>state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.full_powers.iter().any(|power|power.id==id)),_=>false};
             if *target==Actor::Player&&id.0=="draw"{state.player.draw_per_turn=state.player.draw_per_turn.wrapping_sub(amount(state,target,id)?);}
@@ -137,6 +166,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         EffectKind::RemovePower(id) => {
             let target=effect.target.as_ref().unwrap();
             if matches!(target,Actor::Player)&&id.as_str()=="combust"{state.combust=None;}
+            if matches!(target,Actor::Player)&&id.as_str()=="deva_form"{state.watcher.deva_energy_gain=0;}
             let full_id=FullPowerId(id.as_str());
             remove(state, target, full_id);
             super::cards::colorless_power_removed(state,target,full_id);
@@ -151,7 +181,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             && e.life == ActorLife::Active && e.hp > 0),
     };
     if application && !alive { return Ok(()); }
-    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "corpse_explosion" | "choked" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"bias"|"lock_on") && delta > 0)
+    let debuff = (matches!(id.0, "weak" | "vulnerable" | "frail" | "hex" | "confused" | "entangled" | "shackled" | "corpse_explosion" | "choked" | "constricted" | "poison" | "draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"bias"|"lock_on"|"mark"|"block_return"|"energy_down") && delta > 0)
         ||(id.0=="focus"&&delta<0)
         ||(id.0=="wraith_form"&&delta<0) || (id.0=="strength"&&delta<=0) || (id.0=="dexterity"&&delta<0);
     let artifact = amount(state, actor, FullPowerId("artifact"))?;
@@ -179,6 +209,19 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         return Ok(())
     }
     let previous = amount(state, actor, id)?;
+    let deva_gain_update=if application&&*actor==Actor::Player&&id.0=="deva_form"{
+        if !super::cards::watcher::active(state)
+            ||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+            ||delta<=0{return Err(InputError::Invariant("Deva Form application lacks its M25 owner or positive stack".into()))}
+        let current=state.watcher.deva_energy_gain;
+        if previous==0{
+            if current!=0{return Err(InputError::Invariant("new Deva Form has stale recharge state".into()))}
+            Some(1)
+        }else{
+            if current<previous{return Err(InputError::Invariant("Deva Form recharge state is below its growth step".into()))}
+            Some(current.checked_add(1).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?)
+        }
+    }else{None};
     if *actor==Actor::Player&&id.0=="master_reality"&&super::cards::watcher::active(state){
         if application&&previous==0{set(state,effect,id,-1);}
         return Ok(())
@@ -242,6 +285,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         }
     }else{None};
     set(state, effect, id, next);
+    if let Some(next_gain)=deva_gain_update{state.watcher.deva_energy_gain=next_gain;}
     super::cards::colorless_power_applied(state,actor,id,application,previous);
     if id.0 == "accuracy" && matches!(actor, Actor::Player) {
         super::cards::rewrite_accuracy_shivs(state, next);

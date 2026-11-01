@@ -73,6 +73,7 @@ pub(crate) fn selection_purpose(operation:SelectionOperation)->&'static str {
         CopyToHand{copies:1}=>"copy_to_hand_1",CopyToHand{copies:2}=>"copy_to_hand_2",CopyToHand{copies:_}=>"copy_to_hand_3",
         NightmareCapture=>"nightmare_capture",
         Retain=>"retain",Setup=>"setup",Bottomdeck=>"bottomdeck",RetrieveMemories=>"retrieve_memories",
+        Omniscience=>"omniscience",
     }
 }
 fn action_type(a:&GameAction)->&'static str {match a {GameAction::Move(_)=>"move",GameAction::Choose(_)=>"choose",GameAction::Select(_)=>"select",GameAction::Confirm=>"confirm",GameAction::Cancel=>"cancel",GameAction::UsePotion{..}=>"use_potion",GameAction::DiscardPotion{..}=>"discard_potion",GameAction::Combat(c)=>match c {CombatAction::ChooseStance{..}=>"choose_stance",CombatAction::DeselectCard{..}=>"deselect_card",CombatAction::ChooseCardOffer{..}=>"choose_card_offer",CombatAction::SkipCardOffer=>"skip_card_offer",CombatAction::PlayCard{..}=>"play_card",CombatAction::SelectCard{..}=>"select_card",CombatAction::UsePotion{..}=>"combat_potion",CombatAction::EndTurn=>"end_turn",CombatAction::ConfirmSelection=>"confirm_selection"}}}

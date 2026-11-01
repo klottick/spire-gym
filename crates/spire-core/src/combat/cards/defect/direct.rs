@@ -234,7 +234,7 @@ pub(super) fn capture(state:&mut State,effects:&mut [Effect])->Result<(),EffectE
 fn live_source<'a>(state:&'a State,effect:&Effect)->Result<&'a LiveCard,InputError>{
     let Source::Card(owner)=&effect.source else { return Err(InputError::Invariant("M20 direct work requires its card source".into())); };
     state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(OwnedCard::full)
-        .filter(|card|is_direct(card.id))
+        .filter(|card|is_direct(card.id)||card.id==CardId::Ragnarok&&card.local.m21)
         .ok_or_else(||InputError::Invariant("M20 direct work requires the matching live card".into()))
 }
 
@@ -258,7 +258,10 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&DirectEffect)->Res
             &&orbs.iter().all(|orb|matches!(orb,OrbKind::Dark|OrbKind::Frost|OrbKind::Lightning|OrbKind::Plasma)),
         DirectEffect::RandomHit{base,remaining}=>{
             let valid_card=match card.id {RipAndTear=>*base==if card.upgrades>0{9}else{7}&&*remaining<=2,
-                ThunderStrike=>*base==if card.upgrades>0{9}else{7}&&*remaining<=state.defect.lightning_channeled as u32,_=>false};
+                ThunderStrike=>*base==if card.upgrades>0{9}else{7}&&*remaining<=state.defect.lightning_channeled as u32,
+                // M25 Ragnarok: its own base and hit count, through the same random-enemy owner.
+                Ragnarok=>Some(*base)==card.local.base_damage&&card.local.magic_number.is_some_and(|hits|i64::from(*remaining)<=i64::from(hits)),
+                _=>false};
             valid_card&&*remaining>0&&effect.target.is_none()
         }
         DirectEffect::Melter{damage}=>card.id==Melter&&(0..=30_012).contains(damage)

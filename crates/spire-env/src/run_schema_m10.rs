@@ -248,6 +248,7 @@ pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> i64 {
         CopyToHand { copies: 3 } => "copy_to_hand_3",
         CopyToHand { .. } => "copy_to_hand_3",
         Setup|Bottomdeck|RetrieveMemories=>panic!("M10 v2 selection schema cannot encode M15 choices"),
+        Omniscience=>panic!("M10 selection schema cannot encode M25 choices"),
         NightmareCapture => panic!("M10 v2 selection schema cannot encode M11 Nightmare selections"),
         Retain => panic!("M10 v2 selection schema cannot encode M11 retain choices"),
     };

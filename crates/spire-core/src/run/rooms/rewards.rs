@@ -41,7 +41,8 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
         let owned=run.state.combat.as_ref().and_then(|c|c.item_context()).map_or(run.state.relics.as_slice(),|c|c.relics());
         if uses_watcher_content(&run.state){
             let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,record.visit,super::m22_content::ELITE_SOURCE_TAG];
-            if let Some(relic)=capture_relic_in_scope(&mut rng,super::m23_content::relic_capture_scope(&run.state),&key,&super::m22_content::ELITE_RELICS,owned)?{rows.push((RoomChoiceKind::Relic(relic),None));}
+            let pool:&[RelicId]=if is_m25(&run.state)&&run.state.act==4{&super::m25_content::ACT4_ELITE_RELICS}else{&super::m22_content::ELITE_RELICS};
+            if let Some(relic)=capture_relic_in_scope(&mut rng,super::m23_content::relic_capture_scope(&run.state),&key,pool,owned)?{rows.push((RoomChoiceKind::Relic(relic),None));}
         }else{
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         let start=if m10||m15||m20{room.m10_elite_relic_cursor}else if m8{room.act3.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else if m6{room.act2.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.elite_relic_cursor};
@@ -58,7 +59,12 @@ pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Opti
         return Ok(Some(PreparedRoomRewards{screen,rng,next,captured:None,elite_cursor,act:run.state.act,m10:m10||m15||m20}))
     }
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
-    let captured=if uses_watcher_content(&run.state){
+    let captured=if is_m25(&run.state)&&run.state.act==4{
+        let rarities=[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Uncommon];
+        let cards=super::m25_content::sample_capture_row(&mut rng,&[4,u64::from(run.state.floor),node.0,record.visit,kind as u64],&rarities)?;
+        let mut rows=cards.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},None)).collect::<Vec<_>>();rows.push((RoomChoiceKind::Skip,None));
+        Some(CapturedRewards{cards:view(&mut next,RoomViewKind::CardReward,rows)?,return_to:RewardReturn::Map})
+    }else if uses_watcher_content(&run.state){
         let cards=super::m22_content::reward_cards(kind==MapNodeKind::Boss,record.visit);
         let mut rows=cards.into_iter().map(|id|(RoomChoiceKind::Card{id,upgrades:0},None)).collect::<Vec<_>>();rows.push((RoomChoiceKind::Skip,None));
         Some(CapturedRewards{cards:view(&mut next,RoomViewKind::CardReward,rows)?,return_to:if kind==MapNodeKind::Boss{RewardReturn::BossTreasure}else{RewardReturn::Map}})

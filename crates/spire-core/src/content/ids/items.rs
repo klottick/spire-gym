@@ -5,7 +5,8 @@ pub enum RelicId { Vajra, OddlySmoothStone, BagOfPreparation, BagOfMarbles, Bron
     RedSkull, PaperPhrog, ChampionsBelt, CharonsAshes, SelfFormingClay, Orichalcum, Brimstone, MarkOfPain, RunicCube, Unknown(&'static str), SneckoSkull,
     NinjaScroll, PaperKrane, TheSpecimen, Tingsha, ToughBandages, TwistedFunnel, HoveringKite, RingOfTheSerpent, WristBlade,
     Sozu, PotionBelt, DataDisk, GoldPlatedCables, EmotionChip,
-    SymbioticVirus, FrozenCore, Inserter, NuclearBattery, RunicCapacitor, ChemicalX, VioletLotus, GoldenEye, TeardropLocket, HolyWater }
+    SymbioticVirus, FrozenCore, Inserter, NuclearBattery, RunicCapacitor, ChemicalX, VioletLotus, GoldenEye, TeardropLocket, HolyWater,
+    Damaru, Duality, CloakClasp, Melange }
 impl RelicId { pub const fn as_str(self) -> &'static str { match self { Self::HolyWater=>"holy_water", Self::TeardropLocket=>"teardrop_locket", Self::GoldenEye=>"golden_eye", Self::VioletLotus=>"violet_lotus",
     Self::Vajra=>"vajra",Self::OddlySmoothStone=>"oddly_smooth_stone",Self::BagOfPreparation=>"bag_of_preparation",Self::BagOfMarbles=>"bag_of_marbles",Self::BronzeScales=>"bronze_scales",
     Self::RedMask=>"red_mask",Self::RedSkull=>"red_skull",Self::PaperPhrog=>"paper_phrog",Self::ChampionsBelt=>"champions_belt",Self::CharonsAshes=>"charons_ashes",Self::SelfFormingClay=>"self_forming_clay",Self::Orichalcum=>"orichalcum",Self::Brimstone=>"brimstone",Self::MarkOfPain=>"mark_of_pain",Self::RunicCube=>"runic_cube",
@@ -22,7 +23,8 @@ impl RelicId { pub const fn as_str(self) -> &'static str { match self { Self::Ho
     Self::EmotionChip => "emotion_chip",
     Self::SymbioticVirus => "symbiotic_virus", Self::FrozenCore => "frozen_core",
     Self::Inserter => "inserter", Self::NuclearBattery => "nuclear_battery",
-    Self::RunicCapacitor => "runic_capacitor", Self::ChemicalX=>"chemical_x"
+    Self::RunicCapacitor => "runic_capacitor", Self::ChemicalX=>"chemical_x",
+    Self::Damaru=>"damaru", Self::Duality=>"duality", Self::CloakClasp=>"cloak_clasp", Self::Melange=>"melange"
 }}}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PotionId { FirePotion, BloodPotion, FruitJuice, BlockPotion, EnergyPotion, StrengthPotion,

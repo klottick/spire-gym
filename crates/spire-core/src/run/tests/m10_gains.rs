@@ -111,7 +111,7 @@ fn m10_feed_max_hp_and_current_hp_settle_once_on_real_spiker_retaliation_death()
     let combat=crate::combat::Combat::enter_with_item_context(entry,&mut items).unwrap();
     assert!(items.is_none());
     run.state.combat=Some(combat);
-    run.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,visit:0,encounter:EncounterId::ThreeShapes,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});
+    run.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,applied_upgrade_ordinal:0,visit:0,encounter:EncounterId::ThreeShapes,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});
     run.state.combat_progress=CombatProgress{entered:1,settled:0};
     let combat_view=run.decision().unwrap().combat.unwrap();
     let spiker=combat_view.enemies.iter().find(|enemy|enemy.enemy_id==crate::content::EnemyId::Spiker).unwrap();

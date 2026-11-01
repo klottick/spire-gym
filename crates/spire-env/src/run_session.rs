@@ -23,6 +23,9 @@ pub const RUN_CONTENT_ID_M23:&str="spire-gym-m23-watcher-a0-acts1-2-captured-v1"
 pub const RUN_RECORD_SCHEMA_ID_M24:&str="spire-gym-m24-watcher-act3-replay-v1";
 pub const RUN_RULES_ID_M24:&str="spire-gym-native-m24-rules-v1";
 pub const RUN_CONTENT_ID_M24:&str="spire-gym-m24-watcher-a0-acts1-3-captured-v1";
+pub const RUN_RECORD_SCHEMA_ID_M25:&str="spire-gym-m25-watcher-heart-replay-v1";
+pub const RUN_RULES_ID_M25:&str="spire-gym-native-m25-rules-v1";
+pub const RUN_CONTENT_ID_M25:&str="spire-gym-m25-watcher-a0-heart-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M20:&str="spire-gym-m20-defect-heart-replay-v1";
 pub const RUN_RULES_ID_M20:&str="spire-gym-native-m20-rules-v1";
 pub const RUN_CONTENT_ID_M20:&str="spire-gym-m20-defect-a0-heart-captured-v1";
@@ -74,6 +77,7 @@ pub(crate) enum RunProfile {
     M22WatcherAct1,
     M23WatcherAct2,
     M24WatcherAct3,
+    M25WatcherHeart,
 }
 impl RunProfile {
     pub(crate) fn id(self) -> &'static str {
@@ -92,6 +96,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => "M22WatcherAct1",
             Self::M23WatcherAct2 => "M23WatcherAct2",
             Self::M24WatcherAct3 => "M24WatcherAct3",
+            Self::M25WatcherHeart => "M25WatcherHeart",
         }
     }
     pub(crate) fn schema_id(self) -> &'static str {
@@ -110,6 +115,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => RUN_RECORD_SCHEMA_ID_M22,
             Self::M23WatcherAct2 => RUN_RECORD_SCHEMA_ID_M23,
             Self::M24WatcherAct3 => RUN_RECORD_SCHEMA_ID_M24,
+            Self::M25WatcherHeart => RUN_RECORD_SCHEMA_ID_M25,
         }
     }
     pub(crate) fn rules_id(self) -> &'static str {
@@ -127,6 +133,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => RUN_RULES_ID_M22,
             Self::M23WatcherAct2 => RUN_RULES_ID_M23,
             Self::M24WatcherAct3 => RUN_RULES_ID_M24,
+            Self::M25WatcherHeart => RUN_RULES_ID_M25,
         }
     }
     pub(crate) fn content_id(self) -> &'static str {
@@ -144,6 +151,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => RUN_CONTENT_ID_M22,
             Self::M23WatcherAct2 => RUN_CONTENT_ID_M23,
             Self::M24WatcherAct3 => RUN_CONTENT_ID_M24,
+            Self::M25WatcherHeart => RUN_CONTENT_ID_M25,
         }
     }
     pub(crate) fn observation_spec(
@@ -165,10 +173,11 @@ impl RunProfile {
             Self::M22WatcherAct1 => crate::m22_run_observation_spec(caps),
             Self::M23WatcherAct2 => crate::m23_run_observation_spec(caps),
             Self::M24WatcherAct3 => crate::m24_run_observation_spec(caps),
+            Self::M25WatcherHeart => crate::m25_run_observation_spec(caps),
         }
     }
     fn validate(self, config: &RunSessionConfig) -> Result<(), RunSessionError> {
-        let expected_character = if matches!(self,Self::M22WatcherAct1|Self::M23WatcherAct2|Self::M24WatcherAct3) { Character::Watcher } else if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2|Self::M19DefectAct3|Self::M20DefectHeart) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
+        let expected_character = if matches!(self,Self::M22WatcherAct1|Self::M23WatcherAct2|Self::M24WatcherAct3|Self::M25WatcherHeart) { Character::Watcher } else if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2|Self::M19DefectAct3|Self::M20DefectHeart) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
             Character::Silent
         } else {
             Character::Ironclad
@@ -188,6 +197,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => "M22 requires Watcher A0",
             Self::M23WatcherAct2 => "M23 requires Watcher A0",
             Self::M24WatcherAct3 => "M24 requires Watcher A0",
+            Self::M25WatcherHeart => "M25 requires Watcher A0",
             }));
         }
         let history_matches = match self {
@@ -197,6 +207,7 @@ impl RunProfile {
             Self::M20DefectHeart => matches!(config.boss_history,RunBossHistory::M20DefectHeart{..}),
             Self::M23WatcherAct2 => matches!(config.boss_history,RunBossHistory::M23WatcherAct2{..}),
             Self::M24WatcherAct3 => matches!(config.boss_history,RunBossHistory::M24WatcherAct3{..}),
+            Self::M25WatcherHeart => matches!(config.boss_history,RunBossHistory::M25WatcherHeart{..}),
             Self::M12SilentAct1 | Self::M22WatcherAct1 => matches!(
                 config.boss_history,
                 RunBossHistory::Act1GuardianUnseen
@@ -241,6 +252,7 @@ impl RunProfile {
             Self::M22WatcherAct1 => crate::run_schema_m22::validate(&config.capacities),
             Self::M23WatcherAct2 => crate::run_schema_m23::validate(&config.capacities),
             Self::M24WatcherAct3 => crate::run_schema_m24::validate(&config.capacities),
+            Self::M25WatcherHeart => crate::run_schema_m25::validate(&config.capacities),
         }
     }
     pub(crate) fn from_record(schema: &str, profile: &str) -> Result<Self, RunSessionError> {
@@ -259,6 +271,7 @@ impl RunProfile {
             (RUN_RECORD_SCHEMA_ID_M22, "M22WatcherAct1") => Ok(Self::M22WatcherAct1),
             (RUN_RECORD_SCHEMA_ID_M23, "M23WatcherAct2") => Ok(Self::M23WatcherAct2),
             (RUN_RECORD_SCHEMA_ID_M24, "M24WatcherAct3") => Ok(Self::M24WatcherAct3),
+            (RUN_RECORD_SCHEMA_ID_M25, "M25WatcherHeart") => Ok(Self::M25WatcherHeart),
             _ => Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
         }
     }
@@ -298,6 +311,7 @@ pub enum RunBossHistory {
     M15SilentHeart { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
     M23WatcherAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
     M24WatcherAct3 { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
+    M25WatcherHeart { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
 }
 pub type M9BossHistory = RunBossHistory;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -368,6 +382,8 @@ pub struct RunSession{
     #[cfg(test)]
     m24_diagnostic:Option<M24DiagnosticStart>,
     #[cfg(test)]
+    m25_diagnostic:Option<spire_core::run::diagnostics::M25Diagnostic>,
+    #[cfg(test)]
     test_reset_panic:Option<TestResetPanic>,
     #[cfg(test)]
     m20_diagnostic:Option<spire_core::run::diagnostics::M20DiagnosticLoadout>,
@@ -394,6 +410,26 @@ pub(crate) enum M24DiagnosticStart{Stage(spire_core::run::diagnostics::M24Diagno
 impl M24DiagnosticStart{pub(crate) fn run(self)->Result<Run,RunError>{use spire_core::run::diagnostics as d;match self{Self::Stage(s)=>d::m24_diagnostic(s),Self::Traversal(b)=>d::m24_supplied_traversal(b),Self::Boss(b,keys,seed)=>d::m24_supplied_boss_at(b,keys,seed),Self::Played(f)=>d::m24_played_fixture(f)}}
     /// Supplied bosses run at seed 7 or 11 (design §11); every other start is seed 7.
     pub(crate) fn seed(self)->u64{if let Self::Boss(_,_,seed)=self{seed}else{7}}}
+/// Fixed M25 supplied starts used only by the frozen native agreement test.
+#[cfg(test)]
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) enum M25SuppliedStart{
+    Traversal(spire_core::run::diagnostics::M25DiagnosticBoss),
+    Act4(spire_core::run::diagnostics::M25DiagnosticLoadout),
+    PlayedFixture(spire_core::run::diagnostics::M25PlayedFixture),
+}
+#[cfg(test)]
+impl M25SuppliedStart{
+    pub(crate) fn run(self)->Result<Run,RunError>{use spire_core::run::diagnostics as d;match self{
+        Self::Traversal(boss)=>d::m25_supplied_traversal(boss),
+        Self::Act4(loadout)=>d::m25_supplied_act4(loadout),
+        Self::PlayedFixture(fixture)=>d::m25_played_fixture(fixture),
+    }}
+    fn bootstrap_action(self,run:&Run)->Result<Option<GameAction>,RunError>{match self{
+        Self::PlayedFixture(_)=>Ok(Some(run.decision()?.candidates.into_iter().find_map(|candidate|match &candidate.action{GameAction::Move(_)=>Some(candidate.action),_=>None}).ok_or(RunError::InvalidAction)?)),
+        _=>Ok(None),
+    }}
+}
 pub(crate) fn create_run(
     profile: RunProfile,
     config: &RunSessionConfig,
@@ -415,6 +451,7 @@ pub(crate) fn create_run(
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M24WatcherAct3 { act1: RunAct1BossTarget::Guardian, .. } |
+        RunBossHistory::M25WatcherHeart { act1: RunAct1BossTarget::Guardian, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Guardian, .. } => {
             vec!["Hexaghost", "SlimeBoss"]
         }
@@ -429,6 +466,7 @@ pub(crate) fn create_run(
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M24WatcherAct3 { act1: RunAct1BossTarget::Hexaghost, .. } |
+        RunBossHistory::M25WatcherHeart { act1: RunAct1BossTarget::Hexaghost, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::Hexaghost, .. } => {
             vec!["Guardian", "SlimeBoss"]
         }
@@ -443,6 +481,7 @@ pub(crate) fn create_run(
         RunBossHistory::M18DefectAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M23WatcherAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M24WatcherAct3 { act1: RunAct1BossTarget::SlimeBoss, .. } |
+        RunBossHistory::M25WatcherHeart { act1: RunAct1BossTarget::SlimeBoss, .. } |
         RunBossHistory::M13SilentAct2 { act1: RunAct1BossTarget::SlimeBoss, .. } => {
             vec!["Guardian", "Hexaghost"]
         }
@@ -458,13 +497,14 @@ pub(crate) fn create_run(
         _ => vec!["Hexaghost", "SlimeBoss"],
     };
 
-    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M23WatcherAct2|RunProfile::M24WatcherAct3) {
+    if matches!(profile, RunProfile::M13SilentAct2 | RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M23WatcherAct2|RunProfile::M24WatcherAct3|RunProfile::M25WatcherHeart) {
         creation.seen_bosses[1] = match config.boss_history {
             RunBossHistory::M20DefectHeart { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M19DefectAct3 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M24WatcherAct3 { act2: RunAct2BossTarget::Champ, .. } |
+            RunBossHistory::M25WatcherHeart { act2: RunAct2BossTarget::Champ, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Champ, .. } => {
                 vec!["Automaton", "Collector"]
             }
@@ -479,6 +519,7 @@ pub(crate) fn create_run(
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M24WatcherAct3 { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
+            RunBossHistory::M25WatcherHeart { act2: RunAct2BossTarget::BronzeAutomaton, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::BronzeAutomaton, .. } => {
                 vec!["Champ", "Collector"]
             }
@@ -493,6 +534,7 @@ pub(crate) fn create_run(
             RunBossHistory::M18DefectAct2 { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M23WatcherAct2 { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M24WatcherAct3 { act2: RunAct2BossTarget::Collector, .. } |
+            RunBossHistory::M25WatcherHeart { act2: RunAct2BossTarget::Collector, .. } |
             RunBossHistory::M13SilentAct2 { act2: RunAct2BossTarget::Collector, .. } => {
                 vec!["Champ", "Automaton"]
             }
@@ -506,11 +548,12 @@ pub(crate) fn create_run(
         };
         // M13 deliberately keeps CreationProfile::experienced() Act3 history.
     }
-    if matches!(profile, RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M19DefectAct3 | RunProfile::M20DefectHeart | RunProfile::M24WatcherAct3) {
+    if matches!(profile, RunProfile::M14SilentAct3 | RunProfile::M15SilentHeart | RunProfile::M19DefectAct3 | RunProfile::M20DefectHeart | RunProfile::M24WatcherAct3 | RunProfile::M25WatcherHeart) {
         creation.seen_bosses[2] = match config.boss_history {
             RunBossHistory::M20DefectHeart { act3: RunAct3BossTarget::AwakenedOne, .. } |
             RunBossHistory::M19DefectAct3 { act3: RunAct3BossTarget::AwakenedOne, .. } |
             RunBossHistory::M24WatcherAct3 { act3: RunAct3BossTarget::AwakenedOne, .. } |
+            RunBossHistory::M25WatcherHeart { act3: RunAct3BossTarget::AwakenedOne, .. } |
             RunBossHistory::M14SilentAct3 { act3: RunAct3BossTarget::AwakenedOne, .. } => {
                 vec!["TimeEater", "DonuAndDeca"]
             }
@@ -520,6 +563,7 @@ pub(crate) fn create_run(
             RunBossHistory::M20DefectHeart { act3: RunAct3BossTarget::TimeEater, .. } |
             RunBossHistory::M19DefectAct3 { act3: RunAct3BossTarget::TimeEater, .. } |
             RunBossHistory::M24WatcherAct3 { act3: RunAct3BossTarget::TimeEater, .. } |
+            RunBossHistory::M25WatcherHeart { act3: RunAct3BossTarget::TimeEater, .. } |
             RunBossHistory::M14SilentAct3 { act3: RunAct3BossTarget::TimeEater, .. } => {
                 vec!["AwakenedOne", "DonuAndDeca"]
             }
@@ -529,6 +573,7 @@ pub(crate) fn create_run(
             RunBossHistory::M20DefectHeart { act3: RunAct3BossTarget::DonuAndDeca, .. } |
             RunBossHistory::M19DefectAct3 { act3: RunAct3BossTarget::DonuAndDeca, .. } |
             RunBossHistory::M24WatcherAct3 { act3: RunAct3BossTarget::DonuAndDeca, .. } |
+            RunBossHistory::M25WatcherHeart { act3: RunAct3BossTarget::DonuAndDeca, .. } |
             RunBossHistory::M14SilentAct3 { act3: RunAct3BossTarget::DonuAndDeca, .. } => {
                 vec!["AwakenedOne", "TimeEater"]
             }
@@ -562,7 +607,8 @@ pub(crate) fn create_run(
         RunProfile::M20DefectHeart => RoomScenario::M20DefectHeart,
             RunProfile::M22WatcherAct1 => RoomScenario::M22WatcherAct1,
             RunProfile::M23WatcherAct2 => RoomScenario::M23WatcherAct2,
-            RunProfile::M24WatcherAct3 => RoomScenario::M24WatcherAct3,
+        RunProfile::M24WatcherAct3 => RoomScenario::M24WatcherAct3,
+        RunProfile::M25WatcherHeart => RoomScenario::M25WatcherHeart,
     };
     #[cfg(test)] if profile==RunProfile::M24WatcherAct3{M24_INITIALIZATIONS.with(|v|v.borrow_mut().push((ordinal,creation.seen_bosses.clone())));}
     Run::new_room_scenario(
@@ -670,6 +716,7 @@ fn publish(
             RunProfile::M22WatcherAct1 => crate::encode_run_m22(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M23WatcherAct2 => crate::encode_run_m23(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M24WatcherAct3 => crate::encode_run_m24(&decision, map.as_ref(), &config.capacities)?,
+        RunProfile::M25WatcherHeart => crate::encode_run_m25(&decision, map.as_ref(), &config.capacities)?,
     }
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1|RunProfile::M22WatcherAct1)
@@ -706,13 +753,16 @@ impl RunSession{
         let mut descriptor=serde_json::json!({"profile_id":self.profile.id(),"schema_id":spec.descriptor()["schema_id"],
             "observation_fingerprint":crate::combat_policy::hex(&spec.fingerprint()),"rules_id":self.profile.rules_id(),
             "content_id":self.profile.content_id(),"reward_id":RUN_REWARD_ID,"seed_adapter_id":RUN_SEED_ADAPTER_ID,
-            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1|RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M22WatcherAct1|RunProfile::M23WatcherAct2|RunProfile::M24WatcherAct3){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"combat_view_id":if matches!(self.profile,RunProfile::M12SilentAct1|RunProfile::M13SilentAct2|RunProfile::M14SilentAct3|RunProfile::M15SilentHeart|RunProfile::M17DefectAct1|RunProfile::M18DefectAct2|RunProfile::M19DefectAct3|RunProfile::M20DefectHeart|RunProfile::M22WatcherAct1|RunProfile::M23WatcherAct2|RunProfile::M24WatcherAct3|RunProfile::M25WatcherHeart){serde_json::Value::Null}else{serde_json::json!(crate::COMBAT_POLICY_VIEW_ID)},
             "mode":"normal_run","partition":self.config.partition.as_str(),"autoreset":"disabled"});
         if self.profile==RunProfile::M22WatcherAct1{descriptor["finite_content"]=crate::run_schema_m22::finite_content();descriptor["cutoff"]=serde_json::json!("Act2Ready: healthy nonterminal zero actions; no completion bonus");}
         if self.profile==RunProfile::M24WatcherAct3{descriptor["finite_content"]=crate::run_schema_m24::finite_content();descriptor["cutoff"]=serde_json::json!({"normal_completion":"Act3NoKeys after actual Act3 boss Victory and Proceed/dialog without all keys; no Heart reward","act4_ready":"healthy nonterminal zero actions at act3 floor50 with all keys; M24 stops before the Act4 door; no completion bonus"});}
         if self.profile==RunProfile::M23WatcherAct2{descriptor["finite_content"]=crate::run_schema_m23::finite_content();descriptor["cutoff"]=serde_json::json!("Act3Ready: healthy nonterminal zero actions after actual Act2 boss settlement; no completion bonus");}
         if self.profile==RunProfile::M20DefectHeart{
             descriptor["finite_content"]=crate::run_schema_m20::finite_content();
+            descriptor["ending"]=serde_json::json!("HeartVictory after the actual Act4 Proceed action");
+        }
+        if self.profile==RunProfile::M25WatcherHeart{
             descriptor["ending"]=serde_json::json!("HeartVictory after the actual Act4 Proceed action");
         }
         if self.profile==RunProfile::M19DefectAct3{
@@ -803,6 +853,7 @@ impl RunSession{
     pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
+        if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M23WatcherAct2{return Err(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M20DefectHeart{return Err(RunSessionError::UnsupportedBoundary("M20 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M19DefectAct3{return Err(RunSessionError::UnsupportedBoundary("M19 does not provide the Ironclad combat policy sidecar"))}
@@ -820,6 +871,7 @@ impl RunSession{
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
+        if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M23WatcherAct2{return Err(RunSessionError::UnsupportedBoundary("M23 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M20DefectHeart{return Err(RunSessionError::UnsupportedBoundary("M20 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M19DefectAct3{return Err(RunSessionError::UnsupportedBoundary("M19 does not provide the Ironclad combat policy sidecar"))}
@@ -851,6 +903,7 @@ impl RunSession{
     pub fn new_m23(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M23WatcherAct2)}
     /// Opt into the finite Watcher A0 Acts 1–3 profile on the shared native owner.
     pub fn new_m24(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M24WatcherAct3)}
+    pub fn new_m25(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M25WatcherHeart)}
     pub fn new_m20(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M20DefectHeart)}
     pub fn new_m19(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M19DefectAct3)}
     /// Opt into the finite Defect A0 Acts 1–2 profile on the shared native owner.
@@ -906,6 +959,29 @@ impl RunSession{
         match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
+    /// Fixed constructed M25 owner stage; absent from normal builds and config/JSON.
+    #[cfg(test)]
+    pub(crate) fn from_m25_diagnostic(config:RunSessionConfig,fixture:spire_core::run::diagnostics::M25Diagnostic)->Result<Self,RunSessionError>{
+        let mut s=Self::new_m25(config)?;
+        let run=spire_core::run::diagnostics::m25_diagnostic(fixture).map_err(RunSessionError::Core)?;
+        s.m25_diagnostic=Some(fixture);s.run=Some(run);s.seed=Some(7);s.serial=1;
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        Ok(s)
+    }
+    /// Fixed supplied M25 starts; played-fixture bootstrap is applied to the owned Run
+    /// before session recording begins, so it remains outside the recorded policy count.
+    #[cfg(test)]
+    pub(crate) fn from_m25_supplied(config:RunSessionConfig,start:M25SuppliedStart)->Result<Self,RunSessionError>{
+        let mut s=Self::new_m25(config)?;
+        let mut run=start.run().map_err(RunSessionError::Core)?;
+        if let Some(action)=start.bootstrap_action(&run).map_err(RunSessionError::Core)?{run.step(&action).map_err(RunSessionError::Core)?;}
+        s.run=Some(run);s.seed=Some(7);s.serial=1;
+        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,7,0)?)}else{None};
+        let (boundary,actions,a,b,c)=s.publish_current(1)?;
+        s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;
+        Ok(s)
+    }
     #[cfg(test)]
     pub(crate) fn from_m20_diagnostic(config:RunSessionConfig,loadout:spire_core::run::diagnostics::M20DiagnosticLoadout)->Result<Self,RunSessionError>{
         validate_m20_diagnostic_config(&config)?;
@@ -921,13 +997,14 @@ impl RunSession{
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
         let id=allocate_run_session_id()?;
-        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false})
+        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] m25_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false})
     }
     /// The immutable numeric action/observation contract selected by this session.
     pub fn observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
         #[cfg(test)] if let Some(fixture)=self.m22_diagnostic{return crate::run_schema_m22::diagnostic_spec(&self.config.capacities,fixture)}
         #[cfg(test)] if let Some(fixture)=self.m23_diagnostic{return crate::run_schema_m23::diagnostic_spec(&self.config.capacities,fixture)}
         #[cfg(test)] if let Some(start)=self.m24_diagnostic{return crate::run_schema_m24::diagnostic_spec(&self.config.capacities,start)}
+        #[cfg(test)] if let Some(fixture)=self.m25_diagnostic{return crate::run_schema_m25::diagnostic_spec(&self.config.capacities,fixture)}
         #[cfg(test)] if self.m20_diagnostic.is_some(){return crate::run_schema_m20::diagnostic_spec(&self.config.capacities)}
         self.profile.observation_spec(&self.config.capacities)
     }
@@ -2984,5 +3061,738 @@ mod m24_supplied_recorded_consumers{
         let path=std::path::PathBuf::from(std::env::var("SPIRE_M24_SUPPLIED_RELEASE").unwrap());let release=read(&path,&std::env::var("SPIRE_M24_SUPPLIED_RELEASE_SHA256").unwrap());
         assert_eq!(release["schema_id"],"m24-native-supplied-release-v1");let base=path.parent().unwrap();let cases=release["cases"].as_array().unwrap();assert_eq!(cases.len(),18,"3 traversal + 6 bosses + 9 fixtures");
         for c in cases{let v=read(&base.join(c["path"].as_str().unwrap()),c["sha256"].as_str().unwrap());assert_eq!(v["source_freeze_sha256"],release["freeze_manifest_sha256"]);consume(c["series"].as_str().unwrap(),&v);}
+    }
+}
+
+#[cfg(test)]
+mod m25_tests {
+    use super::*;
+    use crate::RunBatch;
+    use spire_core::{
+        combat::rng::Partition,
+        content::Character,
+        combat::CombatAction,
+        run::{diagnostics::{M25Diagnostic, M25DiagnosticBoss, M25DiagnosticLoadout, M25PlayedFixture}, GameAction, RoomChoiceKind, RoomViewKind, RunTerminal},
+    };
+
+    fn config() -> RunSessionConfig {
+        RunSessionConfig {
+            character: Character::Watcher,
+            ascension: 0,
+            partition: Partition::Test,
+            boss_history: RunBossHistory::M25WatcherHeart {
+                act1: RunAct1BossTarget::Guardian,
+                act2: RunAct2BossTarget::Champ,
+                act3: RunAct3BossTarget::AwakenedOne,
+            },
+            capacities: RunCapacities::m10_default(),
+            record_replay: true,
+        }
+    }
+
+    fn latest(session: &RunSession) -> PublicDecision {
+        session.reproduction().unwrap().latest_decision.unwrap().unwrap()
+    }
+
+    fn choose(session: &mut RunSession, kind: RoomChoiceKind) -> RunStepResult {
+        let decision = latest(session);
+        let choice = decision.room.unwrap().choices.into_iter().find(|choice| choice.kind == kind).unwrap();
+        let candidate = decision.candidates.iter().position(|candidate| candidate.action == GameAction::Choose(choice.id)).unwrap();
+        let token = session.decision().unwrap().token;
+        session.step(token, crate::RunActionIndex(candidate as i64)).unwrap()
+    }
+
+    fn dispatch(session: &mut RunSession, action: GameAction) -> Result<RunStepResult, RunSessionError> {
+        let boundary = session.decision()?;
+        let decision = latest(session);
+        let candidate = decision.candidates.iter().position(|candidate| candidate.action == action)
+            .expect("requested M25 action is offered");
+        session.step(boundary.token, crate::RunActionIndex(candidate as i64))
+    }
+
+    fn end_door(keys: [bool; 3]) -> RunSession {
+        let mut session = RunSession::from_m25_diagnostic(config(), M25Diagnostic::DoorSource {
+            boss: M25DiagnosticBoss::TimeEater,
+            keys,
+        }).unwrap();
+        choose(&mut session, RoomChoiceKind::Proceed);
+        for stage in 1..=3 { choose(&mut session, RoomChoiceKind::Act3Continue { stage }); }
+        session
+    }
+
+    #[test]
+    fn m25_lifecycle_no_cutoff_and_terminals() {
+        let mut with_keys = end_door([true; 3]);
+        let before_door = latest(&with_keys);
+        assert_eq!(before_door.room.as_ref().unwrap().kind, RoomViewKind::Act3Ending);
+        assert!(!with_keys.at_m14_cutoff, "M25 never inherits the M14 cutoff");
+        assert!(with_keys.reproduction().unwrap().fault.is_none(), "constructed Act3 door boundary publishes healthily");
+        assert!(with_keys.decision().unwrap().observation.action_mask.iter().any(|value| *value == 1));
+        let door = choose(&mut with_keys, RoomChoiceKind::Act3Continue { stage: 4 });
+        assert_eq!(door.boundary.terminal, None);
+        let act4 = latest(&with_keys);
+        assert_eq!((act4.act, act4.floor, act4.room.unwrap().kind), (4, 50, RoomViewKind::Map));
+        assert!(with_keys.fault.is_none());
+
+        let mut pending = RunSession::from_m25_diagnostic(config(), M25Diagnostic::HeartVictoryPending).unwrap();
+        let heart = latest(&pending);
+        assert_eq!(heart.room.as_ref().unwrap().kind, RoomViewKind::HeartVictory);
+        assert_eq!(heart.terminal, None);
+        let result = choose(&mut pending, RoomChoiceKind::Proceed);
+        assert_eq!((result.reward, result.boundary.terminal, result.terminated), (110, Some(RunTerminal::HeartVictory), true));
+        let terminal = latest(&pending);
+        assert_eq!((terminal.floor, terminal.terminal, terminal.room.unwrap().kind), (55, Some(RunTerminal::HeartVictory), RoomViewKind::TrueVictory));
+        let victory_record = pending.record().unwrap().unwrap();
+        assert_eq!(victory_record.terminal, Some(RunTerminal::HeartVictory));
+        assert_eq!(victory_record.steps.len(), 1);
+        assert_eq!(victory_record.steps[0].reward, 110, "the final Proceed records +110 once");
+        assert_eq!(pending.step(result.boundary.token, crate::RunActionIndex(0)), Err(RunSessionError::Terminal));
+        assert_eq!(pending.record().unwrap().unwrap(), victory_record);
+
+        let mut no_keys = end_door([false, true, true]);
+        let no_keys_result = choose(&mut no_keys, RoomChoiceKind::Act3Continue { stage: 4 });
+        assert_eq!((no_keys_result.reward, no_keys_result.boundary.terminal), (0, Some(RunTerminal::Act3NoKeys)));
+        assert!(no_keys_result.terminated);
+        assert_eq!(no_keys.record().unwrap().unwrap().terminal, Some(RunTerminal::Act3NoKeys));
+
+        let mut act4_death = RunSession::from_m25_diagnostic(config(), M25Diagnostic::Act4Room { floor: 53 }).unwrap();
+        assert_eq!(latest(&act4_death).room.as_ref().unwrap().kind, RoomViewKind::Combat);
+        for _ in 0..32 {
+            if latest(&act4_death).terminal.is_some() { break; }
+            dispatch(&mut act4_death, GameAction::Combat(CombatAction::EndTurn)).unwrap();
+        }
+        let death = latest(&act4_death);
+        assert_eq!(death.terminal, Some(RunTerminal::Death), "Act4 combat may terminate through Death");
+        assert_eq!(act4_death.record().unwrap().unwrap().terminal, Some(RunTerminal::Death));
+
+        let mut normal = RunSession::new_m25(config()).unwrap();
+        let explicit = normal.reset(Some(7)).unwrap();
+        let stale = normal.decision().unwrap().token;
+        assert_eq!((normal.record().unwrap().unwrap().seed, normal.record().unwrap().unwrap().ordinal), (7, 0));
+        let before_invalid = normal.reproduction().unwrap();
+        let serial = normal.serial;
+        assert_eq!(normal.step(explicit.token, crate::RunActionIndex(-1)), Err(RunSessionError::Input("action index is not legal")));
+        assert_eq!(normal.reproduction().unwrap(), before_invalid, "invalid index changes nothing");
+        assert_eq!(normal.serial, serial);
+        let advanced = normal.step(explicit.token, crate::RunActionIndex(0)).unwrap();
+        let after_advance = normal.reproduction().unwrap();
+        assert_eq!(normal.step(stale, crate::RunActionIndex(0)), Err(RunSessionError::StaleToken));
+        assert_eq!(normal.reproduction().unwrap(), after_advance, "stale token changes nothing");
+        assert_eq!(normal.serial, serial + 1);
+        let implicit = normal.reset(None).unwrap();
+        assert_ne!(implicit.token, advanced.boundary.token);
+        let record = normal.record().unwrap().unwrap();
+        assert_eq!((record.seed, record.ordinal), (7, 1));
+        assert_eq!(RunEpisodeRecord::from_json(&record.to_json().unwrap()).unwrap(), record);
+        assert_eq!(normal.reproduction().unwrap().ordinal, 1);
+        normal.close().unwrap();
+        assert!(normal.record().unwrap().unwrap().closed);
+        assert!(normal.reproduction().unwrap().closed);
+
+        let mut sidecar = RunSession::new_m25(config()).unwrap();
+        sidecar.reset(Some(7)).unwrap();
+        let before_sidecar = sidecar.reproduction().unwrap();
+        assert!(sidecar.environment_spec().unwrap()["combat_view_id"].is_null());
+        let unsupported = RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar");
+        assert_eq!(sidecar.combat_observation_spec().unwrap_err(), unsupported);
+        assert_eq!(sidecar.combat_view().unwrap_err(), unsupported);
+        assert_eq!(sidecar.reproduction().unwrap(), before_sidecar, "sidecar rejection preserves the owner");
+    }
+
+    #[test]
+    fn m25_delivery_fault_record() {
+        let pending = RunSession::from_m25_diagnostic(config(), M25Diagnostic::HeartVictoryPending).unwrap();
+        assert!(pending.reproduction().unwrap().fault.is_none(), "the actual pre-fault HeartVictory boundary is publishable");
+        assert_eq!(latest(&pending).room.unwrap().kind, RoomViewKind::HeartVictory);
+        for (fixture, checkpoint) in [
+            (M25Diagnostic::DoorFault, "run.m25.act4.transition"),
+            (M25Diagnostic::HeartProceedFault, "run.m25.heart.victory"),
+        ] {
+            let mut session = RunSession::from_m25_diagnostic(config(), fixture).unwrap();
+            let first = session.fault.clone().expect("diagnostic owner fault is retained");
+            let RunSessionError::Core(RunError::Faulted(core_fault)) = &first else { panic!("structured core fault: {first:?}") };
+            assert_eq!(core_fault.checkpoint, checkpoint);
+            let serial = session.serial;
+            let reproduction = session.reproduction().unwrap();
+            assert!(matches!(
+                reproduction.latest_decision,
+                Some(Err(RunError::Faulted(ref fault))) if fault.checkpoint == checkpoint
+            ), "the faulted core Run owner remains available");
+            let record = session.record().unwrap().unwrap().clone();
+            let fault = record.fault.as_ref().expect("fault record");
+            assert!(!fault.committed && !fault.gameplay_recorded);
+            assert_eq!(fault.error.kind, RunRecordErrorKind::Core);
+            assert!(fault.error.message.contains(checkpoint));
+            assert!(fault.error.diagnostic_json().is_ok());
+            assert_eq!(session.reset(Some(7)), Err(first.clone()));
+            assert_eq!(session.decision(), Err(first.clone()));
+            assert_eq!(session.fault.as_ref(), Some(&first), "first structured error is retained");
+            assert_eq!(session.serial, serial);
+            assert_eq!(session.reproduction().unwrap(), reproduction);
+            assert_eq!(session.record().unwrap().unwrap(), record);
+            session.close().unwrap();
+            let closed = session.record().unwrap().unwrap();
+            assert!(closed.closed);
+            assert_eq!(closed.fault, record.fault);
+        }
+    }
+
+    // Release v2 (G1 ruling: Act4 coverage C from freeze v3); release v1 was 820adf82….
+    const M25_RELEASE_SHA256:&str="172a818e466b6abc2954832784b54be69708e12fa7e4d73187c37c7292723603";
+    const M25_ATTEMPT_SCHEMA:&str="m25-watcher-heart-caller-attempt-v1";
+
+    struct M25RecordedCase{
+        path:String,
+        series:String,
+        freeze:String,
+        receipt:serde_json::Value,
+        config:RunSessionConfig,
+        seed:u64,
+        accepted:usize,
+        bootstrap_count:usize,
+        budget:usize,
+        start:Option<M25SuppliedStart>,
+        bootstrap_action:Option<GameAction>,
+        actions:Vec<GameAction>,
+    }
+
+    struct M25BatchLane{
+        workers:usize,
+        batch:RunBatch,
+        boundaries:Vec<RunBoundary>,
+    }
+
+    fn m25_hex(bytes:&[u8])->String{
+        use sha2::{Digest,Sha256};
+        Sha256::digest(bytes).iter().map(|byte|format!("{byte:02x}")).collect()
+    }
+
+    fn m25_sha_text(value:&str)->String{m25_hex(value.as_bytes())}
+
+    fn m25_read_unique(bytes:&[u8],context:&str)->Result<serde_json::Value,String>{
+        crate::run_replay::parse_unique_json(bytes).map_err(|error|format!("{context}: {error:?}"))
+    }
+
+    fn m25_fields(value:&serde_json::Value,expected:&[&str],context:&str)->Result<(),String>{
+        let Some(object)=value.as_object() else{return Err(format!("{context} is not an object"))};
+        if object.len()!=expected.len()||expected.iter().any(|field|!object.contains_key(*field)){
+            return Err(format!("{context} has missing or unknown fields"));
+        }
+        Ok(())
+    }
+
+    fn m25_text<'a>(value:&'a serde_json::Value,context:&str)->Result<&'a str,String>{
+        value.as_str().ok_or_else(||format!("{context} is not a string"))
+    }
+
+    fn m25_number(value:&serde_json::Value,context:&str)->Result<u64,String>{
+        value.as_u64().ok_or_else(||format!("{context} is not an unsigned integer"))
+    }
+
+    fn m25_same<T:std::fmt::Debug+PartialEq>(context:&str,actual:T,expected:T)->Result<(),String>{
+        if actual==expected{Ok(())}else{Err(context.to_owned())}
+    }
+
+    fn m25_act1(name:&str)->Result<RunAct1BossTarget,String>{Ok(match name{
+        "guardian"=>RunAct1BossTarget::Guardian,"hexaghost"=>RunAct1BossTarget::Hexaghost,
+        "slime_boss"=>RunAct1BossTarget::SlimeBoss,other=>return Err(format!("unknown M25 Act1 boss {other}")),
+    })}
+
+    fn m25_act2(name:&str)->Result<RunAct2BossTarget,String>{Ok(match name{
+        "champ"=>RunAct2BossTarget::Champ,"bronze_automaton"=>RunAct2BossTarget::BronzeAutomaton,
+        "collector"=>RunAct2BossTarget::Collector,other=>return Err(format!("unknown M25 Act2 boss {other}")),
+    })}
+
+    fn m25_act3(name:&str)->Result<RunAct3BossTarget,String>{Ok(match name{
+        "awakened_one"=>RunAct3BossTarget::AwakenedOne,"time_eater"=>RunAct3BossTarget::TimeEater,
+        "donu_and_deca"=>RunAct3BossTarget::DonuAndDeca,other=>return Err(format!("unknown M25 Act3 boss {other}")),
+    })}
+
+    fn m25_diagnostic_boss(name:&str)->Result<M25DiagnosticBoss,String>{Ok(match name{
+        "awakened_one"=>M25DiagnosticBoss::AwakenedOne,"time_eater"=>M25DiagnosticBoss::TimeEater,
+        "donu_and_deca"=>M25DiagnosticBoss::DonuAndDeca,other=>return Err(format!("unknown M25 diagnostic boss {other}")),
+    })}
+
+    fn m25_config(act1:&str,act2:&str,act3:&str)->Result<RunSessionConfig,String>{Ok(RunSessionConfig{
+        character:Character::Watcher,ascension:0,partition:Partition::Test,
+        boss_history:RunBossHistory::M25WatcherHeart{act1:m25_act1(act1)?,act2:m25_act2(act2)?,act3:m25_act3(act3)?},
+        capacities:RunCapacities::m10_default(),record_replay:true,
+    })}
+
+    fn m25_config_and_start(series:&str,scenario:&serde_json::Value)->Result<(RunSessionConfig,Option<M25SuppliedStart>),String>{
+        match series{
+            "normal"|"normal-control"=>Ok((m25_config(
+                m25_text(&scenario["act1_boss"],"scenario.act1_boss")?,
+                m25_text(&scenario["act2_boss"],"scenario.act2_boss")?,
+                m25_text(&scenario["act3_boss"],"scenario.act3_boss")?,
+            )?,None)),
+            "supplied-traversal"=>{
+                let boss=m25_diagnostic_boss(m25_text(&scenario["supplied_traversal"],"scenario.supplied_traversal")?)?;
+                let act2=m25_text(&scenario["act2_boss_source"],"scenario.act2_boss_source")?;
+                let act3=m25_text(&scenario["supplied_traversal"],"scenario.supplied_traversal")?;
+                Ok((m25_config("guardian",act2,act3)?,Some(M25SuppliedStart::Traversal(boss))))
+            }
+            "supplied-act4"=>{
+                let boss=m25_text(&scenario["act3_source_boss"],"scenario.act3_source_boss")?;
+                let loadout=match m25_text(&scenario["supplied_act4_loadout"],"scenario.supplied_act4_loadout")?{
+                    "coverage-a"=>M25DiagnosticLoadout::CoverageA,"coverage-b"=>M25DiagnosticLoadout::CoverageB,
+                    "coverage-c"=>M25DiagnosticLoadout::CoverageC,"strong-v1"=>M25DiagnosticLoadout::Strong,
+                    other=>return Err(format!("unknown M25 supplied Act4 loadout {other}")),
+                };
+                Ok((m25_config("guardian","champ",boss)?,Some(M25SuppliedStart::Act4(loadout))))
+            }
+            "played-fixture"=>{
+                let name=m25_text(&scenario["fixture"],"scenario.fixture")?;
+                let fixture=M25PlayedFixture::ALL.into_iter().find(|fixture|fixture.name()==name)
+                    .ok_or_else(||format!("unknown M25 played fixture {name}"))?;
+                Ok((m25_config("guardian","champ","awakened_one")?,Some(M25SuppliedStart::PlayedFixture(fixture))))
+            }
+            other=>Err(format!("unknown M25 release series {other}")),
+        }
+    }
+
+    /// Decode caller semantic actions only through the strict versioned M25 Run record codec.
+    /// The caller's candidate_index field is deliberately not read or used.
+    fn m25_decode_semantic_actions(config:&RunSessionConfig,seed:u64,values:&[serde_json::Value])->Result<Vec<GameAction>,String>{
+        let mut template=RunSession::new_m25(config.clone()).map_err(|error|format!("M25 action codec session: {error:?}"))?;
+        template.reset(Some(seed)).map_err(|error|format!("M25 action codec reset: {error:?}"))?;
+        let record=template.record().map_err(|error|format!("M25 action codec record: {error:?}"))?
+            .ok_or_else(||"M25 action codec recording disabled".to_owned())?;
+        let bytes=record.to_json().map_err(|error|format!("M25 action codec export: {error:?}"))?;
+        let mut wire=m25_read_unique(&bytes,"M25 action codec template")?;
+        wire["steps"]=serde_json::Value::Array(values.iter().map(|action|serde_json::json!({
+            "action":action,"reward":0,"terminal":null,
+        })).collect());
+        let wire_bytes=serde_json::to_vec(&wire).map_err(|error|error.to_string())?;
+        let imported=match RunEpisodeRecord::from_json(&wire_bytes){
+            Ok(imported)=>imported,
+            Err(error)=>{
+                for (index,action) in values.iter().enumerate(){
+                    let mut one=wire.clone();
+                    one["steps"]=serde_json::json!([{"action":action,"reward":0,"terminal":null}]);
+                    let bytes=serde_json::to_vec(&one).map_err(|error|error.to_string())?;
+                    if let Err(codec_error)=RunEpisodeRecord::from_json(&bytes){
+                        return Err(format!("strict M25 semantic action decode receipt_step={index} action_json={action} codec={codec_error:?}"));
+                    }
+                }
+                return Err(format!("strict M25 semantic action decode: {error:?}"));
+            }
+        };
+        let exported=m25_read_unique(&imported.to_json().map_err(|error|format!("M25 action codec roundtrip export: {error:?}"))?,"M25 action codec roundtrip")?;
+        let exported_steps=exported["steps"].as_array().ok_or_else(||"strict M25 action codec lost steps".to_owned())?;
+        if exported_steps.len()!=values.len(){return Err("strict M25 action codec changed step count".into())}
+        for (index,(step,source)) in exported_steps.iter().zip(values).enumerate(){
+            if step["action"]!=*source{return Err(format!("strict M25 semantic action roundtrip differs at {index}"))}
+        }
+        Ok(imported.steps.into_iter().map(|step|step.action).collect())
+    }
+
+    fn m25_load_recorded_cases()->Result<Vec<M25RecordedCase>,String>{
+        use std::path::{Component,Path,PathBuf};
+        let release_path=PathBuf::from(std::env::var_os("SPIRE_M25_RECORDED_RELEASE")
+            .ok_or_else(||"HOLD: SPIRE_M25_RECORDED_RELEASE is required".to_owned())?);
+        let expected_sha=std::env::var("SPIRE_M25_RECORDED_RELEASE_SHA256")
+            .map_err(|_|"HOLD: SPIRE_M25_RECORDED_RELEASE_SHA256 is required".to_owned())?;
+        if expected_sha!=M25_RELEASE_SHA256{return Err("HOLD: supplied M25 release SHA is not the frozen N3 manifest".into())}
+        let release_bytes=std::fs::read(&release_path).map_err(|error|format!("read M25 release manifest: {error}"))?;
+        if m25_hex(&release_bytes)!=M25_RELEASE_SHA256{return Err("M25 release manifest SHA-256 mismatch".into())}
+        let release=m25_read_unique(&release_bytes,"M25 release manifest")?;
+        if release["schema_id"]!="m25-native-recorded-release-v1"{return Err("unsupported M25 release manifest schema".into())}
+        let base=PathBuf::from(m25_text(&release["base"],"release.base")?);
+        if !base.is_absolute()||base!=release_path.parent().and_then(Path::parent).ok_or_else(||"M25 release manifest parent missing".to_owned())?{
+            return Err("M25 release base does not match its retained manifest location".into())
+        }
+        let freeze_v1=m25_text(&release["freezes"]["v1"],"release.freezes.v1")?;
+        let freeze_v2=m25_text(&release["freezes"]["v2"],"release.freezes.v2")?;
+        // Optional third corrective freeze (G1 coverage-C rerun); absent in release v1.
+        let freeze_v3=release["freezes"].get("v3").and_then(serde_json::Value::as_str);
+        let manifest_cases=release["cases"].as_array().ok_or_else(||"release.cases is not an array".to_owned())?;
+        if manifest_cases.len()!=24{return Err(format!("release has {} cases, expected 24",manifest_cases.len()))}
+        let mut seen_paths=std::collections::BTreeSet::new();
+        let mut series_counts=std::collections::BTreeMap::<String,usize>::new();
+        let mut cases=Vec::with_capacity(manifest_cases.len());
+        for (case_index,entry) in manifest_cases.iter().enumerate(){
+            let relative=m25_text(&entry["path"],"release case.path")?;
+            let relative_path=Path::new(relative);
+            if relative_path.is_absolute()||relative_path.components().any(|part|matches!(part,Component::ParentDir)){
+                return Err(format!("release case {case_index} path is not root-relative"))
+            }
+            if !seen_paths.insert(relative.to_owned()){return Err(format!("duplicate M25 receipt path {relative}"))}
+            let expected_receipt_sha=m25_text(&entry["sha256"],"release case.sha256")?;
+            let freeze=m25_text(&entry["freeze_sha256"],"release case.freeze_sha256")?.to_owned();
+            if freeze!=freeze_v1&&freeze!=freeze_v2&&Some(freeze.as_str())!=freeze_v3{return Err(format!("receipt {relative} names an unknown frozen source"))}
+            let receipt_bytes=std::fs::read(base.join(relative)).map_err(|error|format!("read M25 receipt {relative}: {error}"))?;
+            if m25_hex(&receipt_bytes)!=expected_receipt_sha{return Err(format!("M25 receipt SHA-256 mismatch: {relative}"))}
+            let receipt=m25_read_unique(&receipt_bytes,&format!("M25 receipt {relative}"))?;
+            if receipt["schema_id"]!=M25_ATTEMPT_SCHEMA{return Err(format!("unsupported M25 caller attempt schema: {relative}"))}
+            if m25_text(&receipt["source_freeze_sha256"],"receipt.source_freeze_sha256")?!=freeze{return Err(format!("M25 receipt source freeze mismatch: {relative}"))}
+            let series=m25_text(&entry["series"],"release case.series")?.to_owned();
+            *series_counts.entry(series.clone()).or_default()+=1;
+            let seed=m25_number(&receipt["seed"],"receipt.seed")?;
+            if seed!=m25_number(&entry["seed"],"release case.seed")?{return Err(format!("M25 receipt seed mismatch: {relative}"))}
+            if receipt["scenario"]!=entry["case"]{return Err(format!("M25 receipt scenario differs from release case: {relative}"))}
+            if receipt["outcome"]!=entry["outcome"]||receipt["error"]!=entry["error"]{return Err(format!("M25 receipt outcome/error differs from release: {relative}"))}
+            if m25_text(&receipt["provenance"]["kind"],"receipt.provenance.kind")?!=m25_text(&entry["label"],"release case.label")?{
+                return Err(format!("M25 receipt label differs from release: {relative}"))
+            }
+            let accepted=usize::try_from(m25_number(&receipt["accepted_action_count"],"receipt.accepted_action_count")?).map_err(|_|"M25 accepted count exceeds usize")?;
+            let bootstrap_count=usize::try_from(m25_number(&receipt["bootstrap_accepted_count"],"receipt.bootstrap_accepted_count")?).map_err(|_|"M25 bootstrap count exceeds usize")?;
+            let budget=usize::try_from(m25_number(&receipt["action_budget"],"receipt.action_budget")?).map_err(|_|"M25 action budget exceeds usize")?;
+            let rows=receipt["steps"].as_array().ok_or_else(||format!("M25 receipt steps is not an array: {relative}"))?;
+            if accepted!=rows.len()||accepted!=m25_number(&entry["accepted_action_count"],"release case.accepted_action_count")? as usize
+                ||accepted!=m25_number(&entry["steps"],"release case.steps")? as usize{
+                return Err(format!("M25 receipt accepted-action count/rows differ from release: {relative}"))
+            }
+            if bootstrap_count!=m25_number(&entry["bootstrap_accepted_count"],"release case.bootstrap_accepted_count")? as usize
+                ||m25_number(&receipt["policy_accepted_count"],"receipt.policy_accepted_count")? as usize!=accepted
+                ||m25_number(&receipt["policy_successful_count"],"receipt.policy_successful_count")? as usize!=accepted
+                ||m25_number(&receipt["policy_committed_fault_count"],"receipt.policy_committed_fault_count")?!=0
+                ||m25_number(&receipt["total_actual_accepted_run_actions"],"receipt.total_actual_accepted_run_actions")? as usize!=accepted+bootstrap_count{
+                return Err(format!("M25 receipt action accounting differs from release: {relative}"))
+            }
+            let scenario=&receipt["scenario"];
+            let (config,start)=m25_config_and_start(&series,scenario)?;
+            let semantic_values=rows.iter().map(|row|row["action"].clone()).collect::<Vec<_>>();
+            let actions=m25_decode_semantic_actions(&config,seed,&semantic_values)
+                .map_err(|error|format!("receipt={relative}: {error}"))?;
+            for (step_index,(row,action)) in rows.iter().zip(&actions).enumerate(){
+                m25_fields(row,&["action","action_debug","candidate_index","index","observed","post","pre","transition"],&format!("{relative} steps[{step_index}]"))?;
+                if m25_number(&row["index"],"step.index")? as usize!=step_index{return Err(format!("M25 receipt step ordinal differs: {relative} step {step_index}"))}
+                if m25_text(&row["action_debug"],"step.action_debug")?!=format!("{action:?}"){
+                    return Err(format!("strict decoded semantic action differs from action_debug: {relative} step {step_index}"))
+                }
+                m25_fields(&row["pre"],&["decision_debug","map_debug"],"step.pre")?;
+                m25_fields(&row["transition"],&["committed_events_debug","debug","reward","terminal"],"step.transition")?;
+                m25_fields(&row["observed"],&["boundaries_debug","effects_debug"],"step.observed")?;
+                m25_fields(&row["post"],&["decision_debug","decision_error","map_debug"],"step.post")?;
+            }
+            m25_fields(&receipt["endpoint"],&["combat_checkpoint_debug","decision_debug","decision_error","map_debug"],"receipt.endpoint")?;
+            let bootstrap_action=if series=="played-fixture"{
+                let value=&receipt["provenance"]["initial"]["supplied_entry"]["action"];
+                Some(m25_decode_semantic_actions(&config,seed,std::slice::from_ref(value))?.remove(0))
+            }else{None};
+            if (series=="played-fixture")!=(bootstrap_action.is_some())||bootstrap_count!=usize::from(bootstrap_action.is_some()){
+                return Err(format!("M25 bootstrap provenance/count mismatch: {relative}"))
+            }
+            cases.push(M25RecordedCase{path:relative.to_owned(),series,freeze,receipt,config,seed,accepted,bootstrap_count,budget,start,bootstrap_action,actions});
+        }
+        for (series,expected) in [("normal",6usize),("normal-control",3),("supplied-traversal",3),("supplied-act4",4),("played-fixture",8)]{
+            if series_counts.get(series).copied().unwrap_or(0)!=expected{return Err(format!("release {series} count is not {expected}"))}
+        }
+        Ok(cases)
+    }
+
+    fn m25_compare_initial_run(case:&M25RecordedCase,run:&Run)->Result<(),String>{
+        let initial=&case.receipt["provenance"]["initial"];
+        let decision=run.decision().map_err(|error|format!("{} initial core decision: {error:?}",case.path))?;
+        let map=run.public_map();
+        m25_same("initial decision",format!("{decision:?}"),m25_text(&initial["decision_debug"],"initial.decision_debug")?.to_owned())?;
+        m25_same("initial map",format!("{map:?}"),m25_text(&initial["map_debug"],"initial.map_debug")?.to_owned())?;
+        m25_same("initial combat checkpoint",format!("{:?}",run.combat_checkpoint()),m25_text(&initial["combat_checkpoint_debug"],"initial.combat_checkpoint_debug")?.to_owned())?;
+        m25_same("initial public fingerprint",m25_sha_text(&format!("{decision:?}\n{map:?}")),m25_text(&initial["public_sha256"],"initial.public_sha256")?.to_owned())?;
+        for key in ["diagnostic_checkpoint","diagnostic_checkpoint_before_bootstrap"]{
+            if let Some(expected)=initial.get(key).and_then(serde_json::Value::as_str){
+                let checkpoint=spire_core::run::diagnostics::m22_diagnostic_checkpoint(run)
+                    .map_err(|error|format!("{} M25 diagnostic checkpoint: {error:?}",case.path))?;
+                m25_same(key,format!("{checkpoint:?}"),expected.to_owned())?;
+            }
+        }
+        Ok(())
+    }
+
+    fn m25_compare_bootstrap(case:&M25RecordedCase,run:&mut Run,action:&GameAction)->Result<(),String>{
+        let entry=&case.receipt["provenance"]["initial"]["supplied_entry"];
+        m25_same("bootstrap scope",m25_text(&entry["scope"],"supplied_entry.scope")?.to_owned(),"supplied encounter bootstrap; excluded from policy budget/count".to_owned())?;
+        m25_same("bootstrap semantic action",action.clone(),case.bootstrap_action.clone().ok_or_else(||"played fixture bootstrap action missing".to_owned())?)?;
+        let before=run.decision().map_err(|error|format!("{} bootstrap pre-decision: {error:?}",case.path))?;
+        if !before.candidates.iter().any(|candidate|candidate.action==*action){return Err("bootstrap semantic action is not currently offered".into())}
+        let observed=run.step_observed(action);
+        let successful=observed.result.is_ok();
+        let accepted=successful||matches!(&observed.result,Err(spire_core::run::RunError::Faulted(_)));
+        let first_move=before.candidates.iter().find(|candidate|matches!(candidate.action,GameAction::Move(_))).map(|candidate|candidate.action.clone());
+        m25_same("bootstrap is the recorded fixed Move",first_move,Some(action.clone()))?;
+        m25_same("bootstrap accepted",accepted,entry["accepted"].as_bool().unwrap_or(false))?;
+        m25_same("bootstrap successful",successful,entry["successful"].as_bool().unwrap_or(false))?;
+        m25_same("bootstrap transition",format!("{:?}",observed.result),m25_text(&entry["transition_debug"],"supplied_entry.transition_debug")?.to_owned())?;
+        m25_same("bootstrap effects",format!("{:?}",observed.effects),m25_text(&entry["effects_debug"],"supplied_entry.effects_debug")?.to_owned())?;
+        m25_same("bootstrap combat boundaries",format!("{:?}",observed.boundaries),m25_text(&entry["boundaries_debug"],"supplied_entry.boundaries_debug")?.to_owned())?;
+        let checkpoint=spire_core::run::diagnostics::m22_diagnostic_checkpoint(run)
+            .map_err(|error|format!("{} bootstrap diagnostic checkpoint: {error:?}",case.path))?;
+        m25_same("bootstrap post diagnostic checkpoint",format!("Ok({checkpoint:?})"),m25_text(&entry["post_diagnostic_checkpoint_debug"],"supplied_entry.post_diagnostic_checkpoint_debug")?.to_owned())?;
+        m25_same("bootstrap post public decision",format!("{:?}",run.decision()),m25_text(&entry["post_public_debug"],"supplied_entry.post_public_debug")?.to_owned())?;
+        m25_same("bootstrap post map",format!("{:?}",run.public_map()),m25_text(&entry["map_debug"],"supplied_entry.map_debug")?.to_owned())?;
+        Ok(())
+    }
+
+    fn m25_action_index(decision:&spire_core::run::PublicDecision,action:&GameAction,context:&str)->Result<usize,String>{
+        let matches=decision.candidates.iter().enumerate().filter_map(|(index,candidate)|(&candidate.action==action).then_some(index)).collect::<Vec<_>>();
+        if matches.len()!=1{return Err(format!("{context}: semantic action has {} matching offered candidates",matches.len()))}
+        Ok(matches[0])
+    }
+
+    fn m25_compare_decision_fields(
+        result:&Result<spire_core::run::PublicDecision,spire_core::run::RunError>,
+        map:Option<&spire_core::run::map::PublicMap>,
+        debug:&serde_json::Value,
+        error:&serde_json::Value,
+        map_debug:&serde_json::Value,
+        context:&str,
+    )->Result<(),String>{
+        match result{
+            Ok(decision)=>{
+                m25_same(&format!("{context} decision"),serde_json::Value::String(format!("{decision:?}")),debug.clone())?;
+                m25_same(&format!("{context} decision error"),error.clone(),serde_json::Value::Null)?;
+            }
+            Err(actual)=>{
+                m25_same(&format!("{context} decision"),debug.clone(),serde_json::Value::Null)?;
+                m25_same(&format!("{context} decision error"),serde_json::Value::String(format!("{actual:?}")),error.clone())?;
+            }
+        }
+        m25_same(&format!("{context} map"),serde_json::Value::String(format!("{map:?}")),map_debug.clone())
+    }
+
+    fn m25_compare_run_row(case:&M25RecordedCase,run:&Run,row:&serde_json::Value,context:&str,post:bool)->Result<(),String>{
+        let decision=run.decision();let map=run.public_map();
+        if post{
+            m25_compare_decision_fields(&decision,map.as_ref(),&row["decision_debug"],&row["decision_error"],&row["map_debug"],context)
+        }else{
+            let decision=decision.map_err(|error|format!("{} {context} expected readable decision: {error:?}",case.path))?;
+            m25_same(&format!("{context} decision"),format!("{decision:?}"),m25_text(&row["decision_debug"],"decision_debug")?.to_owned())?;
+            m25_same(&format!("{context} map"),format!("{map:?}"),m25_text(&row["map_debug"],"map_debug")?.to_owned())
+        }
+    }
+
+    fn m25_compare_session_boundary(case:&M25RecordedCase,session:&RunSession,context:&str)->Result<(),String>{
+        let run=session.run.as_ref().ok_or_else(||format!("{context}: session has no owned Run"))?;
+        let decision=run.decision().map_err(|error|format!("{context}: live Run decision failed: {error:?}"))?;
+        let map=run.public_map();
+        let expected=crate::encode_run_m25(&decision,map.as_ref(),&case.config.capacities)
+            .map_err(|error|format!("{context}: M25 boundary encoding failed: {error:?}"))?;
+        let boundary=session.decision().map_err(|error|format!("{context}: session boundary failed: {error:?}"))?;
+        m25_same(&format!("{context} encoded observation"),boundary.observation,expected)?;
+        m25_same(&format!("{context} terminal"),boundary.terminal,decision.terminal)
+    }
+
+    fn m25_new_single(case:&M25RecordedCase)->Result<RunSession,String>{
+        if let Some(start)=case.start{
+            RunSession::from_m25_supplied(case.config.clone(),start).map_err(|error|format!("{} supplied native session: {error:?}",case.path))
+        }else{
+            let mut session=RunSession::new_m25(case.config.clone()).map_err(|error|format!("{} normal native session: {error:?}",case.path))?;
+            session.reset(Some(case.seed)).map_err(|error|format!("{} normal native reset: {error:?}",case.path))?;
+            Ok(session)
+        }
+    }
+
+    fn m25_new_batch(case:&M25RecordedCase,workers:usize)->Result<M25BatchLane,String>{
+        let configs=vec![case.config.clone(),case.config.clone()];
+        let mut batch=if let Some(start)=case.start{
+            RunBatch::from_m25_supplied(configs,workers,start).map_err(|error|format!("{} supplied {workers}-worker batch: {error:?}",case.path))?
+        }else{
+            RunBatch::new_m25(configs,workers).map_err(|error|format!("{} normal {workers}-worker batch: {error:?}",case.path))?
+        };
+        let boundaries=if case.start.is_some(){batch.m25_test_boundaries()}else{
+            batch.reset(&[Some(case.seed),Some(case.seed)]).map_err(|error|format!("{} {workers}-worker batch reset: {error:?}",case.path))?
+        };
+        Ok(M25BatchLane{workers,batch,boundaries})
+    }
+
+    fn m25_compare_lane_initial(case:&M25RecordedCase,session:&RunSession,lane:&M25BatchLane)->Result<(),String>{
+        let expected=session.reproduction().map_err(|error|format!("{} single initial reproduction: {error:?}",case.path))?;
+        for slot in 0..2{
+            let actual=lane.batch.reproduction(slot).map_err(|error|format!("{} batch initial reproduction: {error:?}",case.path))?;
+            m25_same(&format!("{} workers {} initial slot {slot} reproduction",case.path,lane.workers),actual,expected.clone())?;
+            let record=lane.batch.record(slot).map_err(|error|format!("{} batch initial record: {error:?}",case.path))?;
+            m25_same(&format!("{} workers {} initial slot {slot} record",case.path,lane.workers),record,expected.record.clone())?;
+            let direct=lane.boundaries.get(slot).ok_or_else(||"M25 batch initial boundary missing".to_owned())?;
+            let single_boundary=session.decision().map_err(|error|format!("{} single initial boundary: {error:?}",case.path))?;
+            m25_same(&format!("{} workers {} initial slot {slot} observation",case.path,lane.workers),direct.observation.clone(),single_boundary.observation)?;
+            m25_same(&format!("{} workers {} initial slot {slot} terminal",case.path,lane.workers),direct.terminal,single_boundary.terminal)?;
+        }
+        Ok(())
+    }
+
+    fn m25_compare_endpoint(case:&M25RecordedCase,run:&Run)->Result<(),String>{
+        let endpoint=&case.receipt["endpoint"];
+        m25_compare_decision_fields(&run.decision(),run.public_map().as_ref(),&endpoint["decision_debug"],&endpoint["decision_error"],&endpoint["map_debug"],"endpoint")?;
+        m25_same("endpoint combat checkpoint",format!("{:?}",run.combat_checkpoint()),m25_text(&endpoint["combat_checkpoint_debug"],"endpoint.combat_checkpoint_debug")?.to_owned())?;
+        let decision=run.decision().map_err(|error|format!("{} endpoint decision: {error:?}",case.path))?;
+        match m25_text(&case.receipt["outcome"],"receipt.outcome")?{
+            "Death"=>m25_same("final outcome",decision.terminal,Some(RunTerminal::Death))?,
+            "EmptyDeck"=>m25_same("final outcome",decision.terminal,Some(RunTerminal::EmptyDeck))?,
+            "Act3NoKeys"=>m25_same("final outcome",decision.terminal,Some(RunTerminal::Act3NoKeys))?,
+            "HeartVictory"=>m25_same("final outcome",decision.terminal,Some(RunTerminal::HeartVictory))?,
+            "BudgetExhausted"=>{
+                m25_same("budget outcome remains nonterminal",decision.terminal,None)?;
+                m25_same("budget outcome action count",case.accepted,case.budget)?;
+            }
+            other=>return Err(format!("unknown frozen M25 outcome {other}")),
+        }
+        m25_same("final terminal field",case.receipt["error"].is_null(),true)
+    }
+
+    fn m25_consume_recorded_case(case:&M25RecordedCase)->Result<(),String>{
+        let rows=case.receipt["steps"].as_array().ok_or_else(||"receipt steps missing".to_owned())?;
+        m25_same("recorded action vector count",case.actions.len(),case.accepted)?;
+        let mut direct_bootstrap=None;
+        if let Some(start)=case.start{
+            let mut direct=start.run().map_err(|error|format!("{} supplied initial core run: {error:?}",case.path))?;
+            m25_compare_initial_run(case,&direct)?;
+            if let Some(action)=&case.bootstrap_action{
+                if !matches!(start,M25SuppliedStart::PlayedFixture(_)){return Err("bootstrap action occurs outside played-fixture series".into())}
+                m25_compare_bootstrap(case,&mut direct,action)?;
+                direct_bootstrap=Some(direct);
+            }else if matches!(start,M25SuppliedStart::PlayedFixture(_)){
+                return Err("played-fixture bootstrap action missing".into())
+            }
+            if let Some(post_bootstrap)=&direct_bootstrap{
+                let session=m25_new_single(case)?;
+                let actual=session.run.as_ref().ok_or_else(||"played-fixture session has no Run".to_owned())?;
+                m25_same("played-fixture bootstrap initial decision",format!("{:?}",actual.decision()),format!("{:?}",post_bootstrap.decision()))?;
+                m25_same("played-fixture bootstrap initial map",format!("{:?}",actual.public_map()),format!("{:?}",post_bootstrap.public_map()))?;
+                m25_same("played-fixture bootstrap is outside policy record",session.record().map_err(|error|format!("record: {error:?}"))?.unwrap().steps.len(),0usize)?;
+            }
+        }
+
+        let mut single=m25_new_single(case)?;
+        let mut replay=m25_new_single(case)?;
+        m25_compare_session_boundary(case,&single,"single initial")?;
+        let initial_record=single.record().map_err(|error|format!("{} initial record: {error:?}",case.path))?.ok_or_else(||"M25 session did not record".to_owned())?;
+        m25_same("single initial policy record count",initial_record.steps.len(),0usize)?;
+        m25_same("same-initializer replay initial reproduction",replay.reproduction().map_err(|error|format!("replay initial: {error:?}"))?,single.reproduction().map_err(|error|format!("single initial: {error:?}"))?)?;
+        if case.start.is_none(){
+            let first=single.run.as_ref().ok_or_else(||"normal session has no Run".to_owned())?;
+            m25_compare_initial_run(case,first)?;
+        }else if case.bootstrap_action.is_none(){
+            m25_compare_initial_run(case,single.run.as_ref().ok_or_else(||"supplied session has no Run".to_owned())?)?;
+        }else{
+            let entry=&case.receipt["provenance"]["initial"]["supplied_entry"];
+            let first=rows.first().ok_or_else(||"played fixture has no policy actions".to_owned())?;
+            m25_compare_run_row(case,single.run.as_ref().ok_or_else(||"played-fixture session has no Run".to_owned())?,&first["pre"],"played-fixture post-bootstrap policy pre",false)?;
+            m25_same("played-fixture policy starts after bootstrap",format!("{:?}",single.run.as_ref().unwrap().decision()),m25_text(&entry["post_public_debug"],"supplied_entry.post_public_debug")?.to_owned())?;
+        }
+        let mut lanes=Vec::new();
+        for workers in [1,2]{
+            let lane=m25_new_batch(case,workers)?;
+            m25_compare_lane_initial(case,&single,&lane)?;
+            lanes.push(lane);
+        }
+
+        for (step_index,(row,action)) in rows.iter().zip(&case.actions).enumerate(){
+            let context=format!("step {step_index}");
+            m25_compare_run_row(case,single.run.as_ref().ok_or_else(||"single session has no Run".to_owned())?,&row["pre"],&format!("{context} pre"),false)?;
+            m25_compare_run_row(case,replay.run.as_ref().ok_or_else(||"replay session has no Run".to_owned())?,&row["pre"],&format!("{context} replay pre"),false)?;
+            let pre=single.reproduction().map_err(|error|format!("{context} single pre reproduction: {error:?}"))?;
+            for lane in &lanes{
+                for slot in 0..2{
+                    let actual=lane.batch.reproduction(slot).map_err(|error|format!("{context} workers {} pre reproduction: {error:?}",lane.workers))?;
+                    m25_same(&format!("{context} workers {} slot {slot} pre reproduction",lane.workers),actual,pre.clone())?;
+                }
+            }
+            let current=single.run.as_ref().unwrap().decision().map_err(|error|format!("{context} decision: {error:?}"))?;
+            let action_index=m25_action_index(&current,action,&context)?;
+            let mut observed_run=single.run.as_ref().unwrap().clone();
+            let observed=observed_run.step_observed(action);
+            let transition=observed.result.as_ref().map_err(|error|format!("{context} receipt action failed in shared Run: {error:?}"))?;
+            m25_same(&format!("{context} transition debug"),format!("{transition:?}"),m25_text(&row["transition"]["debug"],"transition.debug")?.to_owned())?;
+            m25_same(&format!("{context} reward"),transition.reward,row["transition"]["reward"].as_i64().ok_or_else(||"transition.reward is not signed".to_owned())? as i32)?;
+            m25_same(&format!("{context} terminal"),format!("{:?}",transition.terminal),m25_text(&row["transition"]["terminal"],"transition.terminal")?.to_owned())?;
+            let event_debug=transition.committed_events.iter().map(|event|format!("{event:?}")).collect::<Vec<_>>();
+            let receipt_event_debug=row["transition"]["committed_events_debug"].as_array().ok_or_else(||"committed event debug is not an array".to_owned())?.iter().map(|event|event.as_str().unwrap_or("<invalid>").to_owned()).collect::<Vec<_>>();
+            m25_same(&format!("{context} committed combat/run events"),event_debug,receipt_event_debug)?;
+            m25_same(&format!("{context} observed effects"),format!("{:?}",Some(&observed.effects)),m25_text(&row["observed"]["effects_debug"],"observed.effects_debug")?.to_owned())?;
+            m25_same(&format!("{context} observed combat boundaries"),format!("{:?}",Some(&observed.boundaries)),m25_text(&row["observed"]["boundaries_debug"],"observed.boundaries_debug")?.to_owned())?;
+
+            let token=single.decision().map_err(|error|format!("{context} single boundary: {error:?}"))?.token;
+            let single_result=single.step(token,RunActionIndex(action_index as i64)).map_err(|error|format!("{context} single session step: {error:?}"))?;
+            m25_same(&format!("{context} native reward"),single_result.reward,transition.reward)?;
+            m25_same(&format!("{context} native terminal"),single_result.boundary.terminal,transition.terminal)?;
+            m25_same(&format!("{context} native terminated"),single_result.terminated,transition.terminal.is_some())?;
+            m25_same(&format!("{context} native truncation"),single_result.truncated,false)?;
+            let native_run=single.run.as_ref().ok_or_else(||"single session Run missing after step".to_owned())?;
+            let native_decision=native_run.decision().map_err(|error|format!("{context} post decision: {error:?}"))?;
+            let native_map=native_run.public_map();
+            let encoded=crate::encode_run_m25(&native_decision,native_map.as_ref(),&case.config.capacities).map_err(|error|format!("{context} native observation encoding: {error:?}"))?;
+            m25_same(&format!("{context} single boundary observation"),single_result.boundary.observation.clone(),encoded.clone())?;
+            m25_same(&format!("{context} native Run equals observed transition"),format!("{:?}",native_run.decision()),format!("{:?}",observed_run.decision()))?;
+            m25_same(&format!("{context} native map equals observed transition"),native_run.public_map(),observed_run.public_map())?;
+            m25_compare_run_row(case,native_run,&row["post"],&format!("{context} post"),true)?;
+            let single_record=single.record().map_err(|error|format!("{context} single record: {error:?}"))?.ok_or_else(||"single record disappeared".to_owned())?;
+            m25_same(&format!("{context} recorded policy step count"),single_record.steps.len(),step_index+1)?;
+            m25_same(&format!("{context} recorded semantic action"),single_record.steps.last().map(|step|step.action.clone()),Some(action.clone()))?;
+            m25_same(&format!("{context} recorded reward/terminal"),single_record.steps.last().map(|step|(step.reward,step.terminal)),Some((transition.reward,transition.terminal)))?;
+
+            let replay_decision=replay.run.as_ref().unwrap().decision().map_err(|error|format!("{context} replay pre-decision: {error:?}"))?;
+            let replay_index=m25_action_index(&replay_decision,action,&format!("{context} same-initializer replay"))?;
+            let replay_token=replay.decision().map_err(|error|format!("{context} replay boundary: {error:?}"))?.token;
+            let replay_result=replay.step(replay_token,RunActionIndex(replay_index as i64)).map_err(|error|format!("{context} same-initializer replay step: {error:?}"))?;
+            m25_same(&format!("{context} same-initializer replay reward"),replay_result.reward,transition.reward)?;
+            m25_same(&format!("{context} same-initializer replay terminal"),replay_result.boundary.terminal,transition.terminal)?;
+            m25_same(&format!("{context} same-initializer replay observation"),replay_result.boundary.observation,single_result.boundary.observation.clone())?;
+            m25_same(&format!("{context} same-initializer replay reproduction"),replay.reproduction().map_err(|error|format!("{context} replay reproduction: {error:?}"))?,single.reproduction().map_err(|error|format!("{context} single reproduction: {error:?}"))?)?;
+            m25_same(&format!("{context} same-initializer replay record"),replay.record().map_err(|error|format!("{context} replay record: {error:?}"))?,Some(single_record.clone()))?;
+
+            for lane in &mut lanes{
+                let tokens=lane.boundaries.iter().map(|boundary|boundary.token).collect::<Vec<_>>();
+                let mut indices=Vec::with_capacity(2);
+                for slot in 0..2{
+                    let reproduction=lane.batch.reproduction(slot).map_err(|error|format!("{context} workers {} slot {slot} prestate: {error:?}",lane.workers))?;
+                    let decision=reproduction.latest_decision.ok_or_else(||format!("{context} workers {} slot {slot} decision missing",lane.workers))?.map_err(|error|format!("{context} workers {} slot {slot} decision error: {error:?}",lane.workers))?;
+                    indices.push(RunActionIndex(m25_action_index(&decision,action,&format!("{context} workers {} slot {slot}",lane.workers))? as i64));
+                }
+                let results=lane.batch.step(&tokens,&indices).map_err(|error|format!("{context} workers {} batch step: {error:?}",lane.workers))?;
+                for slot in 0..2{
+                    let result=&results[slot];
+                    m25_same(&format!("{context} workers {} slot {slot} reward",lane.workers),result.reward,transition.reward)?;
+                    m25_same(&format!("{context} workers {} slot {slot} terminal",lane.workers),result.boundary.terminal,transition.terminal)?;
+                    m25_same(&format!("{context} workers {} slot {slot} observation",lane.workers),result.boundary.observation.clone(),encoded.clone())?;
+                    m25_same(&format!("{context} workers {} slot {slot} reproduction",lane.workers),lane.batch.reproduction(slot).map_err(|error|format!("batch reproduction: {error:?}"))?,single.reproduction().map_err(|error|format!("single reproduction: {error:?}"))?)?;
+                    m25_same(&format!("{context} workers {} slot {slot} record",lane.workers),lane.batch.record(slot).map_err(|error|format!("batch record: {error:?}"))?,Some(single_record.clone()))?;
+                }
+                lane.boundaries=results.into_iter().map(|result|result.boundary).collect();
+            }
+        }
+
+        let run=single.run.as_ref().ok_or_else(||"single final Run missing".to_owned())?;
+        m25_compare_endpoint(case,run)?;
+        let record=single.record().map_err(|error|format!("{} final single record: {error:?}",case.path))?.ok_or_else(||"M25 final record missing".to_owned())?;
+        m25_same("final accepted policy action count",record.steps.len(),case.accepted)?;
+        m25_same("final record terminal",record.terminal,run.decision().map_err(|error|format!("final decision: {error:?}"))?.terminal)?;
+        m25_same("final same-initializer replay",replay.reproduction().map_err(|error|format!("final replay reproduction: {error:?}"))?,single.reproduction().map_err(|error|format!("final single reproduction: {error:?}"))?)?;
+        m25_same("final same-initializer replay record",replay.record().map_err(|error|format!("final replay record: {error:?}"))?,Some(record.clone()))?;
+        for lane in &lanes{
+            for slot in 0..2{
+                m25_same(&format!("final workers {} slot {slot} reproduction",lane.workers),lane.batch.reproduction(slot).map_err(|error|format!("final batch reproduction: {error:?}"))?,single.reproduction().map_err(|error|format!("final single reproduction: {error:?}"))?)?;
+                m25_same(&format!("final workers {} slot {slot} record",lane.workers),lane.batch.record(slot).map_err(|error|format!("final batch record: {error:?}"))?,Some(record.clone()))?;
+            }
+        }
+        if case.start.is_none(){
+            let bytes=record.to_json().map_err(|error|format!("{} normal strict JSON export: {error:?}",case.path))?;
+            let imported=RunEpisodeRecord::from_json(&bytes).map_err(|error|format!("{} normal strict JSON import: {error:?}",case.path))?;
+            m25_same("normal strict record JSON roundtrip",imported.clone(),record.clone())?;
+            let report=crate::replay_run(&imported,case.config.capacities.clone()).map_err(|error|format!("{} normal replay: {error:?}",case.path))?;
+            m25_same("normal replay accepted count",report.accepted_count,case.accepted)?;
+            m25_same("normal replay final decision",report.final_decision,run.decision().map_err(|error|format!("normal final decision: {error:?}"))?)?;
+            m25_same("normal replay final map",report.final_map,run.public_map())?;
+            m25_same("normal replay rewards",report.rewards,record.steps.iter().map(|step|step.reward).collect::<Vec<_>>())?;
+            m25_same("normal replay terminals",report.terminals,record.steps.iter().map(|step|step.terminal).collect::<Vec<_>>())?;
+        }else{
+            m25_same("supplied replay policy-only count",record.steps.len(),case.accepted)?;
+            m25_same("supplied replay bootstrap excluded",record.steps.len()+case.bootstrap_count,case.accepted+case.bootstrap_count)?;
+        }
+        m25_same("release freeze preserved",matches!(case.freeze.as_str(),"b0e4c5ffe6d021fb0d59fde36daed7294fe54dc2782c27581f4605c4639fa72c"|"879fbb1be3fb396802c315916052494768265df93ba21d5461ace735f03f344e"|"5577735eaefaad40855627ff228818b9ac08ab37b2ee2dc0e2730dbe4b3658d0"),true)
+    }
+
+    #[test]
+    #[ignore="HOLD: requires the frozen M25 receipts (SPIRE_M25_RECORDED_RELEASE=<path>, SPIRE_M25_RECORDED_RELEASE_SHA256=<sha>); recorded actions only, no policy"]
+    fn m25_recorded_native_agreement(){
+        let cases=m25_load_recorded_cases().unwrap_or_else(|error|panic!("M25 recorded agreement admission failed: {error}"));
+        let mut failures=Vec::new();
+        for case in &cases{
+            match m25_consume_recorded_case(case){
+                Ok(())=>println!("M25_NATIVE_AGREEMENT path={} series={} agreement=yes first_differing_step=none actions={} workers=1,2",case.path,case.series,case.accepted),
+                Err(first)=>{println!("M25_NATIVE_AGREEMENT path={} series={} agreement=no first_differing_step={first}",case.path,case.series);failures.push(format!("{}: {first}",case.path));}
+            }
+        }
+        assert!(failures.is_empty(),"M25 frozen native agreement mismatches: {}",failures.join("; "));
     }
 }

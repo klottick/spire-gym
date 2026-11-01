@@ -9,6 +9,7 @@ pub enum Hook {
     CardPlayed, CardAfterUse, CardDiscarded, CardManuallyDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
     CombatStartedPreDraw,
     ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,CardAfterPlayed,
+    AttackResolved, DrawPileShuffled, CloakClaspBeforeCleanup{hand_size:usize},
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -53,9 +54,19 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             if let Some(card)=state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|c|c.full()) {
                 state.silent.history_enabled|=super::cards::requires_draw_history(card.id);
                 state.silent.played_this_turn.push(card.id);
-                if crate::content::Catalog::standard().card(card.id).is_some_and(|row|row.card_type==crate::content::CardType::Power){
+                if let Some(row)=crate::content::Catalog::standard().card(card.id){
+                    state.played_card_types.push(row.card_type);
+                    // FreeAttackPower.onUseCard: a qualifying non-purge Attack use spends one
+                    // entitlement, whatever its cost or route (watcher.md:123).
+                    if row.card_type==crate::content::CardType::Attack&&!card.local.purge
+                        &&state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0){
+                        work.push(Effect{source:source.clone(),target:Some(Actor::Player),
+                            kind:EffectKind::ReduceFullPower{id:super::FullPowerId("free_attack"),amount:1}});
+                    }
+                    if row.card_type==crate::content::CardType::Power{
                     state.silent.powers_played_this_combat=state.silent.powers_played_this_combat.checked_add(1)
                         .ok_or_else(||super::InputError::Unsupported("native combat Power history exhausted".into()))?;
+                    }
                 }
             }
         }
@@ -75,6 +86,15 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     if hook==Hook::CardAfterPlayed{super::cards::silent_power_after_played(state);}
     if hook==Hook::CardAfterUse {
         if !matches!(source,Source::Card(_)){return Err(super::InputError::Invariant("after-use checkpoint requires the actual card owner".into()).into())}
+        let duality_attack=if let Source::Card(owner)=source {
+            state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|card|card.full())
+                .is_some_and(|card|crate::content::Catalog::standard().card(card.id)
+                    .is_some_and(|row|row.card_type==crate::content::CardType::Attack))
+                &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Duality))
+        }else{false};
+        if duality_attack {
+            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::AttackResolved)});
+        }
         for enemy in state.enemies.iter().filter(|enemy|enemy.enemy_id==super::ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart)&&enemy.hp>0&&enemy.life==super::ActorLife::Active){
             if let Some(power)=enemy.full_powers.iter().find(|power|power.id.0=="beat_of_death"&&power.state.amount>0){
                 after_use_bottom.push(Effect{source:Source::Actor(Actor::Enemy(enemy.instance_id.clone())),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::Thorns(power.state.amount))});
@@ -181,6 +201,8 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
     let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());
+    let m25_watcher=state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+        &&super::cards::watcher::active(state);
     if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&m15_player {
         for power in &state.player_full_powers {
             if power.id.0=="ritual"&&power.state.amount>0 {
@@ -194,7 +216,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         }
         stat_loss_work(state,&mut work);
     }
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&m15_player {
+    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&(m15_player||m25_watcher) {
         if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="plated_armor"&&power.state.amount>0) {
             work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
         }
@@ -269,6 +291,7 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
             "draw_reduction" if power.state.skip_first=>{power.state.skip_first=false;None},
             "draw_reduction"=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "no_block" if matches!(actor,Actor::Player)=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
+            "wave_of_the_hand" if matches!(actor,Actor::Player)=>Some(EffectKind::RemoveFullPower(power.id)),
             "regeneration" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "regenerate" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "vulnerable" | "weak" | "frail" if power.state.monster_source_grace => { power.state.monster_source_grace = false; None }

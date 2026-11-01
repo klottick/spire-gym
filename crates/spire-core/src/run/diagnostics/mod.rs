@@ -18,3 +18,8 @@ pub use m23::{M23DiagnosticBoss,M23PlayedFixture,M23Diagnostic,m23_supplied_boss
 mod m24;
 #[cfg(any(test,feature="m24-diagnostics"))]
 pub use m24::{M24DiagnosticBoss,M24PlayedFixture,M24Diagnostic,m24_supplied_traversal,m24_supplied_boss,m24_supplied_boss_at,m24_played_fixture,m24_diagnostic,LOADOUT_V2_DECK,LOADOUT_V2_RELICS,LOADOUT_V2_POTIONS,LOADOUT_V2_HP};
+
+#[cfg(any(test,feature="m25-diagnostics"))]
+mod m25;
+#[cfg(any(test,feature="m25-diagnostics"))]
+pub use m25::{M25DiagnosticBoss,M25DiagnosticLoadout,M25PlayedFixture,M25Diagnostic,m25_supplied_traversal,m25_supplied_act4,m25_played_fixture,m25_diagnostic};

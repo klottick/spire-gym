@@ -47,6 +47,29 @@ fn prepare_card_mutations(state:&RunState)->Result<Option<(Vec<(u64,i32)>,u64)>,
     Ok(Some((next.into_iter().collect(),journal.last().unwrap().ordinal)))
 }
 
+/// M25 Lesson Learned upgrades: each journal ordinal adds one upgrade to its permanent
+/// owner exactly once; eligibility is re-checked against the deck before any mutation.
+fn prepare_card_upgrades(state:&RunState)->Result<Option<(Vec<u64>,u64)>,RunError>{
+    let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let combat=state.combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let journal=combat.permanent_card_upgrades();
+    let applied=usize::try_from(active.applied_upgrade_ordinal).map_err(|_|RunError::InvalidAction)?;
+    if applied>journal.len(){return Err(RunError::InvalidAction)}
+    if journal.is_empty(){return Ok(None)}
+    combat.validate_permanent_upgrades_for_run().map_err(|_|RunError::InvalidAction)?;
+    for (index,upgrade) in journal.iter().enumerate(){
+        if upgrade.ordinal!=index as u64+1||!state.deck.iter().any(|card|card.instance==upgrade.instance.0&&card.id==upgrade.id){return Err(RunError::InvalidAction)}
+    }
+    if applied==journal.len(){return Ok(None)}
+    let mut deck=state.deck.clone();let mut instances=Vec::new();
+    for upgrade in &journal[applied..]{
+        let card=deck.iter_mut().find(|card|card.instance==upgrade.instance.0).ok_or(RunError::InvalidAction)?;
+        if card.id==CardId::Parasite||!super::mutations::can_upgrade(state,card){return Err(RunError::InvalidAction)}
+        card.upgrades=card.upgrades.checked_add(1).ok_or(RunError::InvalidAction)?;instances.push(upgrade.instance.0);
+    }
+    Ok(Some((instances,journal.last().unwrap().ordinal)))
+}
+
 fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Option<(u8,u64)>),RunError> {
     let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let settled=state.combat_progress.settled.checked_add(1).ok_or(RunError::Unsupported("settlement count exhausted"))?;
@@ -58,10 +81,14 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
         return Err(RunError::InvalidAction);
     }
     let mut seen=BTreeSet::new();
+    // Lesson Learned upgrades the permanent owner only; its in-combat copy keeps its upgrades.
+    let applied_upgrades=state.combat.as_ref().map_or(&[][..],|c|c.permanent_card_upgrades());
+    let applied_upgrades=&applied_upgrades[..usize::try_from(active.applied_upgrade_ordinal).map_err(|_|RunError::InvalidAction)?.min(applied_upgrades.len())];
+    let journal_upgrades=|instance:u64|applied_upgrades.iter().filter(|u|u.instance.0==instance).count() as u32;
     for card in exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.play_frames).chain(&exit.queued_autoplay).chain(&exit.stasis).chain(&exit.played_powers).chain(&exit.inactive_cards) {
         if let CombatCardRef::Permanent(id)=card.origin {
             if card.instance!=id || active.acquired_instances.contains(&id.0) || !seen.insert(id.0) || !state.deck.iter().any(|original|
-                original.instance==id.0 && original.id==card.id && original.misc==card.misc && Some(original.upgrades)==card.upgrades.checked_sub(card.local.temporary_upgrades)) {
+                original.instance==id.0 && original.id==card.id && original.misc==card.misc && original.upgrades.checked_sub(journal_upgrades(id.0))==card.upgrades.checked_sub(card.local.temporary_upgrades)) {
                 return Err(RunError::Unsupported("permanent card exit mismatch"));
             }
         }
@@ -134,6 +161,7 @@ impl Run {
         }
         let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
         let mutations=match prepare_card_mutations(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent mutation synchronization preflight failed"),"run.combat.permanent-mutations"))};
+        let upgrades=match prepare_card_upgrades(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent upgrade synchronization preflight failed"),"run.combat.permanent-upgrades"))};
         if let Some((cards,next,ordinal))=prepared{
             let ids=cards.iter().map(|c|c.instance).collect::<Vec<_>>();self.state.deck.extend(cards);self.state.next_instance=next;
             let active=self.state.active_combat.as_mut().unwrap();active.acquired_instances.extend(ids);active.applied_gain_ordinal=ordinal;
@@ -141,6 +169,10 @@ impl Run {
         if let Some((values,ordinal))=mutations {
             for (instance,misc) in values {self.state.deck.iter_mut().find(|card|card.instance==instance).expect("preflight permanent owner").misc=misc;}
             self.state.active_combat.as_mut().unwrap().applied_mutation_ordinal=ordinal;
+        }
+        if let Some((instances,ordinal))=upgrades {
+            for instance in instances {let card=self.state.deck.iter_mut().find(|card|card.instance==instance).expect("preflight permanent owner");card.upgrades+=1;}
+            self.state.active_combat.as_mut().unwrap().applied_upgrade_ordinal=ordinal;
         }Ok(())
     }
     pub(super) fn combat_decision(&self) -> Result<PublicDecision,RunError> {
@@ -184,12 +216,12 @@ impl Run {
         };
         let act4_node=match super::rooms::act4::validate_combat_source(self,&record){
             Ok(node)=>node,
-            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act4 combat source preparation failed"),"run.m10.act4.settlement")),
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act4 combat source preparation failed"),super::rooms::act4::fault_label(&self.state,super::rooms::act4::Act4FaultSite::Settlement))),
         };
         let heart_victory=if act4_node.is_some()&&record.encounter==EncounterId::CorruptHeart&&record.outcome==Outcome::Victory{
             match super::rooms::act4::prepare_heart_victory(self,&record){
                 Ok(prepared)=>prepared,
-                Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Heart victory Proceed preparation failed"),"run.m10.heart.victory")),
+                Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Heart victory Proceed preparation failed"),super::rooms::act4::fault_label(&self.state,super::rooms::act4::Act4FaultSite::HeartVictory))),
             }
         }else{None};
         let mut events=vec![CommittedEvent::CombatFinished(record.clone())];
@@ -316,7 +348,7 @@ impl Run {
         let context=CombatItemContext::take_from_run(&mut self.state)
             .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle);
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
-        let context=if super::rooms::is_m24(&self.state){context.with_m24_profile()}else if super::rooms::uses_watcher_content(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
+        let context=if super::rooms::is_m25(&self.state){context.with_m25_profile()}else if super::rooms::is_m24(&self.state){context.with_m24_profile()}else if super::rooms::uses_watcher_content(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
@@ -331,7 +363,7 @@ impl Run {
         let visit=self.state.combat_progress.entered;
         self.state.rng=rng;
         self.state.combat=Some(combat);
-        self.state.active_combat=Some(ActiveCombat { applied_mutation_ordinal:0,visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
+        self.state.active_combat=Some(ActiveCombat { applied_mutation_ordinal:0,applied_upgrade_ordinal:0,visit,encounter,origin,applied_gain_ordinal:0,acquired_instances:vec![]});
         if matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}){
             let name=match encounter{EncounterId::Guardian=>Some("Guardian"),EncounterId::Hexaghost=>Some("Hexaghost"),EncounterId::SlimeBoss=>Some("SlimeBoss"),EncounterId::Champ=>Some("Champ"),EncounterId::BronzeAutomaton=>Some("Automaton"),EncounterId::Collector=>Some("Collector"),EncounterId::AwakenedOne=>Some("AwakenedOne"),EncounterId::TimeEater=>Some("TimeEater"),EncounterId::DonuAndDeca=>Some("DonuAndDeca"),_=>None};
             if let Some(name)=name{let seen=&mut self.state.seen_bosses[(self.state.act-1) as usize];if !seen.contains(&name){seen.push(name);}}

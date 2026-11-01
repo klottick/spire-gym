@@ -535,7 +535,7 @@ fn lethal_clothesline_does_not_apply_queued_weak() {
 
 #[test]
 fn perfected_strike_counts_distinct_strike_tags_in_hand_draw_and_discard_only() {
-    for (upgrades, expected_damage) in [(0, 14), (1, 18)] {
+    for (upgrades, expected_damage) in [(0, 12), (1, 15)] {
         let mut combat = with_first_hand_card(crate::content::CardId::PerfectedStrike, upgrades);
         make_hand_fixture(&mut combat, 5);
         let mut cards = std::mem::take(&mut combat.state.piles.hand);

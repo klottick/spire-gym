@@ -23,7 +23,9 @@ pub struct CombatProgress { pub entered:u64, pub settled:u64 }
 pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::EncounterId, pub outcome:crate::combat::Outcome }
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin,
-    pub applied_gain_ordinal:u64,pub applied_mutation_ordinal:u64,pub acquired_instances:Vec<u64> }
+    pub applied_gain_ordinal:u64,pub applied_mutation_ordinal:u64,pub acquired_instances:Vec<u64>,
+    /// M25 Lesson Learned: the last permanent-upgrade journal ordinal applied to the deck.
+    pub applied_upgrade_ordinal:u64 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{node:super::NodeId,kind:MapNodeKind} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -124,7 +126,7 @@ pub enum M16DefectCombatStart { Canonical, Supplied(AuthoredRunStart) }
 impl std::fmt::Debug for ActiveCombat {
     fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
         let mut d=f.debug_struct("ActiveCombat");d.field("visit",&self.visit).field("encounter",&self.encounter).field("origin",&self.origin).field("applied_gain_ordinal",&self.applied_gain_ordinal).field("acquired_instances",&self.acquired_instances);
-        if self.applied_mutation_ordinal!=0{d.field("applied_mutation_ordinal",&self.applied_mutation_ordinal);}d.finish()
+        if self.applied_mutation_ordinal!=0{d.field("applied_mutation_ordinal",&self.applied_mutation_ordinal);}if self.applied_upgrade_ordinal!=0{d.field("applied_upgrade_ordinal",&self.applied_upgrade_ordinal);}d.finish()
     }
 }
 

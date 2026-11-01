@@ -151,7 +151,7 @@ fn fixture_decision() -> PublicDecision {
 
 fn combat() -> CombatPublic {
     CombatPublic {
-        mantra_gained:None, stance_choice:None,
+        mantra_gained:None,previous_card_type:None, stance_choice:None,
         played_powers: vec![],
         playing_cards: vec![],
         stasis: vec![],

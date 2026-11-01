@@ -324,7 +324,10 @@ fn has_fatal_gold_support(state:&State)->bool {
         ||state.piles.all(state.in_play.as_ref()).chain(&state.played_powers).chain(&state.inactive_cards)
             .chain(state.stasis.values()).chain(state.queued_autoplay.values())
             .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
-            .any(|owned|owned.full().is_some_and(|card|card.id==crate::content::CardId::HandOfGreed))
+            .any(|owned|owned.full().is_some_and(|card|card.id==crate::content::CardId::HandOfGreed
+                // M25 producers admitted at combat entry: Wish (FameAndFortune) and Foreign
+                // Influence (a generated Hand of Greed).
+                ||matches!(card.id,crate::content::CardId::Wish|crate::content::CardId::ForeignInfluence)&&card.local.m21))
 }
 
 pub(in crate::combat) fn gain_gold(state:&mut State,amount:u32)->Result<(),InputError> {

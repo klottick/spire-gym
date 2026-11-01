@@ -39,8 +39,21 @@ pub(crate) const DEFECT_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
     (RelicId::RunicCapacitor, RelicTier::Shop),
 ];
 
+/// Tiers of the four M25 Watcher relics (`data/relics/README.md`). The accepted
+/// Watcher relics keep their existing tier answers.
+pub(crate) const M25_WATCHER_RELIC_TIERS: &[(RelicId, RelicTier)] = &[
+    (RelicId::Damaru, RelicTier::Common),
+    (RelicId::Duality, RelicTier::Uncommon),
+    (RelicId::CloakClasp, RelicTier::Rare),
+    (RelicId::Melange, RelicTier::Shop),
+];
+
 pub(crate) const EXCLUSIVE_RELIC_CHARACTERS: &[(RelicId, Character)] = &[
     (RelicId::HolyWater, Character::Watcher),
+    (RelicId::Damaru, Character::Watcher),
+    (RelicId::Duality, Character::Watcher),
+    (RelicId::CloakClasp, Character::Watcher),
+    (RelicId::Melange, Character::Watcher),
     (RelicId::CrackedCore, Character::Defect),
     (RelicId::DataDisk, Character::Defect),
     (RelicId::GoldPlatedCables, Character::Defect),
@@ -165,6 +178,10 @@ pub(crate) const RELICS: &[RelicDefinition] = &[
     RelicDefinition{id:RelicId::VioletLotus,definition_only:false},
     RelicDefinition{id:RelicId::GoldenEye,definition_only:false},
     RelicDefinition{id:RelicId::TeardropLocket,definition_only:false},
+    RelicDefinition{id:RelicId::Damaru,definition_only:false},
+    RelicDefinition{id:RelicId::Duality,definition_only:false},
+    RelicDefinition{id:RelicId::CloakClasp,definition_only:false},
+    RelicDefinition{id:RelicId::Melange,definition_only:false},
 ];
 pub(crate) const STARTER_RELICS: &[(Character, RelicId)] = &[
     (Character::Ironclad, RelicId::BurningBlood),

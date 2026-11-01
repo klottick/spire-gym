@@ -54,6 +54,13 @@ pub enum CardId {
     AllForOne, Buffer, CoreSurge, CreativeAI, Hyperbeam, MachineLearning,
     MeteorStrike, MultiCast, Rainbow, Reboot, Seek, ThunderStrike,
     FlurryOfBlows, Prostrate, Worship, Brilliance, Devotion, ThirdEye, CutThroughFate, JustLucky, Weave, Foresight, Nirvana, WindmillStrike, Perseverance, SandsOfTime, Establishment, Meditate, CarveReality, DeceiveReality, MasterReality, BattleHymn, MentalFortress, Rushdown, LikeWater, Smite, Safety,
+    // M25 complete Watcher roster: 44 ordinary kinds, 5 children and 3 choice-only options.
+    BowlingBash, Crescendo, CrushJoints, Evaluate, FlyingSleeves, FollowUp, Halt, PressurePoints, Protect, SashWhip, Tranquility,
+    Collect, Conclude, Fasting, FearNoEvil, ForeignInfluence, Indignation, InnerPeace, Pray, ReachHeaven, Sanctity,
+    SignatureMove, SimmeringFury, Study, Swivel, TalkToTheHand, Tantrum, Wallop, WaveOfTheHand, WheelKick, WreathOfFlame,
+    Alpha, Blasphemy, ConjureBlade, DeusExMachina, DevaForm, Judgment, LessonLearned, Omniscience, Ragnarok, Scrawl, SpiritShield, Vault, Wish,
+    Insight, ThroughViolence, Beta, Omega, Expunger,
+    BecomeAlmighty, FameAndFortune, LiveForever,
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
@@ -242,6 +249,26 @@ impl CardId {
         Self::MachineLearning => "machine_learning", Self::MeteorStrike => "meteor_strike",
         Self::MultiCast => "multi_cast", Self::Rainbow => "rainbow", Self::Reboot => "reboot",
         Self::Seek => "seek", Self::ThunderStrike => "thunder_strike",
+        Self::BowlingBash => "bowling_bash", Self::Crescendo => "crescendo",
+        Self::CrushJoints => "crush_joints", Self::Evaluate => "evaluate",
+        Self::FlyingSleeves => "flying_sleeves", Self::FollowUp => "follow_up", Self::Halt => "halt",
+        Self::PressurePoints => "pressure_points", Self::Protect => "protect", Self::SashWhip => "sash_whip",
+        Self::Tranquility => "tranquility", Self::Collect => "collect", Self::Conclude => "conclude",
+        Self::Fasting => "fasting", Self::FearNoEvil => "fear_no_evil",
+        Self::ForeignInfluence => "foreign_influence", Self::Indignation => "indignation",
+        Self::InnerPeace => "inner_peace", Self::Pray => "pray", Self::ReachHeaven => "reach_heaven",
+        Self::Sanctity => "sanctity", Self::SignatureMove => "signature_move",
+        Self::SimmeringFury => "simmering_fury", Self::Study => "study", Self::Swivel => "swivel",
+        Self::TalkToTheHand => "talk_to_the_hand", Self::Tantrum => "tantrum", Self::Wallop => "wallop",
+        Self::WaveOfTheHand => "wave_of_the_hand", Self::WheelKick => "wheel_kick",
+        Self::WreathOfFlame => "wreath_of_flame", Self::Alpha => "alpha", Self::Blasphemy => "blasphemy",
+        Self::ConjureBlade => "conjure_blade", Self::DeusExMachina => "deus_ex_machina",
+        Self::DevaForm => "deva_form", Self::Judgment => "judgment", Self::LessonLearned => "lesson_learned",
+        Self::Omniscience => "omniscience", Self::Ragnarok => "ragnarok", Self::Scrawl => "scrawl",
+        Self::SpiritShield => "spirit_shield", Self::Vault => "vault", Self::Wish => "wish",
+        Self::Insight => "insight", Self::ThroughViolence => "through_violence", Self::Beta => "beta",
+        Self::Omega => "omega", Self::Expunger => "expunger", Self::BecomeAlmighty => "become_almighty",
+        Self::FameAndFortune => "fame_and_fortune", Self::LiveForever => "live_forever",
         Self::Unknown(value) => value,
     }}
 }

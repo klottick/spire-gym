@@ -18,7 +18,10 @@ pub(super) fn apply_colorless(state:&mut State,effect:&Effect,work:&ColorlessEff
 pub(super) fn validate_colorless_work(state:&State,effect:&Effect,work:&ColorlessEffect)->Result<(),InputError>{colorless::validate_work(state,effect,work)}
 pub(super) fn capture_colorless_draw_value(card:&mut LiveCard,draw_count:usize){colorless::capture_draw_value(card,draw_count)}
 pub(super) fn increment_discard(state:&mut State,notify_cards:bool)->Result<(),InputError>{silent::increment_discard(state,notify_cards)}
-pub(super) fn actual_draw(state:&mut State,owner:&super::CardHandle)->Result<(),EffectError>{silent::actual_draw(state,owner)}
+pub(super) fn actual_draw(state:&mut State,owner:&super::CardHandle)->Result<(),EffectError>{
+    silent::actual_draw(state,owner)?;
+    watcher::actual_draw(state,owner)
+}
 pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{watcher::starting_cost(id,upgrades).or_else(||defect::starting_cost(id,upgrades).or_else(||super::generation::starting_cost(id,upgrades)).or_else(||colorless::starting_cost(id,upgrades)).or_else(||silent::starting_cost(id,upgrades)))}
 pub(super) fn silent_player_hp_lost(state:&mut State)->Result<(),EffectError>{Ok(silent::player_hp_lost(state)?)}
 
@@ -193,9 +196,18 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
     validate_card_use(&combat.state,card,*target)?;
     let captured_energy=combat.state.player.energy;
     let (cost, payloads) = payload_with_wrist_blade(&combat.state, card, target.map(|id| id.0))?;
+    let attack=crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
+    // Free Attack (Swivel) makes every Attack free while a positive count remains; the count
+    // is spent by the shared CardPlayed owner for any non-purge Attack use (watcher.md:123).
+    let free_attack=attack&&!card.local.free_play&&!card.local.free_to_play_once
+        &&combat.state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0);
+    let mut payment_card=card.clone();
+    if free_attack{payment_card.local.free_to_play_once=true;}
     let corruption_skill=ironclad::exhaust::corruption_skill_active(&combat.state)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Skill);
-    let payment = if matches!(card.id,crate::content::CardId::Whirlwind|crate::content::CardId::ReinforcedBody|crate::content::CardId::Tempest|crate::content::CardId::MultiCast)&&card.local.x_cost&&!card.local.free_play {
+    let payment = if free_attack{
+        super::card_state::payment(&payment_card,captured_energy,cost)
+    }else if matches!(card.id,crate::content::CardId::Whirlwind|crate::content::CardId::ReinforcedBody|crate::content::CardId::Tempest|crate::content::CardId::MultiCast)&&card.local.x_cost&&!card.local.free_play {
         Ok(super::card_state::Payment{remaining_energy:captured_energy,paid:0})
     }else if corruption_skill&&!card.local.free_play&&!card.local.x_cost{
         super::card_state::effective_cost(card,cost).map_err(|_|crate::run::RunError::InvalidAction)?;
@@ -210,13 +222,13 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         None => None,
     };
     let source = Source::Card(handle);
-    let effects = payloads.into_iter().map(|(target, kind)| Effect {
+    let mut effects = payloads.into_iter().map(|(target, kind)| Effect {
         source: source.clone(), target: target.map(|target| match target {
             PayloadTarget::Player => Actor::Player,
             PayloadTarget::SelectedEnemy => actor.clone().expect("enemy target validated"),
             PayloadTarget::Enemy(id) => Actor::Enemy(id),
         }), kind,
-    }).collect();
+    }).collect::<Vec<_>>();
     Ok(PreparedCard { hand_index, instance: card.instance,captured_energy,paid:payment.paid,
         remaining_energy: payment.remaining_energy, target: actor, effects })
 }
@@ -224,9 +236,19 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
 /// Shared accepted-use legality used by both ordinary hand plays and autoplay
 /// children. Payload production remains read-only; payment is a separate owner.
 pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<(),crate::run::RunError>{
+    if card.id==crate::content::CardId::SignatureMove {
+        let owner=card_handle(card);
+        if state.piles.hand.iter().any(|owned|owned.handle()!=owner&&owned.full().is_some_and(|live|
+            crate::content::Catalog::standard().card(live.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack))){
+            return Err(crate::run::RunError::InvalidAction)
+        }
+    }
     if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician){return Err(crate::run::RunError::InvalidAction);}
+    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician
+        // Shared fix (M25, same shape as M26): Deus Ex Machina is Unplayable; only its on-draw trigger acts, so one
+        // that reaches the hand without a draw (a Stasis return, Discovery, copies) is unplayable, never Unsupported.
+        |crate::content::CardId::DeusExMachina){return Err(crate::run::RunError::InvalidAction);}
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
@@ -268,8 +290,15 @@ pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
     payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)
 }
 pub(super) fn visible_cost(state:&State,card:&LiveCard)->Option<i32>{
-    if card.local.x_cost{return None}
+    if card.local.x_cost{
+        if watcher::active(state)&&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
+            &&state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0){return Some(0)}
+        return None
+    }
     let cost=super::card_state::effective_cost(card,base_cost(state,card)?).ok()?;
+    if watcher::active(state)&&!card.local.free_play&&!card.local.free_to_play_once
+        &&crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
+        &&cost>0&&state.player_full_powers.iter().any(|power|power.id.0=="free_attack"&&power.state.amount>0){return Some(0)}
     if ironclad::exhaust::corruption_skill_active(state)&&crate::content::Catalog::standard().card(card.id)
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Skill)&&!card.local.free_play{return Some(0)}
     Some(cost)
@@ -438,19 +467,27 @@ fn payload(state: &State, card: &LiveCard, target: Option<u64>)
 /// Source-stage Wrist Blade modification. The first pure payload pass obtains
 /// the live costForTurn; an eligible non-X Attack is recalculated with +4
 /// present before the shared NORMAL damage modifiers run.
-fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option<u64>)
+pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option<u64>)
     ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
-    let base=payload(state,card,target)?;
+    let attack=crate::content::Catalog::standard().card(card.id)
+        .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
+    let vigor=if watcher::active(state)&&attack{state.player_full_powers.iter()
+        .find(|power|power.id.0=="vigor").map_or(0,|power|power.state.amount.max(0))}else{0};
     let eligible=state.item_context.as_ref().is_some_and(|items|
         items.m15_profile()&&items.owns_relic(crate::content::RelicId::WristBlade))
-        &&crate::content::Catalog::standard().card(card.id)
-            .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack)
-        &&!card.local.x_cost
-        &&super::card_state::effective_cost(card,base.0).ok()==Some(0);
-    if !eligible{return Ok(base)}
-    let mut projection=state.clone();
-    if let Some(items)=projection.item_context.as_mut(){items.set_wrist_blade_bonus(4);}
-    let boosted=payload(&projection,card,target)?;
+        &&attack&&!card.local.x_cost;
+    let mut projection=if vigor>0||eligible{Some(state.clone())}else{None};
+    if vigor>0 {
+        let projected=projection.as_mut().expect("Vigor projection allocated");
+        projected.player_full_powers.push(super::FullPowerEntry{id:super::FullPowerId("strength"),
+            state:super::PowerState{amount:vigor,skip_first:false,monster_source_grace:false}});
+    }
+    let base=payload(projection.as_ref().unwrap_or(state),card,target)?;
+    let wrist=eligible&&super::card_state::effective_cost(card,base.0).ok()==Some(0);
+    if !wrist{return Ok(base)}
+    let projected=projection.get_or_insert_with(||state.clone());
+    if let Some(items)=projected.item_context.as_mut(){items.set_wrist_blade_bonus(4);}
+    let boosted=payload(projected,card,target)?;
     if boosted.0!=base.0{return Err(crate::run::RunError::Unsupported("Wrist Blade payload cost changed during source modification"));}
     Ok(boosted)
 }

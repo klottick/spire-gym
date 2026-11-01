@@ -399,7 +399,89 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::LikeWater,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
     supported(CardId::Smite,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::TemporaryOnly),
     supported(CardId::Safety,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::TemporaryOnly),
+    // M25 Watcher rows (data/cards/cards.json rarity, type and colour). `card` marks
+    // a row whose combat behaviour is not implemented yet.
+    supported(CardId::BowlingBash,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::CrushJoints,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::FlyingSleeves,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::FollowUp,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::SashWhip,CardColor::Purple,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Crescendo,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Evaluate,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Halt,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::PressurePoints,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Protect,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Tranquility,CardColor::Purple,CardRarity::Common,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Conclude,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::FearNoEvil,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::ReachHeaven,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::SignatureMove,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::TalkToTheHand,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Tantrum,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Wallop,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::WheelKick,CardColor::Purple,CardRarity::Uncommon,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Collect,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::ForeignInfluence,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Indignation,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::InnerPeace,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Pray,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Sanctity,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::SimmeringFury,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Swivel,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::WaveOfTheHand,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::WreathOfFlame,CardColor::Purple,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Fasting,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::Study,CardColor::Purple,CardRarity::Uncommon,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::LessonLearned,CardColor::Purple,CardRarity::Rare,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Ragnarok,CardColor::Purple,CardRarity::Rare,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Alpha,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Blasphemy,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::ConjureBlade,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::DeusExMachina,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Judgment,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Omniscience,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Scrawl,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::SpiritShield,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Vault,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Wish,CardColor::Purple,CardRarity::Rare,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::DevaForm,CardColor::Purple,CardRarity::Rare,CardType::Power,NoteStorage::RemovablePermanent),
+    supported(CardId::ThroughViolence,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::TemporaryOnly),
+    supported(CardId::Expunger,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::TemporaryOnly),
+    supported(CardId::Insight,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::TemporaryOnly),
+    supported(CardId::Beta,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::TemporaryOnly),
+    supported(CardId::FameAndFortune,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::TemporaryOnly),
+    supported(CardId::Omega,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
+    supported(CardId::BecomeAlmighty,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
+    supported(CardId::LiveForever,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
 ];
+
+/// The single card-tag owner. Defect kinds return their `BlueCardMetadata` tags
+/// unchanged. Every other kind is tagged only with `Healing` and `Strike`;
+/// `StarterStrike` and `StarterDefend` stay Defect-only metadata.
+///
+/// HEALING: Feed, Reaper, Alchemize, Lesson Learned and Wish (with Self Repair's
+/// Defect metadata), per the HEALING exclusions list of
+/// `docs/research/2026-10-19-act1-native-contract.md`. Bandage Up is outside the
+/// native catalog and has no identity here.
+/// STRIKE: the four basic Strikes and Perfected, Pommel, Twin, Wild, Swift, Sneaky,
+/// Thunder, Meteor and Windmill Strike (Thunder and Meteor Strike through their
+/// Defect metadata), per the Perfected Strike paragraph of
+/// `docs/research/2026-10-19-act1-content-red-colorless.md`. Thunderclap is not a Strike.
+pub fn card_tags(id: CardId) -> &'static [CardTag] {
+    if let Some(metadata) = CARDS.iter().find(|row| row.id == id).and_then(|row| row.blue_metadata) {
+        return metadata.tags;
+    }
+    match id {
+        CardId::Feed | CardId::Reaper | CardId::Alchemize | CardId::LessonLearned | CardId::Wish => &[CardTag::Healing],
+        CardId::Strike | CardId::StrikeGreen | CardId::StrikePurple | CardId::PerfectedStrike | CardId::PommelStrike
+        | CardId::TwinStrike | CardId::WildStrike | CardId::SwiftStrike | CardId::SneakyStrike | CardId::WindmillStrike => &[CardTag::Strike],
+        _ => &[],
+    }
+}
+
+pub fn is_healing(id: CardId) -> bool { card_tags(id).contains(&CardTag::Healing) }
+
+pub fn is_strike(id: CardId) -> bool { card_tags(id).contains(&CardTag::Strike) }
 
 const fn card(id: CardId, color: CardColor, rarity: CardRarity, card_type: CardType, note_storage: NoteStorage) -> CardDefinition {
     CardDefinition { id, color, rarity, card_type, note_storage, definition_only: true, blue_metadata: None }

@@ -111,6 +111,9 @@ impl fmt::Display for M23CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum M24CallerOutcome{Act3NoKeys,Act4Ready,Death,EmptyDeck,BudgetExhausted}
 impl fmt::Display for M24CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{write!(f,"{self:?}")}}
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum M25CallerOutcome{HeartVictory,Act3NoKeys,Death,EmptyDeck,BudgetExhausted}
+impl fmt::Display for M25CallerOutcome{fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result{write!(f,"{self:?}")}}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Options {
@@ -138,6 +141,7 @@ enum CallerProfile {
     M22,
     M23,
     M24,
+    M25,
 }
 
 enum SharedOutcome {
@@ -146,6 +150,7 @@ enum SharedOutcome {
     M22(M22CallerOutcome),
     M23(M23CallerOutcome),
     M24(M24CallerOutcome),
+    M25(M25CallerOutcome),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -232,6 +237,11 @@ impl Caller {
     pub fn new_m24(limit:usize)->Result<Self,String>{
         if limit>32768{return Err("M24 caller limit must be in 0..=32768".into())}
         Ok(Self::with_profile(limit,CallerProfile::M24))
+    }
+    /// M25 continues the same trace owner/loop through Act4 to the Heart ending.
+    pub fn new_m25(limit:usize)->Result<Self,String>{
+        if limit>32768{return Err("M25 caller limit must be in 0..=32768".into())}
+        Ok(Self::with_profile(limit,CallerProfile::M25))
     }
     fn with_profile(limit: usize, profile: CallerProfile) -> Self {
         Self {
@@ -371,7 +381,7 @@ pub fn rollout(run: &mut Run, caller: &mut Caller, _scenario: Scenario) -> Resul
     }
     match rollout_shared(run, caller, CallerProfile::M13, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) => Err("M13 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) | SharedOutcome::M25(_) => Err("M13 rollout received an M15 finish result".into()),
     }
 }
 
@@ -389,7 +399,7 @@ pub fn rollout_m14(run: &mut Run, caller: &mut Caller, death_control: bool) -> R
     caller.nonattacking = death_control;
     match rollout_shared(run, caller, CallerProfile::M14, None, None)? {
         SharedOutcome::Legacy(outcome) => Ok(outcome),
-        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) => Err("M14 rollout received an M15 finish result".into()),
+        SharedOutcome::M15(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) | SharedOutcome::M25(_) => Err("M14 rollout received an M15 finish result".into()),
     }
 }
 
@@ -408,7 +418,7 @@ pub fn rollout_m15(
     }
     match rollout_shared(run, caller, CallerProfile::M15, Some(key_action), None)? {
         SharedOutcome::M15(outcome) => Ok(outcome),
-        SharedOutcome::Legacy(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) => Err("M15 rollout received a legacy finish result".into()),
+        SharedOutcome::Legacy(_) | SharedOutcome::M22(_) | SharedOutcome::M23(_) | SharedOutcome::M24(_) | SharedOutcome::M25(_) => Err("M15 rollout received a legacy finish result".into()),
     }
 }
 
@@ -422,7 +432,7 @@ pub fn rollout_m20(run:&mut Run,caller:&mut Caller,
         return Err("M20 rollout requires the M20DefectHeart Run profile".into())
     }
     match rollout_shared(run,caller,CallerProfile::M20,None,Some(policy))? {
-        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)|SharedOutcome::M22(_)|SharedOutcome::M23(_)|SharedOutcome::M24(_)=>Err("M20 received a legacy finish result".into())
+        SharedOutcome::M15(outcome)=>Ok(outcome),SharedOutcome::Legacy(_)|SharedOutcome::M22(_)|SharedOutcome::M23(_)|SharedOutcome::M24(_)|SharedOutcome::M25(_)=>Err("M20 received a legacy finish result".into())
     }
 }
 
@@ -448,6 +458,14 @@ pub fn rollout_m24(run:&mut Run,caller:&mut Caller,
     ->Result<M24CallerOutcome,String>{
     if caller.profile!=CallerProfile::M24||run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M24WatcherAct3){return Err("M24 rollout requires its M24 caller and Run profile".into())}
     match rollout_shared(run,caller,CallerProfile::M24,None,Some(policy))?{SharedOutcome::M24(outcome)=>Ok(outcome),_=>Err("M24 received a foreign finish result".into())}
+}
+
+/// M25 continues the same shared owner through Act4 to the Heart Victory Proceed ending.
+pub fn rollout_m25(run:&mut Run,caller:&mut Caller,
+    policy:fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&Caller)->Result<GameAction,String>)
+    ->Result<M25CallerOutcome,String>{
+    if caller.profile!=CallerProfile::M25||run.decision().map_err(classify_run_error)?.content_profile!=Some(RoomScenario::M25WatcherHeart){return Err("M25 rollout requires its M25 caller and Run profile".into())}
+    match rollout_shared(run,caller,CallerProfile::M25,None,Some(policy))?{SharedOutcome::M25(outcome)=>Ok(outcome),_=>Err("M25 received a foreign finish result".into())}
 }
 
 pub(crate) fn m14_stop_outcome(decision: &PublicDecision) -> Option<CallerOutcome> {
@@ -530,6 +548,13 @@ fn rollout_shared(
                 return Ok(SharedOutcome::M24(M24CallerOutcome::Act4Ready))
             }
             if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M24(M24CallerOutcome::BudgetExhausted))}
+        } else if profile==CallerProfile::M25{
+            // The shared Heart ending owner checks the floor-54 Proceed source and floor-55 endpoint.
+            if let Some(outcome)=heart_stop_outcome(&decision,caller.trace.last(),RoomScenario::M25WatcherHeart)?{
+                return Ok(SharedOutcome::M25(match outcome{M15CallerOutcome::HeartVictory=>M25CallerOutcome::HeartVictory,M15CallerOutcome::Act3NoKeys=>M25CallerOutcome::Act3NoKeys,
+                    M15CallerOutcome::Death=>M25CallerOutcome::Death,M15CallerOutcome::EmptyDeck=>M25CallerOutcome::EmptyDeck,M15CallerOutcome::BudgetExhausted=>M25CallerOutcome::BudgetExhausted}))
+            }
+            if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M25(M25CallerOutcome::BudgetExhausted))}
         } else {
             let expected=if profile==CallerProfile::M20{RoomScenario::M20DefectHeart}else{RoomScenario::M15SilentHeart};
             if let Some(outcome)=heart_stop_outcome(&decision,caller.trace.last(),expected)? {
@@ -537,10 +562,10 @@ fn rollout_shared(
             }
             if caller.accepted()>=caller.limit{return Ok(SharedOutcome::M15(M15CallerOutcome::BudgetExhausted))}
         }
-        if !matches!(profile,CallerProfile::M15|CallerProfile::M20|CallerProfile::M22|CallerProfile::M23|CallerProfile::M24) && caller.accepted() >= caller.limit {
+        if !matches!(profile,CallerProfile::M15|CallerProfile::M20|CallerProfile::M22|CallerProfile::M23|CallerProfile::M24|CallerProfile::M25) && caller.accepted() >= caller.limit {
             return Ok(match profile {
                 CallerProfile::M13 | CallerProfile::M14 => SharedOutcome::Legacy(CallerOutcome::BudgetExhausted),
-                CallerProfile::M15 | CallerProfile::M20 | CallerProfile::M22 | CallerProfile::M23 | CallerProfile::M24 => unreachable!("M15 budget handled before the shared legacy budget branch"),
+                CallerProfile::M15 | CallerProfile::M20 | CallerProfile::M22 | CallerProfile::M23 | CallerProfile::M24 | CallerProfile::M25 => unreachable!("M15 budget handled before the shared legacy budget branch"),
             });
         }
 
@@ -572,11 +597,11 @@ fn rollout_shared(
             }
             return Err(format!("caller selected an action outside the public menu: {action:?}"));
         }
-        let result=if matches!(profile,CallerProfile::M22|CallerProfile::M23|CallerProfile::M24){let observed=run.step_observed(&action);caller.m22_observed.push((observed.effects,observed.boundaries));observed.result}else{run.step(&action)};
+        let result=if matches!(profile,CallerProfile::M22|CallerProfile::M23|CallerProfile::M24|CallerProfile::M25){let observed=run.step_observed(&action);caller.m22_observed.push((observed.effects,observed.boundaries));observed.result}else{run.step(&action)};
         let transition = match result {
             Ok(transition) => transition,
             Err(error) if profile != CallerProfile::M13 => {
-                if matches!(profile,CallerProfile::M20|CallerProfile::M22|CallerProfile::M23|CallerProfile::M24){caller.failed_error=Some(error.clone());}
+                if matches!(profile,CallerProfile::M20|CallerProfile::M22|CallerProfile::M23|CallerProfile::M24|CallerProfile::M25){caller.failed_error=Some(error.clone());}
                 caller.failed_action = Some(action.clone());
                 return Err(format!(
                     "{} at act {} floor {} while applying {action:?}",

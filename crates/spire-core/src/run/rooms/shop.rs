@@ -5,10 +5,14 @@ pub(in crate::run) fn screen_with_rng(run:&Run,next:&mut u64,rng:&mut RunRng)->R
     screen_with_rng_at(run,next,rng,(run.state.act,run.state.floor,node))
 }
 pub(in crate::run) fn screen_with_rng_at(run:&Run,next:&mut u64,rng:&mut RunRng,destination:(u8,u32,NodeId))->Result<RoomView,RunError>{
+    if is_m25(&run.state)&&destination.0==4{
+        let rows=super::m25_content::act4_shop_rows(run,rng,destination.1,destination.2)?;
+        return view(next,RoomViewKind::Shop,rows)
+    }
     if uses_watcher_content(&run.state){
         let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
         // The destination act's pre-increment visit selects first/later stock.
-        let later=if (is_m23(&run.state)||is_m24(&run.state))&&destination.0==2{room.act2.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0}else if is_m24(&run.state)&&destination.0==3{room.act3.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0};
+        let later=if (is_m23(&run.state)||is_m24(&run.state)||is_m25(&run.state))&&destination.0==2{room.act2.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0}else if (is_m24(&run.state)||is_m25(&run.state))&&destination.0==3{room.act3.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0}else{room.act1.as_ref().ok_or(RunError::InvalidAction)?.shop_visits>0};
         let mut rows=super::m22_content::shop_cards(later).into_iter().zip(super::m22_content::SHOP_CARD_PRICES)
             .map(|(id,price)|(RoomChoiceKind::Card{id,upgrades:0},Some(price))).collect::<Vec<_>>();
         let relic=super::m22_content::SHOP_RELICS[usize::from(later)];

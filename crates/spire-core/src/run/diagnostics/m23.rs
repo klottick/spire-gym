@@ -97,10 +97,14 @@ pub(super) fn canonical(boss:EncounterId,scenario:RoomScenario,act3:Option<Encou
 /// `resources: None` keeps the canonical Catalog start with short-Neow max HP; `Some`
 /// installs validated supplied resources on the same scenario template (M24 traversal).
 pub(super) fn boss_source(boss:M23DiagnosticBoss,scenario:RoomScenario,act3:Option<EncounterId>,resources:Option<AuthoredRunStart>)->Result<Run,RunError>{
+    boss_source_for(boss,scenario,act3,resources,WatcherAdmission::M21)
+}
+/// `boss_source` with supplied resources validated under an explicit admission profile.
+pub(super) fn boss_source_for(boss:M23DiagnosticBoss,scenario:RoomScenario,act3:Option<EncounterId>,resources:Option<AuthoredRunStart>,admission:WatcherAdmission)->Result<Run,RunError>{
     let mut r=match resources{
         None=>{let mut r=canonical(boss.encounter(),scenario,act3)?;super::m22::choose(&mut r,RoomChoiceKind::NeowMaxHp{amount:7})?;r}
         Some(start)=>{
-            M21WatcherCombatStart::Supplied(start.clone()).normalized()?;let template=canonical(boss.encounter(),scenario,act3)?;
+            M21WatcherCombatStart::Supplied(start.clone()).normalized_for(admission)?;let template=canonical(boss.encounter(),scenario,act3)?;
             let next=start.deck.len() as u64+1;let mut r=Run::from_validated_combat_resources(RunConfig{character:Character::Watcher,ascension:0},start,random(),next);
             r.state.authored_combat=false;r.state.room_loop=template.state.room_loop;r.state.seen_bosses=template.state.seen_bosses;r
         }

@@ -58,6 +58,8 @@ pub struct CombatCardOfferView { pub cards:Vec<crate::content::CardId>,pub optio
 #[derive(Clone, PartialEq, Eq)]
 pub struct CombatPublic {
     pub mantra_gained:Option<i32>,
+    /// M25 Watcher: type of the previous card played this combat (FollowUp, CrushJoints, SashWhip, Sanctity).
+    pub previous_card_type:Option<crate::content::CardType>,
     pub stance_choice:Option<StanceChoiceView>,
     pub played_powers:Vec<LiveCardView>,
     /// Cards whose accepted use has started, in suspended-parent to active-child order.
@@ -100,6 +102,7 @@ impl std::fmt::Debug for CombatPublic {
         value.field("inventory",&self.inventory);
         if self.card_offer.is_some(){value.field("card_offer",&self.card_offer);}
         if self.mantra_gained.is_some(){value.field("mantra_gained",&self.mantra_gained);}
+        if self.previous_card_type.is_some(){value.field("previous_card_type",&self.previous_card_type);}
         if self.stance_choice.is_some(){value.field("stance_choice",&self.stance_choice);}
         value.finish()
     }

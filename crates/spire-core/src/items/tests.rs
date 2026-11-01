@@ -1090,3 +1090,4 @@ fn m24_watcher_act3_context_admits_red_mask_and_survives_rebuild(){
     // M22/M23 Debug text is unchanged: the field prints only when set.
     let m22=format!("{:?}",CombatItemContext::new(vec![RelicId::PureWater],potions.clone()).with_m22_profile());assert!(!m22.contains("watcher_act3"));
 }
+mod m25_watcher;

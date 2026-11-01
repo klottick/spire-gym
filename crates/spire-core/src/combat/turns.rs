@@ -85,8 +85,12 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
     super::engine::validate_effect(effect, state)?;
     match effect.kind {
         EffectKind::EndPlayerTurn => {
+            if state.full_runtime{super::cards::ironclad::autoplay::cancel_pending_card_queue(state);}
             state.phase = Phase::EnemyTurn;
-            state.pending.push_front(work(EffectKind::MonsterStart));
+            if state.full_runtime&&state.extra_turn_pending{
+                state.extra_turn_pending=false;
+                state.pending.push_front(work(EffectKind::StartNextPlayer));
+            }else{state.pending.push_front(work(EffectKind::MonsterStart));}
             if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)});}
             if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="no_draw"){
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("no_draw"))});
@@ -100,6 +104,10 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     kind: EffectKind::Character(super::characters::CharacterEffect::EndTurn) });
             }
             state.pending.push_front(work(EffectKind::DiscardHand));
+            if state.full_runtime&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::CloakClasp)) {
+                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+                    kind:EffectKind::Hook(Hook::CloakClaspBeforeCleanup{hand_size:state.piles.hand.len()})});
+            }
             if super::cards::watcher::active(state){if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="establishment"){
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Watcher(super::cards::watcher::WatcherEffect::EstablishmentDiscount{amount:power.state.amount})});
             }}

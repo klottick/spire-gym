@@ -33,12 +33,33 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Re
     if !state.full_runtime||!result.normal||result.hp_after>0{return Ok(())}
     let Source::Card(source)=&result.source else{return Ok(())};
     let Some(card)=state.in_play.as_ref().filter(|owned|owned.handle()==*source).and_then(OwnedCard::full)
-        .filter(|card|matches!(card.id,CardId::Feed|CardId::HandOfGreed)) else {return Ok(())};
+        .filter(|card|matches!(card.id,CardId::Feed|CardId::HandOfGreed|CardId::LessonLearned)) else {return Ok(())};
     let id=card.id;let upgraded=card.upgrades>0;
     let Actor::Enemy(target)=&result.target else{return Ok(())};
     let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==target)else{return Ok(())};
     if enemy.hp>0||enemy.life!=super::super::ActorLife::Active
         ||enemy.full_powers.iter().any(|power|power.id.0=="minion"){return Ok(())}
+    if id==CardId::LessonLearned{
+        let mut eligible=Vec::new();
+        for live in super::super::super::piles::owned_full_cards(state){
+            let instance=live.instance;
+            if live.origin!=crate::combat::CombatCardRef::Permanent(instance){continue}
+            let prior=state.watcher.permanent_upgrades.iter().filter(|entry|entry.instance==instance).count();
+            let upgrades=live.upgrades.checked_add(u32::try_from(prior).map_err(|_|InputError::Unsupported("Lesson Learned prior upgrade count exhausted".into()))?)
+                .ok_or_else(||InputError::Unsupported("Lesson Learned effective upgrade count exhausted".into()))?;
+            if super::rules::can_upgrade(live.id,upgrades){eligible.push((instance,live.id));}
+        }
+        eligible.sort_by_key(|(instance,_)|instance.0);
+        eligible.dedup_by_key(|(instance,_)|instance.0);
+        if eligible.is_empty(){return Ok(())}
+        let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Lesson Learned card RNG absent".into()))?;
+        let (index,next)=super::super::super::rng::uniform_below(stream,eligible.len() as u128)?;state.card_rng=Some(next);
+        let (instance,id)=eligible[index as usize];
+        let ordinal=u64::try_from(state.watcher.permanent_upgrades.len()).ok().and_then(|count|count.checked_add(1))
+            .ok_or_else(||InputError::Unsupported("Lesson Learned journal ordinal exhausted".into()))?;
+        state.watcher.permanent_upgrades.push(crate::combat::PermanentCardUpgrade{ordinal,instance,id});
+        return Ok(())
+    }
     if id==CardId::HandOfGreed {
         return Ok(super::super::super::enemies::act1::thieves::gain_gold(state,if upgraded{25}else{20})?);
     }
