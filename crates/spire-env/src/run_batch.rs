@@ -47,6 +47,7 @@ impl RunBatch {
     pub fn new_m22(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m22)}
     pub fn new_m23(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m23)}
     pub fn new_m24(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m24)}
+    pub fn new_m25(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m25)}
     pub fn new_m20(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m20)}
     pub fn new_m19(configs:Vec<RunSessionConfig>,workers:usize)->Result<Self,RunBatchError>{Self::new_with(configs,workers,RunSession::new_m19)}
     /// Construct finite Defect Acts 1–2 lanes using the shared ordered scheduler.
@@ -243,6 +244,20 @@ impl RunBatch{
             M20DiagnosticLoadout::Strong=>|c|RunSession::from_m20_diagnostic(c,M20DiagnosticLoadout::Strong),
         };
         Self::new_with(configs,workers,constructor)
+    }
+    pub(crate) fn from_m25_supplied(configs:Vec<RunSessionConfig>,workers:usize,start:crate::run_session::M25SuppliedStart)->Result<Self,RunBatchError>{
+        // Keep the shared scheduler and batch validation from new_with; replace its
+        // normal M25 owners with the fixed test-only supplied owners before dispatch.
+        let supplied_configs=configs.clone();
+        let mut batch=Self::new_with(configs,workers,RunSession::new_m25)?;
+        for (slot,config) in supplied_configs.into_iter().enumerate(){
+            batch.sessions[slot]=RunSession::from_m25_supplied(config,start)
+                .map_err(|error|RunBatchError::Input{slot:Some(slot),error})?;
+        }
+        Ok(batch)
+    }
+    pub(crate) fn m25_test_boundaries(&self)->Vec<RunBoundary>{
+        self.sessions.iter().map(|session|session.decision().unwrap()).collect()
     }
 }
 #[cfg(test)]
@@ -448,4 +463,99 @@ mod m24_actual_batch_tests{
   let rows=b.step(&t,&[RunActionIndex(0);2]).unwrap();let rrows=reference.step(&tokens(&reference),&[RunActionIndex(0);2]).unwrap();for (x,y) in rows.iter().zip(&rrows){assert_eq!((&x.boundary.observation,x.reward,x.terminated),(&y.boundary.observation,y.reward,y.terminated));}
   b.reset(&[None,Some(13)]).unwrap();reference.reset(&[None,Some(13)]).unwrap();for i in 0..2{assert_eq!(b.reproduction(i).unwrap(),reference.reproduction(i).unwrap());assert_eq!(b.record(i).unwrap(),reference.record(i).unwrap());}
  }}
+}
+
+#[cfg(test)]
+mod m25_tests {
+    //! Constructed H2 M25 stages are internal witnesses; normal batch ordering is tested in run_m25_batch.rs.
+    use super::*;
+    use spire_core::{
+        combat::rng::Partition,
+        content::Character,
+        run::{diagnostics::{M25Diagnostic, M25DiagnosticBoss}, GameAction, RoomChoiceKind, RoomChoiceStatus, RoomViewKind, RunTerminal},
+    };
+
+    fn config() -> RunSessionConfig {
+        RunSessionConfig {
+            character: Character::Watcher,
+            ascension: 0,
+            partition: Partition::Test,
+            boss_history: crate::RunBossHistory::M25WatcherHeart {
+                act1: crate::RunAct1BossTarget::Guardian,
+                act2: crate::RunAct2BossTarget::Champ,
+                act3: crate::RunAct3BossTarget::AwakenedOne,
+            },
+            capacities: crate::RunCapacities::m10_default(),
+            record_replay: true,
+        }
+    }
+
+    fn latest(session: &RunSession) -> spire_core::run::PublicDecision {
+        session.reproduction().unwrap().latest_decision.unwrap().unwrap()
+    }
+
+    fn token(session: &RunSession) -> RunDecisionToken {
+        session.decision().unwrap().token
+    }
+
+    fn choose(session: &mut RunSession, kind: RoomChoiceKind) -> RunStepResult {
+        let decision = latest(session);
+        let choice = decision.room.unwrap().choices.into_iter()
+            .find(|row| row.kind == kind && row.status == RoomChoiceStatus::Offered)
+            .unwrap_or_else(|| panic!("missing offered M25 choice {kind:?}"));
+        let index = decision.candidates.iter().position(|row| row.action == GameAction::Choose(choice.id)).unwrap();
+        let token = token(session);
+        session.step(token, RunActionIndex(index as i64)).unwrap()
+    }
+
+    fn snapshot(batch: &RunBatch) -> Vec<RunReproduction> {
+        (0..batch.sessions.len()).map(|slot| batch.reproduction(slot).unwrap()).collect()
+    }
+
+    #[test]
+    fn m25_batch_rejects_step_with_terminal_slot() {
+        for workers in [1, 2] {
+            for terminal in [RunTerminal::HeartVictory, RunTerminal::Act3NoKeys] {
+                let cfg = config();
+                let mut batch = RunBatch::new_m25(vec![cfg.clone(); 2], workers).unwrap();
+                batch.reset(&[Some(7); 2]).unwrap();
+                let terminal_session = match terminal {
+                    RunTerminal::HeartVictory => {
+                        let mut session = RunSession::from_m25_diagnostic(cfg.clone(), M25Diagnostic::HeartVictoryPending).unwrap();
+                        assert!(session.reproduction().unwrap().fault.is_none(), "H2 HeartVictory screen must publish as a healthy M25 boundary");
+                        assert_eq!(latest(&session).room.as_ref().unwrap().kind, RoomViewKind::HeartVictory);
+                        let result = choose(&mut session, RoomChoiceKind::Proceed);
+                        assert_eq!((result.reward, result.boundary.terminal), (110, Some(RunTerminal::HeartVictory)));
+                        assert_eq!(latest(&session).room.unwrap().kind, RoomViewKind::TrueVictory);
+                        session
+                    }
+                    RunTerminal::Act3NoKeys => {
+                        let mut session = RunSession::from_m25_diagnostic(cfg.clone(), M25Diagnostic::DoorSource {
+                            boss: M25DiagnosticBoss::AwakenedOne,
+                            keys: [false, true, true],
+                        }).unwrap();
+                        choose(&mut session, RoomChoiceKind::Proceed);
+                        for stage in 1..=3 { choose(&mut session, RoomChoiceKind::Act3Continue { stage }); }
+                        let result = choose(&mut session, RoomChoiceKind::Act3Continue { stage: 4 });
+                        assert_eq!(result.boundary.terminal, Some(RunTerminal::Act3NoKeys));
+                        session
+                    }
+                    _ => unreachable!("only M25 terminal fixtures are included"),
+                };
+                batch.sessions[1] = terminal_session;
+
+                let decision_tokens = batch.sessions.iter().map(token).collect::<Vec<_>>();
+                let before = snapshot(&batch);
+                assert_eq!(
+                    batch.step(&decision_tokens, &[RunActionIndex(0); 2]),
+                    Err(RunBatchError::Input { slot: Some(1), error: RunSessionError::Terminal }),
+                    "{terminal:?} terminal slot rejects the complete step",
+                );
+                assert_eq!(snapshot(&batch), before, "terminal slot preflight does not advance a live peer");
+                assert!(batch.fault.is_none());
+                batch.reset(&[Some(7), None]).unwrap();
+                assert_eq!(batch.record(1).unwrap().unwrap().ordinal, 1);
+            }
+        }
+    }
 }

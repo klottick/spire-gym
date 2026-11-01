@@ -85,19 +85,29 @@ impl Run {
 /// Finite Watcher authored resources, without hidden combat state or progression.
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum M21WatcherCombatStart{Canonical,Supplied(AuthoredRunStart)}
+/// The admission profile a supplied Watcher start is validated against.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum WatcherAdmission{M21,M25}
 pub const M21_WATCHER_RELICS:&[RelicId]=&[RelicId::PureWater,RelicId::VioletLotus,RelicId::GoldenEye,RelicId::TeardropLocket,RelicId::SacredBark,RelicId::Vajra,RelicId::OddlySmoothStone];
 pub const M21_WATCHER_POTIONS:&[PotionId]=&[PotionId::StancePotion,PotionId::Ambrosia,PotionId::BottledMiracle,PotionId::BlockPotion,PotionId::EnergyPotion,PotionId::DexterityPotion,PotionId::AncientPotion];
 impl M21WatcherCombatStart{
     /// Normalize public multisets once, keeping physical permanent identities.
-    pub fn normalized(self)->Result<Self,RunError>{
+    pub fn normalized(self)->Result<Self,RunError>{self.normalized_for(WatcherAdmission::M21)}
+    /// Supplied-resource validation under an admission profile; `M21` is `normalized()`.
+    pub fn normalized_for(self,admission:WatcherAdmission)->Result<Self,RunError>{
         let Self::Supplied(mut resources)=self else{return Ok(self)};
         if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=128).contains(&resources.deck.len())||resources.potions.len()!=3{return Err(RunError::InvalidAction)}
         let mut ids=std::collections::BTreeSet::new();
-        if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||c.upgrades>1||c.misc!=0||!crate::content::watcher::supports_permanent(c.id)){
-            return Err(RunError::Unsupported("card outside finite M21 permanent profile"))
+        if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||c.upgrades>1||c.misc!=0||!match admission{
+            WatcherAdmission::M21=>crate::content::watcher::supports_permanent(c.id),
+            WatcherAdmission::M25=>crate::run::M25_WATCHER_HEART_CARDS.contains(&c.id)&&(c.id!=CardId::Parasite||c.upgrades==0),
+        }){
+            return Err(RunError::Unsupported(match admission{WatcherAdmission::M21=>"card outside finite M21 permanent profile",WatcherAdmission::M25=>"card outside the M25 permanent union"}))
         }
         if ids.last().is_none_or(|id|*id==u64::MAX){return Err(RunError::Unsupported("permanent identity exhausted"))}
-        crate::items::validate_combat_inventory(&crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone()).with_startup_profile(crate::items::CombatStartupProfile::M21Watcher),Character::Watcher)?;
+        let context=crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone());
+        let context=match admission{WatcherAdmission::M21=>context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher),WatcherAdmission::M25=>context.with_m25_profile()};
+        crate::items::validate_combat_inventory(&context,Character::Watcher)?;
         resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));resources.relics.sort_by_key(|r|r.as_str());Ok(Self::Supplied(resources))
     }
 }

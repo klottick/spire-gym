@@ -175,6 +175,15 @@ impl Combat {
     pub(crate) fn validate_permanent_mutations_for_run(&self)->Result<(),InputError>{super::cards::defect::validate_mutations(&self.state)}
     pub fn permanent_card_mutations(&self)->&[super::PermanentCardMutation]{&self.state.defect.permanent_mutations}
     pub(crate) fn permanent_gains(&self)->&[super::model::PermanentCardGain]{&self.state.permanent_gains}
+    pub fn permanent_card_upgrades(&self)->&[super::PermanentCardUpgrade]{&self.state.watcher.permanent_upgrades}
+    /// Whether a pending ordinary player end-turn is owned by Vault and should
+    /// resume directly at the next player start, skipping MonsterStart/EndRound.
+    pub fn extra_turn_pending(&self)->bool{self.state.extra_turn_pending}
+    /// The amount Deva Form grants at the next player recharge, or zero when absent.
+    pub fn deva_form_energy_gain(&self)->i32{self.state.watcher.deva_energy_gain}
+    /// The most recently completed play type, which is the previous type seen by the next card.
+    pub fn previous_card_type(&self)->Option<crate::content::CardType>{self.state.played_card_types.last().copied()}
+    pub(crate) fn validate_permanent_upgrades_for_run(&self)->Result<(),InputError>{super::cards::watcher::validate_permanent_upgrades(&self.state)}
     /// Enqueue a typed full-runtime lifecycle event through the authoritative
     /// resolver. Producers supply owned source/target identities; hook handlers
     /// and resulting effects remain combat-owned.
@@ -494,6 +503,9 @@ impl Combat {
         combat.state.silent.history_enabled=entry.cards.iter().any(|card|super::cards::requires_draw_history(card.id))||item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.m21_profile());
         if combat.state.enemies.iter().any(|enemy|matches!(enemy.enemy_id,ActorEnemyId::Full(crate::content::EnemyId::Looter|crate::content::EnemyId::Mugger)))
             ||entry.cards.iter().any(|card|card.id==crate::content::CardId::HandOfGreed)
+            // M25 gold producers: Wish (FameAndFortune) and a Foreign Influence Hand of Greed.
+            ||item_context.as_ref().is_some_and(|items|items.m25_profile())
+                &&entry.cards.iter().any(|card|matches!(card.id,crate::content::CardId::Wish|crate::content::CardId::ForeignInfluence))
             ||item_context.as_ref().is_some_and(|items|items.shared_generated_profile()){
             combat.state.thief_gold=Some(Default::default());
         }
@@ -512,7 +524,8 @@ impl Combat {
             .map_err(|_| CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("invalid full combat damage setup")))?;
         let mut issued = BTreeSet::new();
         for mut live in entry.cards {
-            if item_context.as_ref().is_some_and(|items|items.m21_profile()){super::cards::watcher::initialize_profile(&mut live).map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;}
+            if item_context.as_ref().is_some_and(|items|items.m25_profile()){super::cards::watcher::initialize_m25_profile(&mut live).map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;}
+            else if item_context.as_ref().is_some_and(|items|items.m21_profile()){super::cards::watcher::initialize_profile(&mut live).map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;}
             if live.instance.0 == 0 || !issued.insert(live.instance) {
                 return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
             }
@@ -916,8 +929,13 @@ impl Combat {
             SelectionParent::Potion{slot,id} if self.state.in_play.is_none()&&valid_potion_slot(&self.state,*slot)
                 &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
                     ||self.state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))=>(),
-            SelectionParent::Power{turn,id} if self.state.full_runtime&&self.state.in_play.is_none()&&*turn==self.state.turn
-                &&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(&self.state)&&id.0=="foresight"))&&self.state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)=>(),
+            SelectionParent::Power{turn,id} if self.state.full_runtime&&*turn==self.state.turn&&(
+                self.state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(&self.state)&&id.0=="foresight"))
+                    &&self.state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
+                ||id.0=="melange"&&selection.operation==SelectionOperation::Scry
+                    &&self.state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
+                    &&matches!(self.state.watcher.resume_phase,Some(Phase::PlayerStart|Phase::PlayerAction))
+                    &&(self.state.in_play.is_none()||self.state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))=>(),
             SelectionParent::EndTurn{turn} if self.state.full_runtime&&self.state.in_play.is_none()
                 &&self.state.phase==Phase::Selection&&*turn==self.state.turn
                 &&self.state.temporary_retain.is_none()
@@ -1134,6 +1152,35 @@ impl Combat {
                 SelectionOperation::Upgrade=>unreachable!("upgrade handled before moving card"),
                 SelectionOperation::Retain=>unreachable!("retain handled without moving card"),
                 SelectionOperation::RetrieveMemories=>unreachable!("retrieval handled before source-card movement"),
+                SelectionOperation::Omniscience=>{
+                    let Some(live)=card.full() else{
+                        super::model::mark_fault(&mut self.state,FaultKind::Invariant,"Omniscience selected a non-full card".into());
+                        return Err(retained_fault(&self.state))
+                    };
+                    let targeted=crate::content::Catalog::standard().card(live.id).is_some_and(|definition|
+                        !matches!(definition.card_type,crate::content::CardType::Status|crate::content::CardType::Curse))
+                        &&matches!(super::cards::payload_with_wrist_blade(&self.state,live,None),Err(crate::run::RunError::InvalidAction));
+                    let child=card.handle();
+                    if self.state.queued_autoplay.insert(child.clone(),card).is_some(){
+                        super::model::mark_fault(&mut self.state,FaultKind::Invariant,"Omniscience selected card already queued".into());
+                        return Err(retained_fault(&self.state))
+                    }
+                    let (target,repeat_target)=if targeted{
+                        let first=match super::cards::ironclad::autoplay::capture_random_enemy_target(&mut self.state){
+                            Ok(target)=>target,Err(error)=>{super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience first random target failed: {error:?}"));return Err(retained_fault(&self.state))}
+                        };
+                        let repeat=match super::cards::ironclad::autoplay::capture_random_enemy_target(&mut self.state){
+                            Ok(target)=>target,Err(error)=>{super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience repeat random target failed: {error:?}"));return Err(retained_fault(&self.state))}
+                        };
+                        (first,repeat)
+                    }else{(None,None)};
+                    let queued=Effect{source:parent_source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(
+                        super::cards::watcher::WatcherEffect::OmnisciencePlay{child,target,repeat_target,energy_on_use:-1,cancelled:false})};
+                    if let Err(error)=super::cards::ironclad::autoplay::queue_after_finish(&mut self.state,&parent_source,queued){
+                        super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience queue insertion failed: {error:?}"));
+                        return Err(retained_fault(&self.state))
+                    }
+                },
             }
         }
         super::piles::refresh_hand_values(&mut self.state);
@@ -1146,7 +1193,7 @@ impl Combat {
         if matches!(selection.parent,SelectionParent::Potion{..}) {
             self.state.phase=Phase::Decision;
         }
-        if matches!(selection.parent,SelectionParent::Power{..}){self.state.phase=Phase::PlayerStart;}
+        if matches!(&selection.parent,SelectionParent::Power{id,..} if id.0!="melange"){self.state.phase=Phase::PlayerStart;}
         }
         super::observe::changes(&self.state,observed_before,&parent_source);
         let transition = resolve(&mut self.state);
@@ -1211,7 +1258,8 @@ impl Combat {
             .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
                 effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction)))
             .collect::<Result<Vec<_>,_>>()?;
-        Ok(CombatPublic { mantra_gained:super::cards::watcher::active(&self.state).then_some(self.state.character.mantra_gained),stance_choice:self.state.watcher.stance_choice.as_ref().map(|c|super::view::StanceChoiceView{options:c.options.clone()}),card_offer:self.state.silent.card_offer.as_ref().map(|offer|super::view::CombatCardOfferView{cards:offer.cards.clone(),optional:offer.optional}),content_id: self.state.content_id.clone(), turn: self.state.turn,
+        Ok(CombatPublic { mantra_gained:super::cards::watcher::active(&self.state).then_some(self.state.character.mantra_gained),
+            previous_card_type:(super::cards::watcher::active(&self.state)&&self.state.item_context.as_ref().is_some_and(|items|items.m25_profile())).then(||self.state.played_card_types.last().copied()).flatten(),stance_choice:self.state.watcher.stance_choice.as_ref().map(|c|super::view::StanceChoiceView{options:c.options.clone()}),card_offer:self.state.silent.card_offer.as_ref().map(|offer|super::view::CombatCardOfferView{cards:offer.cards.clone(),optional:offer.optional}),content_id: self.state.content_id.clone(), turn: self.state.turn,
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
             stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
@@ -1299,7 +1347,7 @@ impl Combat {
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
+                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
@@ -1333,7 +1381,7 @@ impl Combat {
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers, item_context: None,
                 character,
-                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
+                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {
@@ -1453,7 +1501,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         }
         EffectKind::Damage(DamagePayload::Orb(n)) => require((0..=1515).contains(n)||super::cards::defect::valid_orb_source(state,&effect.source), "orb payload bounds/producer")?,
         EffectKind::Damage(DamagePayload::HpLoss(n)) =>
-            require(state.full_runtime && (0..=999).contains(n), "HP_LOSS mode/bounds")?,
+            require(state.full_runtime && ((0..=999).contains(n)
+                ||*n==99_999&&effect.target==Some(Actor::Player)&&effect.source==Source::Actor(Actor::Player)
+                    &&state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+                    &&state.player_full_powers.iter().any(|power|power.id.0=="blasphemer"&&power.state.amount>0)),
+                "HP_LOSS mode/bounds/Blasphemer owner")?,
         EffectKind::Damage(DamagePayload::PoisonTickHpLoss { owner, amount }) => {
             let retained_owner=matches!((&effect.source,&effect.target),
                 (Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&source==owner
@@ -1594,11 +1646,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Guardian))),"Guardian change source/target")?;
         },
         EffectKind::CorruptHeartBuff=>require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|enemy|enemy.instance_id==*target&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart)&&enemy.hp>0&&enemy.life==ActorLife::Active&&enemy.intent_id.as_str()=="heart_buff")),"Heart buff must be selected, owner-local living work")?,
+        // A pending selection keeps its own owner: a card parent must be the in-play card (checked
+        // with the selection below); a power parent such as Melange's shuffle Scry may interrupt the play.
         EffectKind::Hook(Hook::CardAfterUse|Hook::CardAfterPlayed)=>require(state.full_runtime&&matches!(state.phase,Phase::PlayerAction|Phase::Selection)&&effect.target.is_none()
             &&matches!((&effect.source,&state.in_play),(Source::Card(owner),Some(card)) if owner==&card.handle())
-            &&state.pending.iter().any(|pending|pending.source==effect.source&&pending.kind==EffectKind::FinishCard)
-            &&state.pending_selection.as_ref().is_none_or(|selection|matches!((&selection.parent,&effect.source),
-                (SelectionParent::Card(parent),Source::Card(owner)) if parent==owner)),
+            &&state.pending.iter().any(|pending|pending.source==effect.source&&pending.kind==EffectKind::FinishCard),
             "CardAfterUse requires the actual in-play card and its queued finish")?,
         EffectKind::Hook(Hook::CardManuallyDiscarded)=>require(state.full_runtime
             &&matches!(state.phase,Phase::PlayerAction|Phase::Selection)&&effect.target.is_none()
@@ -1891,7 +1943,19 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             && matches!((&effect.source,&effect.target,&state.in_play),(Source::Card(owner),Some(Actor::Player),Some(card))
                 if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Combust)),
             "Combust application requires its current player card owner and exact payload")?;},
-        EffectKind::ApplyFullPower { id, amount } if super::cards::watcher::active(state)&&super::cards::watcher::power_id(*id)=>require(effect.target==Some(Actor::Player)&&(if id.0=="master_reality"{*amount== -1}else{*amount>0}),"Watcher power exact player/numeric owner")?,
+        EffectKind::ApplyFullPower { id, amount } if matches!(id.0,"mark"|"block_return")=>{
+            let expected=if id.0=="mark"{crate::content::CardId::PressurePoints}else{crate::content::CardId::TalkToTheHand};
+            let owner=match &effect.source{Source::Card(owner)=>Some(owner),_=>None};
+            let current=owner.and_then(|owner|state.in_play.as_ref().filter(|card|card.handle()==*owner)
+                .or_else(||state.piles.hand.iter().find(|card|card.handle()==*owner)));
+            require(state.full_runtime&&state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+                &&matches!((&effect.target,current), (Some(Actor::Enemy(target)),Some(card))
+                    if state.enemies.iter().any(|enemy|enemy.instance_id==*target&&enemy.life==ActorLife::Active&&enemy.hp>0)
+                        &&card.full().is_some_and(|live|live.id==expected&&live.local.magic_number==Some(*amount)))
+                &&*amount>0,"Watcher enemy debuff requires its exact live card/target/value")?;
+        }
+        EffectKind::ApplyFullPower { id, amount } if super::cards::watcher::active(state)&&super::cards::watcher::power_id(*id)=>
+            require(super::cards::watcher::valid_power_application(state,effect,*id,*amount),"Watcher power exact player/card/numeric owner")?,
         EffectKind::ApplyFullPower { id, amount } => require(state.full_runtime &&
             (if id.0=="mode_shift"{*amount>0}
                 else if id.0=="focus"{(effect.target==Some(Actor::Player)&&super::cards::defect::valid_focus_application(state,&effect.source,*amount))||(*amount==-1&&state.character.orb_slots.iter().any(Option::is_some)
@@ -2011,7 +2075,8 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
         EffectKind::Ironclad(super::cards::IroncladEffect::HavocQueued{child,..}|super::cards::IroncladEffect::DoubleTapRepeat{child,..})=>Some(child),
         EffectKind::Defect(super::cards::DefectEffect::Repeat{child,..})
             |EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
-            |EffectKind::Colorless(super::cards::ColorlessEffect::MayhemAutoplay{child,..})=>Some(child),
+            |EffectKind::Colorless(super::cards::ColorlessEffect::MayhemAutoplay{child,..})
+            |EffectKind::Watcher(super::cards::watcher::WatcherEffect::OmnisciencePlay{child,..}|super::cards::watcher::WatcherEffect::OmniscienceRepeat{child,..})=>Some(child),
         EffectKind::Potion(super::PotionEffect::DistilledChaosQueuedChild{child,..}|super::PotionEffect::DuplicationRepeat{child,..})=>Some(child),_=>None
     }).collect::<Vec<_>>();
     let unique_queued=queued_refs.iter().map(|handle|(*handle).clone()).collect::<BTreeSet<_>>();
@@ -2028,6 +2093,7 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
                 |super::cards::IroncladEffect::DoubleTapRepeat{child,..})
                 |EffectKind::Defect(super::cards::DefectEffect::Repeat{child,..})
                 |EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
+                |EffectKind::Watcher(super::cards::watcher::WatcherEffect::OmnisciencePlay{child,..}|super::cards::watcher::WatcherEffect::OmniscienceRepeat{child,..})
                 |EffectKind::Potion(super::PotionEffect::DuplicationRepeat{child,..}) if child==&frame.child)))
         .map(|frame|frame.child.clone());
     // A lethal ordinary action may run after the parent's finish checkpoint
@@ -2075,6 +2141,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
         &&state.pending_selection.is_none(),"generated offer has a unique native selection phase")?;
     super::enemies::act1::thieves::validate_state(state)?;
     super::cards::validate_colorless_state(state)?;
+    super::cards::watcher::validate_deva_state(state)?;
     require(state.content_id == CONTENT_ID, "runtime content")?;
     require(state.full_runtime||state.silent==super::cards::SilentState::default(),"legacy mode cannot carry green continuation state")?;
     require(state.full_runtime||state.damage_events_this_combat==0,"legacy mode cannot carry native damage-event history")?;
@@ -2383,6 +2450,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
         Phase::Selection if state.watcher.stance_choice.is_some()=>{super::cards::watcher::validate_choice(state)?;},
         Phase::Selection if state.silent.card_offer.is_some()=>{
             let offer=state.silent.card_offer.as_ref().expect("offer phase guarded");
+            let wish_choices=super::card_offers::is_retained_wish_offer(state,offer);
             require(state.pending_selection.is_none()&&offer.resume!=Phase::Selection&&offer.resume!=Phase::Terminal,
                 "generated offer has one suspended parent")?;
             super::card_offers::validate_owner(state,&offer.source)?;
@@ -2390,7 +2458,8 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                 &&offer.cards.iter().enumerate().all(|(index,id)|!offer.cards[..index].contains(id)
                     &&crate::content::Catalog::standard().card(*id).is_some_and(|definition|matches!(definition.card_type,
                         crate::content::CardType::Attack|crate::content::CardType::Skill|crate::content::CardType::Power))
-                    &&super::card_state::generated(*id,CardInstanceId(0),0).is_some()),"generated offer retained shape")?;
+                    &&(super::card_state::generated(*id,CardInstanceId(0),0).is_some()
+                        ||wish_choices&&crate::content::watcher::M25_WATCHER_CHOICES.contains(id))),"generated offer retained shape")?;
         }
         Phase::Selection => {
             let selection=state.pending_selection.as_ref().ok_or_else(||InputError::Invariant("selection continuation absent".into()))?;
@@ -2401,8 +2470,13 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
                         ||state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none)),
                     "potion selection has a valid consumed parent")?,
-                SelectionParent::Power{turn,id}=>require(state.full_runtime&&*turn==state.turn&&state.in_play.is_none()
-                    &&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"&&state.watcher.resume_phase==Some(Phase::PlayerStart)))&&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
+                SelectionParent::Power{turn,id}=>require(state.full_runtime&&*turn==state.turn&&(
+                    state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"&&state.watcher.resume_phase==Some(Phase::PlayerStart)))
+                        &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
+                    ||id.0=="melange"&&selection.operation==SelectionOperation::Scry
+                        &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
+                        &&matches!(state.watcher.resume_phase,Some(Phase::PlayerStart|Phase::PlayerAction))
+                        &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))
                     &&state.pending.iter().any(|e|e.kind==EffectKind::Decision),"power selection has a live post-draw parent")?,
                 SelectionParent::EndTurn{turn}=>require(state.full_runtime&&*turn==state.turn&&state.in_play.is_none()
                     &&state.current.is_none()&&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1,

@@ -22,7 +22,8 @@ pub const ACT2_RELIC_CAPTURE_SCOPE_NAME: &str = "run.m23.relic.capture";
 /// Act1 keeps `run.m22.relic.capture`; M23/M24 Act2 use the M23 scope and M24 Act3
 /// appends its own scope.
 pub(crate) fn relic_capture_scope(state: &crate::run::RunState) -> crate::run::RunRngScope {
-    if (super::is_m23(state) || super::is_m24(state)) && state.act == 2 { ACT2_RELIC_CAPTURE_SCOPE }
-    else if super::is_m24(state) && state.act == 3 { super::m24_content::ACT3_RELIC_CAPTURE_SCOPE }
+    if (super::is_m23(state) || super::is_m24(state) || super::is_m25(state)) && state.act == 2 { ACT2_RELIC_CAPTURE_SCOPE }
+    else if (super::is_m24(state) || super::is_m25(state)) && state.act == 3 { super::m24_content::ACT3_RELIC_CAPTURE_SCOPE }
+    else if super::is_m25(state) && state.act == 4 { super::m25_content::ACT4_RELIC_CAPTURE_SCOPE }
     else { m22::RELIC_CAPTURE_SCOPE }
 }

@@ -106,3 +106,8 @@ mod run_schema_m24;
 pub use run_schema_m24::{m24_run_observation_spec,RUN_OBSERVATION_M24_SCHEMA_ID};
 pub use run_observation::encode_run_m24;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M24,RUN_RULES_ID_M24,RUN_CONTENT_ID_M24};
+
+mod run_schema_m25;
+pub use run_schema_m25::{m25_run_observation_spec,RUN_OBSERVATION_M25_SCHEMA_ID};
+pub use run_observation::encode_run_m25;
+pub use run_session::{RUN_RECORD_SCHEMA_ID_M25,RUN_RULES_ID_M25,RUN_CONTENT_ID_M25};

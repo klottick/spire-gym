@@ -1,6 +1,8 @@
 //! Finite blue producers over the shared card, orb and action owners.
 use super::*;
 mod direct;
+/// Shared blue random-hit continuation, also driven by the M25 Ragnarok producer.
+pub(in crate::combat) use direct::DirectEffect;
 mod state;
 mod powers;
 use crate::content::CardId;

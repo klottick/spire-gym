@@ -13,6 +13,7 @@ pub mod watcher;
 pub use cards::{
     BlueCardMetadata, CardColor, CardCost, CardDefinition, CardFaceMetadata, CardKeywords,
     CardRarity, CardTag, CardTarget, CardType, ContentProducer, NoteStorage, RegistryError,
+    card_tags, is_healing, is_strike,
 };
 pub use encounters::{EncounterDefinition, EnemyDefinition};
 pub use events::EventDefinition;
@@ -56,7 +57,7 @@ impl Catalog {
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
     pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {
         if id==RelicId::HolyWater{return Some(RelicTier::Boss)}
-        items::SILENT_RELIC_TIERS.iter().chain(items::DEFECT_RELIC_TIERS.iter())
+        items::SILENT_RELIC_TIERS.iter().chain(items::DEFECT_RELIC_TIERS.iter()).chain(items::M25_WATCHER_RELIC_TIERS.iter())
             .find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
     }
     /// Character eligibility for a registered relic. `None` means the ID has no definition;

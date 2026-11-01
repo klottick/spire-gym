@@ -110,6 +110,20 @@ pub(super) fn apply_effect_with_receipt(state:&mut State,effect:&Effect)
     (result,damage_result)
 }
 
+pub(in crate::combat) fn instant_kill(state:&mut State,effect:&Effect)->Result<(),EffectError>{
+    let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Instant Kill target absent".into()).into())};
+    let enemy=state.enemies.iter_mut().find(|enemy|&enemy.instance_id==owner)
+        .ok_or_else(||InputError::Invariant("Instant Kill target custody absent".into()))?;
+    enemy.hp=0;
+    if super::enemies::act3::darklings::down(state,owner,&effect.source)
+        ||super::enemies::act3::awakened::down(state,owner,&effect.source){return Ok(())}
+    if super::enemies::act2::combat_victory_ready(state)&&state.player.hp>0{
+        super::enemies::act2::queue_victory(state,&effect.source);
+    }
+    state.pending.push_front(Effect{source:effect.source.clone(),target:effect.target.clone(),kind:EffectKind::Hook(Hook::Death)});
+    Ok(())
+}
+
 fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut Option<super::model::DamageResult>) -> Result<(), EffectError> {
     super::engine::validate_effect(effect, state)?;
     if state.full_runtime && matches!(effect.kind, EffectKind::ApplyPower { .. }
@@ -220,6 +234,8 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     for child in work.into_iter().rev(){super::engine::validate_effect(&child,state)?;state.pending.push_front(child);}
                 }
                 super::cards::ironclad::reactive::after_damage(state,&damage_result)?;
+                super::powers::enemy_block_return_after_damage(state,&damage_result);
+                super::cards::watcher::after_damage(state,&damage_result)?;
                 if damage_result.target==Actor::Player {
                     if let Some(effect)=state.item_context.as_ref().and_then(|items|
                         crate::items::runic_cube_draw(items,damage_result.hp_lost)) {
@@ -432,7 +448,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 rules::block_after_add(*block, *n)?
             };
             let after=*block;
-            if full_runtime{super::cards::ironclad::reactive::after_block(state,&block_target,*n,before,after)?;}
+            if full_runtime{
+                super::cards::ironclad::reactive::after_block(state,&block_target,*n,before,after)?;
+                super::powers::player_block_gained(state,&block_target,after-before);
+            }
         }
         EffectKind::Heal(n) => {
             if let Some(Actor::Enemy(owner))=&effect.target {
@@ -801,9 +820,13 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     match &parent{
         super::selection::SelectionParent::Card(card) if state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(card)=>(),
         super::selection::SelectionParent::Potion{slot,..} if state.in_play.is_none()&&super::engine::valid_potion_slot(state,*slot)=>(),
-        super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&(id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"))
-            &&state.phase==Phase::PlayerStart&&state.in_play.is_none()
-            &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)=>(),
+        super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&(
+            (id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"))
+                &&state.phase==Phase::PlayerStart&&state.in_play.is_none()
+                &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
+            ||id.0=="melange"&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
+                &&matches!(state.phase,Phase::PlayerStart|Phase::PlayerAction)
+                &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))=>(),
         super::selection::SelectionParent::EndTurn{turn} if state.full_runtime&&*turn==state.turn
             &&state.phase==super::Phase::EnemyTurn&&state.in_play.is_none()
             &&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1=>(),

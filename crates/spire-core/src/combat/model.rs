@@ -299,6 +299,7 @@ pub enum SilentItemEffect {
 /// Detached result from the single shared damage commit, not a second calculator.
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(super) struct DamageResult {pub source:Source,pub target:Actor,pub normal:bool,pub hp_loss:bool,pub thorns:bool,pub attempted:i32,pub blocked:i32,pub hp_lost:i32,pub hp_after:i32}
+impl DamageResult {pub(in crate::combat) fn last_damage_taken(&self)->i32{self.hp_lost}}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -464,11 +465,13 @@ pub(super) struct State {
     pub stasis:BTreeMap<EnemyHandle,OwnedCard>,
     pub permanent_gains:Vec<PermanentCardGain>,pub next_permanent_gain:u64,
     pub played_powers:Vec<OwnedCard>,
+    pub played_card_types:Vec<crate::content::CardType>,
     pub inactive_cards:Vec<OwnedCard>,
     pub play_frames:Vec<PlayFrame>,
     pub play_context:Option<PlayContext>,
     pub queued_autoplay:BTreeMap<CardHandle,OwnedCard>,
     pub pending_time_warp:Option<EnemyHandle>,
+    pub extra_turn_pending:bool,
     pub damage_events_this_combat:u32,
     pub silent:super::cards::SilentState,
     /// Combust stacks are counted independently of the summed damage amount.
@@ -504,10 +507,12 @@ impl std::fmt::Debug for State {
             .field("play_context",&self.play_context).field("queued_autoplay",&self.queued_autoplay)
             .field("pending_time_warp",&self.pending_time_warp).field("damage_events_this_combat",&self.damage_events_this_combat)
             .field("combust",&self.combust).field("thief_gold",&self.thief_gold);
+        if self.extra_turn_pending{debug.field("extra_turn_pending",&true);}
         if self.silent.history_enabled||self.silent.source_character.is_some()||self.silent.card_offer.is_some()||self.silent.smoked||self.silent.retain_block_next_start{debug.field("silent",&self.silent);}
         if self.colorless!=ColorlessState::default(){debug.field("colorless",&self.colorless);}
         if self.defect!=super::cards::DefectState::default(){debug.field("defect",&self.defect);}
         if self.watcher!=super::cards::watcher::WatcherState::default(){debug.field("watcher",&self.watcher);}
+        if !self.played_card_types.is_empty(){debug.field("played_card_types",&self.played_card_types);}
         debug.finish()
     }
 }

@@ -42,7 +42,7 @@ pub use engine::{Combat, CombatEntryFailure};
 pub use enemies::{EnemyMemory, MoveSelection};
 pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
 pub use view::{WatcherCardValues,StanceChoiceView,CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
-pub use card_state::{permanent_with_misc as permanent_live_card_with_misc,permanent as permanent_live_card, CombatCardData, LiveCard, PermanentCardMutation};
+pub use card_state::{permanent_with_misc as permanent_live_card_with_misc,permanent as permanent_live_card, CombatCardData, LiveCard, PermanentCardMutation, PermanentCardUpgrade};
 pub use characters::{CharacterEffect, CharacterState, OrbKind, OrbState, Stance};
 pub use cards::{resolve,IroncladEffect};
 pub use view::{CardCostKind,CardPublicValues};
@@ -59,4 +59,12 @@ pub fn m21_watcher_live_card(id:crate::content::CardId,instance:CardInstanceId,u
     if instance.0==0||upgrades>1||!crate::content::watcher::supports_generated(id){return Err(InputError::Unsupported("invalid finite M21 card constructor".into()))}
     let mut card=if crate::content::watcher::supports_permanent(id){card_state::permanent(id,instance,upgrades)}else{card_state::generated(id,instance,upgrades).ok_or_else(||InputError::Unsupported("M21 generated constructor missing".into()))?};
     cards::watcher::initialize_profile(&mut card)?;Ok(card)
+}
+
+/// Construct fresh complete-Watcher (M25) card state through the shared physical owner.
+/// Generated-only children receive combat-local origin, never permanent admission.
+pub fn m25_watcher_live_card(id:crate::content::CardId,instance:CardInstanceId,upgrades:u32)->Result<LiveCard,InputError>{
+    if instance.0==0||upgrades>1||!crate::content::watcher::supports_m25_generated(id){return Err(InputError::Unsupported("invalid complete M25 card constructor".into()))}
+    let mut card=if crate::content::watcher::supports_m25_permanent(id){card_state::permanent(id,instance,upgrades)}else{card_state::generated(id,instance,upgrades).ok_or_else(||InputError::Unsupported("M25 generated constructor missing".into()))?};
+    cards::watcher::initialize_m25_profile(&mut card)?;Ok(card)
 }

@@ -24,7 +24,7 @@ fn fixture(exhausted:bool,capacity:bool)->Run{
     let mut e=combat::enemies::setup(EncounterId::WrithingMass,3,0,&mut RunRng::new([41;32],Partition::Test,0),combat::enemies::SetupContext{player:PlayerState{hp:88,max_hp:88,block:0,energy:3,max_energy:3,draw_per_turn:1,powers:vec![]},player_powers:vec![],character:Character::Ironclad,cards:run.state.deck.iter().map(|c|permanent_live_card(c.id,CardInstanceId(c.instance),c.upgrades)).collect(),opening_draw:1,encounter_visit:0}).unwrap();
     e.setup.enemies[0].intent=FullIntentId::from_name("writhing_parasite");if exhausted{let id=e.setup.enemies[0].ai_rng.id().clone();e.setup.enemies[0].ai_rng=combat::rng::StreamState::new(id,[0;32],1_u128<<64).unwrap();}
     let mut items=Some(crate::items::CombatItemContext::take_from_run(&mut run.state));let c=Combat::enter_with_item_context(e,&mut items).unwrap();assert!(items.is_none());
-    run.state.combat=Some(c);run.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,visit:0,encounter:EncounterId::WrithingMass,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});run.state.combat_progress=CombatProgress{entered:1,settled:0};run
+    run.state.combat=Some(c);run.state.active_combat=Some(ActiveCombat{ applied_mutation_ordinal:0,applied_upgrade_ordinal:0,visit:0,encounter:EncounterId::WrithingMass,origin:CombatOrigin::Authored,applied_gain_ordinal:0,acquired_instances:vec![]});run.state.combat_progress=CombatProgress{entered:1,settled:0};run
 }
 
 #[test]

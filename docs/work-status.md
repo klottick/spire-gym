@@ -1,6 +1,21 @@
 # Work status
 
-## Current snapshot — 2026-10-30, M24 candidate ready for final review
+## Current snapshot — 2026-10-31, M25 candidate ready for final review
+
+- M25 (finite native Watcher A0 Acts 1–4 and Heart, complete Watcher A0 content) is a source
+  candidate awaiting one fresh independent final review; it is not accepted. See the
+  [M25 profile](milestones/m25-watcher-heart.md), [coverage ledger](milestones/m25-watcher-heart-coverage-ledger.md)
+  and [reconciliation](milestones/m25-watcher-heart-reconciliation.md).
+- The six canonical normal cases died in Acts 1–2, identical to the M24 control and M24's retained receipts
+  (policy outcomes). Supplied played: two traversal cases earned all three keys and reached `HeartVictory`;
+  the strong supplied Act4 case reached `HeartVictory`; coverage A–C and the eight fixtures died.
+- Once-only fault F1 (Melange's shuffle Scry during a card play) and the M26-found G1 (generated Watcher cards built
+  without their M25 initializer) were fixed globally under PM rulings. Separately recorded freezes v2 and v3 ran only
+  the affected cases, and all earlier outcomes are retained. G2 (Deus Ex Machina in hand without a draw) and an M25
+  native replay-codec gap were also fixed.
+- The predecessor M24 merged as PR64 (`7b036e8d2047f17eb765fe42b1c4bb8e164a37e9`); the M24 body below predates that merge.
+
+## Prior status body — 2026-10-30, M24 candidate ready for final review, retained verbatim
 
 - M24 (finite native Watcher A0 Acts 1–3) is a source candidate awaiting one fresh independent final review; it is not accepted. See the [M24 profile](milestones/m24-watcher-act3.md) and [reconciliation](milestones/m24-watcher-act3-reconciliation.md).
 - The six canonical normal cases reproduced the M23 Deaths exactly (policy outcomes). A supplied Time Eater Victory reached the real `Act3NoKeys` ending; `Act4Ready` has constructed coverage only.

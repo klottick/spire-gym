@@ -32,6 +32,15 @@ pub(in crate::run) struct PreparedAct4 {
     nominal_heal:u32,
 }
 
+/// Act4 owner fault sites. M25 retains its own labels; M10, M15 and M20 keep the shared strings.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(in crate::run) enum Act4FaultSite { Transition, Room, Encounter, Settlement, HeartVictory, HeartProceed }
+pub(in crate::run) fn fault_label(state:&RunState,site:Act4FaultSite)->&'static str{
+    use Act4FaultSite::*;
+    if is_m25(state){match site{Transition=>"run.m25.act4.transition",Room=>"run.m25.act4.room",Encounter=>"run.m25.act4.encounter",Settlement=>"run.m25.act4.settlement",HeartVictory=>"run.m25.heart.victory",HeartProceed=>"run.m25.heart.proceed"}}
+    else{match site{Transition=>"run.act4.transition",Room=>"run.m10.act4.room",Encounter=>"run.m10.act4.encounter",Settlement=>"run.m10.act4.settlement",HeartVictory=>"run.m10.heart.victory",HeartProceed=>"run.m10.heart.proceed"}}
+}
+
 fn route_ids()->[NodeId;4]{[NodeId(0xA400_0051),NodeId(0xA400_0052),NodeId(0xA400_0053),NodeId(0xA400_0054)]}
 
 fn fixed_map()->RunMap{
@@ -94,7 +103,7 @@ pub(in crate::run) fn commit_transition(run:&mut Run,prepared:PreparedAct4){
     room.active_rewards=None;room.reward_parent=None;room.boss=None;room.act2_boss_order=None;room.act3_boss_order=None;
     if let Some(progress)=room.act4.as_mut(){progress.phase=Act4TransitionPhase::DungeonInitialized;}
     if mutations::heal(&mut run.state,prepared.nominal_heal).is_err(){
-        let _=run.retain_fault(RunFaultKind::Invariant("accepted Act4 ordinary healing failed"),"run.act4.transition");return
+        let _=run.retain_fault(RunFaultKind::Invariant("accepted Act4 ordinary healing failed"),fault_label(&run.state,Act4FaultSite::Transition));return
     }
     if let Some(progress)=run.state.room_loop.as_mut().and_then(|room|room.act4.as_mut()){
         progress.phase=Act4TransitionPhase::Healed;
@@ -104,7 +113,7 @@ pub(in crate::run) fn commit_transition(run:&mut Run,prepared:PreparedAct4){
     if let Some(progress)=room.act4.as_mut(){progress.phase=Act4TransitionPhase::Published;}
     run.candidates.clear();
     if !matches!(reward::commit(&mut run.state,std::slice::from_ref(&prepared.event)),Ok(0)){
-        let _=run.retain_fault(RunFaultKind::Invariant("accepted Act4 transition event publication failed"),"run.act4.transition");return
+        let _=run.retain_fault(RunFaultKind::Invariant("accepted Act4 transition event publication failed"),fault_label(&run.state,Act4FaultSite::Transition));return
     }
     run.state.room_loop.as_mut().unwrap().act3_end=None;
 }
@@ -135,12 +144,12 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
     run.next_choice=next;run.state.rng=rng;
     if let Some(screen)=screen{run.state.room_loop.as_mut().unwrap().screen=screen;}
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
-    if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 room-entry hook failed"),"run.m10.act4.room"))}
+    if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 room-entry hook failed"),fault_label(&run.state,Act4FaultSite::Room)))}
     if let Some(encounter)=encounter{
         match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:node.kind}){
             Ok(mut transition)=>{transition.reward+=credit;transition.committed_events.insert(0,event);Ok(transition)}
             Err(RunError::Faulted(fault))=>Err(RunError::Faulted(fault)),
-            Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 encounter entry failed"),"run.m10.act4.encounter")),
+            Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 encounter entry failed"),fault_label(&run.state,Act4FaultSite::Encounter))),
         }
     }else{Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})}
 }
@@ -233,7 +242,7 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
     let events=[CommittedEvent::FloorEntered{act:4,floor:55},CommittedEvent::Ended(RunTerminal::HeartVictory)];
     reward::preflight(&run.state,&events)?;
     run.state.room_loop.as_mut().unwrap().act4.as_mut().unwrap().heart_proceed_phase=Some(HeartProceedPhase::Accepted);
-    let reward=match reward::commit(&mut run.state,&events){Ok(reward)=>reward,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted TrueVictoryRoom settlement failed"),"run.m10.heart.proceed"))};
+    let reward=match reward::commit(&mut run.state,&events){Ok(reward)=>reward,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted TrueVictoryRoom settlement failed"),fault_label(&run.state,Act4FaultSite::HeartProceed)))};
     run.state.floor=55;run.state.room="TrueVictoryRoom";run.state.history.rooms.push(VisitedRoom{act:4,floor:55,label:"TrueVictoryRoom"});
     run.state.terminal=Some(RunTerminal::HeartVictory);run.candidates.clear();
     let room=run.state.room_loop.as_mut().unwrap();room.screen=RoomView{kind:RoomViewKind::TrueVictory,choices:vec![]};

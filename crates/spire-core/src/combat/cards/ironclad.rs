@@ -255,7 +255,5 @@ fn modified_damage_with_strength(state: &State, target: u64, base: i32, strength
 }
 
 fn has_strike_tag(id: crate::content::CardId) -> bool {
-    use crate::content::CardId::*;
-    matches!(id, Strike | StrikeGreen | StrikeBlue | StrikePurple | PerfectedStrike
-        | PommelStrike | TwinStrike | Thunderclap)
+    crate::content::is_strike(id)
 }

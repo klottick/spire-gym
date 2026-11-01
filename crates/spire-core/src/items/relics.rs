@@ -22,10 +22,35 @@ pub(super) fn on_combat_hook(context: &mut CombatItemContext, hook: Hook, hp: i3
     if hook==Hook::CombatSettled {context.emotion_chip_armed=false;}
     if context.owns_relic(RelicId::Orichalcum) {
         if hook==Hook::TurnStarted {context.orichalcum_trigger=false;}
-        if hook==Hook::PlayerEndTurn&&(block==0||context.orichalcum_trigger) {
+        if hook==Hook::PlayerEndTurn&&!context.owns_relic(RelicId::CloakClasp)&&(block==0||context.orichalcum_trigger) {
             context.orichalcum_trigger=false;
             work.top.push(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::GainBlock(6)});
         }
+    }
+    if hook==Hook::TurnStartedPreDraw&&context.owns_relic(RelicId::Damaru) {
+        work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+            kind:EffectKind::Watcher(crate::combat::cards::watcher::WatcherEffect::GainMantra{amount:1})});
+    }
+    if hook==Hook::AttackResolved&&context.owns_relic(RelicId::Duality) {
+        work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+            kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("dexterity"),amount:1}});
+        work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+            kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("lose_dexterity"),amount:1}});
+    }
+    if let Hook::CloakClaspBeforeCleanup{hand_size}=hook {
+        if context.owns_relic(RelicId::Orichalcum)&&(block==0||context.orichalcum_trigger) {
+            context.orichalcum_trigger=false;
+            work.top.push(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::GainBlock(6)});
+        }
+        if context.owns_relic(RelicId::CloakClasp)&&hand_size>0 {
+            work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+                kind:EffectKind::GainBlock(hand_size as i32)});
+        }
+    }
+    if hook==Hook::DrawPileShuffled&&context.owns_relic(RelicId::Melange) {
+        let amount=3+i32::from(context.owns_relic(RelicId::GoldenEye))*2;
+        work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+            kind:EffectKind::Watcher(crate::combat::cards::watcher::WatcherEffect::ScryFromRelic{relic:RelicId::Melange,amount})});
     }
     if hook == Hook::CombatStarted {
         context.lantern_armed = context.owns_relic(RelicId::Lantern);

@@ -57,7 +57,7 @@ fn decision(kind: RoomViewKind, choices: Vec<RoomChoiceView>) -> PublicDecision 
 
 fn empty_combat() -> CombatPublic {
     CombatPublic {
-        mantra_gained:None, stance_choice:None,
+        mantra_gained:None,previous_card_type:None, stance_choice:None,
         played_powers: vec![], playing_cards: vec![], stasis: vec![], content_id: "synthetic".into(), turn: 1,
         player: FullPlayerView { hp: 40, max_hp: 70, block: 0, energy: 3, max_energy: 3, powers: vec![] },
         enemies: vec![],

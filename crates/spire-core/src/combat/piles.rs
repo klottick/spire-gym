@@ -32,6 +32,17 @@ pub(super) fn expire_turn_scoped_costs(state:&mut State){
     });
 }
 
+fn notify_draw_pile_shuffled(state:&mut State) {
+    if !state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange)) {return}
+    // A real shuffle caused by a draw sits before that draw's continuation.
+    // Inserting after it lets all recursively queued DrawOne pieces finish first.
+    let after_draw=state.pending.iter().position(|pending|
+        matches!(&pending.kind,EffectKind::Draw(_)|EffectKind::Silent(super::cards::SilentEffect::DrawContinue(_))))
+        .map_or(0,|index|index+1);
+    state.pending.insert(after_draw,Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+        kind:EffectKind::Hook(Hook::DrawPileShuffled)});
+}
+
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
     super::engine::validate_effect(effect, state)?;
     match &effect.kind {
@@ -46,6 +57,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             state.public.known_draw.clear();
             state.public.known_draw_bottom.clear();
             refresh_hand_values(state);
+            notify_draw_pile_shuffled(state);
         }
         EffectKind::ShuffleDraw=>{
             let (cards,next)=super::rng::shuffle(&state.rng.shuffle,&state.piles.draw)?;
@@ -54,8 +66,23 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             state.public.known_draw.clear();
             state.public.known_draw_bottom.clear();
             refresh_hand_values(state);
+            notify_draw_pile_shuffled(state);
         }
         EffectKind::DiscardHand => {
+            // Burn resolves its end-turn THORNS packet before this shared
+            // cleanup checkpoint and then discards even when a retain effect
+            // selected it (implementation-notes.json BURN). Only its retention
+            // is withdrawn; it leaves in the ordinary hand-discard order, so an
+            // unretained hand's discard order is unchanged.
+            let burns=state.piles.hand.iter().filter_map(|card|
+                card.full().filter(|live|live.id==crate::content::CardId::Burn).map(|_|card.handle()))
+                .collect::<Vec<_>>();
+            if let Some(retain)=state.temporary_retain.as_mut(){
+                retain.cards.retain(|handle|!burns.contains(handle));
+            }
+            for card in &mut state.piles.hand{
+                if let Some(live)=card.full_mut().filter(|live|live.id==crate::content::CardId::Burn){live.local.retain=false;}
+            }
             if super::cards::watcher::active(state){return super::cards::watcher::discard_hand(state,effect)}
             if let Some(retain)=&state.temporary_retain {
                 if retain.turn!=state.turn||retain.cards.iter().any(|handle|!state.piles.hand.iter().any(|card|
@@ -136,8 +163,36 @@ pub(super) fn next_generated_instance(state: &State) -> Result<super::CardInstan
     Ok(super::CardInstanceId(next))
 }
 
-pub(super) fn insert_generated(state: &mut State, mut card: super::card_state::LiveCard,
+/// Which Master Reality checkpoint a creation route has.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum MasterRealityRoute {
+    /// The creation's own upgrade (StS MakeTempCardIn{Hand,DrawPile,Discard}Action and explicit
+    /// output upgrades): installed Master Reality upgrades the created card in every destination,
+    /// a hand-overflow copy included.
+    Creation,
+    /// The route already applied its source checkpoints before insertion. Watcher fixed children
+    /// capture the action-construction check and the hand-effect check; Foreign Influence has only the
+    /// hand-effect check. Their overflow helper upgrades only a display copy, so the inserted card
+    /// keeps its argument state.
+    RouteChecked,
+}
+
+pub(super) fn insert_generated(state: &mut State, card: super::card_state::LiveCard,
     requested: super::command::CardDestination) -> Result<(), EffectError> {
+    insert_generated_with(state, card, requested, MasterRealityRoute::Creation)
+}
+
+pub(super) fn insert_generated_with(state: &mut State, mut card: super::card_state::LiveCard,
+    requested: super::command::CardDestination, route: MasterRealityRoute) -> Result<(), EffectError> {
+    // Master Reality ("Whenever a card is created during combat, Upgrade it"), shared by every
+    // character: one upgrade of a base created card, never a Curse or a Status.
+    if route == MasterRealityRoute::Creation && card.upgrades == 0
+        && state.player_full_powers.iter().any(|power| power.id.0 == "master_reality")
+        && crate::content::Catalog::standard().card(card.id).is_some_and(|row|
+            !matches!(row.card_type, crate::content::CardType::Curse | crate::content::CardType::Status)) {
+        card = super::card_state::upgrade_live_card(state, &card).map_err(|error|
+            InputError::Unsupported(format!("Master Reality creation upgrade failed: {error:?}")))?;
+    }
     if card.id == crate::content::CardId::Shiv && card.local.base_damage.is_none() {
         let accuracy = state.player_full_powers.iter()
             .find(|power| power.id.0 == "accuracy" && power.state.amount > 0)
@@ -367,10 +422,26 @@ pub(super) fn finish_played_card(state:&mut State,mut card:OwnedCard,disposition
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Power));
     if purge {return finish_owned_card(state,card,FinishDisposition::Purge,true)}
     if power {state.played_powers.push(card);return Ok(())}
+    if disposition==FinishDisposition::Natural&&state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+        &&card.full().is_some_and(|live|live.id==crate::content::CardId::Tantrum){return shuffle_owned_into_draw(state,card)}
     let rebound=card.full().is_some_and(|live|live.local.rebound_on_finish&&!live.local.exhaust_on_finish)&&disposition==FinishDisposition::Natural;
     if let Some(live)=card.full_mut(){live.local.rebound_on_finish=false;}
     if rebound{let handle=card.handle();topdeck_owned_card(state,card,handle);return Ok(())}
     finish_owned_card(state,card,disposition,true)
+}
+
+fn shuffle_owned_into_draw(state:&mut State,card:OwnedCard)->Result<(),InputError>{
+    let handle=card.handle();let empty=state.piles.draw.is_empty();
+    let index=if empty{0}else{
+        let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Tantrum shuffle-back card RNG absent".into()))?;
+        let (index,next)=super::rng::uniform_below(stream,state.piles.draw.len() as u128)
+            .map_err(|error|InputError::Unsupported(format!("Tantrum shuffle-back RNG unavailable: {error:?}")))?;
+        state.card_rng=Some(next);index as usize
+    };
+    state.piles.draw.insert(index,card);
+    if empty{state.public.known_draw=vec![handle.clone()];state.public.known_draw_bottom=vec![handle];}
+    else{state.public.known_draw.truncate(1);state.public.known_draw_bottom.clear();}
+    refresh_hand_values(state);Ok(())
 }
 
 /// `Natural` honors the live card's intrinsic purge/exhaust flags on card use;

@@ -178,11 +178,15 @@ pub fn permanent(id: CardId, instance: CardInstanceId, upgrades: u32) -> LiveCar
 pub(super) fn generated(id: CardId, instance: CardInstanceId, upgrades: u32) -> Option<LiveCard> {
     // Green generation uses the same flags and local writers as permanent
     // descriptors. A template receives no permanent ownership or issued handle.
-    if (crate::content::watcher::supports_generated(id)&&id!=CardId::Miracle)||crate::content::defect::supports_m20_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
+    if (crate::content::watcher::supports_m25_generated(id)&&id!=CardId::Miracle)||crate::content::defect::supports_m20_generated(id) || crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Green&&!row.definition_only)
         ||crate::content::Catalog::standard().card(id).is_some_and(|row|row.color==crate::content::CardColor::Colorless&&!row.definition_only&&matches!(row.rarity,crate::content::CardRarity::Uncommon|crate::content::CardRarity::Rare)&&matches!(row.card_type,crate::content::CardType::Attack|crate::content::CardType::Skill|crate::content::CardType::Power)) {
         let mut card=permanent(id,instance,upgrades);
         card.origin=CombatCardRef::CombatLocal(instance.0);
         card.copy_provenance=CopyProvenance::Generated;
+        // Shared fix (M25, same shape as M26): a Watcher kind is built with its own M25 initializer here,
+        // as every M25 constructor already does afterwards (idempotent assignments); off-colour
+        // generators, Infernal Blade and Stasis's returned card otherwise got the bare descriptor.
+        if crate::content::watcher::supports_m25_generated(id){super::cards::watcher::initialize_m25_base_profile(&mut card).ok()?;}
         return Some(card);
     }
 
@@ -360,6 +364,11 @@ pub fn permanent_with_misc(id:CardId,instance:CardInstanceId,upgrades:u32,misc:i
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct PermanentCardMutation {pub ordinal:u64,pub instance:CardInstanceId,pub id:CardId,pub misc:i32}
+
+/// One permanent-deck upgrade requested in combat (a qualifying fatal Lesson Learned).
+/// A separate journal: Parasite gains and Genetic Algorithm mutations are unchanged.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct PermanentCardUpgrade {pub ordinal:u64,pub instance:CardInstanceId,pub id:CardId}
 
 /// Source updateCost(-1) for a notified ForceField; waiver flags are separate.
 pub(super) fn discount_force_field(card:&mut LiveCard){
