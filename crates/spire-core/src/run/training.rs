@@ -111,6 +111,57 @@ impl M21WatcherCombatStart{
         resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));resources.relics.sort_by_key(|r|r.as_str());Ok(Self::Supplied(resources))
     }
 }
+/// M26 complete-card supplied start (design §5.3): character-independent, a new type
+/// beside `WatcherAdmission` (not a rename). Reached only from tests and the default-off
+/// diagnostics; nothing public selects `CardAdmission::Complete` in M26.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub enum CompleteCombatStart{Supplied(AuthoredRunStart)}
+impl CompleteCombatStart{
+    /// Validate supplied resources against the complete permanent union (upgrade limits of
+    /// design §8.1, obtain `misc`) and the character's Heart inventory context plus the overlay.
+    pub fn normalized(self,character:Character)->Result<Self,RunError>{
+        let Self::Supplied(mut resources)=self;
+        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=128).contains(&resources.deck.len())||resources.potions.len()!=3{return Err(RunError::InvalidAction)}
+        let mut ids=std::collections::BTreeSet::new();
+        if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||!crate::content::complete::supports_permanent(c.id)
+            ||!complete_upgrades_valid(c.id,c.upgrades)||c.misc!=complete_obtain_misc(c.id)){
+            return Err(RunError::Unsupported("card outside the complete permanent union"))
+        }
+        if ids.last().is_none_or(|id|*id==u64::MAX){return Err(RunError::Unsupported("permanent identity exhausted"))}
+        let context=crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone());
+        crate::items::validate_combat_inventory(&complete_heart_context(context,character),character)?;
+        resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));resources.relics.sort_by_key(|r|r.as_str());Ok(Self::Supplied(resources))
+    }
+}
+/// Upgrade limits under complete admission (design §8.1): Searing Blow any count the
+/// `u32` rule represents, curses 0, every other card 0 or 1 where it upgrades.
+pub(crate) fn complete_upgrades_valid(id:CardId,upgrades:u32)->bool{
+    upgrades==0||id==CardId::SearingBlow||upgrades==1&&crate::combat::cards::ironclad::rules::can_upgrade(id,0)
+}
+/// Initial `misc` at obtain: Genetic Algorithm 1, Ritual Dagger 15, otherwise 0.
+pub(crate) fn complete_obtain_misc(id:CardId)->i32{
+    match id{CardId::GeneticAlgorithm=>1,CardId::RitualDagger=>15,_=>0}
+}
+/// The character's complete Heart combat context (M10, M15, M20, M25) with the overlay.
+pub(crate) fn complete_heart_context(context:crate::items::CombatItemContext,character:Character)->crate::items::CombatItemContext{
+    match character{
+        Character::Ironclad=>context,
+        Character::Silent=>context.with_m15_profile(),
+        Character::Defect=>context.with_m20_profile(),
+        Character::Watcher=>context.with_m25_profile(),
+    }.with_complete_cards()
+}
+impl Run{
+    /// A supplied complete-card start for one A0 training encounter: the Run's admission is
+    /// `Complete`, so its combat context carries `with_complete_cards()` (tests/diagnostics only).
+    pub(crate) fn prepare_complete_combat(start:CompleteCombatStart,character:Character,encounter:EncounterId,rng:RunRng)->Result<Self,RunError>{
+        let (act,_)=m21_watcher_combat_encounter_metadata(encounter).ok_or(RunError::InvalidAction)?;
+        let CompleteCombatStart::Supplied(resources)=start.normalized(character)?;
+        let next=resources.deck.iter().map(|c|c.instance).max().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+        let mut run=Self::from_validated_combat_resources(RunConfig{character,ascension:0},resources,rng,next);
+        run.state.card_admission=CardAdmission::Complete;run.state.training_encounter=Some(encounter);run.state.act=act;run.state.room="M26SuppliedCombat";Ok(run)
+    }
+}
 pub fn m21_watcher_combat_encounter_metadata(encounter:EncounterId)->Option<(u8,crate::combat::enemies::EncounterKind)>{
     TRAINING_ENCOUNTERS_V2.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,kind)|(*act,*kind))
 }

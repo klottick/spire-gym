@@ -37,7 +37,7 @@ fn prepare_card_mutations(state:&RunState)->Result<Option<(Vec<(u64,i32)>,u64)>,
     let mut deck_ids=BTreeSet::new();if state.deck.iter().any(|c|c.instance==0||!deck_ids.insert(c.instance)){return Err(RunError::InvalidAction)}
     let mut previous=std::collections::BTreeMap::new();let mut next=std::collections::BTreeMap::new();
     for (index,mutation) in journal.iter().enumerate(){
-        if mutation.ordinal!=index as u64+1||mutation.id!=CardId::GeneticAlgorithm
+        if mutation.ordinal!=index as u64+1||!matches!(mutation.id,CardId::GeneticAlgorithm|CardId::RitualDagger)
             ||!state.deck.iter().any(|card|card.instance==mutation.instance.0&&card.id==mutation.id){return Err(RunError::InvalidAction)}
         if index<applied {previous.insert(mutation.instance.0,mutation.misc);}
         else {next.insert(mutation.instance.0,mutation.misc);}
@@ -101,7 +101,8 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
 }
 
 fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
-    let m16=state.authored_combat&&state.character==Character::Defect;
+    // An M26 complete-card Run is not the frozen M16 authored Defect profile.
+    let m16=state.authored_combat&&state.character==Character::Defect&&state.card_admission==super::CardAdmission::Profile;
     let m16_metadata=if m16 {
         if state.ascension!=0||state.act!=1||origin!=CombatOrigin::Authored{return Err(RunError::Unsupported("M16 authored combat requires A0 Act1 context"))}
         Some(m16_defect_combat_encounter_metadata(encounter).ok_or(RunError::Unsupported("encounter outside frozen M16 Act1 setup prefix"))?)
@@ -329,7 +330,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),
         },candidates:vec![],next_choice:0}
     }
 
@@ -349,6 +350,8 @@ impl Run {
             .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle);
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
         let context=if super::rooms::is_m25(&self.state){context.with_m25_profile()}else if super::rooms::is_m24(&self.state){context.with_m24_profile()}else if super::rooms::uses_watcher_content(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
+        // Complete admission: the character's Heart context plus the overlay (design §5.2).
+        let context=if self.state.card_admission==super::CardAdmission::Complete{super::complete_heart_context(context,self.state.character)}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {

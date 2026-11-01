@@ -79,6 +79,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         super::cards::defect::card_played(state,source,target)?;
         super::cards::silent_power_on_use(state)?;
         super::cards::colorless_power_card_played(state,source)?;
+        if let Source::Card(owner)=source{
+            if let Some(card)=state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|c|c.full()){
+                super::cards::curses::on_card_played(state,card,&mut work);
+            }
+        }
         if state.player_full_powers.iter().any(|p|p.id.0=="a_thousand_cuts"&&p.state.amount>0){
             work.push(Effect{source:source.clone(),target:None,kind:EffectKind::Hook(Hook::CardAfterPlayed)});
         }
@@ -201,8 +206,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
     let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());
+    // M26 §6.3 L: Plated Armor (Wish) for any holder under the complete capability. Ritual and
+    // Regeneration stay as they are: no card grants them to the player (potions, M27), and the
+    // non-M15 Ritual tick is `round_end_full_work`'s, so adding it here would apply it twice.
     let m25_watcher=state.item_context.as_ref().is_some_and(|items|items.m25_profile())
-        &&super::cards::watcher::active(state);
+        &&super::cards::watcher::active(state)||super::cards::watcher::complete(state);
     if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&m15_player {
         for power in &state.player_full_powers {
             if power.id.0=="ritual"&&power.state.amount>0 {

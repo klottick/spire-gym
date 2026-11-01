@@ -46,7 +46,9 @@ fn m15_generation_complete_supports_preserve_source_eligibility(){
     }
     let skills=generation::pool(Some(Character::Silent),GenerationPool::Skill).unwrap();
     for token in ["distraction","reflex","tactician","doppelganger","malaise"]{assert!(skills.contains(&id(token)));}
-    assert!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).is_err());
+    // pre-M26: assert!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).is_err());
+    // M26 G4 (disclosed amendment): the Ironclad now has its own complete combat pool, never a substituted one.
+    assert_eq!(generation::pool(Some(Character::Ironclad),GenerationPool::Any).unwrap().len(),70);
 }
 #[test]
 fn m15_generation_chrysalis_and_metamorphosis_insert_all_samples_without_drawing(){

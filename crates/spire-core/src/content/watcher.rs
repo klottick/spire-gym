@@ -3,8 +3,7 @@
 //! These lists are explicit capability boundaries. They do not define an
 //! ordinary reward pool, a random generator, or card mechanics.
 
-use super::cards::{is_healing, CardColor, CardRarity, CardType};
-use super::{CardId, Catalog};
+use super::CardId;
 
 /// The exact 28 permanent card kinds admitted by the finite M21 profile.
 pub const M21_WATCHER_CARDS: &[CardId] = &[
@@ -111,16 +110,9 @@ pub fn supports_m25_generated(id: CardId) -> bool {
 /// Uncommon or Rare rarity in catalog row order, with no colour predicate and
 /// HEALING-tagged kinds excluded. Derived from the catalog, never a copied list.
 pub fn foreign_influence_support() -> &'static [CardId] {
+    // M26: owned by `content::pools` (M25's order, size 106 checked there).
     static SUPPORT: std::sync::OnceLock<Vec<CardId>> = std::sync::OnceLock::new();
-    SUPPORT.get_or_init(|| {
-        Catalog::standard().cards().iter()
-            .filter(|row| row.card_type == CardType::Attack
-                && matches!(row.color, CardColor::Red | CardColor::Green | CardColor::Blue | CardColor::Purple | CardColor::Colorless)
-                && matches!(row.rarity, CardRarity::Common | CardRarity::Uncommon | CardRarity::Rare)
-                && !is_healing(row.id))
-            .map(|row| row.id)
-            .collect()
-    })
+    SUPPORT.get_or_init(|| super::pools::cards(super::pools::CardPool::ForeignInfluence).unwrap_or_default())
 }
 
 /// Authoritative spellings of every new `FullPowerId` that M25 cards and relics

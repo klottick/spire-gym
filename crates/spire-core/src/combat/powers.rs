@@ -57,7 +57,20 @@ fn remove(state: &mut State, actor: &Actor, id: FullPowerId) {
     full.retain(|p| p.id != id);
 }
 
+/// The source's just-applied flag (`isSourceMonster` in Weak, Vulnerable and Frail): the new
+/// debuff skips its first end-of-round decrement. Monsters pass it, and so do the cards that
+/// play themselves at the end of the player's turn (Doubt, Shame), keyed on that card property.
+fn just_applied(state: &State, effect: &Effect) -> bool {
+    match &effect.source {
+        Source::Actor(Actor::Enemy(_)) => true,
+        Source::Card(handle) => state.piles.hand.iter().any(|owned| owned.handle() == *handle
+            && owned.full().is_some_and(|live| crate::content::plays_itself_at_end_of_turn(live.id))),
+        _ => false,
+    }
+}
+
 fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
+    let grace = just_applied(state, effect);
     let actor = effect.target.as_ref().expect("validated power target");
     let (legacy, full) = lanes(state, actor);
     if let Some(existing) = legacy.iter_mut().find(|p| p.id.as_str() == id.0) {
@@ -69,16 +82,14 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
         && legacy_id.as_str() == id.0 {
         legacy.push(PowerEntry { id: legacy_id, state: PowerState { amount: value,
             skip_first: legacy_id == PowerId::Ritual,
-            monster_source_grace: legacy_id == PowerId::Vulnerable
-                && matches!(effect.source, Source::Actor(Actor::Enemy(_))),
+            monster_source_grace: legacy_id == PowerId::Vulnerable && grace,
         }});
     } else {
         full.push(FullPowerEntry { id, state: PowerState { amount: value,
             skip_first: (matches!(id.0,"ritual"|"draw_reduction")
                 && !matches!(effect.source,Source::Potion{id:crate::content::PotionId::CultistPotion,..}))
                 ||id.0=="intangible"&&matches!(actor,Actor::Enemy(_)),
-            monster_source_grace: matches!(id.0, "weak" | "vulnerable" | "frail")
-                && matches!(effect.source, Source::Actor(Actor::Enemy(_))),
+            monster_source_grace: matches!(id.0, "weak" | "vulnerable" | "frail") && grace,
         }});
     }
     if value == 0 {
@@ -210,8 +221,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
     }
     let previous = amount(state, actor, id)?;
     let deva_gain_update=if application&&*actor==Actor::Player&&id.0=="deva_form"{
-        if !super::cards::watcher::active(state)
-            ||!state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+        if !super::cards::watcher::cards_active(state)
+            ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())
             ||delta<=0{return Err(InputError::Invariant("Deva Form application lacks its M25 owner or positive stack".into()))}
         let current=state.watcher.deva_energy_gain;
         if previous==0{
@@ -222,11 +233,11 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
             Some(current.checked_add(1).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?)
         }
     }else{None};
-    if *actor==Actor::Player&&id.0=="master_reality"&&super::cards::watcher::active(state){
+    if *actor==Actor::Player&&id.0=="master_reality"&&super::cards::watcher::cards_active(state){
         if application&&previous==0{set(state,effect,id,-1);}
         return Ok(())
     }
-    if application&&*actor==Actor::Player&&id.0=="mantra"&&super::cards::watcher::active(state){
+    if application&&*actor==Actor::Player&&id.0=="mantra"&&super::cards::watcher::cards_active(state){
         let existed=state.player_full_powers.iter().any(|p|p.id==id);
         let mut next=if existed&&previous!=-1{previous.checked_add(delta).ok_or_else(||InputError::Unsupported("Watcher Mantra amount int32 exhausted".into()))?}else{delta};
         let threshold=existed&&next>=10;
@@ -240,8 +251,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
     if !application && previous == 0 { return Ok(()); }
     let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
     let next = match id.0 {
-        "like_water" if super::cards::watcher::active(state)=>sum.clamp(0,999),
-        _ if super::cards::watcher::active(state)&&super::cards::watcher::power_id(id)=>sum.max(0),
+        "like_water" if super::cards::watcher::cards_active(state)=>sum.clamp(0,999),
+        _ if super::cards::watcher::cards_active(state)&&super::cards::watcher::power_id(id)=>sum.max(0),
         "strength" => sum.clamp(-999, 999),
         // DoubleDamagePower constructs at one; ApplyPower's application
         // amount is the delta only when an existing matching power stacks.

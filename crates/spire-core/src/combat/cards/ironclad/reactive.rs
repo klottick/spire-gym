@@ -51,7 +51,8 @@ pub(in crate::combat) fn after_draw(state:&mut State,card:&LiveCard,owner:&CardH
 fn append_before_decision(state:&mut State,effect:Effect){
     // The opt-in Defect natural orb phase completes its ordinary gain hooks
     // before MonsterStart. Frozen predecessor profiles keep their queue bytes.
-    let defect=state.silent.source_character==Some(crate::content::Character::Defect);
+    // M26 §6.3 S / disclosed decision F15: every character holding an orb slot uses this position.
+    let defect=state.silent.source_character==Some(crate::content::Character::Defect)||!state.character.orb_slots.is_empty();
     let index=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision
         ||defect&&pending.kind==EffectKind::MonsterStart).unwrap_or(state.pending.len());
     state.pending.insert(index,effect);

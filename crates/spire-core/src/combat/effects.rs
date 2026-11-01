@@ -821,7 +821,7 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
         super::selection::SelectionParent::Card(card) if state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(card)=>(),
         super::selection::SelectionParent::Potion{slot,..} if state.in_play.is_none()&&super::engine::valid_potion_slot(state,*slot)=>(),
         super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&(
-            (id.0=="tools_of_the_trade"||(super::cards::watcher::active(state)&&id.0=="foresight"))
+            (id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(state)&&id.0=="foresight"))
                 &&state.phase==Phase::PlayerStart&&state.in_play.is_none()
                 &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
             ||id.0=="melange"&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))

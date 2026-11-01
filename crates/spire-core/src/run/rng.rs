@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture,M23RelicCapture,M24RelicCapture,M25CardOffer,M25RelicCapture }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture,M23RelicCapture,M24RelicCapture,M25CardOffer,M25RelicCapture,M26CardOffer,M26CardTransform,M26CardCurse }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
@@ -16,6 +16,9 @@ impl RunRngScope {
         Self::M24RelicCapture=>super::rooms::m24_content::ACT3_RELIC_CAPTURE_SCOPE_NAME,
         Self::M25CardOffer=>super::rooms::m25_content::CARD_OFFER_SCOPE_NAME,
         Self::M25RelicCapture=>super::rooms::m25_content::ACT4_RELIC_CAPTURE_SCOPE_NAME,
+        Self::M26CardOffer=>"run.m26.card.offer",
+        Self::M26CardTransform=>"run.m26.card.transform",
+        Self::M26CardCurse=>"run.m26.card.curse",
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -39,6 +42,9 @@ impl RunRngScope {
         super::rooms::m24_content::ACT3_RELIC_CAPTURE_SCOPE_NAME=>Ok(Self::M24RelicCapture),
         super::rooms::m25_content::CARD_OFFER_SCOPE_NAME=>Ok(Self::M25CardOffer),
         super::rooms::m25_content::ACT4_RELIC_CAPTURE_SCOPE_NAME=>Ok(Self::M25RelicCapture),
+        "run.m26.card.offer"=>Ok(Self::M26CardOffer),
+        "run.m26.card.transform"=>Ok(Self::M26CardTransform),
+        "run.m26.card.curse"=>Ok(Self::M26CardCurse),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),

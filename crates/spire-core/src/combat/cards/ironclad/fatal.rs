@@ -33,11 +33,12 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Re
     if !state.full_runtime||!result.normal||result.hp_after>0{return Ok(())}
     let Source::Card(source)=&result.source else{return Ok(())};
     let Some(card)=state.in_play.as_ref().filter(|owned|owned.handle()==*source).and_then(OwnedCard::full)
-        .filter(|card|matches!(card.id,CardId::Feed|CardId::HandOfGreed|CardId::LessonLearned)) else {return Ok(())};
-    let id=card.id;let upgraded=card.upgrades>0;
+        .filter(|card|matches!(card.id,CardId::Feed|CardId::HandOfGreed|CardId::LessonLearned|CardId::RitualDagger)) else {return Ok(())};
+    let id=card.id;let upgraded=card.upgrades>0;let instance=card.instance;
     let Actor::Enemy(target)=&result.target else{return Ok(())};
     let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==target)else{return Ok(())};
-    if enemy.hp>0||enemy.life!=super::super::ActorLife::Active
+    if enemy.hp>0||!(enemy.life==super::super::ActorLife::Active
+        ||super::super::super::enemies::act3::darklings::final_down(state,target))
         ||enemy.full_powers.iter().any(|power|power.id.0=="minion"){return Ok(())}
     if id==CardId::LessonLearned{
         let mut eligible=Vec::new();
@@ -62,6 +63,9 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Re
     }
     if id==CardId::HandOfGreed {
         return Ok(super::super::super::enemies::act1::thieves::gain_gold(state,if upgraded{25}else{20})?);
+    }
+    if id==CardId::RitualDagger {
+        return Ok(super::super::defect::record_misc_growth(state,instance,if upgraded{5}else{3})?);
     }
     let amount=if upgraded{4}else{3};
     let max=state.player.max_hp.checked_add(amount).filter(|max|*max<=999)

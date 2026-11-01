@@ -23,7 +23,7 @@ impl Run {
             potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
             neow_eligible:profile.neow_eligible,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),relic_counters:BTreeMap::new(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance:id+1,resume_count:0};
+            last_resumed_parent:None,rng,pending:None,next_instance:id+1,resume_count:0,card_admission:Default::default()};
         let mut run=Self{state,candidates:Vec::new(),next_choice:0};run.make_initial_neow()?;Ok(run)
     }
     fn next_choice(&mut self)->ChoiceId{let id=ChoiceId(self.next_choice);self.next_choice+=1;id}

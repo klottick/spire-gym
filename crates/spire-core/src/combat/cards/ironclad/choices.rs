@@ -42,9 +42,6 @@ pub(super) fn apply(state:&mut State,effect:&Effect,choice:&IroncladEffect)->Res
             }
         }
         IroncladEffect::ChooseDualWieldCard=>{
-            if state.player_full_powers.iter().any(|power|power.id.0=="master_reality"&&power.state.amount>0){
-                return Err(InputError::Unsupported("Master Reality card-creation modifier is not implemented for Dual Wield".into()).into())
-            }
             let copies=state.in_play.as_ref().and_then(OwnedCard::full).map(|card|if card.upgrades>0{2}else{1})
                 .ok_or_else(||InputError::Invariant("Dual Wield parent missing".into()))?;
             let candidates=state.piles.hand.iter().filter_map(OwnedCard::full).filter(|card|

@@ -16,6 +16,8 @@ m23-diagnostics = ["m22-diagnostics"]
 m24-diagnostics = ["m23-diagnostics"]
 # Default-off M25 constructed Act3/Act4 stages and supplied starts.
 m25-diagnostics = ["m24-diagnostics"]
+# Default-off M26 complete-card supplied Run and combat starts (tests and diagnostics only).
+m26-diagnostics = ["m25-diagnostics", "m20-diagnostics"]
 
 [dependencies]
 hmac = "=0.12.1"

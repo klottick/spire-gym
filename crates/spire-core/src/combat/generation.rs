@@ -1,10 +1,9 @@
 //! Complete source supports and captured requests; delivery uses the shared piles.
 use super::*;
 use super::model::State;
-use crate::content::{CardId,CardType,CardColor,CardRarity,Catalog,Character};
+use crate::content::{CardId,Character};
 
-#[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum GenerationPool { Attack,Skill,Power,Any,Colorless,Common }
+pub use crate::content::pools::GenerationPool;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum GenerationCost { Ordinary,TurnZero,CombatZero }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -18,43 +17,21 @@ pub(super) fn needs_character(id:CardId)->bool{
     starting_cost(id,0).is_some()
 }
 
+/// Thin reader of the M26 pool owner (`content::pools`, design §7.1). Every
+/// member must also have a combat constructor before any RNG is used.
 pub(super) fn pool(character:Option<Character>,kind:GenerationPool)->Result<Vec<CardId>,InputError>{
-    let catalog=Catalog::standard();
-    let mut rows=if kind==GenerationPool::Colorless {
-        // Declared flat L34 token order, independent of registration order.
-        const TOKENS:&[&str]=&["apotheosis","blind","chrysalis","dark_shackles","deep_breath","discovery","dramatic_entrance","enlightenment","finesse","flash_of_steel","forethought","good_instincts","hand_of_greed","impatience","jack_of_all_trades","madness","magnetism","master_of_strategy","mayhem","metamorphosis","mind_blast","panacea","panache","panic_button","purity","sadistic_nature","secret_technique","secret_weapon","swift_strike","the_bomb","thinking_ahead","transmutation","trip","violence"];
-        let mut rows=Vec::new();
-        for token in TOKENS {
-            let row=catalog.cards().iter().find(|row|row.id.as_str()==*token)
-                .ok_or_else(||InputError::Unsupported("complete L34 generator support unavailable".into()))?;
-            if row.definition_only||row.color!=CardColor::Colorless{return Err(InputError::Unsupported("complete L34 generator support unavailable".into()))}
-            rows.push(row);
-        }
-        rows
-    }else{
-        let (color,excluded,expected)=match character {
-            Some(Character::Silent) if kind!=GenerationPool::Common=>(CardColor::Green,"alchemize",70),
-            Some(Character::Defect)=>(CardColor::Blue,"self_repair",70),
-            _=>return Err(InputError::Unsupported("actual character generator support unavailable".into())),
-        };
-        let mut rows=catalog.cards().iter().filter(|row|row.color==color
-            &&matches!(row.rarity,CardRarity::Common|CardRarity::Uncommon|CardRarity::Rare)
-            &&(kind==GenerationPool::Common||row.id.as_str()!=excluded)).collect::<Vec<_>>();
-        let expected=expected+usize::from(kind==GenerationPool::Common);
-        if rows.len()!=expected||rows.iter().any(|row|row.definition_only){return Err(InputError::Unsupported("complete actual character generator support unavailable".into()))}
-        rows.sort_by_key(|row|(match row.rarity{CardRarity::Common=>0,CardRarity::Uncommon=>1,_=>2},row.id.as_str()));
-        rows.into_iter().filter(|row|match kind{GenerationPool::Attack=>row.card_type==CardType::Attack,
-            GenerationPool::Skill=>row.card_type==CardType::Skill,GenerationPool::Power=>row.card_type==CardType::Power,
-            GenerationPool::Common=>row.rarity==CardRarity::Common,_=>true}).collect()
+    let character=match (character,kind){
+        (Some(character),_)=>character,
+        // L34 is the same for every character.
+        (None,GenerationPool::Colorless)=>Character::Ironclad,
+        (None,_)=>return Err(InputError::Unsupported("actual character generator support unavailable".into())),
     };
-    if kind==GenerationPool::Colorless{rows.sort_by_key(|row|row.id.as_str());}
-    let blue=character==Some(Character::Defect);
-    let expected=match kind{GenerationPool::Attack=>if blue{23}else{26},GenerationPool::Skill=>if blue{34}else{33},
-        GenerationPool::Power=>if blue{13}else{11},GenerationPool::Any=>70,GenerationPool::Colorless=>34,GenerationPool::Common=>18};
-    if rows.len()!=expected||rows.iter().any(|row|super::card_state::generated(row.id,CardInstanceId(0),0).is_none()){
+    let ids=crate::content::pools::cards(crate::content::pools::CardPool::Combat{character,pool:kind})
+        .map_err(|_|InputError::Unsupported("complete actual character generator support unavailable".into()))?;
+    if ids.iter().any(|id|super::card_state::generated(*id,CardInstanceId(0),0).is_none()){
         return Err(InputError::Unsupported("complete generator constructors unavailable".into()))
     }
-    Ok(rows.into_iter().map(|row|row.id).collect())
+    Ok(ids)
 }
 
 fn request(pool:GenerationPool,count:u32,destination:CardDestination,cost:GenerationCost,upgraded:bool,offer:Option<(bool,u8)>)->GenerationWork{
@@ -72,7 +49,10 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)->Result<Op
     if target.is_some(){return Err(crate::run::RunError::InvalidAction)}
     let upgraded=card.upgrades>0;
     if card.id==Alchemize{
-        if state.silent.source_character!=Some(Character::Silent)||!state.item_context.as_ref().is_some_and(|items|items.m15_profile()&&items.valid_potion_capacity()){
+        // M26 §6.2 L: Alchemize gains from the player's class pool for any character under the
+        // complete capability; the accepted M15 Silent path is unchanged.
+        let complete=super::cards::watcher::complete(state)&&state.silent.source_character.is_some();
+        if !(state.silent.source_character==Some(Character::Silent)||complete)||!state.item_context.as_ref().is_some_and(|items|(items.m15_profile()||complete)&&items.valid_potion_capacity()){
             return Err(crate::run::RunError::Unsupported("Alchemize requires actual Silent potion inventory"))
         }
         return Ok(Some((price,vec![(Some(cards::PayloadTarget::Player),EffectKind::Alchemize{proposal:None})])))
@@ -233,7 +213,10 @@ fn not_basically_dead(state:&State)->bool{
 /// M20 required start callbacks select now; generated delivery remains queued.
 /// Older-profile Magnetism invocation/capture behavior is unchanged.
 pub(super) fn blue_start_turn(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)||state.silent.source_character!=Some(Character::Defect){return Ok(())}
+    // M26 §6.3 L / F13: Hello World and Creative AI run for any holder under the complete capability
+    // (player's pool). Magnetism's M20 branch stays C: other contexts keep the legacy start_turn path.
+    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)
+        ||state.silent.source_character!=Some(Character::Defect)&&!super::cards::watcher::complete(state){return Ok(())}
     for power in state.player_full_powers.clone(){
         let pool=match power.id.0 {
             "hello_world" if not_basically_dead(state)=>GenerationPool::Common,

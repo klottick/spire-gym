@@ -7,13 +7,15 @@ mod cards;
 mod items;
 mod encounters;
 mod events;
+pub mod complete;
 pub mod defect;
+pub mod pools;
 pub mod watcher;
 
 pub use cards::{
     BlueCardMetadata, CardColor, CardCost, CardDefinition, CardFaceMetadata, CardKeywords,
     CardRarity, CardTag, CardTarget, CardType, ContentProducer, NoteStorage, RegistryError,
-    card_tags, is_healing, is_strike,
+    card_tags, is_healing, is_strike, plays_itself_at_end_of_turn,
 };
 pub use encounters::{EncounterDefinition, EnemyDefinition};
 pub use events::EventDefinition;
@@ -48,11 +50,16 @@ impl Catalog {
     pub fn eligibility(&self, id: CardId, producer: ContentProducer, character: Character) -> Result<bool, RegistryError> {
         self.card(id).ok_or(RegistryError::UnknownDefinition)?.eligible_for(producer, character)
     }
-    /// Full selector domains are deliberately unavailable until their family
-    /// registries are complete. Never sample a partial registered subset.
-    pub fn selectable_pool(&self, producer: ContentProducer, _character: Character) -> Result<Vec<CardId>, RegistryError> {
-        if matches!(producer, ContentProducer::Unregistered(_)) { return Err(RegistryError::UnknownProducer); }
-        Err(RegistryError::IncompletePool)
+    /// The complete selector domain of a producer, read from the pool owner
+    /// (M26 G2; design §7.2). An incomplete family fails closed there.
+    pub fn selectable_pool(&self, producer: ContentProducer, character: Character) -> Result<Vec<CardId>, RegistryError> {
+        match producer {
+            ContentProducer::OrdinaryReward => pools::cards(pools::CardPool::Ordinary { character, rarity: None, card_type: None }),
+            ContentProducer::ShardOrdinaryReward => pools::cards(pools::CardPool::AnyColour { rarity: None }),
+            ContentProducer::NoteForYourself => pools::cards(pools::CardPool::NoteForYourself),
+            ContentProducer::PureWater => Ok(vec![CardId::Miracle]),
+            ContentProducer::Unregistered(_) => Err(RegistryError::UnknownProducer),
+        }
     }
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
     pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {

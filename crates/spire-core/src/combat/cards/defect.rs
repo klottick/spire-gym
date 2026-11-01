@@ -216,7 +216,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&DefectEffec
     }
     let source=state.in_play.as_ref().unwrap().full().unwrap().clone();
     match work {
-        DefectEffect::GeneticGrowth{amount}=>grow_genetic(state,&source,*amount)?,
+        DefectEffect::GeneticGrowth{amount}=>grow_misc(state,&source,*amount)?,
         DefectEffect::ClawGrowth=>{
             for owned in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard).chain(state.in_play.iter_mut()) {
                 if let Some(card)=owned.full_mut().filter(|card|card.id==CardId::Claw) {
@@ -241,26 +241,39 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&DefectEffec
     }Ok(())
 }
 
-fn grow_genetic(state:&mut State,source:&LiveCard,amount:i32)->Result<(),InputError>{
+/// M26 journal seam: permanently grow a misc-carrying card family (Genetic Algorithm,
+/// Ritual Dagger) by `amount`, journaling the permanent instance's new `misc` once.
+// The fatal Ritual Dagger caller lands with Lane A (plan Task A-colourless).
+#[cfg_attr(not(test),allow(dead_code))]
+pub(in crate::combat) fn record_misc_growth(state:&mut State,card:CardInstanceId,amount:i32)->Result<(),EffectError>{
+    let mut source=None;
+    super::super::piles::for_each_owned_card_mut(state,|owned|if owned.instance==card&&source.is_none(){source=Some(owned.clone());});
+    let source=source.ok_or_else(||InputError::Invariant("misc growth source is not owned".into()))?;
+    Ok(grow_misc(state,&source,amount)?)
+}
+
+fn grow_misc(state:&mut State,source:&LiveCard,amount:i32)->Result<(),InputError>{
     use std::collections::BTreeSet;
+    let id=source.id;
+    if !matches!(id,CardId::GeneticAlgorithm|CardId::RitualDagger){return Err(InputError::Invariant("misc growth requires Genetic Algorithm or Ritual Dagger".into()))}
     let mut seen=BTreeSet::new();let mut permanent=None;let mut invalid=false;
     super::super::piles::for_each_owned_card_mut(state,|card|{
         if !seen.insert(card.instance){invalid=true;}
         if card.copy_family==source.copy_family {
-            if card.id!=CardId::GeneticAlgorithm {invalid=true;}
+            if card.id!=id {invalid=true;}
             if let CombatCardRef::Permanent(master)=card.origin {
                 if master!=card.instance||master.0!=source.copy_family||permanent.is_some(){invalid=true;}
                 permanent=Some((master,card.misc.wrapping_add(amount)));
             }
         }
     });
-    if invalid||matches!(source.origin,CombatCardRef::Permanent(_))&&permanent.is_none(){return Err(InputError::Invariant("Genetic family physical ownership".into()))}
+    if invalid||matches!(source.origin,CombatCardRef::Permanent(_))&&permanent.is_none(){return Err(InputError::Invariant("misc family physical ownership".into()))}
     let mutation=if let Some((instance,misc))=permanent {
         let ordinal=u64::try_from(state.defect.permanent_mutations.len()).ok().and_then(|n|n.checked_add(1)).ok_or_else(||InputError::Unsupported("permanent mutation ordinal exhausted".into()))?;
         state.defect.permanent_mutations.try_reserve(1).map_err(|_|InputError::Unsupported("permanent mutation allocation exhausted".into()))?;
-        Some(super::super::PermanentCardMutation{ordinal,instance,id:CardId::GeneticAlgorithm,misc})
+        Some(super::super::PermanentCardMutation{ordinal,instance,id,misc})
     }else{None};
-    super::super::piles::for_each_owned_card_mut(state,|card|if card.copy_family==source.copy_family&&card.id==CardId::GeneticAlgorithm {card.misc=card.misc.wrapping_add(amount);});
+    super::super::piles::for_each_owned_card_mut(state,|card|if card.copy_family==source.copy_family&&card.id==id {card.misc=card.misc.wrapping_add(amount);});
     if let Some(mutation)=mutation{state.defect.permanent_mutations.push(mutation);}Ok(())
 }
 
@@ -322,31 +335,36 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Opti
 }
 
 pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    if state.silent.source_character!=Some(crate::content::Character::Defect){return Ok(())}
+    // M26 §6.3 split (seam map §2): Echo reset and Bias loss are L (any holder of the power), Loop
+    // and start passives are S (an orb slot exists), Emotion Chip, Cables and the recharge stay
+    // Defect's (relics / class C). The Defect's own order is unchanged.
+    let defect=state.silent.source_character==Some(crate::content::Character::Defect);
+    let orbs=defect||!state.character.orb_slots.is_empty();
+    if !defect&&!orbs&&!state.player_full_powers.iter().any(|p|matches!(p.id.0,"echo_form"|"bias")){return Ok(())}
     use crate::combat::characters::{self,OrbPassivePhase};
-    state.defect.echo_doubled_this_turn=0;
+    if defect||state.player_full_powers.iter().any(|p|p.id.0=="echo_form"){state.defect.echo_doubled_this_turn=0;}
     let source=Source::Actor(Actor::Player);
     // Relic callback invocation queues Impulse before the powers' queued work.
-    if let Some(items)=state.item_context.as_mut().filter(|items|items.emotion_chip_armed){
+    if let Some(items)=state.item_context.as_mut().filter(|items|defect&&items.emotion_chip_armed){
         items.emotion_chip_armed=false;
         work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(C::PassiveGroup(OrbPassiveGroup::All))});
     }
     for power in state.player_full_powers.clone(){
         match power.id.0 {
-            "loop"=>for _ in 0..power.state.amount.max(0){
+            "loop" if orbs=>for _ in 0..power.state.amount.max(0){
                 for phase in [OrbPassivePhase::Start,OrbPassivePhase::End]{if let Some(effect)=characters::passive_work(state,&source,0,phase)?{work.push(effect);}}
             },
             "bias" if power.state.amount>0=>work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(C::Focus(-power.state.amount))}),
             _=>(),
         }
     }
-    for index in 0..state.character.orb_slots.len(){if let Some(effect)=characters::passive_work(state,&source,index,OrbPassivePhase::Start)?{work.push(effect);}}
-    if state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::GoldPlatedCables)) {
+    for index in 0..if orbs{state.character.orb_slots.len()}else{0}{if let Some(effect)=characters::passive_work(state,&source,index,OrbPassivePhase::Start)?{work.push(effect);}}
+    if defect&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::GoldPlatedCables)) {
         if let Some(effect)=characters::passive_work(state,&source,0,OrbPassivePhase::Start)?{work.push(effect);}
     }
     // Later-turn DrawCardAction construction recharges synchronously after hook
     // invocation, before any of the queued energy actions above execute.
-    if state.turn>1 {
+    if defect&&state.turn>1 {
         state.player.energy=state.player.max_energy;
         for id in ["energized","energized_blue"] {
             if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0==id&&p.state.amount>0).cloned(){
@@ -354,6 +372,9 @@ pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->R
                 work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
             }
         }
+        // G7 next-turn energy law: Energy Down (Fasting) then loses energy, floored at 0; it persists.
+        let energy_down=state.player_full_powers.iter().find(|p|p.id.0=="energy_down").map_or(0,|p|p.state.amount.max(0));
+        state.player.energy=(state.player.energy-energy_down).max(0);
     }
     Ok(())
 }
@@ -369,14 +390,14 @@ pub(in crate::combat) fn on_attacked(state:&mut State,effect:&Effect,payload:&Da
 pub(in crate::combat) fn validate_mutations(state:&State)->Result<(),InputError>{
     let mut latest=std::collections::BTreeMap::new();
     for (index,mutation) in state.defect.permanent_mutations.iter().enumerate(){
-        if mutation.ordinal!=index as u64+1||mutation.id!=CardId::GeneticAlgorithm{return Err(InputError::Invariant("permanent mutation ordinal or kind".into()))}
-        latest.insert(mutation.instance,mutation.misc);
+        if mutation.ordinal!=index as u64+1||!matches!(mutation.id,CardId::GeneticAlgorithm|CardId::RitualDagger){return Err(InputError::Invariant("permanent mutation ordinal or kind".into()))}
+        latest.insert(mutation.instance,(mutation.id,mutation.misc));
     }
     let mut seen=std::collections::BTreeSet::new();
     for card in super::super::piles::owned_full_cards(state){
         if let CombatCardRef::Permanent(instance)=card.origin {
-            if let Some(misc)=latest.get(&instance){
-                if !seen.insert(instance)||card.id!=CardId::GeneticAlgorithm||card.instance!=instance||card.copy_family!=instance.0||card.misc!=*misc {
+            if let Some((id,misc))=latest.get(&instance){
+                if !seen.insert(instance)||card.id!=*id||card.instance!=instance||card.copy_family!=instance.0||card.misc!=*misc {
                     return Err(InputError::Invariant("permanent mutation live owner mismatch".into()))
                 }
             }
@@ -388,11 +409,14 @@ pub(in crate::combat) fn validate_mutations(state:&State)->Result<(),InputError>
 pub(in crate::combat) fn valid_orb_source(state:&State,source:&Source)->bool{
     let m20=state.silent.source_character==Some(crate::content::Character::Defect)
         &&state.item_context.as_ref().is_some_and(|items|items.m20_profile());
+    // M26 §6.3 L: player-sourced orb work and Blue card sources for any character under the
+    // complete capability; the potion subcase is unchanged.
+    let complete=super::watcher::complete(state);
     state.full_runtime&&match source {
-        Source::Actor(Actor::Player)=>state.silent.source_character==Some(crate::content::Character::Defect),
+        Source::Actor(Actor::Player)=>state.silent.source_character==Some(crate::content::Character::Defect)||complete,
         Source::Card(owner)=>super::super::piles::owned_full_cards(state).any(|card|
             super::super::card_state::handle(card.instance)==*owner&&(crate::content::defect::supports_permanent(card.id)
-                ||m20&&crate::content::defect::supports_m20_permanent(card.id))),
+                ||(m20||complete)&&crate::content::defect::supports_m20_permanent(card.id))),
         Source::Potion{slot,id:crate::content::PotionId::EssenceOfDarkness}=>m20
             &&state.item_context.as_ref().is_some_and(|items|items.potions().get(*slot).is_some_and(Option::is_none)),
         _=>false,
@@ -448,13 +472,15 @@ pub(in crate::combat) fn capped_energy_source(state:&State,source:&Source,amount
     // Preserve the existing variable-gain producers and frozen old profiles.
     if matches!(source,Source::Card(owner) if super::super::piles::owned_full_cards(state).any(|card|
         super::super::card_state::handle(card.instance)==*owner&&matches!(card.id,CardId::Aggregate|CardId::DoubleEnergy|CardId::Recycle))){return true;}
-    if state.silent.source_character!=Some(crate::content::Character::Defect)
-        ||!state.item_context.as_ref().is_some_and(|items|items.m20_profile()){return false;}
+    // M26 §6.3 L: card sources for any character under the complete capability; potion subcases unchanged.
+    let blue=state.silent.source_character==Some(crate::content::Character::Defect)
+        &&state.item_context.as_ref().is_some_and(|items|items.m20_profile());
+    if !blue&&!super::watcher::complete(state){return false;}
     match source {
         Source::Card(owner)=>state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|card|card.full()).is_some_and(|card|match card.id{
             CardId::Turbo=>amount==if card.upgrades>0{3}else{2},CardId::Sunder=>amount==3,_=>false,
         }),
-        Source::Potion{slot,id:crate::content::PotionId::EnergyPotion}=>{
+        Source::Potion{slot,id:crate::content::PotionId::EnergyPotion} if blue=>{
             let items=state.item_context.as_ref().unwrap();
             let owner=if let Some(current)=state.current.as_ref(){
                 current.source==*source&&current.target==Some(Actor::Player)&&current.kind==EffectKind::GainEnergy(amount)

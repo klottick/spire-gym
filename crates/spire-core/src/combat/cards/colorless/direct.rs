@@ -1,6 +1,22 @@
 //! Direct Colorless card rules; resource and effect ownership stays shared.
 use super::*;
 
+pub(super) fn starting_cost(id:crate::content::CardId,_upgrades:u32)->Option<i32>{
+    use crate::content::CardId::*;
+    Some(match id{
+        BandageUp|Jax=>0,
+        Apparition|Bite|RitualDagger=>1,
+        _=>return None,
+    })
+}
+
+fn validate_target(state:&State,target:u64)->Result<(),crate::run::RunError>{
+    let index=target.checked_sub(1).and_then(|index|usize::try_from(index).ok());
+    if index.and_then(|index|state.enemies.get(index))
+        .is_some_and(|enemy|enemy.life==ActorLife::Active&&enemy.hp>0){Ok(())}
+    else{Err(crate::run::RunError::InvalidAction)}
+}
+
 pub(super) fn requires_draw_history(id:crate::content::CardId)->bool{
     use crate::content::CardId::*;
     matches!(id,Blind|DarkShackles|DeepBreath|DramaticEntrance|Finesse|FlashOfSteel
@@ -11,18 +27,35 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
     ->Result<Option<(i32,Vec<(Option<PayloadTarget>,EffectKind)>)>,crate::run::RunError>{
     use crate::content::CardId::*;
     if !matches!(card.id,Blind|DarkShackles|DeepBreath|DramaticEntrance|Finesse|FlashOfSteel
-        |GoodInstincts|Impatience|MindBlast|Panacea|PanicButton|SwiftStrike|Trip|MasterOfStrategy|HandOfGreed){
+        |GoodInstincts|Impatience|MindBlast|Panacea|PanicButton|SwiftStrike|Trip|MasterOfStrategy|HandOfGreed
+        |BandageUp|Apparition|Bite|Jax|RitualDagger){
         return Ok(None)
     }
     let up=card.upgrades>0;
     let selected=match card.id{
-        DarkShackles|FlashOfSteel|MindBlast|SwiftStrike|HandOfGreed=>true,
+        DarkShackles|FlashOfSteel|MindBlast|SwiftStrike|HandOfGreed|Bite|RitualDagger=>true,
         Blind|Trip=>!up,
         _=>false,
     };
     if selected!=target.is_some(){return Err(crate::run::RunError::InvalidAction)}
+    if let Some(target)=target.filter(|_|matches!(card.id,Bite|RitualDagger)){validate_target(state,target)?;}
     let mut effects=Vec::new();
     let cost=match card.id{
+        BandageUp=>{effects.push((Some(PayloadTarget::Player),EffectKind::Heal(if up{6}else{4})));0}
+        Apparition=>{effects.push((Some(PayloadTarget::Player),EffectKind::ApplyFullPower{id:FullPowerId("intangible"),amount:1}));1}
+        Bite=>{
+            let damage=super::super::modified_damage(state,target.unwrap(),if up{8}else{7})?;
+            effects.push((Some(PayloadTarget::SelectedEnemy),EffectKind::Damage(DamagePayload::Fixed(damage))));
+            effects.push((Some(PayloadTarget::Player),EffectKind::Heal(if up{3}else{2})));1
+        }
+        Jax=>{
+            effects.push((Some(PayloadTarget::Player),EffectKind::Damage(DamagePayload::HpLoss(3))));
+            effects.push((Some(PayloadTarget::Player),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if up{3}else{2}}));0
+        }
+        RitualDagger=>{
+            let damage=super::super::modified_damage(state,target.unwrap(),card.misc)?;
+            effects.push((Some(PayloadTarget::SelectedEnemy),EffectKind::Damage(DamagePayload::Fixed(damage))));1
+        }
         Blind=>{
             if up {
                 for enemy in state.enemies.iter().filter(|enemy|enemy.life==ActorLife::Active&&enemy.hp>0){
@@ -130,6 +163,11 @@ pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
     use crate::content::CardId::*;
     let up=card.upgrades>0;
     let (damage,block,magic)=match card.id{
+        BandageUp=>(None,None,Some(if up{6}else{4})),
+        Apparition=>(None,None,Some(1)),
+        Bite=>(Some(if up{8}else{7}),None,Some(if up{3}else{2})),
+        Jax=>(None,None,Some(if up{3}else{2})),
+        RitualDagger=>(Some(card.misc),None,None),
         Blind=>(None,None,Some(2)),
         DarkShackles=>(None,None,Some(if up{15}else{9})),
         DeepBreath=>(None,None,Some(if up{2}else{1})),

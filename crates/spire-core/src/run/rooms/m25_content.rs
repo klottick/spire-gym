@@ -3,7 +3,7 @@
 //! built from `content::watcher`'s complete roster and the M24 union.
 
 use super::*;
-use crate::content::{CardColor, CardRarity, Catalog};
+use crate::content::CardRarity;
 use super::m24_content as m24;
 
 const fn extend<T: Copy, const N: usize>(base: &[T], extra: &[T]) -> [T; N] {
@@ -46,16 +46,9 @@ pub const CARD_OFFER_SCOPE_NAME: &str = "run.m25.card.offer";
 pub const ACT4_RELIC_CAPTURE_SCOPE: crate::run::RunRngScope = crate::run::RunRngScope::M25RelicCapture;
 pub const ACT4_RELIC_CAPTURE_SCOPE_NAME: &str = "run.m25.relic.capture";
 
-/// Nonbasic Watcher catalog cards of one rarity, in spelling order (the M20 family pattern).
+/// Nonbasic Watcher catalog cards of one rarity, in spelling order, from the pool owner.
 pub(in crate::run) fn purple_candidates(rarity: CardRarity) -> &'static [CardId] {
-    static FAMILIES: std::sync::OnceLock<[Vec<CardId>; 3]> = std::sync::OnceLock::new();
-    let families = FAMILIES.get_or_init(|| [CardRarity::Common, CardRarity::Uncommon, CardRarity::Rare].map(|rarity| {
-        let mut cards = Catalog::standard().cards().iter().filter(|row| row.color == CardColor::Purple && row.rarity == rarity)
-            .map(|row| row.id).collect::<Vec<_>>();
-        cards.sort_by_key(|id| id.as_str());
-        cards
-    }));
-    match rarity { CardRarity::Common => &families[0], CardRarity::Uncommon => &families[1], CardRarity::Rare => &families[2], _ => &[] }
+    super::m15_content::ordinary_family(crate::content::Character::Watcher, rarity)
 }
 pub(in crate::run) fn sample_capture_row(rng: &mut RunRng, semantic: &[u64], rarities: &[CardRarity]) -> Result<Vec<CardId>, RunError> {
     sample_capture_row_with(rng, semantic, rarities, purple_candidates)
@@ -67,7 +60,8 @@ pub(in crate::run) fn sample_capture_row_with(rng: &mut RunRng, semantic: &[u64]
         let expected = match rarity { CardRarity::Common => 19, CardRarity::Uncommon => 35, CardRarity::Rare => 17, _ => 0 };
         if expected == 0 || family(*rarity).len() != expected { return Err(RunError::Unsupported("M25 incomplete Purple rarity family")) }
     }
-    super::m15_content::sample_capture_row_for(rng, semantic, rarities, family, CARD_OFFER_SCOPE,
+    let slots = rarities.iter().map(|rarity| family(*rarity)).collect::<Vec<_>>();
+    super::m15_content::sample_capture_row_for(rng, semantic, &slots, CARD_OFFER_SCOPE,
         "M25 incomplete Purple rarity family", "M25 captured card row has no remaining Purple candidate")
 }
 

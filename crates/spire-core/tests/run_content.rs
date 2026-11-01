@@ -36,7 +36,8 @@ fn exact_standard_base_starts_resolve() {
     assert!(catalog.card(CardId::AscendersBane).is_some());
     assert!(catalog.card(CardId::IronWave).is_some());
     assert_eq!(catalog.card(CardId::AscendersBane).unwrap().rarity, CardRarity::Curse);
-    assert!(catalog.card(CardId::AscendersBane).unwrap().definition_only);
+    // M26 (design §5.1): Ascender's Bane is executable (non-removable curse), no longer definition-only.
+    assert!(!catalog.card(CardId::AscendersBane).unwrap().definition_only);
 }
 
 #[test]
@@ -69,7 +70,16 @@ fn named_producers_keep_basic_and_off_color_rules_distinct() {
 #[test]
 fn unpopulated_selectable_pools_fail_closed() {
     let catalog = Catalog::standard();
-    assert_eq!(catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Ironclad), Err(RegistryError::IncompletePool));
+    // pre-M26: assert_eq!(catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Ironclad), Err(RegistryError::IncompletePool));
+    assert_eq!(
+        catalog.selectable_pool(ContentProducer::OrdinaryReward, Character::Ironclad).map(|pool| pool.len()),
+        Ok(72),
+        "M26 ordinary Ironclad pool has 72 kinds",
+    );
+    assert_eq!(
+        catalog.selectable_pool(ContentProducer::Unregistered("x"), Character::Ironclad),
+        Err(RegistryError::UnknownProducer),
+    );
     assert!(catalog.card(CardId::Unknown("missing")).is_none());
 }
 

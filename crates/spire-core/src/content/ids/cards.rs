@@ -61,6 +61,8 @@ pub enum CardId {
     Alpha, Blasphemy, ConjureBlade, DeusExMachina, DevaForm, Judgment, LessonLearned, Omniscience, Ragnarok, Scrawl, SpiritShield, Vault, Wish,
     Insight, ThroughViolence, Beta, Omega, Expunger,
     BecomeAlmighty, FameAndFortune, LiveForever,
+    BandageUp, Apparition, Bite, Jax, RitualDagger, Clumsy, CurseOfTheBell, Decay, Doubt, Injury,
+    Necronomicurse, Normality, Pain, Shame, Writhe,
 }
 impl CardId {
     pub const fn as_str(self) -> &'static str { match self {
@@ -269,6 +271,11 @@ impl CardId {
         Self::Insight => "insight", Self::ThroughViolence => "through_violence", Self::Beta => "beta",
         Self::Omega => "omega", Self::Expunger => "expunger", Self::BecomeAlmighty => "become_almighty",
         Self::FameAndFortune => "fame_and_fortune", Self::LiveForever => "live_forever",
+        Self::BandageUp => "bandage_up", Self::Apparition => "apparition", Self::Bite => "bite",
+        Self::Jax => "jax", Self::RitualDagger => "ritual_dagger", Self::Clumsy => "clumsy",
+        Self::CurseOfTheBell => "curse_of_the_bell", Self::Decay => "decay", Self::Doubt => "doubt",
+        Self::Injury => "injury", Self::Necronomicurse => "necronomicurse", Self::Normality => "normality",
+        Self::Pain => "pain", Self::Shame => "shame", Self::Writhe => "writhe",
         Self::Unknown(value) => value,
     }}
 }

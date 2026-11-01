@@ -15,6 +15,11 @@ pub(in crate::combat) mod autoplay;
 mod copies;
 pub use state::IroncladEffect;
 
+/// Printed cost of a red card whose play condition rejects its payload (M26 disclosed
+/// shared fix, as Silent's Grand Finale): Clash costs 0 whether or not it is playable now,
+/// so Infernal Blade, Confused and Liquid Memories never lose its base cost.
+pub(super) fn starting_cost(id:crate::content::CardId)->Option<i32>{(id==crate::content::CardId::Clash).then_some(0)}
+
 pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Result<(),EffectError>{
     match work {
         IroncladEffect::ChooseTrueGritCard|IroncladEffect::ChooseHeadbuttCard|IroncladEffect::ChooseExhumeCard|IroncladEffect::ChooseDualWieldCard=>choices::apply(state,effect,work),

@@ -82,7 +82,8 @@ impl fmt::Debug for CardDefinition {
 impl CardDefinition {
     pub fn eligible_for(&self, producer: ContentProducer, character: Character) -> Result<bool, RegistryError> {
         let character_color = match character { Character::Ironclad => CardColor::Red, Character::Silent => CardColor::Green, Character::Defect => CardColor::Blue, Character::Watcher => CardColor::Purple };
-        let ordinary_pool_candidate = !matches!(self.id, CardId::FlurryOfBlows|CardId::Prostrate|CardId::Worship|CardId::Brilliance|CardId::Devotion|CardId::ThirdEye|CardId::CutThroughFate|CardId::JustLucky|CardId::Weave|CardId::Foresight|CardId::Nirvana|CardId::WindmillStrike|CardId::Perseverance|CardId::SandsOfTime|CardId::Establishment|CardId::Meditate|CardId::CarveReality|CardId::DeceiveReality|CardId::MasterReality|CardId::BattleHymn|CardId::MentalFortress|CardId::Rushdown|CardId::LikeWater|CardId::Smite|CardId::Safety) && matches!(self.color, CardColor::Red | CardColor::Green | CardColor::Blue | CardColor::Purple | CardColor::Colorless)
+        // M26 G1: eligibility follows colour and rarity only (the M21 finite Watcher fence is removed).
+        let ordinary_pool_candidate = matches!(self.color, CardColor::Red | CardColor::Green | CardColor::Blue | CardColor::Purple | CardColor::Colorless)
             && !matches!(self.rarity, CardRarity::Basic | CardRarity::Status | CardRarity::Curse | CardRarity::Special);
         Ok(match producer {
             ContentProducer::OrdinaryReward => self.color == character_color && ordinary_pool_candidate
@@ -217,11 +218,11 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::Slimed, CardColor::Status, CardRarity::Status, CardType::Status, NoteStorage::TemporaryOnly),
     supported(CardId::Dazed, CardColor::Status, CardRarity::Status, CardType::Status, NoteStorage::TemporaryOnly),
     supported(CardId::Burn, CardColor::Status, CardRarity::Status, CardType::Status, NoteStorage::TemporaryOnly),
-    card(CardId::AscendersBane, CardColor::Curse, CardRarity::Curse, CardType::Curse, NoteStorage::NonremovableCurse),
+    supported(CardId::AscendersBane, CardColor::Curse, CardRarity::Curse, CardType::Curse, NoteStorage::NonremovableCurse),
     supported(CardId::Miracle, CardColor::Colorless, CardRarity::Special, CardType::Skill, NoteStorage::TemporaryOnly),
     supported(CardId::Wound, CardColor::Status, CardRarity::Status, CardType::Status, NoteStorage::TemporaryOnly),
     supported(CardId::Madness, CardColor::Colorless, CardRarity::Uncommon, CardType::Skill, NoteStorage::RemovablePermanent),
-    card(CardId::Regret, CardColor::Curse, CardRarity::Curse, CardType::Curse, NoteStorage::RemovablePermanent),
+    supported(CardId::Regret, CardColor::Curse, CardRarity::Curse, CardType::Curse, NoteStorage::RemovablePermanent),
     supported(CardId::Nightmare, CardColor::Green, CardRarity::Rare, CardType::Skill, NoteStorage::RemovablePermanent),
     supported(CardId::DaggerSpray,CardColor::Green,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
     supported(CardId::Slice,CardColor::Green,CardRarity::Common,CardType::Attack,NoteStorage::RemovablePermanent),
@@ -453,16 +454,30 @@ pub(crate) const CARDS: &[CardDefinition] = &[
     supported(CardId::Omega,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
     supported(CardId::BecomeAlmighty,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
     supported(CardId::LiveForever,CardColor::Colorless,CardRarity::Special,CardType::Power,NoteStorage::TemporaryOnly),
+    supported(CardId::BandageUp,CardColor::Colorless,CardRarity::Uncommon,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Apparition,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::Bite,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Jax,CardColor::Colorless,CardRarity::Special,CardType::Skill,NoteStorage::RemovablePermanent),
+    supported(CardId::RitualDagger,CardColor::Colorless,CardRarity::Special,CardType::Attack,NoteStorage::RemovablePermanent),
+    supported(CardId::Clumsy,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::CurseOfTheBell,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::NonremovableCurse),
+    supported(CardId::Decay,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Doubt,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Injury,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Necronomicurse,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::NonremovableCurse),
+    supported(CardId::Normality,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Pain,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Shame,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
+    supported(CardId::Writhe,CardColor::Curse,CardRarity::Curse,CardType::Curse,NoteStorage::RemovablePermanent),
 ];
 
 /// The single card-tag owner. Defect kinds return their `BlueCardMetadata` tags
 /// unchanged. Every other kind is tagged only with `Healing` and `Strike`;
 /// `StarterStrike` and `StarterDefend` stay Defect-only metadata.
 ///
-/// HEALING: Feed, Reaper, Alchemize, Lesson Learned and Wish (with Self Repair's
-/// Defect metadata), per the HEALING exclusions list of
-/// `docs/research/2026-10-19-act1-native-contract.md`. Bandage Up is outside the
-/// native catalog and has no identity here.
+/// HEALING: Feed, Reaper, Alchemize, Lesson Learned, Wish and Bandage Up (with
+/// Self Repair's Defect metadata), per the HEALING exclusions list of
+/// `docs/research/2026-10-19-act1-native-contract.md`.
 /// STRIKE: the four basic Strikes and Perfected, Pommel, Twin, Wild, Swift, Sneaky,
 /// Thunder, Meteor and Windmill Strike (Thunder and Meteor Strike through their
 /// Defect metadata), per the Perfected Strike paragraph of
@@ -472,7 +487,7 @@ pub fn card_tags(id: CardId) -> &'static [CardTag] {
         return metadata.tags;
     }
     match id {
-        CardId::Feed | CardId::Reaper | CardId::Alchemize | CardId::LessonLearned | CardId::Wish => &[CardTag::Healing],
+        CardId::Feed | CardId::Reaper | CardId::Alchemize | CardId::LessonLearned | CardId::Wish | CardId::BandageUp => &[CardTag::Healing],
         CardId::Strike | CardId::StrikeGreen | CardId::StrikePurple | CardId::PerfectedStrike | CardId::PommelStrike
         | CardId::TwinStrike | CardId::WildStrike | CardId::SwiftStrike | CardId::SneakyStrike | CardId::WindmillStrike => &[CardTag::Strike],
         _ => &[],
@@ -482,6 +497,15 @@ pub fn card_tags(id: CardId) -> &'static [CardTag] {
 pub fn is_healing(id: CardId) -> bool { card_tags(id).contains(&CardTag::Healing) }
 
 pub fn is_strike(id: CardId) -> bool { card_tags(id).contains(&CardTag::Strike) }
+
+/// Cards that play themselves from the hand at the end of the player's turn (Burn, Decay, Doubt,
+/// Shame, Regret). In the source each one uses itself from `triggerOnEndOfPlayerTurn` and then
+/// discards itself before ordinary retention, so no Retain effect keeps it (wiki pages for the
+/// five cards; `implementation-notes.json` BURN and REGRET). A power it applies to the player is
+/// just-applied (`WeakPower`/`FrailPower(p, 1, true)` for Doubt and Shame).
+pub fn plays_itself_at_end_of_turn(id: CardId) -> bool {
+    matches!(id, CardId::Burn | CardId::Decay | CardId::Doubt | CardId::Shame | CardId::Regret)
+}
 
 const fn card(id: CardId, color: CardColor, rarity: CardRarity, card_type: CardType, note_storage: NoteStorage) -> CardDefinition {
     CardDefinition { id, color, rarity, card_type, note_storage, definition_only: true, blue_metadata: None }

@@ -23,14 +23,14 @@ pub(super) fn validate_owner(state:&State,source:&Source)->Result<(),InputError>
 
 fn foreign_influence_parent<'a>(state:&'a State,source:&Source)->Option<&'a super::card_state::LiveCard>{
     let Source::Card(owner)=source else{return None};
-    if !state.item_context.as_ref().is_some_and(|items|items.m25_profile()){return None}
+    if !state.item_context.as_ref().is_some_and(|items|items.m25_cards()){return None}
     state.in_play.as_ref().filter(|owned|owned.handle()==*owner).and_then(OwnedCard::full)
         .filter(|card|card.id==crate::content::CardId::ForeignInfluence)
 }
 
 fn wish_parent<'a>(state:&'a State,source:&Source)->Option<&'a super::card_state::LiveCard>{
     let Source::Card(owner)=source else{return None};
-    if !state.item_context.as_ref().is_some_and(|items|items.m25_profile()){return None}
+    if !state.item_context.as_ref().is_some_and(|items|items.m25_cards()){return None}
     state.in_play.as_ref().filter(|owned|owned.handle()==*owner).and_then(OwnedCard::full)
         .filter(|card|card.id==crate::content::CardId::Wish)
 }

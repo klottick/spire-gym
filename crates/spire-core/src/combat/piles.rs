@@ -69,21 +69,24 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             notify_draw_pile_shuffled(state);
         }
         EffectKind::DiscardHand => {
-            // Burn resolves its end-turn THORNS packet before this shared
-            // cleanup checkpoint and then discards even when a retain effect
-            // selected it (implementation-notes.json BURN). Only its retention
-            // is withdrawn; it leaves in the ordinary hand-discard order, so an
-            // unretained hand's discard order is unchanged.
-            let burns=state.piles.hand.iter().filter_map(|card|
-                card.full().filter(|live|live.id==crate::content::CardId::Burn).map(|_|card.handle()))
+            // A card that plays itself at end of turn (Burn, Decay, Doubt, Shame,
+            // Regret) resolves its work before this shared cleanup checkpoint and
+            // then discards even when a retain effect selected it (M25 R4,
+            // generalized by M26; `content::plays_itself_at_end_of_turn`). Only its
+            // retention is withdrawn; it leaves in the ordinary hand-discard order,
+            // so an unretained hand's discard order is unchanged.
+            let self_played=|live:&super::card_state::LiveCard|crate::content::plays_itself_at_end_of_turn(live.id);
+            let leaving=state.piles.hand.iter().filter_map(|card|
+                card.full().filter(|live|self_played(live)).map(|_|card.handle()))
                 .collect::<Vec<_>>();
             if let Some(retain)=state.temporary_retain.as_mut(){
-                retain.cards.retain(|handle|!burns.contains(handle));
+                retain.cards.retain(|handle|!leaving.contains(handle));
             }
             for card in &mut state.piles.hand{
-                if let Some(live)=card.full_mut().filter(|live|live.id==crate::content::CardId::Burn){live.local.retain=false;}
+                if let Some(live)=card.full_mut().filter(|live|self_played(live)){live.local.retain=false;}
             }
-            if super::cards::watcher::active(state){return super::cards::watcher::discard_hand(state,effect)}
+            // M26 §6.3 S: the Retain discard law runs for any hand holding a Retain card.
+            if super::cards::watcher::active(state)||state.piles.hand.iter().any(|card|card.full().is_some_and(|live|live.local.self_retain||live.local.retain)){return super::cards::watcher::discard_hand(state,effect)}
             if let Some(retain)=&state.temporary_retain {
                 if retain.turn!=state.turn||retain.cards.iter().any(|handle|!state.piles.hand.iter().any(|card|
                     card.handle()==*handle&&card.full().is_some_and(|live|!live.local.ethereal))){
@@ -185,8 +188,10 @@ pub(super) fn insert_generated(state: &mut State, card: super::card_state::LiveC
 pub(super) fn insert_generated_with(state: &mut State, mut card: super::card_state::LiveCard,
     requested: super::command::CardDestination, route: MasterRealityRoute) -> Result<(), EffectError> {
     // Master Reality ("Whenever a card is created during combat, Upgrade it"), shared by every
-    // character: one upgrade of a base created card, never a Curse or a Status.
-    if route == MasterRealityRoute::Creation && card.upgrades == 0
+    // character: one upgrade of each created card that can still upgrade (a copy of Searing
+    // Blow+3 becomes +4, as the source's unguarded `upgrade()`), never a Curse or a Status.
+    if route == MasterRealityRoute::Creation
+        && super::cards::ironclad::rules::can_upgrade(card.id, card.upgrades)
         && state.player_full_powers.iter().any(|power| power.id.0 == "master_reality")
         && crate::content::Catalog::standard().card(card.id).is_some_and(|row|
             !matches!(row.card_type, crate::content::CardType::Curse | crate::content::CardType::Status)) {
@@ -422,7 +427,7 @@ pub(super) fn finish_played_card(state:&mut State,mut card:OwnedCard,disposition
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Power));
     if purge {return finish_owned_card(state,card,FinishDisposition::Purge,true)}
     if power {state.played_powers.push(card);return Ok(())}
-    if disposition==FinishDisposition::Natural&&state.item_context.as_ref().is_some_and(|items|items.m25_profile())
+    if disposition==FinishDisposition::Natural&&state.item_context.as_ref().is_some_and(|items|items.m25_cards())
         &&card.full().is_some_and(|live|live.id==crate::content::CardId::Tantrum){return shuffle_owned_into_draw(state,card)}
     let rebound=card.full().is_some_and(|live|live.local.rebound_on_finish&&!live.local.exhaust_on_finish)&&disposition==FinishDisposition::Natural;
     if let Some(live)=card.full_mut(){live.local.rebound_on_finish=false;}

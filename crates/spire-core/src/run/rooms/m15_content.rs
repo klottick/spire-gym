@@ -1,6 +1,6 @@
 //! Source-qualified M15 Silent card, relic, and potion admission data.
 use crate::{
-    content::{CardId, CardRarity, Catalog, PotionId, RelicId},
+    content::{CardId, CardRarity, Catalog, Character, PotionId, RelicId},
     run::{RunError, RunRng, RunRngScope},
 };
 
@@ -11,94 +11,31 @@ const BASIC: &[CardId] = &[
     CardId::Survivor,
 ];
 
-const COMMON: &[CardId] = &[
-    CardId::Acrobatics,
-    CardId::Backflip,
-    CardId::Bane,
-    CardId::BladeDance,
-    CardId::CloakAndDagger,
-    CardId::DaggerSpray,
-    CardId::DaggerThrow,
-    CardId::DeadlyPoison,
-    CardId::Deflect,
-    CardId::DodgeAndRoll,
-    CardId::FlyingKnee,
-    CardId::Outmaneuver,
-    CardId::PiercingWail,
-    CardId::PoisonedStab,
-    CardId::Prepared,
-    CardId::QuickSlash,
-    CardId::Slice,
-    CardId::SneakyStrike,
-    CardId::SuckerPunch,
-];
 
-const UNCOMMON: &[CardId] = &[
-    CardId::Accuracy,
-    CardId::AllOutAttack,
-    CardId::Backstab,
-    CardId::Blur,
-    CardId::BouncingFlask,
-    CardId::CalculatedGamble,
-    CardId::Caltrops,
-    CardId::Catalyst,
-    CardId::Choke,
-    CardId::Concentrate,
-    CardId::CripplingCloud,
-    CardId::Dash,
-    CardId::Distraction,
-    CardId::EndlessAgony,
-    CardId::EscapePlan,
-    CardId::Eviscerate,
-    CardId::Expertise,
-    CardId::Finisher,
-    CardId::Flechettes,
-    CardId::Footwork,
-    CardId::HeelHook,
-    CardId::InfiniteBlades,
-    CardId::LegSweep,
-    CardId::MasterfulStab,
-    CardId::NoxiousFumes,
-    CardId::Predator,
-    CardId::Reflex,
-    CardId::RiddleWithHoles,
-    CardId::Setup,
-    CardId::Skewer,
-    CardId::Tactician,
-    CardId::Terror,
-    CardId::WellLaidPlans,
-];
 
-const RARE: &[CardId] = &[
-    CardId::AThousandCuts,
-    CardId::Adrenaline,
-    CardId::AfterImage,
-    CardId::Alchemize,
-    CardId::BulletTime,
-    CardId::Burst,
-    CardId::CorpseExplosion,
-    CardId::DieDieDie,
-    CardId::Doppelganger,
-    CardId::Envenom,
-    CardId::GlassKnife,
-    CardId::GrandFinale,
-    CardId::Malaise,
-    CardId::Nightmare,
-    CardId::PhantasmalKiller,
-    CardId::StormOfSteel,
-    CardId::ToolsOfTheTrade,
-    CardId::Unload,
-    CardId::WraithForm,
-];
 
+/// Green ordinary families are read from the pool owner (`content::pools`;
+/// the accepted M15 arrays were already in its rarity→`as_str` order).
 pub(crate) fn green_candidates(rarity: CardRarity) -> &'static [CardId] {
     match rarity {
         CardRarity::Basic => BASIC,
-        CardRarity::Common => COMMON,
-        CardRarity::Uncommon => UNCOMMON,
-        CardRarity::Rare => RARE,
+        CardRarity::Common | CardRarity::Uncommon | CardRarity::Rare => ordinary_family(Character::Silent, rarity),
         CardRarity::Special | CardRarity::Status | CardRarity::Curse => &[],
     }
+}
+
+/// One character's ordinary rarity family from the pool owner, cached; an
+/// incomplete family is empty, which every sampler rejects before drawing.
+pub(in crate::run) fn ordinary_family(character: Character, rarity: CardRarity) -> &'static [CardId] {
+    static FAMILIES: std::sync::OnceLock<Vec<Vec<CardId>>> = std::sync::OnceLock::new();
+    const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
+    const RARITIES: [CardRarity; 3] = [CardRarity::Common, CardRarity::Uncommon, CardRarity::Rare];
+    let families = FAMILIES.get_or_init(|| CHARACTERS.iter().flat_map(|character| RARITIES.iter().map(move |rarity| {
+        crate::content::pools::cards(crate::content::pools::CardPool::Ordinary { character: *character, rarity: Some(*rarity), card_type: None })
+            .unwrap_or_default()
+    })).collect());
+    let (Some(c), Some(r)) = (CHARACTERS.iter().position(|x| *x == character), RARITIES.iter().position(|x| *x == rarity)) else { return &[] };
+    &families[c * RARITIES.len() + r]
 }
 
 /// All 75 ordinary permanent Silent Green kinds, including Basics.
@@ -244,20 +181,20 @@ pub(in crate::run) fn sample_capture_row(
     semantic: &[u64],
     rarities: &[CardRarity],
 ) -> Result<Vec<CardId>, RunError> {
-    sample_capture_row_for(rng,semantic,rarities,green_candidates,RunRngScope::M15CardOffer,
+    let slots = rarities.iter().map(|rarity| green_candidates(*rarity)).collect::<Vec<_>>();
+    sample_capture_row_for(rng,semantic,&slots,RunRngScope::M15CardOffer,
         "M15 captured card row has an incomplete Green rarity family",
         "M15 captured card row has no remaining Green candidate")
 }
 
-/// Shared staged sampler; profiles supply complete families and their RNG scope.
+/// Shared staged sampler; callers supply one complete family per slot and the
+/// RNG scope (M26 generalization: a slot is any family, not only a rarity).
 pub(in crate::run) fn sample_capture_row_for(
-    rng:&mut RunRng,semantic:&[u64],rarities:&[CardRarity],
-    family:fn(CardRarity)->&'static [CardId],scope:RunRngScope,
+    rng:&mut RunRng,semantic:&[u64],slots:&[&[CardId]],scope:RunRngScope,
     incomplete:&'static str,empty:&'static str,
 )->Result<Vec<CardId>,RunError>{
     let catalog = Catalog::standard();
-    for rarity in rarities {
-        let candidates = family(*rarity);
+    for candidates in slots {
         if candidates.is_empty()
             || candidates.iter().any(|id| {
                 catalog.card(*id).is_none_or(|definition| definition.definition_only)
@@ -270,9 +207,9 @@ pub(in crate::run) fn sample_capture_row_for(
     }
 
     let mut staged = rng.clone();
-    let mut chosen = Vec::with_capacity(rarities.len());
-    for (slot, rarity) in rarities.iter().enumerate() {
-        let remaining = family(*rarity)
+    let mut chosen = Vec::with_capacity(slots.len());
+    for (slot, candidates) in slots.iter().enumerate() {
+        let remaining = candidates
             .iter()
             .copied()
             .filter(|id| !chosen.contains(id))
