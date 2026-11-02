@@ -123,19 +123,19 @@ fn m13_schema_publishes_only_its_captured_act12_content_and_act3_cutoff() {
     assert_eq!(m9.descriptor()["schema_id"], "spire-gym-run-observation-v1");
     assert_eq!(
         hex(&m9.fingerprint()),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999"
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"
     );
     assert_eq!(m10.descriptor()["schema_id"], RUN_OBSERVATION_M10_SCHEMA_ID);
     assert_eq!(m10.descriptor()["schema_id"], "spire-gym-run-observation-v2");
     assert_eq!(
         hex(&m10.fingerprint()),
-        "7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"
+        "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"
     );
     assert_eq!(m12.descriptor()["schema_id"], RUN_OBSERVATION_M12_SCHEMA_ID);
     assert_eq!(m12.descriptor()["schema_id"], "spire-gym-m12-silent-act1-observation-v1");
     assert_eq!(
         hex(&m12.fingerprint()),
-        "366c572af8141146995e849acc737a33484623790e2b3d661e290fadfb6c9fac"
+        "ae0b995eade57ef1dccc39bd9cad6064d8bd33a1cfbc37a312e4b76ac01ceb20"
     );
 }
 

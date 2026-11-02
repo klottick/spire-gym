@@ -57,13 +57,13 @@ fn direct_m10(seed: u64, history: M9BossHistory, partition: Partition, ordinal: 
 }
 
 #[test]
-fn new_m10_is_opt_in_and_m9_new_descriptor_and_wire_stay_frozen() {
+fn new_m10_is_opt_in_and_m9_new_descriptor_and_wire_stay_pinned() {
     assert_eq!(RunCapacities::m10_default(), RunCapacities::m9_default());
     let m9_config = RunSessionConfig { capacities: RunCapacities::m9_default(), ..config(M9BossHistory::AwakenedUnseen, true) };
     let m9 = RunSession::new(m9_config.clone()).unwrap();
     assert_eq!(m9.observation_spec().unwrap(), run_observation_spec(&m9_config.capacities).unwrap());
     assert_eq!(m9.observation_spec().unwrap().fingerprint().iter().map(|b| format!("{b:02x}")).collect::<String>(),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     let mut m9 = RunSession::new(m9_config).unwrap();
     m9.reset(Some(11)).unwrap();
     let m9_record = m9.record().unwrap().unwrap();

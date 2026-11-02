@@ -249,14 +249,6 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
     v1::room(kind)
 }
 
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    m13::intent(name)
-}
-
-pub(crate) fn power(name: &str) -> Result<i64, RunSessionError> {
-    m13::power(name)
-}
-
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if matches!(choice, RoomChoiceKind::Act3Continue { .. }) {
         return Ok(v1::choice(choice));

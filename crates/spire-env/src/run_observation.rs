@@ -39,8 +39,6 @@ fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Resul
 fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::event(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::event(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::event(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::event(id),RunEncodingProfile::M21Watcher=>schema_m10::event(id),RunEncodingProfile::M17Defect=>schema_m17::event(id),RunEncodingProfile::M18Defect=>schema_m18::event(id),RunEncodingProfile::M19Defect=>schema_m19::event(id),RunEncodingProfile::M20Defect=>schema_m20::event(id),RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id),RunEncodingProfile::M14=>schema_m14::event(id),RunEncodingProfile::M15=>schema_m15::event(id),RunEncodingProfile::M16Defect=>schema_m10::event(id)}}
 fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::room(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::room(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::room(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::room(id),RunEncodingProfile::M21Watcher=>schema_m10::room(id),RunEncodingProfile::M17Defect=>schema_m17::room(id),RunEncodingProfile::M18Defect=>schema_m18::room(id),RunEncodingProfile::M19Defect=>schema_m19::room(id),RunEncodingProfile::M20Defect=>schema_m20::room(id),RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id),RunEncodingProfile::M14=>schema_m14::room(id),RunEncodingProfile::M15=>schema_m15::room(id),RunEncodingProfile::M16Defect=>schema_m10::room(id)}}
 fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::profile(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::profile(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::profile(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::profile(id),RunEncodingProfile::M21Watcher=>Err(RunSessionError::Input("M21 has no normal Run profile")),RunEncodingProfile::M17Defect=>schema_m17::profile(id),RunEncodingProfile::M18Defect=>schema_m18::profile(id),RunEncodingProfile::M19Defect=>schema_m19::profile(id),RunEncodingProfile::M20Defect=>schema_m20::profile(id),RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id),RunEncodingProfile::M14=>schema_m14::profile(id),RunEncodingProfile::M15=>schema_m15::profile(id),RunEncodingProfile::M16Defect=>Err(RunSessionError::Input("M16 has no normal Run profile"))}}
-fn intent_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::intent(name),RunEncodingProfile::M25WatcherHeart=>schema_m25::intent(name),RunEncodingProfile::M23WatcherAct2=>schema_m23::intent(name),RunEncodingProfile::M22WatcherAct1=>schema_m22::intent(name),RunEncodingProfile::M21Watcher=>crate::combat_policy::closure_intent(name),RunEncodingProfile::M17Defect=>schema_m17::intent(name),RunEncodingProfile::M18Defect=>schema_m18::intent(name),RunEncodingProfile::M19Defect=>schema_m19::intent(name),RunEncodingProfile::M20Defect=>schema_m20::intent(name),RunEncodingProfile::M9=>schema::intent(name),RunEncodingProfile::M10=>schema_m10::intent(name),RunEncodingProfile::CombatV2=>crate::combat_policy::closure_intent(name),RunEncodingProfile::M12=>schema_m12::intent(name),RunEncodingProfile::M13=>schema_m13::intent(name),RunEncodingProfile::M14=>schema_m14::intent(name),RunEncodingProfile::M15=>schema_m15::intent(name),RunEncodingProfile::M16Defect=>schema_m16::intent(name)}}
-fn power_id(m10:bool,name:&str)->Result<i64,RunSessionError>{if m10{schema_m10::power(name)}else{schema::named(schema::POWERS,name)}}
 fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{
     if matches!(kind,RoomChoiceKind::Lift|RoomChoiceKind::Toke|RoomChoiceKind::Dig|RoomChoiceKind::SingingBowl){
         return Err(RunSessionError::Input("M27 room choice is unsupported by frozen Run schemas"));
@@ -95,7 +93,7 @@ pub fn encode_run_m12(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
     if matches!(d.terminal,Some(RunTerminal::Act3NoKeys|RunTerminal::HeartVictory)){
         return Err(RunSessionError::UnsupportedBoundary("M12 cannot encode a terminal outside its Act1 profile"));
     }
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M12,m12_power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M12)
 }
 
 pub fn encode_run_m13(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCapacities) -> Result<RunObservation, RunSessionError> {
@@ -105,9 +103,8 @@ pub fn encode_run_m13(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCap
     if matches!(d.terminal, Some(RunTerminal::Act3NoKeys | RunTerminal::HeartVictory)) {
         return Err(RunSessionError::UnsupportedBoundary("M13 cannot encode a terminal outside its Act2 profile"));
     }
-    encode_run_with_schema(d, map, caps, RunEncodingProfile::M13, m13_power)
+    encode_run_with_schema(d, map, caps, RunEncodingProfile::M13)
 }
-fn m13_power(_: bool, name: &str) -> Result<i64, RunSessionError> { schema_m13::power(name) }
 
 pub fn encode_run_m14(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCapacities) -> Result<RunObservation, RunSessionError> {
     if d.content_profile != Some(RoomScenario::M14SilentAct3) || d.player.character != Character::Silent {
@@ -118,31 +115,25 @@ pub fn encode_run_m14(d: &PublicDecision, map: Option<&PublicMap>, caps: &RunCap
     {
         return Err(RunSessionError::UnsupportedBoundary("M14 cannot encode Act4 gameplay"));
     }
-    encode_run_with_schema(d, map, caps, RunEncodingProfile::M14, m14_power)
+    encode_run_with_schema(d, map, caps, RunEncodingProfile::M14)
 }
-fn m14_power(_: bool, name: &str) -> Result<i64, RunSessionError> { schema_m14::power(name) }
 
 pub fn encode_run_m15(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::M15SilentHeart)||d.player.character!=Character::Silent {
         return Err(RunSessionError::Input("M15 v1 encoder requires the M15 Silent Heart profile"));
     }
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M15,m15_power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M15)
 }
-fn m15_power(_:bool,name:&str)->Result<i64,RunSessionError>{schema_m15::power(name)}
 
 
-fn m12_power(_:bool,name:&str)->Result<i64,RunSessionError>{schema_m12::power(name)}
 
 pub(crate) fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool)->Result<RunObservation,RunSessionError>{
-    encode_run_with_power(d,map,caps,m10,power_id)
+    encode_run_with_schema(d,map,caps,if m10{RunEncodingProfile::M10}else{RunEncodingProfile::M9})
 }
-pub(crate) fn encode_run_with_power(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,m10:bool,power:fn(bool,&str)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
-    encode_run_with_schema(d,map,caps,if m10{RunEncodingProfile::M10}else{RunEncodingProfile::M9},power)
+pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile)->Result<RunObservation,RunSessionError>{
+    encode_run_with_card_encoder(d,map,caps,profile,card_id)
 }
-pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,power:fn(bool,&str)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
-    encode_run_with_card_encoder(d,map,caps,profile,power,card_id)
-}
-fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,power:fn(bool,&str)->Result<i64,RunSessionError>,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
+fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
     let extended=profile.extended();
     if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) && d.combat.as_ref().is_some_and(|c|c.stance_choice.is_some()||c.selection.as_ref().is_some_and(|s|matches!(s.operation,spire_core::combat::SelectionOperation::Scry|spire_core::combat::SelectionOperation::MeditateReturn))){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
 
@@ -337,10 +328,10 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         o.group_mut("player").row(0,&player_values)?;
         let mut power_row=0;
         for (owner,row,powers) in std::iter::once((1,0,&c.player.powers)).chain(c.enemies.iter().enumerate().map(|(i,e)|(5,i,&e.powers))){
-            for entry in powers{o.group_mut("powers").row(power_row,&[Some(owner),Some(number(row)?),Some(power(extended,entry.id.0)?),Some(i64::from(entry.amount))])?;power_row+=1;}
+            for entry in powers{o.group_mut("powers").row(power_row,&[Some(owner),Some(number(row)?),Some(crate::public_vocab::power(entry.id.0)?),Some(i64::from(entry.amount))])?;power_row+=1;}
         }
         for (row,e) in c.enemies.iter().enumerate(){
-            let mut values=vec![Some(enemy_id(profile,e.enemy_id)?),Some(i64::from(e.hp)),Some(i64::from(e.max_hp)),Some(i64::from(e.block)),Some(intent_id(profile,e.intent.as_str())?),e.intent_damage.map(i64::from),Some(i64::from(e.replaced)),Some(i64::from(e.escaped)),Some(i64::from(e.half_dead)),Some(i64::from(e.logical_slot))];
+            let mut values=vec![Some(enemy_id(profile,e.enemy_id)?),Some(i64::from(e.hp)),Some(i64::from(e.max_hp)),Some(i64::from(e.block)),Some(crate::public_vocab::intent(e.intent.as_str())?),e.intent_damage.map(i64::from),Some(i64::from(e.replaced)),Some(i64::from(e.escaped)),Some(i64::from(e.half_dead)),Some(i64::from(e.logical_slot))];
             if extended {
                 let side=c.encounter_facing.as_ref().and_then(|facing|facing.enemies.iter().find(|actor|actor.instance_id==e.instance_id)).map(|actor|match actor.side{spire_core::combat::EncounterSide::Left=>1,spire_core::combat::EncounterSide::Right=>2});
                 values.push(side);
@@ -530,6 +521,7 @@ mod m10_v1_boundary_tests{
 
     #[test]
     fn actual_heart_public_combat_view_is_rejected_by_the_m9_v1_consumer_vocabulary(){
+        // Powers and intents use the shared engine registry, so the M9 rejection is the Heart actor.
         let cards=(1..=10).map(|id|permanent_live_card(CardId::Strike,CardInstanceId(id),0)).collect();
         let context=SetupContext{player:PlayerState{hp:80,max_hp:80,block:0,energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},
             player_powers:vec![],character:Character::Ironclad,cards,opening_draw:5,encounter_visit:0};
@@ -546,7 +538,7 @@ mod m10_v1_boundary_tests{
         decision.content_profile=None;
         decision.combat=Some(public);
         assert_eq!(encode_run(&decision,None,&RunCapacities::m9_default()),
-            Err(RunSessionError::Input("unsupported public power or intent")),
+            Err(RunSessionError::Input("unsupported EnemyId")),
             "the real encoder rejects the actual Heart public payload, independent of its profile-only rejection");
     }
 }
@@ -568,7 +560,7 @@ pub fn encode_run_m17(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
         ||d.act>2||d.act==2&&(!d.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act2Ready)||d.combat.is_some()){
         return Err(RunSessionError::UnsupportedBoundary("M17 stops at Act2Ready"));
     }
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M17Defect,schema_m17::power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M17Defect)
 }
 
 /// Finite Defect Acts 1–2 projection through the shared Run row encoder.
@@ -578,32 +570,32 @@ pub fn encode_run_m18(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
         || (d.act==3 && !d.room.as_ref().is_some_and(|r|r.kind==RoomViewKind::Act3Ready)) {
         return Err(RunSessionError::UnsupportedBoundary("M18 stops at Act3Ready"));
     }
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M18Defect,schema_m18::power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M18Defect)
 }
 
 /// Encode the finite Defect Acts 1–3 view with the shared numeric encoder.
 pub fn encode_run_m19(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     schema_m19::validate_public_decision(d)?;
     if map.is_some_and(|map|map.act>3){return Err(RunSessionError::UnsupportedBoundary("M19 cannot encode Act4 gameplay"))}
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M19Defect,schema_m19::power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M19Defect)
 }
 
 pub fn encode_run_m20(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     schema_m20::validate_public_decision(d)?;
-    encode_run_with_schema(d,map,caps,RunEncodingProfile::M20Defect,schema_m20::power)
+    encode_run_with_schema(d,map,caps,RunEncodingProfile::M20Defect)
 }
 
 #[cfg(test)]
 pub(crate) fn encode_run_m20_diagnostic(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     schema_m20::validate_diagnostic_decision(d)?;
-    encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::M20Defect,schema_m20::power,
+    encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::M20Defect,
         |_,id|schema_m20::diagnostic_card(id))
 }
 
-pub fn encode_run_m22(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m22::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M22WatcherAct1,schema_m22::power)}
-pub fn encode_run_m24(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m24::validate_public_decision(d)?;if map.is_some_and(|map|map.act>3){return Err(RunSessionError::UnsupportedBoundary("M24 cannot encode Act4 gameplay"))}encode_run_with_schema(d,map,caps,RunEncodingProfile::M24WatcherAct3,schema_m24::power)}
-pub fn encode_run_m25(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m25::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M25WatcherHeart,schema_m25::power)}
-pub fn encode_run_m23(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m23::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M23WatcherAct2,schema_m23::power)}
+pub fn encode_run_m22(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m22::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M22WatcherAct1)}
+pub fn encode_run_m24(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m24::validate_public_decision(d)?;if map.is_some_and(|map|map.act>3){return Err(RunSessionError::UnsupportedBoundary("M24 cannot encode Act4 gameplay"))}encode_run_with_schema(d,map,caps,RunEncodingProfile::M24WatcherAct3)}
+pub fn encode_run_m25(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m25::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M25WatcherHeart)}
+pub fn encode_run_m23(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m23::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M23WatcherAct2)}
 
 #[cfg(test)]
 mod m25_tests {
@@ -706,7 +698,7 @@ mod m25_tests {
     }
 
     fn power_amount(observation: &RunObservation, owner: i64, owner_row: usize, name: &str) -> Option<i64> {
-        let id = schema_m25::power(owner == 1, name).ok()?;
+        let id = crate::public_vocab::power(name).ok()?;
         let group = observation.group("powers")?;
         let occupied = group.occupied.as_ref()?;
         group.values.chunks_exact(4).enumerate().find_map(|(index, row)| {

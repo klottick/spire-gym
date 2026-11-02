@@ -263,13 +263,14 @@ artifact/source hashes, revision/dirty state and observed tests separately from
 parent integration/acceptance. Build code is from an uncommitted M11+.66 delta;
 HEAD alone does not identify those bytes.
 
-Current descriptor fingerprints (exact current native defaults):
+Current descriptor fingerprints (exact current native defaults; changed 2026-11-02 by the shared
+power/intent vocabulary, see [observation vocabulary](observation-vocabulary.md)):
 
-- Opt-in standalone view-v2: `02433813e1297244060d9852f342c6eb4c9c4d62f3dde9763ff82191867eceec`.
-- Common view-v1: `02009686282c592f971eece3d5853eb54f2a482dde9dae1d0cf380ecdaf8fd78`.
-- Opt-in policy Run-v3: `30905db1b7a520482d3ea8aa2e63ddb7f78b7c081de89d87268151f29cf4c7f8`.
-- Frozen M10 Run-v2: `7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db`.
-- Frozen M9 Run-v1: `0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999`.
+- Opt-in standalone view-v2: `a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7`.
+- Common view-v1: `08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db`.
+- Opt-in policy Run-v3: `28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64`.
+- M10 Run-v2: `dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21`.
+- M9 Run-v1: `270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c`.
 
 All owners using RunDecisionToken share one checked owner-ID allocator. A token
 from a different Run/standalone/batch owner rejects before dispatch, including

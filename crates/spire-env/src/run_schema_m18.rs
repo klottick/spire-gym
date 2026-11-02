@@ -23,17 +23,8 @@ fn vocabulary(c: &RunCapacities) -> Result<Value, RunSessionError> {
     vocab["relic"] = json!(padded(M18_DEFECT_ACT2_RELICS.iter().map(|id|id.as_str())));
     vocab["potion"] = json!(padded(M18_DEFECT_ACT2_POTIONS.iter().map(|id|id.as_str())));
     vocab["profile"] = json!(["padding", "M18DefectAct2"]);
-    for key in ["power", "orb", "selection_operation"] {
+    for key in ["orb", "selection_operation"] {
         vocab[key] = defect_vocab.get(key).cloned().ok_or(RunSessionError::Input("missing shared Defect vocabulary"))?;
-    }
-    // Keep the accepted Defect indices and append only shared Act2 additions.
-    let act2_powers = act2::vocabularies()["power"].as_array().cloned()
-        .ok_or(RunSessionError::Input("missing shared Act2 powers"))?;
-    let powers = vocab["power"].as_array_mut().ok_or(RunSessionError::Input("missing shared Defect powers"))?;
-    for power in act2_powers {
-        if !matches!(power.as_str(), Some("noxious_fumes"|"accuracy"|"retain_cards")) && !powers.contains(&power) {
-            powers.push(power);
-        }
     }
     Ok(vocab)
 }
@@ -77,15 +68,9 @@ pub(crate) fn enemy(id: EnemyId) -> Result<i64, RunSessionError> { act2::enemy(i
 pub(crate) fn encounter(id: EncounterId) -> Result<i64, RunSessionError> { act2::encounter(id) }
 pub(crate) fn event(id: EventId) -> Result<i64, RunSessionError> { act2::event(id) }
 pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> { act2::room(kind) }
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> { act2::intent(name) }
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> { act2::zone(name) }
 pub(crate) fn profile(value: RoomScenario) -> Result<i64, RunSessionError> {
     if value==RoomScenario::M18DefectAct2 { Ok(1) } else { Err(RunSessionError::Input("profile is not representable in the M18 schema")) }
-}
-pub(crate) fn power(is_player: bool, name: &str) -> Result<i64, RunSessionError> {
-    // Shared Act2 power names already belong to the accepted M16 vocabulary;
-    // do not map a missing/foreign name to a padding zero.
-    defect::power(is_player,name)
 }
 pub(crate) fn choice(value: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if let RoomChoiceKind::Card{id,upgrades}=value { permanent_card(*id,*upgrades)?; }

@@ -7,17 +7,14 @@ use spire_core::{combat::{CombatCardRef,LiveCardView,Outcome,SelectionView},cont
 use std::sync::OnceLock;
 pub const RUN_OBSERVATION_M24_SCHEMA_ID:&str="spire-gym-m24-watcher-act3-observation-v1";
 const DOMAIN:&[u8]=b"spire-gym/run-schema/m24-watcher-act3/v1\0";
-// Act3 enemy-installed public powers (design union), deduplicated against M23; each must exist in the M19 Act3 vocabulary.
-const ACT3_POWERS:&[&str]=&["regeneration","thorns","explosive","life_link","fading","shifting","shackled","constricted","reactive","malleable","slow","intangible","regenerate","curiosity","unawakened","time_warp","draw_reduction","strength_up"];
 fn padded(names:impl IntoIterator<Item=&'static str>)->Value{json!(std::iter::once("padding").chain(names).collect::<Vec<_>>())}
 fn vocabulary()->Value{
  let caps=RunCapacities::m10_default();
  let mut v=m23::m23_run_observation_spec(&caps).expect("fixed M23 vocabulary").descriptor()["vocabularies"].clone();
  let a=m19::m19_run_observation_spec(&caps).expect("fixed M19 vocabulary").descriptor()["vocabularies"].clone();
- for key in ["enemy","encounter","event","intent","choice","room","terminal"]{v[key]=a[key].clone();}
+ for key in ["enemy","encounter","event","choice","room","terminal"]{v[key]=a[key].clone();}
  v["card"]=padded(M24_WATCHER_ACT3_CARDS.iter().chain(m24_content::GENERATED_ONLY).chain(m24_content::STATUSES).map(|id|id.as_str()));
  v["relic"]=padded(M24_WATCHER_ACT3_RELICS.iter().map(|id|id.as_str()));v["potion"]=padded(M24_WATCHER_ACT3_POTIONS.iter().map(|id|id.as_str()));v["profile"]=json!(["padding","M24WatcherAct3"]);
- for name in ACT3_POWERS{let value=json!(name);assert!(a["power"].as_array().unwrap().contains(&value),"{name} is an accepted Act3 power");if !v["power"].as_array().unwrap().contains(&value){v["power"].as_array_mut().unwrap().push(value);}}
  v
 }
 fn vocab()->&'static Value{static V:OnceLock<Value>=OnceLock::new();V.get_or_init(vocabulary)}
@@ -65,8 +62,6 @@ pub(crate) fn room(id:RoomViewKind)->Result<i64,RunSessionError>{
  let n=v1::room(id)?;if n<1||n as usize>=vocab()["room"].as_array().unwrap().len(){return Err(RunSessionError::UnsupportedBoundary("M24 cannot encode Act4 rooms"))}Ok(n)
 }
 pub(crate) fn zone(name:&str)->Result<i64,RunSessionError>{named("zone",name)}
-pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{named("intent",name)}
-pub(crate) fn power(_:bool,name:&str)->Result<i64,RunSessionError>{named("power",name)}
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{if p==RoomScenario::M24WatcherAct3{Ok(1)}else{Err(RunSessionError::Input("wrong M24 profile"))}}
 pub(crate) fn choice(c:&RoomChoiceKind)->Result<i64,RunSessionError>{if let RoomChoiceKind::Card{id,upgrades}=c{permanent(*id,*upgrades)?;}Ok(v1::choice(c))}
 pub(crate) fn operation(s:&SelectionView)->Result<i64,RunSessionError>{let n=watcher::operation(s)?;let d=watcher::vocabulary();named("selection_operation",d["selection_operation"][n as usize].as_str().unwrap())}

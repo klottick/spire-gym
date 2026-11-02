@@ -990,7 +990,10 @@ fn m15_public_panache_countdown_and_independent_bomb_timers_keep_rows_and_capaci
     decision.content_profile=Some(RoomScenario::M14SilentAct3);decision.act=3;decision.floor=50;
     for name in ["panache_countdown","the_bomb","the_bomb_plus"] {
         decision.combat.as_mut().unwrap().player.powers=vec![FullPowerView{id:FullPowerId(name),amount:1}];
-        assert!(matches!(encode_run_m14(&decision,None,&capacities),Err(RunSessionError::Input(_))));
+        // The shared engine-registry power vocabulary encodes these rows under M14 as well.
+        let observation=encode_run_m14(&decision,None,&capacities).unwrap_or_else(|e|panic!("M14 encodes {name}: {e:?}"));
+        let row=&observation.group("powers").unwrap().values[..4];
+        assert_eq!(row,&[1,0,vocabulary_row(&descriptor,"power",name),1]);
     }
 }
 

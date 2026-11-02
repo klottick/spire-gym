@@ -182,3 +182,43 @@ fn n14g_standalone_fire_breathing_hit_at_a_suicided_exploder_is_skipped_not_faul
     session.step(token,RunActionIndex(7)).expect("a Fire Breathing hit at a suicided Exploder must not fault");
     assert_eq!(session.diagnostic()["fault"],serde_json::Value::Null);
 }
+
+// spire-85d: frozen encoders lacked engine-producible powers. Native fuzz first-legal prefixes
+// (evidence native-fuzz-20261101 priority-repros); the final action formerly committed and then
+// returned DeliveryFault("post-step Run encoding failed").
+fn step_prefix(session:&mut RunSession,seed:u64,prefix:&[i64])->RunBoundary{
+    let mut boundary=session.reset(Some(seed)).unwrap();
+    for (i,index) in prefix.iter().enumerate(){
+        let step=session.step(boundary.token,RunActionIndex(*index)).unwrap_or_else(|e|panic!("public prefix action {i}: {e:?}"));
+        assert!(!step.terminated,"public prefix action {i} was not terminal");boundary=step.boundary;
+    }
+    assert!(session.reproduction().unwrap().fault.is_none());
+    boundary
+}
+fn has_power(session:&RunSession,player:bool,name:&str)->bool{
+    let decision=session.reproduction().unwrap().latest_decision.unwrap().unwrap();let combat=decision.combat.unwrap();
+    if player{combat.player.powers.iter().any(|p|p.id.0==name)}else{combat.enemies.iter().any(|e|e.powers.iter().any(|p|p.id.0==name))}
+}
+
+// M10 Ironclad `RunSession::new_m10`, Test partition: the 52nd first-legal action plays Flex,
+// which publishes the player power `lose_strength`.
+#[test]
+fn m10_flex_lose_strength_steps_cleanly(){
+    let config=RunSessionConfig{character:Character::Ironclad,ascension:0,partition:Partition::Test,boss_history:M9BossHistory::AwakenedUnseen,capacities:RunCapacities::m10_default(),record_replay:true};
+    let mut session=RunSession::new_m10(config).unwrap();
+    step_prefix(&mut session,1_537_092_705_410_732_568,&[0;52]);
+    assert!(has_power(&session,true,"lose_strength"));
+    session.decision().expect("published decision after Flex");
+}
+
+// M22 Watcher `RunSession::new_m22`, Test partition: the 98th action moves into the burning
+// elite Gremlin Nob, which publishes the enemy power `regeneration`.
+const M22_BURNING_NOB:[i64;98]=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,2,0,0,3,0,0,0,0,0,0,0,0,0,0,0];
+#[test]
+fn m22_burning_elite_nob_regeneration_steps_cleanly(){
+    let config=RunSessionConfig{character:Character::Watcher,ascension:0,partition:Partition::Test,boss_history:M9BossHistory::Act1GuardianUnseen,capacities:RunCapacities::m10_default(),record_replay:true};
+    let mut session=RunSession::new_m22(config).unwrap();
+    step_prefix(&mut session,3_958_066_649_157_562_556,&M22_BURNING_NOB);
+    assert!(has_power(&session,false,"regeneration"));
+    session.decision().expect("published decision in the burning elite fight");
+}

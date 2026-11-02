@@ -12,7 +12,7 @@ fn padded(names:impl Iterator<Item=&'static str>)->Value{json!(std::iter::once("
 fn vocabulary(c:&RunCapacities)->Result<Value,RunSessionError>{
     let mut vocab=m18::m18_run_observation_spec(c)?.descriptor()["vocabularies"].clone();
     let shared=act3::m14_run_observation_spec(c)?.descriptor()["vocabularies"].clone();
-    for key in ["enemy","encounter","event","intent","choice","room","terminal"] {vocab[key]=shared[key].clone();}
+    for key in ["enemy","encounter","event","choice","room","terminal"] {vocab[key]=shared[key].clone();}
     vocab["card"]=padded(M19_DEFECT_ACT3_CARDS.iter().chain(STATUSES).map(|id|id.as_str()));
     vocab["relic"]=padded(M19_DEFECT_ACT3_RELICS.iter().map(|id|id.as_str()));
     vocab["potion"]=padded(M19_DEFECT_ACT3_POTIONS.iter().map(|id|id.as_str()));
@@ -56,9 +56,7 @@ pub(crate) fn enemy(id:EnemyId)->Result<i64,RunSessionError>{act3::enemy(id)}
 pub(crate) fn encounter(id:EncounterId)->Result<i64,RunSessionError>{act3::encounter(id)}
 pub(crate) fn event(id:EventId)->Result<i64,RunSessionError>{act3::event(id)}
 pub(crate) fn room(id:RoomViewKind)->Result<i64,RunSessionError>{act3::room(id)}
-pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{act3::intent(name)}
 pub(crate) fn zone(name:&str)->Result<i64,RunSessionError>{m18::zone(name)}
-pub(crate) fn power(player:bool,name:&str)->Result<i64,RunSessionError>{m18::power(player,name)}
 pub(crate) fn operation(s:&spire_core::combat::SelectionView)->Result<i64,RunSessionError>{m18::operation(s)}
 pub(crate) fn select_permanent_operation()->i64{m18::select_permanent_operation()}
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{

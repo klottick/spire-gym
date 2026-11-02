@@ -127,14 +127,14 @@ fn descriptor_carries_no_run_private_or_diagnostic_fields() {
 }
 
 #[test]
-fn frozen_observation_fingerprints_are_unchanged() {
+fn observation_fingerprints_match_current_pins() {
     let caps = RunCapacities::m10_default();
     let now = [
-        (combat_policy_observation_spec().unwrap().fingerprint(), "02009686282c592f971eece3d5853eb54f2a482dde9dae1d0cf380ecdaf8fd78"),
-        (combat_policy_observation_spec_v2().unwrap().fingerprint(), "02433813e1297244060d9852f342c6eb4c9c4d62f3dde9763ff82191867eceec"),
-        (policy_run_observation_spec(&caps).unwrap().fingerprint(), "30905db1b7a520482d3ea8aa2e63ddb7f78b7c081de89d87268151f29cf4c7f8"),
-        (m10_run_observation_spec(&caps).unwrap().fingerprint(), "7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"),
-        (run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint(), "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999"),
+        (combat_policy_observation_spec().unwrap().fingerprint(), "08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),
+        (combat_policy_observation_spec_v2().unwrap().fingerprint(), "a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
+        (policy_run_observation_spec(&caps).unwrap().fingerprint(), "28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
+        (m10_run_observation_spec(&caps).unwrap().fingerprint(), "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
+        (run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint(), "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),
     ];
     for (actual, frozen) in now { assert_eq!(hex(actual), frozen); }
 }

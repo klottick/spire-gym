@@ -29,15 +29,6 @@ const NEW_RELICS: &[RelicId] = &[
     RelicId::RunicCube,
 ];
 const NEW_POTIONS: &[PotionId] = &[PotionId::Elixir, PotionId::HeartOfIron];
-pub(crate) const NEW_POWERS: &[&str] = &[
-    "berserk", "brutality", "combust", "corruption", "dark_embrace", "demon_form", "double_tap",
-    "evolve", "feel_no_pain", "fire_breathing", "flame_barrier", "juggernaut", "no_draw", "rage", "rupture",
-    "beat_of_death", "invincible", "surrounded", "back_attack",
-];
-const NEW_INTENTS: &[&str] = &[
-    "shield_bash", "shield_fortify", "shield_smash", "spear_burn_strike", "spear_skewer",
-    "spear_strength", "heart_debilitate", "heart_blood_shots", "heart_echo", "heart_buff",
-];
 const ZONES: &[&str] = &["known_draw_top", "known_draw_bottom", "playing"];
 const SELECTION_OPERATIONS: &[&str] = &[
     "move_hand", "move_discard", "move_exhaust", "move_draw_top", "upgrade", "topdeck",
@@ -116,12 +107,13 @@ pub(crate) fn spec_from_vocabulary(
     c: &RunCapacities,
     schema_id: &str,
     profile_id: &str,
-    vocab: Value,
+    mut vocab: Value,
     semantics: Value,
     groups: Vec<v1::GroupSpec>,
     fingerprint_domain: &[u8],
 ) -> Result<RunObservationSpec, RunSessionError> {
     validate_groups(&groups, c)?;
+    crate::public_vocab::install(&mut vocab);
     let mut tensors = Vec::new();
     for group in groups {
         let columns = group.fields.split(',').zip(group.units.split(','))
@@ -208,22 +200,6 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
 }
 pub(crate) fn choice(choice: &RoomChoiceKind) -> i64 { v1::choice(choice) }
 
-pub(crate) fn power(name: &str) -> Result<i64, RunSessionError> {
-    if let Some(index) = v1::POWERS.iter().position(|value| *value == name).filter(|index| *index > 0) {
-        return Ok(index as i64);
-    }
-    NEW_POWERS.iter().position(|value| *value == name)
-        .map(|index| (v1::POWERS.len() + index) as i64)
-        .ok_or(RunSessionError::Input("unsupported public power or intent"))
-}
-
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    if let Ok(value) = v1::intent(name) { return Ok(value); }
-    NEW_INTENTS.iter().position(|value| *value == name)
-        .map(|index| (v1::INTENTS.len() + v1::ACT1_INTENTS.len() + index) as i64)
-        .ok_or(RunSessionError::Input("unsupported public intent"))
-}
-
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> {
     let zones = ["padding", "hand", "discard", "exhaust", "played_power", "stasis", "selection_only"];
     zones.iter().position(|value| *value == name).filter(|index| *index > 0).map(|index| index as i64)
@@ -266,8 +242,6 @@ pub(crate) fn vocabularies() -> Value {
     append_strings(&mut vocab, "encounter", &NEW_ENCOUNTERS.iter().map(|id| id.as_str()).collect::<Vec<_>>());
     append_strings(&mut vocab, "relic", &NEW_RELICS.iter().map(|id| id.as_str()).collect::<Vec<_>>());
     append_strings(&mut vocab, "potion", &NEW_POTIONS.iter().map(|id| id.as_str()).collect::<Vec<_>>());
-    append_strings(&mut vocab, "power", NEW_POWERS);
-    append_strings(&mut vocab, "intent", NEW_INTENTS);
     append_strings(&mut vocab, "profile", &["M10IroncladHeart"]);
     append_strings(&mut vocab, "room", &["heart_victory", "true_victory"]);
     append_strings(&mut vocab, "zone", ZONES);

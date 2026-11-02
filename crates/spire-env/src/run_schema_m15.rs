@@ -9,7 +9,6 @@ use spire_core::{
     content::*,
     run::*,
 };
-use std::sync::OnceLock;
 
 pub const RUN_OBSERVATION_M15_SCHEMA_ID: &str =
     "spire-gym-m15-silent-heart-observation-v1";
@@ -63,58 +62,6 @@ const M15_GENERATED_AND_STATUS_CARDS: &[CardId] = &[
 const M15_ACT4_ENCOUNTERS: &[EncounterId] = &[
     EncounterId::ShieldAndSpear,
     EncounterId::CorruptHeart,
-];
-
-const M15_ACT4_INTENTS: &[&str] = &[
-    "shield_bash",
-    "shield_fortify",
-    "shield_smash",
-    "spear_burn_strike",
-    "spear_skewer",
-    "spear_strength",
-    "heart_debilitate",
-    "heart_blood_shots",
-    "heart_echo",
-    "heart_buff",
-];
-
-const M15_ACT4_POWERS: &[&str] = &[
-    "beat_of_death",
-    "invincible",
-    "surrounded",
-    "back_attack",
-];
-
-const M15_SILENT_POWERS: &[&str] = &[
-    "a_thousand_cuts",
-    "after_image",
-    "blur",
-    "burst",
-    "choked",
-    "corpse_explosion",
-    "double_damage",
-    "draw_card_next_turn",
-    "energized",
-    "envenom",
-    "infinite_blades",
-    "intangible_player",
-    "magnetism",
-    "mayhem",
-    "next_turn_block",
-    "no_block",
-    "no_draw",
-    "panache",
-    "phantasmal",
-    "sadistic_nature",
-    "tools_of_the_trade",
-    "wraith_form",
-    "lose_strength",
-    "lose_dexterity",
-    "plated_armor",
-    "duplication",
-    "panache_countdown",
-    "the_bomb",
-    "the_bomb_plus",
 ];
 
 const M15_SELECTION_OPERATIONS: &[&str] = &[
@@ -180,42 +127,6 @@ fn playable_encounters() -> Vec<EncounterId> {
 
 fn padded_names(values: impl IntoIterator<Item = &'static str>) -> Vec<&'static str> {
     std::iter::once("padding").chain(values).collect()
-}
-
-fn intent_names() -> &'static [String] {
-    static NAMES: OnceLock<Vec<String>> = OnceLock::new();
-    NAMES.get_or_init(|| {
-        let mut names = m13::vocabularies()["intent"]
-            .as_array()
-            .expect("M13 intent vocabulary")
-            .iter()
-            .map(|value| value.as_str().expect("intent name").to_owned())
-            .collect::<Vec<_>>();
-        for name in M15_ACT4_INTENTS {
-            if !names.iter().any(|existing| existing == name) {
-                names.push((*name).to_owned());
-            }
-        }
-        names
-    })
-}
-
-fn power_names() -> &'static [String] {
-    static NAMES: OnceLock<Vec<String>> = OnceLock::new();
-    NAMES.get_or_init(|| {
-        let mut names = m13::vocabularies()["power"]
-            .as_array()
-            .expect("M13 power vocabulary")
-            .iter()
-            .map(|value| value.as_str().expect("power name").to_owned())
-            .collect::<Vec<_>>();
-        for name in M15_ACT4_POWERS.iter().chain(M15_SILENT_POWERS) {
-            if !names.iter().any(|existing| existing == name) {
-                names.push((*name).to_owned());
-            }
-        }
-        names
-    })
 }
 
 pub(crate) fn groups(c: &RunCapacities) -> Vec<v1::GroupSpec> {
@@ -288,9 +199,7 @@ pub fn m15_run_observation_spec(
         },
         "act4":{
             "encounters":M15_ACT4_ENCOUNTERS.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
-            "enemies":m10::NEW_ENEMIES.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
-            "intents":M15_ACT4_INTENTS,
-            "powers":M15_ACT4_POWERS
+            "enemies":m10::NEW_ENEMIES.iter().map(|id|id.as_str()).collect::<Vec<_>>()
         },
         "endings":{
             "act3_no_keys":"actual Act3 boss Victory and shared Proceed/dialog completion; no Heart reward",
@@ -334,8 +243,6 @@ fn vocabularies() -> Value {
     vocab["terminal"] = m10::vocabularies()["terminal"].clone();
     vocab["outcome"] = json!(["ongoing", "victory", "death", "escaped"]);
     vocab["choice"] = json!(v1::CHOICES);
-    vocab["intent"] = json!(intent_names());
-    vocab["power"] = json!(power_names());
     vocab["selection_operation"] = json!(std::iter::once("padding")
         .chain(M15_SELECTION_OPERATIONS.iter().copied()).collect::<Vec<_>>());
 
@@ -352,14 +259,6 @@ fn append_id<T: PartialEq>(id: T, values: &[T], message: &'static str) -> Result
     values.iter()
         .position(|value| *value == id)
         .map(|index| index as i64 + 1)
-        .ok_or(RunSessionError::Input(message))
-}
-
-fn named(name: &str, values: &[String], message: &'static str) -> Result<i64, RunSessionError> {
-    values.iter()
-        .position(|value| value == name)
-        .filter(|index| *index > 0)
-        .map(|index| index as i64)
         .ok_or(RunSessionError::Input(message))
 }
 
@@ -397,14 +296,6 @@ pub(crate) fn profile(profile: RoomScenario) -> Result<i64, RunSessionError> {
 
 pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
     m10::room(kind)
-}
-
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    named(name, intent_names(), "unsupported M15 public intent")
-}
-
-pub(crate) fn power(name: &str) -> Result<i64, RunSessionError> {
-    named(name, power_names(), "unsupported M15 public power")
 }
 
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {

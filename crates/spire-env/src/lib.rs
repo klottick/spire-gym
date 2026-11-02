@@ -15,6 +15,7 @@ mod pool;
 mod workers;
 mod diagnostics;
 mod replay;
+mod public_vocab;
 mod run_schema;
 mod run_schema_m10;
 mod run_schema_m12;

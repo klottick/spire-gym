@@ -35,7 +35,7 @@ fn run_schema_spaces_are_fixed_and_separate_from_combat(){
 fn m10_upgrade_v1_rejects_new_card_and_unrepresentable_selection(){
     let caps=RunCapacities::m9_default();let spec=run_observation_spec(&caps).unwrap();
     let fingerprint=spec.fingerprint().iter().map(|b|format!("{b:02x}")).collect::<String>();
-    assert_eq!(fingerprint,"0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+    assert_eq!(fingerprint,"270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     for id in [CardId::Armaments,CardId::SearingBlow]{
         let r=combat_run();let mut d=r.decision().unwrap();d.combat.as_mut().unwrap().hand[0].id=id;
         assert!(matches!(encode_run(&d,r.public_map().as_ref(),&caps),Err(RunSessionError::Input(_))));

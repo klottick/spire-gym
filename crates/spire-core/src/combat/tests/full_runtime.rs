@@ -391,20 +391,20 @@ fn full_native_actor_identity_intent_powers_and_ai_owners_are_typed() {
             instance_id: EnemyHandle::parse("native-enemy-a").unwrap(),
             enemy_id: crate::content::EnemyId::Unknown("spire_guardian"), ascension: 0, profile: super::super::enemies::EnemyProfile::Standard,
             hp: 30, max_hp: 30, block: 0,
-            intent: FullIntentId::Unknown("unwired_charge"), powers: vec![], ai_rng: enemy_ai,
+            intent: FullIntentId::Unknown("charge_up"), powers: vec![], ai_rng: enemy_ai,
         }],
     };
     let mut combat = Combat::enter(CombatEntry { setup, opening_draw: 1, cards }).unwrap();
     let public = combat.public_full().unwrap();
     assert_eq!(public.enemies[0].enemy_id, crate::content::EnemyId::Unknown("spire_guardian"));
-    assert_eq!(public.enemies[0].intent, FullIntentId::Unknown("unwired_charge"));
+    assert_eq!(public.enemies[0].intent, FullIntentId::Unknown("charge_up"));
     assert_eq!(public.player.powers, vec![FullPowerView { id: FullPowerId("intangible"), amount: 2 }]);
 
     let before = combat.state.clone();
     assert!(matches!(combat.step_full(&CombatAction::EndTurn), Err(crate::run::RunError::Faulted(_))));
     assert_eq!(combat.fault_record().unwrap().kind, FaultKind::Unsupported);
     assert_eq!(combat.state.enemies[0].enemy_id, ActorEnemyId::Full(crate::content::EnemyId::Unknown("spire_guardian")));
-    assert_eq!(combat.state.enemies[0].intent_id, ActorIntentId::Full(FullIntentId::Unknown("unwired_charge")));
+    assert_eq!(combat.state.enemies[0].intent_id, ActorIntentId::Full(FullIntentId::Unknown("charge_up")));
     assert_ne!(combat.state, before, "accepted unsupported native move retains fault provenance");
     assert_eq!(combat.state.player_full_powers[0].id, FullPowerId("intangible"));
 }
@@ -475,7 +475,7 @@ fn typed_full_power_operations_keep_nonlegacy_identity_in_shared_actor_storage()
             target: Some(actor.clone()), kind });
         assert_eq!(super::super::engine::resolve(&mut combat.state).status, TransitionStatus::Decision);
     };
-    let ward = FullPowerId("nonlegacy_ward");
+    let ward = FullPowerId("thorns");
     enqueue(&mut combat, EffectKind::ApplyFullPower { id: ward, amount: 4 });
     assert_eq!(combat.state.enemies[0].full_powers[0].id, ward);
     assert_eq!(combat.public_full().unwrap().enemies[0].powers[0].id, ward);

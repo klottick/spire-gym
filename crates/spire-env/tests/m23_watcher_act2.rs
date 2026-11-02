@@ -7,14 +7,14 @@ use sha2::{Digest,Sha256};
 
 // Retained pre-change bytes (evidence h1-v1/preservation/baseline-fingerprints-v1.txt).
 const FROZEN:&[(&str,&str)]=&[
- ("m9","0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999"),("m10","7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"),
- ("m12","366c572af8141146995e849acc737a33484623790e2b3d661e290fadfb6c9fac"),("m13","3f1e21d50106b8ca71d7cd67a2de7bfa4074455dbbb459629d8e2ac24cf39cf8"),
- ("m14","50a685721e5db56ed7a5332160f3747087f96ce738da020415b1427159377aee"),("m15","254fb75b404fc558070468c6397324e68f962f23b33aca819b54fecf142ea11a"),
- ("m17","2176f835eca1384b2070f3d7d001158ef1fead23be5d6d7eea138b57f6bff999"),("m18","e097a8202f7cf7433f0ce57a39807bb74d370fba75a9aa84af65d726269564bb"),
- ("m19","149092e11432e182920b5f07e0728dac45e880296815d9b84fba9b6180c2817b"),("m20","8c03211b4a3c589cfb55ba1078ddd447a444f3f53d8e9bfdab9ab85ab80e512d"),
- ("m22","5d1c77658141b2dfefbe95e17b85899ad6b77fb370e402bcbbe771146821e087"),("policy","30905db1b7a520482d3ea8aa2e63ddb7f78b7c081de89d87268151f29cf4c7f8"),
- ("combat_v1","02009686282c592f971eece3d5853eb54f2a482dde9dae1d0cf380ecdaf8fd78"),("combat_v2","02433813e1297244060d9852f342c6eb4c9c4d62f3dde9763ff82191867eceec"),
- ("m21","e7e49e88d50c947fde064a764153a5846ba3dc6c8298116f03e8126383b51e34"),("m16","2b53f59fac1899e231300914b0b88aabc4e26add3492584de479b60e5fafce0a"),
+ ("m9","270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),("m10","dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
+ ("m12","ae0b995eade57ef1dccc39bd9cad6064d8bd33a1cfbc37a312e4b76ac01ceb20"),("m13","cd7f78f7bc8ae8566f727f431f8a8d840303cdcb556173b31bf169cea8c34ecf"),
+ ("m14","72e75d8357ebbbba2b905f381262a99a4385c670d9fa20fa8cd008f4b90fb827"),("m15","ab9fd38b68e7bd276526e136caf58fbbf6f0ef5916eb67fcba20fd91b54004f1"),
+ ("m17","eeb45fcedd185710aeb0e5cb58ca619cc5927861cebda39b1612ff1500887a92"),("m18","6a4bb8526357f0264ae0cad8ccaad8015a0a3d360a678d236d94afe21a4ac967"),
+ ("m19","b2aa0b85a83a51171524a7487ab7cb3ed450e00811bd7f00c472e358a0220b15"),("m20","3f11018081cfe0a2e9e69c87d57a57bd4043df2496c6d2c539dd74b0bf20fb56"),
+ ("m22","2e4bcade98a3ab7beb402fca027aaed460bae6a26ff545754e3fa3b7e9e6b9bb"),("policy","28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
+ ("combat_v1","08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),("combat_v2","a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
+ ("m21","bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861"),("m16","6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7"),
 ];
 // Design-table oracles (docs/superpowers/specs/2026-10-28-m23-watcher-act2-design.md), not the implementation.
 const ACT2_INTENTS:&[&str]=&["sphere_activate","sphere_debuff","sphere_slam","sphere_harden","byrd_caw","byrd_peck","byrd_swoop","byrd_headbutt","byrd_stunned","byrd_go_airborne","centurion_slash","centurion_protect","centurion_fury","mystic_attack","mystic_buff","mystic_heal","chosen_poke","chosen_hex","chosen_debilitate","chosen_drain","chosen_zap","snecko_glare","snecko_bite","snecko_tail_whip","leader_rally","leader_encourage","leader_stab","gremlin_scratch","gremlin_puncture","gremlin_smash","gremlin_protect","gremlin_bash","gremlin_charge","gremlin_blast","slaver_stab","slaver_rake","slaver_scrape","slaver_entangle","taskmaster_whip","book_multi","book_big","champ_anger","champ_execute","champ_taunt","champ_stance","champ_gloat","champ_slap","champ_slash","automaton_spawn","automaton_flail","automaton_boost","automaton_beam","automaton_stun","orb_stasis","orb_support","orb_beam","collector_spawn","collector_revive","collector_rake","collector_buff","collector_ultimate","torch_attack"];

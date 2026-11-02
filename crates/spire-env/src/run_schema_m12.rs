@@ -6,7 +6,6 @@ use spire_core::{content::*, run::*};
 pub const RUN_OBSERVATION_M12_SCHEMA_ID: &str = "spire-gym-m12-silent-act1-observation-v1";
 
 const GENERATED_CARDS: &[CardId] = &[CardId::Shiv, CardId::Dazed, CardId::Burn, CardId::Slimed];
-const M12_POWERS: &[&str] = &["noxious_fumes", "accuracy", "retain_cards"];
 const M12_SELECTION_OPERATIONS: &[&str] = &[
     "move_hand", "move_discard", "move_exhaust", "move_draw_top", "upgrade", "topdeck",
     "return_from_exhaust", "copy_to_hand_1", "copy_to_hand_2", "copy_to_hand_3",
@@ -122,14 +121,6 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
         _ => Err(RunSessionError::UnsupportedBoundary("M12 observation cannot encode a room after the Act2Ready cutoff")),
     }
 }
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> { v1::intent(name) }
-pub(crate) fn power(name: &str) -> Result<i64, RunSessionError> {
-    if let Ok(value) = v1::named(v1::POWERS, name) { return Ok(value); }
-    let base_len = v1::POWERS.len();
-    M12_POWERS.iter().position(|value| *value == name)
-        .map(|index| (base_len + index) as i64)
-        .ok_or(RunSessionError::Input("unsupported M12 public power"))
-}
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if matches!(choice, RoomChoiceKind::Act3Continue { .. }) {
         return Err(RunSessionError::Input("unsupported M12 RoomChoiceKind"));
@@ -179,12 +170,6 @@ fn vocabularies() -> Value {
     vocab["room"] = json!(v1::ROOMS[..=15].to_vec());
     vocab["choice"] = json!(v1::CHOICES[..31].to_vec());
     vocab["terminal"] = json!(["ongoing", "death", "empty_deck"]);
-    vocab["intent"] = json!(v1::INTENTS.iter().chain(v1::ACT1_INTENTS).copied().collect::<Vec<_>>());
-    // The M12 encoder refuses Shield/Spear/Heart even though those names remain
-    // in the shared M10 owner. M12's table contains the shared power vocabulary
-    // plus the three actual Silent card powers.
-    vocab["power"] = json!(v1::POWERS.iter().copied().chain(M12_POWERS.iter().copied().filter(|name|
-        !v1::POWERS.contains(name))).collect::<Vec<_>>());
     vocab["zone"] = json!(["padding", "hand", "discard", "exhaust", "played_power", "stasis", "selection_only",
         "known_draw_top", "known_draw_bottom", "playing"]);
     vocab["selection_operation"] = json!(std::iter::once("padding").chain(M12_SELECTION_OPERATIONS.iter().copied()).collect::<Vec<_>>());

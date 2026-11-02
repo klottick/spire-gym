@@ -28,7 +28,7 @@ def test_normal_run_public_identities_and_owned_common_sidecar():
     env.close()
 
 
-def test_policy_run_replay_identity_is_new_and_old_profile_remains_frozen():
+def test_policy_run_replay_identity_is_new_and_old_profile_identity_is_pinned():
     from spire_lab import _native
 
     old = RunEnv("ironclad", 0, profile="m10-ironclad-heart")
@@ -36,7 +36,7 @@ def test_policy_run_replay_identity_is_new_and_old_profile_remains_frozen():
     assert old.observation_spec()["schema_id"] == "spire-gym-run-observation-v2"
     assert (
         old.observation_spec()["fingerprint"]
-        == "7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"
+        == "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"
     )
     assert env.observation_spec()["schema_id"] == "spire-gym-run-observation-v3"
     obs, _ = env.reset(seed=11)

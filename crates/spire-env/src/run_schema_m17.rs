@@ -55,16 +55,6 @@ fn vocabularies(c: &RunCapacities) -> Result<Value, RunSessionError> {
     vocab["event"] = json!(padded(M17_EVENTS.iter().map(|id|id.as_str())));
     vocab["profile"] = json!(["padding", "M17DefectAct1"]);
 
-    let powers = m16_vocab["power"]
-        .as_array()
-        .ok_or(RunSessionError::Input("M16 descriptor has no power vocabulary"))?;
-    vocab["power"] = Value::Array(
-        powers
-            .iter()
-            .filter(|power| power.as_str() != Some("echo_form"))
-            .cloned()
-            .collect(),
-    );
     vocab["orb"] = m16_vocab
         .get("orb")
         .cloned()
@@ -104,7 +94,7 @@ pub fn m17_run_observation_spec(
                 "playable_actors":m12::M12_PLAYABLE_ENEMIES.iter().map(|id|id.as_str()).collect::<Vec<_>>(),
                 "map_only_boss_icons":m12::M12_MAP_ONLY_BOSS_ICONS.iter().map(|id|id.as_str()).collect::<Vec<_>>()
             },
-            "powers":"M16 Defect public projection vocabulary, excluding echo_form",
+            "powers":"shared engine-registry power vocabulary (spire_core::combat::public_ids)",
             "orbs":"M16 empty/lightning/frost/dark/plasma IDs; known empty slots differ from padding and Dark damage is known only for Dark",
             "selection":"Run selections expose counts without selected identities; entitled combat selections expose selected card rows and operations",
             "actions":"legal candidate order; no paging, truncation or policy",
@@ -228,17 +218,6 @@ pub(crate) fn validate_public_decision(
         outcome(Some(last_combat.outcome))?;
     }
     Ok(())
-}
-
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    m12::intent(name)
-}
-
-pub(crate) fn power(is_player: bool, name: &str) -> Result<i64, RunSessionError> {
-    if name == "echo_form" {
-        return Err(RunSessionError::Input("unsupported M17 public power"));
-    }
-    m16::power(is_player, name)
 }
 
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {

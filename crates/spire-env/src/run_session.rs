@@ -1193,13 +1193,13 @@ mod tests{
         assert_eq!(m9.environment_spec().unwrap()["profile_id"], "M9IroncladAct3");
         assert_eq!(
             m9.observation_spec().unwrap().fingerprint().iter().map(|b| format!("{b:02x}")).collect::<String>(),
-            "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999"
+            "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"
         );
         let m10 = RunSession::new_m10(ironclad).unwrap();
         assert_eq!(m10.environment_spec().unwrap()["profile_id"], "M10IroncladHeart");
         assert_eq!(
             m10.observation_spec().unwrap().fingerprint().iter().map(|b| format!("{b:02x}")).collect::<String>(),
-            "7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"
+            "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"
         );
         assert_eq!(m10.environment_spec().unwrap()["combat_view_id"], crate::COMBAT_POLICY_VIEW_ID);
 
