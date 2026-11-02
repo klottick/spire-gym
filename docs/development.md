@@ -252,3 +252,95 @@ authority; this guide is not permission to install or publish.
   [environment usage](combat-environments.md) for the existing rollout example.
 
 See [toolchain.md](toolchain.md) for the exact resolved version matrix.
+
+## Native fuzz harness
+
+`spire-fuzz` runs deterministic native campaigns over the catalog combat and
+accepted Run profiles. Its default feature set leaves the workspace's existing
+`spire-core` and `spire-env` features unchanged. Default catalog combat episodes
+use a 200-step limit and run to terminal where possible; Run profile samples use
+6 decisions to reach combat. Each catalog episode uses a distinct entry. The
+smoke checks advertised-action preflight, invalid-input stability, public
+encoding, descriptor/observation fingerprint stability within each run, and
+fresh-prefix replay on representative catalog episodes. Every Run
+profile must reach combat unless that episode records an engine failure. Two
+complete smoke passes must produce the same summary hash; engine-class failures
+are written and re-detected by `repro`, while
+determinism, replay, and panic failures must remain zero. The summary names
+fingerprint scope in `fingerprint_stability_scope` and does not assert
+cross-version compatibility.
+
+```sh
+cargo test --workspace --locked --offline -j2
+```
+
+The opt-in diagnostics lane adds read-only engine validators, clone checks for
+every advertised action, inner-Run equality checks, and the longer smoke with
+the generated CompleteCombat and CompleteItemsRun drivers for all four
+characters. Its smoke runs all-legal clone checks after step zero and compares
+two complete summary hashes. This lane explicitly enables M26/M27 diagnostics and does not change
+the workspace's default feature set; `spire-fuzz` enables
+`spire-core/m27-diagnostics` only through its default-off `diagnostics` feature.
+CompleteItemsRun generates item supplies
+from the complete engine catalogs and starts directly at the Act 4 map, without
+Neow. No accepted numeric profile encoder applies there, so the summary records
+`encode: "n/a"`; policy selection uses candidate action kinds and the legal mask.
+For CompleteItemsRun, `choose_none` switches to deterministic first-legal choice
+after it revisits the same normalized public boundary, which breaks selection
+cancel loops.
+CompleteCombat remains its existing complete-card start with profile item
+admission: M27 has no general complete-items combat constructor, and its
+`m27_pair_combat` API is a fixed pair fixture rather than a natural driver start.
+Its `encode` is `harness projection (spire-fuzz-complete-public-v1)` and its
+fingerprint is `n/a`; CompleteItemsRun continues to report `encode: "n/a"`.
+The lane does not establish original-runtime parity or coverage beyond the
+enumerated encounters and Run profiles.
+
+Known limits: `spire-core/fuzz-diagnostics` alone is inert; use `spire-fuzz/diagnostics`, which enables the required M20+ diagnostic features.
+Known limit: CompleteCombat and CompleteItemsRun classify non-`InvalidAction` errors from illegal probes as `probe_rejected`.
+Known limit: diagnostics replay prefixes depend on `max_steps`, so replay/determinism repros may use another prefix and those failure kinds do not shrink.
+Known limit: StandardA0 Neow-start full Run (`standard_run(character, full_neow, rng)`) is behind `m28-diagnostics`, diagnostics-only until M28f; it is a future driver and is not built.
+The `native_fuzz run` CLI defaults to `--threads 2`.
+
+```sh
+cargo test -p spire-fuzz --features diagnostics --locked --offline -j2
+CARGO_TARGET_DIR=target/native-fuzz cargo run --release -p spire-fuzz \
+  --features diagnostics --locked --offline --example native_fuzz -- \
+  run --seed-start 1 --seed-end 100 --threads 2 --budget-secs 120 \
+  --out native-fuzz-out --drivers combat,complete,run,items \
+  --weights catalog=1,complete=1,run=1,items=1 --combat-max-steps 2000 \
+  --run-max-steps 20000 --determinism-every 16 --replay-every 16 \
+  --all-legal-every 16
+```
+
+Both lanes write a summary that records the active feature set. Campaigns can
+load one or more accepted combat catalogs with `--catalog PATH`; entries are
+scheduled round-robin. Driver weights use deterministic interleaving, and the
+determinism/replay options sample episodes by seed while all-legal checks sample
+steps. Summaries count only the step limit as capped and report accepted
+nonterminal profile cutoffs separately; any other nonterminal zero-action
+decision is saved as a shrunk `stuck` failure. Each grouped failure has one
+shrunk repro. `native_fuzz repro PATH` reruns a saved failure case.
+
+**Cadence.** After each main merge, run these diagnostics release phases on the
+current `main` (without pinning an older revision): 500k combat episodes, 5k full
+Runs, and 200k complete-items episodes, using eight threads per phase. Save each
+summary in a dated evidence directory with the source revision/archive and
+binary hashes; the harness deduplicates and shrinks failures for the PM to file
+as `native-fault,fuzz` Beads. Keep the default-lane smoke in
+`cargo test --workspace --locked --offline -j2`.
+
+```sh
+export CARGO_TARGET_DIR=target/native-fuzz-longrun
+EVIDENCE_DIR="evidence/native-fuzz-$(date -u +%Y%m%d)"
+mkdir -p "$EVIDENCE_DIR"
+cargo run --release -p spire-fuzz --features diagnostics --locked --offline -j2 --example native_fuzz -- run --seed-start 1 --seed-end 250000 --threads 8 --out "$EVIDENCE_DIR/combat" --drivers combat,complete --weights catalog=1,complete=1,run=0,items=0 --min-combat 500000 --determinism-every 16 --replay-every 16 --all-legal-every 16
+cargo run --release -p spire-fuzz --features diagnostics --locked --offline -j2 --example native_fuzz -- run --seed-start 1 --seed-end 5000 --threads 8 --out "$EVIDENCE_DIR/runs" --drivers run --weights catalog=0,complete=0,run=1,items=0 --min-runs 5000 --determinism-every 16 --replay-every 16 --all-legal-every 16
+cargo run --release -p spire-fuzz --features diagnostics --locked --offline -j2 --example native_fuzz -- run --seed-start 1 --seed-end 200000 --threads 8 --out "$EVIDENCE_DIR/items" --drivers items --weights catalog=0,complete=0,run=0,items=1 --min-runs 200000 --determinism-every 16 --replay-every 16 --all-legal-every 16
+{
+  printf 'source_revision='; git rev-parse HEAD
+  printf 'source_status='; git status --short --branch
+  printf 'source_archive_sha256='; git archive --format=tar HEAD | sha256sum | cut -d ' ' -f1
+  printf 'native_fuzz_sha256='; sha256sum "$CARGO_TARGET_DIR/release/examples/native_fuzz" | cut -d ' ' -f1
+} > "$EVIDENCE_DIR/manifest.txt"
+```

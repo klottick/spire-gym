@@ -104,6 +104,8 @@ pub struct CombatTrainingSession{
     record:Option<crate::CombatEpisodeRecord>,latest_public:Option<PublicDecision>,run:Option<Run>,published:Option<CombatPolicyBoundary>,actions:Vec<GameAction>,fault:Option<Error>,closed:bool,accepted_steps:u64,last_step_committed:bool,
 }
 impl CombatTrainingSession{
+    #[cfg(feature="fuzz-diagnostics")]
+    pub fn fuzz_run(&self)->Option<&Run>{self.run.as_ref()}
     pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
         let id=crate::run_session::allocate_run_session_id()?;
         Ok(Self{catalog,caps:crate::combat_policy_capacities(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false})

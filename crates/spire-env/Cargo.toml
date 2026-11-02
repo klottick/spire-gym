@@ -13,6 +13,9 @@ serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.152"
 sha2 = "=0.10.9"
 
+[features]
+fuzz-diagnostics = ["spire-core/fuzz-diagnostics"]
+
 [dev-dependencies]
 # Explicit test-only feature unification; normal library dependencies stay unchanged.
 spire-core = { workspace = true, features = ["m20-diagnostics", "m22-diagnostics", "m23-diagnostics", "m24-diagnostics", "m25-diagnostics"] }
