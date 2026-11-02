@@ -14,7 +14,7 @@ fn corrected_rules_record_keeps_v1_wire_and_observation_identity(){
     assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v2");
     assert_eq!(RUN_RULES_ID_V1,"spire-gym-native-m9-rules-v1");
     assert_eq!(record.observation_fingerprint.iter().map(|b|format!("{b:02x}")).collect::<String>(),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     let encoded=record.to_json().unwrap();
     let decoded=RunEpisodeRecord::from_json(&encoded).unwrap();
     assert_eq!(decoded,record);

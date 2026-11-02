@@ -179,14 +179,14 @@ fn m18_candidate_order_masks_and_targets_are_shared_row_references() {
 }
 
 #[test]
-fn m18_addition_keeps_frozen_predecessor_descriptors_and_rejects_m9_admission() {
+fn m18_addition_pins_current_predecessor_descriptors_and_rejects_m9_admission() {
     let caps=RunCapacities::m10_default();
     for (spec,expected) in [
-        (run_observation_spec(&caps).unwrap(),"0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999"),
-        (m10_run_observation_spec(&caps).unwrap(),"7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db"),
-        (m12_run_observation_spec(&caps).unwrap(),"366c572af8141146995e849acc737a33484623790e2b3d661e290fadfb6c9fac"),
-        (m13_run_observation_spec(&caps).unwrap(),"3f1e21d50106b8ca71d7cd67a2de7bfa4074455dbbb459629d8e2ac24cf39cf8"),
-        (m17_run_observation_spec(&caps).unwrap(),"2176f835eca1384b2070f3d7d001158ef1fead23be5d6d7eea138b57f6bff999"),
+        (run_observation_spec(&caps).unwrap(),"270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),
+        (m10_run_observation_spec(&caps).unwrap(),"dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
+        (m12_run_observation_spec(&caps).unwrap(),"ae0b995eade57ef1dccc39bd9cad6064d8bd33a1cfbc37a312e4b76ac01ceb20"),
+        (m13_run_observation_spec(&caps).unwrap(),"cd7f78f7bc8ae8566f727f431f8a8d840303cdcb556173b31bf169cea8c34ecf"),
+        (m17_run_observation_spec(&caps).unwrap(),"eeb45fcedd185710aeb0e5cb58ca619cc5927861cebda39b1612ff1500887a92"),
     ] {assert_eq!(spec.fingerprint().iter().map(|b|format!("{b:02x}")).collect::<String>(),expected);}
     let d=diagnostic_run().decision().unwrap();assert_eq!(encode_run(&d,None,&caps),Err(RunSessionError::Input("M18 profile is not representable in the M9 v1 observation schema")));
     println!("M18_DESCRIPTOR_SHA256 {}",m18_run_observation_spec(&caps).unwrap().fingerprint().iter().map(|b|format!("{b:02x}")).collect::<String>());

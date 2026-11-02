@@ -11,7 +11,6 @@ pub(crate) fn vocabulary()->Value{
  v["card"]=json!(std::iter::once("padding").chain(watcher::M21_WATCHER_CARDS.iter().chain(watcher::M21_WATCHER_GENERATED).map(|id|id.as_str())).chain(["dazed","slimed","wound","burn","void","parasite"]).collect::<Vec<_>>());
  v["relic"]=json!(std::iter::once("padding").chain(spire_core::run::M21_WATCHER_RELICS.iter().map(|id|id.as_str())).collect::<Vec<_>>());
  v["potion"]=json!(std::iter::once("padding").chain(spire_core::run::M21_WATCHER_POTIONS.iter().map(|id|id.as_str())).collect::<Vec<_>>());
- for name in ["mantra","devotion","foresight","nirvana","establishment","master_reality","battle_hymn","mental_fortress","rushdown","like_water"]{if !v["power"].as_array().unwrap().contains(&json!(name)){v["power"].as_array_mut().unwrap().push(json!(name));}}
  v["stance"]=json!(["neutral","wrath","calm","divinity"]);v["profile"]=json!(["padding","M21WatcherCombat"]);
  v["selection_operation"].as_array_mut().unwrap().extend([json!("scry"),json!("meditate_return")]);
  v["verb"].as_array_mut().unwrap().extend([json!("choose_stance"),json!("combat_deselect_card")]);v
@@ -21,7 +20,6 @@ fn named(key:&str,name:&str)->Result<i64,RunSessionError>{vocab()[key].as_array(
 pub(crate) fn card(id:CardId)->Result<i64,RunSessionError>{if matches!(id,CardId::Unknown(_)){return Err(RunSessionError::Input("unknown M21 card"))}named("card",id.as_str())}
 pub(crate) fn relic(id:RelicId)->Result<i64,RunSessionError>{if matches!(id,RelicId::Unknown(_)){return Err(RunSessionError::Input("unknown M21 relic"))}named("relic",id.as_str())}
 pub(crate) fn potion(id:PotionId)->Result<i64,RunSessionError>{named("potion",id.as_str())}
-pub(crate) fn power(_:bool,name:&str)->Result<i64,RunSessionError>{named("power",name)}
 pub(crate) fn operation(s:&SelectionView)->Result<i64,RunSessionError>{match s.operation{SelectionOperation::Scry=>named("selection_operation","scry"),SelectionOperation::MeditateReturn=>named("selection_operation","meditate_return"),_=>Err(RunSessionError::UnsupportedBoundary("selection outside M21 profile"))}}
 pub(crate) fn verb(name:&str)->Result<i64,RunSessionError>{named("verb",name)}
 pub(crate) fn groups(c:&RunCapacities)->Vec<v1::GroupSpec>{

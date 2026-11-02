@@ -23,19 +23,6 @@ const ACT3_MAP_ONLY_BOSS_ICONS: &[EncounterId] = &[
     EncounterId::DonuAndDeca,
 ];
 
-const ACT2_POWERS: &[&str] = &[
-    "artifact",
-    "barricade",
-    "flight",
-    "hex",
-    "confused",
-    "minion",
-    "angry",
-    "entangled",
-    "painful_stabs",
-    "stasis",
-];
-
 fn cards() -> impl Iterator<Item = CardId> {
     M12_SILENT_ACT1_CARDS.iter().copied().chain(GENERATED_CARDS.iter().copied())
 }
@@ -231,17 +218,6 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
     }
     m12::room(kind)
 }
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    m12::intent(name)
-}
-pub(crate) fn power(name: &str) -> Result<i64, RunSessionError> {
-    if let Ok(value) = m12::power(name) {
-        return Ok(value);
-    }
-    ACT2_POWERS.iter().position(|value| *value == name)
-        .map(|index| (v1::POWERS.len() + 3 + index) as i64)
-        .ok_or(RunSessionError::Input("unsupported M13 public power"))
-}
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     m12::choice(choice)
 }
@@ -273,13 +249,6 @@ pub(crate) fn vocabularies() -> Value {
     vocab["room"] = json!(v1::ROOMS[..=17].to_vec());
     vocab["choice"] = json!(v1::CHOICES[..31].to_vec());
     vocab["terminal"] = json!(["ongoing", "death", "empty_deck"]);
-    vocab["intent"] = json!(v1::INTENTS.iter().chain(v1::ACT1_INTENTS).copied().collect::<Vec<_>>());
-    vocab["power"] = json!(
-        v1::POWERS.iter().copied()
-            .chain(["noxious_fumes", "accuracy", "retain_cards"])
-            .chain(ACT2_POWERS.iter().copied().filter(|name| !v1::POWERS.contains(name)))
-            .collect::<Vec<_>>()
-    );
     vocab["zone"] = json!([
         "padding", "hand", "discard", "exhaust", "played_power", "stasis", "selection_only",
         "known_draw_top", "known_draw_bottom", "playing"

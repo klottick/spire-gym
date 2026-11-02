@@ -216,6 +216,7 @@ pub(super) fn full_player(state: &State) -> Result<FullPlayerView,crate::run::Ru
         let id=match bomb.damage{40=>"the_bomb",50=>"the_bomb_plus",_=>return Err(crate::run::RunError::InvalidAction)};
         powers.push(FullPowerView{id:super::FullPowerId(id),amount:i32::from(bomb.remaining)});
     }
+    debug_assert_registered(&powers, None);
     Ok(FullPlayerView { hp: p.hp, max_hp: p.max_hp, block: p.block, energy: p.energy,
         max_energy: p.max_energy, powers })
 }
@@ -227,8 +228,19 @@ pub(super) fn public_rules(state:&State)->crate::items::laws::PublicViewRules{
     })
 }
 
+/// Debug builds reject a published power or intent missing from the engine
+/// registry that every observation encoder vocabulary is derived from.
+fn debug_assert_registered(powers: &[FullPowerView], intent: Option<super::FullIntentId>) {
+    for power in powers {
+        debug_assert!(super::public_ids::is_public_power(power.id.0), "unregistered public power {:?}", power.id.0);
+    }
+    if let Some(intent) = intent {
+        debug_assert!(super::public_ids::is_public_intent(intent.as_str()), "unregistered public intent {:?}", intent.as_str());
+    }
+}
+
 pub(super) fn full_enemies(state: &State,hide_intents:bool) -> Vec<FullEnemyView> {
-    state.enemies.iter().map(|e| FullEnemyView {
+    let enemies: Vec<FullEnemyView> = state.enemies.iter().map(|e| FullEnemyView {
         instance_id: e.instance_id.clone(),
         enemy_id: match e.enemy_id { super::ActorEnemyId::Full(id) => id,
             super::ActorEnemyId::Legacy(id) => match id { EnemyKind::Cultist => EnemyId::Cultist, EnemyKind::JawWorm => EnemyId::JawWorm } },
@@ -242,7 +254,9 @@ pub(super) fn full_enemies(state: &State,hide_intents:bool) -> Vec<FullEnemyView
         },
         intent_damage: if hide_intents{None}else{e.intent_damage}, replaced: e.life == super::ActorLife::Replaced,
         escaped:e.life==super::ActorLife::Escaped,half_dead:e.life==super::ActorLife::HalfDead,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
-    }).collect()
+    }).collect();
+    for enemy in &enemies { debug_assert_registered(&enemy.powers, Some(enemy.intent)); }
+    enemies
 }
 
 pub(super) fn ready(state: &State) -> Result<(), AccessError> {
@@ -322,5 +336,28 @@ impl std::fmt::Debug for CharacterCombatView {
         let mut d=f.debug_struct("CharacterCombatView");d.field("stance",&self.stance).field("orbs",&self.orbs);
         if self.orb_dark_damage.iter().any(Option::is_some){d.field("orb_dark_damage",&self.orb_dark_damage);}
         d.field("focus",&self.focus).finish()
+    }
+}
+
+#[cfg(all(test, debug_assertions))]
+mod registry_guard_tests {
+    use super::{debug_assert_registered, FullPowerView};
+    use crate::combat::{FullIntentId, FullPowerId};
+
+    #[test]
+    fn registered_power_and_intent_pass_the_view_guard() {
+        debug_assert_registered(&[FullPowerView { id: FullPowerId("strength"), amount: 1 }], Some(FullIntentId::Unknown("hidden")));
+    }
+
+    #[test]
+    #[should_panic(expected = "unregistered public power")]
+    fn unregistered_power_fails_loudly_at_the_view_guard() {
+        debug_assert_registered(&[FullPowerView { id: FullPowerId("not_a_registered_power"), amount: 1 }], None);
+    }
+
+    #[test]
+    #[should_panic(expected = "unregistered public intent")]
+    fn unregistered_intent_fails_loudly_at_the_view_guard() {
+        debug_assert_registered(&[], Some(FullIntentId::Unknown("not_a_registered_intent")));
     }
 }

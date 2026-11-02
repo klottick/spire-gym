@@ -177,7 +177,7 @@ fn new_m12_codec_leaves_m9_m10_and_66_policy_schema_ids_and_fingerprints_stable(
     let v1 = run_observation_spec(&caps).unwrap();
     assert_eq!(v1.descriptor()["schema_id"], RUN_OBSERVATION_SCHEMA_ID);
     assert_eq!(v1.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     let v2 = m10_run_observation_spec(&caps).unwrap();
     assert_eq!(v2.descriptor()["schema_id"], RUN_OBSERVATION_M10_SCHEMA_ID);
     let v3 = policy_run_observation_spec(&caps).unwrap();

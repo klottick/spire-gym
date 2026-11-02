@@ -16,23 +16,6 @@ use std::sync::OnceLock;
 pub const RUN_OBSERVATION_M25_SCHEMA_ID: &str = "spire-gym-m25-watcher-heart-observation-v1";
 const DOMAIN: &[u8] = b"spire-gym/run-schema/m25-watcher-heart/v1\0";
 
-// These are the public-power effects of the supported non-Watcher Foreign Influence attacks.
-// Every row is checked against the accepted M15 or M20 descriptor builder below.
-const FOREIGN_INFLUENCE_POWERS: &[&str] = &[
-    "artifact",
-    "choked",
-    "draw_card_next_turn",
-    "energized",
-    "lock_on",
-    "poison",
-    "rebound",
-    "vulnerable",
-    "weak",
-];
-
-// Reused M20 identities created by M25's choice-only Wish and Duality relic.
-const M25_SHARED_POWERS: &[&str] = &["plated_armor", "lose_dexterity"];
-
 // These non-Watcher attacks suspend a player choice in the shared resolver:
 // Headbutt chooses a discard-pile card to topdeck; Dagger Throw chooses a
 // hand card to discard after its draw. All-Out Attack discards randomly, so it
@@ -130,8 +113,6 @@ fn vocabularies() -> Value {
     for (key, names) in [
         ("encounter", rows_from(act4, "encounters")),
         ("enemy", rows_from(act4, "enemies")),
-        ("intent", rows_from(act4, "intents")),
-        ("power", rows_from(act4, "powers")),
     ] {
         append_accepted(&mut vocab, key, m20_vocab, &names);
     }
@@ -149,28 +130,11 @@ fn vocabularies() -> Value {
         append_accepted(&mut vocab, key, m20_vocab, &additions);
     }
 
-    let m15_vocab = &m15_descriptor["vocabularies"];
-    for name in FOREIGN_INFLUENCE_POWERS {
-        let row = json!(name);
-        assert!(m15_vocab["power"].as_array().unwrap().contains(&row)
-            || m20_vocab["power"].as_array().unwrap().contains(&row),
-            "Foreign Influence power {name} must come from an accepted descriptor");
-        append(&mut vocab, "power", [row]);
-    }
-    for name in M25_SHARED_POWERS {
-        let row = json!(name);
-        assert!(m20_vocab["power"].as_array().unwrap().contains(&row),
-            "M25 reused power {name} must come from accepted M20");
-        append(&mut vocab, "power", [row]);
-    }
     for (name, _card) in FOREIGN_INFLUENCE_SELECTION_OPERATIONS {
         let row = json!(name);
         assert!(m15_descriptor["vocabularies"]["selection_operation"].as_array().unwrap().contains(&row),
             "Foreign Influence selection operation {name} must come from accepted M15");
         append(&mut vocab, "selection_operation", [row]);
-    }
-    for name in spire_core::content::watcher::M25_WATCHER_POWER_IDS {
-        append(&mut vocab, "power", [json!(name)]);
     }
     // HC0 added this operation to the shared core enum. Its public spelling is the new enum variant.
     append(&mut vocab, "selection_operation", [json!("omniscience")]);
@@ -307,8 +271,6 @@ pub(crate) fn enemy(id: EnemyId) -> Result<i64, RunSessionError> { named("enemy"
 pub(crate) fn encounter(id: EncounterId) -> Result<i64, RunSessionError> { named("encounter", id.as_str()) }
 pub(crate) fn event(id: EventId) -> Result<i64, RunSessionError> { named("event", id.as_str()) }
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> { named("zone", name) }
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> { named("intent", name) }
-pub(crate) fn power(_is_player: bool, name: &str) -> Result<i64, RunSessionError> { named("power", name) }
 pub(crate) fn offer_card(id: CardId) -> Result<i64, RunSessionError> {
     if let Some(row) = m25_content::CHOICES.iter().position(|choice| *choice == id) {
         return Ok(-((row as i64) + 1));
@@ -408,11 +370,6 @@ pub(crate) fn validate_public_decision(d: &PublicDecision) -> Result<(), RunSess
         }
     }
     if let Some(combat) = &d.combat {
-        for power in &combat.player.powers { self::power(true, &power.id.0)?; }
-        for enemy in &combat.enemies {
-            if !enemy.intent.as_str().is_empty() { intent(enemy.intent.as_str())?; }
-            for power in &enemy.powers { self::power(false, &power.id.0)?; }
-        }
         for card in combat.hand.iter().chain(&combat.discard).chain(&combat.exhaust)
             .chain(&combat.played_powers).chain(&combat.playing_cards)
             .chain(combat.stasis.iter().map(|entry| &entry.card))

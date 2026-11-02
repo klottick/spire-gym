@@ -18,10 +18,6 @@ fn vocabulary() -> Value {
     let caps = RunCapacities::m10_default();
     let mut v = shared_descriptor()["vocabularies"].clone();
     let shared = defect::defect_combat_observation_spec(&caps).expect("fixed Defect descriptor").descriptor()["vocabularies"].clone();
-    for key in ["power", "intent"] {
-        let rows = v[key].as_array_mut().expect("shared names");
-        for row in shared[key].as_array().expect("Defect names") { if !rows.contains(row) { rows.push(row.clone()); } }
-    }
     let m15_cards = v["card"].as_array().expect("M15 cards");
     let extras = shared_descriptor()["semantics"]["entitlements"]["generated_and_status_cards"].clone();
     let cards: Vec<Value> = std::iter::once(json!("padding"))
@@ -32,12 +28,8 @@ fn vocabulary() -> Value {
     v["potion"] = json!(std::iter::once("padding").chain(M20_DEFECT_HEART_POTIONS.iter().map(|id|id.as_str())).collect::<Vec<_>>());
     v["orb"] = shared["orb"].clone();
     v["profile"] = json!(["padding", "M20DefectHeart"]);
-    // Keep shared enemy/potion/colorless powers, excluding historical class-only rows.
-    const FOREIGN_POWERS:&[&str]=&["berserk","brutality","combust","corruption","dark_embrace","demon_form","double_tap","evolve","feel_no_pain","fire_breathing","flame_barrier","juggernaut","no_draw","rage","rupture","a_thousand_cuts","after_image","blur","burst","choked","corpse_explosion","double_damage","draw_card_next_turn","energized","envenom","infinite_blades","intangible_player","next_turn_block","phantasmal","tools_of_the_trade","wraith_form"];
-    v["power"].as_array_mut().unwrap().retain(|name|!FOREIGN_POWERS.contains(&name.as_str().unwrap()));
     v["selection_operation"].as_array_mut().unwrap().retain(|name|!matches!(name.as_str(),Some("nightmare_capture"|"retain"|"setup")));
     append(&mut v,"selection_operation",["hologram_retrieve","seek_retrieve","recycle"]);
-    append(&mut v, "power", ["buffer", "repair", "draw", "energized_blue", "hello_world", "creative_ai", "rebound", "equilibrium"]);
     v
 }
 fn vocab() -> &'static Value { static V: OnceLock<Value> = OnceLock::new(); V.get_or_init(vocabulary) }
@@ -84,9 +76,7 @@ pub(crate) fn enemy(id: EnemyId) -> Result<i64, RunSessionError> { m15::enemy(id
 pub(crate) fn encounter(id: EncounterId) -> Result<i64, RunSessionError> { m15::encounter(id) }
 pub(crate) fn event(id: EventId) -> Result<i64, RunSessionError> { m15::event(id) }
 pub(crate) fn room(id: RoomViewKind) -> Result<i64, RunSessionError> { m15::room(id) }
-pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> { named("intent",name) }
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> { m15::zone(name) }
-pub(crate) fn power(_: bool, name: &str) -> Result<i64, RunSessionError> { named("power",name) }
 pub(crate) fn operation(s: &spire_core::combat::SelectionView) -> Result<i64, RunSessionError> {
     use spire_core::combat::SelectionOperation;
     let name=match s.operation{
@@ -139,10 +129,6 @@ fn validate_decision(d:&PublicDecision, permanent:fn(CardId,u32)->Result<(),RunS
     for id in d.player.potions.iter().flatten() {potion(*id)?;}
     if let Some(r) = &d.last_combat {encounter(r.encounter)?;}
     if let Some(c) = &d.combat {
-        const PLAYER_POWERS:&[&str]=&["strength","dexterity","weak","vulnerable","frail","artifact","ritual","hex","confused","entangled","regeneration","thorns","constricted","draw_reduction","surrounded",
-            "magnetism","mayhem","no_block","panache","sadistic_nature","lose_strength","lose_dexterity","plated_armor","duplication","panache_countdown","the_bomb","the_bomb_plus",
-            "focus","bias","loop","electrodynamics","static_discharge","storm","heatsinks","amplify","echo_form","buffer","repair","draw","hello_world","creative_ai","energized_blue","equilibrium","rebound"];
-        for p in &c.player.powers{if !PLAYER_POWERS.contains(&p.id.0){return Err(RunSessionError::Input("unsupported M20 player power"))}}
         if c.character.orbs.len()>10 {return Err(RunSessionError::Input("M20 orb slots exceed gameplay cap10"))}
         if let Some(i)=&c.inventory {
             for id in &i.relics {relic(*id)?;} for counter in &i.relic_counters {relic(counter.relic)?;}

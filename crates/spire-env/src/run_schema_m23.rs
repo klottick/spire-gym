@@ -7,16 +7,13 @@ use spire_core::{combat::{CombatCardRef,LiveCardView,Outcome,SelectionView},cont
 use std::sync::OnceLock;
 pub const RUN_OBSERVATION_M23_SCHEMA_ID:&str="spire-gym-m23-watcher-act2-observation-v1";
 const DOMAIN:&[u8]=b"spire-gym/run-schema/m23-watcher-act2/v1\0";
-// Act2 enemy-installed public powers (design union), deduplicated against M22.
-const ACT2_POWERS:&[&str]=&["artifact","barricade","flight","hex","confused","minion","angry","entangled","painful_stabs","stasis"];
 fn padded(names:impl IntoIterator<Item=&'static str>)->Value{json!(std::iter::once("padding").chain(names).collect::<Vec<_>>())}
 fn vocabulary()->Value{
  let mut v=m22::m22_run_observation_spec(&RunCapacities::m10_default()).expect("fixed M22 vocabulary").descriptor()["vocabularies"].clone();
  let a=act2::vocabularies();
- for key in ["enemy","encounter","event","room","choice","intent"]{v[key]=a[key].clone();}
+ for key in ["enemy","encounter","event","room","choice"]{v[key]=a[key].clone();}
  v["card"]=padded(M23_WATCHER_ACT2_CARDS.iter().chain(m23_content::GENERATED_ONLY).chain(m23_content::STATUSES).map(|id|id.as_str()));
  v["relic"]=padded(M23_WATCHER_ACT2_RELICS.iter().map(|id|id.as_str()));v["potion"]=padded(M23_WATCHER_ACT2_POTIONS.iter().map(|id|id.as_str()));v["profile"]=json!(["padding","M23WatcherAct2"]);
- for name in ACT2_POWERS{let value=json!(name);assert!(a["power"].as_array().unwrap().contains(&value));if !v["power"].as_array().unwrap().contains(&value){v["power"].as_array_mut().unwrap().push(value);}}
  v
 }
 fn vocab()->&'static Value{static V:OnceLock<Value>=OnceLock::new();V.get_or_init(vocabulary)}
@@ -53,8 +50,6 @@ pub(crate) fn encounter(id:EncounterId)->Result<i64,RunSessionError>{named("enco
 pub(crate) fn event(id:EventId)->Result<i64,RunSessionError>{named("event",id.as_str())}
 pub(crate) fn room(id:RoomViewKind)->Result<i64,RunSessionError>{match id{RoomViewKind::Act3Ready=>v1::room(id),RoomViewKind::Act2Ready=>Err(RunSessionError::UnsupportedBoundary("M23 continues past Act2Ready")),_=>act1::room(id)}}
 pub(crate) fn zone(name:&str)->Result<i64,RunSessionError>{named("zone",name)}
-pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{named("intent",name)}
-pub(crate) fn power(_:bool,name:&str)->Result<i64,RunSessionError>{named("power",name)}
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{if p==RoomScenario::M23WatcherAct2{Ok(1)}else{Err(RunSessionError::Input("wrong M23 profile"))}}
 pub(crate) fn choice(c:&RoomChoiceKind)->Result<i64,RunSessionError>{if matches!(c,RoomChoiceKind::Act3Continue{..}){return Err(RunSessionError::Input("unsupported M23 RoomChoiceKind"))}if let RoomChoiceKind::Card{id,upgrades}=c{permanent(*id,*upgrades)?;}Ok(m10::choice(c))}
 pub(crate) fn operation(s:&SelectionView)->Result<i64,RunSessionError>{let n=watcher::operation(s)?;let d=watcher::vocabulary();named("selection_operation",d["selection_operation"][n as usize].as_str().unwrap())}

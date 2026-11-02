@@ -176,16 +176,16 @@ fn m14_schema_is_finite_and_additive_to_accepted_run_profiles() {
     assert_eq!(m9.descriptor()["schema_id"], RUN_OBSERVATION_SCHEMA_ID);
     assert_eq!(m9.descriptor()["schema_id"], "spire-gym-run-observation-v1");
     assert_eq!(m9.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     assert_eq!(m10.descriptor()["schema_id"], RUN_OBSERVATION_M10_SCHEMA_ID);
     assert_eq!(m10.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "7664874a7a483d1f2e0439ea7b319d1a4be4b9d276d0cb0f908654feda9393db");
+        "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21");
     assert_eq!(m12.descriptor()["schema_id"], RUN_OBSERVATION_M12_SCHEMA_ID);
     assert_eq!(m12.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "366c572af8141146995e849acc737a33484623790e2b3d661e290fadfb6c9fac");
+        "ae0b995eade57ef1dccc39bd9cad6064d8bd33a1cfbc37a312e4b76ac01ceb20");
     assert_eq!(m13.descriptor()["schema_id"], RUN_OBSERVATION_M13_SCHEMA_ID);
     assert_eq!(m13.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "3f1e21d50106b8ca71d7cd67a2de7bfa4074455dbbb459629d8e2ac24cf39cf8");
+        "cd7f78f7bc8ae8566f727f431f8a8d840303cdcb556173b31bf169cea8c34ecf");
     assert_eq!(m13, m13_run_observation_spec(&caps).unwrap(), "M14 extension leaves the accepted M13 schema bytes and fingerprint stable");
 }
 

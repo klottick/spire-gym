@@ -108,7 +108,7 @@ fn m21_watcher_replay_settles_real_victory_and_death(){
  let mut r=core(start.clone());let mut s=CombatTrainingSession::new(one(start),Partition::Test).unwrap();s.reset(Some(7),None).unwrap();let first=step_pair(&mut r,&mut s,CombatAction::EndTurn);assert_eq!(first.reward,0);let death=step_pair(&mut r,&mut s,CombatAction::EndTurn);assert_eq!(death.reward,-1);assert!(death.terminated);assert!(!death.truncated);let rec=s.record().unwrap().unwrap();assert_eq!(rec.outcome,Some(spire_core::combat::Outcome::Death));let rec=CombatEpisodeRecord::from_json(&rec.to_json().unwrap()).unwrap();let report=replay_m21_combat(&rec,combat_policy_capacities()).unwrap();assert_eq!(report.outcome,rec.outcome);assert_eq!(report.final_decision,Some(r.decision().unwrap()));
 }
 #[test]
-fn m21_watcher_old_schema_guards_and_frozen_descriptors(){
+fn m21_watcher_old_schema_guards_and_pinned_descriptors(){
  use spire_core::combat::Stance;
  let config=RunSessionConfig{character:Character::Ironclad,ascension:0,partition:Partition::Test,boss_history:M9BossHistory::AwakenedUnseen,capacities:RunCapacities::m9_default(),record_replay:true};let mut old=RunSession::new(config).unwrap();old.reset(Some(7)).unwrap();let record=old.record().unwrap().unwrap();
  for a in [CombatAction::ChooseStance{stance:Stance::Calm},CombatAction::DeselectCard{instance:1}]{let mut bad=record.clone();bad.steps.push(RunRecordedStep{action:GameAction::Combat(a),reward:0,terminal:None});assert!(bad.to_json().is_err());assert!(replay_run(&bad,RunCapacities::m9_default()).is_err());}

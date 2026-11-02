@@ -207,13 +207,13 @@ fn group<'a>(observation: &'a spire_env::RunObservation, key: &str) -> &'a spire
 }
 
 #[test]
-fn m10_has_a_separate_opt_in_v2_schema_and_leaves_m9_v1_frozen() {
+fn m10_has_a_separate_opt_in_v2_schema_and_m9_v1_stays_separate() {
     let caps = RunCapacities::m10_default();
     assert_eq!(caps, RunCapacities::m9_default());
     let v1 = run_observation_spec(&RunCapacities::m9_default()).unwrap();
     assert_eq!(v1.fingerprint(), run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint());
     assert_eq!(v1.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>(),
-        "0893bce86e4b3abf11aa384c501503a91ae37f688ec605ab40b814ad365cb999");
+        "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
     let spec = m10_run_observation_spec(&caps).unwrap();
     let descriptor = spec.descriptor();
     assert_eq!(descriptor["schema_id"], "spire-gym-run-observation-v2");
@@ -260,9 +260,10 @@ fn m10_has_a_separate_opt_in_v2_schema_and_leaves_m9_v1_frozen() {
     assert_eq!(appended("verb",old_vocab), ["confirm_selection"]);
     assert_eq!(appended("zone",old_vocab), ["known_draw_top","known_draw_bottom","playing"]);
     assert_eq!(appended("row_group",old_vocab), ["combat_state","known_draw"]);
-    assert_eq!(appended("power",old_vocab), ["berserk","brutality","combust","corruption","dark_embrace","demon_form","double_tap","evolve","feel_no_pain","fire_breathing","flame_barrier","juggernaut","no_draw","rage","rupture",
-        "beat_of_death","invincible","surrounded","back_attack"]);
-    assert_eq!(appended("intent",old_vocab), ["shield_bash","shield_fortify","shield_smash","spear_burn_strike","spear_skewer","spear_strength","heart_debilitate","heart_blood_shots","heart_echo","heart_buff"]);
+    // Powers and intents are the shared engine-registry tables in both M9 and M10 (spire-85d).
+    assert_eq!(descriptor["vocabularies"]["power"],old_vocab["power"]);
+    assert_eq!(descriptor["vocabularies"]["intent"],old_vocab["intent"]);
+    for name in ["lose_strength","back_attack","heart_buff","hidden"]{assert!(descriptor["vocabularies"]["power"].as_array().unwrap().iter().chain(descriptor["vocabularies"]["intent"].as_array().unwrap()).any(|v|v==name),"{name}");}
     assert_eq!(descriptor["vocabularies"]["card_cost_kind"], serde_json::json!(["padding","fixed","x","unplayable"]));
     assert_eq!(descriptor["vocabularies"]["selection_operation"], serde_json::json!(["padding","move_hand","move_discard","move_exhaust","move_draw_top","upgrade","topdeck","return_from_exhaust","copy_to_hand_1","copy_to_hand_2","copy_to_hand_3","select_permanent"]));
 }

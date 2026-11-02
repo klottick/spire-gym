@@ -9,9 +9,6 @@ const CLOSURE_ENEMIES:&[spire_core::content::EnemyId]=&[
     spire_core::content::EnemyId::FungiBeast,spire_core::content::EnemyId::Looter,
     spire_core::content::EnemyId::Mugger,spire_core::content::EnemyId::ShelledParasite,
     spire_core::content::EnemyId::SnakePlant];
-const CLOSURE_POWERS:&[&str]=&["spore_cloud","thievery","plated_armor"];
-// Intent suffix is populated from the named source-qualified actor owners.
-const CLOSURE_INTENTS:&[&str]=&["looter_mug","looter_lunge","looter_smoke_bomb","looter_escape","mugger_mug","mugger_lunge","mugger_smoke_bomb","mugger_escape","shelled_parasite_double_strike","shelled_parasite_life_suck","shelled_parasite_fell","shelled_parasite_stunned","snake_plant_chomp_chomp","snake_plant_enfeebling_spores"];
 const GROUPS:&[&str]=&["player","permanent_cards","combat_cards","enemies","powers","relics","potions","selection","selection_counts","actions","combat_state","known_draw"];
 pub fn combat_policy_capacities()->RunCapacities{RunCapacities{map_nodes:1,map_edges:1,permanent_cards:128,combat_cards:512,enemies:16,powers:512,relics:32,potions:3,offers:1,selection:128,orbs:1,actions:1024}}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -30,16 +27,13 @@ pub fn combat_policy_observation_spec_v2()->Result<RunObservationSpec,RunSession
     let mut d=combat_policy_observation_spec()?.descriptor();
     d["schema_id"]=json!(COMBAT_POLICY_VIEW_V2_ID);d["profile_id"]=json!("IroncladCombatPolicyV2");
     let enemies=d["vocabularies"]["enemy"].as_array_mut().unwrap();enemies.extend(CLOSURE_ENEMIES.iter().map(|id|json!(id.as_str())));let enemy_high=enemies.len()-1;
-    let powers=d["vocabularies"]["power"].as_array_mut().unwrap();powers.extend(CLOSURE_POWERS.iter().map(|id|json!(id)));let power_high=powers.len()-1;
-    let intents=d["vocabularies"]["intent"].as_array_mut().unwrap();intents.extend(CLOSURE_INTENTS.iter().map(|id|json!(id)));let intent_high=intents.len()-1;
     for tensor in d["tensors"].as_array_mut().unwrap(){
         match tensor["key"].as_str().unwrap(){
-            "enemies"=>{tensor["high"][0]=json!(enemy_high);tensor["columns"][0]["high"]=json!(enemy_high);tensor["high"][4]=json!(intent_high);tensor["columns"][4]["high"]=json!(intent_high);},
-            "powers"=>{tensor["high"][2]=json!(power_high);tensor["columns"][2]["high"]=json!(power_high);},
+            "enemies"=>{tensor["high"][0]=json!(enemy_high);tensor["columns"][0]["high"]=json!(enemy_high);},
             _=>{}
         }
     }
-    d["semantics"]["vocabulary_extension"]=json!("current standard encounter actors, intents and powers are appended after the frozen M10 and combat-policy v1 vocabularies");
+    d["semantics"]["vocabulary_extension"]=json!("current standard encounter actors are appended after the M10 and combat-policy v1 enemy vocabulary; powers and intents use the shared engine-registry vocabulary");
     d["semantics"]["stolen_gold"]=json!("player gold is current committed currency; terminal last_exit stolen_gold_rewards are earned unclaimed death receipts, never an immediate refund; all_enemies_escaped and mugged distinguish escape");
     let mut h=Sha256::new();h.update(b"spire-gym/combat-policy-view/v2\0");h.update(crate::canonical_json(&d).map_err(|_|RunSessionError::Input("invalid combat policy descriptor"))?);
     Ok(RunObservationSpec{descriptor:d,fingerprint:h.finalize().into()})
@@ -54,9 +48,9 @@ fn encode_combat_policy_versioned(d:&PublicDecision,checkpoint:Option<&CombatChe
     let mut d=d.clone();d.room=None;d.content_profile=None;d.offers.clear();
     if d.combat.is_none(){d.candidates.clear();d.selection=None;}
     let mut obs=if v2 {
-        crate::run_observation::encode_run_with_schema(&d,None,&combat_policy_capacities(),crate::run_observation::RunEncodingProfile::CombatV2,policy_power_v2)?
+        crate::run_observation::encode_run_with_schema(&d,None,&combat_policy_capacities(),crate::run_observation::RunEncodingProfile::CombatV2)?
     }else{
-        crate::run_observation::encode_run_with_power(&d,None,&combat_policy_capacities(),true,policy_power)?
+        crate::run_observation::encode_run_versioned(&d,None,&combat_policy_capacities(),true)?
     };
     obs.groups.retain(|g|GROUPS.contains(&g.key));
     if d.combat.is_none(){if let Some(cp)=checkpoint{let p=obs.groups.iter_mut().find(|g|g.key=="player").unwrap();p.values[10]=i64::from(cp.hp_before_healing);p.values[11]=i64::from(cp.hp_after_cleanup);p.known[10]=1;p.known[11]=1;}}
@@ -87,39 +81,23 @@ pub(crate) fn lifecycle_for_view(d:&PublicDecision,checkpoint:Option<&CombatChec
 pub(crate) fn hex(bytes:&[u8])->String{bytes.iter().map(|x|format!("{x:02x}")).collect()}
 
 pub const RUN_OBSERVATION_POLICY_SCHEMA_ID:&str="spire-gym-run-observation-v3";
-fn policy_power(m10:bool,name:&str)->Result<i64,RunSessionError>{
-    if name=="lose_strength"{return Ok((crate::run_schema::POWERS.len()+crate::run_schema_m10::NEW_POWERS.len()) as i64)}
-    if m10{crate::run_schema_m10::power(name)}else{crate::run_schema::named(crate::run_schema::POWERS,name)}
-}
 pub(crate) fn closure_enemy(id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{
     if let Some(index)=CLOSURE_ENEMIES.iter().position(|candidate|*candidate==id){
         return Ok((crate::run_schema::ENEMIES.len()+crate::run_schema_m10::NEW_ENEMIES.len()+1+index) as i64)
     }
     crate::run_schema_m10::enemy(id)
 }
-pub(crate) fn closure_intent(name:&str)->Result<i64,RunSessionError>{
-    if let Some(index)=CLOSURE_INTENTS.iter().position(|id|*id==name){
-        return Ok(crate::run_schema_m10::intent("heart_buff")?+1+index as i64)
-    }
-    crate::run_schema_m10::intent(name)
-}
-fn policy_power_v2(m10:bool,name:&str)->Result<i64,RunSessionError>{
-    if let Some(index)=CLOSURE_POWERS.iter().position(|id|*id==name){return Ok((crate::run_schema::POWERS.len()+crate::run_schema_m10::NEW_POWERS.len()+1+index) as i64)}
-    policy_power(m10,name)
-}
 /// Additive vocabulary extension. Existing v1/v2 descriptors remain untouched.
 pub fn policy_run_observation_spec(caps:&RunCapacities)->Result<RunObservationSpec,RunSessionError>{
     let mut d=crate::m10_run_observation_spec(caps)?.descriptor();
     d["schema_id"]=json!(RUN_OBSERVATION_POLICY_SCHEMA_ID);d["profile_id"]=json!("M10IroncladPolicy");
-    let powers=d["vocabularies"]["power"].as_array_mut().unwrap();powers.push(json!("lose_strength"));let high=powers.len()-1;
-    for t in d["tensors"].as_array_mut().unwrap(){if t["key"]=="powers"{t["high"][2]=json!(high);t["columns"][2]["high"]=json!(high);}}
-    d["semantics"]["temporary_strength"]=json!("lose_strength is the public end-turn expiry debuff; appended vocabulary, frozen M10 v2 unchanged");
+    d["semantics"]["temporary_strength"]=json!("lose_strength is the public end-turn expiry debuff in the shared engine-registry power vocabulary");
     let mut h=Sha256::new();h.update(b"spire-gym/run-schema/v3\0");h.update(crate::canonical_json(&d).map_err(|_|RunSessionError::Input("invalid policy Run descriptor"))?);
     Ok(RunObservationSpec{descriptor:d,fingerprint:h.finalize().into()})
 }
 pub fn encode_run_policy(d:&PublicDecision,map:Option<&spire_core::run::map::PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::M10IroncladHeart)||d.player.character!=spire_core::content::Character::Ironclad{return Err(RunSessionError::Input("policy encoder requires M10 Ironclad core profile"))}
-    crate::run_observation::encode_run_with_power(d,map,caps,true,policy_power)
+    crate::run_observation::encode_run_versioned(d,map,caps,true)
 }
 
 pub fn defect_combat_observation_spec(caps:&RunCapacities)->Result<RunObservationSpec,RunSessionError>{
@@ -131,7 +109,7 @@ pub fn encode_defect_combat(decision:&PublicDecision,caps:&RunCapacities)->Resul
         ||decision.candidates.iter().any(|candidate|!matches!(candidate.action,GameAction::Combat(_))){
         return Err(RunSessionError::Input("M16 encoder requires native authored Defect combat"))
     }
-    crate::run_observation::encode_run_with_schema(decision,None,caps,crate::run_observation::RunEncodingProfile::M16Defect,crate::run_schema_m16::power)
+    crate::run_observation::encode_run_with_schema(decision,None,caps,crate::run_observation::RunEncodingProfile::M16Defect)
 }
 
 /// Opt-in public Watcher authored-combat projection.
@@ -145,6 +123,6 @@ pub fn encode_watcher_combat(d:&PublicDecision,caps:&RunCapacities)->Result<RunO
         if c.stance_choice.as_ref().is_some_and(|choice|choice.options!=[spire_core::combat::Stance::Wrath,spire_core::combat::Stance::Calm]){return Err(RunSessionError::Input("unsupported Watcher stance options"))}
     }
     let mut d=d.clone();d.room=None;d.offers.clear();if d.combat.is_none(){d.candidates.clear();d.selection=None;}
-    let mut o=crate::run_observation::encode_run_with_schema(&d,None,caps,crate::run_observation::RunEncodingProfile::M21Watcher,crate::run_schema_m21::power)?;
+    let mut o=crate::run_observation::encode_run_with_schema(&d,None,caps,crate::run_observation::RunEncodingProfile::M21Watcher)?;
     o.groups.retain(|g|crate::run_schema_m21::GROUPS.contains(&g.key));Ok(o)
 }

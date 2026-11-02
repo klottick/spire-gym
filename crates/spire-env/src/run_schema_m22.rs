@@ -10,12 +10,9 @@ const STATUSES:&[CardId]=&[CardId::Dazed,CardId::Burn,CardId::Slimed];
 fn padded(names:impl IntoIterator<Item=&'static str>)->Value{json!(std::iter::once("padding").chain(names).collect::<Vec<_>>())}
 fn vocabulary()->Value{
  let mut v=watcher::vocabulary();let a=act1::m12_run_observation_spec(&RunCapacities::m10_default()).expect("fixed Act1 vocabulary").descriptor()["vocabularies"].clone();
- for key in ["enemy","encounter","event","room","choice","intent"]{v[key]=a[key].clone();}
+ for key in ["enemy","encounter","event","room","choice"]{v[key]=a[key].clone();}
  v["card"]=padded(M22_WATCHER_ACT1_CARDS.iter().chain(spire_core::content::watcher::M21_WATCHER_GENERATED).chain(STATUSES).map(|id|id.as_str()));
  v["relic"]=padded(M22_WATCHER_ACT1_RELICS.iter().map(|id|id.as_str()));v["potion"]=padded(M22_WATCHER_ACT1_POTIONS.iter().map(|id|id.as_str()));v["profile"]=json!(["padding","M22WatcherAct1"]);
- // Act1 enemy/item powers plus the finite Watcher powers, without foreign class rows.
- let shared=v["power"].clone();v["power"]=json!(["padding","strength","dexterity","weak","vulnerable","frail","artifact","ritual","curl_up","split","enrage","metallicize","mode_shift","sharp_hide"]);
- for name in ["mantra","devotion","foresight","nirvana","establishment","master_reality","battle_hymn","mental_fortress","rushdown","like_water"]{let value=json!(name);assert!(shared.as_array().unwrap().contains(&value));if !v["power"].as_array().unwrap().contains(&value){v["power"].as_array_mut().unwrap().push(value);}}
  v
 }
 fn vocab()->&'static Value{static V:OnceLock<Value>=OnceLock::new();V.get_or_init(vocabulary)}
@@ -50,8 +47,6 @@ pub(crate) fn encounter(id:EncounterId)->Result<i64,RunSessionError>{named("enco
 pub(crate) fn event(id:EventId)->Result<i64,RunSessionError>{named("event",id.as_str())}
 pub(crate) fn room(id:RoomViewKind)->Result<i64,RunSessionError>{act1::room(id)}
 pub(crate) fn zone(name:&str)->Result<i64,RunSessionError>{named("zone",name)}
-pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{named("intent",name)}
-pub(crate) fn power(_:bool,name:&str)->Result<i64,RunSessionError>{named("power",name)}
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{if p==RoomScenario::M22WatcherAct1{Ok(1)}else{Err(RunSessionError::Input("wrong M22 profile"))}}
 pub(crate) fn choice(c:&RoomChoiceKind)->Result<i64,RunSessionError>{if let RoomChoiceKind::Card{id,upgrades}=c{permanent(*id,*upgrades)?;}Ok(m10::choice(c))}
 pub(crate) fn operation(s:&SelectionView)->Result<i64,RunSessionError>{let n=watcher::operation(s)?;let d=watcher::vocabulary();named("selection_operation",d["selection_operation"][n as usize].as_str().unwrap())}
