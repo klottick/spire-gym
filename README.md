@@ -75,6 +75,7 @@ encounters have real mechanics, but reward, shop and event pools are bounded.
 | Native Defect authored combat | Finite A0: 29 blue card kinds, four orbs, Focus, slots 0–10, four relics, two potions and persistent card mutations; shared Run and versioned native observation | Authored entry only; merged through [PR55](https://github.com/klottick/spire-gym/pull/55) at `02ea211`. Its fixtures do not establish normal progression or Python delivery. [Defect profile](docs/milestones/m16-defect-combat.md) |
 | Python/Gymnasium Ironclad combat | Full-engine standalone supplied-resource fights, native batches and a common combat view inside Runs | Finite A0 inputs and encounters. [Combat API](docs/combat-training.md) |
 | Python/Gymnasium Ironclad Runs | Captured single-Run environment, legal-action masks, numeric observations and replay; explicit M10 opt-in | Silent progression is native-only; native acceptance does not establish delivery by an installed Python extension. [Run API](docs/milestones/m10-heart.md#opt-in-usage) |
+| Card metadata descriptor (opt-in) | Static public faces for every catalog card: cost, target, keywords, printed numbers, upgrade bounds and support flags, generated from native owners | Printed faces only; live views win and rows do not imply profile admission. Python accessor is source-only until an extension is rebuilt. [Card metadata](docs/card-metadata.md) |
 
 M20 finite native source is accepted; publication is pending. The initial
 comprehensive review requested one Important energy-cap correction. The same

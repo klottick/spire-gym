@@ -48,11 +48,20 @@ fn build_info(py: Python) -> PyResult<Py<PyDict>> {
     Ok(info.into())
 }
 
+/// Opt-in static public card metadata (`spire-lab-card-metadata-v1`); no session,
+/// seed or RNG is read. Live observations stay authoritative.
+#[cfg(feature = "extension")]
+#[pyfunction]
+fn card_metadata(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+    numeric::descriptor(py, spire_env::card_metadata_descriptor().to_string())
+}
+
 /// The `spire_lab._native` module.
 #[cfg(feature = "extension")]
 #[pymodule]
 fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_info, m)?)?;
+    m.add_function(wrap_pyfunction!(card_metadata, m)?)?;
     m.add_class::<env::NativeCombatPool>()?;
     m.add_class::<run_env::NativeRunSession>()?;
     m.add_class::<combat_training::NativeIroncladCombatSession>()?;
