@@ -393,10 +393,12 @@ fn test_question_card() {
     let run = settled(vec![RelicId::QuestionCard], BTreeMap::new());
     let shape = run_laws::card_reward_shape(&run.state, RewardRoom::Ordinary { enemy_escaped: false });
     assert_eq!(shape.choices, 4, "Question Card adds one choice to a 3-choice reward");
-    let mut unrelated = settled(vec![RelicId::QuestionCard], BTreeMap::new());
-    let event = fire(&mut unrelated, rewards(RewardRoom::Event));
+    // M28c review I1: an EventRoom combat's card reward is a card RewardItem too (amended; original
+    // bytes in the M28c review-fix evidence).
+    let mut event_room = settled(vec![RelicId::QuestionCard], BTreeMap::new());
+    let event = fire(&mut event_room, rewards(RewardRoom::Event));
     let RunItemEvent::RewardsBuilding { card_choices, .. } = event else { unreachable!() };
-    assert_eq!(card_choices, 3, "an unrelated generator receives no additional choice");
+    assert_eq!(card_choices, 4, "an EventRoom card reward also gains the choice");
 }
 #[test]
 fn m27_question_card_reward_choice_plus_one() { test_question_card(); }
@@ -410,7 +412,7 @@ fn test_singing_bowl() {
     assert!(*singing_bowl, "ordinary card reward appends the Singing Bowl choice");
     event = rewards(RewardRoom::Event);
     let RunItemEvent::RewardsBuilding { singing_bowl, .. } = fire(&mut run, event) else { unreachable!() };
-    assert!(!singing_bowl, "unrelated Event rewards do not gain the Bowl option");
+    assert!(singing_bowl, "an EventRoom card reward also gains the Bowl option (M28c review I1)");
 
     let mut bowl = singing_bowl_run();
     bowl.step(&GameAction::Choose(ChoiceId(2))).unwrap();
@@ -433,7 +435,7 @@ fn singing_bowl_run() -> Run {
         scenario: RoomScenario::M4Act1Prefix, act1: None, act2: None, act3: None, act4: None,
         m10_elite_relic_cursor: 0, screen, purge_cost: 75, reward_parent: Some(parent), active_rewards: None,
         boss: None, transition: None, act2_boss_order: None, act3_boss_order: None, joust: None,
-        joust_visits: 0, act3_event: None, act3_end: None,
+        joust_visits: 0, act3_event: None, act3_end: None, standard_event: None,
     });
     run
 }
@@ -700,8 +702,8 @@ fn test_nloths_gift() {
     let run = settled(vec![RelicId::NlothsGift], BTreeMap::new());
     assert_eq!(run_laws::card_reward_shape(&run.state, RewardRoom::Ordinary { enemy_escaped: false }).rare_factor, 3,
         "eligible base Rare chance 5% is tripled to 15%");
-    assert_eq!(run_laws::card_reward_shape(&run.state, RewardRoom::Event).rare_factor, 1,
-        "noncombat Event reward chance is unchanged");
+    assert_eq!(run_laws::card_reward_shape(&run.state, RewardRoom::Event).rare_factor, 3,
+        "an EventRoom card reward's Rare chance is tripled too (M28c review I1)");
 }
 #[test]
 fn m27_nloths_gift_rare_chance_tripled() { test_nloths_gift(); }

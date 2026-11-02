@@ -74,6 +74,7 @@ mod m28_neow;
 mod m28_shop;
 mod m28_economy;
 mod m28_review;
+mod m28_event_core;
 mod m27_capability;
 mod m27_relic_selections;
 mod m27_relics_run;

@@ -1,5 +1,5 @@
 use super::*;
-use crate::content::CardId;
+use crate::content::{CardId, PotionId, RelicId};
 pub(crate) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
     // M27 gold seams (design §6.5): handlers may change the amount before it is added.
     let mut gaining=crate::items::dispatch::RunItemEvent::GoldGaining{amount};
@@ -144,6 +144,39 @@ pub(crate) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     let before=state.hp;
     if state.hp>0{state.hp=state.hp.saturating_add(heal).min(state.max_hp)}
     crate::combat::observe::run_heal(state,before);Ok(())
+}
+/// An out-of-combat HP change's source: HP_LOSS, or damage with or without an owner (events' own
+/// damage has none).
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) enum OutOfCombatLoss { HpLoss, Damage{owned:bool} }
+
+/// The one out-of-combat player damage / HP-loss law (PM source check m28c Q4 and its Torii
+/// correction; events and Neow use it): Torii makes owned non-HP_LOSS damage of 2–5 into 1; then
+/// Tungsten Rod takes 1 from a positive loss; below 1 HP a Fairy in a Bottle rescues first (its
+/// stored potency, 30 or Sacred Bark's 60, percent of max HP), else an unused Lizard Tail (half max
+/// HP); Mark of the Bloom blocks both. Buffer is a combat power and never exists here. Returns
+/// whether the player lives; the caller settles a death.
+pub(crate) fn lose_hp(state:&mut RunState,amount:u32,kind:OutOfCombatLoss)->bool{
+    let amount=if kind==(OutOfCombatLoss::Damage{owned:true})&&(2..=5).contains(&amount)&&state.relics.contains(&RelicId::Torii){1}else{amount};
+    let amount=if amount>0&&state.relics.contains(&RelicId::TungstenRod){amount-1}else{amount};
+    state.hp=state.hp.saturating_sub(amount);
+    if state.hp>0{return true}
+    if state.relics.contains(&RelicId::MarkOfBloom){return false}
+    if let Some(slot)=state.potions.iter().position(|potion|*potion==Some(PotionId::FairyPotion)){
+        let stored=state.potion_potencies.get(slot).copied().flatten().map(|(_,potency)|potency);
+        let percent=stored.unwrap_or(if state.relics.contains(&RelicId::SacredBark){60}else{30});
+        state.potions[slot]=None;
+        if let Some(potency)=state.potion_potencies.get_mut(slot){*potency=None;}
+        if !state.potions.iter().any(Option::is_some){state.potion_potencies.clear();}
+        state.hp=(((state.max_hp as f32)*(percent as f32/100.0_f32)) as u32).clamp(1,state.max_hp);
+        return true
+    }
+    if state.relics.contains(&RelicId::LizardTail)&&state.relic_counters.get(&RelicId::LizardTail).copied().unwrap_or(0)==0{
+        state.relic_counters.insert(RelicId::LizardTail,1);
+        state.hp=(state.max_hp/2).max(1);
+        return true
+    }
+    false
 }
 /// The one max-HP loss owner (M28 design §5.4): max HP falls by `amount` to at least 1 and
 /// current HP is clamped to it. Parasite, Neow's drawback and events call it.

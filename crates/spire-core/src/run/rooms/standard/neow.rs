@@ -107,8 +107,9 @@ fn choose_initial(run: &mut Run, id: ChoiceId, kind: RoomChoiceKind) -> Result<R
         Some(NeowDrawback::NoGold) => staged.state.gold = 0,
         Some(NeowDrawback::CurrentHpLoss) => {
             let loss = 3 * (staged.state.hp / 10);
-            // A0 begins at H >= 70, so this source HP_LOSS request cannot kill the player.
-            staged.state.hp = staged.state.hp.saturating_sub(loss);
+            // A0 begins at H >= 70, so this source HP_LOSS request cannot kill the player; it runs
+            // through the shared out-of-combat damage law.
+            if !mutations::lose_hp(&mut staged.state, loss, mutations::OutOfCombatLoss::HpLoss) { return Err(RunError::InvalidAction); }
         }
         Some(NeowDrawback::RandomCurse) | None => (),
     }

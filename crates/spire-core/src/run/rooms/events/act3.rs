@@ -15,7 +15,8 @@ pub(in crate::run) fn prepare(run:&Run,event:EventId,node:NodeId,visit:u64,next:
         EventId::Falling=>{
             let mut ids=std::collections::BTreeSet::new();if run.state.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||crate::content::Catalog::standard().card(c.id).is_none()){return Err(RunError::InvalidAction)}
             for card_type in [CardType::Attack,CardType::Skill,CardType::Power]{
-                let mut candidates=run.state.deck.iter().filter(|c|crate::content::Catalog::standard().card(c.id).unwrap().card_type==card_type).collect::<Vec<_>>();candidates.sort_by_key(|c|c.instance);
+                // G11: never a card bottled by a relic (acts23 research :198-202).
+                let mut candidates=run.state.deck.iter().filter(|c|crate::content::Catalog::standard().card(c.id).unwrap().card_type==card_type&&!run.state.relic_cards.values().any(|i|*i==c.instance)).collect::<Vec<_>>();candidates.sort_by_key(|c|c.instance);
                 let card=if candidates.is_empty(){None}else{Some(candidates[rng.bounded_scoped_checked(RunRngScope::Act3Falling,&[3,node.0,visit,card_type as u64],candidates.len() as u64)?].clone())};captures.push((card_type,card));
             }
             if captures.iter().all(|(_,c)|c.is_none()){vec![(RoomChoiceKind::Leave,None)]}else{[CardType::Skill,CardType::Power,CardType::Attack].into_iter().map(|card_type|(RoomChoiceKind::FallingLose{card_type,instance:captures.iter().find(|(t,_)|*t==card_type).unwrap().1.as_ref().map(|c|c.instance)},None)).collect()}

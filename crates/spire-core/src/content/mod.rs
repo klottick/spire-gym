@@ -18,7 +18,7 @@ pub use cards::{
     card_tags, is_healing, is_strike, plays_itself_at_end_of_turn,
 };
 pub use encounters::{EncounterDefinition, EnemyDefinition};
-pub use events::EventDefinition;
+pub use events::{EventDefinition, EventPool};
 pub use ids::{CardId, Character, ContentId, EncounterId, EnemyId, EventId, PotionId, RelicId};
 pub use items::{PotionDefinition, PotionRarity, RelicDefinition, RelicTier};
 
@@ -86,6 +86,7 @@ impl Catalog {
     pub fn enemy(&self, id: EnemyId) -> Option<&'static EnemyDefinition> { self.enemies.iter().find(|x| x.id == id) }
     pub fn encounter(&self, id: EncounterId) -> Option<&'static EncounterDefinition> { self.encounters.iter().find(|x| x.id == id) }
     pub fn event(&self, id: EventId) -> Option<&'static EventDefinition> { self.events.iter().find(|x| x.id == id) }
+    pub fn events(&self) -> &'static [EventDefinition] { self.events }
 }
 
 fn starter_deck_from(

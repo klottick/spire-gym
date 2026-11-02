@@ -1,6 +1,19 @@
 # Work status
 
-## Current snapshot — 2026-11-02, M28a merged; M28b candidate
+## Current snapshot — 2026-11-02, M28b merged; M28c candidate
+
+- M28b merged as PR #74 (`8137c664`); fuzz fix chunk A merged as PR #75 (`afb51f5f`), the M28c
+  source base.
+- M28c (the event core) is a source candidate and not accepted. It adds every event identity, the
+  standard event pools, the selection law and eligibility, and one event frame and executor with
+  nested selections and event combats. The six accepted events now run from the standard pools,
+  and four sample bodies have landed (Big Fish, Golden Shrine, The Addict, Mind Bloom). It also
+  adds the `data/events/` reference record. Every other event returns its chunk's typed interim
+  (M28d–M28f). It fixes five shared rules: room removal filters, Falling and bottled cards,
+  Simplicity's starter tags, boss fights decided by monster type, and out-of-combat HP loss. See
+  the [M28 candidate profile](milestones/m28-events-economy.md).
+
+## Snapshot — 2026-11-02, M28a merged; M28b candidate
 
 - M28a (seams, Neow, standard shop) merged as PR #72 (`5447b21c`); the native fuzz harness
   (spire-rj9) merged as PR #73 (`1e4f2206`), the M28b source base.

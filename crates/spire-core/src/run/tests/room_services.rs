@@ -70,8 +70,12 @@ fn empty_and_ineligible_grids_keep_source_specific_controls() {
     let d=r.decision().unwrap();let view=d.room.unwrap();assert_eq!(view.choices.iter().find(|c|c.kind==RoomChoiceKind::Smith).unwrap().status,RoomChoiceStatus::Disabled);
     assert!(view.choices.iter().any(|c|matches!(c.kind,RoomChoiceKind::Rest{..})&&c.status==RoomChoiceStatus::Offered));assert!(!view.choices.iter().any(|c|c.kind==RoomChoiceKind::Leave));
     let mut r=room(31);r.state.deck.clear();let id=r.decision().unwrap().room.unwrap().choices.into_iter().find(|c|c.kind==RoomChoiceKind::ShrineRemove).unwrap().id;
-    let error=r.step(&GameAction::Choose(id)).unwrap_err();assert!(matches!(error,RunError::Faulted(_)));assert_eq!(r.state.terminal,None);
-    let before=r.clone();assert_eq!(r.step(&GameAction::Cancel),Err(error));assert!(r==before);
+    // M28c review M4 (SOFTLOCK-001, amended; original bytes in the M28c review-fix evidence): with no
+    // purgeable card Purifier removes nothing and completes; completing on an empty deck settles the
+    // shared EmptyDeck terminal once instead of faulting on an empty grid.
+    let t=r.step(&GameAction::Choose(id)).unwrap();assert_eq!((t.terminal,r.state.terminal,r.state.fault.is_none()),(Some(RunTerminal::EmptyDeck),Some(RunTerminal::EmptyDeck),true));
+    assert_eq!(r.state.history.events.iter().filter(|e|matches!(e,CommittedEvent::Ended(RunTerminal::EmptyDeck))).count(),1);
+    let before=r.clone();assert!(r.step(&GameAction::Cancel).is_err());assert!(r==before);
 }
 
 #[test]

@@ -82,9 +82,11 @@ fn is_curse(id: crate::content::CardId) -> bool {
     crate::content::Catalog::standard().card(id).is_some_and(|definition| definition.card_type == CardType::Curse)
 }
 
+/// Rooms whose combat reward carries a card offer. M28c review I1: an EventRoom combat (design §5.7)
+/// has the ordinary card offer, so every card-reward modifier applies there too.
 fn reward_has_card(room: super::super::run_laws::RewardRoom) -> bool {
     use super::super::run_laws::RewardRoom;
-    matches!(room, RewardRoom::Elite | RewardRoom::Boss
+    matches!(room, RewardRoom::Elite | RewardRoom::Boss | RewardRoom::Event
         | RewardRoom::Ordinary { enemy_escaped: false })
 }
 

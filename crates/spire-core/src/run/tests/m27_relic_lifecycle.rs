@@ -47,7 +47,7 @@ fn campfire_with_toke(run: &mut Run) -> ChoiceId {
         }] },
         purge_cost: 75, reward_parent: None, active_rewards: None, boss: None, transition: None,
         act2_boss_order: None, act3_boss_order: None, joust: None, joust_visits: 0,
-        act3_event: None, act3_end: None,
+        act3_event: None, act3_end: None, standard_event: None,
     });
     choice
 }
@@ -65,7 +65,7 @@ fn shop_with_relic(run: &mut Run, relic: RelicId) -> ChoiceId {
         }] },
         purge_cost: 75, reward_parent: None, active_rewards: None, boss: None, transition: None,
         act2_boss_order: None, act3_boss_order: None, joust: None, joust_visits: 0,
-        act3_event: None, act3_end: None,
+        act3_event: None, act3_end: None, standard_event: None,
     });
     choice
 }

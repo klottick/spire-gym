@@ -88,23 +88,29 @@ fn m28_review_eggs_apply_after_the_upgrade_roll() {
 }
 
 /// m3: an Event node and a question room that rolls an event (Tiny Chest counter and ramps
-/// present) return the typed interim and leave the whole Run unchanged, choice tokens included.
+/// present) whose selected event has no landed body return the typed interim and leave the whole
+/// Run unchanged, choice tokens and event pools included. M28c: the interim names the event's
+/// chunk; a one-event pool (Living Wall, M28d) makes the selection fixed.
 #[test]
 fn m28_review_event_interim_leaves_the_whole_run() {
+    const INTERIM: &str = "M28 event body lands in M28d";
+    let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![crate::content::EventId::LivingWall], shrines: vec![], one_time: vec![], seen: vec![] });
     for character in CHARACTERS {
         let mut run = on_map(character, 9);
+        run.state.event_pools = pools();
         let target = run.decision().unwrap().candidates.iter().find_map(|c| match c.action { GameAction::Move(n) => Some(n), _ => None }).unwrap();
         run.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == target).unwrap().kind = MapNodeKind::Event;
         let before = run.clone();
-        assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(rooms::standard::map::EVENT_ROOMS_INTERIM)));
+        assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(INTERIM)));
         assert!(run == before, "{character:?}: whole Run unchanged");
         let mut question = on_map(character, 10);
+        question.state.event_pools = pools();
         let target = question.decision().unwrap().candidates.iter().find_map(|c| match c.action { GameAction::Move(n) => Some(n), _ => None }).unwrap();
         question.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == target).unwrap().kind = MapNodeKind::Question;
         question.state.map.as_mut().unwrap().question_ramps = [0; 3];
         question.state.relics.push(RelicId::TinyChest); question.state.relic_counters.insert(RelicId::TinyChest, 1);
         let before = question.clone();
-        assert_eq!(question.step(&GameAction::Move(target)), Err(RunError::Unsupported(rooms::standard::map::EVENT_ROOMS_INTERIM)));
+        assert_eq!(question.step(&GameAction::Move(target)), Err(RunError::Unsupported(INTERIM)));
         assert!(question == before, "{character:?}: question→event leaves the whole Run unchanged");
     }
 }
