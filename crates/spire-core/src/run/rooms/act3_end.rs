@@ -3,7 +3,7 @@ use super::*;
 use crate::{combat::Outcome,content::EncounterId};
 
 pub(in crate::run) fn fault_checkpoint(state:&RunState)->&'static str {
-    if is_m25(state){"run.m25.act3.end"}else if is_m24(state){"run.m24.act3.end"}else if is_m20(state){"run.m20.act3.end"}else if is_m15(state){"run.m15.act3.end"}else if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
+    if is_standard(state){"run.m28.act3.end"}else if is_m25(state){"run.m25.act3.end"}else if is_m24(state){"run.m24.act3.end"}else if is_m20(state){"run.m20.act3.end"}else if is_m15(state){"run.m15.act3.end"}else if is_m14(state){"run.m14.act3.end"}else{"run.m9.act3.end"}
 }
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
@@ -16,14 +16,14 @@ pub(crate) struct Act3EndFrame {
 pub(in crate::run) struct PreparedAct3End {screen:RoomView,next:u64,frame:Act3EndFrame}
 
 fn source(state:&RunState,node:NodeId,record:&CombatRecord)->bool{
-    uses_full_act3(state)&&state.act==3&&state.floor==50&&state.ascension==0
+    uses_act3_ending(state)&&state.act==3&&state.floor==50&&state.ascension==0
         &&record.outcome==Outcome::Victory
         &&matches!(record.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         &&state.map.as_ref().is_some_and(|m|m.act==3&&m.current==Some(node)
             &&m.boss_icon==Some(record.encounter)&&m.nodes.iter().any(|n|n.id==node&&n.floor==50&&n.kind==MapNodeKind::Boss&&n.visited&&n.encounter==Some(record.encounter)))
 }
 pub(in crate::run) fn prepare(run:&Run,record:&CombatRecord)->Result<Option<PreparedAct3End>,RunError>{
-    if !uses_full_act3(&run.state)||run.state.act!=3||record.outcome!=Outcome::Victory{return Ok(None)}
+    if !uses_act3_ending(&run.state)||run.state.act!=3||record.outcome!=Outcome::Victory{return Ok(None)}
     let Some(CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=run.state.active_combat.as_ref().map(|a|a.origin)else{return Ok(None)};
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !source(&run.state,node,record)||run.state.pending.is_some()||run.state.terminal.is_some()||run.state.fault.is_some()
@@ -40,7 +40,7 @@ pub(in crate::run) fn commit(run:&mut Run,prepared:PreparedAct3End){
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let frame=room.act3_end.as_ref().cloned().ok_or(RunError::InvalidAction)?;
-    if frame.phase==Act3EndPhase::Dialog(4)&&uses_act4(&run.state)&&run.state.act4_enabled&&run.state.keys==[true;3]{
+    if frame.phase==Act3EndPhase::Dialog(4)&&uses_act4_route(&run.state)&&run.state.act4_enabled&&run.state.keys==[true;3]{
         if frame.accepted.is_some()||room.screen.kind!=RoomViewKind::Act3Ending
             ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Act3Continue{stage:4}&&row.status==RoomChoiceStatus::Offered){return Err(RunError::InvalidAction)}
         let prepared=act4::prepare_transition(run)?;
@@ -52,7 +52,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let (kind,choice,next_phase)=match frame.phase{
         Act3EndPhase::AwaitingSource=>(RoomViewKind::Act3BossComplete,RoomChoiceKind::Proceed,Act3EndPhase::Dialog(1)),
         Act3EndPhase::Dialog(stage @ 1..=2)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage},Act3EndPhase::Dialog(stage+1)),
-        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if uses_act4(&run.state){Act3EndPhase::Dialog(4)}else if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
+        Act3EndPhase::Dialog(3)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:3},if uses_act4_route(&run.state){Act3EndPhase::Dialog(4)}else if run.state.act4_enabled&&run.state.keys==[true;3]{Act3EndPhase::Ready}else{Act3EndPhase::Dialog(4)}),
         Act3EndPhase::Dialog(4)=>(RoomViewKind::Act3Ending,RoomChoiceKind::Act3Continue{stage:4},Act3EndPhase::Ended),
         _=>return Err(RunError::InvalidAction),
     };

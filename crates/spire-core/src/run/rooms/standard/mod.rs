@@ -5,9 +5,9 @@ use super::*;
 pub(in crate::run) mod neow;
 pub(in crate::run) mod rewards;
 pub(in crate::run) mod shop;
+pub(in crate::run) mod treasure;
+pub(in crate::run) mod map;
 
-/// Typed interim until M28b lands `world::enter` for standard map rooms (chunk plan §3).
-pub(in crate::run) const MAP_ROOMS_INTERIM:&str="M28 standard map rooms land in M28b";
 
 /// `Run::new_room_scenario(.., RoomScenario::StandardA0)`: any character at A0, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
@@ -41,3 +41,7 @@ pub(in crate::run) fn start_act(run:&mut Run)->Result<(),RunError>{
     run.state.map=Some(map);
     Ok(())
 }
+
+/// Per-act standard state rebuild at each act start (design §7). The ordinary and shrine event
+/// lists land in M28c; question-room ramps reset with each generated map.
+pub(in crate::run) fn on_act_start(run:&mut Run){ let _=run; }

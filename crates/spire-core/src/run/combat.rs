@@ -96,7 +96,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     let originals=state.deck.iter().filter(|c|!active.acquired_instances.contains(&c.instance)).map(|c|c.instance).collect::<BTreeSet<_>>();
     if seen!=originals { return Err(RunError::Unsupported("permanent card missing from exit")); }
     let record=CombatRecord {visit:active.visit,encounter:active.encounter,outcome:exit.outcome};
-    let local_visits=if super::rooms::uses_act4(state)&&state.act==4{Some((4,state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act4 settled visit exhausted"))?))}else if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else if super::rooms::is_m20(state)&&state.act==1{Some((1,state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("M20 Act1 settled visit exhausted"))?))}else{None};
+    let local_visits=if super::rooms::uses_act4_route(state)&&state.act==4{Some((4,state.room_loop.as_ref().and_then(|r|r.act4.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act4 settled visit exhausted"))?))}else if super::rooms::uses_captured_act3(state)&&state.act==3{Some((3,state.room_loop.as_ref().and_then(|r|r.act3.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 settled visit exhausted"))?))}else if super::rooms::uses_captured_act2(state)&&state.act==2{Some((2,state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 settled visit exhausted"))?))}else if super::rooms::is_m20(state)&&state.act==1{Some((1,state.room_loop.as_ref().and_then(|r|r.act1.as_ref()).ok_or(RunError::InvalidAction)?.combat_visits.checked_add(1).ok_or(RunError::Unsupported("M20 Act1 settled visit exhausted"))?))}else{None};
     Ok((exit,record,settled,local_visits))
 }
 
@@ -118,7 +118,15 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         (EncounterId::CorruptHeart,CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=>state.map.as_ref().is_some_and(|map|map.current==Some(node)&&map.nodes.iter().any(|n|n.id==node&&n.floor==54&&n.visited&&n.encounter==Some(encounter))),
         _=>false,
     };
-    if !m16&&!matches!(origin,CombatOrigin::Training{..})&&!m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
+    // M28 standard Run (design §7): the map-room encounter chosen by `world` at the current node.
+    let standard=super::rooms::is_standard(state)&&match origin{
+        CombatOrigin::MapRoom{node,kind}=>state.map.as_ref().is_some_and(|map|map.current==Some(node)
+            &&map.nodes.iter().any(|n|n.id==node&&n.visited&&n.encounter==Some(encounter)&&(n.kind==kind||n.hidden_kind==Some(kind)))),
+        _=>false,
+    };
+    // A standard Run admits only that encounter: the legacy M3 Jaw Worm/Cultist exemption does not apply.
+    if super::rooms::is_standard(state)&&!standard{return Err(RunError::Unsupported("encounter outside authored M3 profile"))}
+    if !standard&&!m16&&!matches!(origin,CombatOrigin::Training{..})&&!m5&&!m6&&!m8&&!captured_act3_boss&&!captured_act4&&!matches!(encounter,EncounterId::JawWorm|EncounterId::Cultist) && !(state.room_loop.is_some()&&encounter==EncounterId::TwoLouse) {
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
@@ -130,7 +138,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
             crate::combat::permanent_live_card_with_misc(card.id,CardInstanceId(card.instance),card.upgrades,card.misc)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
     })?;
-    if m5||m6||m8 {
+    if m5||m6||m8||standard {
         if let Some(node)=state.map.as_ref().and_then(|map|map.current.and_then(|id|map.nodes.iter().find(|n|n.id==id)))
             .filter(|node|battle.elite_trigger&&node.burning) {
             use enemies::BurningBuff;

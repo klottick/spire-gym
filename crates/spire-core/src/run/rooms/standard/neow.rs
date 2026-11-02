@@ -155,6 +155,9 @@ fn choose_initial(run: &mut Run, id: ChoiceId, kind: RoomChoiceKind) -> Result<R
         }
         NeowReward::ThreePotions => {
             let potions = draw_potions(&mut staged.state)?;
+            // The ordinary reward screen generates its automatic card row and Neow removes it; the
+            // generation's rarity-offset writes stay (event-neow research :113, :139).
+            let _discarded = super::rewards::ordinary_offer(&mut staged.state, super::rewards::RarityRoom::Ordinary, 3, 1, &neow_key(0xCA, 0))?;
             open_potion_child(&mut staged, potions)?;
             true
         }

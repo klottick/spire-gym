@@ -14,7 +14,7 @@ impl CapturedRewards {
         Self{cards,return_to}
     }
 }
-pub(in crate::run) struct PreparedRoomRewards {pub(in crate::run) screen:RoomView,rng:RunRng,next:u64,captured:Option<CapturedRewards>,elite_cursor:Option<usize>,complete_relic_pools:Option<crate::items::relic_pools::RelicPools>,complete_potion_offset:Option<i32>,act:u8,m10:bool}
+pub(in crate::run) struct PreparedRoomRewards {pub(in crate::run) screen:RoomView,rng:RunRng,next:u64,captured:Option<CapturedRewards>,elite_cursor:Option<usize>,complete_relic_pools:Option<crate::items::relic_pools::RelicPools>,complete_potion_offset:Option<i32>,act:u8,m10:bool,card_rarity_offset:Option<i32>}
 const ELITE_RELICS:[RelicId;8]=[RelicId::Lantern,RelicId::Pear,RelicId::Mango,RelicId::MagicFlower,RelicId::ToyOrnithopter,RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial];
 const M10_ELITE_RELICS:[RelicId;19]=[RelicId::Lantern,RelicId::Pear,RelicId::Mango,RelicId::MagicFlower,RelicId::ToyOrnithopter,RelicId::Strawberry,RelicId::Anchor,RelicId::BloodVial,RelicId::Vajra,RelicId::OddlySmoothStone,RelicId::BagOfPreparation,RelicId::BagOfMarbles,RelicId::BronzeScales,RelicId::RedSkull,RelicId::PaperPhrog,RelicId::ChampionsBelt,RelicId::CharonsAshes,RelicId::SelfFormingClay,RelicId::Orichalcum];
 fn capture_with_extra(start:usize,owned:&[RelicId],extra:&[RelicId])->Result<(RelicId,usize),RunError>{
@@ -295,7 +295,105 @@ pub(super) fn chest_opened(run:&mut Run,boss:bool)->Result<(),RunError>{
     Ok(())
 }
 pub(in crate::run) fn prepare_combat(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
+    if is_standard(&run.state){return prepare_standard(run,record)}
     prepare_combat_impl(run,record,None)
+}
+/// The Run state with the live combat's relic inventory and counters (the reward-building view).
+fn combat_inventory_state(run:&Run)->RunState{
+    let mut state=run.state.clone();
+    if let Some(items)=run.state.combat.as_ref().and_then(|combat|combat.item_context()) {
+        state.relics=items.relics().to_vec();
+        state.relic_counters=items.relics().iter().filter_map(|id|{
+            let counter=items.counter(*id);(counter!=0).then_some((*id,counter))
+        }).collect();
+    }
+    state
+}
+/// A card-reward child with previewed upgrades (standard rows).
+fn card_child_rows(next:&mut u64,cards:Vec<(CardId,u32)>,singing_bowl:bool)->Result<RoomView,RunError>{
+    let mut rows=cards.into_iter().map(|(id,upgrades)|(RoomChoiceKind::Card{id,upgrades},None)).collect::<Vec<_>>();
+    if singing_bowl{rows.push((RoomChoiceKind::SingingBowl,None));}
+    rows.push((RoomChoiceKind::Skip,None));view(next,RoomViewKind::CardReward,rows)
+}
+/// The M28 standard combat reward screen (design §6.1; economy research :102-134, :332-343). Room
+/// drops first (gold, stolen gold, elite relic rows, Emerald), then M27's potion appearance, then
+/// the card offers. A Smoke Bomb escape builds the same room drops and potion roll (carry-over 2,
+/// PM source check m6) and discards them: only Proceed is shown and no card offer is generated.
+fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
+    use crate::items::{relic_pools,run_laws,potion_offers};
+    let Some(CombatOrigin::MapRoom{node,kind})=run.state.active_combat.as_ref().map(|a|a.origin) else {return Ok(None)};
+    let escaped=record.outcome==crate::combat::Outcome::Escaped;
+    if !(record.outcome==crate::combat::Outcome::Victory||escaped){return Ok(None)}
+    let combat=run.state.combat.as_ref().ok_or(RunError::InvalidAction)?;
+    let all_escaped=combat.all_enemies_escaped();
+    // The producer state carries the in-combat inventory, as the M27 reward-building seam does.
+    let mut producer=combat_inventory_state(run);
+    let reward_room=match kind{MapNodeKind::Elite=>run_laws::RewardRoom::Elite,MapNodeKind::Boss=>run_laws::RewardRoom::Boss,_=>run_laws::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
+    let mut item_event=crate::items::dispatch::RunItemEvent::RewardsBuilding{room:reward_room,card_choices:3,extra_card_rewards:0,gold_percent:0,extra_elite_relics:0,include_potion:true,singing_bowl:false};
+    // M27 seam: rewards building
+    crate::items::dispatch::run_event(&mut producer.clone(),&mut item_event)?;
+    let crate::items::dispatch::RunItemEvent::RewardsBuilding{gold_percent,extra_elite_relics,include_potion,singing_bowl,..}=item_event else {unreachable!("reward-building event kept its kind")};
+    let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,record.visit,kind as u64];
+    let mut rows=Vec::new();
+    // Gold (economy research :120-131): ordinary 10–20 unless the monsters escaped, elite 25–35,
+    // boss 100 + (−5..5); Golden Idol on the aggregate; stolen gold separate, no bonus.
+    let minimum=match kind{MapNodeKind::Elite=>Some(25),MapNodeKind::Boss=>Some(95),_ if all_escaped=>None,_=>Some(10)};
+    if let Some(minimum)=minimum{
+        let gold=minimum+producer.rng.bounded_scoped_checked(RunRngScope::CombatGoldReward,&key,11)? as u32;
+        rows.push((RoomChoiceKind::Gold(gold),None));
+        apply_gold_bonus(&mut rows,gold_percent)?;
+    }
+    for stolen in combat.stolen_gold_rewards(){rows.push((RoomChoiceKind::Gold(stolen),None));}
+    if kind==MapNodeKind::Elite{
+        // One relic, tier 50/33/17 (M27 ordinary roll), plus Black Star's noncampfire relic.
+        let tier=relic_pools::roll_tier(&mut producer,relic_pools::TierTable::Ordinary,&key);
+        let relic=relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Elite,&key)?;
+        rows.push((RoomChoiceKind::Relic(relic),None));
+        if extra_elite_relics>4{return Err(RunError::Unsupported("extra elite relic count exceeds the native bound"))}
+        for extra in 0..extra_elite_relics{
+            let key=[key[0],key[1],key[2],key[3],key[4],1+u64::from(extra)];
+            let tier=relic_pools::roll_tier(&mut producer,relic_pools::TierTable::Ordinary,&key);
+            let relic=relic_pools::exclude_take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Elite,
+                &[RelicId::Girya,RelicId::PeacePipe,RelicId::Shovel],&key)?;
+            rows.push((RoomChoiceKind::Relic(relic),None));
+        }
+        // Emerald: a separate, unlinked row on the burning elite while unowned.
+        if !producer.keys[2]&&producer.map.as_ref().is_some_and(|map|map.nodes.iter().any(|n|n.id==node&&n.burning)){rows.push((RoomChoiceKind::Emerald,None));}
+    }
+    // M27 potion appearance after the room drops and before the card offer; a player escape rolls
+    // as the won room (monsters escaped only when every enemy fled).
+    let potion_room=match kind{MapNodeKind::Elite=>potion_offers::RewardRoom::Elite,MapNodeKind::Boss=>potion_offers::RewardRoom::Boss,_=>potion_offers::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
+    if include_potion{
+        if let Some(potion)=potion_offers::combat_appearance(&mut producer,potion_room,rows.len(),&key)?{rows.push((RoomChoiceKind::Potion(potion),None));}
+    }
+    let mut next=run.next_choice;
+    let return_to=if kind==MapNodeKind::Boss&&run.state.act<3{RewardReturn::BossTreasure}else{RewardReturn::Map};
+    let commit=|producer:&RunState|(producer.rng.clone(),producer.relic_pools.clone(),Some(producer.potion_offset),producer.card_rarity_offset);
+    if escaped{
+        let screen=view(&mut next,RoomViewKind::Rewards,vec![(RoomChoiceKind::Proceed,None)])?;
+        let (rng,pools,potion_offset,card_offset)=commit(&producer);
+        return Ok(Some(PreparedRoomRewards{screen,rng,next,captured:None,elite_cursor:None,complete_relic_pools:pools,complete_potion_offset:potion_offset,act:run.state.act,m10:false,card_rarity_offset:card_offset}))
+    }
+    // Card offers: M27's shape (Question Card, Busted Crown, Prayer Wheel, N'loth's Gift), then the
+    // standard helper per offer; Prayer Wheel's second offer sees the first offer's `b`.
+    let shape=run_laws::card_reward_shape(&producer,reward_room);
+    let rarity_room=match kind{MapNodeKind::Elite=>super::standard::rewards::RarityRoom::Elite,MapNodeKind::Boss=>super::standard::rewards::RarityRoom::Boss,_=>super::standard::rewards::RarityRoom::Ordinary};
+    let choices=usize::try_from(shape.choices.max(1)).map_err(|_|RunError::InvalidAction)?;
+    if shape.rewards>8||choices>32{return Err(RunError::Unsupported("card reward shape exceeds the native bound"))}
+    let mut cards=view(&mut next,RoomViewKind::CardReward,vec![])?;
+    let mut children=Vec::with_capacity(shape.rewards as usize);
+    for offer in 0..shape.rewards{
+        rows.push((RoomChoiceKind::CardReward,None));
+        let key=[key[0],key[1],key[2],key[3],key[4],0xCA,u64::from(offer)];
+        let offered=super::standard::rewards::ordinary_offer(&mut producer,rarity_room,choices,shape.rare_factor,&key)?;
+        children.push(card_child_rows(&mut next,offered,singing_bowl)?);
+    }
+    append_card_children(&mut cards,children)?;
+    rows.push((RoomChoiceKind::Proceed,None));
+    let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
+    let (rng,pools,potion_offset,card_offset)=commit(&producer);
+    Ok(Some(PreparedRoomRewards{screen,rng,next,captured:Some(CapturedRewards::new(cards,return_to)),elite_cursor:None,
+        complete_relic_pools:pools,complete_potion_offset:potion_offset,act:run.state.act,m10:false,card_rarity_offset:card_offset}))
 }
 #[cfg(test)]
 pub(in crate::run) fn prepare_combat_with_building(run:&Run,record:&CombatRecord,building:crate::items::dispatch::RunItemEvent)->Result<Option<PreparedRoomRewards>,RunError>{
@@ -358,13 +456,7 @@ fn prepare_combat_impl(run:&Run,record:&CombatRecord,mut injected_building:Optio
         let mut item_event=injected_building.take().unwrap_or_else(||crate::items::dispatch::RunItemEvent::RewardsBuilding{
             room:reward_room,card_choices,extra_card_rewards,gold_percent,extra_elite_relics,include_potion,singing_bowl,
         });
-        let mut event_state=run.state.clone();
-        if let Some(items)=run.state.combat.as_ref().and_then(|combat|combat.item_context()) {
-            event_state.relics=items.relics().to_vec();
-            event_state.relic_counters=items.relics().iter().filter_map(|id|{
-                let counter=items.counter(*id);(counter!=0).then_some((*id,counter))
-            }).collect();
-        }
+        let mut event_state=combat_inventory_state(run);
         // M27 seam: rewards building
         crate::items::dispatch::run_event(&mut event_state,&mut item_event)?;
         let crate::items::dispatch::RunItemEvent::RewardsBuilding{
@@ -436,7 +528,7 @@ fn prepare_combat_impl(run:&Run,record:&CombatRecord,mut injected_building:Optio
     // stock, but its reward screen bypasses setup and offers only Proceed.
     if record.outcome==crate::combat::Outcome::Escaped{
         let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,vec![(RoomChoiceKind::Proceed,None)])?;
-        return Ok(Some(PreparedRoomRewards{screen,rng,next,captured:None,elite_cursor,complete_relic_pools,complete_potion_offset,act:run.state.act,m10:m10||m15||m20}))
+        return Ok(Some(PreparedRoomRewards{screen,rng,next,captured:None,elite_cursor,complete_relic_pools,complete_potion_offset,act:run.state.act,m10:m10||m15||m20,card_rarity_offset:None}))
     }
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
     let captured=if is_m25(&run.state)&&run.state.act==4{
@@ -504,12 +596,13 @@ fn prepare_combat_impl(run:&Run,record:&CombatRecord,mut injected_building:Optio
             append_card_children(&mut captured.as_mut().ok_or(RunError::InvalidAction)?.cards,children)?;
         }
     }
-    Ok(Some(PreparedRoomRewards{screen,rng,next,captured,elite_cursor,complete_relic_pools,complete_potion_offset,act:run.state.act,m10:m10||m15||m20}))
+    Ok(Some(PreparedRoomRewards{screen,rng,next,captured,elite_cursor,complete_relic_pools,complete_potion_offset,act:run.state.act,m10:m10||m15||m20,card_rarity_offset:None}))
 }
 pub(in crate::run) fn commit_combat(run:&mut Run,prepared:PreparedRoomRewards){
     run.state.rng=prepared.rng;run.next_choice=prepared.next;
     if let Some(pools)=prepared.complete_relic_pools{run.state.relic_pools=Some(pools);}
     if let Some(offset)=prepared.complete_potion_offset{run.state.potion_offset=offset;}
+    if prepared.card_rarity_offset.is_some(){run.state.card_rarity_offset=prepared.card_rarity_offset;}
     let room=run.state.room_loop.as_mut().unwrap();room.screen=prepared.screen;room.active_rewards=prepared.captured;
     if let Some(cursor)=prepared.elite_cursor{if prepared.m10{room.m10_elite_relic_cursor=cursor}else{match prepared.act{3=>room.act3.as_mut().unwrap().elite_relic_cursor=cursor,2=>room.act2.as_mut().unwrap().elite_relic_cursor=cursor,_=>room.act1.as_mut().unwrap().elite_relic_cursor=cursor}}}
 }
@@ -560,6 +653,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         RoomChoiceKind::OpenChest=>{
             if screen.kind!=RoomViewKind::Treasure{return Err(RunError::InvalidAction)}
+            if is_standard(&run.state){return super::standard::map::open_chest(run)}
             if uses_watcher_content(&run.state){
                 let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
                 let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,run.state.combat_progress.entered,super::m22_content::CHEST_SOURCE_TAG];
@@ -617,7 +711,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
             if run.state.item_admission==ItemAdmission::Complete{
                 let mut staged=run.clone();
                 let obtained=crate::items::obtain_relic(&mut staged.state,relic,source)?;
-                claimed(&mut staged,id);if screen.kind==RoomViewKind::Treasure{exclude_base(&mut staged);}
+                claimed(&mut staged,id);if screen.kind==RoomViewKind::Treasure{exclude_linked(&mut staged,&screen,id);}
                 let transition=crate::items::lifecycle::after_obtain(&mut staged,id,relic,obtained)?;
                 *run=staged;
                 return Ok(transition)
@@ -626,7 +720,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         }
         RoomChoiceKind::Sapphire=>{
             let event=mutations::acquire_key(&mut run.state,Key::Sapphire)?;
-            let reward=reward::commit(&mut run.state,std::slice::from_ref(&event))?;claimed(run,id);exclude_base(run);
+            let reward=reward::commit(&mut run.state,std::slice::from_ref(&event))?;claimed(run,id);exclude_linked(run,&screen,id);
             return Ok(RunTransition{reward,terminal:None,committed_events:vec![event]})
         }
         RoomChoiceKind::Emerald=>{
@@ -656,6 +750,14 @@ fn card_parent(run:&Run)->Result<(),RunError>{
         if room.screen!=child{return Err(RunError::InvalidAction)}
     }
     Ok(())
+}
+/// A Treasure claim disables its alternative: the standard chest links only the base relic and its
+/// Sapphire (economy research :275-291); every captured chest keeps its accepted rule.
+fn exclude_linked(run:&mut Run,screen:&RoomView,claimed:ChoiceId){
+    if !is_standard(&run.state){return exclude_base(run)}
+    if let Some(linked)=super::standard::map::chest_linked(screen,claimed){
+        if let Some(row)=run.state.room_loop.as_mut().unwrap().screen.choices.iter_mut().find(|row|row.id==linked&&row.status==RoomChoiceStatus::Offered){row.status=RoomChoiceStatus::Skipped;}
+    }
 }
 fn exclude_base(run:&mut Run){
     for row in &mut run.state.room_loop.as_mut().unwrap().screen.choices {if matches!(row.kind,RoomChoiceKind::Relic(_)|RoomChoiceKind::Sapphire)&&row.status==RoomChoiceStatus::Offered{row.status=RoomChoiceStatus::Skipped}}
