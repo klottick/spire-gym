@@ -33,6 +33,7 @@ user did not request.
 | Accepted behavior and evidence | [milestone profiles](docs/milestones/) and each profile's linked plan |
 | Frozen combat-v1 and M9/M10 Run contracts | [environment guide](docs/combat-environments.md), [M9](docs/milestones/m9-act3.md), [M10](docs/milestones/m10-heart.md) |
 | Gym66 standalone combat and common policy view | [combat-training guide](docs/combat-training.md) |
+| Opt-in static card metadata descriptor (spire-90f) | [card metadata](docs/card-metadata.md) |
 | M11 finite Silent authored-combat boundary | [M11 profile](docs/milestones/m11-silent-combat.md) |
 | M12 accepted finite Silent Act1 native progression | [M12 profile](docs/milestones/m12-silent-act1.md) and [approval record](docs/superpowers/plans/2026-10-26-m12-silent-act1-approval.md) |
 | M13 accepted finite Silent Acts1–2 native progression | [M13 profile](docs/milestones/m13-silent-act2.md) and [coverage amendment](docs/superpowers/plans/2026-10-26-silent-normal-run-coverage-amendment.md) |

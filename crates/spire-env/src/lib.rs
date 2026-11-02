@@ -27,6 +27,8 @@ mod run_replay;
 mod run_batch;
 mod combat_policy;
 mod combat_training;
+mod card_metadata;
+pub use card_metadata::{card_metadata_descriptor,CARD_METADATA_SCHEMA_ID};
 pub use combat_policy::{defect_combat_observation_spec,encode_defect_combat,RUN_OBSERVATION_POLICY_SCHEMA_ID,policy_run_observation_spec,encode_run_policy,COMBAT_POLICY_VIEW_ID,COMBAT_POLICY_VIEW_V2_ID,CombatPolicyBoundary,combat_policy_capacities,combat_policy_observation_spec,combat_policy_observation_spec_v2};
 pub use combat_training::{CombatTrainingCatalog,CombatTrainingSession,CombatTrainingStep,combat_training_support,combat_training_support_v2,COMBAT_TRAINING_PROFILE_ID,COMBAT_TRAINING_PROFILE_V2_ID,COMBAT_TRAINING_CONTENT_ID,COMBAT_TRAINING_CONTENT_V2_ID,COMBAT_TRAINING_REWARD_ID};
 

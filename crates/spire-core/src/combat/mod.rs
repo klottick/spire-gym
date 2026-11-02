@@ -21,6 +21,8 @@ mod piles;
 mod turns;
 mod status;
 pub(crate) mod card_state;
+mod card_faces;
+pub use card_faces::{static_card_face, static_card_upgrade_limit, StaticCardFace, StaticCost, StaticTarget};
 mod characters;
 pub mod cards;
 mod selection;

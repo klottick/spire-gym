@@ -13,6 +13,7 @@ mod differential_decode;
 mod full_runtime;
 mod full_enemies;
 mod full_cards;
+mod card_faces_live;
 mod selection;
 mod shared_mechanics;
 mod m5_elites;
