@@ -222,3 +222,31 @@ fn m22_burning_elite_nob_regeneration_steps_cleanly(){
     assert!(has_power(&session,false,"regeneration"));
     session.decision().expect("published decision in the burning elite fight");
 }
+
+// spire-oto.2 (fuzz F03): generated CatalogCombat entry, Test partition, seed 8832734076836322328. The
+// choose-none prefix stalls three_shapes until Repulsor's Dazed fill the visible zones; at
+// 3312c052 the last action needed 515 combat_cards rows against the 512-row policy capacity.
+const F03_THREE_SHAPES_ENTRY:&str=r#"{"profile_id":"ironclad-combat-v2","entries":[{"deck":[{"card":"reckless_charge","upgrades":0},{"card":"cleave","upgrades":0},{"card":"pommel_strike","upgrades":0},{"card":"spot_weakness","upgrades":0},{"card":"corruption","upgrades":0},{"card":"feel_no_pain","upgrades":0},{"card":"bloodletting","upgrades":0},{"card":"fiend_fire","upgrades":0},{"card":"true_grit","upgrades":0},{"card":"flame_barrier","upgrades":0}],"encounter":"three_shapes","gold":99,"hp":80,"id":"encounter-27-three_shapes","max_hp":80,"potions":["dexterity_potion",null,null],"relic_counters":{},"relics":["magic_flower"]}]}"#;
+const F03_THREE_SHAPES_SEED:u64=8832734076836322328;
+const F03_THREE_SHAPES_ACTIONS:[i64;234]=[2,0,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0,2,0,0,2,0,0,1,0,0,0,2,0,0,0,1,2,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,1,0,0,0,0,1,0,0,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,1,1,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,1,0,0,1,0,0,1,1,1,1,0,0,1,1,0,0,1,1,0,0,1,0,0,1,0,0,1,0,0,1,1,0,0,0,0,1,0,0,1,1,1,1,1,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,0,0,0,0,0,0,1,0,0,1,0,0,1,0,0,1,0,0,1,0];
+
+#[test]
+fn oto2_long_three_shapes_stall_fits_the_policy_combat_card_capacity(){
+    let catalog=CombatTrainingCatalog::from_json(F03_THREE_SHAPES_ENTRY.as_bytes()).unwrap();
+    let mut session=CombatTrainingSession::new(catalog,Partition::Test).unwrap();
+    let mut token=session.reset(Some(F03_THREE_SHAPES_SEED),Some("encounter-27-three_shapes")).unwrap().token;
+    let mut rows=0;
+    for (i,index) in F03_THREE_SHAPES_ACTIONS.iter().enumerate(){
+        let step=session.step(token,RunActionIndex(*index)).unwrap_or_else(|e|panic!("public prefix action {i}: {e:?}"));
+        assert!(!step.terminated,"public prefix action {i} was not terminal");token=step.boundary.token;
+        rows=step.boundary.observation.group("combat_cards").unwrap().occupied.as_ref().unwrap().iter().filter(|o|**o!=0).count();
+    }
+    assert_eq!(rows,511);
+    // The recorded failing action: the policy's next index 0 (End Turn) adds the last rows.
+    let step=session.step(token,RunActionIndex(0)).expect("the 515-row boundary must encode, not fault on capacity");
+    assert!(!step.terminated);
+    rows=step.boundary.observation.group("combat_cards").unwrap().occupied.as_ref().unwrap().iter().filter(|o|**o!=0).count();
+    assert_eq!(rows,515,"the stall exceeds the former 512-row capacity");
+    assert!(rows<=combat_policy_capacities().combat_cards);
+    assert_eq!(session.diagnostic()["fault"],serde_json::Value::Null);
+}

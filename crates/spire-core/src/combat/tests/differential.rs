@@ -125,6 +125,7 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::Hook(Hook::CardAfterUse) => panic!("M9 v1 cannot encode M10 after-use Heart work"),
         EffectKind::OpenRetainSelection{..} => panic!("M9 v1 cannot encode M11 retain selection work"),
         EffectKind::Hook(hook) => ("hook", json!({"hook":format!("{hook:?}")})),
+        EffectKind::ManualDiscardCallback{..} => panic!("M9 v1 cannot encode a Silent manual-discard callback"),
         EffectKind::PoisonTickComplete => ("poison_tick_complete", json!({})),
         EffectKind::Catalyst => panic!("M9 v1 cannot encode M11 Catalyst work"),
         EffectKind::CorruptHeartBuff => panic!("M9 v1 cannot encode M10 Corrupt Heart work"),

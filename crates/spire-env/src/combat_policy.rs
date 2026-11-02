@@ -1,6 +1,6 @@
 //! Reusable public combat features; no resolver state or hidden identities.
 use crate::{RunObservation,RunObservationSpec,RunCapacities,RunSessionError,RunDecisionToken};
-use spire_core::{run::*,combat::{SelectionParent,Outcome}};
+use spire_core::{run::*,combat::{Phase,SelectionParent,Outcome}};
 use serde_json::{Value,json};
 use sha2::{Digest,Sha256};
 pub const COMBAT_POLICY_VIEW_ID:&str="spire-gym-combat-policy-view-v1";
@@ -10,7 +10,9 @@ const CLOSURE_ENEMIES:&[spire_core::content::EnemyId]=&[
     spire_core::content::EnemyId::Mugger,spire_core::content::EnemyId::ShelledParasite,
     spire_core::content::EnemyId::SnakePlant];
 const GROUPS:&[&str]=&["player","permanent_cards","combat_cards","enemies","powers","relics","potions","selection","selection_counts","actions","combat_state","known_draw"];
-pub fn combat_policy_capacities()->RunCapacities{RunCapacities{map_nodes:1,map_edges:1,permanent_cards:128,combat_cards:512,enemies:16,powers:512,relics:32,potions:3,offers:1,selection:128,orbs:1,actions:1024}}
+// Visible combat cards grow without bound in a stall (Repulsor/Heart status cards); keep
+// the policy row bound equal to the shared Run default so the views share one overflow edge.
+pub fn combat_policy_capacities()->RunCapacities{RunCapacities{map_nodes:1,map_edges:1,permanent_cards:128,combat_cards:RunCapacities::m9_default().combat_cards,enemies:16,powers:512,relics:32,potions:3,offers:1,selection:128,orbs:1,actions:1024}}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct CombatPolicyBoundary{pub observation:RunObservation,pub token:RunDecisionToken,pub info:Value}
 pub fn combat_policy_observation_spec()->Result<RunObservationSpec,RunSessionError>{
@@ -18,7 +20,7 @@ pub fn combat_policy_observation_spec()->Result<RunObservationSpec,RunSessionErr
     d["schema_id"]=json!(COMBAT_POLICY_VIEW_ID);d["profile_id"]=json!("IroncladCombatPolicy");
     d["tensors"].as_array_mut().unwrap().retain(|t|{let key=t["key"].as_str().unwrap();key=="action_mask"||GROUPS.iter().any(|g|key==*g||key==format!("{g}_known")||key==format!("{g}_occupied"))});
     d["semantics"]["dispatch_index"]=json!("actions row is original native decision index; never filter/reorder legal rows");
-    d["semantics"]["lifecycle"]=json!("routing, visit, token and outcome are separate metadata; noncombat mask is empty; resources are current, snapshot when settled count changes");
+    d["semantics"]["lifecycle"]=json!("routing, visit, token, outcome, current combat phase and selection resume phase are separate metadata; noncombat mask is empty; resources are current, snapshot when settled count changes");
     d["semantics"]["terminal_resources"]=json!("settlement clears combat actors; permanent resources remain; HP checkpoints describe last exit, not later noncombat resource changes");
     let mut h=Sha256::new();h.update(b"spire-gym/combat-policy-view/v1\0");h.update(crate::canonical_json(&d).map_err(|_|RunSessionError::Input("invalid combat policy descriptor"))?);
     Ok(RunObservationSpec{descriptor:d,fingerprint:h.finalize().into()})
@@ -73,11 +75,15 @@ pub(crate) fn lifecycle_for_view(d:&PublicDecision,checkpoint:Option<&CombatChec
     let owner=selection.map(|s|match s.parent{SelectionParent::Card(_)=>"card",SelectionParent::Potion{..}=>"potion",
         SelectionParent::Relic(_)=>"relic",SelectionParent::EndTurn{..}=>"end_turn",SelectionParent::Power{..}=>"power"});
     let routing=if combat.is_none(){"noncombat"}else if selection.is_some(){"combat_selection"}else{"combat"};
+    let phase=combat.map(|c|phase_label(c.phase));
+    let selection_resume_phase=combat.and_then(|c|c.selection_resume_phase.map(phase_label));
     let exit=checkpoint.map(|c|json!({"visit":c.record.visit,"encounter":c.record.encounter.as_str(),"outcome":match c.record.outcome{Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"},"hp_before_healing":c.hp_before_healing,"hp_after_cleanup":c.hp_after_cleanup}));
     json!({"combat_view_id":view_id,"active":combat.is_some(),"routing":routing,"selection_owner":owner,
+        "phase":phase,"selection_resume_phase":selection_resume_phase,
         "active_visit":combat.map(|_|d.combat_progress.entered-1),"combats_entered":d.combat_progress.entered,"combats_settled":d.combat_progress.settled,
         "last_exit":exit,"resource_checkpoint":"current; snapshot on settled-count change"})
 }
+fn phase_label(phase:Phase)->&'static str{match phase{Phase::Decision=>"decision",Phase::Selection=>"selection",Phase::PlayerAction=>"player_action",Phase::EnemyTurn=>"enemy_turn",Phase::RoundEnd=>"round_end",Phase::PlayerStart=>"player_start",Phase::Terminal=>"terminal"}}
 pub(crate) fn hex(bytes:&[u8])->String{bytes.iter().map(|x|format!("{x:02x}")).collect()}
 
 pub const RUN_OBSERVATION_POLICY_SCHEMA_ID:&str="spire-gym-run-observation-v3";

@@ -66,8 +66,8 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
         Collect => {
             no_target()?;
             // X-cost: Chemical X adds 2, as for Conjure Blade and every other X card.
-            let chemical_x = if state.item_context.as_ref().is_some_and(|items| items.owns_relic(crate::content::RelicId::ChemicalX)) { 2 } else { 0 };
-            let turns = state.player.energy.checked_add(chemical_x).and_then(|x| x.checked_add(i32::from(up))).ok_or(RunError::InvalidAction)?;
+            let turns = super::super::captured_x(state,card)?.checked_add(super::super::chemical_x_bonus(state)?)
+                .and_then(|x| x.checked_add(i32::from(up))).ok_or(RunError::InvalidAction)?;
             if turns > 0 { vec![power("collect", turns)] } else { vec![] }
         }
         Blasphemy => {

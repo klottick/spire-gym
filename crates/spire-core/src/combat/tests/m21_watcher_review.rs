@@ -24,7 +24,7 @@ fn returns(c:&Combat)->Vec<u64>{c.state.pending.iter().filter_map(|e|match &e.ki
 // cursor tests do. No production injection surface or alternative resolver.
 fn stage_confirm(c:&mut Combat){
     let selection=c.state.pending_selection.take().unwrap();c.state.fault_selection=Some(selection.clone());
-    c.state.phase=c.state.watcher.resume_phase.take().unwrap();
+    c.state.phase=selection.resume.phase;
     let source=match &selection.parent{SelectionParent::Card(id)=>Source::Card(id.clone()),SelectionParent::Power{..}=>Source::Actor(Actor::Player),_=>unreachable!()};
     c.state.pending.push_front(Effect{source,target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::CommitSelection{selection,next:0})});
 }

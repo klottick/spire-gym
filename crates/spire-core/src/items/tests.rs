@@ -1107,3 +1107,15 @@ mod m27_energy_law;
 mod m27_potion_owner;
 mod m27_potion_factory;
 mod m27_cross_character;
+
+#[test]
+fn anchor_bottom_block_resolves_before_a_queued_opening_decision() {
+    // spire-oto.3 (fuzz F04): M20/M21/complete-card entry queues the opening Decision
+    // before resolving CombatStarted; Anchor's bottom-side block must still precede it.
+    use crate::content::Character::{Defect, Ironclad};
+    for (character, context) in [(Defect, CombatItemContext::new(vec![RelicId::Anchor], vec![]).with_m20_profile()),
+        (Ironclad, CombatItemContext::new(vec![RelicId::Anchor], vec![]).with_complete_cards())] {
+        let combat = enter_with_items(full_entry(character, 5, 10), context);
+        assert_eq!(combat.public_full().unwrap().player.block, 10);
+    }
+}

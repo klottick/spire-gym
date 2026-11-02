@@ -72,3 +72,68 @@ descriptors (M20, M22–M25 diagnostic specs) change with their parents. Dated
 milestone profiles and reconciliation records keep the fingerprints accepted at
 their time. Combat-v1 (`schema.rs`, legacy three-power slice) has no power or
 intent name vocabulary and is unchanged.
+
+## 2026-11-02 combat-card capacity (spire-oto.2)
+
+`combat_policy_capacities().combat_cards` (and the `known_draw` rows that share it)
+rose from 512 to the shared Run default of 1024. A generated CatalogCombat
+three_shapes stall reached 515 visible rows (505 Repulsor Dazed) and faulted with
+`Capacity`. Overflow is still a retained fault at the new bound. Schema IDs and
+vocabularies are unchanged; only the row count and descriptor bytes changed.
+The middle column is intermediate: the value with spire-oto.2 alone. The same change
+also adds the spire-oto.8 phase columns below, so the last column is the shipped value.
+
+| View | Previous fingerprint | Intermediate (spire-oto.2 alone) | Shipped (with spire-oto.8) |
+| --- | --- | --- | --- |
+| Combat policy view-v1 | `08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db` | `c70a6ef99bd638e0677a0d00287d64a22489625cc94ea288f09d795f08d3342c` | `4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463` |
+| Combat policy view-v2 | `a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7` | `2877c28eff6b785b31d388c521da4fbcf56439e1e0d688b8c8dfa40137c15293` | `5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b` |
+| M21 Watcher combat at `combat_policy_capacities()` | `bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861` | `ce4e099fc33298229852508f34d26de790774f28c063ab5d2530f0b401e1d122` | `46fef9f50c0e3212dcd0b3d244cdae663c633713e40f578976c06303f267d771` |
+| M16 Defect combat at `combat_policy_capacities()` | `6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7` | `feeffa64c463aee521944f9a85e53446289226fd18518a45c5ebb72581236ef2` | `feeffa64c463aee521944f9a85e53446289226fd18518a45c5ebb72581236ef2` (spire-oto.8 does not change M16) |
+
+The same chunk (spire-oto.7) makes the Watcher public value owner report Deus Ex
+Machina as cost kind `unplayable`, so the card-metadata descriptor fingerprint
+moved from `cb753725f58cec83633d9a51eb4941f622523843fad6ecff0874f79016308112` to
+`b60b66c69bce54a6652442e54bc42a2a446d05ec7efa39bb1b11cf4b8c6ff5fb`, and a visible Deus Ex
+Machina row encodes the unplayable cost kind.
+
+## 2026-11-02 interrupting selection phase (spire-oto.8)
+
+Any selection may now suspend whatever continuation is resolving: an enemy turn,
+a potion and its autoplayed child (Snecko Oil, Distilled Chaos), a card's work after
+its own selection (Burning Pact's draw), or the turn-start queue after the after-draw
+relic phase. Melange's Scry, which opens whenever a shuffle triggers it as in the
+original, is the main source. Every pending selection stores one suspension record
+when it opens: the interrupted phase, the in-play card, the top play frame with its
+card or potion owner, and the once-per-resolution resolver marks already spent.
+Validators check ownership through that record, and every commit path, modal or
+not, restores exactly it before the interrupted queue resumes.
+`CombatPublic` gains `phase` and `selection_resume_phase` for every
+profile. The Watcher `combat_state` group appends `phase,selection_resume_phase`
+(M21–M24 at the end; M25 after `previous_card_type`) with the `combat_phase`
+vocabulary padding=0, decision=1, selection=2, player_action=3, enemy_turn=4,
+round_end=5, player_start=6, terminal=7. Combat-policy lifecycle metadata carries
+the current and resume phases. The resume phase is that record's phase. M9, M10 and M12–M20 tensors are unchanged.
+
+| View | New fingerprint |
+| --- | --- |
+| Combat policy view-v1 | `4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463` |
+| Combat policy view-v2 | `5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b` |
+| M21 Watcher combat | `46fef9f50c0e3212dcd0b3d244cdae663c633713e40f578976c06303f267d771` |
+| M22 Watcher Act1 | `ead825f19203b3da9df19c39e79c7fb5d5f2efaa6d35c2971587fed7e0af1d9a` |
+| M23 Watcher Act2 | `13dbacc4553ad50bef32e5e23ee05d0c6257aad55e0b5b2a134332784fed7613` |
+| M24 Watcher Act3 | `3044b3d2b3ce6edc4343d393cdf1d4eee7733a94752fcd5aac9dd1a021da0332` |
+| M25 Watcher Heart | `a1e637bf29fc28620a9c2e487cfd950462d8680967eb68bb9620e3a38bc5ca67` |
+
+The `CombatPublic` Debug text prints the two fields only while a selection is open,
+so the accepted M13 Silent caller transcripts (`m13_caller_transcripts_unchanged_by_m14_extension`)
+were re-pinned. With those field lines removed, each of the six transcripts hashes
+to its previous pin; nothing else changed:
+
+| Case | Previous transcript SHA-256 | New transcript SHA-256 |
+| --- | --- | --- |
+| 0 | `370ea52171b0c7958d6927cecae5327b82b151504448f51aeff8f758f7d902fa` | `b0242fa54e673cc2b5d4240beb30cbedf9763e8d02e19a3e369e4414a0242622` |
+| 1 | `d715a1e13a6d08472918b9bd637b9ad308437ad1e5cc6cc7128fcfb87c887165` | `d6a2e5c262ad0049e6384fde4d316f414f27671c2fb554ca79405e5334012588` |
+| 2 | `c30e3d6336a9d0059cee1beeeb19c83f6c767d80cd13483a7e3f152b2005165e` | `2b25945623c55c78b74eba0cfa0fc0b8d46535c2aacb2c509538d23d7f5575da` |
+| 3 | `749e206bc53aace53973bea3a5f91305a31baf1d0e8f28265ea5f863b92ced47` | `907f70ed5071e1d4f41c608aa65d6b0022270d553af87eac865cdd614dc885d4` |
+| 4 | `2c42be5086c090b30d5d379512c7c559d809f8055a58e51c4483db0e05d89a34` | `325bfaa6615757e24f66bd8c57c5837c9c3bfd68a624d23b95cbce5bfef7b123` |
+| 5 | `700cb47702ab4ce25ef72d600288798933dac99d7da7e624bc7eb22d7ff7b09e` | `9b8330c1788027c7e35d2ae73c3f19a341bd52dc79623d5304d3f87e29836c33` |

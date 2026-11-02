@@ -63,6 +63,7 @@ fn empty_combat() -> CombatPublic {
         enemies: vec![],
         character: CharacterCombatView { stance: Stance::Neutral, orbs: vec![], orb_dark_damage: vec![], focus: 0 },
         hand: vec![], draw_count: 0, discard: vec![], exhaust: vec![], outcome: None,
+        phase: spire_core::combat::Phase::Decision, selection_resume_phase: None,
         hp_before_healing: None, hp_after_cleanup: None, targets: vec![], selection: None,
         known_draw: vec![], encounter_facing: None, inventory: None, card_offer: None,
     }

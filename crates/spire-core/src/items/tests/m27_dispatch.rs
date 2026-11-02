@@ -60,10 +60,9 @@ const VISIT_ALLOW_LIST: &[(&str, usize)] = &[
     ("items/mod.rs", 10),
     // O: the starter-slot replacement owners (`replace_cracked_core`, `replace_pure_water`).
     ("items/relics.rs", 3),
-    // O: Chemical X fail-closed guards; they match by name so an unrepresented
-    // `Unknown("chemical_x")` also fails closed (accepted M10 autoplay tests).
-    ("combat/cards/ironclad.rs", 1),
-    ("combat/cards/silent/x_repeat.rs", 1),
+    // O: the shared X bonus reader matches by name so unrepresented `Unknown("chemical_x")`
+    // identities still fail closed (accepted M10 autoplay tests).
+    ("combat/cards/mod.rs", 1),
     // O: the public inventory copy and the M22 diagnostic checkpoint.
     ("combat/engine.rs", 1),
     ("combat/m22_diagnostics.rs", 1),

@@ -468,7 +468,8 @@ fn m25_generation_all_watcher_cards_base_plus_census() {
         assert_eq!((card.id, card.upgrades, card.local.mutable_combat_cost, card.local.turn_cost), (*id, *up, cost, cost), "{id:?}+{up} cost");
         let public = cards::public_values(card).expect("M25 card exposes public values");
         assert_eq!((public.base_damage, public.base_block, public.magic_number), (card.local.base_damage, card.local.base_block, card.local.magic_number), "{id:?}+{up} public values");
-        assert_eq!(public.cost_kind, if matches!(id, Collect | ConjureBlade) { CardCostKind::X } else { CardCostKind::Fixed }, "{id:?}+{up} cost kind");
+        assert_eq!(public.cost_kind, if matches!(id, Collect | ConjureBlade) { CardCostKind::X }
+            else if *id==DeusExMachina { CardCostKind::Unplayable } else { CardCostKind::Fixed }, "{id:?}+{up} cost kind");
         if *up == 0 {
             let temporary = card_state::upgrade_live_card(&combat.state, card).unwrap_or_else(|error| panic!("temporary upgrade {id:?}: {error:?}"));
             let expected = m25_watcher_live_card(*id, CardInstanceId(20_000 + instance), 1).unwrap();

@@ -158,8 +158,8 @@ fn named(key: &str, name: &str) -> Result<i64, RunSessionError> {
 pub(crate) fn groups(caps: &RunCapacities) -> Vec<v1::GroupSpec> {
     let mut groups = m21::groups(caps);
     if let Some(state) = groups.iter_mut().find(|row| row.key == "combat_state") {
-        state.fields = "facing,surrounded,heart_damage_remaining,heart_cap,previous_card_type";
-        state.units = "category,flag,allowance,allowance,category";
+        state.fields = "facing,surrounded,heart_damage_remaining,heart_cap,previous_card_type,phase,selection_resume_phase";
+        state.units = "category,flag,allowance,allowance,category,category,category";
     }
     groups.extend(m15::groups(caps).into_iter().filter(|row| row.key == "combat_card_offers"));
     if let Some(offers) = groups.iter_mut().find(|row| row.key == "combat_card_offers") {
@@ -216,6 +216,7 @@ pub fn m25_run_observation_spec(caps: &RunCapacities) -> Result<RunObservationSp
     semantics["terminal"] = json!("ongoing, death, empty_deck, act3_no_keys and heart_victory; HeartVictory follows the final Proceed");
     semantics["ending"] = json!("HeartVictory only after the actual final Act4 Proceed; TrueVictory is the terminal room");
     semantics["act4"] = json!("the accepted M20 Act4 map, ShieldAndSpear and CorruptHeart rooms, and Heart ending");
+    semantics["combat_phases"] = json!("combat_state.phase uses combat_phase codes; selection_resume_phase is the saved continuation phase, or padding when no selection is paused");
     semantics["wish_choice_offer_encoding"] = json!("combat_card_offers first-column positive IDs reference card rows; negative one-based IDs reference wish_choice rows, in the owner-provided order");
 
     let mut spec = m10::spec_from_vocabulary(

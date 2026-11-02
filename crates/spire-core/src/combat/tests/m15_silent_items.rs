@@ -196,6 +196,52 @@ fn m15_silent_manual_discard_queues_bandages_tingsha_and_once_per_turn_kite() {
 }
 
 #[test]
+fn m15_tools_of_the_trade_turn_start_discard_runs_manual_discard_callback() {
+    let cards = [CardId::ToolsOfTheTrade; 10];
+    let mut combat = enter(entry(&cards, 5, 1, EnemyId::Cultist,
+        FullIntentId::Incantation, &[], &[]), vec![RelicId::ToughBandages], vec![]);
+    let tools = combat.public_full().unwrap().hand.iter()
+        .find(|card| card.id == CardId::ToolsOfTheTrade).unwrap().instance.0;
+    combat.step_full(&CombatAction::PlayCard { instance: tools, target: None }).unwrap();
+    combat.step_full(&CombatAction::EndTurn).unwrap();
+
+    let selection = combat.public_full().unwrap().selection.expect("Tools of the Trade opens its turn-start discard choice");
+    assert_eq!(selection.parent, crate::combat::selection::SelectionParent::Power {
+        turn: combat.state.turn, id: crate::combat::FullPowerId("tools_of_the_trade") });
+    assert_eq!(selection.operation, crate::combat::selection::SelectionOperation::Move(
+        crate::combat::selection::SelectionDisposition::Discard));
+    let selected = selection.candidates[0].instance.0;
+    let selected_handle = crate::combat::card_state::handle(crate::combat::CardInstanceId(selected));
+    let mut unrelated_probe = combat.state.clone();
+    let mut retained_selection = unrelated_probe.pending_selection.as_ref().unwrap().clone();
+    retained_selection.selected.push(selected_handle.clone());
+    unrelated_probe.fault_selection = Some(retained_selection);
+    unrelated_probe.phase = crate::combat::Phase::PlayerStart;
+    let selected_index = unrelated_probe.piles.hand.iter().position(|card| card.handle() == selected_handle).unwrap();
+    let moved = unrelated_probe.piles.hand.remove(selected_index);
+    unrelated_probe.piles.discard.push(moved);
+    let unrelated_handle = crate::combat::card_state::handle(crate::combat::CardInstanceId(
+        selection.candidates.iter().find(|card| card.instance.0 != selected).unwrap().instance.0));
+    let unrelated_index = unrelated_probe.piles.hand.iter().position(|card| card.handle() == unrelated_handle).unwrap();
+    let unrelated_card = unrelated_probe.piles.hand.remove(unrelated_index);
+    let unrelated = unrelated_card.handle();
+    unrelated_probe.piles.discard.push(unrelated_card);
+    let unrelated_hook = Effect { source: Source::Card(unrelated), target: None,
+        kind: EffectKind::Hook(Hook::CardManuallyDiscarded) };
+
+    combat.step_full(&CombatAction::SelectCard { instance: selected })
+        .expect("the selected card's manual-discard callback is valid across PlayerStart");
+    assert!(crate::combat::engine::validate_effect(&unrelated_hook, &unrelated_probe).is_err(),
+        "a different card already in discard is not authorized by this selection");
+
+    let view = combat.public_full().unwrap();
+    assert!(view.discard.iter().any(|card| card.instance.0 == selected));
+    assert_eq!(view.player.block, 3, "Tough Bandages responds to the actual Tools of the Trade discard");
+    assert_eq!(combat.state.hook_events.iter()
+        .filter(|event| event.hook == Hook::CardManuallyDiscarded).count(), 1);
+}
+
+#[test]
 fn m15_tingsha_rng_fault_retains_prior_bandages_and_kite_work_without_retry() {
     let cards = [CardId::DaggerThrow, CardId::StrikeGreen, CardId::DefendGreen,
         CardId::StrikeGreen, CardId::StrikeGreen, CardId::StrikeGreen, CardId::StrikeGreen];

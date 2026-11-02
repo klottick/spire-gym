@@ -62,9 +62,7 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
         Beta => vec![create_shuffled(Omega, 1, state)?],
         ConjureBlade => {
             let mut hits = super::super::captured_x(state, card)?;
-            if state.item_context.as_ref().is_some_and(|items| items.owns_relic(crate::content::RelicId::ChemicalX)) {
-                hits = hits.checked_add(2).ok_or(RunError::InvalidAction)?;
-            }
+            hits = hits.checked_add(super::super::chemical_x_bonus(state)?).ok_or(RunError::InvalidAction)?;
             if up { hits = hits.checked_add(1).ok_or(RunError::InvalidAction)?; }
             let (payload_target, mut create) = create_shuffled(Expunger, 1, state)?;
             let EffectKind::Watcher(WatcherEffect::CreateShuffled { template, .. }) = &mut create else { unreachable!() };

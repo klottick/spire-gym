@@ -17,10 +17,10 @@ const FROZEN:&[(&str,&str)]=&[
  ("m14","72e75d8357ebbbba2b905f381262a99a4385c670d9fa20fa8cd008f4b90fb827"),("m15","ab9fd38b68e7bd276526e136caf58fbbf6f0ef5916eb67fcba20fd91b54004f1"),
  ("m17","eeb45fcedd185710aeb0e5cb58ca619cc5927861cebda39b1612ff1500887a92"),("m18","6a4bb8526357f0264ae0cad8ccaad8015a0a3d360a678d236d94afe21a4ac967"),
  ("m19","b2aa0b85a83a51171524a7487ab7cb3ed450e00811bd7f00c472e358a0220b15"),("m20","3f11018081cfe0a2e9e69c87d57a57bd4043df2496c6d2c539dd74b0bf20fb56"),
- ("m22","2e4bcade98a3ab7beb402fca027aaed460bae6a26ff545754e3fa3b7e9e6b9bb"),("m23","5b5f5ed8438b94d14bdb2cfa362229ddcb54df0a1091ba3ccb6ecfbdb87ff8bb"),
+ ("m22","ead825f19203b3da9df19c39e79c7fb5d5f2efaa6d35c2971587fed7e0af1d9a"),("m23","13dbacc4553ad50bef32e5e23ee05d0c6257aad55e0b5b2a134332784fed7613"),
  ("policy","28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
- ("combat_v1","08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),("combat_v2","a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
- ("m21","bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861"),("m16","6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7"),
+ ("combat_v1","4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463"),("combat_v2","5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b"),
+ ("m21","46fef9f50c0e3212dcd0b3d244cdae663c633713e40f578976c06303f267d771"),("m16","feeffa64c463aee521944f9a85e53446289226fd18518a45c5ebb72581236ef2"),
 ];
 // Oracles from the A1 source sweep of the 16 Act3 setup/AI owners (path:line table in the delivery evidence), not the implementation.
 const ACT3_INTENTS:&[&str]=&["orb_claw","orb_laser","repulsor_attack","repulsor_daze","exploder_attack","exploder_explode","spiker_attack","spiker_buff","growth_quick","growth_constrict","growth_smash","transient_attack","maw_roar","maw_nom","maw_drool","maw_slam","darkling_harden","darkling_nip","darkling_chomp","darkling_regrowing","darkling_reincarnate","writhing_multi","writhing_block","writhing_debuff","writhing_parasite","writhing_big","head_count","head_glare","head_time","nemesis_tri","nemesis_burn","nemesis_scythe","repto_spawn","repto_snake","repto_bite","dagger_wound","dagger_explode","incantation","attack","awa_slash","awa_echo","awa_soul","awa_sludge","awa_tackle","awa_rebirth","time_haste","time_reverb","time_slam","time_ripple","deca_beam","deca_square","donu_beam","donu_circle","chomp","thrash","bellow","sphere_activate","sphere_debuff","sphere_slam","sphere_harden"];

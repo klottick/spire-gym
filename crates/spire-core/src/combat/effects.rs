@@ -133,7 +133,10 @@ fn queue_relic_work_with_startup_order(state:&mut State,work:crate::items::Relic
     if preserve_finite_startup_order||state.item_context.as_ref().is_some_and(|items|items.complete_items()) {
         for effect in work.bottom{super::enemies::act2::bottom(state,effect);}
     } else {
-        for effect in work.bottom{state.pending.push_back(effect);}
+        // Bottom work joins the current queue ahead of an already queued player decision
+        // (M20/M21/complete-card entry queues the opening Decision before CombatStarted).
+        let mut at=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap_or(state.pending.len());
+        for effect in work.bottom{state.pending.insert(at,effect);at+=1;}
     }
     Ok(())
 }
@@ -934,50 +937,8 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         EffectKind::Defect(work)=>super::cards::defect::apply(state,effect,work)?,
         EffectKind::Colorless(work)=>super::cards::apply_colorless(state,effect,work)?,
         EffectKind::OpenRetainSelection{limit}=>super::cards::apply_silent_retain_selection(state,effect,*limit)?,
-        EffectKind::Hook(hook) => {
-            if state.full_runtime {
-                // Darkling downing calls the same source death callbacks without
-                // becoming final actor death or combat settlement.
-                let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
-                if *hook==Hook::CombatSettled{state.hp_before_healing=Some(state.player.hp);}
-                super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
-                let hp = state.player.hp;
-
-                if *hook==Hook::CombatSettled&&hp>0 {
-                    if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
-                        state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;
-                        items.collar_activated=false;
-                    }
-                }
-                // The one relic phase dispatch for this checkpoint (M27 design §6.2). Battle-start
-                // enemy debuffs and Brimstone's monster Strength are their relics' own work (G4).
-                // Every relic all-enemy producer reads live_enemies, the shared targetable() set.
-                let enemies=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
-                let live_enemies=state.enemies.iter().filter(|enemy|enemy.targetable())
-                    .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
-                let has_empty_orb=state.character.orb_slots.iter().any(Option::is_none);
-                let mut facts=crate::items::dispatch::PhaseFacts::new(Some(callback),hp,state.player.max_hp,state.player.block);
-                facts.target=effect.target.as_ref();facts.source=Some(&effect.source);
-                facts.enemies=&enemies;facts.live_enemies=&live_enemies;facts.has_empty_orb=has_empty_orb;
-                if matches!(callback,Hook::CardDrawn|Hook::CardPlayed|Hook::CardAfterUse|Hook::CardManuallyDiscarded){
-                    facts.card=phase_card_facts(state,&effect.source);
-                }
-                if matches!(callback,Hook::CombatStarted|Hook::CombatStartedPreDraw){fill_combat_entry_facts(&mut facts,state);}
-                let preserve_finite_startup_order=callback==Hook::CombatStarted
-                    &&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile());
-                let mut work = if let Some(context) = state.item_context.as_mut() {
-                    crate::items::relic_phase_effects(context,&facts)?
-                } else {
-                    crate::items::relic_phase_effects(&mut crate::items::CombatItemContext::default(),&facts)?
-                };
-                super::cards::watcher::capture(state,&mut work.top)?;
-                super::cards::watcher::capture(state,&mut work.bottom)?;
-                if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
-                queue_relic_work_with_startup_order(state,work,preserve_finite_startup_order)?;
-                state.hook_events.push(HookEvent { hook: *hook,
-                    source: effect.source.clone(), target: effect.target.clone() });
-            }
-        }
+        EffectKind::ManualDiscardCallback{..} => apply_hook(state,effect,&Hook::CardManuallyDiscarded)?,
+        EffectKind::Hook(hook) => apply_hook(state,effect,hook)?,
         EffectKind::OpeningHand{count}=>{
             let count=super::piles::opening_hand_count(state,*count);
             if count>0{let callback=super::piles::deal_opening_one(state);if count>1{state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::OpeningHand{count:count-1}});}if let Some(callback)=callback{state.pending.push_front(callback);}}
@@ -1071,9 +1032,7 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
             (id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(state)&&id.0=="foresight"))
                 &&state.phase==Phase::PlayerStart&&state.in_play.is_none()
                 &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
-            ||id.0=="melange"&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
-                &&matches!(state.phase,Phase::PlayerStart|Phase::PlayerAction)
-                &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))=>(),
+            ||id.0=="melange"&&super::cards::watcher::melange_scry_source(state))=>(),
         super::selection::SelectionParent::EndTurn{turn} if state.full_runtime&&*turn==state.turn
             &&state.phase==super::Phase::EnemyTurn&&state.in_play.is_none()
             &&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1=>(),
@@ -1084,7 +1043,11 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     }
     let candidate_zone=infer_selection_zone(state,&candidates)?;
     if candidate_zone!=source_zone{return Err(InputError::Invariant("selection candidates do not match declared source zone".into()).into())}
-    state.pending_selection = Some(PendingSelection { parent,source_zone,candidates,selected: Vec::new(),operation:SelectionOperation::Move(disposition),
+    // Any selection suspends whatever continuation is resolving; the shared
+    // record is the only owner of where every commit path resumes.
+    let resume=super::selection::suspend(state);
+    super::selection::validate_resume(state,&resume)?;
+    state.pending_selection = Some(PendingSelection { parent,source_zone,resume,candidates,selected: Vec::new(),operation:SelectionOperation::Move(disposition),
         minimum,maximum, disposition, empty });
     state.phase = Phase::Selection;
     Ok(())
@@ -1094,5 +1057,51 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
 pub(in crate::combat) fn gain_energy(state:&mut State,amount:i32,capped:bool)->Result<(),InputError>{
     state.player.energy=if capped{state.player.energy.saturating_add(amount).min(999)}
         else{state.player.energy.checked_add(amount).filter(|energy|*energy<=999).ok_or_else(||InputError::Unsupported("player energy overflow".into()))?};
+    Ok(())
+}
+
+fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError>{
+    if state.full_runtime {
+        // Darkling downing calls the same source death callbacks without
+        // becoming final actor death or combat settlement.
+        let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
+        if *hook==Hook::CombatSettled{state.hp_before_healing=Some(state.player.hp);}
+        super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
+        let hp = state.player.hp;
+
+        if *hook==Hook::CombatSettled&&hp>0 {
+            if let Some(items)=state.item_context.as_mut().filter(|items|items.collar_activated){
+                state.player.max_energy=state.player.max_energy.checked_sub(1).filter(|n|*n>0).ok_or_else(||InputError::Invariant("Collar cleanup master energy invalid".into()))?;
+                items.collar_activated=false;
+            }
+        }
+        // The one relic phase dispatch for this checkpoint (M27 design §6.2). Battle-start
+        // enemy debuffs and Brimstone's monster Strength are their relics' own work (G4).
+        // Every relic all-enemy producer reads live_enemies, the shared targetable() set.
+        let enemies=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
+        let live_enemies=state.enemies.iter().filter(|enemy|enemy.targetable())
+            .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
+        let has_empty_orb=state.character.orb_slots.iter().any(Option::is_none);
+        let mut facts=crate::items::dispatch::PhaseFacts::new(Some(callback),hp,state.player.max_hp,state.player.block);
+        facts.target=effect.target.as_ref();facts.source=Some(&effect.source);
+        facts.enemies=&enemies;facts.live_enemies=&live_enemies;facts.has_empty_orb=has_empty_orb;
+        if matches!(callback,Hook::CardDrawn|Hook::CardPlayed|Hook::CardAfterUse|Hook::CardManuallyDiscarded){
+            facts.card=phase_card_facts(state,&effect.source);
+        }
+        if matches!(callback,Hook::CombatStarted|Hook::CombatStartedPreDraw){fill_combat_entry_facts(&mut facts,state);}
+        let preserve_finite_startup_order=callback==Hook::CombatStarted
+            &&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile());
+        let mut work = if let Some(context) = state.item_context.as_mut() {
+            crate::items::relic_phase_effects(context,&facts)?
+        } else {
+            crate::items::relic_phase_effects(&mut crate::items::CombatItemContext::default(),&facts)?
+        };
+        super::cards::watcher::capture(state,&mut work.top)?;
+        super::cards::watcher::capture(state,&mut work.bottom)?;
+        if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
+        queue_relic_work_with_startup_order(state,work,preserve_finite_startup_order)?;
+        state.hook_events.push(HookEvent { hook: *hook,
+            source: effect.source.clone(), target: effect.target.clone() });
+    }
     Ok(())
 }

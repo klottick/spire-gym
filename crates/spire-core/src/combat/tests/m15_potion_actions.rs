@@ -1,6 +1,6 @@
 use crate::combat::{Actor, Combat, CombatAction, CombatEntry, CombatCardRef,
     DamagePayload, EffectKind, EnemyHandle, FullCombatSetup, FullEnemySetup, FullIntentId,
-    FullPowerEntry, Hook, LiveCard, PlayerState, PowerState, Source};
+    FullPowerEntry, Hook, LiveCard, Phase, PlayerState, PowerState, Source};
 use crate::combat::rng::{Domain, StreamId, StreamState};
 use crate::content::{CardId, Character, EnemyId, PotionId, RelicId};
 use crate::items::CombatItemContext;
@@ -233,7 +233,7 @@ fn m15_distilled_chaos_holds_potion_parent_through_child_selection_and_resumes_q
     assert!(matches!(frame.parent_owner, crate::combat::model::PlayFrameParentOwner::Potion { slot: 0, id: PotionId::DistilledChaos }));
     assert!(frame.parent.is_none() && frame.parent_context.is_none());
     assert_eq!(combat.state.pending.iter().filter(|effect| matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard { target: Some(_) }))).count(), 2,
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard { target: Some(_), .. }))).count(), 2,
         "remaining use-time target proposals are already captured while the first child is suspended");
     combat.validate_runtime_for_test().unwrap();
     combat.step_full(&CombatAction::SelectCard { instance: 1 }).unwrap();
@@ -254,7 +254,7 @@ fn m15_distilled_chaos_bark_captures_all_six_targets_before_first_child_resolves
     use_potion(&mut combat);
     assert_eq!(combat.state.phase,crate::combat::Phase::Selection);
     assert_eq!(combat.state.pending.iter().filter(|effect|matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(_)}))).count(),5,
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(_),..}))).count(),5,
         "all five remaining proposals are captured before the first child's selection suspends");
     combat.step_full(&CombatAction::SelectCard{instance:1}).unwrap();
     assert_eq!(combat.state.phase,crate::combat::Phase::Decision);
@@ -299,14 +299,14 @@ fn m15_distilled_chaos_queue_cancellation_preserves_unmaterialized_top_actions()
     if let Some(card)=child.full_mut(){card.local.free_play=true;}
     combat.state.queued_autoplay.insert(handle.clone(),child);
     combat.state.pending.push_back(crate::combat::Effect{source:Source::Potion{slot:0,id:PotionId::DistilledChaos},target:None,
-        kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(target.clone())})});
+        kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(target.clone()),energy_on_use:combat.state.player.energy})});
     combat.state.pending.push_back(crate::combat::Effect{source:Source::Potion{slot:0,id:PotionId::DistilledChaos},target:None,
         kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{child:handle.clone(),target:Some(target),
-            energy_on_use:-1,cancelled:false})});
+            energy_on_use:combat.state.player.energy,cancelled:false})});
     combat.state.phase=crate::combat::Phase::PlayerAction;
     crate::combat::cards::ironclad::autoplay::cancel_pending_card_queue(&mut combat.state);
     assert!(matches!(combat.state.pending.front().map(|effect|&effect.kind),Some(EffectKind::Potion(
-        crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(_)}))),"Awakened/Time Eater cancellation retains captured but unmaterialized top-card actions");
+        crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(_),..}))),"Awakened/Time Eater cancellation retains captured but unmaterialized top-card actions");
     assert!(matches!(combat.state.pending.back().map(|effect|&effect.kind),Some(EffectKind::Potion(
         crate::combat::PotionEffect::DistilledChaosQueuedChild{child:queued,cancelled:true,..})) if queued==&handle));
     combat.validate_runtime_for_test().unwrap();
@@ -317,24 +317,24 @@ fn m15_distilled_chaos_queue_cancellation_preserves_unmaterialized_top_actions()
 }
 
 #[test]
-fn m15_typed_play_frame_preserves_legacy_card_debug_shape() {
+fn m15_typed_play_frame_debug_includes_resume_phase() {
     use crate::combat::model::{FinishDisposition,OwnedCard,PlayContext,PlayFrame,PlayFrameParentOwner};
     let parent=OwnedCard::Full(crate::combat::card_state::permanent(CardId::Havoc,crate::combat::CardInstanceId(90),0));
     let parent_handle=parent.handle();
     let child=crate::combat::card_state::handle(crate::combat::CardInstanceId(91));
     let context=PlayContext{card:parent_handle.clone(),target:None,energy_on_use:-1,paid:0,disposition:FinishDisposition::Natural};
     let frame=PlayFrame{parent:Some(parent),parent_owner:PlayFrameParentOwner::Card(parent_handle.clone()),
-        parent_context:Some(context),child:child.clone(),target:None,captured_energy:-1,paid:0,
+        parent_context:Some(context),child:child.clone(),target:None,resume_phase:Phase::PlayerAction,captured_energy:-1,paid:0,
         disposition:FinishDisposition::Natural,parent_finish_checkpoint_done:false};
     let debug=format!("{frame:?}");
-    let expected=format!("PlayFrame {{ parent: {:?}, parent_handle: {:?}, parent_context: {:?}, child: {:?}, target: None, captured_energy: -1, paid: 0, disposition: Natural, parent_finish_checkpoint_done: false }}",
+    let expected=format!("PlayFrame {{ parent: {:?}, parent_handle: {:?}, parent_context: {:?}, child: {:?}, target: None, resume_phase: PlayerAction, captured_energy: -1, paid: 0, disposition: Natural, parent_finish_checkpoint_done: false }}",
         frame.parent,parent_handle,frame.parent_context,child);
-    assert_eq!(debug,expected,"Card-owned frames retain the prior Debug field names, order, and bytes");
+    assert_eq!(debug,expected,"Card- and potion-owned frames expose their saved resume phase");
 
     let potion=PlayFrame{parent:None,parent_owner:PlayFrameParentOwner::Potion{slot:0,id:PotionId::DistilledChaos},
-        parent_context:None,child,target:None,captured_energy:-1,paid:0,disposition:FinishDisposition::Natural,
+        parent_context:None,child,target:None,resume_phase:Phase::PlayerAction,captured_energy:-1,paid:0,disposition:FinishDisposition::Natural,
         parent_finish_checkpoint_done:false};
-    assert_eq!(format!("{potion:?}"),"PlayFrame { parent: None, parent_handle: Potion { slot: 0, id: DistilledChaos }, parent_context: None, child: CardHandle(\"91\"), target: None, captured_energy: -1, paid: 0, disposition: Natural, parent_finish_checkpoint_done: false }");
+    assert_eq!(format!("{potion:?}"),"PlayFrame { parent: None, parent_handle: Potion { slot: 0, id: DistilledChaos }, parent_context: None, child: CardHandle(\"91\"), target: None, resume_phase: PlayerAction, captured_energy: -1, paid: 0, disposition: Natural, parent_finish_checkpoint_done: false }");
 }
 
 #[test]

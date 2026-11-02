@@ -50,6 +50,16 @@ fn m20_defect_interactions_shield_spear_facing_and_multi_hit_reactions(){
     let before_channels=c.state.defect.lightning_channeled;let hp=c.state.player.hp;let owner=c.state.enemies[1].instance_id.clone();enemies::act(&mut c.state,&owner).unwrap();assert_eq!(engine::resolve(&mut c.state).status,TransitionStatus::Decision);
     assert!(c.state.player.hp<hp);assert_eq!(c.state.defect.lightning_channeled-before_channels,2,"post-change-damage onAttacked sees zero for the Buffer-prevented first hit");assert!(engine::validate_runtime(&c.state).is_ok());
 }
+
+#[test]
+fn m20_defect_interactions_fire_potion_refreshes_surrounded_intents(){
+    let mut c=enter(EncounterId::ShieldAndSpear,&[CardId::Buffer],vec![],vec![Some(PotionId::FirePotion),None,None]);
+    assert_eq!(c.state.enemies[0].intent_damage,Some(12));
+    c.step_full(&CombatAction::UsePotion{slot:0,target:Some(TargetId(2))}).unwrap();
+    assert_eq!(c.state.facing,Some(PlayerFacing::Right));
+    engine::validate_runtime(&c.state).unwrap();
+    assert_eq!(c.state.enemies[0].intent_damage,Some(18));
+}
 #[test]
 fn m20_defect_interactions_beat_buffer_repeat_and_lethal_cancellation(){
     let mut c=enter(EncounterId::CorruptHeart,&[CardId::Buffer,CardId::Glacier],vec![],vec![None;3]);

@@ -532,7 +532,17 @@ pub(super) fn discard_selected_card(state: &mut State, card: OwnedCard, manual_h
     discard_selected_card_ordered(state,card,manual_hand_discard,false)
 }
 
+/// The selected card of a confirmed selection; its manual-discard callback is
+/// tagged with that origin rather than inferred from the resolving phase.
+pub(super) fn discard_committed_selection_card(state:&mut State,card:OwnedCard,manual_hand_discard:bool)->Result<(),InputError>{
+    discard_with_origin(state,card,manual_hand_discard,false,super::model::ManualDiscardOrigin::SelectionCommit)
+}
+
 pub(super) fn discard_selected_card_ordered(state:&mut State,card:OwnedCard,manual_hand_discard:bool,increment_first:bool)->Result<(),InputError>{
+    discard_with_origin(state,card,manual_hand_discard,increment_first,super::model::ManualDiscardOrigin::Direct)
+}
+
+fn discard_with_origin(state:&mut State,card:OwnedCard,manual_hand_discard:bool,increment_first:bool,origin:super::model::ManualDiscardOrigin)->Result<(),InputError>{
     let handle = card.handle();
     let live = card.full().cloned();
     state.piles.discard.push(card);
@@ -556,7 +566,7 @@ pub(super) fn discard_selected_card_ordered(state:&mut State,card:OwnedCard,manu
                 .iter().any(|relic|items.owns_relic(*relic)));
         if has_m15_discard_listener {
             let notification = Effect { source: Source::Card(handle), target: None,
-                kind: EffectKind::Hook(Hook::CardManuallyDiscarded) };
+                kind: EffectKind::ManualDiscardCallback { origin } };
             super::engine::validate_effect(&notification, state)?;
             state.pending.push_front(notification);
         }

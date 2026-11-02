@@ -40,18 +40,20 @@ fn m21_watcher_numeric_selection_orders_costs_flags_and_stance_choices(){
  c.hand[0].values.as_mut().unwrap().base_damage=Some(18);c.hand[0].values.as_mut().unwrap().base_block=Some(11);let w=c.hand[0].watcher.as_mut().unwrap();w.combat_cost=Some(1);w.turn_cost=Some(0);w.self_retain=true;w.retain=true;
  let a=c.hand[0].clone();let b=c.hand[1].clone();
  c.selection=Some(SelectionView{parent:SelectionParent::Power{turn:1,id:FullPowerId("foresight")},source_zone:SelectionSourceZone::Draw,disposition:SelectionDisposition::Discard,operation:SelectionOperation::Scry,required:0,minimum:0,maximum:2,candidates:vec![a.clone(),b.clone()],selected:vec![b.instance,a.instance]});
+ c.phase=Phase::Selection;c.selection_resume_phase=Some(Phase::EnemyTurn);
  d.candidates.clear();
  let caps=combat_policy_capacities();let o=encode_watcher_combat(&d,&caps).unwrap();assert_eq!(o.group("player").unwrap().values[8],3);assert_eq!(o.group("player").unwrap().values[12],23);
+ let state=o.group("combat_state").unwrap();assert_eq!(&state.values[4..6],&[2,4]);assert_eq!(&state.known[4..6],&[1,1]);
  let rows=o.group("selection").unwrap();assert_eq!(&rows.values[..6],&[4,0,1,1,0,2]);assert_eq!(&rows.values[6..12],&[4,1,1,1,1,1]);assert_eq!(&rows.known[..12],&[1;12]);
  let c=o.group("combat_cards").unwrap();assert_eq!([c.values[8],c.values[9],c.values[19],c.values[20],c.values[21],c.values[22]],[18,11,1,0,1,1]);
- let c=d.combat.as_mut().unwrap();c.selection=None;c.stance_choice={let mut start=supplied(&[CardId::DefendPurple]);if let M21WatcherCombatStart::Supplied(r)=&mut start{r.potions[0]=Some(PotionId::StancePotion);}let mut r=core(start);r.step(&GameAction::Combat(CombatAction::UsePotion{slot:0,target:None})).unwrap();r.decision().unwrap().combat.unwrap().stance_choice};
+ let c=d.combat.as_mut().unwrap();c.phase=Phase::Decision;c.selection_resume_phase=None;c.selection=None;c.stance_choice={let mut start=supplied(&[CardId::DefendPurple]);if let M21WatcherCombatStart::Supplied(r)=&mut start{r.potions[0]=Some(PotionId::StancePotion);}let mut r=core(start);r.step(&GameAction::Combat(CombatAction::UsePotion{slot:0,target:None})).unwrap();r.decision().unwrap().combat.unwrap().stance_choice};
  d.candidates=vec![Candidate{id:ChoiceId(0),action:GameAction::Combat(CombatAction::ChooseStance{stance:Stance::Wrath}),label:"stance",neow_offer:None,object:None},Candidate{id:ChoiceId(1),action:GameAction::Combat(CombatAction::ChooseStance{stance:Stance::Calm}),label:"stance",neow_offer:None,object:None}];
  let o=encode_watcher_combat(&d,&caps).unwrap();let g=o.group("stance_choices").unwrap();assert_eq!(g.values,vec![1,2]);assert_eq!(g.occupied,Some(vec![1,1]));let g=o.group("actions").unwrap();assert_eq!(g.values[8],0);assert_eq!(g.values[17],1);assert_eq!(g.known[8],1);assert_eq!(g.known[17],1);assert_eq!(&o.action_mask[..3],&[1,1,0]);
 }
 #[test]
 fn m21_watcher_semantic_replay_preserves_scry_and_deselection(){
  let start=supplied(&[CardId::ThirdEye;8]);let mut r=core(start.clone());let mut s=CombatTrainingSession::new(one(start),Partition::Test).unwrap();s.reset(Some(7),None).unwrap();
- let id=r.decision().unwrap().combat.unwrap().hand[0].instance.0;step_pair(&mut r,&mut s,CombatAction::PlayCard{instance:id,target:None});
+ let id=r.decision().unwrap().combat.unwrap().hand[0].instance.0;let paused=step_pair(&mut r,&mut s,CombatAction::PlayCard{instance:id,target:None});assert_eq!(paused.boundary.info["phase"],"selection");assert_eq!(paused.boundary.info["selection_resume_phase"],"player_action");
  let sel=r.decision().unwrap().combat.unwrap().selection.unwrap();let a=sel.candidates[0].instance.0;let b=sel.candidates[1].instance.0;
  for action in [CombatAction::SelectCard{instance:a},CombatAction::SelectCard{instance:b},CombatAction::DeselectCard{instance:a},CombatAction::SelectCard{instance:a}]{step_pair(&mut r,&mut s,action);}
  let rec=s.record().unwrap().unwrap();let rr=replay_m21_combat(&CombatEpisodeRecord::from_json(&rec.to_json().unwrap()).unwrap(),combat_policy_capacities()).unwrap();assert_eq!(rr.final_decision,Some(r.decision().unwrap()));assert_eq!(rr.accepted_count,5);

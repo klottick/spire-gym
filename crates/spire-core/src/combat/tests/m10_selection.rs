@@ -62,6 +62,8 @@ fn m10_true_grit_choice_reads_hand_after_preceding_block_work(){
     let source=Source::Card(parent.clone());
     let parent_card=c.state.piles.hand.remove(prepared.hand_index);
     c.state.in_play=Some(parent_card);c.state.phase=Phase::PlayerAction;
+    // The staged card owns its real continuation, which its selection suspends.
+    c.state.pending.push_back(Effect{source:Source::Card(parent.clone()),target:None,kind:EffectKind::FinishCard});
     let block=prepared.effects[0].clone();
     super::super::effects::apply_effect(&mut c.state,&block).unwrap();
     let old=c.state.piles.hand.remove(0);let old_id=old.handle();
@@ -100,6 +102,8 @@ fn m10_headbutt_choice_reads_discard_after_its_hit(){
     let parent=super::super::card_state::handle(prepared.instance);
     let parent_card=c.state.piles.hand.remove(prepared.hand_index);
     c.state.in_play=Some(parent_card);c.state.phase=Phase::PlayerAction;
+    // The staged card owns its real continuation, which its selection suspends.
+    c.state.pending.push_back(Effect{source:Source::Card(parent.clone()),target:None,kind:EffectKind::FinishCard});
     super::super::effects::apply_effect(&mut c.state,&prepared.effects[0]).unwrap();
     assert!(!super::super::enemies::act2::combat_victory_ready(&c.state),"test must exercise a nonterminal hit");
     assert_eq!(c.state.outcome,None,"test must not have a queued terminal outcome");
@@ -124,6 +128,8 @@ fn m10_exhume_choice_reads_exhaust_after_its_queued_action(){
     let parent=super::super::card_state::handle(prepared.instance);
     let parent_card=c.state.piles.hand.remove(prepared.hand_index);
     c.state.in_play=Some(parent_card);c.state.phase=Phase::PlayerAction;
+    // The staged card owns its real continuation, which its selection suspends.
+    c.state.pending.push_back(Effect{source:Source::Card(parent.clone()),target:None,kind:EffectKind::FinishCard});
     let removed=c.state.piles.exhaust.pop().unwrap();c.state.piles.discard.push(removed);
     let current=card_state::permanent(crate::content::CardId::Defend,CardInstanceId(95),0);
     let current_id=card_state::handle(current.instance);c.state.card_ids_issued.insert(current_id.clone());c.state.piles.exhaust.push(OwnedCard::Full(current));
@@ -483,6 +489,7 @@ fn m10_optional_selection_can_confirm_zero_and_retains_consumed_parent(){
     let candidates=c.state.piles.hand.iter().take(2).map(OwnedCard::handle).collect::<Vec<_>>();
     c.state.pending_selection=Some(PendingSelection{
         parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Hand,
+        resume:super::selection_resume(Phase::Decision,None),
         candidates:candidates.clone(),operation:SelectionOperation::Move(SelectionDisposition::Exhaust),
         selected:vec![],minimum:0,maximum:2,disposition:SelectionDisposition::Exhaust,empty:EmptySelection::Continue,
     });
@@ -522,7 +529,7 @@ fn m10_optional_selection_zero_pick_confirmation_preserves_owned_state(){
     let candidates=c.state.piles.hand.iter().take(2).map(OwnedCard::handle).collect::<Vec<_>>();
     c.state.pending_selection=Some(PendingSelection{
         parent:SelectionParent::Potion{slot:1,id:crate::content::PotionId::FirePotion},
-        source_zone:SelectionSourceZone::Hand,candidates,operation:SelectionOperation::Move(SelectionDisposition::Exhaust),
+        source_zone:SelectionSourceZone::Hand,resume:super::selection_resume(Phase::Decision,None),candidates,operation:SelectionOperation::Move(SelectionDisposition::Exhaust),
         selected:vec![],minimum:0,maximum:2,disposition:SelectionDisposition::Exhaust,empty:EmptySelection::Continue,
     });
     c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});
@@ -555,7 +562,7 @@ fn m10_optional_selection_zero_pick_confirmation_preserves_owned_state(){
 fn m10_confirmation_rejects_a_staged_card_that_left_its_source_atomically(){
     let mut c=super::full_runtime::entered_combat(3,3, |_| {});
     let candidates=c.state.piles.hand.iter().take(2).map(OwnedCard::handle).collect::<Vec<_>>();
-    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Hand,
+    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Hand,resume:super::selection_resume(Phase::Decision,None),
         candidates:candidates.clone(),operation:SelectionOperation::Move(SelectionDisposition::Exhaust),selected:vec![candidates[0].clone()],minimum:1,maximum:2,
         disposition:SelectionDisposition::Exhaust,empty:EmptySelection::Continue});
     c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});c.state.phase=Phase::Selection;
@@ -571,7 +578,7 @@ fn m10_confirmation_rejects_changed_hand_capacity_atomically(){
     while c.state.piles.hand.len()<9{let index=c.state.piles.draw.len()-1;c.state.piles.hand.push(c.state.piles.draw.remove(index));}
     let candidate=c.state.piles.draw[c.state.piles.draw.len()-2].handle();
     let second=c.state.piles.draw[c.state.piles.draw.len()-3].handle();
-    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Draw,
+    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Draw,resume:super::selection_resume(Phase::Decision,None),
         candidates:vec![candidate.clone(),second],operation:SelectionOperation::Move(SelectionDisposition::Hand),selected:vec![candidate],minimum:1,maximum:2,
         disposition:SelectionDisposition::Hand,empty:EmptySelection::Continue});
     c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});c.state.phase=Phase::Selection;
@@ -591,7 +598,7 @@ fn m10_multi_pick_from_draw_preflights_full_hand_and_commits_only_legal_prefix()
         c.state.piles.hand.push(c.state.piles.draw.remove(index));
     }
     let candidates=c.state.piles.draw.iter().take(2).map(OwnedCard::handle).collect::<Vec<_>>();
-    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Draw,
+    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Draw,resume:super::selection_resume(Phase::Decision,None),
         candidates:candidates.clone(),operation:SelectionOperation::Move(SelectionDisposition::Hand),selected:vec![],minimum:1,maximum:2,
         disposition:SelectionDisposition::Hand,empty:EmptySelection::Continue});
     c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});c.state.phase=Phase::Selection;
@@ -609,7 +616,7 @@ fn m10_multi_pick_from_draw_preflights_full_hand_and_commits_only_legal_prefix()
 fn m10_accepted_optional_confirmation_fault_retains_selection_and_does_not_retry(){
     let mut c=super::full_runtime::entered_combat(3,3, |_| {});
     let candidates=c.state.piles.hand.iter().take(2).map(OwnedCard::handle).collect::<Vec<_>>();
-    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Hand,
+    c.state.pending_selection=Some(PendingSelection{parent:SelectionParent::Potion{slot:0,id:crate::content::PotionId::FirePotion},source_zone:SelectionSourceZone::Hand,resume:super::selection_resume(Phase::Decision,None),
         candidates:candidates.clone(),operation:SelectionOperation::Move(SelectionDisposition::Exhaust),selected:vec![],minimum:1,maximum:2,
         disposition:SelectionDisposition::Exhaust,empty:EmptySelection::Continue});
     c.state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});c.state.phase=Phase::Selection;
@@ -624,4 +631,22 @@ fn m10_accepted_optional_confirmation_fault_retains_selection_and_does_not_retry
     let retained=c.state.clone();
     assert!(c.step_full(&CombatAction::ConfirmSelection).is_err());
     assert_eq!(c.state,retained,"accepted confirmation fault is retained and never retried");
+}
+
+#[test]
+fn m10_warcry_topdecked_void_still_resolves_its_queued_energy_loss(){
+    // VoidCard.triggerWhenDrawn queues LoseEnergyAction(1), which keeps no card
+    // reference; Warcry's PutOnDeckAction resolves first and may move the Void.
+    let mut c=with_card(crate::content::CardId::Warcry,false);
+    let void=card_state::permanent(crate::content::CardId::Void,CardInstanceId(95),0);
+    let handle=card_state::handle(void.instance);
+    c.state.card_ids_issued.insert(handle.clone());c.state.piles.draw.push(OwnedCard::Full(void));
+    let energy=c.state.player.energy;
+    c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
+    assert!(c.state.piles.hand.iter().any(|card|card.handle()==handle));
+    assert_eq!(c.state.player.energy,energy,"Warcry costs 0 and the Void loss waits behind the topdeck");
+    c.step_full(&CombatAction::SelectCard{instance:95}).unwrap();
+    assert_eq!(c.state.piles.draw.last().map(OwnedCard::handle),Some(handle));
+    assert_eq!(c.state.player.energy,energy-1);
+    assert!(engine::validate_runtime(&c.state).is_ok());
 }
