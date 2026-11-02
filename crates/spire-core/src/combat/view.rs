@@ -211,7 +211,8 @@ pub(super) fn full_player(state: &State) -> Result<FullPlayerView,crate::run::Ru
     let p = &state.player;
     let mut powers = p.powers.iter().map(|p| FullPowerView {
         id: super::FullPowerId(p.id.as_str()), amount: p.state.amount,
-    }).chain(state.player_full_powers.iter().map(|p| FullPowerView { id: p.id, amount: p.state.amount })).collect::<Vec<_>>();
+    }).chain(state.player_full_powers.iter().filter(|p| !super::powers::publicly_hidden(p.id))
+        .map(|p| FullPowerView { id: p.id, amount: p.state.amount })).collect::<Vec<_>>();
     if state.character.focus!=0 {powers.push(FullPowerView{id:FullPowerId("focus"),amount:state.character.focus});}
     powers.sort_by_key(|p| p.id.0);
     // These source-public counters are projections of the existing owners,

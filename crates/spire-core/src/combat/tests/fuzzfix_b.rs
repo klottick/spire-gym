@@ -4,11 +4,11 @@ use crate::{combat::{card_state, model::OwnedCard, CardInstanceId, CombatAction}
     content::{CardId, Character, EncounterId, PotionId, RelicId}, items::CombatItemContext, run::RunRng};
 use CardId::*;
 
-fn fixture(character: Character, cards: &[(CardId, u32)], relics: Vec<RelicId>, potions: Vec<Option<PotionId>>, energy: i32) -> Combat {
+pub(super) fn fixture(character: Character, cards: &[(CardId, u32)], relics: Vec<RelicId>, potions: Vec<Option<PotionId>>, energy: i32) -> Combat {
     fixture_in(EncounterId::Cultist, 1, character, cards, relics, potions, energy)
 }
 
-fn fixture_in(encounter: EncounterId, act: u8, character: Character, cards: &[(CardId, u32)], relics: Vec<RelicId>,
+pub(super) fn fixture_in(encounter: EncounterId, act: u8, character: Character, cards: &[(CardId, u32)], relics: Vec<RelicId>,
     potions: Vec<Option<PotionId>>, energy: i32) -> Combat {
     let mut entry = enemies::setup(encounter, act, 0, &mut RunRng::new([0x42; 32], rng::Partition::Test, 0),
         enemies::SetupContext {
@@ -22,7 +22,7 @@ fn fixture_in(encounter: EncounterId, act: u8, character: Character, cards: &[(C
     Combat::enter_with_item_context(entry, &mut items).unwrap()
 }
 
-fn take(combat: &mut Combat, instance: u64) -> OwnedCard {
+pub(super) fn take(combat: &mut Combat, instance: u64) -> OwnedCard {
     let handle = card_state::handle(CardInstanceId(instance));
     for pile in [&mut combat.state.piles.hand, &mut combat.state.piles.draw, &mut combat.state.piles.discard, &mut combat.state.piles.exhaust] {
         if let Some(at) = pile.iter().position(|owned| owned.handle() == handle) { return pile.remove(at); }
@@ -31,7 +31,7 @@ fn take(combat: &mut Combat, instance: u64) -> OwnedCard {
 }
 
 /// Hand, draw (top is last) and discard, by fixture instance.
-fn arrange(combat: &mut Combat, hand: &[u64], draw: &[u64], discard: &[u64]) {
+pub(super) fn arrange(combat: &mut Combat, hand: &[u64], draw: &[u64], discard: &[u64]) {
     for instance in hand { let card = take(combat, *instance); combat.state.piles.hand.push(card); }
     for instance in draw { let card = take(combat, *instance); combat.state.piles.draw.push(card); }
     for instance in discard { let card = take(combat, *instance); combat.state.piles.discard.push(card); }
@@ -40,12 +40,12 @@ fn arrange(combat: &mut Combat, hand: &[u64], draw: &[u64], discard: &[u64]) {
     piles::refresh_hand_values(&mut combat.state);
 }
 
-fn step(combat: &mut Combat, action: CombatAction, context: &str) {
+pub(super) fn step(combat: &mut Combat, action: CombatAction, context: &str) {
     combat.step_full(&action).unwrap_or_else(|error| panic!("{context}: {error:?}; fault={:?}", combat.state.fault));
     assert!(combat.state.fault.is_none(), "{context}: {:?}", combat.state.fault);
 }
 
-fn player_power(combat: &Combat, id: &str) -> i32 {
+pub(super) fn player_power(combat: &Combat, id: &str) -> i32 {
     combat.state.player_full_powers.iter().find(|power| power.id.0 == id).map_or(0, |power| power.state.amount)
 }
 
@@ -241,14 +241,14 @@ fn fuzzfix_b_distilled_chaos_takes_the_whole_burst_before_using_it() {
 }
 
 /// Advance the card-random stream by `draws`, to choose a deterministic target sequence.
-fn advance_card_rng(combat: &mut Combat, draws: usize) {
+pub(super) fn advance_card_rng(combat: &mut Combat, draws: usize) {
     let mut stream = combat.state.card_rng.clone().unwrap();
     for _ in 0..draws { stream = crate::combat::rng::draw_u64(&stream).unwrap().1; }
     combat.state.card_rng = Some(stream);
 }
 
 /// The target each card was used against, by fixture instance (None: not used).
-fn used_target(combat: &Combat, instance: u64) -> Option<Option<Actor>> {
+pub(super) fn used_target(combat: &Combat, instance: u64) -> Option<Option<Actor>> {
     let source = Source::Card(card_state::handle(CardInstanceId(instance)));
     combat.state.hook_events.iter().find(|event| event.hook == Hook::CardPlayed && event.source == source).map(|event| event.target.clone())
 }
@@ -258,7 +258,7 @@ fn enemy_index(combat: &Combat, target: &Option<Actor>) -> usize {
     combat.state.enemies.iter().position(|enemy| &enemy.instance_id == owner).unwrap()
 }
 
-fn in_pile(pile: &[OwnedCard], instance: u64) -> bool {
+pub(super) fn in_pile(pile: &[OwnedCard], instance: u64) -> bool {
     pile.iter().any(|owned| owned.handle() == card_state::handle(CardInstanceId(instance)))
 }
 

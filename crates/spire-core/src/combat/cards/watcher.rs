@@ -128,8 +128,16 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             if let Some(finish)=state.pending.iter().position(|e|e.kind==EffectKind::FinishCard&&e.source==effect.source){
                 state.pending.insert(finish+1,effect.clone());
             }else if state.pending_time_warp.is_none(){
-                let marker=state.pending.iter_mut().find(|e|e.kind==EffectKind::Decision).ok_or_else(||InputError::Invariant("Meditate lost its parent finish/decision checkpoint".into()))?;
-                marker.kind=EffectKind::EndPlayerTurn;
+                if let Some(marker)=state.pending.iter_mut().find(|e|e.kind==EffectKind::Decision){
+                    marker.kind=EffectKind::EndPlayerTurn;
+                }else if state.phase==Phase::Decision&&state.in_play.is_none()&&state.play_frames.is_empty(){
+                    // No FinishCard or Decision marker remains, nothing is in play and no play frame
+                    // is open. Only a potion action (Distilled Chaos) reaches this state today; it
+                    // queues no Decision marker, so its boundary is the queue bottom.
+                    state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::EndPlayerTurn});
+                }else{
+                    return Err(InputError::Invariant("Meditate lost its parent finish/decision checkpoint".into()).into());
+                }
             }
         },
         WatcherEffect::Scry{amount}=>scry(state,effect,*amount,None)?,
@@ -640,49 +648,49 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
     let laws=cards_active(state);
     if !(laws||state.character.stance==Stance::Divinity)||target!=Some(&Actor::Player){return Ok(())}
     let source=Source::Actor(Actor::Player);
-    if hook==Hook::TurnStartedPreDraw{
-        if state.character.stance==Stance::Divinity{work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Neutral))});}
-        if !laws{return Ok(())}
-        if state.turn>1&&state.player_full_powers.iter().any(|power|power.id.0=="blasphemer"&&power.state.amount>0){
-            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Damage(super::super::DamagePayload::HpLoss(99_999))});
-        }
-        for power in state.player_full_powers.clone(){match power.id.0{
-            "simmering_fury" if power.state.amount>0=>{
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Wrath))});
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Draw(power.state.amount)});
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
-            },
-            _=>(),
-        }}
-        // Equal-priority start callbacks follow the installed owner list.
-        // Only Foresight's EmptyDeckShuffle is addToTop; both Scry and
-        // MakeTempCardInHand remain addToBot in that same callback order.
-        for power in state.player_full_powers.clone(){match power.id.0{
-            "foresight"=>{
-                if state.piles.draw.is_empty(){work.insert(0,Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Recycle});}
-                let bonus=if state.item_context.as_ref().is_some_and(|i|i.owns_relic(crate::content::RelicId::GoldenEye)){2}else{0};
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::Scry{amount:power.state.amount.wrapping_add(bonus)})});
-            },
-            "battle_hymn" if !super::super::enemies::act2::combat_victory_ready(state)=>{
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:create_action(state,crate::content::CardId::Smite,power.state.amount.max(0) as u32)?});
-            },
-            _=>(),
-        }}
-    }
-    // DevotionPower.atStartOfTurnPostDraw (no turn-1 call: `effects::player_turn_start`).
-    if hook==Hook::TurnStarted&&laws{
-        for power in state.player_full_powers.clone(){if power.id.0=="devotion"{
-            let kind=if !state.player_full_powers.iter().any(|p|p.id.0=="mantra")&&power.state.amount>=10{
-                EffectKind::Character(CharacterEffect::Stance(Stance::Divinity))
-            }else{construct_mantra(state,power.state.amount)?};
-            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind});
-        }}
-    }
     if !laws{return Ok(())}
     if hook==Hook::PlayerPreEndTurnCards&&state.character.stance==Stance::Calm{
         for power in &state.player_full_powers{if power.id.0=="like_water"{work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});}}
     }
     m25_generation::hook(state,hook,target,work)?;
+    Ok(())
+}
+
+/// The stance start hook (Divinity's exit) runs ahead of the power callbacks.
+pub(in crate::combat) fn stance_start(state:&State,work:&mut Vec<Effect>){
+    if state.character.stance==Stance::Divinity{work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Neutral))});}
+}
+
+/// Watcher power callbacks in the two start slots, run in power-list order by `hooks::dispatch`.
+/// M26 §6.3 split: the power callbacks are L (`cards_active`, each still requiring its power).
+pub(in crate::combat) fn start_power(state:&mut State,hook:Hook,power:&FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    if !cards_active(state){return Ok(())}
+    let source=Source::Actor(Actor::Player);
+    match (hook,power.id.0) {
+        (Hook::TurnStartedPreDraw,"blasphemer") if state.turn>1&&power.state.amount>0=>
+            work.push(Effect{source,target:Some(Actor::Player),kind:EffectKind::Damage(super::super::DamagePayload::HpLoss(99_999))}),
+        (Hook::TurnStartedPreDraw,"simmering_fury") if power.state.amount>0=>{
+            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Wrath))});
+            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Draw(power.state.amount)});
+            work.push(Effect{source,target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
+        },
+        // Only Foresight's EmptyDeckShuffle is addToTop; its Scry stays addToBot in callback order.
+        (Hook::TurnStartedPreDraw,"foresight")=>{
+            if state.piles.draw.is_empty(){work.insert(0,Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Recycle});}
+            let bonus=if state.item_context.as_ref().is_some_and(|i|i.owns_relic(crate::content::RelicId::GoldenEye)){2}else{0};
+            work.push(Effect{source,target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::Scry{amount:power.state.amount.wrapping_add(bonus)})});
+        },
+        (Hook::TurnStartedPreDraw,"battle_hymn") if !super::super::enemies::act2::combat_victory_ready(state)=>
+            work.push(Effect{source,target:Some(Actor::Player),kind:create_action(state,crate::content::CardId::Smite,power.state.amount.max(0) as u32)?}),
+        // DevotionPower.atStartOfTurnPostDraw (no turn-1 call: `effects::player_turn_start`).
+        (Hook::TurnStarted,"devotion")=>{
+            let kind=if !state.player_full_powers.iter().any(|p|p.id.0=="mantra")&&power.state.amount>=10{
+                EffectKind::Character(CharacterEffect::Stance(Stance::Divinity))
+            }else{construct_mantra(state,power.state.amount)?};
+            work.push(Effect{source,target:Some(Actor::Player),kind});
+        },
+        _=>(),
+    }
     Ok(())
 }
 

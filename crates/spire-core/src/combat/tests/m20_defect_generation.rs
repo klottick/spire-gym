@@ -130,21 +130,21 @@ fn m20_defect_generators_all_l34_base_plus_use_actual_defect_dependency_paths(){
     }}
 }
 #[test]
-fn m20_defect_generators_magnetism_m20_captures_in_callback_and_preserves_legacy_checkpoint(){
+fn m20_defect_generators_magnetism_captures_in_callback_in_every_profile(){
     let mut c=fight(CardId::Magnetism);c.state.item_context=Some(crate::items::CombatItemContext::new(vec![],vec![None;3]).with_m20_profile());c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
     for halfdead in [false,true]{
         let mut state=c.state.clone();if halfdead{state.enemies[0].hp=0;state.enemies[0].life=ActorLife::HalfDead;}
         let rng=state.card_rng.clone();let issued=state.card_ids_issued.clone();let mut work=vec![];
-        generation::start_turn(&state,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work);generation::blue_start_turn(&mut state,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work).unwrap();
+        generation::blue_start_turn(&mut state,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work).unwrap();
         assert_eq!(work.len(),1);assert_ne!(state.card_rng,rng,"M20 Magnetism samples during source callback");assert_eq!(state.card_ids_issued,issued,"delivery remains later");assert!(matches!(&work[0].kind,EffectKind::Generate(w) if w.captured&&w.pool==GenerationPool::Colorless&&w.cards.len()==1));
     }
-    let mut old=c.state.clone();old.silent.source_character=Some(Character::Silent);old.item_context=Some(crate::items::CombatItemContext::new(vec![],vec![None;3]).with_m15_profile());let rng=old.card_rng.clone();let mut work=vec![];generation::start_turn(&old,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work);generation::blue_start_turn(&mut old,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work).unwrap();assert_eq!(old.card_rng,rng);assert!(matches!(&work[0].kind,EffectKind::Generate(w) if !w.captured),"frozen M15 callback bytes retain their checkpoint");
+    let mut old=c.state.clone();old.silent.source_character=Some(Character::Silent);old.item_context=Some(crate::items::CombatItemContext::new(vec![],vec![None;3]).with_m15_profile());let rng=old.card_rng.clone();let mut work=vec![];generation::blue_start_turn(&mut old,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work).unwrap();assert_ne!(old.card_rng,rng);assert!(matches!(&work[0].kind,EffectKind::Generate(w) if w.captured&&w.cards.len()==1),"spire-oto.21: Magnetism chooses its card in the callback under every profile");
 }
 #[test]
 fn m20_defect_generators_magnetism_callback_fault_keeps_captured_prefix(){
     let mut c=fight(CardId::Magnetism);c.state.item_context=Some(crate::items::CombatItemContext::new(vec![],vec![None;3]).with_m20_profile());c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
     c.state.player_full_powers.iter_mut().find(|p|p.id.0=="magnetism").unwrap().state.amount=2;let stream=c.state.card_rng.as_ref().unwrap();c.state.card_rng=Some(rng::StreamState::new(stream.id().clone(),*stream.key(),(1u128<<64)-1).unwrap());
-    let mut work=vec![];generation::start_turn(&c.state,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work);assert!(work.is_empty());
+    let mut work=vec![];
     assert!(matches!(generation::blue_start_turn(&mut c.state,Hook::TurnStartedPreDraw,Some(&Actor::Player),&mut work),Err(EffectError::Random(_))));assert!(work.is_empty());
     assert!(matches!(&c.state.pending.front().unwrap().kind,EffectKind::Generate(w) if w.captured&&w.cards.len()==1));assert!(matches!(&c.state.current.as_ref().unwrap().kind,EffectKind::Generate(w) if !w.captured&&w.cards.is_empty()));assert_eq!(c.state.card_rng.as_ref().unwrap().word_index(),1u128<<64);
 }

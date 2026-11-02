@@ -1,7 +1,7 @@
 //! M27 one relic dispatcher (plan Task M2, design §6.1–§6.2, H0 seam map §5).
 use super::*;
 use crate::combat::tests::m15_silent_items::{enter, entry};
-use crate::combat::FullIntentId;
+use crate::combat::{FullIntentId, FullPowerEntry, FullPowerId};
 use crate::content::{CardId, EnemyId, RelicId};
 
 fn enemy_power_order(relics: Vec<RelicId>) -> Vec<&'static str> {
@@ -16,15 +16,27 @@ fn enemy_power_order(relics: Vec<RelicId>) -> Vec<&'static str> {
 fn m27_dispatch_cross_path_order_follows_acquisition() {
     assert_eq!(enemy_power_order(vec![RelicId::TwistedFunnel, RelicId::BagOfMarbles]), ["poison", "vulnerable"]);
     assert_eq!(enemy_power_order(vec![RelicId::BagOfMarbles, RelicId::TwistedFunnel]), ["vulnerable", "poison"]);
+    // spire-oto.21: Weak (priority 99) sorts after the default-5 powers whatever the relic order.
     assert_eq!(enemy_power_order(vec![RelicId::TwistedFunnel, RelicId::RedMask]), ["poison", "weak"]);
-    assert_eq!(enemy_power_order(vec![RelicId::RedMask, RelicId::TwistedFunnel]), ["weak", "poison"]);
+    assert_eq!(enemy_power_order(vec![RelicId::RedMask, RelicId::TwistedFunnel]), ["poison", "weak"]);
 }
 
-/// Guard (already true before M27): one loop visits Bag of Marbles and Red Mask in order.
+/// Guard (already true before M27): one loop visits Bag of Marbles and Red Mask in order. Both
+/// queue their debuff to the bottom, so the first-visited relic's debuff meets the enemy's one
+/// Artifact and is negated. (The final list alone cannot show this order: Weak, priority 99,
+/// sorts last either way, spire-oto.21.)
 #[test]
 fn m27_dispatch_visit_order_is_acquisition_order() {
+    let artifact = |relics: Vec<RelicId>| {
+        let one = [FullPowerEntry { id: FullPowerId("artifact"), state: crate::combat::PowerState { amount: 1, skip_first: false, monster_source_grace: false } }];
+        let combat = enter(entry(&[CardId::StrikeGreen; 5], 1, 1, EnemyId::Cultist, FullIntentId::Incantation, &one, &[]), relics, vec![None; 3]);
+        combat.public_full().unwrap().enemies[0].powers.iter().map(|power| power.id.0)
+            .filter(|id| matches!(*id, "artifact" | "vulnerable" | "weak")).collect::<Vec<_>>()
+    };
+    assert_eq!(artifact(vec![RelicId::BagOfMarbles, RelicId::RedMask]), ["weak"]);
+    assert_eq!(artifact(vec![RelicId::RedMask, RelicId::BagOfMarbles]), ["vulnerable"]);
     assert_eq!(enemy_power_order(vec![RelicId::BagOfMarbles, RelicId::RedMask]), ["vulnerable", "weak"]);
-    assert_eq!(enemy_power_order(vec![RelicId::RedMask, RelicId::BagOfMarbles]), ["weak", "vulnerable"]);
+    assert_eq!(enemy_power_order(vec![RelicId::RedMask, RelicId::BagOfMarbles]), ["vulnerable", "weak"]);
 }
 
 /// Design §6.1 rule 3 on the dispatcher's ordering function: groups of source-top relics are

@@ -107,6 +107,9 @@ pub(super) fn card_played(state:&mut State,source:&Source)->Result<(),EffectErro
 pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
     powers::power_hook(state,hook,target,work)
 }
+pub(super) fn start_power(state:&mut State,hook:Hook,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    powers::start_power(state,hook,power,work)
+}
 
 pub(super) fn validate_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->Result<(),InputError>{
     powers::validate_power_application(state,effect,id,amount)

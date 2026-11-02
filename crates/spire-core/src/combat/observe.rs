@@ -157,7 +157,7 @@ fn life(hp:i32,life:ActorLife)->PublicLife {
 }
 fn values(state:&State)->Mark {
     let powers=|legacy:&[PowerEntry],full:&[FullPowerEntry]| legacy.iter().map(|p|(FullPowerId(p.id.as_str()),p.state.amount))
-        .chain(full.iter().map(|p|(p.id,p.state.amount))).collect();
+        .chain(full.iter().filter(|p|!super::powers::publicly_hidden(p.id)).map(|p|(p.id,p.state.amount))).collect();
     let mut actors=vec![ActorMark { actor:Actor::Player,block:state.player.block,
         powers:powers(&state.player.powers,&state.player_full_powers),life:life(state.player.hp,ActorLife::Active) }];
     actors.extend(state.enemies.iter().map(|e|ActorMark { actor:Actor::Enemy(e.instance_id.clone()),block:e.block,

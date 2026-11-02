@@ -194,6 +194,10 @@ impl CombatItemContext {
         main_relics::initial_potion_potency(id,self.owns_relic(RelicId::SacredBark))
     }
     fn potion_potency_enabled(&self)->bool{self.m21_profile()||self.complete_items}
+    /// The (slot, potion) of the latest use, where this profile records it (`None` = untracked).
+    pub(crate) fn recorded_potion_use(&self)->Option<Option<(usize,PotionId)>>{
+        self.potion_potency_enabled().then(||self.last_potion_use.map(|(slot,id,_)|(slot,id)))
+    }
     pub(crate) fn potion_potency(&self,slot:usize)->Option<i32>{self.potion_potencies.get(slot).copied().flatten()}
     pub(crate) fn consumed_potion_potency(&self,slot:usize,id:PotionId)->Option<i32>{
         self.last_potion_use.filter(|(s,p,_)|*s==slot&&*p==id&&self.potions.get(slot)==Some(&None)).map(|(_,_,amount)|amount)
