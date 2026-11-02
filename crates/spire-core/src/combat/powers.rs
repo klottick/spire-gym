@@ -16,12 +16,32 @@ pub(super) fn on_card_exhausted(state:&State,source:&super::Source)->Vec<super::
     }).collect()
 }
 
-/// Finite source-qualified ordinary cleanse categories. Shackled has a separate
-/// unconditional removal at the named Champ/Awakened phase transitions.
+/// The original power type (`AbstractPower.type`) of every public engine power id, from the
+/// static check source-check-power-types-v1 (spire-oto.11): `Some(true)` is DEBUFF. The shared
+/// type-only cleanse (RemoveDebuffsAction) removes exactly the DEBUFFs; Champ, Time Eater and
+/// Awakened add their own ID removals. Strength, Dexterity and Focus are BUFF only above zero.
+/// DrawPower is only created by Machine Learning (+1): BUFF unless constructed negative.
+/// `None` is not an engine power id.
 pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match power.id.0{
-     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"poison"|"draw_reduction"|"no_draw"|"lose_strength"|"lose_dexterity"|"wraith_form"|"choked"|"corpse_explosion"|"mark"|"block_return"|"energy_down"=>true,
-    "strength"|"dexterity"=>power.state.amount<=0,
-    "thievery"|"plated_armor"|"spore_cloud"|"metallicize"|"artifact"|"ritual"|"enrage"|"regeneration"|"barricade"|"angry"|"flight"|"minion"|"painful_stabs"|"curl_up"|"split"|"mode_shift"|"sharp_hide"|"shackled"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"double_tap"|"burst"|"mayhem"|"panache"|"sadistic_nature"|"magnetism"=>false,
+    "strength"|"dexterity"|"focus"=>power.state.amount<=0,
+    "draw"=>power.state.amount<0,
+    "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"shackled"|"constricted"|"slow"|"draw_reduction"|"poison"
+        |"no_draw"|"lose_strength"|"lose_dexterity"|"choked"|"corpse_explosion"|"no_block"|"wraith_form"|"bias"|"lock_on"
+        |"mark"|"block_return"|"energy_down"|"cannot_change_stance"=>true,
+    "artifact"|"ritual"|"curl_up"|"split"|"enrage"|"metallicize"|"mode_shift"|"sharp_hide"|"barricade"|"flight"|"minion"
+        |"angry"|"painful_stabs"|"stasis"|"regeneration"|"thorns"|"explosive"|"life_link"|"regrow"|"fading"|"shifting"
+        |"reactive"|"malleable"|"intangible"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"strength_up"|"berserk"
+        |"brutality"|"combust"|"corruption"|"dark_embrace"|"demon_form"|"double_tap"|"evolve"|"feel_no_pain"
+        |"fire_breathing"|"flame_barrier"|"juggernaut"|"rage"|"rupture"|"beat_of_death"|"invincible"|"surrounded"
+        |"back_attack"|"spore_cloud"|"thievery"|"plated_armor"|"noxious_fumes"|"accuracy"|"retain_cards"
+        |"a_thousand_cuts"|"after_image"|"blur"|"burst"|"double_damage"|"draw_card_next_turn"|"energized"|"envenom"
+        |"infinite_blades"|"intangible_player"|"magnetism"|"mayhem"|"next_turn_block"|"panache"|"panache_countdown"
+        |"phantasmal"|"sadistic_nature"|"tools_of_the_trade"|"duplication"|"the_bomb"|"the_bomb_plus"|"loop"
+        |"electrodynamics"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form"|"buffer"|"repair"
+        |"energized_blue"|"hello_world"|"creative_ai"|"rebound"|"equilibrium"|"mantra"|"devotion"|"foresight"|"nirvana"
+        |"establishment"|"master_reality"|"battle_hymn"|"mental_fortress"|"rushdown"|"like_water"|"vigor"
+        |"wave_of_the_hand"|"free_attack"|"simmering_fury"|"study"|"deva_form"|"collect"|"omega"|"blasphemer"|"pen_nib"
+        |"melange"=>false,
     _=>return None,
 })}
 

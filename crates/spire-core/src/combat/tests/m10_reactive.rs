@@ -600,6 +600,8 @@ fn m10_reactive_rupture_triggers_on_actual_brutality_player_power_hp_loss(){
     let mut combat=Combat::enter(entry).unwrap();assert!(engine::validate_runtime(&combat.state).is_ok());
     play(&mut combat,CardId::Rupture);play(&mut combat,CardId::Brutality);
     let hp=combat.state.player.hp;
+    // Post-draw powers run from turn 2 on; the battle-start block does not call them.
+    combat.state.turn=2;
     combat.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::TurnStarted)}],None).unwrap();
     assert_eq!(combat.state.player.hp,hp-1,"actual Brutality loses one HP through its player-owned power callback");
     assert_eq!(combat.state.player_full_powers.iter().find(|power|power.id.0=="strength").unwrap().state.amount,1,

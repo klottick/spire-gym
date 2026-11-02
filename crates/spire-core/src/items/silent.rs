@@ -14,7 +14,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
     if !matches!(id,RelicId::ToughBandages|RelicId::Tingsha|RelicId::HoveringKite|RelicId::TwistedFunnel|RelicId::NinjaScroll|RelicId::TheSpecimen){return Ok(false)}
     if !(context.m15_profile()||context.complete_items()) { return Ok(true); }
     match (id,phase) {
-        (RelicId::HoveringKite,_) if facts.hook==Some(Hook::TurnStarted) => context.kite_triggered = false,
+        (RelicId::HoveringKite,_) if facts.hook==Some(Hook::TurnStartedPreDraw) => context.kite_triggered = false,
         (RelicId::ToughBandages,_) if facts.hook==Some(Hook::CardManuallyDiscarded) => work.top.push(Effect {
             source: Source::Actor(Actor::Player), target: Some(Actor::Player), kind: EffectKind::GainBlock(3) }),
         (RelicId::Tingsha,_) if facts.hook==Some(Hook::CardManuallyDiscarded) => work.top.push(Effect {
@@ -24,7 +24,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
             work.top.push(Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player), kind: EffectKind::GainEnergy(1) });
         }
         // Battle-start Poison (formerly a separate front-pushed pass after Red Mask/Marbles; G4).
-        (RelicId::TwistedFunnel,_) if facts.hook==Some(Hook::CombatStarted) => work.top.extend(facts.live_enemies.iter().cloned().map(|owner| Effect {
+        (RelicId::TwistedFunnel,_) if facts.hook==Some(Hook::CombatStarted) => work.bottom.extend(facts.live_enemies.iter().cloned().map(|owner| Effect {
             source: Source::Actor(Actor::Player), target: Some(Actor::Enemy(owner)),
             kind: EffectKind::ApplyFullPower { id: crate::combat::FullPowerId("poison"), amount: 4 } })),
         // Generated hand work at the combat-entry startup dispatch, before the opening hand.

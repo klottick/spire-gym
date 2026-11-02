@@ -84,7 +84,8 @@ fn play_card(run: &mut Run, id: CardId, target: Option<TargetId>) {
         panic!("play {id:?}: {error:?}; hand={:?}", view(run).hand));
 }
 
-fn turn_start(run: &mut Run) { hook(run, Hook::TurnStarted); }
+// atTurnStart relics answer the pre-draw checkpoint (source-check-turnstart-hooks-v1).
+fn turn_start(run: &mut Run) { hook(run, Hook::TurnStartedPreDraw); }
 fn end_turn_hook(run: &mut Run) { hook(run, Hook::PlayerEndTurn); }
 
 fn lose_player_hp(run: &mut Run, amount: i32) {
@@ -329,16 +330,17 @@ fn pantograph_work(boss: bool) -> RelicHookWork {
 #[test]
 fn m27_pantograph_boss_start_heal() {
     let work = pantograph_work(true);
-    assert_eq!(work.bottom.len(), 1);
-    assert_eq!(work.bottom[0].kind, EffectKind::Heal(25), "Boss combat startup queues one heal request of 25");
-    assert_eq!(work.bottom[0].source, Source::Relic(RelicId::Pantograph));
+    // atBattleStart addToTop (source-check-turnstart-hooks-v1).
+    assert_eq!(work.top.len(), 1);
+    assert_eq!(work.top[0].kind, EffectKind::Heal(25), "Boss combat startup queues one heal request of 25");
+    assert_eq!(work.top[0].source, Source::Relic(RelicId::Pantograph));
 }
 
 #[test]
 fn m27_pantograph_boundary() {
-    assert!(pantograph_work(false).bottom.is_empty(), "non-Boss entry queues no heal");
+    assert!(pantograph_work(false).top.is_empty(), "non-Boss entry queues no heal");
     let multi_boss = pantograph_work(true);
-    assert_eq!(multi_boss.bottom.iter().filter(|effect| effect.kind == EffectKind::Heal(25)).count(), 1,
+    assert_eq!(multi_boss.top.iter().filter(|effect| effect.kind == EffectKind::Heal(25)).count(), 1,
         "multiple Boss actors still produce one heal of 25");
 }
 
@@ -802,12 +804,23 @@ fn m27_review_i2_mutagenic_orange_pellets_removes_strength_down() {
 }
 
 #[test]
-fn m27_review_i2_mutagenic_artifact_blocks_strength_down() {
+fn m27_review_i2_mutagenic_strength_down_precedes_an_earlier_relics_artifact() {
+    // Both are atBattleStart addToTop relics (source-check-turnstart-hooks-v1): the later
+    // relic's top work runs first, so Strength Down lands before Clockwork's Artifact.
     let mut run = m27_support::complete_run(Character::Ironclad,
         vec![RelicId::ClockworkSouvenir, RelicId::MutagenicStrength], vec![None; 3],
         BTreeMap::new(), EncounterId::Cultist);
-    assert_eq!((power(&run, "strength"), power(&run, "lose_strength")), (3, 0),
-        "Clockwork Souvenir's Artifact blocks the later Mutagenic Strength Down");
+    assert_eq!((power(&run, "strength"), power(&run, "lose_strength"), power(&run, "artifact")), (3, 3, 1),
+        "Strength Down is applied before Clockwork Souvenir's Artifact exists");
+    end_turn(&mut run);
+    assert_eq!((power(&run, "strength"), power(&run, "artifact")), (3, 0),
+        "the Strength loss is itself a debuff, and the Artifact blocks it");
+    // Acquired the other way round, Artifact comes first and blocks the debuff.
+    let mut run = m27_support::complete_run(Character::Ironclad,
+        vec![RelicId::MutagenicStrength, RelicId::ClockworkSouvenir], vec![None; 3],
+        BTreeMap::new(), EncounterId::Cultist);
+    assert_eq!((power(&run, "strength"), power(&run, "lose_strength"), power(&run, "artifact")), (3, 0, 0),
+        "Clockwork Souvenir's earlier Artifact blocks the later Mutagenic Strength Down");
     end_turn(&mut run);
     assert_eq!(power(&run, "strength"), 3, "blocked Strength Down leaves all 3 Strength");
 }

@@ -46,7 +46,7 @@ pub use enemies::{EnemyMemory, MoveSelection};
 pub use enemies::act1::thieves::{ThiefEffect,ThiefMemory,ThiefGoldState,StolenGoldReceipt};
 pub use view::{WatcherCardValues,StanceChoiceView,CardView, PlayerView, EnemyView, PublicView, PublicProjection, CombatPublic, CombatExit, LiveCardView, StasisCardView, SelectionView, CombatCardOfferView, KnownDrawCardView, FullEnemyView, FullPlayerView, FullPowerView, CharacterCombatView, CombatInventoryView, EncounterFacingView, EncounterActorView};
 pub use card_state::{permanent_with_misc as permanent_live_card_with_misc,permanent as permanent_live_card, CombatCardData, LiveCard, PermanentCardMutation, PermanentCardUpgrade};
-pub use characters::{CharacterEffect, CharacterState, OrbKind, OrbState, Stance};
+pub use characters::{CharacterEffect, CharacterState, OrbKind, OrbPassiveGroup, OrbState, Stance};
 pub use cards::{resolve,IroncladEffect};
 pub use view::{CardCostKind,CardPublicValues};
 pub use hooks::{Hook, HookEvent};

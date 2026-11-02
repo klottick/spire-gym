@@ -146,6 +146,18 @@ fn m15_mayhem_autoplays_the_top_card_with_a_captured_random_target_and_no_paymen
     let mut fight = three_enemy_combat("mayhem", 0);
     play(&mut fight, 1, None);
     add_to_draw(&mut fight, "bash", 50, 0);
+    // Mayhem plays after this fixture's one-card turn draw; keep Bash beneath the filler.
+    add_to_draw(&mut fight, "defend_g", 51, 0);
+    // Keep Repulsor's Dazed move out so Bash remains on top after the one-card draw.
+    for enemy in &mut fight.state.enemies {
+        if enemy.enemy_id == ActorEnemyId::Full(crate::content::EnemyId::Repulsor) {
+            let intent = FullIntentId::from_name("repulsor_attack");
+            enemy.intent_id = ActorIntentId::Full(intent.clone());
+            enemy.selected_move = ActorIntentId::Full(intent.clone());
+            enemy.move_history.push(ActorIntentId::Full(intent));
+        }
+    }
+    effects::refresh_enemy_values(&mut fight.state).unwrap();
     fight.state.player.max_energy = 1;
     fight.state.player.energy = 1;
     let before = fight.state.enemies.iter().map(|enemy| enemy.hp).collect::<Vec<_>>();
@@ -167,8 +179,19 @@ fn m15_mayhem_autoplays_the_top_card_with_a_captured_random_target_and_no_paymen
 fn m15_mayhem_keeps_the_shared_autoplay_frame_across_a_child_selection() {
     let mut fight=three_enemy_combat("mayhem",0);
     play(&mut fight,1,None);
-    for instance in 51..=53{add_to_draw(&mut fight,"defend_g",instance,0);}
     add_to_draw(&mut fight,"acrobatics",50,0);
+    // Mayhem plays after this fixture's one-card draw; leave Acrobatics beneath its filler.
+    add_to_draw(&mut fight,"defend_g",51,0);
+    // Keep Repulsor's Dazed move out so Acrobatics stays on top after the one-card draw.
+    for enemy in &mut fight.state.enemies {
+        if enemy.enemy_id == ActorEnemyId::Full(crate::content::EnemyId::Repulsor) {
+            let intent = FullIntentId::from_name("repulsor_attack");
+            enemy.intent_id = ActorIntentId::Full(intent.clone());
+            enemy.selected_move = ActorIntentId::Full(intent.clone());
+            enemy.move_history.push(ActorIntentId::Full(intent));
+        }
+    }
+    effects::refresh_enemy_values(&mut fight.state).unwrap();
     fight.state.player.max_energy=1;
     fight.state.player.energy=1;
 

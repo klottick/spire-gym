@@ -281,6 +281,8 @@ fn m26_normality_counts_autoplay_and_late_draw() {
     let mut mayhem = fight(vec![card(Mayhem, 1, 0), card(Normality, 2, 0),
         card(Defend, 3, 0), card(Defend, 4, 0), card(Defend, 5, 0)], 5);
     add_draw_card(&mut mayhem, Strike, 90);
+    // Mayhem acts after five natural draws; leave Strike 90 sixth in the draw pile.
+    for instance in 91..=95 { add_draw_card(&mut mayhem, Defend, instance); }
     mayhem.state.player_full_powers.push(FullPowerEntry { id: FullPowerId("retain_cards"),
         state: PowerState { amount: 1, skip_first: false, monster_source_grace: false } });
     play(&mut mayhem, 1, None);

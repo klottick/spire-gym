@@ -252,11 +252,11 @@ fn blood_vial_and_lantern_startup_work_precedes_anchor_bottom_queued_block() {
     assert_eq!(startup.bottom.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
         vec![EffectKind::GainBlock(10)]);
 
-    let first_turn = relic_hook_effects(&mut context, Hook::TurnStarted, 40, 80,0);
+    let first_turn = relic_hook_effects(&mut context, Hook::TurnStartedPreDraw, 40, 80,0);
     assert_eq!(first_turn.top.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
         vec![EffectKind::GainEnergy(1)]);
     assert!(first_turn.bottom.is_empty());
-    assert!(relic_hook_effects(&mut context, Hook::TurnStarted, 40, 80,0).top.is_empty());
+    assert!(relic_hook_effects(&mut context, Hook::TurnStartedPreDraw, 40, 80,0).top.is_empty());
 }
 
 fn run_with_vitals(hp: u32, max_hp: u32) -> crate::run::Run {

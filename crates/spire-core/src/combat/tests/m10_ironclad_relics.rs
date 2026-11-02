@@ -56,8 +56,8 @@ fn m10_orichalcum_explicit_trigger_queues_block_even_when_player_already_has_blo
     let mut c=enter(EncounterId::OrbWalker,&[RelicId::Orichalcum]);
     c.state.player.block=4;
     c.state.item_context.as_mut().unwrap().orichalcum_trigger=true;
-    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::TurnStarted)}],None).unwrap();
-    assert!(!c.state.item_context.as_ref().unwrap().orichalcum_trigger,"actual TurnStarted callback clears any prior flag");
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::TurnStartedPreDraw)}],None).unwrap();
+    assert!(!c.state.item_context.as_ref().unwrap().orichalcum_trigger,"actual atTurnStart (TurnStartedPreDraw) callback clears any prior flag");
     c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)}],None).unwrap();
     assert_eq!(c.state.player.block,4,"a cleared flag cannot independently retrigger at positive Block");
     c.state.item_context.as_mut().unwrap().orichalcum_trigger=true;
@@ -166,7 +166,8 @@ fn m10_ironclad_relics_red_skull_battle_start_directly_stacks_signed_strength(){
     let c=Combat::enter_with_item_context(control,&mut Some(acquired(&[RelicId::RedSkull]))).unwrap();
     assert_eq!(c.state.player_full_powers.iter().find(|p|p.id.0=="strength").unwrap().state.amount,-2);
     assert_eq!(c.state.player_full_powers.iter().find(|p|p.id.0=="artifact").unwrap().state.amount,1);
-    assert_eq!(c.state.resolved_effects,base.state.resolved_effects,"already-bloodied battle-start Red Skull uses direct addPower, not an ApplyPowerAction child");
+    // One resolved effect is the queued bottom check itself (source-check-turnstart-hooks-v1); it has no child.
+    assert_eq!(c.state.resolved_effects,base.state.resolved_effects+1,"already-bloodied battle-start Red Skull uses direct addPower, not an ApplyPowerAction child");
     assert!(engine::validate_runtime(&c.state).is_ok());
 }
 

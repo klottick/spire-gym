@@ -115,7 +115,9 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
             0
         }
         MindBlast=>{
-            let base=card.local.base_damage.ok_or(crate::run::RunError::Unsupported("Mind Blast draw count was not captured on hand entry"))?;
+            // applyPowers() is Mind Blast's only value source: an instance never refreshed
+            // keeps its constructor base, 0.
+            let base=card.local.base_damage.unwrap_or(0);
             let damage=super::super::modified_damage(state,target.unwrap(),base)?;
             effects.push((Some(PayloadTarget::SelectedEnemy),EffectKind::Damage(DamagePayload::Fixed(damage))));
             if up{1}else{2}

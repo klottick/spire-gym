@@ -5,8 +5,8 @@ use spire_core::content::{CardCost, CardId, CardTarget, Catalog};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-const UNRESOLVED: &[&str] = &["mind_blast", "secret_technique", "secret_weapon", "distraction", "alchemize", "discovery",
-    "chrysalis", "metamorphosis", "stack", "blizzard", "white_noise"];
+const UNRESOLVED: &[&str] = &["secret_technique", "secret_weapon", "distraction", "alchemize", "discovery",
+    "chrysalis", "metamorphosis", "white_noise"];
 
 fn hex(bytes: [u8; 32]) -> String { bytes.iter().map(|b| format!("{b:02x}")).collect() }
 fn row<'a>(d: &'a Value, id: &str) -> &'a Value { d["cards"].as_array().unwrap().iter().find(|r| r["id"] == id).expect("row") }
@@ -32,7 +32,7 @@ fn descriptor_is_versioned_deterministic_bounded_and_self_fingerprinted() {
     assert_eq!((&d["content_revision"]["cards_sha256"], &d["content_revision"]["rows"], &d["content_revision"]["faces"]),
         (&Value::from(hex(cards.finalize().into())), &Value::from(369), &Value::from(faces)));
     // Pinned: any content, constructor, cost, payload or schema change must be an explicit update.
-    assert_eq!(d["fingerprint"], "b60b66c69bce54a6652442e54bc42a2a446d05ec7efa39bb1b11cf4b8c6ff5fb");
+    assert_eq!(d["fingerprint"], "effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406");
 }
 
 #[test]

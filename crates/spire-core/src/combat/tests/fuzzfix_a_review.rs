@@ -65,10 +65,11 @@ fn confirm_scry_discarding_first(combat: &mut Combat, context: &str) {
 
 #[test]
 fn fuzzfix_a_melange_scry_inside_a_distilled_chaos_child_suspends_and_resumes_the_child() {
-    let mut combat = fixture(Character::Watcher, &[(PommelStrike, 0), (StrikePurple, 0), (DefendPurple, 0), (DefendPurple, 0)],
+    let mut combat = fixture(Character::Watcher, &[(PommelStrike, 0), (StrikePurple, 0), (DefendPurple, 0), (DefendPurple, 0), (StrikePurple, 0), (DefendPurple, 0), (StrikePurple, 0)],
         vec![RelicId::PureWater, RelicId::Melange], vec![Some(PotionId::DistilledChaos), None, None], 10);
-    arrange(&mut combat, &[4], &[1], &[2, 3]);
-    // Pommel Strike's draw shuffles the discard; Melange opens its Scry inside the potion-owned child.
+    arrange(&mut combat, &[4], &[3, 2, 1], &[5, 6, 7]);
+    // Distilled Chaos takes all three top cards before using any; Pommel Strike's draw then
+    // shuffles the discard and Melange opens its Scry inside the potion-owned child.
     step(&mut combat, CombatAction::UsePotion { slot: 0, target: None }, "Distilled Chaos + Melange");
     assert_melange_scry_open(&combat, Phase::PlayerAction);
     let frame = combat.state.pending_selection.as_ref().unwrap().resume.frame.clone().expect("child frame recorded");
@@ -101,14 +102,14 @@ fn fuzzfix_a_direct_manual_discard_during_a_retain_commit_runs_its_relic_callbac
     let mut combat = fixture(Character::Silent, &[(WellLaidPlans, 0), (Mayhem, 0), (AllOutAttack, 0), (DefendGreen, 0), (StrikeGreen, 0),
         (DefendGreen, 0), (StrikeGreen, 0), (DefendGreen, 0), (StrikeGreen, 0), (DefendGreen, 0)],
         vec![RelicId::Tingsha], vec![None; 3], 10);
-    arrange(&mut combat, &[1, 2, 4, 5], &[7, 8, 9, 10, 6, 3], &[]);
+    arrange(&mut combat, &[1, 2, 4, 5], &[3, 6, 10, 9, 8, 7], &[]);
     step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Well-Laid Plans");
     step(&mut combat, CombatAction::PlayCard { instance: 2, target: None }, "Mayhem");
     step(&mut combat, CombatAction::EndTurn, "end turn into retain");
     assert!(combat.state.pending_selection.as_ref().is_some_and(|selection| selection.operation == SelectionOperation::Retain));
     step(&mut combat, CombatAction::SelectCard { instance: 4 }, "retain choice");
-    // The retain commit resumes the enemy turn and the next turn start, where Mayhem
-    // autoplays All-Out Attack, which discards directly while that commit resolves.
+    // After the next turn draws five cards, Mayhem plays the sixth card, All-Out Attack,
+    // which discards directly while the retain commit is still resolving.
     step(&mut combat, CombatAction::ConfirmSelection, "retain confirm through Mayhem All-Out Attack");
     assert_eq!(combat.state.turn, 2);
     assert!(combat.state.hook_events.iter().any(|event| event.hook == Hook::CardPlayed
@@ -179,14 +180,14 @@ fn fuzzfix_a_distilled_chaos_skewer_uses_captured_energy() {
 fn fuzzfix_a_two_stack_mayhem_burst_x_cards_share_turn_start_energy_and_spend_nothing() {
     let mut combat = fixture(Character::Ironclad, &[(Mayhem, 0), (Mayhem, 0), (Whirlwind, 0), (Whirlwind, 0),
         (Defend, 0), (Defend, 0), (Defend, 0), (Defend, 0), (Defend, 0)], vec![], vec![None; 3], 3);
-    arrange(&mut combat, &[1, 2], &[5, 6, 7, 8, 9, 4, 3], &[]);
+    arrange(&mut combat, &[1, 2], &[4, 3, 5, 6, 7, 8, 9], &[]);
     combat.state.player.energy = 4;
     step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "first Mayhem");
     step(&mut combat, CombatAction::PlayCard { instance: 2, target: None }, "second Mayhem");
     let hp = combat.state.enemies[0].hp;
     step(&mut combat, CombatAction::EndTurn, "two-stack Mayhem turn start");
     assert_eq!(combat.state.turn, 2);
-    assert_eq!(whirlwind_damage(&combat, hp), 30, "both Whirlwinds have the turn-start X=3");
+    assert_eq!(whirlwind_damage(&combat, hp), 30, "both sixth/seventh cards use post-recharge X=3");
     assert_eq!(combat.state.player.energy, 3);
 }
 
@@ -198,7 +199,7 @@ fn fuzzfix_a_melange_scry_after_the_after_draw_relic_phase_does_not_redispatch_i
     // Turn two draws five of six; Pocketwatch's after-draw Draw 3 shuffles and Melange suspends PlayerStart.
     step(&mut combat, CombatAction::EndTurn, "end turn into Pocketwatch draw");
     assert_melange_scry_open(&combat, Phase::PlayerStart);
-    assert!(combat.state.pending_selection.as_ref().unwrap().resume.marks.after_draw);
+    // The after-draw relic phase is the TurnStarted checkpoint's own work, raised once.
     step(&mut combat, CombatAction::ConfirmSelection, "Melange Scry confirm at PlayerStart");
     assert_eq!(combat.state.phase, Phase::Decision);
     assert_eq!(combat.state.piles.hand.len(), 8, "five turn draws and one Pocketwatch Draw 3; the after-draw phase ran once");

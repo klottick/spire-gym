@@ -174,6 +174,19 @@ fn m15_generation_mayhem_child_uses_actual_character_and_shared_generator_owner(
     c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
     let card=permanent_live_card(id("distraction"),CardInstanceId(70),0);
     c.state.card_ids_issued.insert(card_state::handle(card.instance));c.state.piles.draw.push(OwnedCard::Full(card));
+    // Mayhem plays after this fixture's one-card turn draw; leave Distraction beneath the filler.
+    let filler=permanent_live_card(CardId::DefendGreen,CardInstanceId(71),0);
+    c.state.card_ids_issued.insert(card_state::handle(filler.instance));c.state.piles.draw.push(OwnedCard::Full(filler));
+    // Keep Repulsor's Dazed move out of this generation-owner fixture so Distraction stays after the draw.
+    for enemy in &mut c.state.enemies {
+        if enemy.enemy_id == ActorEnemyId::Full(crate::content::EnemyId::Repulsor) {
+            let intent = FullIntentId::from_name("repulsor_attack");
+            enemy.intent_id = ActorIntentId::Full(intent.clone());
+            enemy.selected_move = ActorIntentId::Full(intent.clone());
+            enemy.move_history.push(ActorIntentId::Full(intent));
+        }
+    }
+    effects::refresh_enemy_values(&mut c.state).unwrap();
     c.step_full(&CombatAction::EndTurn).unwrap();
     assert!(c.state.piles.exhaust.iter().any(|card|card.handle().as_str()=="70"));
     assert!(c.state.piles.hand.iter().chain(c.state.piles.discard.iter()).filter_map(OwnedCard::full).any(|card|matches!(card.origin,CombatCardRef::CombatLocal(_))));

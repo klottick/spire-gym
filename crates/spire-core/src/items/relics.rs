@@ -58,8 +58,9 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
                 target:Some(Actor::Enemy(owner.clone())),
                 kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("strength"),amount:1}};
             match phase {
+                // Immediate in the source; top is the nearest queued position.
                 super::dispatch::ItemPhase::CombatStart if facts.hook==Some(Hook::CombatStarted)=>
-                    work.bottom.extend(facts.live_enemies.iter().map(strength)),
+                    work.top.extend(facts.live_enemies.iter().map(strength)),
                 super::dispatch::ItemPhase::EnemySpawned=>if let Some(owner)=facts.spawned {work.bottom.push(strength(owner));},
                 _=>{}
             }
@@ -70,6 +71,12 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
     // entry: either the M21 queued hook or hook-free startup dispatch, never both.
     if phase==super::dispatch::ItemPhase::CombatStartPreDraw&&context.is_pre_draw_visit(facts.hook){
         match id {
+            // Cracked Core channels at atPreBattle, before the opening hand.
+            RelicId::CrackedCore=>{
+                work.bottom.push(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Character(
+                    crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Lightning))});
+                return Ok(true)
+            }
             RelicId::PureWater if context.complete_items()||!context.m21_profile()=>{
                 let creation=if !context.complete_items()
                     ||context.m21_profile()&&facts.hook==Some(Hook::CombatStartedPreDraw){
@@ -98,7 +105,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
     let block=facts.block;
     match id {
         RelicId::Orichalcum=>{
-            if hook==Hook::TurnStarted {context.orichalcum_trigger=false;}
+            if hook==Hook::TurnStartedPreDraw {context.orichalcum_trigger=false;}
             // The cleanup hook is emitted for Cloak Clasp or Orichalcum; Orichalcum then fires there once.
             if hook==Hook::PlayerEndTurn&&!(context.owns_relic(RelicId::CloakClasp)||context.complete_items())&&(block==0||context.orichalcum_trigger) {
                 context.orichalcum_trigger=false;
@@ -113,7 +120,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
             }
         }
         RelicId::Damaru=>if hook==Hook::TurnStartedPreDraw {
-            work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+            work.bottom.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
                 kind:EffectKind::Watcher(crate::combat::cards::watcher::WatcherEffect::GainMantra{amount:1})});
         },
         RelicId::Duality=>if hook==Hook::AttackResolved {
@@ -137,7 +144,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
         RelicId::GoldenEye=>{}
         RelicId::Lantern=>{
             if hook==Hook::CombatStarted {context.lantern_armed=true;}
-            if hook==Hook::TurnStarted&&context.lantern_armed {
+            if hook==Hook::TurnStartedPreDraw&&context.lantern_armed {
                 context.lantern_armed=false;
                 work.top.push(player(EffectKind::GainEnergy(1)));
             }
@@ -156,7 +163,7 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
             let hp=facts.hp;
             let kind = match (hook, id) {
                 (Hook::CombatStartedPreDraw,RelicId::HolyWater) if context.m22_profile()||context.complete_items()=>Some(EffectKind::Watcher(crate::combat::cards::watcher::WatcherEffect::CreateRequest{id:crate::content::CardId::Miracle,count:3})),
-                (Hook::CombatStartedPreDraw,RelicId::TeardropLocket) if context.m21_profile()||context.complete_items()=>Some(EffectKind::Character(crate::combat::CharacterEffect::Stance(crate::combat::Stance::Calm))),
+                (Hook::CombatStarted,RelicId::TeardropLocket) if context.m21_profile()||context.complete_items()=>Some(EffectKind::Character(crate::combat::CharacterEffect::Stance(crate::combat::Stance::Calm))),
                 (Hook::CombatStarted, RelicId::DataDisk) => Some(EffectKind::Character(crate::combat::CharacterEffect::Focus(1))),
                 (Hook::CombatStarted, RelicId::Vajra) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("strength"),amount:1 }),
                 (Hook::CombatStarted, RelicId::OddlySmoothStone) => Some(EffectKind::ApplyFullPower { id:crate::combat::FullPowerId("dexterity"),amount:1 }),
@@ -165,8 +172,6 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
                 (Hook::CombatStarted, RelicId::BloodVial) => Some(EffectKind::Heal(2)),
                 (Hook::CombatStarted, RelicId::Anchor) => Some(EffectKind::GainBlock(10)),
                 (Hook::CombatStarted, RelicId::RingOfTheSnake) => Some(EffectKind::Draw(2)),
-                (Hook::CombatStarted, RelicId::CrackedCore) => Some(EffectKind::Character(
-                    crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Lightning))),
                 (Hook::CombatStarted|Hook::CombatStartedPreDraw, RelicId::PureWater) if context.is_pre_draw_visit(Some(hook)) => Some(EffectKind::CreateCard {
                     id: crate::content::CardId::Miracle,
                     destination: crate::combat::CardDestination::Hand,
@@ -179,14 +184,14 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
                 _ => None,
             };
             if let Some(kind) = kind {
-                if id == RelicId::Anchor { work.bottom.push(player(kind)); }
+                if matches!(id,RelicId::Anchor|RelicId::BagOfPreparation|RelicId::RingOfTheSnake) { work.bottom.push(player(kind)); }
                 else { work.top.push(player(kind)); }
             }
         }
         // Battle-start enemy debuffs (formerly a separate front-pushed pass; G4).
         RelicId::RedMask|RelicId::BagOfMarbles=>if hook==Hook::CombatStarted {
             let power=if id==RelicId::RedMask{"weak"}else{"vulnerable"};
-            work.top.extend(facts.live_enemies.iter().map(|owner|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId(power),amount:1}}));
+            work.bottom.extend(facts.live_enemies.iter().map(|owner|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId(power),amount:1}}));
         },
         _=>return Ok(false),
     }

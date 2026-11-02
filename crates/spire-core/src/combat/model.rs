@@ -310,6 +310,8 @@ pub enum RelicEffect {
     RemovePlayerDebuffs,
     GamblingChipSelect,
     RetainHand,
+    /// Red Skull's queued battle-start check: it reads HP when it resolves.
+    RedSkullCheck,
 }
 /// Detached result from the single shared damage commit, not a second calculator.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -402,7 +404,7 @@ pub enum ManualDiscardOrigin { SelectionCommit, Direct }
 /// Resolver checkpoints that run once per resolution and were already spent
 /// by the resolution a selection interrupted.
 #[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
-pub struct ResolveMarks { pub after_draw:bool, pub hand_emptied:bool }
+pub struct ResolveMarks { pub hand_emptied:bool }
 
 /// The continuation any selection suspends. It is recorded when the selection
 /// opens, validators check ownership through it, and every commit restores it.

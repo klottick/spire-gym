@@ -31,7 +31,7 @@ def test_native_descriptor_matches_the_rust_pin():
     # Requires an extension built from this source; see the delivery receipt. Pin moved with M28 G1
     # (starter Strike/Defend tags on every character).
     metadata = card_metadata.load()
-    assert metadata["fingerprint"] == "b60b66c69bce54a6652442e54bc42a2a446d05ec7efa39bb1b11cf4b8c6ff5fb"
+    assert metadata["fingerprint"] == "effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406"
     rows = card_metadata.by_id(metadata)
     assert len(rows) == 369 and rows["strike"]["faces"][0]["cost"] == 1
     assert "strike: red basic attack, cost 1" in card_metadata.render_card(metadata, "strike")

@@ -179,7 +179,7 @@ fn m15_silent_manual_discard_queues_bandages_tingsha_and_once_per_turn_kite() {
     assert!(!second.top.iter().any(|effect| effect.kind == EffectKind::GainEnergy(1)),
         "a second real callback in the same turn cannot pay Kite twice");
     assert!(context.kite_triggered());
-    relic_hook_effects(&mut context, Hook::TurnStarted, 35, 80, 0);
+    relic_hook_effects(&mut context, Hook::TurnStartedPreDraw, 35, 80, 0);
     assert!(!context.kite_triggered(), "Kite's once-per-turn custody resets at player turn start");
     let next_turn = relic_hook_effects(&mut context, Hook::CardManuallyDiscarded, 35, 80, 0);
     assert!(next_turn.top.iter().any(|effect| effect.kind == EffectKind::GainEnergy(1)));
