@@ -6,6 +6,7 @@ members = [
     "crates/spire-python",
     "crates/spire-cli",
     "crates/spire-report",
+    "crates/spire-fuzz",
 ]
 
 [workspace.package]

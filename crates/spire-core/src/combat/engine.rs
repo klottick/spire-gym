@@ -171,6 +171,8 @@ pub(super) fn validate_scenario_mode(scenario: &Scenario, full: bool) -> Result<
 }
 
 impl Combat {
+    #[cfg(feature = "fuzz-diagnostics")]
+    pub(crate) fn fuzz_validate_runtime(&self) -> Result<(), InputError> { validate_runtime(&self.state) }
     #[cfg(test)] pub(crate) fn mark_watcher_act3_for_test(&mut self){if let Some(context)=self.state.item_context.as_mut(){context.mark_watcher_act3_for_test();}}
     pub(crate) fn validate_permanent_mutations_for_run(&self)->Result<(),InputError>{super::cards::defect::validate_mutations(&self.state)}
     pub fn permanent_card_mutations(&self)->&[super::PermanentCardMutation]{&self.state.defect.permanent_mutations}

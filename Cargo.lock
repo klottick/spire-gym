@@ -425,6 +425,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "spire-fuzz"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+ "spire-core",
+ "spire-env",
+]
+
+[[package]]
 name = "spire-python"
 version = "0.1.0"
 dependencies = [

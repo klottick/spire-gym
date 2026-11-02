@@ -747,6 +747,8 @@ fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)-
     Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint:profile.observation_spec(&config.capacities)?.fingerprint(),config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
 }
 impl RunSession{
+    #[cfg(feature="fuzz-diagnostics")]
+    pub fn fuzz_run(&self)->Option<&Run>{self.run.as_ref()}
     /// Additive public provenance: no replay, seed, cursor or private Note.
     pub fn environment_spec(&self)->Result<serde_json::Value,RunSessionError>{
         let spec=self.observation_spec()?;

@@ -24,6 +24,9 @@ m27-diagnostics = ["m26-diagnostics", "m25-diagnostics"]
 # diagnostics-only until M28f).
 m28-diagnostics = ["m27-diagnostics"]
 
+# Read-only fuzz invariant accessors. Default-off and opt-in with the harness diagnostics lane.
+fuzz-diagnostics = []
+
 # The frozen replay harness is built only with its feature (default builds skip it).
 [[example]]
 name = "m27_frozen_replay"
