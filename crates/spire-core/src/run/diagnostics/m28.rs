@@ -15,3 +15,9 @@ pub use crate::run::rooms::standard::shop::ShopSupply;
 pub fn standard_shop_run(character: Character, supply: ShopSupply, rng: RunRng) -> Result<Run, RunError> {
     crate::run::rooms::standard::shop::diagnostic_shop(character, supply, rng)
 }
+
+/// A standard A0 Run on `act`'s map whose first-row Event room constructs `event` (its event lists
+/// hold only that event); returns the Run and that node (M28c item 16).
+pub fn standard_event_run(character: Character, act: u8, event: crate::content::EventId, rng: RunRng) -> Result<(Run, crate::run::NodeId), RunError> {
+    crate::run::rooms::standard::diagnostic_event_run(character, act, event, rng)
+}

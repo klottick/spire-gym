@@ -496,7 +496,7 @@ fn equip_offer_run(character: Character, relic: RelicId) -> Run {
         },
         purge_cost: 75, reward_parent: None, active_rewards: None, boss: None, transition: None,
         act2_boss_order: None, act3_boss_order: None, joust: None, joust_visits: 0,
-        act3_event: None, act3_end: None,
+        act3_event: None, act3_end: None, standard_event: None,
     });
     let public = run.decision().expect("public equip fixture choices");
     let choice = public.room.unwrap().choices.into_iter().find(|choice|

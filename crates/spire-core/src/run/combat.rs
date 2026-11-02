@@ -122,6 +122,8 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
     let standard=super::rooms::is_standard(state)&&match origin{
         CombatOrigin::MapRoom{node,kind}=>state.map.as_ref().is_some_and(|map|map.current==Some(node)
             &&map.nodes.iter().any(|n|n.id==node&&n.visited&&n.encounter==Some(encounter)&&(n.kind==kind||n.hidden_kind==Some(kind)))),
+        // Design §5.7: an event combat admits only the encounter its live frame started.
+        CombatOrigin::Event{node,event,stage}=>super::rooms::standard::event_frame::admits_combat(state,encounter,node,event,stage),
         _=>false,
     };
     // A standard Run admits only that encounter: the legacy M3 Jaw Worm/Cultist exemption does not apply.
@@ -130,14 +132,19 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Boss)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Boss,..}|CombatOrigin::Training{kind:MapNodeKind::Boss}),burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
-    let mut entry=enemies::setup(encounter,m16_metadata.map_or(state.act,|(act,_)|act),state.ascension,&mut rng,SetupContext {
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:false,burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
+    // An event combat fights its encounter's own setup act (design §5.7: Mind Bloom's Act 1 boss in Act 3).
+    let event_act=matches!(origin,CombatOrigin::Event{..}).then(||enemies::A0_ENCOUNTER_SETUPS.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,_)|*act)).flatten();
+    let mut entry=enemies::setup(encounter,m16_metadata.map(|(act,_)|act).or(event_act).unwrap_or(state.act),state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
         character:state.character,cards:state.deck.iter().map(|card|
             crate::combat::permanent_live_card_with_misc(card.id,CardInstanceId(card.instance),card.upgrades,card.misc)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
     })?;
+    // G13 (PM source check m28c Q3): a boss fight is one with a BOSS-type monster, whatever the room
+    // (Pantograph, Slaver's Collar; Smoke Bomb already reads the enemy type in `combat::smoke`).
+    battle.boss=entry.setup.enemies.iter().any(|enemy|enemies::is_boss_type(enemy.enemy_id));
     if m5||m6||m8||standard {
         if let Some(node)=state.map.as_ref().and_then(|map|map.current.and_then(|id|map.nodes.iter().find(|n|n.id==id)))
             .filter(|node|battle.elite_trigger&&node.burning) {
@@ -217,6 +224,7 @@ impl Run {
 
     pub(super) fn settle_combat(&mut self) -> Result<RunTransition,RunError> {
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
+        let record_origin=self.state.active_combat.as_ref().map(|active|active.origin);
         self.sync_permanent_gains()?;
         let (mut exit,record,settled,local_visits)=match prepare_settlement(&self.state) {
             Ok(prepared)=>prepared,
@@ -279,12 +287,19 @@ impl Run {
         self.state.active_combat=None;
         self.state.combat=None;
         self.candidates.clear();
+        // PM ruling (M28c review M2): a rewards-disabled event fight reopens the event at its post-fight
+        // continuation after a victory or an escape.
+        let event_continues=rewards.is_none()&&matches!(exit.outcome,Outcome::Victory|Outcome::Escaped)&&matches!(record_origin,Some(CombatOrigin::Event{..}));
         if let Some(prepared)=rewards{super::rooms::rewards::commit_combat(self,prepared);}
         if let Some(prepared)=ending{super::rooms::act3_end::commit(self,prepared);}
         if let Some(node)=act4_node{super::rooms::act4::commit_elite_victory(self,node,record.clone());}
         if let Some(prepared)=heart_victory{super::rooms::act4::commit_heart_victory(self,prepared);}
         if exit.outcome==Outcome::Death {
             self.state.terminal=Some(RunTerminal::Death);
+        }
+        // An event combat without a reward screen continues at its next stage (design §5.7).
+        if event_continues&&super::rooms::standard::event_frame::after_combat(self).is_err(){
+            return Err(self.retain_fault(RunFaultKind::Invariant("event combat return failed"),"run.event.standard"));
         }
         let reward=super::reward::commit(&mut self.state,&events)?;
         Ok(RunTransition {reward,terminal:self.state.terminal,committed_events:events})
@@ -345,7 +360,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,potion_potencies:Default::default(),we_meet_again:false,
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,
         },candidates:vec![],next_choice:0}
     }
 

@@ -1,0 +1,29 @@
+{
+  "retrieved_at": "2026-11-01T05:33:06.618377+00:00",
+  "host": "https://slaythespire.wiki.gg/api.php",
+  "query_urls": [
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&redirects=1&titles=Designer+In-Spire%7CDuplicator%7CKnowing+Skull%7CN%27loth%7CSecret+Portal",
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&redirects=1&titles=Big+Fish%7CDead+Adventurer%7CGolden+Idol%7CMushrooms+%28Hypnotizing+Colored+Mushrooms%29%7CLiving+Wall%7CScrap+Ooze%7CShining+Light%7CThe+Cleric%7CThe+Ssssserpent%7CWing+Statue%7CWorld+of+Goop%7CThe+Addict+%28Pleading+Vagrant%29%7CBack+to+Basics+%28Ancient+Writing%29%7CBeggar+%28Old+Beggar%29%7CColosseum%7CCursed+Tome%7CDrug+Dealer+%28Augmenter%29%7CForgotten+Altar%7CGhosts+%28Council+of+Ghosts%29%7CMasked+Bandits%7CThe+Nest%7CThe+Library%7CThe+Mausoleum%7CVampires%7CFalling%7CMind+Bloom%7CThe+Moai+Head%7CMysterious+Sphere%7CSensory+Stone%7CTomb+of+Lord+Red+Mask%7CWinding+Halls%7CGolden+Shrine%7CMatch+and+Keep%21%7CPurifier%7CTransmogrifier%7CUpgrade+Shrine%7CWheel+of+Change%7CAccursed+Blacksmith+%28Ominous+Forge%29%7CBonfire+Spirits%7CFace+Trader%7CFountain+of+Cleansing+%28The+Divine+Fountain%29%7CLab%7CNote+For+Yourself%7CWe+Meet+Again%21%7CThe+Woman+in+Blue%7CThe+Joust%7CDesigner+In-Spire%7CDuplicator%7CKnowing+Skull%7CN%27loth",
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&redirects=1&titles=Secret+Portal%7CNeow%7CEvents%7CAct+1%7CAct+2%7CAct+3%7CAct+4%7CCategory%3AEvents",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Mushrooms+Hypnotizing+Colored+Mushrooms&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=The+Addict+Pleading+Vagrant&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Back+to+Basics+Ancient+Writing&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Beggar+Old+Beggar&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Colosseum&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Drug+Dealer+Augmenter&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Ghosts+Council+of+Ghosts&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Match+and+Keep&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Accursed+Blacksmith+Ominous+Forge&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Divine+Fountain&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Note+For+Yourself&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Golden+Idol+Event&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Events+List&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Act+1+Events&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Act+2+Events&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Act+3+Events&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Act+4+Events&srlimit=8&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&redirects=1&titles=Hypnotizing+Colored+Mushrooms%7CPleading+Vagrant%7CAncient+Writing%7COld+Beggar%7CThe+Colosseum%7CAugmenter%7CCouncil+of+Ghosts%7CMatch+and+Keep%7COminous+Forge%7CThe+Divine+Fountain%7CA+Note+For+Yourself%7CGolden+Idol+%28Event%29%7CEvents+List"
+  ],
+  "failures": [],
+  "note": "Slay the Spire 1 wiki pages were captured through the MediaWiki revisions API with redirects=1. Supplied aliases were resolved using list=search; Events List and act pages were captured for pool membership. Revision pages were retrieved separately in batches and do not form a transactional snapshot. Search results identify candidate canonical titles; they do not establish game-runtime correctness."
+}

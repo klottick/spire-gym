@@ -1,0 +1,58 @@
+{
+  "retrieved_at": "2026-11-01T06:02:34Z",
+  "host": "https://slaythespire.wiki.gg/api.php",
+  "query_urls": [
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&titles=Match+and+Keep%7CIronclad%7CSilent%7CDefect%7CWatcher%7CBash%7CNeutralize%7CSurvivor%7CZap%7CDualcast%7CEruption%7CVigilance&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&formatversion=2&redirects=1",
+    "https://slaythespire.wiki.gg/api.php?action=query&prop=revisions&titles=Talk%3AMatch+and+Keep%7CMatch+and+Keep%2FVariants%7CMatch+and+Keep%21%2FVariants&rvprop=ids%7Ctimestamp%7Ccontent&rvslots=main&format=json&formatversion=2&redirects=1",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=Match+and+Keep+starter+card&srlimit=20&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=getStartCardForEvent&srlimit=20&format=json",
+    "https://slaythespire.wiki.gg/api.php?action=query&list=search&srsearch=event+starter+card+character&srlimit=20&format=json"
+  ],
+  "failures": [
+    "No page revision for Match and Keep!/Variants (API reported missing).",
+    "No page revision for Match and Keep/Variants (API reported missing).",
+    "No page revision for Talk:Match and Keep (API reported missing)."
+  ],
+  "note": "Captured the event, all four character pages, and each pair of starter-card candidates named by local card pages. Searches for a character-specific Match and Keep starter statement and getStartCardForEvent did not identify a page that selects among the Silent, Defect, or Watcher candidates. Talk/Variants titles were queried and are missing. The assignment hostname spelling returned HTTP 401; the successful host is the existing repository capture host. No Fandom text was used in these captures. Revision batches are not a transactional snapshot.",
+  "search_results": {
+    "Match and Keep starter card": [
+      "Weekly Patch 6 - We're Back!"
+    ],
+    "getStartCardForEvent": [
+      "Cards",
+      "Question Card",
+      "Bottled Lightning",
+      "Bottled Flame",
+      "Bottled Tornado",
+      "Wheel of Change",
+      "Writhe",
+      "Masked Bandits",
+      "Blood Vial",
+      "Gold",
+      "Girya",
+      "Winding Halls",
+      "Strike (Ironclad)",
+      "Bag of Preparation",
+      "Pantograph",
+      "Strike (Silent)",
+      "Orichalcum",
+      "Preserved Insect",
+      "Happy Flower",
+      "Gremlin Horn"
+    ],
+    "event starter card character": [
+      "Relics",
+      "Bottled Flame",
+      "Bottled Lightning",
+      "N'loth's Gift",
+      "Fusion Hammer",
+      "Neow",
+      "Weekly Patch 18 - Paranormal",
+      "V2.0 - Major Update",
+      "Weekly Patch 6 - We're Back!",
+      "Weekly Patch 29 - TURBO",
+      "Custom Mode",
+      "V1.1 - Patch"
+    ]
+  }
+}

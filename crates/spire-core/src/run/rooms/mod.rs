@@ -39,7 +39,9 @@ pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(E
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Lift,Toke,Dig,SingingBowl,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8},
     /// M28 full Neow blessing offer (design §6.5); only `RoomScenario::StandardA0` builds it.
-    NeowBlessing{category:u8,reward:NeowReward,drawback:Option<NeowDrawback>} }
+    NeowBlessing{category:u8,reward:NeowReward,drawback:Option<NeowDrawback>},
+    /// M28 standard event option (design §5.3): option `option` of the event's stage `stage`.
+    EventOption{stage:u8,option:u8} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -47,7 +49,9 @@ pub struct RoomChoiceView {pub id:ChoiceId,pub kind:RoomChoiceKind,pub price:Opt
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RoomView {pub kind:RoomViewKind,pub choices:Vec<RoomChoiceView>}
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub act4:Option<act4::Act4Progress>,pub m10_elite_relic_cursor:usize,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>}
+pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub act4:Option<act4::Act4Progress>,pub m10_elite_relic_cursor:usize,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>,
+    /// M28 standard event frame (design §5.3); only `RoomScenario::StandardA0` builds it.
+    pub standard_event:Option<standard::event_frame::StandardEventFrame>}
 
 /// Mutable Run owners commit item events to the live state. Read-only room probes use a
 /// disposable state snapshot while retaining the same public builder API.
@@ -76,6 +80,9 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
         if row.price.is_some()&&matches!(row.kind,RoomChoiceKind::Potion(_))&&run.state.item_admission==ItemAdmission::Complete&&run.state.relics.contains(&RelicId::Sozu){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Smith|RoomChoiceKind::ShrineUpgrade)&&!run.state.deck.iter().any(|c|mutations::can_upgrade(&run.state,c)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
+        // M28 standard event options are offered only while their outcomes pass the executor's
+        // preconditions (design §5.4).
+        if matches!(row.kind,RoomChoiceKind::EventOption{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Rest{..}){row.kind=RoomChoiceKind::Rest{heal:(run.state.max_hp as f32*0.3_f32) as u32};}
         if run.state.pending.is_some(){row.status=RoomChoiceStatus::Disabled;}
@@ -86,7 +93,8 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     if matches!(view.kind,RoomViewKind::Act2Ready|RoomViewKind::Act2PrefixComplete|RoomViewKind::Act3Ready|RoomViewKind::Act3PrefixComplete|RoomViewKind::Act4Ready){return Ok(vec![])}
     if let Some(pending)=&run.state.pending {
         let mut candidates=run.candidates.clone();
-        if matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::Smith,..}){
+        if matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::Smith,..})
+            ||matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::EventSelect{..},..})&&standard::event_frame::skippable_select(run){
             candidates.push(Candidate{id:ChoiceId(u64::MAX),action:GameAction::Cancel,label:"Cancel selection",neow_offer:None,object:None});
         }return Ok(candidates)
     }
@@ -113,6 +121,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
         GameAction::DiscardPotion{slot}=>{let slot=*slot as usize;run.state.potions[slot]=None;if let Some(potency)=run.state.potion_potencies.get_mut(slot){*potency=None;}if !run.state.potions.iter().any(Option::is_some){run.state.potion_potencies.clear();}Ok(empty_transition())},
         GameAction::UsePotion{slot,target:None}=>{let we_meet_again=run.state.item_admission==ItemAdmission::Complete&&run.state.we_meet_again;crate::items::use_run_potion(&mut run.state,*slot as usize,false,we_meet_again)?;Ok(empty_transition())},
         GameAction::Select(id)=>run.select(*id),
+        GameAction::Cancel if run.state.pending.as_ref().is_some_and(|p|matches!(p.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::EventSelect{..},..}))=>standard::event_frame::cancel_select(run),
         GameAction::Cancel=>{run.state.pending=None;run.candidates.clear();Ok(empty_transition())},
         GameAction::Choose(id)=>match public(run)?.kind {
             RoomViewKind::Act3BossComplete|RoomViewKind::Act3Ending=>act3_end::choose(run,*id),
@@ -256,6 +265,6 @@ impl Run {
         let mut run=Self::new(config,profile,rng)?;
         let choices=run.candidates.iter().map(|c|RoomChoiceView{id:c.id,kind:match c.neow_offer.as_ref().unwrap().reward{
             NeowReward::Lament=>RoomChoiceKind::NeowLament,_=>RoomChoiceKind::NeowMaxHp{amount:(run.state.max_hp as f32*0.1_f32) as u32}},price:None,status:RoomChoiceStatus::Offered}).collect();
-        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,act4:None,m10_elite_relic_cursor:0,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None});Ok(run)
+        run.state.room_loop=Some(RoomLoop{scenario,act1:None,act2:None,act3:None,act4:None,m10_elite_relic_cursor:0,screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None,standard_event:None});Ok(run)
     }
 }

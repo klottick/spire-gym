@@ -321,14 +321,23 @@ fn card_child_rows(next:&mut u64,cards:Vec<(CardId,u32)>,singing_bowl:bool)->Res
 /// PM source check m6) and discards them: only Proceed is shown and no card offer is generated.
 fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRewards>,RunError>{
     use crate::items::{relic_pools,run_laws,potion_offers};
-    let Some(CombatOrigin::MapRoom{node,kind})=run.state.active_combat.as_ref().map(|a|a.origin) else {return Ok(None)};
+    // An event combat (design §5.7) builds the `RewardRoom::Event` screen with its listed extras, or
+    // none when the event continues at a stage.
+    let (node,kind,event_spec)=match run.state.active_combat.as_ref().map(|a|a.origin){
+        Some(CombatOrigin::MapRoom{node,kind})=>(node,kind,None),
+        Some(CombatOrigin::Event{node,..})=>match super::standard::event_frame::combat_rewards(&run.state){
+            Some(spec)=>(node,MapNodeKind::Event,Some(spec)),
+            None=>return Ok(None),
+        },
+        _=>return Ok(None),
+    };
     let escaped=record.outcome==crate::combat::Outcome::Escaped;
     if !(record.outcome==crate::combat::Outcome::Victory||escaped){return Ok(None)}
     let combat=run.state.combat.as_ref().ok_or(RunError::InvalidAction)?;
     let all_escaped=combat.all_enemies_escaped();
     // The producer state carries the in-combat inventory, as the M27 reward-building seam does.
     let mut producer=combat_inventory_state(run);
-    let reward_room=match kind{MapNodeKind::Elite=>run_laws::RewardRoom::Elite,MapNodeKind::Boss=>run_laws::RewardRoom::Boss,_=>run_laws::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
+    let reward_room=match kind{MapNodeKind::Elite=>run_laws::RewardRoom::Elite,MapNodeKind::Boss=>run_laws::RewardRoom::Boss,MapNodeKind::Event=>run_laws::RewardRoom::Event,_=>run_laws::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
     let mut item_event=crate::items::dispatch::RunItemEvent::RewardsBuilding{room:reward_room,card_choices:3,extra_card_rewards:0,gold_percent:0,extra_elite_relics:0,include_potion:true,singing_bowl:false};
     // M27 seam: rewards building
     crate::items::dispatch::run_event(&mut producer.clone(),&mut item_event)?;
@@ -337,7 +346,16 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
     let mut rows=Vec::new();
     // Gold (economy research :120-131): ordinary 10–20 unless the monsters escaped, elite 25–35,
     // boss 100 + (−5..5); Golden Idol on the aggregate; stolen gold separate, no bonus.
-    let minimum=match kind{MapNodeKind::Elite=>Some(25),MapNodeKind::Boss=>Some(95),_ if all_escaped=>None,_=>Some(10)};
+    // An EventRoom has no combat gold; its listed gold is one row with the same Golden Idol bonus.
+    let minimum=match kind{MapNodeKind::Elite=>Some(25),MapNodeKind::Boss=>Some(95),MapNodeKind::Event=>None,_ if all_escaped=>None,_=>Some(10)};
+    if let Some(spec)=&event_spec{
+        if spec.gold>0{rows.push((RoomChoiceKind::Gold(spec.gold),None));apply_gold_bonus(&mut rows,gold_percent)?;}
+        for (slot,tier) in spec.relic_tiers.iter().enumerate(){
+            let key=[key[0],key[1],key[2],key[3],key[4],0xE0,slot as u64];
+            let relic=relic_pools::take(&mut producer,*tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?;
+            rows.push((RoomChoiceKind::Relic(relic),None));
+        }
+    }
     if let Some(minimum)=minimum{
         let gold=minimum+producer.rng.bounded_scoped_checked(RunRngScope::CombatGoldReward,&key,11)? as u32;
         rows.push((RoomChoiceKind::Gold(gold),None));
@@ -362,7 +380,7 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
     }
     // M27 potion appearance after the room drops and before the card offer; a player escape rolls
     // as the won room (monsters escaped only when every enemy fled).
-    let potion_room=match kind{MapNodeKind::Elite=>potion_offers::RewardRoom::Elite,MapNodeKind::Boss=>potion_offers::RewardRoom::Boss,_=>potion_offers::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
+    let potion_room=match kind{MapNodeKind::Elite=>potion_offers::RewardRoom::Elite,MapNodeKind::Boss=>potion_offers::RewardRoom::Boss,MapNodeKind::Event=>potion_offers::RewardRoom::Event,_=>potion_offers::RewardRoom::Ordinary{enemy_escaped:all_escaped}};
     if include_potion{
         if let Some(potion)=potion_offers::combat_appearance(&mut producer,potion_room,rows.len(),&key)?{rows.push((RoomChoiceKind::Potion(potion),None));}
     }

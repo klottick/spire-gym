@@ -12,6 +12,7 @@ certificate**. Dataset coverage is broader than the simulator's accepted profile
 |---|---|---|---|
 | Cards | [Card guide](cards/README.md) | [cards.json](cards/cards.json) | 370 records: 367 physical kinds plus three Wish choices; printed quantities are not evaluated effects or complete scheduling rules |
 | Relics | [Relic guide](relics/README.md) | [relics.json](relics/relics.json) | 180 identities, including two fallbacks; 141 local findings retain their supporting-static/pending-review grade |
+| Events and shrines | [Event guide](events/README.md) | [events.json](events/events.json) | 52 records: 51 events and shrines plus Neow; candidate IDs and source limits are explicit |
 | Enemies and encounters | [Enemy guide](enemies/README.md) | [enemies.json](enemies/enemies.json), [encounters.json](enemies/encounters.json) | 65 kinds, 196 moves, 67 encounter contexts; 27 constructor labels remain provisional after thirteen owned-static findings; nominal chances are not exact AI samplers |
 | Powers / buffs / debuffs | [Power guide](powers/README.md) | [powers.json](powers/powers.json) | 133 records; 12 constructor IDs intentionally unresolved after fourteen scoped owned-static findings; recipients, technical classification and timing are distinct |
 

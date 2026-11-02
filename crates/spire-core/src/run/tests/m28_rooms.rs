@@ -1,6 +1,8 @@
 //! M28b room/reward integration contracts through the standard Run owners.
 use super::super::*;
 use super::m28_world::{drive, on_map, win};
+use rooms::standard::event_pool::EventPools;
+use crate::content::EventId;
 use crate::{
     combat::{CombatAction, rng::Partition},
     content::{CardColor, CardRarity, CardType, Character, Catalog, EncounterId, PotionId, RelicId},
@@ -282,18 +284,21 @@ fn m28_question_room_overrides() {
     juzu.state.map.as_mut().unwrap().nodes.iter_mut().find(|entry| entry.id == node).unwrap().kind = MapNodeKind::Question;
     juzu.state.relics.push(RelicId::JuzuBracelet);
     juzu.state.map.as_mut().unwrap().question_ramps = [1.0_f32.to_bits(), 0, 0];
-    let before = juzu.clone();
-    assert_eq!(juzu.step(&GameAction::Move(node)), Err(RunError::Unsupported(standard_map::EVENT_ROOMS_INTERIM)));
-    assert!(juzu == before, "Juzu converts Monster to the interim Event without committing a combat");
+    // M28c: the converted room is an event room; a single-shrine pool makes its event Golden Shrine.
+    juzu.state.event_pools = Some(EventPools { ordinary: vec![], shrines: vec![EventId::GoldenShrine], one_time: vec![], seen: vec![] });
+    juzu.step(&GameAction::Move(node)).unwrap();
+    assert_eq!(view(&juzu).kind, RoomViewKind::Event(EventId::GoldenShrine), "Juzu converts Monster to an Event without committing a combat");
+    assert!(juzu.state.combat.is_none());
+    assert_eq!(juzu.state.map.as_ref().unwrap().nodes.iter().find(|entry| entry.id == node).unwrap().hidden_kind, Some(MapNodeKind::Event));
 
     let mut after_shop = on_map(Character::Ironclad, 0x43);
     let node = first_move(&after_shop);
     after_shop.state.map.as_mut().unwrap().nodes.iter_mut().find(|entry| entry.id == node).unwrap().kind = MapNodeKind::Question;
     after_shop.state.room = "Shop";
     after_shop.state.map.as_mut().unwrap().question_ramps = [0, 1.0_f32.to_bits(), 0];
-    let before = after_shop.clone();
-    assert_eq!(after_shop.step(&GameAction::Move(node)), Err(RunError::Unsupported(standard_map::EVENT_ROOMS_INTERIM)));
-    assert!(after_shop == before, "a post-shop question cannot resolve to Shop");
+    after_shop.state.event_pools = Some(EventPools { ordinary: vec![], shrines: vec![EventId::GoldenShrine], one_time: vec![], seen: vec![] });
+    after_shop.step(&GameAction::Move(node)).unwrap();
+    assert_eq!(view(&after_shop).kind, RoomViewKind::Event(EventId::GoldenShrine), "a post-shop question cannot resolve to Shop");
 }
 
 #[test]

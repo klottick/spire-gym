@@ -62,15 +62,17 @@ fn advance_screen(run: &mut Run) {
         other => panic!("unexpected standard screen {other:?}"),
     }
 }
-/// Move to the first legal node whose room is not an Event (the M28c interim leaves the Run unchanged).
+/// Move to the first legal node whose room is not an Event (probed on a copy; an event whose body
+/// has not landed returns its typed interim and leaves the whole Run unchanged).
 fn move_avoiding_events(run: &mut Run) -> RunTransition {
     let moves = run.decision().unwrap().candidates.iter().filter_map(|c| match c.action { GameAction::Move(n) => Some(n), _ => None }).collect::<Vec<_>>();
     for target in moves {
-        let before = run.clone();
-        match run.step(&GameAction::Move(target)) {
-            Ok(transition) => return transition,
-            Err(RunError::Unsupported(rooms::standard::map::EVENT_ROOMS_INTERIM)) => {
-                assert!(*run == before, "an interim event room leaves the whole Run unchanged");
+        let mut probe = run.clone();
+        match probe.step(&GameAction::Move(target)) {
+            Ok(_) if matches!(kind(&probe), RoomViewKind::Event(_)) => {}
+            Ok(transition) => { *run = probe; return transition }
+            Err(RunError::Unsupported(message)) if message.starts_with("M28 event body lands") => {
+                assert!(probe == *run, "an interim event room leaves the whole Run unchanged");
             }
             Err(error) => panic!("standard move failed: {error:?}"),
         }

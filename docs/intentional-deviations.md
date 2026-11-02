@@ -104,3 +104,27 @@ protect independence from caller delay and worker scheduling. Retain historical
 source/time findings unchanged; they describe the original rule, not this gym
 choice. No product code or original-runtime-validation claim follows from recording
 the decision.
+
+**M28 implementation (2026-11-02):** the standard Run's event eligibility treats the playtime gate
+as met. Secret Portal is eligible in Act 3 by the one-time rule (`event_pool::eligible`, M28c), and
+its body lands in M28f.
+
+## UNLOCK-001 — Note For Yourself treats the highest unlocked Ascension as 20
+
+**Decision date:** 2026-11-02 (PM ruling, M28c). **Status:** disclosed M28 deviation.
+
+The original getShrine admits Note For Yourself outside Daily runs, below A15, and only when the Run
+is at A0 or below the player's highest unlocked Ascension. The simulator has no unlock profile, so it
+treats the highest unlocked Ascension as 20. Note For Yourself is therefore eligible at A0–A14. The
+standard Run is A0 only until M29–M33. No other eligibility or history rule changes.
+
+## SOFTLOCK-001 — Purifier with no purgeable card completes without a removal
+
+**Decision date:** 2026-11-02 (PM ruling, M28c review M4). **Status:** disclosed M28 deviation.
+
+In the original, Purifier's option stays enabled, and with no purgeable card (every card is an
+unremovable curse or bottled) it opens an empty grid that strands the player. The simulator cannot
+model that soft-lock. The option stays selectable, removes nothing and the event completes, as
+Ancient Writing's Elegance does with an empty group in the original. The Transmogrifier (M28d) has
+the same stranding and follows this rule when its body lands. The Upgrade Shrine is unaffected: it
+disables its option when no card can be upgraded.

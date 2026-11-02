@@ -75,7 +75,7 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
     run.state.map=Some(map);run.state.rng=rng;run.state.room=if kind==RoomViewKind::Act3Ready{"Act3Ready"}else if continuing||continuing3{"Map"}else{"Act2Ready"};
     let room=run.state.room_loop.as_mut().unwrap();if frame.to==2{room.act2_boss_order=Some(order);}else{room.act3_boss_order=Some(order);}
     room.act2=if continuing&&!standard{Some(Default::default())}else{None};room.act3=if continuing3&&!standard{Some(Default::default())}else{None};room.screen=RoomView{kind,choices:vec![]};room.transition.as_mut().unwrap().initialized=true;
-    // M28c fills this hook with the per-act event-list rebuild (design §7); a no-op until then.
+    // The per-act standard event-list rebuild (design §5.2, §7).
     if standard{super::standard::on_act_start(run);}
     let delta=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     Ok(RunTransition{reward:delta,terminal:None,committed_events:vec![event]})

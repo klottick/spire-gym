@@ -41,7 +41,7 @@ user did not request.
 | M14 accepted finite Silent A0 Acts 1–3 native progression | [M14 profile](docs/milestones/m14-silent-act3.md) and [approved supplied-full-boss amendment](docs/superpowers/plans/2026-10-26-m14-supplied-full-boss-approval.md); canonical normal-start completion remains unproven |
 | M26 shared and off-colour card layer (candidate; no public profile) | [M26 profile](docs/milestones/m26-shared-cards.md), [coverage ledger](docs/milestones/m26-shared-cards-coverage-ledger.md) and [reconciliation](docs/milestones/m26-shared-cards-reconciliation.md) |
 | M27 relic and potion lifecycles (candidate; no public profile) | [M27 profile](docs/milestones/m27-items.md), [coverage ledger](docs/milestones/m27-items-coverage-ledger.md) and [reconciliation](docs/milestones/m27-items-reconciliation.md) |
-| M28 events and economy rooms (candidate in progress, chunked M28a–M28f; no public profile) | [M28 profile](docs/milestones/m28-events-economy.md) |
+| M28 events and economy rooms (candidate in progress, chunked M28a–M28f; no public profile) | [M28 profile](docs/milestones/m28-events-economy.md) and the [event reference record](data/events/README.md) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |

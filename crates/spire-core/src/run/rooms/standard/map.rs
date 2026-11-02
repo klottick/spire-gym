@@ -4,8 +4,9 @@
 //! owners do.
 use super::*;
 
-/// Typed interim until M28c lands the event core (chunk plan §3).
-pub(in crate::run) const EVENT_ROOMS_INTERIM:&str="M28 standard event rooms land in M28c";
+/// The room kind `RoomEntered` sees in an event room: the source generates the event on player
+/// entry, after every relic's `onEnterRoom` (Ssserpent Head's gold counts for eligibility).
+const EVENT_ROOM:RoomViewKind=RoomViewKind::Event(EventId::Unknown("event room"));
 
 pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if !is_standard(&run.state)||run.state.act>3{return Err(RunError::InvalidAction)}
@@ -16,10 +17,11 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
         MapNodeKind::Shop=>RoomViewKind::Shop,
         MapNodeKind::Rest=>RoomViewKind::Campfire,
         MapNodeKind::Treasure=>RoomViewKind::Treasure,
-        MapNodeKind::Event|MapNodeKind::Question=>return Err(RunError::Unsupported(EVENT_ROOMS_INTERIM)),
+        MapNodeKind::Event=>EVENT_ROOM,
+        MapNodeKind::Question=>return Err(RunError::Registry("question room left unresolved")),
     };
     let room=staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
-    room.active_rewards=None;room.reward_parent=None;
+    room.active_rewards=None;room.reward_parent=None;room.standard_event=None;
     {
         let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
         // M27 seam: RoomEntered (world::enter_standard already dispatched FloorEntered).
@@ -51,11 +53,47 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
             staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen=screen;
             empty_transition()
         }
-        MapNodeKind::Event|MapNodeKind::Question=>unreachable!("rejected above"),
+        // Design §5.2: the selection law, then the picked event's frame; E6 falls back to a monster
+        // room. An event whose body has not landed rejects the move (staged; nothing consumed).
+        MapNodeKind::Event=>match super::event_pool::select(&mut staged.state,target)?{
+            super::event_pool::Selected::Monster=>{
+                let encounter=crate::run::world::standard_event_fallback(&mut staged.state,target)?;
+                match staged.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:MapNodeKind::Monster}){
+                    Ok(transition)=>transition,
+                    Err(RunError::Faulted(fault))=>{*run=staged;return Err(RunError::Faulted(fault))}
+                    Err(error)=>return Err(error),
+                }
+            }
+            super::event_pool::Selected::Event(event)=>{enter_event(&mut staged,event,target)?;empty_transition()}
+        },
+        MapNodeKind::Question=>unreachable!("rejected above"),
     };
     transition.reward+=credit;transition.committed_events.insert(0,event);
     *run=staged;
     Ok(transition)
+}
+
+/// Construct the selected event: the six accepted events keep their handlers and screens (design
+/// §5.5); every other event runs on the standard frame.
+fn enter_event(run:&mut Run,event:EventId,node:NodeId)->Result<(),RunError>{
+    use crate::run::rooms::events;
+    let mut next=run.next_choice;
+    match event{
+        EventId::UpgradeShrine|EventId::Purifier|EventId::AncientWriting|EventId::Joust=>{
+            let screen=events::screen(&mut next,event)?;
+            run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen=screen;
+        }
+        EventId::Falling|EventId::TombOfLordRedMask=>{
+            let prepared=events::act3::prepare(run,event,node,0,&mut next)?;
+            run.state.rng=prepared.rng;
+            let room=run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
+            room.act3_event=Some(prepared.frame);room.screen=prepared.screen;
+        }
+        _=>return super::event_frame::construct(run,event,node),
+    }
+    run.next_choice=next;
+    run.candidates.clear();
+    Ok(())
 }
 
 /// Open the ordinary chest of a standard Treasure room (design §6.4): M27's `onChestOpen` pass,

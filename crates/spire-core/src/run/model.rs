@@ -27,7 +27,9 @@ pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::En
     /// M25 Lesson Learned: the last permanent-upgrade journal ordinal applied to the deck.
     pub applied_upgrade_ordinal:u64 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{node:super::NodeId,kind:MapNodeKind} }
+pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{node:super::NodeId,kind:MapNodeKind},
+    /// M28 standard event combat (design §5.7): admitted only from the live event frame at `node`.
+    Event{node:super::NodeId,event:crate::content::EventId,stage:u8} }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunTerminal { HeartVictory, Death, EmptyDeck, Act3NoKeys }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,7 +67,12 @@ pub enum ContinuationTarget { ResumeDecision(Candidate), NeowConsequence { paren
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove,AncientElegance,EmptyCage,RelicEquip{relic:RelicId},CampfireToke,
     /// M28 committed Neow selector (design §5.6, §6.5): `count` cards, no Cancel.
-    NeowSelect{op:NeowSelectOp,count:u8}}
+    NeowSelect{op:NeowSelectOp,count:u8},
+    /// M28 event card selection (design §5.6): `count` cards, returning to the event frame.
+    EventSelect{event:crate::content::EventId,stage:u8,op:EventSelectOp,count:u8}}
+/// An event selection's operation; each has one candidate filter (design §5.6).
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum EventSelectOp {Remove,Upgrade,Transform,Duplicate}
 /// The Neow selector's operation (Neow research :109-112).
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum NeowSelectOp {Remove,Upgrade,Transform}
@@ -134,6 +141,8 @@ pub struct RunState {
     pub(crate) potion_offset:i32,
     /// M28 standard card-rarity offset `b` (design §6.1); `None` outside `RoomScenario::StandardA0`.
     pub(crate) card_rarity_offset:Option<i32>,
+    /// M28 standard event lists and history (design §5.2); `None` outside `RoomScenario::StandardA0`.
+    pub(crate) event_pools:Option<super::rooms::standard::event_pool::EventPools>,
     /// Complete-item per-slot stored potency, paired with its potion identity.
     pub(crate) potion_potencies:Vec<Option<(PotionId,i32)>>,
     /// M27 Run-potion restriction supplied by We Meet Again (false in frozen profiles).
@@ -188,6 +197,7 @@ impl std::fmt::Debug for RunState {
         if !self.relic_cards.is_empty(){value.field("relic_cards",&self.relic_cards);}
         if self.potion_offset!=0{value.field("potion_offset",&self.potion_offset);}
         if let Some(offset)=self.card_rarity_offset{value.field("card_rarity_offset",&offset);}
+        if let Some(pools)=&self.event_pools{value.field("event_pools",pools);}
         if !self.potion_potencies.is_empty(){value.field("potion_potencies",&self.potion_potencies);}
         if self.we_meet_again{value.field("we_meet_again",&self.we_meet_again);}
         value.finish()

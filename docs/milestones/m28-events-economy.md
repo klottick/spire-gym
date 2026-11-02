@@ -1,6 +1,6 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunks M28a merged, M28b in review; six chunks); M28 is not accepted.** M28 is delivered in
+Status: **candidate in progress (chunks M28a and M28b merged, M28c in review; six chunks); M28 is not accepted.** M28 is delivered in
 merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
 what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
 profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
@@ -83,12 +83,55 @@ feature until M28f completes every room. A build without the feature returns
   original game confirmed these rules (retained M28 execution evidence,
   `m28b/source-check-act4-upgrade-v1.md`).
 
+## M28c: the event core
+
+- **Identities and pools.** Every event has an `EventId` (45 appended after the accepted seven) and
+  a catalog row with its act set and pool: ordinary lists of 11, 13 and 7 events for Acts 1–3, six
+  shrines in every act, and 14 one-time events. A standard Run builds its event lists at creation
+  and rebuilds the ordinary and shrine lists at each act start; one-time events are never
+  replenished, and a selected event leaves its list even when it is skipped.
+- **Selection and eligibility.** The shrine branch is taken on a draw below 0.25. Otherwise an
+  eligible ordinary event is picked uniformly, and an empty eligible list delegates to the shrine
+  branch: the remaining shrines plus the eligible one-time events. Where the source defines no
+  outcome, an event room with no eligible event becomes a monster room of the act (disclosed
+  decision E6). Each eligibility rule is tested at its boundary: floor, gold, HP, relic count,
+  act, curses, Golden Idol and Colosseum's map row.
+- **Frame and executor.** A body returns a list of outcomes, and one executor applies them through
+  the shared owners after checking every precondition. A rejected choice leaves the Run unchanged,
+  and its option is shown disabled. Card selections (remove, upgrade, transform, duplicate)
+  return to the event, and so do event combats. An event combat with rewards opens the
+  EventRoom reward screen: the event's gold and relics, the ordinary card offer and the EventRoom
+  potion roll, with no combat gold. The six accepted events (Upgrade Shrine, Purifier, Ancient
+  Writing, Joust, Falling and Tomb of Lord Red Mask) keep their own handlers. The sample bodies
+  are Big Fish, Golden Shrine, The Addict and Mind Bloom.
+- **Reference record.** `data/events/` holds the 52 event records, the wiki captures and
+  `build_dataset.py --check` (see [data/events](../../data/events/README.md)).
+- **Shared fixes (disclosed).** Purifier's and Ancient Writing's removals offer only purgeable
+  cards. Falling never takes a bottled card, and Simplicity upgrades every card tagged starter
+  Strike or Defend, for every character. A fight is a boss fight when it has a BOSS-type
+  monster, whatever the room, so Pantograph and Slaver's Collar work in Mind Bloom's boss fight.
+  Out-of-combat damage and HP loss (events, Neow) follow one law. First Torii turns owned damage
+  of 2–5 that is not HP_LOSS into 1; event damage has no owner, so Torii never applies to it. Then
+  Tungsten Rod takes 1. Below 1 HP a Fairy in a Bottle rescues first, otherwise an unused Lizard
+  Tail; Mark of the Bloom blocks both. Buffer is a combat power and never applies. An event
+  combat is set up with its encounter's own act. Its card reward gets every card-reward relic
+  (Question Card, Busted Crown, Singing Bowl, N'loth's Gift); Prayer Wheel stays MonsterRoom-only.
+  With no purgeable card, Elegance skips its grid and shows its leave screen; Purifier removes
+  nothing and completes (deviation SOFTLOCK-001: the original strands the player).
+- **Escaping an event fight.** A Smoke Bomb escape from an event fight with a reward screen still
+  builds the EventRoom rewards and rolls the potion, then shows only Proceed, to the map. An escape
+  from a fight whose rewards are disabled reopens the event at its post-fight stage. Boss-type
+  fights block Smoke Bomb.
+
 ## Interim limits (shrink with each chunk)
 
-- Events land in M28c–M28f. A standard move whose room resolves to an event (an Event node or a
-  question room that rolls an event) returns
-  `RunError::Unsupported("M28 standard event rooms land in M28c")` and leaves the Run unchanged.
-- The fuzz `FullRun` lane is not merged; its gap is recorded per chunk until it merges.
+- The other event bodies land in M28d–M28f. When the selected event has no body yet, the move
+  returns `RunError::Unsupported("M28 event body lands in M28d")` (or `M28e`/`M28f`) and leaves
+  the Run unchanged, event lists included. Secret Portal's boss entry is likewise typed as
+  landing in M28f.
+
+- The native fuzz harness drives only the finite profiles; each chunk compares its 120 s campaign
+  with its base.
 
 ## Evidence and checks
 

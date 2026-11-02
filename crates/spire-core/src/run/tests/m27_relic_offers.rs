@@ -54,7 +54,7 @@ fn install_room(run: &mut Run, kind: RoomViewKind,
         scenario, act1: None, act2: None, act3: None, act4: None, m10_elite_relic_cursor: 0,
         screen: RoomView { kind, choices }, purge_cost: 75, reward_parent: None, active_rewards: None,
         boss: None, transition: None, act2_boss_order: None, act3_boss_order: None,
-        joust: None, joust_visits: 0, act3_event: None, act3_end: None,
+        joust: None, joust_visits: 0, act3_event: None, act3_end: None, standard_event: None,
     });
     ids
 }

@@ -41,6 +41,7 @@ pub(in crate::run) fn drive_joust_payout(run:&mut Run)->Result<RunTransition,Run
     let room=run.state.room_loop.as_mut().unwrap();room.joust.as_mut().unwrap().complete=true;room.screen=screen;run.next_choice=next;Ok(empty_transition())
 }
 pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
+    if run.state.room_loop.as_ref().is_some_and(|r|r.standard_event.is_some()){return standard::event_frame::choose(run,id)}
     if matches!(public(run)?.kind,RoomViewKind::Event(EventId::Falling|EventId::TombOfLordRedMask)){return act3::choose(run,id)}
     let screen=public(run)?;let row=screen.choices.into_iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered).ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind){
@@ -65,13 +66,19 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         (RoomViewKind::Event(EventId::AncientWriting),RoomChoiceKind::AncientSimplicity)=>{
             if row.price.is_some(){return Err(RunError::InvalidAction)}run.next_choice.checked_add(1).ok_or(RunError::Unsupported("choice identity exhausted"))?;
-            let ids=run.state.deck.iter().filter(|c|(matches!(c.id,CardId::Strike|CardId::Defend)||uses_silent_content(&run.state)&&matches!(c.id,CardId::StrikeGreen|CardId::DefendGreen)||uses_defect_content(&run.state)&&matches!(c.id,CardId::StrikeBlue|CardId::DefendBlue)||uses_watcher_content(&run.state)&&matches!(c.id,CardId::StrikePurple|CardId::DefendPurple))&&c.upgrades==0).map(|c|c.instance).collect::<Vec<_>>();for id in ids{mutations::upgrade_card(&mut run.state,id)?;}complete_ancient(run)
+            // G12: every card tagged starter Strike or Defend (G1 tags, every character; acts23 research
+            // :180-185), not finite-scenario ID lists.
+            let ids=run.state.deck.iter().filter(|c|crate::content::card_tags(c.id).iter().any(|t|matches!(t,crate::content::CardTag::StarterStrike|crate::content::CardTag::StarterDefend))&&c.upgrades==0).map(|c|c.instance).collect::<Vec<_>>();for id in ids{mutations::upgrade_card(&mut run.state,id)?;}complete_ancient(run)
         },
         (RoomViewKind::Event(EventId::AncientWriting),RoomChoiceKind::AncientElegance)=>{
-            if row.price.is_some(){return Err(RunError::InvalidAction)}if run.state.deck.is_empty(){complete_ancient(run)}else{selection::open(run,id,RoomSelectionOperation::AncientElegance)}
+            // PM ruling (M28c review M4; `BackToBasics`): with no purgeable card the grid is skipped,
+            // nothing is removed and the event shows its leave screen.
+            if row.price.is_some(){return Err(RunError::InvalidAction)}if !run.state.deck.iter().any(|c|selection::purgeable(&run.state,c)){complete_ancient(run)}else{selection::open(run,id,RoomSelectionOperation::AncientElegance)}
         },
         (RoomViewKind::Event(_),RoomChoiceKind::Leave) if row.price.is_none()=>finish(run),
         (RoomViewKind::Event(EventId::UpgradeShrine),RoomChoiceKind::ShrineUpgrade)=>selection::open(run,id,RoomSelectionOperation::ShrineUpgrade),
-        (RoomViewKind::Event(EventId::Purifier),RoomChoiceKind::ShrineRemove)=>selection::open(run,id,RoomSelectionOperation::ShrineRemove),_=>Err(RunError::InvalidAction),
+        // SOFTLOCK-001 (M28c review M4): the original opens an empty grid and strands the player; with no
+        // purgeable card the simulator removes nothing and completes the event.
+        (RoomViewKind::Event(EventId::Purifier),RoomChoiceKind::ShrineRemove)=>if run.state.deck.iter().any(|c|selection::purgeable(&run.state,c)){selection::open(run,id,RoomSelectionOperation::ShrineRemove)}else{finish(run)},_=>Err(RunError::InvalidAction),
     }
 }

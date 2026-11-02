@@ -181,6 +181,21 @@ fn resolve_question(state: &mut RunState, leaving_shop: bool, standard: bool) ->
     Ok(result)
 }
 
+/// E6 (M28 design §5.2): a standard event room whose selection law finds no event becomes a
+/// monster room of the act, chosen with its normal history; the node and room label say so.
+pub(super) fn standard_event_fallback(state: &mut RunState, node: NodeId) -> Result<EncounterId, RunError> {
+    let encounter = choose_encounter(state, MapNodeKind::Monster)?;
+    let map = state.map.as_mut().ok_or(RunError::InvalidAction)?;
+    let target = map.nodes.iter_mut().find(|n| n.id == node).ok_or(RunError::InvalidAction)?;
+    target.encounter = Some(encounter);
+    target.hidden_kind = Some(MapNodeKind::Monster);
+    map.encounter_history.push(encounter);
+    map.regular_encounter_history.push(encounter);
+    state.room = MapNodeKind::Monster.label();
+    if let Some(room) = state.history.rooms.last_mut() { room.label = MapNodeKind::Monster.label(); }
+    Ok(encounter)
+}
+
 /// Enter a connected node. Illegal moves are rejected without mutation or RNG
 /// consumption. Legal entry commits traversal and one floor event before the
 /// room owner is invoked; unsupported constructors retain that progress as fault.
