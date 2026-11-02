@@ -71,6 +71,9 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
     let mut screen=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.clone();
     for row in &mut screen.choices {if row.status==RoomChoiceStatus::Offered {
         if row.price.is_some_and(|p|p>run.state.gold)||matches!(row.kind,RoomChoiceKind::Potion(_))&&!run.state.potions.contains(&None){row.status=RoomChoiceStatus::Disabled;}
+        // G9: a complete-admission shop rejects a potion purchase under Sozu first (economy research
+        // :190-197), so the row is not advertised.
+        if row.price.is_some()&&matches!(row.kind,RoomChoiceKind::Potion(_))&&run.state.item_admission==ItemAdmission::Complete&&run.state.relics.contains(&RelicId::Sozu){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Smith|RoomChoiceKind::ShrineUpgrade)&&!run.state.deck.iter().any(|c|mutations::can_upgrade(&run.state,c)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
@@ -105,7 +108,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
         // The standard Neow owns its screen and every child screen until its map is shown.
         GameAction::Choose(id) if is_standard(&run.state)&&run.state.room=="Neow"=>standard::neow::choose(run,*id),
         GameAction::Choose(id) if public(run)?.kind==RoomViewKind::Neow=>neow::choose(run,*id),
-        GameAction::Move(_) if is_standard(&run.state)=>Err(RunError::Unsupported(standard::MAP_ROOMS_INTERIM)),
+        GameAction::Move(id) if is_standard(&run.state)=>if run.state.act==4{act4::enter(run,*id)}else{standard::map::enter(run,*id)},
         GameAction::Move(id)=>if uses_act4(&run.state)&&run.state.act==4{act4::enter(run,*id)}else if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
         GameAction::DiscardPotion{slot}=>{let slot=*slot as usize;run.state.potions[slot]=None;if let Some(potency)=run.state.potion_potencies.get_mut(slot){*potency=None;}if !run.state.potions.iter().any(Option::is_some){run.state.potion_potencies.clear();}Ok(empty_transition())},
         GameAction::UsePotion{slot,target:None}=>{let we_meet_again=run.state.item_admission==ItemAdmission::Complete&&run.state.we_meet_again;crate::items::use_run_potion(&mut run.state,*slot as usize,false,we_meet_again)?;Ok(empty_transition())},
@@ -120,6 +123,10 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
         _=>Err(RunError::Unsupported("room handler pending")),
     }
 }
+/// The accepted Act 3 ending and Act 4 owners serve the finite Heart profiles and the standard Run
+/// (design §6.7, §7); the finite scenario helpers themselves gain no standard membership.
+pub(in crate::run) fn uses_act4_route(state:&RunState)->bool{uses_act4(state)||is_standard(state)}
+pub(in crate::run) fn uses_act3_ending(state:&RunState)->bool{uses_full_act3(state)||is_standard(state)}
 /// The M28 standard Run (design §7): checked first, never a member of a captured helper.
 pub(crate) fn is_standard(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|room|room.scenario==RoomScenario::StandardA0)}
 /// A standard Run before its first map move (Neow and the continuations of its rewards) has no
@@ -226,12 +233,17 @@ pub(super) fn view(next:&mut u64,kind:RoomViewKind,rows:Vec<(RoomChoiceKind,Opti
 }
 pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
     if run.state.deck.is_empty(){return run.commit_terminal(RunTerminal::EmptyDeck)}
+    // The standard Run (design §7) is checked first: Act 4 keeps its accepted room closure, every
+    // other standard room returns to the map.
+    if is_standard(&run.state){
+        if run.state.act==4{return act4::finish_room(run)}
+        run.state.room_loop.as_mut().unwrap().screen=RoomView{kind:RoomViewKind::Map,choices:vec![]};run.candidates.clear();return Ok(empty_transition())
+    }
     if uses_captured_act3(&run.state)&&run.state.act==3{return act3::finish_room(run)}
     if uses_act4(&run.state)&&run.state.act==4{return act4::finish_room(run)}
     if uses_captured_act2(&run.state)&&run.state.act==2{return act2::finish_room(run)}
-    // M28b: a standard Run needs its own branch BEFORE this rule. NodeId(59) is row 8 (floor 9,
-    // the treasure row) of a generated standard Act 1 map, so this rule must not apply to it. M28a
-    // is unaffected: a standard shop is never on floor 9.
+    // The standard branch above precedes this rule: NodeId(59) is row 8 (floor 9, the treasure
+    // row) of a generated standard Act 1 map.
     let kind=if !uses_captured_act1(&run.state)&&run.state.map.as_ref().and_then(|m|m.current)==Some(NodeId(59)){RoomViewKind::CheckpointComplete}else{RoomViewKind::Map};
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind,choices:vec![]};run.candidates.clear();Ok(empty_transition())
 }

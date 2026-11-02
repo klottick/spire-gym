@@ -13,8 +13,8 @@ impl Run {
 
 fn source_floors(state:&RunState)->Result<(u32,u32),RunError>{
     match state.act {
-        1 if uses_captured_act1(state)=>Ok((16,17)),
-        2 if uses_act2_boss(state)=>Ok((33,34)),
+        1 if uses_captured_act1(state)||is_standard(state)=>Ok((16,17)),
+        2 if uses_act2_boss(state)||is_standard(state)=>Ok((33,34)),
         _=>Err(RunError::InvalidAction),
     }
 }
@@ -55,10 +55,19 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let screen=public(run)?;let row=screen.choices.iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered&&c.price.is_none()).cloned().ok_or(RunError::InvalidAction)?;
     match (screen.kind,row.kind.clone()){
         (RoomViewKind::BossTreasure,RoomChoiceKind::OpenChest)=>{
-            let mut next=run.next_choice;let mut rows=if uses_watcher_content(&run.state){super::m22_content::BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if is_m20(&run.state){super::m20_content::BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if is_m15(&run.state){super::m15_content::M15_BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if uses_silent_content(&run.state)||uses_defect_content(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
+            // The standard boss chest (design §6.4): three sequential Boss-tier offers from M27's pools.
+            let standard_offers=if is_standard(&run.state){
+                let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
+                let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,0xB0C4];
+                let mut staged=run.state.clone();
+                let offers=super::standard::treasure::boss_offers(&mut staged,&key)?;
+                Some((staged,offers))
+            }else{None};
+            let mut next=run.next_choice;let mut rows=if let Some((_,offers))=&standard_offers{offers.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if uses_watcher_content(&run.state){super::m22_content::BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if is_m20(&run.state){super::m20_content::BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if is_m15(&run.state){super::m15_content::M15_BOSS_RELICS.iter().map(|id|(RoomChoiceKind::Relic(*id),None)).collect::<Vec<_>>()}else if uses_silent_content(&run.state)||uses_defect_content(&run.state){vec![(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]}else{vec![(RoomChoiceKind::Relic(RelicId::BlackBlood),None),(RoomChoiceKind::Relic(RelicId::EmptyCage),None),(RoomChoiceKind::Relic(RelicId::SlaversCollar),None)]};
             if is_m10(&run.state){rows.extend([(RoomChoiceKind::Relic(RelicId::MarkOfPain),None),(RoomChoiceKind::Relic(RelicId::RunicCube),None)]);}
             rows.push((RoomChoiceKind::Skip,None));let mut screen=view(&mut next,RoomViewKind::BossRelicChoice,rows)?;
             for row in &mut screen.choices{if let RoomChoiceKind::Relic(relic)=row.kind{if run.state.relics.contains(&relic)||(relic==RelicId::HolyWater&&run.state.relics.first()!=Some(&RelicId::PureWater))||(relic==RelicId::FrozenCore&&!run.state.relics.contains(&RelicId::CrackedCore))||(relic==RelicId::RingOfTheSerpent&&!run.state.relics.contains(&RelicId::RingOfTheSnake))||(relic==RelicId::BlackBlood&&run.state.relics.first()!=Some(&RelicId::BurningBlood)){row.status=RoomChoiceStatus::Disabled;}}}
+            if let Some((staged,_))=standard_offers{let room_loop=run.state.room_loop.take();run.state=staged;run.state.room_loop=room_loop;}
             run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=screen;
             rewards::chest_opened(run,true)?;
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:true})?;
@@ -72,7 +81,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         (RoomViewKind::BossRelicChild,RoomChoiceKind::Proceed)=>return leave(run,false),
         (RoomViewKind::BossRelicChoice,RoomChoiceKind::Relic(relic))=>{
             if run.state.room_loop.as_ref().unwrap().boss.as_ref().unwrap().selected.is_some()||run.state.relics.contains(&relic){return Err(RunError::InvalidAction)}
-            if !(uses_watcher_content(&run.state)&&super::m22_content::BOSS_RELICS.contains(&relic)||is_m20(&run.state)&&super::m20_content::BOSS_RELICS.contains(&relic)||is_m15(&run.state)&&super::m15_content::M15_BOSS_RELICS.contains(&relic)||!uses_watcher_content(&run.state)&&!is_m15(&run.state)&&(matches!(relic,RelicId::BlackBlood|RelicId::EmptyCage|RelicId::SlaversCollar)||is_m10(&run.state)&&matches!(relic,RelicId::MarkOfPain|RelicId::RunicCube))){return Err(RunError::InvalidAction)}
+            if !(is_standard(&run.state)||uses_watcher_content(&run.state)&&super::m22_content::BOSS_RELICS.contains(&relic)||is_m20(&run.state)&&super::m20_content::BOSS_RELICS.contains(&relic)||is_m15(&run.state)&&super::m15_content::M15_BOSS_RELICS.contains(&relic)||!uses_watcher_content(&run.state)&&!is_m15(&run.state)&&(matches!(relic,RelicId::BlackBlood|RelicId::EmptyCage|RelicId::SlaversCollar)||is_m10(&run.state)&&matches!(relic,RelicId::MarkOfPain|RelicId::RunicCube))){return Err(RunError::InvalidAction)}
             if run.state.item_admission==ItemAdmission::Complete{return choose_complete_relic(run,id,relic,row)}
             let cards=if relic==RelicId::EmptyCage{eligible(&run.state)}else{vec![]};let grid=relic==RelicId::EmptyCage&&cards.len()>2;
             if !cards.is_empty()&&!grid&&cards.len()==run.state.deck.len(){reward::preflight(&run.state,&[CommittedEvent::Ended(RunTerminal::EmptyDeck)])?;}

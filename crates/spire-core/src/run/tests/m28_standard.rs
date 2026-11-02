@@ -54,9 +54,10 @@ fn m28_standard_short_neow_opens_generated_act1_map() {
         assert_eq!(map.act, 1);
         assert!(matches!(map.boss_icon, Some(crate::content::EncounterId::Guardian | crate::content::EncounterId::Hexaghost | crate::content::EncounterId::SlimeBoss)));
         assert_eq!(rooms::public(&run).unwrap().kind, RoomViewKind::Map);
-        // Typed interim until M28b (chunk plan §3).
+        // M28b: the first floor is a monster room entered through the standard owner.
         let target = run.decision().unwrap().candidates.iter().find_map(|c| match c.action { GameAction::Move(n) => Some(n), _ => None }).unwrap();
-        assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(rooms::standard::MAP_ROOMS_INTERIM)));
+        run.step(&GameAction::Move(target)).unwrap();
+        assert!(run.state.combat.is_some(), "{character:?} floor 1 is a combat");
     }
     // Lament under complete admission keeps the M27 relic owner.
     let mut run = standard(Character::Silent, false);

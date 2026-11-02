@@ -1,5 +1,15 @@
 # Work status
 
+## Current snapshot — 2026-11-02, M28a merged; M28b candidate
+
+- M28a (seams, Neow, standard shop) merged as PR #72 (`5447b21c`); the native fuzz harness
+  (spire-rj9) merged as PR #73 (`1e4f2206`), the M28b source base.
+- M28b (rewards, treasure, campfire, question rooms, standard world entry for Acts 1–4, act
+  transitions, keys and the standard Act 4 rooms) is a source candidate and not accepted. A
+  supplied standard Run now reaches the Heart through non-event rooms for every character; event
+  rooms return the typed M28c interim. The standard Run stays behind the default-off
+  `m28-diagnostics` feature until M28f. See the [M28 candidate profile](milestones/m28-events-economy.md).
+
 ## Current snapshot — 2026-11-02, M27 merged; M28a in progress
 
 - M27 (relic and potion lifecycles) merged as PR #69 (`5d6a6be9`). The opt-in card metadata

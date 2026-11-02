@@ -113,11 +113,6 @@ fn choose_row(run: &mut Run, predicate: impl Fn(&RoomChoiceKind) -> bool) {
     run.step(&GameAction::Choose(id)).unwrap();
 }
 
-fn shop_snapshot(run: &Run) -> (u32, Vec<CardInstance>, Vec<RelicId>, Vec<Option<PotionId>>, RoomView, RunRng) {
-    let room = run.state.room_loop.as_ref().unwrap();
-    (run.state.gold, run.state.deck.clone(), run.state.relics.clone(), run.state.potions.clone(), room.screen.clone(), run.state.rng.clone())
-}
-
 fn rarity(id: CardId) -> CardRarity {
     Catalog::standard().card(id).unwrap().rarity
 }
@@ -450,12 +445,12 @@ fn courier_card_price_bounds(rarity: CardRarity, colorless: bool, membership: bo
     // Colorless first multiplies the endpoints by 1.2: Uncommon 80..98, Rare 162..198.
     match (rarity, colorless, membership) {
         (CardRarity::Common, false, false) => (36, 44),
-        (CardRarity::Uncommon, false, false) => (53, 65),
+        (CardRarity::Uncommon, false, false) => (54, 66),
         (CardRarity::Rare, false, false) => (108, 132),
-        (CardRarity::Uncommon, true, false) => (64, 78),
+        (CardRarity::Uncommon, true, false) => (64, 79),
         (CardRarity::Rare, true, false) => (129, 158),
         (CardRarity::Common, false, true) => (18, 22),
-        (CardRarity::Uncommon, false, true) => (26, 32),
+        (CardRarity::Uncommon, false, true) => (27, 33),
         (CardRarity::Rare, false, true) => (54, 66),
         (CardRarity::Uncommon, true, true) => (32, 39),
         (CardRarity::Rare, true, true) => (64, 79),
@@ -640,6 +635,49 @@ fn m28_shop_courier_relic_skips_excluded() {
 }
 
 #[test]
+fn m28_shop_courier_relic_restock_takes_from_back() {
+    let template = shop(Character::Ironclad, 158, supply(2_000, vec![RelicId::TheCourier], None));
+    let pool_relics = [RelicId::Anchor, RelicId::BloodVial, RelicId::Kunai,
+        RelicId::OrnamentalFan, RelicId::DeadBranch, RelicId::IncenseBurner];
+    let mut selected = None;
+    for seed in 0..64 {
+        let candidate = reenter(&template, 61_000 + seed, None);
+        let chosen = relic_rows(&candidate).into_iter().find(|row| {
+            let id = relic_id(row);
+            !matches!(id, RelicId::BottledFlame | RelicId::BottledLightning | RelicId::BottledTornado
+                | RelicId::TheCourier | RelicId::MembershipCard | RelicId::SmilingMask)
+                && !pool_relics.contains(&id)
+        }).map(|row| row.id);
+        if let Some(chosen) = chosen {
+            selected = Some((candidate, chosen));
+            break;
+        }
+    }
+    let (mut run, chosen) = selected.expect("a safe initial Merchant relic in 64 seeds");
+    run.state.relic_pools = Some(relic_pools::explicit_for_test(
+        vec![RelicId::Anchor, RelicId::BloodVial],
+        vec![RelicId::Kunai, RelicId::OrnamentalFan],
+        vec![RelicId::DeadBranch, RelicId::IncenseBurner],
+        vec![], vec![],
+    ));
+    let before = relic_rows(&run).len();
+    run.step(&GameAction::Choose(chosen)).unwrap();
+    let relics = relic_rows(&run);
+    assert_eq!(relics.len(), before + 1, "Courier restocks a relic after purchase");
+    let replacement = relic_id(relics.last().unwrap());
+    let tier = Catalog::standard().relic_tier(replacement).unwrap();
+    let pools = run.state.relic_pools.as_ref().unwrap();
+    let (front, back, remaining) = match tier {
+        RelicTier::Common => (RelicId::Anchor, RelicId::BloodVial, &pools.common),
+        RelicTier::Uncommon => (RelicId::Kunai, RelicId::OrnamentalFan, &pools.uncommon),
+        RelicTier::Rare => (RelicId::DeadBranch, RelicId::IncenseBurner, &pools.rare),
+        other => panic!("Courier replacement must come from a Merchant tier, got {other:?}"),
+    };
+    assert_eq!(replacement, back, "Courier restock takes the {tier:?} pool's back entry");
+    assert_eq!(remaining.as_slice(), &[front], "the front remains and the back leaves the {tier:?} pool");
+}
+
+#[test]
 fn m28_shop_discount_pass_order() {
     fn discount(price: u32, factor: f32) -> u32 { rooms::shop::libgdx_round(price as f32 * factor) }
     for character in CHARACTERS {
@@ -665,22 +703,22 @@ fn m28_rejected_shop_choices_are_atomic() {
         let mut poor = shop(character, 39, supply(1_000, vec![], None));
         poor.state.gold = 0;
         let card = rows(&poor).iter().find(|row| matches!(row.kind, RoomChoiceKind::Card { .. })).unwrap().id;
-        let before = shop_snapshot(&poor);
+        let before = poor.clone();
         assert!(poor.step(&GameAction::Choose(card)).is_err());
-        assert_eq!(shop_snapshot(&poor), before, "{character:?} insufficient-gold purchase");
+        assert!(poor == before, "{character:?} insufficient-gold purchase");
 
         let mut sozu = shop(character, 40, supply(1_000, vec![RelicId::Sozu], None));
         let potion = potion_rows(&sozu)[0].id;
-        let before = shop_snapshot(&sozu);
+        let before = sozu.clone();
         assert!(sozu.step(&GameAction::Choose(potion)).is_err());
-        assert_eq!(shop_snapshot(&sozu), before, "{character:?} Sozu purchase");
+        assert!(sozu == before, "{character:?} Sozu purchase");
 
         let class_potion = potion_generation::candidates(character, false).unwrap()[0];
         let mut full = shop(character, 41, supply(1_000, vec![], Some(vec![Some(class_potion); 3])));
         let potion = potion_rows(&full)[0].id;
-        let before = shop_snapshot(&full);
+        let before = full.clone();
         assert!(full.step(&GameAction::Choose(potion)).is_err());
-        assert_eq!(shop_snapshot(&full), before, "{character:?} full-belt purchase");
+        assert!(full == before, "{character:?} full-belt purchase");
     }
 }
 

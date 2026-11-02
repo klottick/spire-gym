@@ -4,6 +4,10 @@ pub(super) fn screen(next:&mut u64,hp:u32)->Result<RoomView,RunError>{view(next,
 pub(super) fn screen_for_run(run:&mut Run,next:&mut u64)->Result<RoomView,RunError>{
     let max_hp=run.state.max_hp;let recall_disabled=uses_act4(&run.state)&&run.state.keys[0];
     let mut options=options(max_hp);
+    // M28 standard campfire (design §6.6): Rest, Smith, the M27 relic options, then Recall only
+    // when Act 4 is enabled and Ruby is not owned.
+    let standard=is_standard(&run.state);
+    if standard{options.retain(|kind|*kind!=RoomChoiceKind::Recall);}
     if run.state.item_admission==ItemAdmission::Complete {
         let mut item_event=crate::items::dispatch::RunItemEvent::CampfireOptions{options};
         // M27 seam: campfire options
@@ -11,6 +15,7 @@ pub(super) fn screen_for_run(run:&mut Run,next:&mut u64)->Result<RoomView,RunErr
         let crate::items::dispatch::RunItemEvent::CampfireOptions{options:returned}=item_event else {unreachable!("campfire event kept its kind")};
         options=returned;
     }
+    if standard&&run.state.act4_enabled&&!run.state.keys[0]{options.push(RoomChoiceKind::Recall);}
     let mut screen=view(next,RoomViewKind::Campfire,options.into_iter().map(|kind|(kind,None)).collect())?;
     if recall_disabled{if let Some(choice)=screen.choices.iter_mut().find(|choice|choice.kind==RoomChoiceKind::Recall){choice.status=RoomChoiceStatus::Disabled;}}
     Ok(screen)
@@ -70,4 +75,13 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         RoomChoiceKind::Recall=>{if uses_act4(&run.state)&&run.state.keys[0]{return Err(RunError::InvalidAction)}let event=mutations::acquire_key(&mut run.state,Key::Ruby)?;let reward=reward::commit(&mut run.state,std::slice::from_ref(&event))?;let mut t=finish(run)?;t.reward+=reward;t.committed_events.insert(0,event);Ok(t)},
         _=>Err(RunError::InvalidAction),
     }
+}
+
+/// A complete-admission campfire whose options are all unusable completes at once (design §6.6:
+/// Coffee Dripper, Fusion Hammer, no upgradable card, Ruby owned). G8: frozen profiles keep theirs.
+pub(super) fn complete_if_unusable(run:&mut Run)->Result<(),RunError>{
+    if run.state.item_admission!=ItemAdmission::Complete{return Ok(())}
+    let view=public(run)?;
+    if view.kind!=RoomViewKind::Campfire||view.choices.iter().any(|c|c.status==RoomChoiceStatus::Offered){return Ok(())}
+    finish(run).map(|_|())
 }

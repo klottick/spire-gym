@@ -77,7 +77,7 @@ fn source_is_current(run:&Run,frame:&act3_end::Act3EndFrame)->bool{
 pub(in crate::run) fn prepare_transition(run:&Run)->Result<PreparedAct4,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let frame=room.act3_end.as_ref().ok_or(RunError::InvalidAction)?;
-    if !uses_act4(&run.state)||room.screen.kind!=RoomViewKind::Act3Ending
+    if !uses_act4_route(&run.state)||room.screen.kind!=RoomViewKind::Act3Ending
         ||!room.screen.choices.iter().any(|row|row.kind==RoomChoiceKind::Act3Continue{stage:4}&&row.status==RoomChoiceStatus::Offered)
         ||!source_is_current(run,frame)||run.state.max_hp==0||run.state.max_hp>999{return Err(RunError::InvalidAction)}
     let event=CommittedEvent::ActAdvanced{from:3,to:4};
@@ -119,7 +119,20 @@ pub(in crate::run) fn commit_transition(run:&mut Run,prepared:PreparedAct4){
 }
 
 pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
+    // The standard Run stages the whole entry so a rejected room leaves it unchanged (design §6.7).
+    if !is_standard(&run.state){return enter_room(run,target)}
+    let mut staged=run.clone();
+    match enter_room(&mut staged,target){
+        Ok(transition)=>{*run=staged;Ok(transition)}
+        Err(RunError::Faulted(fault))=>{*run=staged;Err(RunError::Faulted(fault))}
+        Err(error)=>Err(error),
+    }
+}
+
+fn enter_room(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let node=world::preflight_move(&run.state,target)?;
+    // Floor 52 under `StandardA0` is the standard shop (design §6.7), built after the move commits.
+    let standard_shop=is_standard(&run.state)&&node.kind==MapNodeKind::Shop;
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
     if progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||run.state.act!=4
         ||run.state.floor<50||run.state.floor>54||run.state.map.as_ref().is_none_or(|map|map.act!=4||map.boss_icon!=Some(EncounterId::CorruptHeart))
@@ -131,12 +144,12 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
     let encounter=match node.kind{MapNodeKind::Elite=>Some(EncounterId::ShieldAndSpear),MapNodeKind::Boss=>Some(EncounterId::CorruptHeart),_=>None};
     let event=CommittedEvent::FloorEntered{act:4,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     let mut next=run.next_choice;let mut rng=run.state.rng.clone();
-    let screen=if encounter.is_none(){Some(match node.kind{
+    let screen=if encounter.is_none()&&!standard_shop{Some(match node.kind{
         MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
         MapNodeKind::Shop=>shop::screen_with_rng_at(&mut *run,&mut next,&mut rng,(4,node.floor,target))?,
         _=>return Err(RunError::InvalidAction),
     })}else{None};
-    let entered_kind=screen.as_ref().map(|screen|screen.kind).unwrap_or(RoomViewKind::Combat);
+    let entered_kind=if standard_shop{RoomViewKind::Shop}else{screen.as_ref().map(|screen|screen.kind).unwrap_or(RoomViewKind::Combat)};
     let map=run.state.map.as_mut().ok_or(RunError::InvalidAction)?;
     map.current=Some(target);let entered=map.nodes.iter_mut().find(|n|n.id==target).ok_or(RunError::InvalidAction)?;
     entered.visited=true;entered.revealed=true;entered.encounter=encounter;
@@ -154,17 +167,24 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
         crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
     }
     if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 room-entry hook failed"),fault_label(&run.state,Act4FaultSite::Room)))}
+    if standard_shop{
+        super::standard::shop::enter(run)?;
+        return Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
+    }
     if let Some(encounter)=encounter{
         match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:node.kind}){
             Ok(mut transition)=>{transition.reward+=credit;transition.committed_events.insert(0,event);Ok(transition)}
             Err(RunError::Faulted(fault))=>Err(RunError::Faulted(fault)),
             Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 encounter entry failed"),fault_label(&run.state,Act4FaultSite::Encounter))),
         }
-    }else{Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})}
+    }else{
+        if node.kind==MapNodeKind::Rest{rest::complete_if_unusable(run)?;}
+        Ok(RunTransition{reward:credit,terminal:None,committed_events:vec![event]})
+    }
 }
 
 pub(in crate::run) fn validate_combat_source(run:&Run,record:&CombatRecord)->Result<Option<NodeId>,RunError>{
-    if !uses_act4(&run.state)||run.state.act!=4{return Ok(None)}
+    if !uses_act4_route(&run.state)||run.state.act!=4{return Ok(None)}
     let active=run.state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let CombatOrigin::MapRoom{node,kind}=active.origin else{return Err(RunError::InvalidAction)};
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
@@ -234,7 +254,7 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
     if room.screen.kind!=RoomViewKind::HeartVictory||room.screen.choices.len()!=1
         ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Proceed&&row.status==RoomChoiceStatus::Offered)
         ||progress.heart_proceed!=Some(id)||progress.heart_proceed_phase!=Some(HeartProceedPhase::AwaitingProceed)
-        ||!uses_act4(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor!=54
+        ||!uses_act4_route(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor!=54
         ||progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||progress.combat_visits<2
         ||source.outcome!=Outcome::Victory||!matches!(source.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         ||!run.state.history.events.contains(&CommittedEvent::CombatFinished(source.clone()))
@@ -259,7 +279,7 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
 }
 
 pub(in crate::run) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
-    if !uses_act4(&run.state)||run.state.act!=4||run.state.combat.is_some()||run.state.active_combat.is_some()
+    if !uses_act4_route(&run.state)||run.state.act!=4||run.state.combat.is_some()||run.state.active_combat.is_some()
         ||run.state.pending.is_some()||run.state.fault.is_some(){return Err(RunError::InvalidAction)}
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let map=run.state.map.as_ref().ok_or(RunError::InvalidAction)?;

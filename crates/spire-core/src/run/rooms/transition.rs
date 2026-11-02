@@ -3,8 +3,8 @@ use crate::content::EncounterId;
 
 pub(super) fn begin(run:&mut Run)->Result<RunTransition,RunError>{
     let (from,to,floor,boss_floor)=match run.state.act {
-        1 if uses_captured_act1(&run.state)=>(1,2,17,16),
-        2 if uses_act2_boss(&run.state)=>(2,3,34,33),
+        1 if uses_captured_act1(&run.state)||is_standard(&run.state)=>(1,2,17,16),
+        2 if uses_act2_boss(&run.state)||is_standard(&run.state)=>(2,3,34,33),
         _=>return Err(RunError::InvalidAction),
     };
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
@@ -26,6 +26,16 @@ pub(super) fn begin(run:&mut Run)->Result<RunTransition,RunError>{
 }
 
 fn successor(run:&Run,frame:&ActTransition)->Result<(RunMap,RunRng,Vec<EncounterId>),RunError>{
+    if is_standard(&run.state){
+        // Standard (design §7): the next generated map; the boss from live `seen_bosses` through
+        // `world`'s standard selector. The new map carries fresh question-room ramps.
+        let mut probe=run.state.clone();
+        let mut map=super::super::map::generate(frame.to,&mut probe.rng,super::super::map::MapEligibility::from_run(&run.state))?;
+        for node in &mut map.nodes{node.floor=node.floor.checked_add(frame.floor).ok_or(RunError::Unsupported("successor global floor overflow"))?;}
+        let boss=super::super::world::act_boss(&mut probe)?;
+        map.boss_icon=Some(boss);
+        return Ok((map,probe.rng,vec![boss]))
+    }
     let mut rng=run.state.rng.clone();
     let (mut order,priority,scope)=match frame.to {
         2=>(vec![EncounterId::BronzeAutomaton,EncounterId::Collector,EncounterId::Champ],[("Champ",EncounterId::Champ),("Automaton",EncounterId::BronzeAutomaton),("Collector",EncounterId::Collector)],RunRngScope::Act2BossOrder),
@@ -53,17 +63,20 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
         if mutations::heal(&mut run.state,amount).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted act healing failed"),"run.act.transition"))}
         run.state.room_loop.as_mut().unwrap().transition.as_mut().unwrap().heal_applied=true;
     }
-    let valid=(frame.from,frame.to,frame.floor)==(1,2,17)||((frame.from,frame.to,frame.floor)==(2,3,34)&&(uses_act2_boss(&run.state)));
+    let valid=(frame.from,frame.to,frame.floor)==(1,2,17)||((frame.from,frame.to,frame.floor)==(2,3,34)&&(uses_act2_boss(&run.state)||is_standard(&run.state)));
     if !valid||run.state.floor!=frame.floor||run.state.act!=frame.to{return Err(run.retain_fault(RunFaultKind::Invariant("accepted successor transition invariant"),"run.act.transition"))}
     let (map,rng,order)=match successor(run,&frame){Ok(value)=>value,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted successor map initialization failed"),"run.act.transition"))};
     let event=CommittedEvent::ActAdvanced{from:frame.from,to:frame.to};
     if reward::preflight(&run.state,std::slice::from_ref(&event)).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted act event preflight failed"),"run.act.transition"))}
-    let continuing=frame.to==2&&uses_captured_act2(&run.state);
-    let continuing3=frame.to==3&&uses_captured_act3(&run.state);
+    let standard=is_standard(&run.state);
+    let continuing=frame.to==2&&(uses_captured_act2(&run.state)||standard);
+    let continuing3=frame.to==3&&(uses_captured_act3(&run.state)||standard);
     let kind=if frame.to==3&&!continuing3{RoomViewKind::Act3Ready}else if continuing||continuing3{RoomViewKind::Map}else{RoomViewKind::Act2Ready};
     run.state.map=Some(map);run.state.rng=rng;run.state.room=if kind==RoomViewKind::Act3Ready{"Act3Ready"}else if continuing||continuing3{"Map"}else{"Act2Ready"};
     let room=run.state.room_loop.as_mut().unwrap();if frame.to==2{room.act2_boss_order=Some(order);}else{room.act3_boss_order=Some(order);}
-    room.act2=if continuing{Some(Default::default())}else{None};room.act3=if continuing3{Some(Default::default())}else{None};room.screen=RoomView{kind,choices:vec![]};room.transition.as_mut().unwrap().initialized=true;
+    room.act2=if continuing&&!standard{Some(Default::default())}else{None};room.act3=if continuing3&&!standard{Some(Default::default())}else{None};room.screen=RoomView{kind,choices:vec![]};room.transition.as_mut().unwrap().initialized=true;
+    // M28c fills this hook with the per-act event-list rebuild (design §7); a no-op until then.
+    if standard{super::standard::on_act_start(run);}
     let delta=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     Ok(RunTransition{reward:delta,terminal:None,committed_events:vec![event]})
 }

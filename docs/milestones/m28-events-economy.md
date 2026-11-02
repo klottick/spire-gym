@@ -1,6 +1,6 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunk M28a of six); M28 is not accepted.** M28 is delivered in
+Status: **candidate in progress (chunks M28a merged, M28b in review; six chunks); M28 is not accepted.** M28 is delivered in
 merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
 what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
 profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
@@ -48,17 +48,46 @@ feature until M28f completes every room. A build without the feature returns
   choices open before the first map move. The M27 Courier restock is one parameterised owner; the
   Act 4 shop keeps its exact arguments.
 
+## M28b: rooms, act transitions, keys and Act 4
+
+- **World entry.** A standard map move commits traversal, floor and history through `world`, then
+  runs the room producer for the resolved kind: monster, elite (burning elite buff) and boss
+  combats through the shared entry gate, the standard shop, campfire and treasure. Question rooms
+  use the accepted ramps plus Tiny Chest's fourth roll and Juzu Bracelet (M27's unknown-room law).
+  A boss room fights the act's map boss.
+- **Rewards.** One standard reward builder: gold by room kind, Golden Idol, stolen gold, the elite
+  relic (and Black Star's), the unlinked Emerald row on a burning elite, M27's potion appearance,
+  and card offers with the live rarity offset (rare reset, common decrement, boss rare, in-offer
+  duplicate retry), M27's card shape (Question Card, Busted Crown, Prayer Wheel, N'loth's Gift),
+  the act's automatic upgrade chance and egg previews. A Smoke Bomb escape keeps the room drops'
+  draws and the potion roll and offset, and shows only Proceed.
+- **Treasure.** Chest size and the joint tier/gold draw, binary32 gold endpoints, M27's open hooks
+  (Matryoshka, Cursed Key, N'loth's Hungry Face), the base relic linked to Sapphire, the separate
+  after-open pass; the boss chest offers three Boss-tier relics.
+- **Campfire, transitions, keys and Act 4.** Rest, Smith, M27's relic options, then Recall when
+  Act 4 is enabled and Ruby is not owned. Act 1 and 2 boss victories lead to the boss chest and the
+  next act (fresh map and ramps, boss from live history, full heal). The Act 3 boss leads to the
+  accepted ending, and with all three keys to Act 4, whose campfire, shop and elite rewards use the
+  standard producers; the Heart route is the accepted one.
+- **Shared fixes (disclosed).** Complete-admission shops (the standard shop and M27's Act 4 shop)
+  preview owned eggs on their card rows, re-preview after a relic purchase and on Courier card
+  restocks. A complete-admission campfire with no usable option (for example Coffee Dripper,
+  Fusion Hammer and Ruby owned) now completes on entry instead of publishing no action; this
+  includes M27's Act 4 campfire. Under Sozu a complete-admission shop no longer advertises its
+  potion rows, whose purchase it rejects. Neow's three-potion blessing now generates and discards the
+  ordinary card row, keeping its rarity-offset writes.
+- **Automatic reward-card upgrades (source-checked).** The chance is 0 in Act 1, 0.25 in Act 2 and
+  0.5 in Acts 3 and 4 at A0. Every Common and Uncommon reward card consumes one upgrade draw, even
+  at chance 0 and before the upgradeability check; a Rare draws nothing and is never automatically
+  upgraded. Eggs preview only cards the roll did not upgrade. A PM static source check of the owned
+  original game confirmed these rules (retained M28 execution evidence,
+  `m28b/source-check-act4-upgrade-v1.md`).
+
 ## Interim limits (shrink with each chunk)
 
-- Standard map rooms land in M28b: a `Move` on a standard Run returns
-  `RunError::Unsupported("M28 standard map rooms land in M28b")`.
-- The standard shop is reachable only through the `m28-diagnostics` shop builder until M28b.
-- Neow's three-potion reward does not yet generate and discard the ordinary card row; its
-  card-rarity offset writes land with M28b's reward-card helper.
-- Events land in M28c–M28f.
-- Shop card rows always show `upgrades: 0`. Molten, Toxic and Frozen Egg upgrade the card when
-  it is obtained, so the deck is right, but the shop row does not preview the upgrade. The M27
-  Act 4 shop behaves the same way. The preview lands with M28b's shared reward and shop card rows.
+- Events land in M28c–M28f. A standard move whose room resolves to an event (an Event node or a
+  question room that rolls an event) returns
+  `RunError::Unsupported("M28 standard event rooms land in M28c")` and leaves the Run unchanged.
 - The fuzz `FullRun` lane is not merged; its gap is recorded per chunk until it merges.
 
 ## Evidence and checks

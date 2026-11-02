@@ -163,9 +163,15 @@ fn finish_screen<R:RunEventTarget>(run:&mut R,next:&mut u64,mut rows:Vec<(RoomCh
             }
         }
     }
+    // Complete-admission shops preview owned eggs on their card rows (G6, carry-over from M28a;
+    // source check m4); frozen profiles keep their accepted rows.
+    if run.item_admission()==ItemAdmission::Complete{preview_card_rows(&run.as_run().state,rows.iter_mut().map(|(kind,_)|kind));}
     view(next,RoomViewKind::Shop,rows)
 }
-pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
+fn preview_card_rows<'a>(state:&RunState,rows:impl Iterator<Item=&'a mut RoomChoiceKind>){
+    for kind in rows{if let RoomChoiceKind::Card{id,upgrades}=kind{*upgrades=super::standard::rewards::preview_upgrades(state,*id,*upgrades);}}
+}
+pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
     let row=public(run)?.choices.into_iter().find(|c|c.id==id&&c.status==RoomChoiceStatus::Offered).ok_or(RunError::InvalidAction)?;
     if row.kind==RoomChoiceKind::Leave{return finish(run)}
     let price=row.price.ok_or(RunError::InvalidAction)?;
@@ -179,6 +185,10 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
             // M27 seam: shop purchase
             crate::items::dispatch::run_event(&mut staged.state,&mut crate::items::dispatch::RunItemEvent::ShopPurchase)?;
             reprice_after_discount_relic(&mut staged,relic)?;
+            // A purchased egg re-previews the shop's card rows (economy research :190-197).
+            let preview_state=staged.state.clone();
+            preview_card_rows(&preview_state,staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen.choices.iter_mut()
+                .filter(|choice|choice.status==RoomChoiceStatus::Offered).map(|choice|&mut choice.kind));
             // The Courier restocks before any equip continuation replaces the shop screen.
             if complete_courier_shop(&staged) {
                 restock_courier_relic(&mut staged)?;
@@ -437,7 +447,8 @@ fn restock_courier_potion(run:&mut Run,row_index:u64)->Result<(),RunError>{
 fn restock_courier_card(run:&mut Run,purchased:crate::content::CardId,row_index:u64)->Result<(),RunError>{
     let key=shop_node_key(run,row_index,COMPLETE_COURIER_CARD_SOURCE_TAG)?;
     let (card,price)=courier_card(run,purchased,&key,courier_law(run))?;
-    append_shop_row(run,RoomChoiceKind::Card{id:card,upgrades:0},price)
+    let upgrades=super::standard::rewards::preview_upgrades(&run.state,card,0);
+    append_shop_row(run,RoomChoiceKind::Card{id:card,upgrades},price)
 }
 
 fn restock_courier_relic(run:&mut Run)->Result<(),RunError>{

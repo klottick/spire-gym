@@ -110,7 +110,9 @@ fn choose_encounter(state: &mut RunState, kind: MapNodeKind) -> Result<Encounter
     };
     let choices = domain(state.act, kind, regular_count).ok_or(RunError::Registry("complete qualified encounter domain not registered for this act/room"))?;
     if choices.is_empty() { return Err(RunError::Registry("empty encounter scheduling domain")); }
-    if kind == MapNodeKind::Boss { return boss_selection(state, choices); }
+    // The boss room fights the act's boss already chosen for the map icon (design §7); a second
+    // selection could differ once every boss of the act has been seen.
+    if kind == MapNodeKind::Boss { return match state.map.as_ref().and_then(|map| map.boss_icon) { Some(boss) => Ok(boss), None => boss_selection(state, choices) }; }
     let (history, recent_count) = if kind == MapNodeKind::Elite { (&elite_history, 1) } else { (&history, 2) };
     let recent = history.iter().rev().take(recent_count).copied().collect::<Vec<_>>();
     let first_strong = kind == MapNodeKind::Monster && match state.act { 1=>regular_count==3, 2|3=>regular_count==2, _=>false };
@@ -147,11 +149,15 @@ fn choose_encounter(state: &mut RunState, kind: MapNodeKind) -> Result<Encounter
     Err(RunError::Registry("encounter normalized-weight selection had no interval"))
 }
 
-fn resolve_question(state: &mut RunState, leaving_shop: bool) -> Result<MapNodeKind, RunError> {
-    let map = state.map.as_mut().ok_or(RunError::InvalidAction)?;
-    if map.question_roll_ordinal == u64::MAX { return Err(RunError::Registry("question-room visit ordinal exhausted")); }
-    let ordinal = map.question_roll_ordinal;
+fn resolve_question(state: &mut RunState, leaving_shop: bool, standard: bool) -> Result<MapNodeKind, RunError> {
+    if state.map.as_ref().ok_or(RunError::InvalidAction)?.question_roll_ordinal == u64::MAX { return Err(RunError::Registry("question-room visit ordinal exhausted")); }
+    let ordinal = state.map.as_ref().expect("map checked").question_roll_ordinal;
     let draw = state.rng.draw_scoped(RunRngScope::MapQuestionRoom, &[state.act as u64, ordinal]);
+    // M28 standard Run (design §6.2): Tiny Chest counts this roll and Juzu converts a monster, through
+    // M27's `run_laws::unknown_room`, called exactly once per roll after the room float is consumed
+    // (event-neow research :140, :195-199).
+    let rules = if standard { crate::items::run_laws::unknown_room(state) } else { Default::default() };
+    let map = state.map.as_mut().expect("map checked");
     let cell = (((draw >> 40) as u64 * 100) / (1u64 << 24)) as u32;
     let [monster_bits, shop_bits, treasure_bits] = map.question_ramps;
     let f = |bits: u32| f32::from_bits(bits);
@@ -162,12 +168,16 @@ fn resolve_question(state: &mut RunState, leaving_shop: bool) -> Result<MapNodeK
     if cell < m.min(100) { result = MapNodeKind::Monster; }
     if cell >= m.min(99) && cell < (m + s).min(100) { result = MapNodeKind::Shop; }
     if cell >= (m + s).min(99) && cell < (m + s + t).min(100) { result = MapNodeKind::Treasure; }
+    // Tiny Chest's forced treasure ramps as a treasure result; Juzu's converted monster ramps as a
+    // monster result (event-neow research :195-199).
+    if rules.force_treasure { result = MapNodeKind::Treasure; }
     let add = |bits: u32, increment: f32| (f32::from_bits(bits) + increment).to_bits();
     let next_monster = if result == MapNodeKind::Monster { 0x3DCCCCCD } else { add(monster_bits, 0.1) };
     let next_shop = if result == MapNodeKind::Shop { 0x3CF5C28F } else { add(shop_bits, 0.03) };
     let next_treasure = if result == MapNodeKind::Treasure { 0x3CA3D70A } else { add(treasure_bits, 0.02) };
     map.question_ramps = [next_monster, next_shop, next_treasure];
     map.question_roll_ordinal += 1;
+    if result == MapNodeKind::Monster && rules.no_monsters { result = MapNodeKind::Event; }
     Ok(result)
 }
 
@@ -194,6 +204,26 @@ pub(super) fn preflight_move(state:&RunState,target:NodeId)->Result<super::MapNo
 }
 
 pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunError> {
+    let (kind, _, _, _) = commit_move(state, target, false)?;
+    let fault_boundary = match kind {
+        MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss => "Task6 encounter constructor/combat bridge",
+        MapNodeKind::Question | MapNodeKind::Event => "event-room owner",
+        MapNodeKind::Shop => "shop-room owner",
+        MapNodeKind::Rest => "rest-room owner",
+        MapNodeKind::Treasure => "treasure-room owner",
+    };
+    state.fault = Some(super::RunFault { kind: RunFaultKind::UnsupportedBoundary(fault_boundary), checkpoint: "run.world.room_entry", committed_events: state.history.events.clone() });
+    Err(RunError::Faulted(state.fault.clone().unwrap()))
+}
+
+/// The M28 standard Run's map move (design §7): traversal, floor and history commit and the
+/// resolved room kind and encounter. The caller (`rooms::standard::map`) stages the Run and
+/// invokes the room producer.
+pub(super) fn enter_standard(state: &mut RunState, target: NodeId) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
+    commit_move(state, target, true)
+}
+
+fn commit_move(state: &mut RunState, target: NodeId, standard: bool) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
     let target_node=preflight_move(state,target)?;
 
     super::reward::preflight(state,&[CommittedEvent::FloorEntered{act:state.act,floor:target_node.floor}])?;
@@ -201,7 +231,7 @@ pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunE
     let resolving_question = kind == MapNodeKind::Question;
     if resolving_question {
         let leaving_shop = state.room == "Shop";
-        kind = resolve_question(state, leaving_shop)?;
+        kind = resolve_question(state, leaving_shop, standard)?;
     }
     let encounter = if matches!(kind, MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss) {
         Some(choose_encounter(state, kind)?)
@@ -237,15 +267,6 @@ pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunE
     state.room = kind.label();
     let event = CommittedEvent::FloorEntered { act: map_act, floor };
     state.history.rooms.push(super::VisitedRoom { act: map_act, floor, label: kind.label() });
-    super::reward::commit(state,&[event])?;
-
-    let fault_boundary = match kind {
-        MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss => "Task6 encounter constructor/combat bridge",
-        MapNodeKind::Question | MapNodeKind::Event => "event-room owner",
-        MapNodeKind::Shop => "shop-room owner",
-        MapNodeKind::Rest => "rest-room owner",
-        MapNodeKind::Treasure => "treasure-room owner",
-    };
-    state.fault = Some(super::RunFault { kind: RunFaultKind::UnsupportedBoundary(fault_boundary), checkpoint: "run.world.room_entry", committed_events: state.history.events.clone() });
-    Err(RunError::Faulted(state.fault.clone().unwrap()))
+    let credit = super::reward::commit(state,std::slice::from_ref(&event))?;
+    Ok((kind, encounter, event, credit))
 }
