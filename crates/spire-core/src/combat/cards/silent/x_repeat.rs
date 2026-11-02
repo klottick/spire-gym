@@ -8,11 +8,6 @@ fn captured_x(state: &State, card: &LiveCard) -> Result<i32, crate::run::RunErro
     super::super::captured_x(state,card)
 }
 
-fn chemical_x_unavailable(state: &State) -> bool {
-    state.item_context.as_ref().is_some_and(|items|
-        items.relics().iter().any(|relic| relic.as_str() == "chemical_x"))
-}
-
 pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     -> Result<Option<(i32, Vec<(Option<PayloadTarget>, EffectKind)>)>, crate::run::RunError>
 {
@@ -26,10 +21,8 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     let mut effects = Vec::new();
     let cost = match card.id {
         Skewer => {
-            if chemical_x_unavailable(state) {
-                return Err(crate::run::RunError::Unsupported("Chemical X modifier is not represented for Skewer X payment"));
-            }
-            let amount = captured_x(state, card)?;
+            let amount = captured_x(state, card)?.checked_add(super::super::chemical_x_bonus(state)?)
+                .ok_or(crate::run::RunError::InvalidAction)?;
             let damage = super::super::modified_damage(state, target.unwrap(), if upgraded { 10 } else { 7 })?;
             for _ in 0..amount {
                 effects.push((Some(PayloadTarget::SelectedEnemy), EffectKind::Damage(DamagePayload::Fixed(damage))));
@@ -37,10 +30,8 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
             0
         }
         Doppelganger => {
-            if chemical_x_unavailable(state) {
-                return Err(crate::run::RunError::Unsupported("Chemical X modifier is not represented for Doppelganger X payment"));
-            }
-            let amount = captured_x(state, card)?.checked_add(i32::from(upgraded))
+            let amount = captured_x(state, card)?.checked_add(super::super::chemical_x_bonus(state)?)
+                .and_then(|x|x.checked_add(i32::from(upgraded)))
                 .ok_or(crate::run::RunError::Unsupported("Doppelganger X amount overflow"))?;
             if amount > 999 { return Err(crate::run::RunError::Unsupported("Doppelganger amount outside supported power surface")); }
             if amount > 0 {
@@ -54,10 +45,8 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
             0
         }
         Malaise => {
-            if chemical_x_unavailable(state) {
-                return Err(crate::run::RunError::Unsupported("Chemical X modifier is not represented for Malaise X payment"));
-            }
-            let amount = captured_x(state, card)?.checked_add(i32::from(upgraded))
+            let amount = captured_x(state, card)?.checked_add(super::super::chemical_x_bonus(state)?)
+                .and_then(|x|x.checked_add(i32::from(upgraded)))
                 .ok_or(crate::run::RunError::Unsupported("Malaise X amount overflow"))?;
             if amount > 999 { return Err(crate::run::RunError::Unsupported("Malaise amount outside supported power surface")); }
             if amount > 0 {

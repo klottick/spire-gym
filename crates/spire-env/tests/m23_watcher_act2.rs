@@ -12,9 +12,9 @@ const FROZEN:&[(&str,&str)]=&[
  ("m14","72e75d8357ebbbba2b905f381262a99a4385c670d9fa20fa8cd008f4b90fb827"),("m15","ab9fd38b68e7bd276526e136caf58fbbf6f0ef5916eb67fcba20fd91b54004f1"),
  ("m17","eeb45fcedd185710aeb0e5cb58ca619cc5927861cebda39b1612ff1500887a92"),("m18","6a4bb8526357f0264ae0cad8ccaad8015a0a3d360a678d236d94afe21a4ac967"),
  ("m19","b2aa0b85a83a51171524a7487ab7cb3ed450e00811bd7f00c472e358a0220b15"),("m20","3f11018081cfe0a2e9e69c87d57a57bd4043df2496c6d2c539dd74b0bf20fb56"),
- ("m22","2e4bcade98a3ab7beb402fca027aaed460bae6a26ff545754e3fa3b7e9e6b9bb"),("policy","28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
- ("combat_v1","08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),("combat_v2","a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
- ("m21","bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861"),("m16","6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7"),
+ ("m22","ead825f19203b3da9df19c39e79c7fb5d5f2efaa6d35c2971587fed7e0af1d9a"),("policy","28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
+ ("combat_v1","4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463"),("combat_v2","5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b"),
+ ("m21","46fef9f50c0e3212dcd0b3d244cdae663c633713e40f578976c06303f267d771"),("m16","feeffa64c463aee521944f9a85e53446289226fd18518a45c5ebb72581236ef2"),
 ];
 // Design-table oracles (docs/superpowers/specs/2026-10-28-m23-watcher-act2-design.md), not the implementation.
 const ACT2_INTENTS:&[&str]=&["sphere_activate","sphere_debuff","sphere_slam","sphere_harden","byrd_caw","byrd_peck","byrd_swoop","byrd_headbutt","byrd_stunned","byrd_go_airborne","centurion_slash","centurion_protect","centurion_fury","mystic_attack","mystic_buff","mystic_heal","chosen_poke","chosen_hex","chosen_debilitate","chosen_drain","chosen_zap","snecko_glare","snecko_bite","snecko_tail_whip","leader_rally","leader_encourage","leader_stab","gremlin_scratch","gremlin_puncture","gremlin_smash","gremlin_protect","gremlin_bash","gremlin_charge","gremlin_blast","slaver_stab","slaver_rake","slaver_scrape","slaver_entangle","taskmaster_whip","book_multi","book_big","champ_anger","champ_execute","champ_taunt","champ_stance","champ_gloat","champ_slap","champ_slash","automaton_spawn","automaton_flail","automaton_boost","automaton_beam","automaton_stun","orb_stasis","orb_support","orb_beam","collector_spawn","collector_revive","collector_rake","collector_buff","collector_ultimate","torch_attack"];

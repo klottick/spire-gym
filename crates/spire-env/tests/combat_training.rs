@@ -35,14 +35,14 @@ fn v1_rejects_the_additive_slaver_and_fungi_encounters(){
 fn v2_additively_publishes_slaver_and_fungi_and_resolves_a_turn_for_each(){
     let v2_spec=combat_policy_observation_spec_v2().unwrap();let v1_spec=combat_policy_observation_spec().unwrap();
     assert_ne!(v2_spec.fingerprint(),v1_spec.fingerprint());
-    assert_eq!(v1_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db");
+    assert_eq!(v1_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463");
     for key in ["enemy","power","intent"] {
         let old=v1_spec.descriptor()["vocabularies"][key].as_array().unwrap().clone();
         let new=v2_spec.descriptor()["vocabularies"][key].as_array().unwrap().clone();
         // Enemies are appended; powers and intents are the shared engine-registry tables (spire-85d).
         assert_eq!(&new[..old.len()],old.as_slice());assert_eq!(new.len(),old.len()+match key{"enemy"=>5,_=>0});
     }
-    assert_eq!(v2_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7");
+    assert_eq!(v2_spec.fingerprint().iter().map(|x|format!("{x:02x}")).collect::<String>(),"5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b");
     let descriptor=v2_spec.descriptor();let vocab=&descriptor["vocabularies"];
     assert!(vocab["enemy"].as_array().unwrap().iter().any(|name|name=="fungi_beast"));
     assert!(vocab["power"].as_array().unwrap().iter().any(|name|name=="spore_cloud"));

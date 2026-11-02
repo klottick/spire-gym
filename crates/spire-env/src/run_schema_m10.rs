@@ -270,6 +270,7 @@ fn domain(group: &str, field: &str, unit: &str, c: &RunCapacities, vocab: &Value
         ("combat_cards", "cost_kind") => Some("card_cost_kind"),
         ("enemies", "side") => Some("encounter_side"),
         ("combat_state", "facing") => Some("facing"),
+        ("combat_state", "phase" | "selection_resume_phase") => Some("combat_phase"),
         ("selection_counts", "operation") => Some("selection_operation"),
         _ => None,
     };

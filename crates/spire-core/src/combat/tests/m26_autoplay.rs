@@ -14,6 +14,10 @@ fn card(id: CardId, instance: u64, upgrades: u32) -> LiveCard {
 }
 
 fn fight(encounter: EncounterId, act: u8, cards: &[(CardId, u32)]) -> Combat {
+    fight_as(Character::Ironclad, encounter, act, cards)
+}
+
+fn fight_as(character: Character, encounter: EncounterId, act: u8, cards: &[(CardId, u32)]) -> Combat {
     let mut rng = crate::run::RunRng::new([41; 32], Partition::Test, 0);
     let mut entry = enemies::setup(encounter, act, 0, &mut rng, enemies::SetupContext {
         player: PlayerState {
@@ -21,7 +25,7 @@ fn fight(encounter: EncounterId, act: u8, cards: &[(CardId, u32)]) -> Combat {
             draw_per_turn: 5, powers: vec![],
         },
         player_powers: vec![],
-        character: Character::Ironclad,
+        character,
         cards: vec![permanent_live_card(Defend, CardInstanceId(99), 0)],
         opening_draw: cards.len(),
         encounter_visit: 0,
@@ -93,6 +97,90 @@ fn owned_instance(combat: &Combat, instance: u64) -> Option<&LiveCard> {
 fn assert_no_fault(combat: &Combat, context: &str) {
     assert!(combat.fault_record().is_none(), "{context}: {:?}", combat.fault_record());
     assert!(combat.state.fault.is_none(), "{context}: {:?}", combat.state.fault);
+}
+
+#[test]
+fn m26_burst_replay_preserves_collect_captured_x() {
+    let mut combat = fight_as(Character::Silent, EncounterId::Cultist, 1, &[(Burst, 0), (Collect, 1)]);
+    play(&mut combat, 1, None);
+    play(&mut combat, 2, None);
+    assert_no_fault(&combat, "Burst+Collect repeat");
+    assert_eq!(player_power(&combat, "collect"), 20, "both Collect+ uses use the captured nine energy plus one");
+    engine::validate_runtime(&combat.state).unwrap();
+}
+
+#[test]
+fn m26_mayhem_collect_uses_turn_start_energy_without_spending_it() {
+    let mut combat = fight_as(Character::Watcher, EncounterId::Cultist, 1, &[(Mayhem, 0), (Collect, 0)]);
+    arrange(&mut combat, &[1], &[2]);
+    combat.state.player.energy = 3;
+    combat.state.player.max_energy = 3;
+    play(&mut combat, 1, None);
+    assert_eq!(combat.state.player.energy, 1, "Mayhem's ordinary cost is paid before turn start");
+    combat.step_full(&CombatAction::EndTurn)
+        .unwrap_or_else(|error| panic!("Mayhem turn-start Collect: {error:?}; fault={:?}", combat.fault_record()));
+    assert_no_fault(&combat, "Mayhem X-cost Collect");
+    assert_eq!(player_power(&combat, "collect"), 3, "Collect uses energy captured when Mayhem queues its child");
+    assert_eq!(combat.state.player.energy, 3, "an autoplayed X card is free to play once and spends no energy");
+}
+
+#[test]
+fn m26_havoc_whirlwind_uses_queued_energy_without_spending_it() {
+    let mut combat = fight(EncounterId::Cultist, 1, &[(Havoc, 0), (Whirlwind, 0)]);
+    arrange(&mut combat, &[1], &[2]);
+    combat.state.player.energy = 4;
+    let hp = combat.state.enemies[0].hp;
+    play(&mut combat, 1, None);
+    assert_no_fault(&combat, "Havoc X-cost Whirlwind");
+    assert_eq!(combat.state.enemies[0].hp, hp - 15, "Havoc child uses the three energy left after Havoc's payment");
+    assert_eq!(combat.state.player.energy, 3, "an autoplayed Whirlwind is free to play once and drains nothing");
+}
+
+#[test]
+fn m26_zero_energy_autoplay_skips_cost_check_and_uses_positive_x_upgrade() {
+    let mut fixed = fight(EncounterId::Cultist, 1, &[(Havoc, 0), (Strike, 0)]);
+    arrange(&mut fixed, &[1], &[2]);
+    fixed.state.player.energy = 0;
+    fixed.state.piles.hand.iter_mut().filter_map(OwnedCard::full_mut)
+        .find(|card| card.instance == CardInstanceId(1)).unwrap().local.free_play = true;
+    let hp = fixed.state.enemies[0].hp;
+    play(&mut fixed, 1, None);
+    assert_eq!(fixed.state.enemies[0].hp, hp - 6, "autoplay child ignores its unaffordable fixed cost");
+    assert_eq!(fixed.state.player.energy, 0);
+
+    let mut x = fight_as(Character::Watcher, EncounterId::Cultist, 1, &[(Havoc, 0), (Collect, 1)]);
+    arrange(&mut x, &[1], &[2]);
+    x.state.player.energy = 0;
+    x.state.piles.hand.iter_mut().filter_map(OwnedCard::full_mut)
+        .find(|card| card.instance == CardInstanceId(1)).unwrap().local.free_play = true;
+    x.step_full(&CombatAction::PlayCard { instance: 1, target: None })
+        .unwrap_or_else(|error| panic!("zero-energy Havoc+Collect+: {error:?}; fault={:?}", x.fault_record()));
+    assert_no_fault(&x, "zero-energy Collect+ autoplay");
+    assert_eq!(player_power(&x, "collect"), 1, "Collect+ upgrade makes its zero-energy X effect positive");
+    assert_eq!(x.state.player.energy, 0, "zero-energy X has no energy to spend");
+}
+
+#[test]
+fn m26_mayhem_tools_of_the_trade_turn_start_selection_is_accepted() {
+    let mut combat = fight_as(Character::Silent, EncounterId::Cultist, 1, &[
+        (Mayhem, 0), (ToolsOfTheTrade, 0), (Strike, 0), (Defend, 0), (DodgeAndRoll, 0),
+    ]);
+    arrange(&mut combat, &[1], &[5, 4, 3, 2]);
+    play(&mut combat, 1, None);
+    combat.step_full(&CombatAction::EndTurn)
+        .unwrap_or_else(|error| panic!("Mayhem + Tools start turn: {error:?}; fault={:?}", combat.fault_record()));
+    assert_no_fault(&combat, "Mayhem + Tools start turn");
+    let selection = combat.state.pending_selection.as_ref()
+        .expect("Tools of the Trade opens its turn-start discard selection");
+    assert!(matches!(selection.parent,
+        crate::combat::SelectionParent::Power { id: FullPowerId("tools_of_the_trade"), .. }));
+    let candidate = selection.candidates[0].clone();
+    let instance = combat.state.piles.hand.iter().find(|card| card.handle() == candidate)
+        .and_then(OwnedCard::full).expect("Tools selection candidate remains in hand").instance.0;
+    combat.step_full(&CombatAction::SelectCard { instance })
+        .unwrap_or_else(|error| panic!("select Tools discard: {error:?}; fault={:?}", combat.fault_record()));
+    assert!(combat.state.pending_selection.is_none(), "Tools selection is accepted and resolved");
+    assert_no_fault(&combat, "Mayhem + Tools discard selection");
 }
 
 #[test]
@@ -220,6 +308,23 @@ fn m26_normality_blocks_autoplay() {
         .any(|action| matches!(action, CombatAction::PlayCard { instance: 5, .. })),
         "fourth manual play is absent from legal actions");
     assert_no_fault(&burst, "Normality-blocked Burst repeat");
+}
+
+#[test]
+fn m26_mayhem_suppresses_data_driven_unplayable_children() {
+    for child in [Reflex, Tactician, DeusExMachina] {
+        let mut combat = fight(EncounterId::Cultist, 1, &[(Mayhem, 0), (child, 0)]);
+        combat.state.character = characters::CharacterState::for_character(Character::Silent);
+        arrange(&mut combat, &[1], &[2]);
+        play(&mut combat, 1, None);
+        combat.step_full(&CombatAction::EndTurn)
+            .unwrap_or_else(|error| panic!("Mayhem resolving {child:?}: {error:?}; fault={:?}", combat.fault_record()));
+        assert_no_fault(&combat, "Mayhem unplayable child");
+        assert_eq!(card_played_count(&combat, 2), 0, "{child:?} no-op use does not run card-play hooks");
+        assert!(piles::owned_full_cards(&combat.state)
+            .any(|card| card.instance == CardInstanceId(2)), "{child:?} completes under its ordinary disposition");
+        assert!(engine::validate_runtime(&combat.state).is_ok());
+    }
 }
 
 #[test]

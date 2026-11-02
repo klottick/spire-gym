@@ -115,9 +115,11 @@ pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&
             let owner=state.played_powers.iter().filter_map(OwnedCard::full)
                 .find(|card|card.id==crate::content::CardId::Mayhem).map(|card|crate::combat::card_state::handle(card.instance))
                 .ok_or_else(||InputError::Invariant("Mayhem power card owner absent".into()))?;
+            // Every stack's top-card entry is created now, before any is used.
+            let energy_on_use=state.player.energy;
             for _ in 0..amount{
                 work.push(Effect{source:Source::Card(owner.clone()),target:None,
-                    kind:EffectKind::Colorless(ColorlessEffect::MayhemPlayTopCard)});
+                    kind:EffectKind::Colorless(ColorlessEffect::MayhemPlayTopCard{energy_on_use})});
             }
         }
     }
@@ -142,16 +144,16 @@ fn validate_owned_mayhem(state:&State,source:&Source)->Result<crate::combat::Car
 
 pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->Result<(),InputError>{
     match work{
-        ColorlessEffect::MayhemPlayTopCard=>{
-            if effect.target.is_some(){return Err(InputError::Invariant("Mayhem top-card target shape".into()))}
+        ColorlessEffect::MayhemPlayTopCard{energy_on_use}=>{
+            if effect.target.is_some()||!(0..=999).contains(energy_on_use){return Err(InputError::Invariant("Mayhem top-card target shape".into()))}
             validate_owned_mayhem(state,&effect.source).map(|_|())
         }
-        ColorlessEffect::MayhemAutoplay{child,target}=>{
+        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use}=>{
             validate_owned_mayhem(state,&effect.source)?;
             let child_owned=state.queued_autoplay.get(child).and_then(OwnedCard::full);
             let target_valid=matches!(target.as_ref(),Some(Actor::Enemy(owner))
                 if state.enemies.iter().any(|enemy|enemy.instance_id==*owner&&enemy.life==ActorLife::Active&&enemy.hp>0));
-            if effect.target.is_some()||child_owned.is_none()||!target_valid{
+            if effect.target.is_some()||child_owned.is_none()||!target_valid||!(0..=999).contains(energy_on_use){
                 return Err(InputError::Invariant("Mayhem autoplay child/target custody".into()))
             }
             Ok(())
@@ -189,7 +191,7 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->
 
 pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Result<(),EffectError>{
     match work{
-        ColorlessEffect::MayhemPlayTopCard=>{
+        ColorlessEffect::MayhemPlayTopCard{energy_on_use}=>{
             validate_owned_mayhem(state,&effect.source)?;
             if state.piles.draw.is_empty(){return Ok(())}
             let Some(target)=super::super::ironclad::autoplay::capture_random_enemy_target(state)? else{return Ok(())};
@@ -201,12 +203,12 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Resu
             state.public.revealed_order.push(child_handle.clone());
             state.queued_autoplay.insert(child_handle.clone(),child);
             state.pending.push_front(Effect{source:effect.source.clone(),target:None,
-                kind:EffectKind::Colorless(ColorlessEffect::MayhemAutoplay{child:child_handle,target:Some(Actor::Enemy(target))})});
+                kind:EffectKind::Colorless(ColorlessEffect::MayhemAutoplay{child:child_handle,target:Some(Actor::Enemy(target)),energy_on_use:*energy_on_use})});
             Ok(())
         }
-        ColorlessEffect::MayhemAutoplay{child,target}=>{
+        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use}=>{
             let parent=validate_owned_mayhem(state,&effect.source)?;
-            super::super::ironclad::autoplay::start_queued_child(state,child,target.clone(),false,false,-1,crate::combat::model::PlayFrameParentOwner::Card(parent))
+            super::super::ironclad::autoplay::start_queued_child(state,child,target.clone(),false,false,*energy_on_use,crate::combat::model::PlayFrameParentOwner::Card(parent))
         }
         ColorlessEffect::BombInstall{damage}=>{
             let Source::Card(owner)=&effect.source else{return Err(InputError::Invariant("Bomb install source absent".into()).into())};

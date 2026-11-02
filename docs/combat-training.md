@@ -163,7 +163,7 @@ after settlement, while resources remain available.
 | --- | --- | --- |
 |player|[12]|HP/maxHP/gold/Block/energy/maxEnergy/turn/draw-count/stance/focus/HP-before/HP-after|
 |permanent_cards|[128,2]|card vocabulary and permanent upgrade count|
-|combat_cards|[512,18]|visible zone/position/kind/upgrades/cost/permanent and Stasis refs/selection/current public card values|
+|combat_cards|[1024,18]|visible zone/position/kind/upgrades/cost/permanent and Stasis refs/selection/current public card values|
 |enemies|[16,12]|public species/HP/Block/intent/damage/actor flags/slot/facing/hit count|
 |powers|[512,4]|owner group/row, power vocabulary, signed amount|
 |relics|[32,2]|equipped kind/public supported counter|
@@ -172,7 +172,7 @@ after settlement, while resources remain available.
 |selection_counts|[6]|required/selected/minimum/maximum/confirm-available/operation|
 |actions|[1024,8]|verb/source-group/source-row/target-group/target-row/choice/scalar0/scalar1|
 |combat_state|[4]|public facing/surrounded/Heart allowance/cap|
-|known_draw|[512,3]|entitled end/offset/combat-card row|
+|known_draw|[1024,3]|entitled end/offset/combat-card row|
 |action_mask|[1024]|exact current legal dispatch indices|
 
 Use descriptor `columns`, `reference_columns` and `vocabularies`, not enum
@@ -264,10 +264,12 @@ parent integration/acceptance. Build code is from an uncommitted M11+.66 delta;
 HEAD alone does not identify those bytes.
 
 Current descriptor fingerprints (exact current native defaults; changed 2026-11-02 by the shared
-power/intent vocabulary, see [observation vocabulary](observation-vocabulary.md)):
+power/intent vocabulary, see [observation vocabulary](observation-vocabulary.md), and again by
+the 1024-row combat-card capacity (spire-oto.2) and the interrupting selection phase (spire-oto.8)
+for the two combat views):
 
-- Opt-in standalone view-v2: `a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7`.
-- Common view-v1: `08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db`.
+- Opt-in standalone view-v2: `5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b`.
+- Common view-v1: `4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463`.
 - Opt-in policy Run-v3: `28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64`.
 - M10 Run-v2: `dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21`.
 - M9 Run-v1: `270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c`.

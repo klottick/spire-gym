@@ -20,8 +20,8 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)->Result<Op
         ForceField=>effects.push((player,EffectKind::GainBlock(modified_block(state,if up{16}else{12})?))),
         FTL=>effects.push((Some(PayloadTarget::SelectedEnemy),EffectKind::Defect(DefectEffect::State(StateEffect::Ftl{damage:modified_damage(state,target.unwrap(),if up{6}else{5})?,threshold:if up{4}else{3}})))),
         ReinforcedBody|Tempest|MultiCast=>{
-            let chemical=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::ChemicalX));
-            let count=super::super::captured_x(state,card)?+if chemical{2}else{0}+i32::from(up&&card.id!=ReinforcedBody);
+            let count=super::super::captured_x(state,card)?.checked_add(super::super::chemical_x_bonus(state)?)
+                .and_then(|x|x.checked_add(i32::from(up&&card.id!=ReinforcedBody))).ok_or(RunError::InvalidAction)?;
             effects.push(work(StateEffect::X{kind:card.id,count,block:if card.id==ReinforcedBody{modified_block(state,if up{9}else{7})?}else{0},free:card.local.free_play||card.local.free_to_play_once,paid:false}));
         },
         Recycle=>effects.push(work(StateEffect::Recycle)),

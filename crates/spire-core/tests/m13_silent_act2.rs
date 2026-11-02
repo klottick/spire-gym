@@ -13,13 +13,15 @@ use spire_core::{
 // progression, fabricated readiness, and a caller that cannot cover the matrix.
 #[test]
 fn m13_caller_transcripts_unchanged_by_m14_extension() {
+    // spire-oto.8 re-pin: only the additive CombatPublic phase/selection_resume_phase
+    // Debug fields changed (docs/observation-vocabulary.md); stripped text hashes to the prior pins.
     const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
-        "370ea52171b0c7958d6927cecae5327b82b151504448f51aeff8f758f7d902fa",
-        "d715a1e13a6d08472918b9bd637b9ad308437ad1e5cc6cc7128fcfb87c887165",
-        "c30e3d6336a9d0059cee1beeeb19c83f6c767d80cd13483a7e3f152b2005165e",
-        "749e206bc53aace53973bea3a5f91305a31baf1d0e8f28265ea5f863b92ced47",
-        "2c42be5086c090b30d5d379512c7c559d809f8055a58e51c4483db0e05d89a34",
-        "700cb47702ab4ce25ef72d600288798933dac99d7da7e624bc7eb22d7ff7b09e",
+        "b0242fa54e673cc2b5d4240beb30cbedf9763e8d02e19a3e369e4414a0242622",
+        "d6a2e5c262ad0049e6384fde4d316f414f27671c2fb554ca79405e5334012588",
+        "2b25945623c55c78b74eba0cfa0fc0b8d46535c2aacb2c509538d23d7f5575da",
+        "907f70ed5071e1d4f41c608aa65d6b0022270d553af87eac865cdd614dc885d4",
+        "325bfaa6615757e24f66bd8c57c5837c9c3bfd68a624d23b95cbce5bfef7b123",
+        "9b8330c1788027c7e35d2ae73c3f19a341bd52dc79623d5304d3f87e29836c33",
     ];
     let mut completions = 0;
     // The separately approved coverage amendment aggregates real final-act

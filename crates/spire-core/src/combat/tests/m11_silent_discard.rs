@@ -300,6 +300,7 @@ fn m11_silent_exhaust_selection_does_not_fire_manual_discard_reactions() {
     combat.state.pending_selection = Some(PendingSelection {
         parent: SelectionParent::Card(parent.clone()),
         source_zone: SelectionSourceZone::Hand,
+        resume: super::selection_resume(Phase::PlayerAction, Some(parent.clone())),
         candidates: vec![selected.clone()],
         operation: SelectionOperation::Move(SelectionDisposition::Exhaust),
         selected: Vec::new(), minimum: 1, maximum: 1,

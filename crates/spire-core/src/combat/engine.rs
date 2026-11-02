@@ -208,8 +208,21 @@ impl Combat {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         match transition.status {
             TransitionStatus::Decision | TransitionStatus::Terminal => Ok(()),
-            TransitionStatus::Selection | TransitionStatus::Fault => Err(crate::run::RunError::InvalidAction),
+            TransitionStatus::Selection => self.accept_opened_choice(),
+            TransitionStatus::Fault => Err(crate::run::RunError::InvalidAction),
         }
+    }
+
+    /// An accepted action whose resolution suspended on a newly opened player
+    /// choice has changed state, so it is accepted when that choice owns a valid
+    /// suspended continuation, and is otherwise a retained fault (never a
+    /// rejection after mutation).
+    fn accept_opened_choice(&mut self)->Result<(),crate::run::RunError>{
+        if let Err(error)=validate_open_selection(&self.state){
+            super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("accepted action opened an unowned selection: {error:?}"));
+            return Err(retained_fault(&self.state))
+        }
+        Ok(())
     }
 
     pub(crate) fn install_item_context(&mut self, context: crate::items::CombatItemContext)
@@ -332,18 +345,8 @@ impl Combat {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         match transition.status {
             TransitionStatus::Decision | TransitionStatus::Terminal => Ok(()),
-            TransitionStatus::Selection if self.state.watcher.stance_choice.is_some()=>Ok(()),
-            TransitionStatus::Selection if self.state.silent.card_offer.is_some()=>Ok(()),
-            TransitionStatus::Selection if self.state.pending_selection.as_ref().is_some_and(|selection|
-                matches!(&selection.parent,SelectionParent::Card(child)
-                    if self.state.play_frames.last().is_some_and(|frame|frame.child==*child
-                        &&matches!(frame.parent_owner,super::model::PlayFrameParentOwner::Potion{
-                            id:crate::content::PotionId::DistilledChaos,..}))))=>Ok(()),
-            TransitionStatus::Selection if self.state.pending_selection.as_ref().is_some_and(|selection|
-                matches!(&selection.parent,SelectionParent::Potion{slot,id}
-                    if matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
-                        &&valid_potion_slot(&self.state,*slot)&&self.state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))) => Ok(()),
-            TransitionStatus::Selection | TransitionStatus::Fault => Err(crate::run::RunError::InvalidAction),
+            TransitionStatus::Selection => self.accept_opened_choice(),
+            TransitionStatus::Fault => Err(crate::run::RunError::InvalidAction),
         }
     }
 
@@ -795,7 +798,7 @@ impl Combat {
         if let CombatAction::UsePotion { slot, target } = action {
             let owner = self.full_target(*target)?;
             crate::items::prepare_combat_potion(self, *slot, owner.clone(), false)?;
-            if let Some(target)=owner.as_ref(){super::enemies::act4::shield_spear::face_toward(&mut self.state,target);}
+            if let Some(target)=owner.as_ref(){self.face_toward_full_target(target)?;}
             self.state.attempted_action = Some(action.clone());
             let result = crate::items::use_combat_potion(self, *slot, owner, false);
             if self.state.fault.is_none() { self.state.attempted_action = None; }
@@ -804,7 +807,7 @@ impl Combat {
         if matches!(action, CombatAction::PlayCard { .. }) {
             match super::cards::prepare(self, action) {
                 Ok(prepared) => {
-                    if let Some(Actor::Enemy(target))=prepared.target.as_ref(){super::enemies::act4::shield_spear::face_toward(&mut self.state,target);}
+                    if let Some(Actor::Enemy(target))=prepared.target.as_ref(){self.face_toward_full_target(target)?;}
                     let observed_before=super::observe::mark(&self.state);
                     let instance = prepared.instance;
                     let source = Source::Card(super::card_state::handle(instance));
@@ -915,18 +918,32 @@ impl Combat {
         }
     }
 
+    fn face_toward_full_target(&mut self, target: &EnemyHandle) -> Result<(), crate::run::RunError> {
+        let previous = self.state.facing;
+        super::enemies::act4::shield_spear::face_toward(&mut self.state, target);
+        if self.state.facing != previous {
+            if let Err(error) = super::effects::refresh_enemy_values(&mut self.state) {
+                retain_error(&mut self.state, EffectError::Invalid(error));
+                return Err(retained_fault(&self.state));
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn capture_distilled_chaos_targets(&mut self,effects:&mut [Effect])->Result<(),crate::run::RunError>{
         let mut living=self.state.enemies.iter().filter(|enemy|enemy.life==ActorLife::Active&&enemy.hp>0)
             .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
         living.sort_by_key(|owner|self.state.actor_slots.get(owner).copied().unwrap_or(u8::MAX));
         let mut cursor=self.state.card_rng.clone().ok_or(crate::run::RunError::InvalidAction)?;
         for effect in effects {
-            let EffectKind::Potion(super::PotionEffect::DistilledChaosTopCard{target})=&mut effect.kind else{continue};
+            let EffectKind::Potion(super::PotionEffect::DistilledChaosTopCard{target,energy_on_use})=&mut effect.kind else{continue};
             if living.is_empty(){return Err(crate::run::RunError::InvalidAction)}
             let (index,next)=super::rng::uniform_below(&cursor,living.len() as u128)
                 .map_err(|_|crate::run::RunError::InvalidAction)?;
             cursor=next;
             *target=Some(living[index as usize].clone());
+            // Every top-card entry of the burst is created now, before any is used.
+            *energy_on_use=self.state.player.energy;
         }
         self.state.card_rng=Some(cursor);
         Ok(())
@@ -995,22 +1012,19 @@ impl Combat {
                     ||self.state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))=>(),
             SelectionParent::Relic(crate::content::RelicId::GamblingChip) if self.state.full_runtime
                 &&self.state.in_play.is_none()&&self.state.phase==Phase::Selection
-                &&self.state.pending.iter().any(|effect|effect.kind==EffectKind::Decision)
+                &&selection.resume.phase==Phase::PlayerStart
                 &&self.state.item_context.as_ref().is_some_and(|items|items.complete_items()
                     &&items.owns_relic(crate::content::RelicId::GamblingChip)
                     &&items.local(crate::content::RelicId::GamblingChip)==1)=>(),
-            SelectionParent::Power{turn,id} if self.state.full_runtime&&*turn==self.state.turn&&(
-                self.state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(&self.state)&&id.0=="foresight"))
-                    &&self.state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
-                ||id.0=="melange"&&selection.operation==SelectionOperation::Scry
-                    &&self.state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
-                    &&matches!(self.state.watcher.resume_phase,Some(Phase::PlayerStart|Phase::PlayerAction))
-                    &&(self.state.in_play.is_none()||self.state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))=>(),
+            SelectionParent::Power{turn,id} if self.state.full_runtime&&*turn==self.state.turn&&power_selection_owner(&self.state,selection,id)=>(),
             SelectionParent::EndTurn{turn} if self.state.full_runtime&&self.state.in_play.is_none()
                 &&self.state.phase==Phase::Selection&&*turn==self.state.turn
                 &&self.state.temporary_retain.is_none()
             &&self.state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1=>(),
             _=>return Err(crate::run::RunError::InvalidAction),
+        }
+        if self.state.phase!=Phase::Selection||super::selection::validate_resume(&self.state,&selection.resume).is_err(){
+            return Err(crate::run::RunError::InvalidAction)
         }
         if matches!(selection.operation,SelectionOperation::Retain)
             != matches!(selection.parent,SelectionParent::EndTurn{..})
@@ -1111,8 +1125,9 @@ impl Combat {
         self.state.fault_selection=Some(selection.clone());
         self.state.attempted_action=Some(action);
         self.state.pending_selection=None;
+        // Every commit path restores exactly the continuation the selection suspended.
+        self.state.phase=selection.resume.phase;
         if super::cards::watcher::modal(selection.operation){
-            self.state.phase=self.state.watcher.resume_phase.take().ok_or(crate::run::RunError::InvalidAction)?;
             self.state.pending.push_front(Effect{source:parent_source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(super::cards::watcher::WatcherEffect::CommitSelection{selection:selection.clone(),next:0})});
         } else if selection.operation==SelectionOperation::Retain {
             let SelectionParent::EndTurn{turn}=selection.parent else{unreachable!("retain selection preflight requires EndTurn parent")};
@@ -1125,7 +1140,6 @@ impl Combat {
                 if card.full().is_some_and(|live|!live.local.ethereal){retained.insert(selected.clone());}
             }
             self.state.temporary_retain=Some(super::model::TemporaryRetain{turn,cards:retained});
-            self.state.phase=Phase::EnemyTurn;
         } else {
         for selected in &selection.selected {
             if selection.operation==SelectionOperation::Upgrade {
@@ -1215,7 +1229,7 @@ impl Combat {
                                 (SelectionParent::Relic(crate::content::RelicId::GamblingChip),None)=>true,
                                 _ => false,
                             };
-                        if let Err(error) = super::piles::discard_selected_card(&mut self.state, card,
+                        if let Err(error) = super::piles::discard_committed_selection_card(&mut self.state, card,
                             manual_silent_discard) {
                             super::model::mark_fault(&mut self.state, FaultKind::Invariant,
                                 format!("accepted selected discard callback failed: {error:?}"));
@@ -1271,13 +1285,9 @@ impl Combat {
             self.state.pending.insert(at,Effect{source:parent_source.clone(),target:Some(Actor::Player),
                 kind:EffectKind::Draw(selection.selected.len() as i32)});
         }
-        if matches!(selection.parent,SelectionParent::Potion{..}|SelectionParent::Relic(_)) {
-            self.state.phase=Phase::Decision;
-        }
-        if matches!(&selection.parent,SelectionParent::Power{id,..} if id.0!="melange"){self.state.phase=Phase::PlayerStart;}
         }
         super::observe::changes(&self.state,observed_before,&parent_source);
-        let transition = resolve(&mut self.state);
+        let transition = resolve_from(&mut self.state,selection.resume.marks);
         self.refresh_legacy_cache();
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         self.state.fault_selection = None;
@@ -1365,7 +1375,13 @@ impl Combat {
             .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
                 effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction)))
             .collect::<Result<Vec<_>,_>>()?;
+        let selection_resume_phase=if self.state.phase==Phase::Selection {
+            self.state.pending_selection.as_ref().map(|selection|selection.resume.phase)
+                .or_else(||self.state.watcher.stance_choice.as_ref().map(|choice|choice.resume_phase))
+                .or_else(||self.state.silent.card_offer.as_ref().map(|offer|offer.resume))
+        }else{None};
         Ok(CombatPublic { mantra_gained:(super::cards::watcher::active(&self.state)||self.state.character.mantra_gained>0).then_some(self.state.character.mantra_gained),
+            phase:self.state.phase,selection_resume_phase,
             previous_card_type:(super::cards::watcher::active(&self.state)&&self.state.item_context.as_ref().is_some_and(|items|items.m25_profile())).then(||self.state.played_card_types.last().copied()).flatten(),stance_choice:self.state.watcher.stance_choice.as_ref().map(|c|super::view::StanceChoiceView{options:c.options.clone()}),card_offer:self.state.silent.card_offer.as_ref().map(|offer|super::view::CombatCardOfferView{cards:offer.cards.clone(),optional:offer.optional}),content_id: self.state.content_id.clone(), turn: self.state.turn,
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
@@ -1715,13 +1731,15 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                         if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))
                     &&state.piles.discard.iter().any(|owned|owned.handle()==*card),
                     "Liquid Memories retrieval retains one discard instance")?,
-                super::PotionEffect::DistilledChaosTopCard{target}=>require(state.full_runtime&&effect.target.is_none()
+                super::PotionEffect::DistilledChaosTopCard{target,energy_on_use}=>require(state.full_runtime&&effect.target.is_none()
+                    // Target and burst energy are captured together when the potion is used.
+                    &&if target.is_none(){*energy_on_use==-1}else{(0..=999).contains(energy_on_use)}
                     &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos}
                         if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(|owned|owned.is_none()||*owned==Some(crate::content::PotionId::DistilledChaos)))
                     &&target.as_ref().is_none_or(|owner|state.enemies.iter().any(|enemy|enemy.instance_id==*owner)),
                     "Distilled Chaos top action retains its captured target proposal")?,
                 super::PotionEffect::DistilledChaosQueuedChild{child,target,energy_on_use,cancelled:_}=>require(
-                    state.full_runtime&&effect.target.is_none()&&*energy_on_use==-1
+                    state.full_runtime&&effect.target.is_none()&&(0..=999).contains(energy_on_use)
                     &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos}
                         if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))
                     &&state.queued_autoplay.contains_key(child)
@@ -1784,14 +1802,19 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&matches!((&effect.source,&state.in_play),(Source::Card(owner),Some(card)) if owner==&card.handle())
             &&state.pending.iter().any(|pending|pending.source==effect.source&&pending.kind==EffectKind::FinishCard),
             "CardAfterUse requires the actual in-play card and its queued finish")?,
-        EffectKind::Hook(Hook::CardManuallyDiscarded)=>require(state.full_runtime&&effect.target.is_none()
-            &&matches!(&effect.source,Source::Card(owner) if state.piles.discard.iter().any(|card|card.handle()==*owner)
-                &&(matches!(state.phase,Phase::PlayerAction|Phase::Selection)
-                    ||state.phase==Phase::Decision&&state.fault_selection.as_ref().is_some_and(|selection|
-                        matches!(selection.parent,SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..}
-                            |SelectionParent::Relic(crate::content::RelicId::GamblingChip))
-                            &&selection.selected.contains(owner)))),
-            "manual-discard relic callback requires the actually moved discarded card")?,
+        // The callback is produced only by the shared discard owner, tagged with its origin.
+        EffectKind::Hook(Hook::CardManuallyDiscarded)=>return Err(InputError::Invariant("manual-discard callback requires its tagged discard origin".into())),
+        EffectKind::ManualDiscardCallback{origin}=>{
+            let moved=matches!(&effect.source,Source::Card(owner) if state.piles.discard.iter().any(|card|card.handle()==*owner));
+            let producer=match origin{
+                // A confirmed selection's selected card, in whatever continuation it resumes.
+                super::model::ManualDiscardOrigin::SelectionCommit=>true,
+                // A card or turn-start power discarding directly from the hand.
+                super::model::ManualDiscardOrigin::Direct=>matches!(state.phase,Phase::PlayerStart|Phase::PlayerAction|Phase::Selection),
+            };
+            require(state.full_runtime&&effect.target.is_none()&&moved&&producer,
+                "manual-discard relic callback requires the actually moved discarded card")?;
+        },
         EffectKind::HexaghostBurn(_) => {
             require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Hexaghost))),"Hexaghost gate source/target")?;
         },
@@ -1997,7 +2020,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 return Err(InputError::Unsupported("player energy overflow".into()));
             }
         }
-        EffectKind::LoseEnergy(n)=>require(state.full_runtime&&*n==1&&effect.target==Some(Actor::Player)&&matches!(&effect.source,Source::Card(id) if state.piles.hand.iter().any(|c|c.handle()==*id&&c.full().is_some_and(|c|c.id==crate::content::CardId::Void))),"Void actual-draw energy owner/amount")?,
+        // LoseEnergyAction keeps no card reference: a queued Void loss resolves
+        // after a later action moves the drawn Void anywhere it remains owned.
+        EffectKind::LoseEnergy(n)=>require(state.full_runtime&&*n==1&&effect.target==Some(Actor::Player)&&matches!(&effect.source,Source::Card(id) if super::piles::owned_full_cards(state).any(|c|super::card_state::handle(c.instance)==*id&&c.id==crate::content::CardId::Void)),"Void actual-draw energy owner/amount")?,
         EffectKind::CreateCard { id, destination: _, upgrades } => {
             let supported = matches!((*id, *upgrades),
                 (crate::content::CardId::Miracle, 0 | 1)
@@ -2093,8 +2118,10 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             let current=owner.and_then(|owner|state.in_play.as_ref().filter(|card|card.handle()==*owner)
                 .or_else(||state.piles.hand.iter().find(|card|card.handle()==*owner)));
             require(state.full_runtime&&state.item_context.as_ref().is_some_and(|items|items.m25_cards())
+                // Like every ApplyPowerAction, a target its own hit killed is a shared no-op
+                // (powers::apply_effect_inner), so only enemy identity is required here.
                 &&matches!((&effect.target,current), (Some(Actor::Enemy(target)),Some(card))
-                    if state.enemies.iter().any(|enemy|enemy.instance_id==*target&&enemy.life==ActorLife::Active&&enemy.hp>0)
+                    if state.enemies.iter().any(|enemy|enemy.instance_id==*target)
                         &&card.full().is_some_and(|live|live.id==expected&&live.local.magic_number==Some(*amount)))
                 &&*amount>0,"Watcher enemy debuff requires its exact live card/target/value")?;
         }
@@ -2606,35 +2633,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     &&(super::card_state::generated(*id,CardInstanceId(0),0).is_some()
                         ||wish_choices&&crate::content::watcher::M25_WATCHER_CHOICES.contains(id))),"generated offer retained shape")?;
         }
-        Phase::Selection => {
-            let selection=state.pending_selection.as_ref().ok_or_else(||InputError::Invariant("selection continuation absent".into()))?;
-            match &selection.parent{
-                SelectionParent::Card(parent)=>require(state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(parent)
-                    &&state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard),"card selection continuation ownership")?,
-                SelectionParent::Potion{slot,id}=>require(state.in_play.is_none()&&valid_potion_slot(state,*slot)
-                    &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
-                        ||state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none)),
-                    "potion selection has a valid consumed parent")?,
-                SelectionParent::Relic(crate::content::RelicId::GamblingChip)=>require(state.full_runtime&&state.in_play.is_none()
-                    &&state.pending.iter().any(|effect|effect.kind==EffectKind::Decision)
-                    &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
-                        &&items.owns_relic(crate::content::RelicId::GamblingChip)
-                        &&items.local(crate::content::RelicId::GamblingChip)==1),
-                    "Gambling Chip selection has its armed complete relic parent")?,
-                SelectionParent::Relic(_)=>return Err(InputError::Invariant("unsupported relic selection parent".into())),
-                SelectionParent::Power{turn,id}=>require(state.full_runtime&&*turn==state.turn&&(
-                    state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(state)&&id.0=="foresight"&&state.watcher.resume_phase==Some(Phase::PlayerStart)))
-                        &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
-                    ||id.0=="melange"&&selection.operation==SelectionOperation::Scry
-                        &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
-                        &&matches!(state.watcher.resume_phase,Some(Phase::PlayerStart|Phase::PlayerAction))
-                        &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard)))
-                    &&state.pending.iter().any(|e|e.kind==EffectKind::Decision),"power selection has a live post-draw parent")?,
-                SelectionParent::EndTurn{turn}=>require(state.full_runtime&&*turn==state.turn&&state.in_play.is_none()
-                    &&state.current.is_none()&&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1,
-                    "retain selection has a live EndTurn cleanup parent")?,
-            }
-        }
+        Phase::Selection => validate_open_selection(state)?,
         _ => {
             require(!state.pending.is_empty(), "busy continuation missing")?;
             require(state.in_play.is_none() || state.phase == Phase::PlayerAction, "in-play phase")?;
@@ -2833,18 +2832,68 @@ pub(super) fn dispatch_one(state: &mut State) {
     }
 }
 
-pub(super) fn resolve(state: &mut State) -> Transition {
-    let mut after_draw_dispatched=false;
-    let mut hand_emptied_dispatched=false;
+/// The open pending selection is owned by its parent and still suspends the
+/// exact continuation recorded when it opened (one rule for every source).
+fn validate_open_selection(state:&State)->Result<(),InputError>{
+    if state.watcher.stance_choice.is_some()||state.silent.card_offer.is_some(){return Ok(())}
+    let selection=state.pending_selection.as_ref().ok_or_else(||InputError::Invariant("selection continuation absent".into()))?;
+    require(state.phase==Phase::Selection,"selection phase owner")?;
+    super::selection::validate_resume(state,&selection.resume)?;
+    match &selection.parent{
+        SelectionParent::Card(parent)=>require(state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(parent)
+            &&state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard),"card selection continuation ownership"),
+        SelectionParent::Potion{slot,id}=>require(state.in_play.is_none()&&valid_potion_slot(state,*slot)
+            &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
+                ||state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none)),
+            "potion selection has a valid consumed parent"),
+        SelectionParent::Relic(crate::content::RelicId::GamblingChip)=>require(state.full_runtime&&state.in_play.is_none()
+            &&selection.resume.phase==Phase::PlayerStart
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                &&items.owns_relic(crate::content::RelicId::GamblingChip)
+                &&items.local(crate::content::RelicId::GamblingChip)==1),
+            "Gambling Chip selection has its armed complete relic parent"),
+        SelectionParent::Relic(_)=>Err(InputError::Invariant("unsupported relic selection parent".into())),
+        SelectionParent::Power{turn,id}=>require(state.full_runtime&&*turn==state.turn&&power_selection_owner(state,selection,id),
+            "power selection has its live owner"),
+        SelectionParent::EndTurn{turn}=>require(state.full_runtime&&*turn==state.turn&&state.in_play.is_none()
+            &&selection.resume.phase==Phase::EnemyTurn
+            &&state.current.is_none()&&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1,
+            "retain selection has a live EndTurn cleanup parent"),
+    }
+}
+
+/// Turn-start powers own a selection suspending their PlayerStart queue;
+/// Melange owns its relic Scry from whatever continuation it interrupted.
+fn power_selection_owner(state:&State,selection:&PendingSelection,id:&FullPowerId)->bool{
+    match id.0 {
+        "tools_of_the_trade"|"foresight"=>state.in_play.is_none()&&selection.resume.phase==Phase::PlayerStart
+            &&(id.0=="tools_of_the_trade"||super::cards::watcher::cards_active(state))
+            &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0),
+        "melange"=>selection.operation==SelectionOperation::Scry
+            &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange)),
+        _=>false,
+    }
+}
+
+pub(super) fn resolve(state: &mut State) -> Transition { resolve_from(state, super::model::ResolveMarks::default()) }
+
+/// Resolve the queue. A selection commit resumes with the once-per-resolution
+/// marks its suspended resolution had already spent; a selection opened here
+/// records the current marks in its suspension record.
+pub(super) fn resolve_from(state: &mut State, mut marks: super::model::ResolveMarks) -> Transition {
+    let suspended_on_entry=state.pending_selection.is_some();
     loop {
         if state.fault.is_some() { return Transition { status: TransitionStatus::Fault }; }
-        if state.pending_selection.is_some()||state.silent.card_offer.is_some()||state.watcher.stance_choice.is_some() { return Transition { status: TransitionStatus::Selection }; }
+        if state.pending_selection.is_some()||state.silent.card_offer.is_some()||state.watcher.stance_choice.is_some() {
+            if !suspended_on_entry{if let Some(selection)=state.pending_selection.as_mut(){selection.resume.marks=marks;}}
+            return Transition { status: TransitionStatus::Selection };
+        }
         if state.current.is_some() {
             dispatch_one(state);
             continue;
         }
         if !state.pending.is_empty() {
-            if !after_draw_dispatched&&state.full_runtime&&state.phase==Phase::PlayerStart
+            if !marks.after_draw&&state.full_runtime&&state.phase==Phase::PlayerStart
                 &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
                 &&state.pending.len()==1
                 &&state.pending.front().is_some_and(|effect|effect.kind==EffectKind::Decision) {
@@ -2863,7 +2912,7 @@ pub(super) fn resolve(state: &mut State) -> Transition {
                     facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
                     Some(crate::items::dispatch::combat_phase(items,phase,&facts))
                 }else{None};
-                after_draw_dispatched=true;
+                marks.after_draw=true;
                 if let Some(work)=work {
                     let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};
                     if work.direct_strength!=0 {
@@ -2877,7 +2926,7 @@ pub(super) fn resolve(state: &mut State) -> Transition {
             dispatch_one(state);
             continue;
         }
-        if !hand_emptied_dispatched&&state.full_runtime
+        if !marks.hand_emptied&&state.full_runtime
             &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
             &&state.phase==Phase::Decision
             &&state.player.hp>0&&state.piles.hand.is_empty() {
@@ -2889,7 +2938,7 @@ pub(super) fn resolve(state: &mut State) -> Transition {
                 facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
                 Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::HandEmptied,&facts))
             }else{None};
-            hand_emptied_dispatched=true;
+            marks.hand_emptied=true;
             if let Some(work)=work {
                 let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};
                 if work.direct_strength!=0 {

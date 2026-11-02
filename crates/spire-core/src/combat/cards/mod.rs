@@ -236,6 +236,27 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         remaining_energy: payment.remaining_energy, target: actor, effects, exhaust_on_finish })
 }
 
+/// Catalog-level Unplayable kinds. This list holds even for a card built
+/// without public values; the cost metadata adds any data-driven kind.
+fn catalog_unplayable(id:crate::content::CardId)->bool{
+    use crate::content::CardId::*;
+    matches!(id,Dazed|Burn|Wound|Parasite|Void|Regret|Reflex|Tactician|Clumsy|CurseOfTheBell|Decay|Doubt|Injury|Necronomicurse
+        |Normality|Pain|Shame|Writhe|AscendersBane
+        // Deus Ex Machina is Unplayable; only its on-draw trigger acts, so one that reaches the hand
+        // without a draw (a Stasis return, Discovery, copies) is unplayable, never Unsupported.
+        |DeusExMachina)
+}
+
+pub(super) fn unplayable_card(card:&LiveCard)->bool{
+    catalog_unplayable(card.id)||public_values(card).is_some_and(|values|values.cost_kind==CardCostKind::Unplayable)
+}
+
+pub(super) fn suppress_autoplay_card(card:&LiveCard)->bool{
+    let card_type=crate::content::Catalog::standard().card(card.id).map(|definition|definition.card_type);
+    card_type.is_some_and(|kind|matches!(kind,crate::content::CardType::Status|crate::content::CardType::Curse))
+        ||unplayable_card(card)
+}
+
 /// Shared accepted-use legality used by both ordinary hand plays and autoplay
 /// children. Payload production remains read-only; payment is a separate owner.
 pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<bool,crate::run::RunError>{
@@ -257,16 +278,13 @@ pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<Target
     }
     if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    let unplayable_curse_or_status=matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane
-        // Shared fix (M25, same shape as M26): Deus Ex Machina is Unplayable; only its on-draw trigger acts, so one
-        // that reaches the hand without a draw (a Stasis return, Discovery, copies) is unplayable, never Unsupported.
-        |crate::content::CardId::DeusExMachina);
     let card_type=crate::content::Catalog::standard().card(card.id).map(|definition|definition.card_type);
-    let exhaust_unplayable=unplayable_curse_or_status
+    let unplayable=unplayable_card(card);
+    let exhaust_unplayable=unplayable
         && card_type.is_some_and(|kind|matches!(kind,crate::content::CardType::Curse|crate::content::CardType::Status))
         && state.item_context.as_ref().is_some_and(crate::items::CombatItemContext::complete_items)
         && rule.is_some_and(|rule|rule.allow==Some(true));
-    if unplayable_curse_or_status&&!exhaust_unplayable{
+    if unplayable&&!exhaust_unplayable{
         return Err(crate::run::RunError::InvalidAction);
     }
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
@@ -692,7 +710,16 @@ pub(in crate::combat) fn captured_x(state:&State,card:&LiveCard)->Result<i32,cra
             if context.energy_on_use == -1 { state.player.energy } else { context.energy_on_use }
         });
     if !(0..=999).contains(&captured) {
-        return Err(crate::run::RunError::Unsupported("Silent captured X outside supported energy surface"));
+        return Err(crate::run::RunError::Unsupported("captured X outside supported energy surface"));
     }
     Ok(captured)
+}
+
+pub(super) fn chemical_x_bonus(state:&State)->Result<i32,crate::run::RunError>{
+    let Some(items)=state.item_context.as_ref() else{return Ok(0)};
+    if items.owns_relic(crate::content::RelicId::ChemicalX){return Ok(2)}
+    if items.relics().iter().any(|relic|relic.as_str()=="chemical_x"){
+        return Err(crate::run::RunError::Unsupported("Chemical X relic identity is not represented for X action"));
+    }
+    Ok(0)
 }

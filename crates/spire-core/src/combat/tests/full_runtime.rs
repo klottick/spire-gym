@@ -238,7 +238,7 @@ fn unsupported_handler_preflight_rejects_selection_and_terminal_without_mutation
     selecting.state.pending_selection = Some(super::super::model::PendingSelection {
         operation:SelectionOperation::Move(SelectionDisposition::Discard),
         parent: super::super::selection::SelectionParent::Card(CardHandle::parse("99").unwrap()),
-        source_zone:super::super::selection::SelectionSourceZone::Hand,candidates: vec![candidate], selected: vec![],
+        source_zone:super::super::selection::SelectionSourceZone::Hand,resume:super::selection_resume(Phase::PlayerAction,None),candidates: vec![candidate], selected: vec![],
         minimum:1,maximum:1, disposition: super::super::selection::SelectionDisposition::Discard,
         empty: super::super::selection::EmptySelection::Continue,
     });

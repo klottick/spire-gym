@@ -49,7 +49,8 @@ revision independently of descriptor prose. A session's own `content_id` and
   cannot show; the descriptor never overrides them.
 - `unresolved` means the neutral state cannot decide the field: a play condition
   on pile contents or generation state, or a kind that is unplayable by its own
-  rule. The 12 such ids are listed in `unresolved_cards`. Kinds the public value
+  rule. The 11 such ids are listed in `unresolved_cards` (Deus Ex Machina left the list on
+  2026-11-02 when its public value became `unplayable`, spire-oto.7). Kinds the public value
   owner marks unplayable, and statuses and curses with no playable payload,
   report cost `unplayable`.
 - Not modeled in v1: display names (there is no existing public name owner; ids

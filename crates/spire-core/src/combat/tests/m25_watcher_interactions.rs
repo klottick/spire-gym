@@ -817,3 +817,17 @@ fn m25_collect_counts_chemical_x() {
         assert_eq!(collect, Some(expected), "Collect{upgrades}: energy 2 + Chemical X 2 + upgrade");
     }
 }
+
+#[test]
+fn m25_talk_to_the_hand_skips_block_return_on_a_target_its_hit_killed() {
+    // spire-oto.6 (fuzz F07): ApplyPowerAction is skipped once its target is dead; the queued
+    // Block Return after a lethal hit must reach the shared dead-target no-op, not fault.
+    let mut c = watcher(EncounterId::ThreeLouse, 1, &[(TalkToTheHand, 0), (DefendPurple, 0)], 3);
+    let other = c.state.enemies[1].hp;
+    c.state.enemies[0].hp = 1;
+    play_card(&mut c, TalkToTheHand, Some(1));
+    assert!(c.state.enemies[0].hp <= 0);
+    assert!(c.state.enemies[0].full_powers.iter().all(|p| p.id.0 != "block_return"));
+    assert_eq!(c.state.enemies[1].hp, other);
+    assert!(engine::validate_runtime(&c.state).is_ok());
+}

@@ -457,7 +457,7 @@ pub(in crate::combat) fn restore(state:&mut State,effect:&Effect,cards:&[CardHan
 }
 
 #[derive(Clone,Default,PartialEq,Eq)]
-pub struct WatcherState {pub(in crate::combat) resume_phase:Option<Phase>,pub(in crate::combat) stance_choice:Option<PendingStanceChoice>,pub(in crate::combat) resolving_stance_choice:Option<PendingStanceChoice>,
+pub struct WatcherState {pub(in crate::combat) stance_choice:Option<PendingStanceChoice>,pub(in crate::combat) resolving_stance_choice:Option<PendingStanceChoice>,
     /// Combat-to-Run permanent upgrade journal; ordinals are contiguous from 1.
     pub(in crate::combat) permanent_upgrades:Vec<crate::combat::PermanentCardUpgrade>,
     /// Energy granted at the next Deva recharge; the `deva_form` power stores growth step.
@@ -465,7 +465,7 @@ pub struct WatcherState {pub(in crate::combat) resume_phase:Option<Phase>,pub(in
 impl std::fmt::Debug for WatcherState {
     fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{
         let mut debug=f.debug_struct("WatcherState");
-        debug.field("resume_phase",&self.resume_phase).field("stance_choice",&self.stance_choice).field("resolving_stance_choice",&self.resolving_stance_choice);
+        debug.field("stance_choice",&self.stance_choice).field("resolving_stance_choice",&self.resolving_stance_choice);
         if !self.permanent_upgrades.is_empty(){debug.field("permanent_upgrades",&self.permanent_upgrades);}
         if self.deva_energy_gain>0{debug.field("deva_energy_gain",&self.deva_energy_gain);}
         debug.finish()
@@ -493,6 +493,14 @@ pub(in crate::combat) fn validate_deva_state(state:&State)->Result<(),InputError
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct PendingStanceChoice{pub parent:SelectionParent,pub options:Vec<Stance>,pub resume_phase:Phase}
 pub(in crate::combat) fn modal(operation:SelectionOperation)->bool{matches!(operation,SelectionOperation::Scry|SelectionOperation::MeditateReturn)}
+/// Melange's Scry is the relic's own current payload; like every selection it
+/// may suspend any live continuation through the shared selection record.
+pub(in crate::combat) fn melange_scry_source(state:&State)->bool{
+    state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
+        &&state.current.as_ref().is_some_and(|effect|effect.source==Source::Actor(Actor::Player)
+            &&effect.target==Some(Actor::Player)
+            &&matches!(effect.kind,EffectKind::Watcher(WatcherEffect::ScryFromRelic{relic:crate::content::RelicId::Melange,..})))
+}
 pub(in crate::combat) fn notify_scry_discard(state:&mut State){
     let cards=state.piles.discard.iter().filter(|c|c.full().is_some_and(|c|c.id==crate::content::CardId::Weave)).map(|c|c.handle()).collect::<Vec<_>>();
     for card in cards{bottom(state,EffectKind::Watcher(WatcherEffect::ReturnDiscard{card}));}
@@ -508,11 +516,9 @@ pub(in crate::combat) fn scry(state:&mut State,effect:&Effect,amount:i32,relic_p
             SelectionParent::Power{turn:state.turn,id:FullPowerId("melange")},
         Source::Actor(Actor::Player) if relic_parent.is_none()&&state.phase==Phase::PlayerStart=>SelectionParent::Power{turn:state.turn,id:FullPowerId("foresight")},
         _=>return Err(InputError::Invariant("Scry requires a live card or Foresight parent".into()).into())};
-    let resume=state.phase;
     if candidates.len()>state.public.known_draw.len(){state.public.known_draw=candidates.clone();}
     super::super::effects::begin_selection_range(state,parent,SelectionSourceZone::Draw,candidates.clone(),0,candidates.len(),SelectionDisposition::Discard,EmptySelection::Continue)?;
     state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Scry;
-    state.watcher.resume_phase=Some(resume);
     notify_scry_discard(state);Ok(())
 }
 fn open_omniscience(state:&mut State,effect:&Effect)->Result<(),EffectError>{
@@ -548,14 +554,12 @@ pub(in crate::combat) fn validate_selection(state:&State,s:&PendingSelection)->R
             SelectionOperation::Scry=>matches!(c.id,crate::content::CardId::ThirdEye|crate::content::CardId::CutThroughFate|crate::content::CardId::JustLucky),
             SelectionOperation::MeditateReturn=>c.id==crate::content::CardId::Meditate,_=>false}),
         SelectionParent::Power{turn,id}=>s.operation==SelectionOperation::Scry&&*turn==state.turn&&(
-            id.0=="foresight"&&state.in_play.is_none()&&state.watcher.resume_phase==Some(Phase::PlayerStart)
+            id.0=="foresight"&&state.in_play.is_none()&&s.resume.phase==Phase::PlayerStart
                 &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
-            ||id.0=="melange"&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))
-                &&matches!(state.watcher.resume_phase,Some(Phase::PlayerStart|Phase::PlayerAction))
-                &&(state.in_play.is_none()||state.pending.iter().any(|effect|effect.kind==EffectKind::FinishCard))),
+            ||id.0=="melange"&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange))),
         _=>false,
     };
-    if !cards_active(state)||!valid_parent||state.watcher.resume_phase.is_none()
+    if !cards_active(state)||!valid_parent||super::super::selection::validate_resume(state,&s.resume).is_err()
         ||s.source_zone!=if s.operation==SelectionOperation::Scry{SelectionSourceZone::Draw}else{SelectionSourceZone::Discard}
         ||s.disposition!=if s.operation==SelectionOperation::Scry{SelectionDisposition::Discard}else{SelectionDisposition::Hand}{
         return Err(InputError::Invariant("Watcher selection lost exact operation/parent/resume ownership".into()))
@@ -609,9 +613,8 @@ pub(in crate::combat) fn meditate(state:&mut State,effect:&Effect,count:usize)->
         return Ok(())
     }
     let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Meditate has no physical card parent".into()).into())};
-    let resume=state.phase;
     super::super::effects::begin_selection_range(state,SelectionParent::Card(parent.clone()),SelectionSourceZone::Discard,candidates,count,count,SelectionDisposition::Hand,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::MeditateReturn;state.watcher.resume_phase=Some(resume);Ok(())
+    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::MeditateReturn;Ok(())
 }
 pub(in crate::combat) fn construct_mantra(state:&mut State,amount:i32)->Result<EffectKind,InputError>{
     state.character.mantra_gained=state.character.mantra_gained.checked_add(amount).ok_or_else(||InputError::Unsupported("Watcher Mantra history int32 exhausted".into()))?;
@@ -791,7 +794,9 @@ fn deliver_shuffled(state:&mut State,effect:&Effect,template:&LiveCard,count:u32
 pub(in crate::combat) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
     if !card.local.m21&&starting_cost(card.id,card.upgrades).is_none(){return None}
     Some(CardPublicValues{base_damage:card.local.base_damage,base_block:card.local.base_block,magic_number:card.local.magic_number,damage_bonus:None,
-        cost_kind:if matches!(card.id,crate::content::CardId::Collect|crate::content::CardId::ConjureBlade){CardCostKind::X}else{CardCostKind::Fixed},free_play:card.local.free_play||card.local.free_to_play_once,exhaust_on_finish:card.local.exhaust_on_finish,
+        cost_kind:if matches!(card.id,crate::content::CardId::Collect|crate::content::CardId::ConjureBlade){CardCostKind::X}
+            else if card.local.turn_cost.is_none(){CardCostKind::Unplayable}else{CardCostKind::Fixed},
+        free_play:card.local.free_play||card.local.free_to_play_once,exhaust_on_finish:card.local.exhaust_on_finish,
         ethereal:card.local.ethereal,innate:card.local.innate,temporary_cost:card.local.temporary_cost})
 }
 pub(in crate::combat) fn card_values(state:&State,card:&LiveCard)->Option<super::super::view::WatcherCardValues>{
@@ -839,10 +844,8 @@ pub(in crate::combat) fn valid_power_application(state:&State,effect:&Effect,id:
         "energy_down"=>card.id==crate::content::CardId::Fasting&&amount==1,
         "deva_form"=>card.id==crate::content::CardId::DevaForm&&amount==1,
         "collect"=>card.id==crate::content::CardId::Collect&&{
-            let energy=state.play_context.as_ref().filter(|context|context.card==*card_owner)
-                .map_or(state.player.energy,|context|context.energy_on_use);
-            let chemical_x=if state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::ChemicalX)){2}else{0};
-            energy.checked_add(chemical_x).and_then(|x|x.checked_add(i32::from(card.upgrades>0)))==Some(amount)&&amount>0
+            super::captured_x(state,card).ok().and_then(|energy|super::chemical_x_bonus(state).ok().and_then(|bonus|energy.checked_add(bonus)))
+                .and_then(|x|x.checked_add(i32::from(card.upgrades>0)))==Some(amount)&&amount>0
         },
         "blasphemer"=>card.id==crate::content::CardId::Blasphemy&&amount==1,
         "study"=>card.id==crate::content::CardId::Study&&amount==1,

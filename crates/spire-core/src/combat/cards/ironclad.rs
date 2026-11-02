@@ -93,13 +93,10 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
             for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
                 hits.push((enemy.instance_id.clone(),modified_damage_for_enemy(state,enemy,if upgraded{8}else{5})?));
             }
-            let energy_on_use=state.play_context.as_ref().filter(|context|context.card==card_handle(card))
-                .map_or(state.player.energy,|context|if context.energy_on_use == -1 {state.player.energy}else{context.energy_on_use});
-            if state.item_context.as_ref().is_some_and(|items|items.relics().iter().any(|relic|relic.as_str()=="chemical_x")){
-                return Err(crate::run::RunError::Unsupported("Chemical X modifier is not represented for Whirlwind X payment".into()))
-            }
+            let energy_on_use=super::captured_x(state,card)?.checked_add(super::chemical_x_bonus(state)?)
+                .ok_or(crate::run::RunError::InvalidAction)?;
             let rounds=u32::try_from(energy_on_use.max(0)).map_err(|_|crate::run::RunError::InvalidAction)?;
-            (0,vec![(None,EffectKind::Ironclad(IroncladEffect::WhirlwindRound{remaining:rounds,hits,spend_current:rounds>0&&!card.local.free_play}))])
+            (0,if rounds==0{Vec::new()}else{vec![(None,EffectKind::Ironclad(IroncladEffect::WhirlwindRound{remaining:rounds,hits,spend_current:rounds>0&&!card.local.free_play&&!card.local.free_to_play_once}))]})
         },
         Disarm => {
             if target.is_none() { return Err(crate::run::RunError::InvalidAction); }

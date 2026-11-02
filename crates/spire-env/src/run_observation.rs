@@ -7,7 +7,7 @@ use crate::run_schema_m21 as schema_m21;
 use crate::run_schema_m20 as schema_m20;
 use crate::{RunCapacities,RunSessionError};
 use spire_core::run::{PublicDecision,map::PublicMap};
-use spire_core::{combat::{CardCostKind,CombatAction,CombatCardRef,LiveCardView,Outcome,Stance,OrbKind},content::{CardType,Character},run::*};
+use spire_core::{combat::{CardCostKind,CombatAction,CombatCardRef,LiveCardView,Outcome,Phase,Stance,OrbKind},content::{CardType,Character},run::*};
 use crate::run_schema as schema;
 use crate::run_schema_m10 as schema_m10;
 use crate::run_schema_m12 as schema_m12;
@@ -47,6 +47,7 @@ fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSes
 }
 fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::zone(name),RunEncodingProfile::M25WatcherHeart=>schema_m25::zone(name),RunEncodingProfile::M23WatcherAct2=>schema_m23::zone(name),RunEncodingProfile::M22WatcherAct1=>schema_m22::zone(name),RunEncodingProfile::M21Watcher=>schema_m10::zone(name),RunEncodingProfile::M17Defect=>schema_m17::zone(name),RunEncodingProfile::M18Defect=>schema_m18::zone(name),RunEncodingProfile::M19Defect=>schema_m19::zone(name),RunEncodingProfile::M20Defect=>schema_m20::zone(name),RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name),RunEncodingProfile::M15=>schema_m15::zone(name),RunEncodingProfile::M16Defect=>schema_m10::zone(name)}}
 fn cost_kind(kind:CardCostKind)->i64{match kind{CardCostKind::Fixed=>1,CardCostKind::X=>2,CardCostKind::Unplayable=>3}}
+fn combat_phase(phase:Phase)->i64{schema_m21::phase(phase)}
 fn intent_hits(name:&str)->Option<i64>{match name{
     "shield_bash"|"shield_smash"|"heart_echo"=>Some(1),
     "spear_burn_strike"=>Some(2),"spear_skewer"=>Some(3),"heart_blood_shots"=>Some(12),_=>None,
@@ -365,6 +366,10 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
             if profile == RunEncodingProfile::M25WatcherHeart {
                 state.push(Some(c.previous_card_type.map(card_type).unwrap_or(0)));
             }
+            if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) {
+                state.push(Some(combat_phase(c.phase)));
+                state.push(Some(c.selection_resume_phase.map_or(0,combat_phase)));
+            }
             o.group_mut("combat_state").row(0,&state)?;
         }
         if extended {
@@ -657,9 +662,8 @@ mod m25_tests {
     fn assert_previous_card_type(decision: &PublicDecision, expected: i64) {
         let observation = encode_run_m25(decision, None, &caps()).unwrap();
         let state = observation.group("combat_state").unwrap();
-        let last = state.values.len() - 1;
-        assert_eq!(state.values[last], expected, "M25 combat_state previous-card category");
-        assert_eq!(state.known[last], 1, "M25 no-history is a known padding category");
+        assert_eq!(state.values[4], expected, "M25 combat_state previous-card category");
+        assert_eq!(state.known[4], 1, "M25 no-history is a known padding category");
     }
 
     fn choose_room(session: &mut RunSession, kind: RoomChoiceKind) -> RunStepResult {

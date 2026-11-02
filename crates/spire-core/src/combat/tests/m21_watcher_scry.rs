@@ -86,7 +86,7 @@ fn m21_watcher_scry_fault_retains_first_selected_movement_without_replay(){
     let mut c=choice();for instance in [20,21]{c.step_full(&CombatAction::SelectCard{instance}).unwrap();}
     // Stop at the real selection continuation, using the same accepted snapshot
     // and shared typed movement owner; the normal API cannot resume a fault.
-    let selection=c.state.pending_selection.take().unwrap();c.state.phase=c.state.watcher.resume_phase.take().unwrap();
+    let selection=c.state.pending_selection.take().unwrap();c.state.phase=selection.resume.phase;
     c.state.pending.push_front(Effect{source:Source::Card(CardHandle::parse("3").unwrap()),target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::CommitSelection{selection,next:0})});c.state.resolved_effects=99998;
     assert_eq!(engine::resolve(&mut c.state).status,TransitionStatus::Fault);
     assert!(c.state.piles.discard.iter().any(|c|c.handle().as_str()=="20"));assert!(c.state.piles.draw.iter().any(|c|c.handle().as_str()=="21"));

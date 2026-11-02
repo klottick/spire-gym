@@ -69,6 +69,11 @@ pub struct CombatPublic {
     pub character: CharacterCombatView,
     pub hand: Vec<LiveCardView>, pub draw_count: usize, pub discard: Vec<LiveCardView>,
     pub exhaust: Vec<LiveCardView>, pub outcome: Option<Outcome>,
+    /// Current combat decision phase, including a paused modal selection.
+    pub phase: super::Phase,
+    /// The phase the open choice interrupted, recorded when it opened. Every commit
+    /// path (modal or not, and stance choices and card offers) resumes exactly it.
+    pub selection_resume_phase: Option<super::Phase>,
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
     pub targets: Vec<(TargetId, bool)>,
     pub selection: Option<SelectionView>,
@@ -93,6 +98,10 @@ impl std::fmt::Debug for CombatPublic {
         value.field("discard",&self.discard);
         value.field("exhaust",&self.exhaust);
         value.field("outcome",&self.outcome);
+        if self.phase==super::Phase::Selection {
+            value.field("phase",&self.phase);
+            value.field("selection_resume_phase",&self.selection_resume_phase);
+        }
         value.field("hp_before_healing",&self.hp_before_healing);
         value.field("hp_after_cleanup",&self.hp_after_cleanup);
         value.field("targets",&self.targets);

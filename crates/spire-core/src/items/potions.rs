@@ -144,7 +144,7 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
             PotionId::DuplicationPotion=>vec![Effect{source,target:Some(Actor::Player),
                 kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("duplication"),amount:potency(context,slot,1,true)} }],
             PotionId::DistilledChaos=>(0..potency(context,slot,3,true)).map(|_|Effect{source:source.clone(),target:None,
-                kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:None})}).collect(),
+                kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:None,energy_on_use:-1})}).collect(),
             _=>unreachable!("five shared potion action rows"),
         };
         let mut potions=context.potions.clone();potions[slot]=None;

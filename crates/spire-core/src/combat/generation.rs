@@ -64,7 +64,9 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)->Result<Op
         Discovery=>request(GenerationPool::Any,3,CardDestination::Hand,GenerationCost::TurnZero,false,Some((false,1))),
         JackOfAllTrades=>request(GenerationPool::Colorless,if upgraded{2}else{1},CardDestination::Hand,GenerationCost::Ordinary,false,None),
         Chrysalis|Metamorphosis=>request(if card.id==Chrysalis{GenerationPool::Skill}else{GenerationPool::Attack},if upgraded{5}else{3},CardDestination::ShuffledDraw,GenerationCost::CombatZero,false,None),
-        Transmutation=>request(GenerationPool::Colorless,super::cards::captured_x(state,card)? as u32,CardDestination::Hand,GenerationCost::TurnZero,upgraded,None),
+        Transmutation=>request(GenerationPool::Colorless,super::cards::captured_x(state,card)?
+            .checked_add(super::cards::chemical_x_bonus(state)?).ok_or(crate::run::RunError::InvalidAction)? as u32,
+            CardDestination::Hand,GenerationCost::TurnZero,upgraded,None),
         _=>unreachable!(),
     };
     pool(state.silent.source_character,work.pool).map_err(|_|crate::run::RunError::Unsupported("complete actual-character generation support unavailable"))?;

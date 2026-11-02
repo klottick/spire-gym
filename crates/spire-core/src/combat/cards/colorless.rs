@@ -9,8 +9,9 @@ mod powers;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ColorlessEffect {
     ImpatienceResolve { draw: i32 },
-    MayhemPlayTopCard,
-    MayhemAutoplay { child:super::super::CardHandle,target:Option<super::super::Actor> },
+    /// Each stack's entry carries the energy captured when the turn-start burst is queued.
+    MayhemPlayTopCard { energy_on_use:i32 },
+    MayhemAutoplay { child:super::super::CardHandle,target:Option<super::super::Actor>,energy_on_use:i32 },
     BombInstall { damage:i32 },
     BombTick { id:u64 },
     PanacheDamage { damage:i32 },
@@ -56,7 +57,7 @@ pub(super) fn capture_draw_value(card:&mut LiveCard,draw_count:usize){
 }
 
 pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->Result<(),InputError>{
-    if matches!(work,ColorlessEffect::MayhemPlayTopCard|ColorlessEffect::MayhemAutoplay{..}|ColorlessEffect::BombInstall{..}|ColorlessEffect::BombTick{..}|ColorlessEffect::PanacheDamage{..}){return powers::validate_work(state,effect,work)}
+    if matches!(work,ColorlessEffect::MayhemPlayTopCard{..}|ColorlessEffect::MayhemAutoplay{..}|ColorlessEffect::BombInstall{..}|ColorlessEffect::BombTick{..}|ColorlessEffect::PanacheDamage{..}){return powers::validate_work(state,effect,work)}
     if !state.full_runtime{return Err(InputError::Invariant("Colorless work requires native combat".into()))}
     let Source::Card(source)=&effect.source else{return Err(InputError::Invariant("Colorless work card source absent".into()))};
     match work {
@@ -74,7 +75,7 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->
 }
 
 pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Result<(),EffectError>{
-    if matches!(work,ColorlessEffect::MayhemPlayTopCard|ColorlessEffect::MayhemAutoplay{..}|ColorlessEffect::BombInstall{..}|ColorlessEffect::BombTick{..}|ColorlessEffect::PanacheDamage{..}){return powers::apply(state,effect,work)}
+    if matches!(work,ColorlessEffect::MayhemPlayTopCard{..}|ColorlessEffect::MayhemAutoplay{..}|ColorlessEffect::BombInstall{..}|ColorlessEffect::BombTick{..}|ColorlessEffect::PanacheDamage{..}){return powers::apply(state,effect,work)}
     match work {
         ColorlessEffect::ImpatienceResolve{draw}=>{
             let has_attack=state.piles.hand.iter().filter_map(OwnedCard::full).any(|card|

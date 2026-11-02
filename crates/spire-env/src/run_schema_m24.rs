@@ -42,6 +42,7 @@ pub fn m24_run_observation_spec(c:&RunCapacities)->Result<RunObservationSpec,Run
  "actions":"row i is native candidate i; no filtering, truncation or reordering",
  "public_order":"Scry reveal top-first; selected ordinal one-based append/remove order; unrevealed draw, RNG, AI, families and cursors absent",
  "stances":"Neutral0 Wrath1 Calm2 Divinity3; current Mantra separate from gained history; real Wrath/Calm modal rows",
+ "combat_phases":"combat_state.phase uses combat_phase codes; selection_resume_phase is the saved continuation phase, or padding when no selection is paused",
  "amounts":"current public costs, signed stats, Retain and installed powers (including Slow, Time Warp, Curiosity, Artifact and Intangible); held/playing/Stasis custody",
  "actors":"actual half-dead and summoned enemy rows only; no hidden revive or summon slots",
  "sludge":"awa_sludge creates Void at BottomDraw",

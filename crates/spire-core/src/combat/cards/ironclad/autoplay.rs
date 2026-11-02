@@ -13,15 +13,22 @@ pub(in crate::combat) fn prepare_child_work(state:&State,child:&LiveCard,target:
     }
 }
 
+fn capture_autoplay_energy(state:&State,requested:i32)->Result<i32,EffectError>{
+    let captured=if requested==-1{state.player.energy}else{requested};
+    if !(0..=999).contains(&captured){return Err(InputError::Unsupported("autoplay energy_on_use outside supported energy surface".into()).into())}
+    Ok(captured)
+}
+
 pub(in crate::combat) fn start_queued_child(state:&mut State,child_handle:&crate::combat::CardHandle,target:Option<Actor>,purge:bool,
     imposed_exhaust:bool,energy_on_use:i32,parent_owner:PlayFrameParentOwner)->Result<(),EffectError>{
+    let energy_on_use=capture_autoplay_energy(state,energy_on_use)?;
     let mut preview=state.queued_autoplay.get(child_handle).cloned()
         .ok_or_else(||InputError::Invariant("queued autoplay child custody absent".into()))?;
     let preview_live=preview.full_mut().ok_or_else(||InputError::Invariant("queued autoplay child is not a full card".into()))?;
     preview_live.local.free_play=true;preview_live.local.purge=purge;
     let live=preview.full().unwrap().clone();
-    let definition=Catalog::standard().card(live.id).ok_or_else(||InputError::Unsupported("autoplay child definition absent".into()))?;
-    let mut prepared=if matches!(definition.card_type,CardType::Status|CardType::Curse){None}
+    Catalog::standard().card(live.id).ok_or_else(||InputError::Unsupported("autoplay child definition absent".into()))?;
+    let mut prepared=if super::super::suppress_autoplay_card(&live){None}
         else{prepare_child_work(state,&live,target.as_ref(),child_handle,energy_on_use)?};
     if let Some(effects)=prepared.as_mut(){super::super::capture_silent_targets(state,effects)?;capture_havoc_targets(state,effects)?;}
     // Keep the queued owner and any active parent/context in State until every
@@ -60,8 +67,9 @@ pub(in crate::combat) fn start_queued_child(state:&mut State,child_handle:&crate
     if already_deferred{
         if parent.is_some()||parent_context.is_some(){return Err(InputError::Invariant("deferred autoplay unexpectedly has a live parent".into()).into())}
     }else{
+        let resume_phase=state.phase;
         state.play_frames.push(PlayFrame{parent,parent_owner,parent_context,child:child_handle.clone(),target:target.clone(),
-            captured_energy:energy_on_use,paid:0,disposition,parent_finish_checkpoint_done:false});
+            resume_phase,captured_energy:energy_on_use,paid:0,disposition,parent_finish_checkpoint_done:false});
     }
     state.in_play=Some(child);state.phase=crate::combat::Phase::PlayerAction;
     state.play_context=Some(PlayContext{card:child_handle.clone(),target:target.clone(),energy_on_use,paid:0,disposition});
@@ -78,12 +86,13 @@ pub(in crate::combat) fn start_queued_child(state:&mut State,child_handle:&crate
 
 pub(in crate::combat) fn queued_child_is_playable(state:&State,child_handle:&crate::combat::CardHandle,target:Option<Actor>,energy_on_use:i32,purge:bool)
     ->Result<bool,EffectError>{
+    let energy_on_use=capture_autoplay_energy(state,energy_on_use)?;
     let mut preview=state.queued_autoplay.get(child_handle).cloned()
         .ok_or_else(||InputError::Invariant("queued autoplay preview custody absent".into()))?;
     let live=preview.full_mut().ok_or_else(||InputError::Invariant("queued autoplay preview is not full".into()))?;
     live.local.free_play=true;live.local.purge=purge;
-    let definition=Catalog::standard().card(live.id).ok_or_else(||InputError::Unsupported("autoplay child definition absent".into()))?;
-    if matches!(definition.card_type,CardType::Status|CardType::Curse){return Ok(false)}
+    Catalog::standard().card(live.id).ok_or_else(||InputError::Unsupported("autoplay child definition absent".into()))?;
+    if super::super::suppress_autoplay_card(preview.full().unwrap()){return Ok(false)}
     Ok(prepare_child_work(state,preview.full().unwrap(),target.as_ref(),child_handle,energy_on_use)?.is_some())
 }
 
@@ -153,7 +162,7 @@ pub(in crate::combat) fn defer_parent_finish(state:&mut State,owner:&crate::comb
         .ok_or_else(||InputError::Invariant("deferred autoplay parent context absent".into()))?;
     let parent=state.in_play.take().unwrap();state.play_context=None;
     state.play_frames.push(PlayFrame{parent:Some(parent),parent_owner:PlayFrameParentOwner::Card(owner.clone()),parent_context:Some(parent_context),child,target,
-        captured_energy:energy_on_use,paid:0,disposition,parent_finish_checkpoint_done:true});
+        resume_phase:state.phase,captured_energy:energy_on_use,paid:0,disposition,parent_finish_checkpoint_done:true});
     Ok(true)
 }
 
@@ -220,13 +229,14 @@ pub(in crate::combat) fn resume_parent(state:&mut State,owner:&crate::combat::Ca
             // Time Warp, card-after-use hooks, or the ordinary finish path.
             state.play_context=None;
             state.play_frames.push(PlayFrame{parent:Some(parent),parent_owner:PlayFrameParentOwner::Card(handle),
-                parent_context:frame.parent_context,child,target,captured_energy,paid:0,disposition,
+                parent_context:frame.parent_context,child,target,resume_phase:frame.resume_phase,captured_energy,paid:0,disposition,
                 parent_finish_checkpoint_done:true});
             return Ok(true)
         }
         state.play_context=None;
         let disposition=frame.parent_context.map_or(FinishDisposition::Natural,|context|context.disposition);
         super::super::super::piles::finish_played_card(state,parent,disposition)?;
+        if state.outcome.is_none(){state.phase=frame.resume_phase;}
         // If the just-retired card was itself an autoplay child, finish that
         // containing continuation without replaying its already-fired card
         // checkpoint.
@@ -236,10 +246,14 @@ pub(in crate::combat) fn resume_parent(state:&mut State,owner:&crate::combat::Ca
         Ok(true)
     }else{
         match frame.parent_owner {
-            PlayFrameParentOwner::Card(_)=>{state.in_play=frame.parent;state.play_context=frame.parent_context;},
+            PlayFrameParentOwner::Card(_)=>{
+                state.in_play=frame.parent;state.play_context=frame.parent_context;
+                if state.outcome.is_none(){state.phase=frame.resume_phase;}
+            },
             PlayFrameParentOwner::Potion{..}=>{
                 if frame.parent.is_some()||frame.parent_context.is_some(){return Err(InputError::Invariant("potion autoplay frame acquired card parent custody".into()))}
-                state.in_play=None;state.play_context=None;state.phase=Phase::Decision;
+                state.in_play=None;state.play_context=None;
+                if state.outcome.is_none(){state.phase=if frame.resume_phase==Phase::PlayerAction{Phase::Decision}else{frame.resume_phase};}
             }
         }
         Ok(true)
@@ -248,9 +262,11 @@ pub(in crate::combat) fn resume_parent(state:&mut State,owner:&crate::combat::Ca
 
 pub(in crate::combat) fn apply_potion_work(state:&mut State,effect:&Effect,work:&crate::combat::PotionEffect)->Result<(),EffectError>{
     match work {
-        crate::combat::PotionEffect::DistilledChaosTopCard{target}=>{
+        crate::combat::PotionEffect::DistilledChaosTopCard{target,energy_on_use}=>{
             let crate::combat::Source::Potion{id:crate::content::PotionId::DistilledChaos,..}=&effect.source else{
                 return Err(InputError::Invariant("Distilled Chaos top action lost its potion owner".into()).into())};
+            if !(0..=999).contains(energy_on_use){
+                return Err(InputError::Invariant("Distilled Chaos top action lost its captured burst energy".into()).into())}
             let Some(child)=state.piles.draw.pop() else{return Ok(())};
             let child_handle=child.handle();
             super::super::super::piles::refresh_hand_values(state);
@@ -262,7 +278,7 @@ pub(in crate::combat) fn apply_potion_work(state:&mut State,effect:&Effect,work:
             }
             state.pending.push_front(Effect{source:effect.source.clone(),target:None,
                 kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{
-                    child:child_handle,target:target.clone(),energy_on_use:-1,cancelled:false})});
+                    child:child_handle,target:target.clone(),energy_on_use:*energy_on_use,cancelled:false})});
             Ok(())
         }
         crate::combat::PotionEffect::DistilledChaosQueuedChild{child,target,energy_on_use,cancelled}=>{
@@ -420,7 +436,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
             crate::combat::piles::refresh_hand_values(state);
             if state.public.known_draw.first()==Some(&handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
             state.public.known_draw_bottom.retain(|known|known!=&handle);state.public.revealed_order.push(handle);
-            let energy_on_use=-1;
+            let energy_on_use=state.player.energy;
             let child_handle=child.handle();state.queued_autoplay.insert(child_handle.clone(),child);
             let queued=Effect{source:effect.source.clone(),target:None,kind:EffectKind::Ironclad(IroncladEffect::HavocQueued{child:child_handle,target:target.clone(),energy_on_use,cancelled:false})};
             queue_after_finish(state,&effect.source,queued)

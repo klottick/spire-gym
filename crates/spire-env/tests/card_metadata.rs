@@ -6,7 +6,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 const UNRESOLVED: &[&str] = &["mind_blast", "secret_technique", "secret_weapon", "distraction", "alchemize", "discovery",
-    "chrysalis", "metamorphosis", "stack", "blizzard", "white_noise", "deus_ex_machina"];
+    "chrysalis", "metamorphosis", "stack", "blizzard", "white_noise"];
 
 fn hex(bytes: [u8; 32]) -> String { bytes.iter().map(|b| format!("{b:02x}")).collect() }
 fn row<'a>(d: &'a Value, id: &str) -> &'a Value { d["cards"].as_array().unwrap().iter().find(|r| r["id"] == id).expect("row") }
@@ -32,7 +32,7 @@ fn descriptor_is_versioned_deterministic_bounded_and_self_fingerprinted() {
     assert_eq!((&d["content_revision"]["cards_sha256"], &d["content_revision"]["rows"], &d["content_revision"]["faces"]),
         (&Value::from(hex(cards.finalize().into())), &Value::from(369), &Value::from(faces)));
     // Pinned: any content, constructor, cost, payload or schema change must be an explicit update.
-    assert_eq!(d["fingerprint"], "cb753725f58cec83633d9a51eb4941f622523843fad6ecff0874f79016308112");
+    assert_eq!(d["fingerprint"], "b60b66c69bce54a6652442e54bc42a2a446d05ec7efa39bb1b11cf4b8c6ff5fb");
 }
 
 #[test]
@@ -131,8 +131,8 @@ fn descriptor_carries_no_run_private_or_diagnostic_fields() {
 fn observation_fingerprints_match_current_pins() {
     let caps = RunCapacities::m10_default();
     let now = [
-        (combat_policy_observation_spec().unwrap().fingerprint(), "08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),
-        (combat_policy_observation_spec_v2().unwrap().fingerprint(), "a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
+        (combat_policy_observation_spec().unwrap().fingerprint(), "4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463"),
+        (combat_policy_observation_spec_v2().unwrap().fingerprint(), "5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b"),
         (policy_run_observation_spec(&caps).unwrap().fingerprint(), "28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
         (m10_run_observation_spec(&caps).unwrap().fingerprint(), "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
         (run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint(), "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),

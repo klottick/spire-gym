@@ -176,6 +176,8 @@ fn combat() -> CombatPublic {
         discard: vec![],
         exhaust: vec![],
         outcome: None,
+        phase: spire_core::combat::Phase::Decision,
+        selection_resume_phase: None,
         hp_before_healing: None,
         hp_after_cleanup: None,
         targets: vec![],

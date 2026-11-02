@@ -36,11 +36,11 @@ fn m25_descriptor_vocabulary_and_old_profiles() {
     let m20 = m20_run_observation_spec(&caps()).unwrap();
     println!("BASE_M24_DESCRIPTOR_SHA256 {}", hex(m24.fingerprint()));
     println!("M25_DEFAULT_DESCRIPTOR_SHA256 {}", hex(spec.fingerprint()));
-    assert_eq!(hex(spec.fingerprint()), "09355f51be8b906ecfe1bfd3465f400107ec387d4d5ebe1964f80a6810e77550");
+    assert_eq!(hex(spec.fingerprint()), "a1e637bf29fc28620a9c2e487cfd950462d8680967eb68bb9620e3a38bc5ca67");
     let combat_state = d["tensors"].as_array().unwrap().iter()
         .find(|tensor| tensor["key"] == "combat_state").unwrap();
     assert_eq!(combat_state["fields"], json!([
-        "facing", "surrounded", "heart_damage_remaining", "heart_cap", "previous_card_type"
+        "facing", "surrounded", "heart_damage_remaining", "heart_cap", "previous_card_type", "phase", "selection_resume_phase"
     ]));
     assert_eq!(combat_state["units"][4], "category");
     assert_eq!(combat_state["columns"][4]["vocabulary"], "card_type");
@@ -56,18 +56,18 @@ fn m25_descriptor_vocabulary_and_old_profiles() {
         ("m13", m13_run_observation_spec(&caps()).unwrap().fingerprint(), "cd7f78f7bc8ae8566f727f431f8a8d840303cdcb556173b31bf169cea8c34ecf"),
         ("m14", m14_run_observation_spec(&caps()).unwrap().fingerprint(), "72e75d8357ebbbba2b905f381262a99a4385c670d9fa20fa8cd008f4b90fb827"),
         ("m15", m15.fingerprint(), "ab9fd38b68e7bd276526e136caf58fbbf6f0ef5916eb67fcba20fd91b54004f1"),
-        ("m16", defect_combat_observation_spec(&policy_caps).unwrap().fingerprint(), "6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7"),
+        ("m16", defect_combat_observation_spec(&policy_caps).unwrap().fingerprint(), "feeffa64c463aee521944f9a85e53446289226fd18518a45c5ebb72581236ef2"),
         ("m17", m17_run_observation_spec(&caps()).unwrap().fingerprint(), "eeb45fcedd185710aeb0e5cb58ca619cc5927861cebda39b1612ff1500887a92"),
         ("m18", m18_run_observation_spec(&caps()).unwrap().fingerprint(), "6a4bb8526357f0264ae0cad8ccaad8015a0a3d360a678d236d94afe21a4ac967"),
         ("m19", m19_run_observation_spec(&caps()).unwrap().fingerprint(), "b2aa0b85a83a51171524a7487ab7cb3ed450e00811bd7f00c472e358a0220b15"),
         ("m20", m20.fingerprint(), "3f11018081cfe0a2e9e69c87d57a57bd4043df2496c6d2c539dd74b0bf20fb56"),
-        ("m21", watcher_combat_observation_spec(&policy_caps).unwrap().fingerprint(), "bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861"),
-        ("m22", m22.fingerprint(), "2e4bcade98a3ab7beb402fca027aaed460bae6a26ff545754e3fa3b7e9e6b9bb"),
-        ("m23", m23_run_observation_spec(&caps()).unwrap().fingerprint(), "5b5f5ed8438b94d14bdb2cfa362229ddcb54df0a1091ba3ccb6ecfbdb87ff8bb"),
-        ("m24", m24.fingerprint(), "3116abae686d6bc3aca5585c9d9fb87c89956543ac0213d324b2aa92ad9239b0"),
+        ("m21", watcher_combat_observation_spec(&policy_caps).unwrap().fingerprint(), "46fef9f50c0e3212dcd0b3d244cdae663c633713e40f578976c06303f267d771"),
+        ("m22", m22.fingerprint(), "ead825f19203b3da9df19c39e79c7fb5d5f2efaa6d35c2971587fed7e0af1d9a"),
+        ("m23", m23_run_observation_spec(&caps()).unwrap().fingerprint(), "13dbacc4553ad50bef32e5e23ee05d0c6257aad55e0b5b2a134332784fed7613"),
+        ("m24", m24.fingerprint(), "3044b3d2b3ce6edc4343d393cdf1d4eee7733a94752fcd5aac9dd1a021da0332"),
         ("policy", policy_run_observation_spec(&caps()).unwrap().fingerprint(), "28d92d89c437eea7fdc260240585bca466dee1fd74b9b3eb38513d2b34b0be64"),
-        ("combat-v1", combat_policy_observation_spec().unwrap().fingerprint(), "08bb0e2244325c5ae33caea9b3c0f78ceda8cc79ea9100e77618b9d7a8d880db"),
-        ("combat-v2", combat_policy_observation_spec_v2().unwrap().fingerprint(), "a27083bad27ffdd1fafea4c8de2b1580edad3c9d10200695694e15858b6122f7"),
+        ("combat-v1", combat_policy_observation_spec().unwrap().fingerprint(), "4c73f7de04d7b2875f473f8034c1cbacf984ea2d52d0a9428289c30cf1dff463"),
+        ("combat-v2", combat_policy_observation_spec_v2().unwrap().fingerprint(), "5ba729fd1b10a067fb8fc5d777d78b47fc9526ec0af0030d6868a32b52a7824b"),
     ];
     for (name, fingerprint, expected) in frozen {
         assert_eq!(hex(fingerprint), expected, "accepted predecessor fingerprint {name}");
@@ -193,7 +193,7 @@ fn m25_descriptor_vocabulary_and_old_profiles() {
         assert!(has(vocab, "power", shared), "shared registry power {shared}");
     }
     assert_ne!(spec.fingerprint(), m24.fingerprint());
-    assert_eq!(hex(m24.fingerprint()), "3116abae686d6bc3aca5585c9d9fb87c89956543ac0213d324b2aa92ad9239b0");
+    assert_eq!(hex(m24.fingerprint()), "3044b3d2b3ce6edc4343d393cdf1d4eee7733a94752fcd5aac9dd1a021da0332");
     assert_eq!(RUN_OBSERVATION_M25_SCHEMA_ID, "spire-gym-m25-watcher-heart-observation-v1");
     assert_eq!(d["profile_id"], "M25WatcherHeart");
     let _ = m20;

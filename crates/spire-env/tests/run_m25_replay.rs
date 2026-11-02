@@ -30,7 +30,7 @@ fn hex(bytes: [u8; 32]) -> String {
 #[test]
 fn m25_replay_preflight() {
     let record = valid_record();
-    assert_eq!(hex(record.observation_fingerprint), "09355f51be8b906ecfe1bfd3465f400107ec387d4d5ebe1964f80a6810e77550", "record identity binds the accepted M25 descriptor");
+    assert_eq!(hex(record.observation_fingerprint), "a1e637bf29fc28620a9c2e487cfd950462d8680967eb68bb9620e3a38bc5ca67", "record identity binds the accepted M25 descriptor");
     let replay = replay_run(&record, config().capacities).unwrap();
     assert_eq!(replay.accepted_count, 0);
     assert_eq!(replay.final_decision.content_profile, Some(spire_core::run::RoomScenario::M25WatcherHeart));

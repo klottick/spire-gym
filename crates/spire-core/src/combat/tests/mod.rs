@@ -149,6 +149,14 @@ mod m27_potions;
 mod m27_rescue_escape;
 mod m27_engine_2;
 mod m27_engine_3;
+mod m27_enemy_phase_selection;
+mod fuzzfix_a_review;
+
+/// A suspension record for a selection a test installs directly, naming the
+/// interrupted phase and the in-play card exactly as `begin_selection_range` would.
+pub(super) fn selection_resume(phase:super::Phase,in_play:Option<super::CardHandle>)->super::SelectionResume{
+    super::SelectionResume{phase,in_play,frame:None,marks:super::ResolveMarks::default()}
+}
 
 /// Test-only accessors used by sibling item tests that cannot name combat's private `State`.
 pub(crate) mod m27_state {

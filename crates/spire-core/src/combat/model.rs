@@ -290,7 +290,9 @@ pub enum PotionEffect {
     GamblersBrewSelectDiscard,
     LiquidMemories { requested: u8 },
     LiquidMemoriesRetrieve { card: CardHandle },
-    DistilledChaosTopCard { target: Option<EnemyHandle> },
+    /// The burst captures the player's energy once, when the potion queues all of
+    /// its top-card actions; every autoplayed X card in it uses that value.
+    DistilledChaosTopCard { target: Option<EnemyHandle>, energy_on_use: i32 },
     DistilledChaosQueuedChild { child: CardHandle, target: Option<EnemyHandle>, energy_on_use: i32, cancelled: bool },
     DuplicationRepeat { child: CardHandle, target: Option<Actor>, energy_on_use: i32, cancelled: bool },
     EntropicBrew { character: crate::content::Character, count: usize },
@@ -329,6 +331,8 @@ pub enum EffectKind {
     Terminal(Outcome), Draw(i32), Recycle, DiscardHand,
     DrawOne, AfterCardDrawn { card:CardHandle },
     GainEnergy(i32),LoseEnergy(i32),
+    /// The manual-discard relic callback, tagged by the producer that moved the card.
+    ManualDiscardCallback { origin:ManualDiscardOrigin },
     CreateCard { id: crate::content::CardId, destination: super::command::CardDestination, upgrades: u32 },
     CopyCard { source: CardHandle, destination: super::command::CardDestination },
     ExhaustHandCard { instance: super::CardInstanceId },
@@ -385,10 +389,33 @@ pub enum EffectKind {
 pub struct PublicKnowledge { pub revealed_order: Vec<CardHandle>,pub known_draw:Vec<CardHandle>,pub known_draw_bottom:Vec<CardHandle> }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PendingSelection { pub parent: super::selection::SelectionParent, pub source_zone:super::selection::SelectionSourceZone, pub candidates: Vec<CardHandle>,
+pub struct PendingSelection { pub parent: super::selection::SelectionParent, pub source_zone:super::selection::SelectionSourceZone, pub resume:SelectionResume, pub candidates: Vec<CardHandle>,
     pub operation: super::selection::SelectionOperation,
     pub selected: Vec<CardHandle>, pub minimum:usize,pub maximum:usize,
     pub disposition: super::selection::SelectionDisposition, pub empty: super::selection::EmptySelection }
+
+/// Which producer committed a manual discard: a confirmed selection's selected
+/// card, or a card/power effect that discards directly.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub enum ManualDiscardOrigin { SelectionCommit, Direct }
+
+/// Resolver checkpoints that run once per resolution and were already spent
+/// by the resolution a selection interrupted.
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+pub struct ResolveMarks { pub after_draw:bool, pub hand_emptied:bool }
+
+/// The continuation any selection suspends. It is recorded when the selection
+/// opens, validators check ownership through it, and every commit restores it.
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub struct SelectionResume {
+    /// The interrupted phase; never `Selection` or `Terminal`.
+    pub phase:Phase,
+    /// The card in play when the selection opened.
+    pub in_play:Option<CardHandle>,
+    /// The top play frame (autoplay child and its card or potion owner).
+    pub(in crate::combat) frame:Option<(CardHandle,PlayFrameParentOwner)>,
+    pub marks:ResolveMarks,
+}
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(super) struct TemporaryRetain { pub turn:u32,pub cards:BTreeSet<CardHandle> }
@@ -424,7 +451,7 @@ pub(super) struct PlayContext {pub card:CardHandle,pub target:Option<Actor>,pub 
 pub(super) enum PlayFrameParentOwner { Card(CardHandle), Potion { slot:usize,id:crate::content::PotionId } }
 
 #[derive(Clone,PartialEq,Eq)]
-pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_owner:PlayFrameParentOwner,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
+pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_owner:PlayFrameParentOwner,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub resume_phase:Phase,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
 
 impl fmt::Debug for PlayFrame {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
@@ -435,7 +462,7 @@ impl fmt::Debug for PlayFrame {
             PlayFrameParentOwner::Potion{..}=>debug.field("parent_handle",&self.parent_owner),
         };
         debug.field("parent_context",&self.parent_context)
-            .field("child",&self.child).field("target",&self.target)
+            .field("child",&self.child).field("target",&self.target).field("resume_phase",&self.resume_phase)
             .field("captured_energy",&self.captured_energy).field("paid",&self.paid)
             .field("disposition",&self.disposition)
             .field("parent_finish_checkpoint_done",&self.parent_finish_checkpoint_done).finish()
