@@ -123,7 +123,7 @@ fn m21_watcher_fault_json_requires_complete_error_receipt(){
 }
 #[test]
 fn m21_watcher_catalog_normalizes_resources_and_keeps_shared_57_setup_inventory(){
- let entries=spire_core::combat::enemies::A0_ENCOUNTER_SETUPS.iter().map(|(id,_,_)|M21WatcherCombatEntry{id:id.as_str().into(),encounter:*id,start:M21WatcherCombatStart::Canonical}).collect::<Vec<_>>();assert_eq!(entries.len(),57);let all=CombatTrainingCatalog::m21(entries).unwrap();assert_eq!(all.descriptor()["entries"].as_array().unwrap().len(),57);
+ let entries=spire_core::run::TRAINING_ENCOUNTERS_V2.iter().map(|(id,_,_)|M21WatcherCombatEntry{id:id.as_str().into(),encounter:*id,start:M21WatcherCombatStart::Canonical}).collect::<Vec<_>>();assert_eq!(entries.len(),57);let all=CombatTrainingCatalog::m21(entries).unwrap();assert_eq!(all.descriptor()["entries"].as_array().unwrap().len(),57);
  let make=|cards:Vec<CardInstance>|one(M21WatcherCombatStart::Supplied(AuthoredRunStart{hp:60,max_hp:72,gold:7,deck:cards,relics:vec![RelicId::Vajra,RelicId::GoldenEye],potions:vec![None;3],relic_counters:Default::default()}));
  let cards=vec![CardInstance{id:CardId::StrikePurple,instance:8,upgrades:0,misc:0},CardInstance{id:CardId::DefendPurple,instance:31,upgrades:1,misc:0}];let a=make(cards.clone());let mut reversed=cards;reversed.reverse();let b=make(reversed);assert_eq!(a.descriptor(),b.descriptor());assert_eq!(a.fingerprint(),b.fingerprint());assert_eq!(a.descriptor()["entries"][0]["start"]["resources"]["deck"][0]["instance"],31);
  for card in [CardId::Miracle,CardId::Smite,CardId::Safety,CardId::Strike]{assert!(CombatTrainingCatalog::m21(vec![M21WatcherCombatEntry{id:"bad".into(),encounter:EncounterId::Cultist,start:supplied(&[card])}]).is_err());}
@@ -146,8 +146,8 @@ fn m21_watcher_replay_actual_core_fault_retains_one_issued_child_and_consumed_po
 }
 #[test]
 fn m21_watcher_session_all57_initial_boundaries_use_same_encoder(){
- let entries=spire_core::combat::enemies::A0_ENCOUNTER_SETUPS.iter().map(|(id,_,_)|M21WatcherCombatEntry{id:id.as_str().into(),encounter:*id,start:M21WatcherCombatStart::Canonical}).collect();let catalog=CombatTrainingCatalog::m21(entries).unwrap();let mut session=CombatTrainingSession::new(catalog,Partition::Test).unwrap();
- for (encounter,_,_) in spire_core::combat::enemies::A0_ENCOUNTER_SETUPS{session.reset(Some(7),Some(encounter.as_str())).unwrap_or_else(|e|panic!("{}: {e:?}",encounter.as_str()));}
+ let entries=spire_core::run::TRAINING_ENCOUNTERS_V2.iter().map(|(id,_,_)|M21WatcherCombatEntry{id:id.as_str().into(),encounter:*id,start:M21WatcherCombatStart::Canonical}).collect();let catalog=CombatTrainingCatalog::m21(entries).unwrap();let mut session=CombatTrainingSession::new(catalog,Partition::Test).unwrap();
+ for (encounter,_,_) in spire_core::run::TRAINING_ENCOUNTERS_V2{session.reset(Some(7),Some(encounter.as_str())).unwrap_or_else(|e|panic!("{}: {e:?}",encounter.as_str()));}
 }
 #[test]
 fn m21_watcher_source_absent_magic_has_unknown_mask_without_hiding_real_cost_or_retain(){

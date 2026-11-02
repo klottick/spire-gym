@@ -160,12 +160,12 @@ fn m27_meal_ticket_boundary() { test_meal_ticket(); }
 fn test_omamori() {
     let mut run = settled(vec![RelicId::Omamori], BTreeMap::from([(RelicId::Omamori, 2)]));
     for expected in [1, 0] {
-        let event = fire(&mut run, RunItemEvent::CardObtaining { id: CardId::Clumsy, upgrades: 0, negated: false });
+        let event = fire(&mut run, RunItemEvent::CardObtaining { id: CardId::Clumsy, upgrades: 0, negated: false, direct: false });
         let RunItemEvent::CardObtaining { negated, .. } = event else { unreachable!() };
         assert!(negated, "Omamori negates a named Curse obtain");
         assert_eq!(run.state.relic_counters.get(&RelicId::Omamori), Some(&expected));
     }
-    let third = fire(&mut run, RunItemEvent::CardObtaining { id: CardId::Clumsy, upgrades: 0, negated: false });
+    let third = fire(&mut run, RunItemEvent::CardObtaining { id: CardId::Clumsy, upgrades: 0, negated: false, direct: false });
     let RunItemEvent::CardObtaining { negated, .. } = third else { unreachable!() };
     assert!(!negated, "the third Curse is no longer blocked");
 }
@@ -337,7 +337,7 @@ fn test_egg(relic: RelicId, id: CardId, card_type: CardType) {
         CardType::Power | CardType::Skill => CardId::Strike,
         CardType::Status | CardType::Curse => unreachable!(),
     };
-    let irrelevant = fire(&mut run, RunItemEvent::CardObtaining { id: unrelated, upgrades: 0, negated: false });
+    let irrelevant = fire(&mut run, RunItemEvent::CardObtaining { id: unrelated, upgrades: 0, negated: false, direct: false });
     let RunItemEvent::CardObtaining { upgrades, .. } = irrelevant else { unreachable!() };
     assert_eq!(upgrades, 0, "an unrelated, unclaimed temporary card is unchanged");
 }

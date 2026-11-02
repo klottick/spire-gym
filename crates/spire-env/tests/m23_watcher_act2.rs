@@ -75,7 +75,7 @@ fn m23_descriptor_covers_exact_reachable_union_and_old_profiles(){
  for actor in ["torch_head","bronze_orb","gremlin_leader","taskmaster","mystic","byrd","chosen","snecko"]{assert!(seen_enemies.contains(actor),"{actor} actually produced");}
  assert!(stasis>0,"actual Bronze Orb Stasis custody encoded");assert!(wound>0,"actual Act2 Wound encoded");
  // Foreign authored setups outside the captured union fail closed when they name an unknown actor.
- let mut foreign=0;for (id,_,_) in spire_core::combat::enemies::A0_ENCOUNTER_SETUPS.iter(){if f["playable_encounters"].as_array().unwrap().contains(&json!(id.as_str())){continue}let r=fixture(*id,M21WatcherCombatStart::Canonical);let dd=relabel(&r);if dd.combat.as_ref().unwrap().enemies.iter().any(|en|!f["playable_enemies"].as_array().unwrap().contains(&json!(en.enemy_id.as_str()))){assert!(encode_run_m23(&dd,None,&caps()).is_err(),"{id:?}");foreign+=1;}}
+ let mut foreign=0;for (id,_,_) in spire_core::run::TRAINING_ENCOUNTERS_V2.iter(){if f["playable_encounters"].as_array().unwrap().contains(&json!(id.as_str())){continue}let r=fixture(*id,M21WatcherCombatStart::Canonical);let dd=relabel(&r);if dd.combat.as_ref().unwrap().enemies.iter().any(|en|!f["playable_enemies"].as_array().unwrap().contains(&json!(en.enemy_id.as_str()))){assert!(encode_run_m23(&dd,None,&caps()).is_err(),"{id:?}");foreign+=1;}}
  assert!(foreign>0);
  // Old descriptors stay byte-identical.
  let c=caps();let p=combat_policy_capacities();

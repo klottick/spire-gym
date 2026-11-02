@@ -13,11 +13,13 @@ pub(in crate::run) const DONE:u8=u8::MAX;
 /// Values the source fixes when the event is constructed (amounts from HP, max HP and gold;
 /// drawn cards, relics and encounters). Bodies own the meaning of each slot.
 #[derive(Clone,Debug,Default,PartialEq,Eq)]
-pub(crate) struct EventCaptures { pub values:Vec<u32>, pub cards:Vec<u64>, pub relics:Vec<RelicId>, pub encounter:Option<EncounterId> }
+pub(crate) struct EventCaptures { pub values:Vec<u32>, pub cards:Vec<u64>, pub relics:Vec<RelicId>, pub encounter:Option<EncounterId>,
+    /// Card identities fixed at construction (Match and Keep's board).
+    pub card_ids:Vec<CardId> }
 
 /// A suspended event combat (design §5.7).
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub(crate) struct EventCombat { pub encounter:EncounterId, pub rewards:Option<RewardSpec>, pub next_stage:u8 }
+pub(crate) struct EventCombat { pub encounter:EncounterId, pub rewards:Option<RewardSpec>, pub next_stage:u8, pub elite:bool }
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct StandardEventFrame {
@@ -61,7 +63,11 @@ pub(in crate::run) fn publish(run:&mut Run)->Result<(),RunError>{
     let frame=frame(run)?.clone();
     let rows=if frame.stage==DONE{vec![(RoomChoiceKind::Leave,None)]}else{
         let body=events::body(frame.event).ok_or(RunError::Unsupported(events::interim(frame.event)))?;
-        (body.rows)(&run.state,&frame.captured,frame.stage).into_iter().map(|(option,price)|(RoomChoiceKind::EventOption{stage:frame.stage,option},price)).collect()
+        (body.rows)(&run.state,&frame.captured,frame.stage).into_iter().map(|(option,price)|(match body.card{
+            // A card-board row shows the identity of a revealed position (D2, Match and Keep).
+            Some(card)=>RoomChoiceKind::EventCard{stage:frame.stage,option,card:card(&frame.captured,frame.stage,option)},
+            None=>RoomChoiceKind::EventOption{stage:frame.stage,option},
+        },price)).collect()
     };
     let mut next=run.next_choice;
     let screen=view(&mut next,RoomViewKind::Event(frame.event),rows)?;
@@ -79,7 +85,7 @@ fn outcomes(run:&Run,frame:&StandardEventFrame,stage:u8,option:u8)->Result<Vec<O
 
 /// Whether an option row is offered now: its outcomes pass every executor precondition.
 pub(in crate::run) fn enabled(run:&Run,kind:&RoomChoiceKind)->bool{
-    let RoomChoiceKind::EventOption{stage,option}=*kind else {return true};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..})=*kind else {return true};
     frame(run).ok().and_then(|frame|outcomes(run,frame,stage,option).ok()).is_some_and(|list|event_exec::check(&run.state,&list).is_ok())
 }
 
@@ -93,7 +99,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
         if row.kind!=RoomChoiceKind::Leave{return Err(RunError::InvalidAction)}
         return leave(run)
     }
-    let RoomChoiceKind::EventOption{stage,option}=row.kind else {return Err(RunError::InvalidAction)};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..})=row.kind else {return Err(RunError::InvalidAction)};
     let list=outcomes(run,&frame,stage,option)?;
     accept(run,id,row.kind,list)
 }
@@ -121,6 +127,25 @@ fn accept(run:&mut Run,id:ChoiceId,kind:RoomChoiceKind,list:Vec<Outcome>)->Resul
 
 pub(in crate::run) fn accepted_choice(run:&Run)->Result<ChoiceId,RunError>{frame(run)?.accepted.as_ref().map(|(id,_)|*id).ok_or(RunError::InvalidAction)}
 pub(in crate::run) fn set_stage(run:&mut Run,stage:u8)->Result<(),RunError>{frame_mut(run)?.stage=stage;Ok(())}
+pub(in crate::run) fn set_value(run:&mut Run,slot:u8,value:u32)->Result<(),RunError>{
+    let values=&mut frame_mut(run)?.captured.values;
+    let slot=usize::from(slot);
+    if values.len()<=slot{values.resize(slot+1,0)}
+    values[slot]=value;Ok(())
+}
+
+/// Publish an event's non-combat reward screen (Lab, Wheel of Change; X4): the rows are claimed
+/// through the shared reward screen and its Proceed finishes the room. The event is complete.
+pub(in crate::run) fn open_rewards(run:&mut Run,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RunTransition,RunError>{
+    frame_mut(run)?.complete=true;
+    let mut next=run.next_choice;
+    let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
+    run.next_choice=next;
+    let room=run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
+    room.screen=screen;room.active_rewards=None;room.reward_parent=None;
+    run.candidates.clear();
+    Ok(empty_transition())
+}
 
 /// Leave the event: the room closes through the shared standard `finish`.
 pub(in crate::run) fn leave(run:&mut Run)->Result<RunTransition,RunError>{
@@ -180,7 +205,17 @@ pub(in crate::run) fn select(run:&mut Run,id:SelectionId)->Result<RunTransition,
                 mutations::transform_card(&mut staged.state,card.instance,false,&key)?;
             }
             EventSelectOp::Duplicate=>{mutations::duplicate_card(&mut staged.state,card.instance)?;}
+            // The body decides what a chosen card does (X3: Bonfire Spirits, Note For Yourself).
+            EventSelectOp::Choose=>{}
         }
+    }
+    if op==EventSelectOp::Choose{
+        let body=events::body(event).ok_or(RunError::InvalidAction)?;
+        let hook=body.selected.ok_or(RunError::InvalidAction)?;
+        let mut list=hook(&staged.state,&frame.captured,stage,&selected)?;
+        list.append(&mut frame_mut(&mut staged)?.pending_outcomes);
+        event_exec::check(&staged.state,&list)?;
+        frame_mut(&mut staged)?.pending_outcomes=list;
     }
     staged.state.last_selection=Some(selected);
     staged.state.last_resumed_parent=Some(choice);
@@ -218,6 +253,11 @@ pub(in crate::run) fn admits_combat(state:&RunState,encounter:EncounterId,node:N
 /// The suspended combat's reward spec, read by the standard reward builder.
 pub(in crate::run) fn combat_rewards(state:&RunState)->Option<RewardSpec>{
     state.room_loop.as_ref()?.standard_event.as_ref()?.combat.as_ref()?.rewards.clone()
+}
+
+/// Whether the suspended event combat sets the source's `eliteTrigger`.
+pub(in crate::run) fn combat_elite(state:&RunState)->bool{
+    state.room_loop.as_ref().and_then(|r|r.standard_event.as_ref()).and_then(|f|f.combat.as_ref()).is_some_and(|c|c.elite)
 }
 
 /// After a won event combat without a reward screen: continue at the combat's next stage.

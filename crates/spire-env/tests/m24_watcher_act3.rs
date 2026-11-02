@@ -148,7 +148,7 @@ fn m24_descriptor_covers_union_and_preserves_old(){
  for x in ["curiosity","unawakened","regenerate","time_warp","slow","intangible","malleable","reactive","shifting","fading","explosive","thorns","life_link","artifact","strength_up"]{assert!(powers.contains(x),"{x} actually installed");}
  for x in &intents{assert!(ACT3_INTENTS.contains(&x.as_str())||vocab_id(&d,"intent",x)>0);}
  // Foreign authored setups outside the captured union fail closed when they name an unknown actor; so does a foreign permanent.
- let mut foreign=0;for (id,_,_) in spire_core::combat::enemies::A0_ENCOUNTER_SETUPS.iter(){if f["playable_encounters"].as_array().unwrap().contains(&json!(id.as_str())){continue}let r=fixture(*id,M21WatcherCombatStart::Canonical);let dd=relabel(&r);if dd.combat.as_ref().unwrap().enemies.iter().any(|en|!f["playable_enemies"].as_array().unwrap().contains(&json!(en.enemy_id.as_str()))){assert!(encode_run_m24(&dd,None,&caps()).is_err(),"{id:?}");foreign+=1;}}
+ let mut foreign=0;for (id,_,_) in spire_core::run::TRAINING_ENCOUNTERS_V2.iter(){if f["playable_encounters"].as_array().unwrap().contains(&json!(id.as_str())){continue}let r=fixture(*id,M21WatcherCombatStart::Canonical);let dd=relabel(&r);if dd.combat.as_ref().unwrap().enemies.iter().any(|en|!f["playable_enemies"].as_array().unwrap().contains(&json!(en.enemy_id.as_str()))){assert!(encode_run_m24(&dd,None,&caps()).is_err(),"{id:?}");foreign+=1;}}
  assert!(foreign>0,"Act4 actors are foreign to M24");
  let r=fixture(EncounterId::JawWorm,M21WatcherCombatStart::Canonical);let mut dd=relabel(&r);dd.combat.as_mut().unwrap().hand[0].id=CardId::Strike;assert!(encode_run_m24(&dd,None,&caps()).is_err(),"foreign Ironclad permanent");
  // Older descriptors and fingerprints stay byte-identical.

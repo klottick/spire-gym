@@ -148,11 +148,13 @@ fn v2_catalog_is_the_complete_additive_57_encounter_profile() {
     let v1 = support_ids(&combat_training_support());
     let v2 = support_ids(&combat_training_support_v2());
 
-    assert_eq!(canonical.len(), 57);
+    // M28d appends the Run-only event formations after the frozen v2 prefix (append-only table).
+    assert_eq!(canonical.len(), 59);
+    assert_eq!(canonical[57..], ["three_fungi_beasts", "lagavulin_event"]);
     assert_eq!(v1.len(), 43);
     assert_eq!(v2.len(), 57);
     assert_eq!(v1, canonical[..43]);
-    assert_eq!(v2, canonical);
+    assert_eq!(v2, canonical[..57]);
 
     let additions = [
         "blue_slaver",

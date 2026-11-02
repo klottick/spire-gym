@@ -15,7 +15,7 @@ pub(super) fn supported_in(state:&RunState,id:CardId)->bool{if super::rooms::is_
 pub(crate) fn obtain_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32)->Result<Option<u64>,RunError>{
     if state.card_admission!=CardAdmission::Complete{return obtain_card(state,id,upgrades).map(Some)}
     if !crate::content::complete::supports_permanent(id)||!super::training::complete_upgrades_valid(id,upgrades){return Err(RunError::InvalidAction)}
-    push_card_or_negated(state,id,upgrades,super::training::complete_obtain_misc(id))
+    push_card_or_negated(state,id,upgrades,super::training::complete_obtain_misc(id),false)
 }
 pub(crate) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
     if state.card_admission==CardAdmission::Complete{
@@ -29,14 +29,14 @@ pub(crate) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u6
 }
 /// The one physical-instance allocator for obtain, duplicate and note retrieval.
 fn push_card(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<u64,RunError>{
-    push_card_or_negated(state,id,upgrades,misc)?.ok_or(RunError::Unsupported("a negated card obtain needs an *_or_negated owner"))
+    push_card_or_negated(state,id,upgrades,misc,false)?.ok_or(RunError::Unsupported("a negated card obtain needs an *_or_negated owner"))
 }
 /// Design §6.5: a `CardObtaining` handler (Omamori, complete items only) may negate the obtain;
 /// the card is then not created and `None` is returned.
-fn push_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<Option<u64>,RunError>{
+fn push_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32,misc:i32,direct:bool)->Result<Option<u64>,RunError>{
     if state.deck.len()>=999{return Err(RunError::InvalidAction)}
     // M27 card-obtain seam (design §6.5, H0 §2): every obtain path reaches this allocator.
-    let mut obtaining=crate::items::dispatch::RunItemEvent::CardObtaining{id,upgrades,negated:false};
+    let mut obtaining=crate::items::dispatch::RunItemEvent::CardObtaining{id,upgrades,negated:false,direct};
     crate::items::dispatch::run_event(state,&mut obtaining)?;
     let crate::items::dispatch::RunItemEvent::CardObtaining{upgrades,negated,..}=obtaining else {unreachable!("obtain event kept its kind")};
     if negated{return Ok(None)}
@@ -96,7 +96,7 @@ pub(crate) fn transform_card_or_negated(state:&mut RunState,instance:u64,auto_up
     let upgrades=u32::from(auto_upgrade&&crate::combat::cards::ironclad::rules::can_upgrade(output,0));
     remove_card(&mut staged,instance)?;
     if !admits(&staged,output){return Err(RunError::InvalidAction)}
-    let created=push_card_or_negated(&mut staged,output,upgrades,super::training::complete_obtain_misc(output))?;
+    let created=push_card_or_negated(&mut staged,output,upgrades,super::training::complete_obtain_misc(output),false)?;
     *state=staged;Ok(created)
 }
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
@@ -109,7 +109,7 @@ pub(crate) fn duplicate_card(state:&mut RunState,instance:u64)->Result<u64,RunEr
 pub(crate) fn duplicate_card_or_negated(state:&mut RunState,instance:u64)->Result<Option<u64>,RunError>{
     let card=state.deck.iter().find(|c|c.instance==instance).ok_or(RunError::InvalidAction)?.clone();
     if !admits(state,card.id){return Err(RunError::InvalidAction)}
-    let mut staged=state.clone();let created=push_card_or_negated(&mut staged,card.id,card.upgrades,card.misc)?;*state=staged;Ok(created)
+    let mut staged=state.clone();let created=push_card_or_negated(&mut staged,card.id,card.upgrades,card.misc,false)?;*state=staged;Ok(created)
 }
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 /// Design §8.5: a stored card returns fresh, its upgrades applied through the shared upgrade
@@ -120,7 +120,10 @@ pub(super) fn obtain_stored_card(state:&mut RunState,id:CardId,upgrades:u32)->Re
     let misc=super::training::complete_obtain_misc(id);
     let mut live=crate::combat::permanent_live_card_with_misc(id,crate::combat::CardInstanceId(1),0,misc);
     for _ in 0..upgrades{if !crate::combat::cards::ironclad::rules::can_upgrade(id,live.upgrades){return Err(RunError::InvalidAction)}crate::combat::cards::ironclad::rules::upgrade(&mut live)?;}
-    let mut staged=state.clone();let created=push_card(&mut staged,id,live.upgrades,misc)?;*state=staged;Ok(created)
+    // Note's take obtains directly: Omamori never negates it (event-neow research §6, "Note direct obtain").
+    let mut staged=state.clone();
+    let created=push_card_or_negated(&mut staged,id,live.upgrades,misc,true)?.ok_or(RunError::InvalidAction)?;
+    *state=staged;Ok(created)
 }
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 /// Design §7.3: one uniform draw from a Run pool (`run.m26.card.curse` for the curse pool,

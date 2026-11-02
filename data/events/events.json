@@ -149,7 +149,7 @@
     },
     {
       "path": "docs/intentional-deviations.md",
-      "sha256": "cc9174c019eae26e7be057564287eb760c5c1b4e7b5bdf94dca5ca3a21b8e2ec"
+      "sha256": "417231cfaff96a10dfbb8269286f4438df8018e3fdc79fd90688102a51262711"
     },
     {
       "path": "docs/milestones/m6-act2.md",
@@ -801,7 +801,7 @@
             {
               "type": "repo",
               "path": "docs/intentional-deviations.md",
-              "line": 125,
+              "line": 132,
               "grade": "S"
             },
             {
@@ -814,6 +814,12 @@
               "type": "repo",
               "path": "docs/intentional-deviations.md",
               "line": 127,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 130,
               "grade": "S"
             }
           ],
@@ -2719,6 +2725,14 @@
                 "remove one purgeable unbottled instance"
               ],
               "grade": "S"
+            },
+            {
+              "name": "empty-grid behavior",
+              "options": [
+                "Original with no purgeable unbottled card: Pray deals 7 damage, then opens the removal grid with no local check and strands the player on an empty grid.",
+                "SOFTLOCK-001 simulator behavior: deals 7 damage, removes nothing and shows the result."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -2733,6 +2747,30 @@
               "page": "Wing Statue",
               "revision_id": 69027,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 153,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 127,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 134,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 135,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -5934,7 +5972,7 @@
               "name": "empty-grid behavior",
               "options": [
                 "Original with no purgeable unbottled card: the enabled option opens an empty grid and strands the player.",
-                "SOFTLOCK-001 simulator behavior applies when this body lands in M28d: completes the event and removes nothing."
+                "SOFTLOCK-001: the simulator transforms nothing, removes nothing and completes the event."
               ],
               "grade": "S"
             }
@@ -5967,7 +6005,25 @@
             {
               "type": "repo",
               "path": "docs/intentional-deviations.md",
-              "line": 128,
+              "line": 133,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 153,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 127,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 130,
               "grade": "S"
             }
           ],
@@ -5976,7 +6032,7 @@
             "E0",
             "F1"
           ],
-          "note": "PM source check m28c M4 (2026-11-02); Transmogrifier follows SOFTLOCK-001 when implemented in M28d."
+          "note": "PM source check m28c M4 (2026-11-02); Transmogrifier follows SOFTLOCK-001 in M28d."
         },
         {
           "id": "leave",
@@ -6058,7 +6114,7 @@
           "name": "Spin: gold",
           "amounts": {
             "gold": {
-              "value": "+100 at result reveal",
+              "value": "+100 in Act 1, +200 in Act 2, +300 in Act 3 (constructor setGold() by dungeon), at result reveal",
               "grade": "S"
             }
           },
@@ -6082,6 +6138,12 @@
               "page": "Wheel of Change",
               "revision_id": 69018,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 172,
+              "grade": "S"
             }
           ],
           "grade": "S",

@@ -72,7 +72,9 @@ pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,Shrine
     EventSelect{event:crate::content::EventId,stage:u8,op:EventSelectOp,count:u8}}
 /// An event selection's operation; each has one candidate filter (design §5.6).
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum EventSelectOp {Remove,Upgrade,Transform,Duplicate}
+pub enum EventSelectOp {Remove,Upgrade,Transform,Duplicate,
+    /// Choose a purgeable card for the event body to use (Bonfire Spirits, Note For Yourself).
+    Choose}
 /// The Neow selector's operation (Neow research :109-112).
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum NeowSelectOp {Remove,Upgrade,Transform}

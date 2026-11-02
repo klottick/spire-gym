@@ -1,6 +1,6 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunks M28a and M28b merged, M28c in review; six chunks); M28 is not accepted.** M28 is delivered in
+Status: **candidate in progress (chunks M28a–M28c merged, M28d in review; six chunks); M28 is not accepted.** M28 is delivered in
 merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
 what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
 profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
@@ -111,7 +111,7 @@ feature until M28f completes every room. A build without the feature returns
   Strike or Defend, for every character. A fight is a boss fight when it has a BOSS-type
   monster, whatever the room, so Pantograph and Slaver's Collar work in Mind Bloom's boss fight.
   Out-of-combat damage and HP loss (events, Neow) follow one law. First Torii turns owned damage
-  of 2–5 that is not HP_LOSS into 1; event damage has no owner, so Torii never applies to it. Then
+  of 2–5 that is not HP_LOSS into 1 (Shining Light's, when max HP is 8–27; see M28d). Then
   Tungsten Rod takes 1. Below 1 HP a Fairy in a Bottle rescues first, otherwise an unused Lizard
   Tail; Mark of the Bloom blocks both. Buffer is a combat power and never applies. An event
   combat is set up with its encounter's own act. Its card reward gets every card-reward relic
@@ -123,10 +123,67 @@ feature until M28f completes every room. A build without the feature returns
   from a fight whose rewards are disabled reopens the event at its post-fight stage. Boss-type
   fights block Smoke Bomb.
 
+## M28d: events batch 1
+
+- **Bodies.** The ten remaining Act 1 ordinary events (Dead Adventurer, Golden Idol, Mushrooms,
+  Living Wall, Scrap Ooze, Shining Light, The Cleric, The Ssssserpent, Wing Statue, World of Goop),
+  three shrines (Match and Keep, Transmogrifier, Wheel of Change) and six one-time events (Accursed
+  Blacksmith, Bonfire Spirits, Face Trader, Fountain of Cleansing, Lab, Note For Yourself). Values
+  come from the Act 1 event research; amounts read from max HP and the class pools are tested for
+  each character.
+- **Event fights.** Mushrooms fights `ThreeFungiBeasts`, three independent Fungi Beasts. Dead
+  Adventurer fights three Sentries, Gremlin Nob or `LagavulinEvent`: an awake Lagavulin with no
+  Block or Metallicize that opens with Siphon Soul. The fight sets the source's `eliteTrigger`, so
+  elite-only combat effects apply, but the room stays an EventRoom: there is no elite relic, key or
+  Prayer Wheel offer. Each fight's listed gold range is drawn when it starts and shown in one gold
+  row with any fixed gold. Listed relics are ordinary reward offers.
+- **Executor.** New outcomes cover a draw at choice time (Scrap Ooze, Dead Adventurer, Wheel of
+  Change), per-event progress, a non-combat reward screen (Lab's potions, Wheel of Change's relic),
+  Note For Yourself's direct obtain and store, and a chosen card whose effect the event decides
+  (Bonfire Spirits). Wing Statue, World of Goop and Shining Light deal damage owned by the player,
+  as the source passes it; Golden Idol, Scrap Ooze and Face Trader damage has no owner. Torii
+  turns Shining Light's 2–5 damage (max HP 8–27) into 1. The precondition check is now exact. Earlier
+  card outcomes change the deck before a later selection is checked, and an earlier selection
+  takes from a later one only the cards both must share. A purchase of a relic already owned is
+  rejected like an obtain.
+- **Screens.** Forced one-button pages follow D1 (below). Match and Keep's rows show each revealed
+  position's card as a memory aid; unmatched pairs still flip back in game state (D2). Its fixed
+  starter card is Bash, Neutralize, Zap or Eruption (disclosed decision E11). Wheel of Change's
+  reveal is its own step: Spin draws, commits any gold and shows the result; a forced button applies it.
+- **Empty grids.** Transmogrifier and Wing Statue's Pray follow SOFTLOCK-001 when no card is
+  purgeable: nothing is transformed or removed and the event continues. The original strands the
+  player.
+- **Forced pages (D1).** A forced one-button page may be collapsed into the preceding choice only when
+  no other legal action taken on that page (out-of-combat potion use included; the Run offers it on
+  event views) could lead to a different final state or RNG order. Otherwise it stays a step, whether
+  or not the press changes state or draws. Collapsed: Ssssserpent's confirmation; the intro pages of
+  Bonfire Spirits, Face Trader, Note For Yourself and Lab; Mushrooms' Continue and Dead Adventurer's
+  ambush Fight (their gold and reward draws are keyed event draws that potions never consume, and the
+  next state is combat); the Wheel's reward screen's return through the event's result page (Lab's
+  goes to the map in the source); Match and Keep's Play page (the board is built with the event); and
+  Wing Statue's Continue after Pray (the removal draws nothing). The first card of a Match and Keep
+  attempt stays face up, as a disabled row, while the second is chosen.
+- **Draw timing (D3).** Values the source draws when the event is constructed are drawn when it is
+  built (World of Goop's loss, Dead Adventurer's enemy and token order); values drawn on a choice
+  are drawn at the choice (Scrap Ooze's, Dead Adventurer's and Wheel of Change's results, Wing
+  Statue's Destroy gold and Face Trader's traded face), and Dead Adventurer's and Mushrooms' fight
+  gold when the fight starts. The order follows the per-event research. The draws are keyed `M28EventBody` draws with
+  no seed parity (RNG-001); uniform shuffles stand in for the shuffle measures the research leaves open.
+- **Act-dependent amounts.** Wheel of Change's gold is 100, 200 or 300 in Acts 1, 2 and 3 (its
+  constructor's `setGold()` keys on the dungeon); it is captured when the event is built. No other
+  M28d payout depends on the act; the other act differences are the selector's gates.
+- **Ascension 15 and above.** StandardA0 runs only A0, but the bodies already carry the source's
+  A15 band: Golden Shrine's Pray 50; Match and Keep's colourless pair becomes a second curse pair
+  (still five attempts); Wheel of Change's loss T(.15M); Face Trader's Touch 50; Lab's two potions;
+  Dead Adventurer's fight chances 35/60/85; Golden Idol's T(.35M) damage or max(1, T(.10M)) max HP;
+  Scrap Ooze's first Reach 5; Shining Light's J(.30M); The Cleric's Purify 75; Ssssserpent's 150;
+  World of Goop's loss 35–75. Note For Yourself is not offered at A15+. Transforms stay unupgraded
+  at every ascension.
+
 ## Interim limits (shrink with each chunk)
 
-- The other event bodies land in M28d–M28f. When the selected event has no body yet, the move
-  returns `RunError::Unsupported("M28 event body lands in M28d")` (or `M28e`/`M28f`) and leaves
+- The other event bodies land in M28e–M28f. When the selected event has no body yet, the move
+  returns `RunError::Unsupported("M28 event body lands in M28e")` (or `M28f`) and leaves
   the Run unchanged, event lists included. Secret Portal's boss entry is likewise typed as
   landing in M28f.
 
