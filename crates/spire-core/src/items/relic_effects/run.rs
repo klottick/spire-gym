@@ -137,7 +137,7 @@ pub(crate) fn run_event(id: RelicId, state: &mut RunState, event: &mut RunItemEv
         (RelicId::SsserpentHead, RunItemEvent::RoomEntered { kind: crate::run::RoomViewKind::Event(_) }) => {
             crate::run::mutations::gain_gold(state, 50)?;
         }
-        (RelicId::Omamori, RunItemEvent::CardObtaining { id: card, negated, .. }) if is_curse(*card) && !*negated => {
+        (RelicId::Omamori, RunItemEvent::CardObtaining { id: card, negated, direct: false, .. }) if is_curse(*card) && !*negated => {
             let charges = state.relic_counters.get(&id).copied().unwrap_or(0);
             if charges > 0 {
                 *negated = true;

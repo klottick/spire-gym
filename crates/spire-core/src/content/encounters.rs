@@ -111,6 +111,9 @@ pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
     EncounterDefinition{id:EncounterId::ShelledParasiteAndFungi,enemies:&[EnemyId::ShelledParasite,EnemyId::FungiBeast],definition_only:false},
     EncounterDefinition{id:EncounterId::BlueSlaver,enemies:&[EnemyId::SlaverBlue],definition_only:false},
     EncounterDefinition{id:EncounterId::TwoFungiBeasts,enemies:&[EnemyId::FungiBeast;2],definition_only:false},
+    // M28d event formations: Mushrooms' three Fungi Beasts, Dead Adventurer's awake Lagavulin.
+    EncounterDefinition{id:EncounterId::ThreeFungiBeasts,enemies:&[EnemyId::FungiBeast;3],definition_only:false},
+    EncounterDefinition{id:EncounterId::LagavulinEvent,enemies:&[EnemyId::Lagavulin],definition_only:false},
     // Randomized formations publish their complete species support set here;
     // the shared setup owner chooses ordered actors and multiplicities.
     EncounterDefinition{id:EncounterId::SmallSlimes,enemies:&[EnemyId::AcidSlimeS,EnemyId::AcidSlimeM,EnemyId::SpikeSlimeS,EnemyId::SpikeSlimeM],definition_only:false},

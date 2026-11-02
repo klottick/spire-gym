@@ -15,4 +15,5 @@ pub(in crate::run) const ADDICT:Body=Body{
         2=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    ..PLAIN
 };

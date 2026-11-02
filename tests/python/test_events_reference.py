@@ -157,8 +157,8 @@ class EventReferenceTests(unittest.TestCase):
             assert_source_lines(branch, {(m28, 119)})
 
         for event_id, branch_id, profile_line, deviation_line in (
-            ("purifier", "purify", 120, 125),
-            ("transmogrifier", "transmogrify", 120, 128),
+            ("purifier", "purify", 120, 132),
+            ("transmogrifier", "transmogrify", 153, 133),
         ):
             with self.subTest(event=event_id):
                 branch, item = selection(event_id, branch_id, "empty-grid behavior")
@@ -173,6 +173,20 @@ class EventReferenceTests(unittest.TestCase):
                 )
                 self.assertIn("softlock-001", text)
                 assert_source_lines(branch, {(m28, profile_line), (deviation, deviation_line)})
+
+        with self.subTest(event="wing_statue"):
+            branch, item = selection("wing_statue", "pray", "empty-grid behavior")
+            self.assertEqual(item["grade"], "S")
+            text = " ".join(item["options"]).lower()
+            for phrase in ("original", "7 damage", "removal grid", "no local check", "strands", "empty grid"):
+                self.assertIn(phrase, text)
+            for phrase in ("softlock-001", "deals 7 damage", "removes nothing", "shows the result"):
+                self.assertIn(phrase, text)
+            research = "docs/research/2026-10-19-act1-content-event-neow.md"
+            assert_source_lines(
+                branch,
+                {(research, 266), (m28, 153), (deviation, 134)},
+            )
 
         for event_id, branch_id in (
             ("dead_adventurer", "ambush_and_fight"),

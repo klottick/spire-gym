@@ -203,33 +203,33 @@ use rooms::standard::event_frame::{self, DONE};
 
 const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
 /// Base max HP at A0 (research-c/character-data.md:95): Ironclad 80, Silent 70, Defect 75, Watcher 72.
-const BASE_MAX_HP: [(Character, u32); 4] = [(Character::Ironclad, 80), (Character::Silent, 70), (Character::Defect, 75), (Character::Watcher, 72)];
+pub(super) const BASE_MAX_HP: [(Character, u32); 4] = [(Character::Ironclad, 80), (Character::Silent, 70), (Character::Defect, 75), (Character::Watcher, 72)];
 
-fn rng(seed: u8) -> RunRng { RunRng::new([seed; 32], Partition::Test, 0) }
+pub(super) fn rng(seed: u8) -> RunRng { RunRng::new([seed; 32], Partition::Test, 0) }
 /// A standard Run on `act`'s map, one move from `event` (diagnostics builder, item 16).
-fn before_event(character: Character, act: u8, event: EventId, seed: u8) -> (Run, NodeId) {
+pub(super) fn before_event(character: Character, act: u8, event: EventId, seed: u8) -> (Run, NodeId) {
     rooms::standard::diagnostic_event_run(character, act, event, rng(seed)).unwrap()
 }
-fn at_event(character: Character, act: u8, event: EventId, seed: u8) -> Run {
+pub(super) fn at_event(character: Character, act: u8, event: EventId, seed: u8) -> Run {
     let (mut run, node) = before_event(character, act, event, seed);
     run.step(&GameAction::Move(node)).unwrap();
     assert_eq!(view(&run).kind, RoomViewKind::Event(event));
     run
 }
-fn view(run: &Run) -> RoomView { rooms::public(run).unwrap() }
-fn row(run: &Run, kind: &RoomChoiceKind) -> RoomChoiceView { view(run).choices.into_iter().find(|c| &c.kind == kind).unwrap_or_else(|| panic!("no row {kind:?}")) }
-fn option(run: &mut Run, option: u8) -> Result<RunTransition, RunError> {
+pub(super) fn view(run: &Run) -> RoomView { rooms::public(run).unwrap() }
+pub(super) fn row(run: &Run, kind: &RoomChoiceKind) -> RoomChoiceView { view(run).choices.into_iter().find(|c| &c.kind == kind).unwrap_or_else(|| panic!("no row {kind:?}")) }
+pub(super) fn option(run: &mut Run, option: u8) -> Result<RunTransition, RunError> {
     let id = row(run, &RoomChoiceKind::EventOption { stage: 0, option }).id;
     run.step(&GameAction::Choose(id))
 }
-fn leave(run: &mut Run) {
+pub(super) fn leave(run: &mut Run) {
     assert_eq!(view(run).choices.iter().map(|c| c.kind.clone()).collect::<Vec<_>>(), vec![RoomChoiceKind::Leave], "result stage");
     let id = row(run, &RoomChoiceKind::Leave).id;
     run.step(&GameAction::Choose(id)).unwrap();
     assert_eq!(view(run).kind, RoomViewKind::Map);
 }
-fn count(run: &Run, id: CardId) -> usize { run.state.deck.iter().filter(|c| c.id == id).count() }
-fn base(character: Character) -> u32 { BASE_MAX_HP.iter().find(|(c, _)| *c == character).unwrap().1 }
+pub(super) fn count(run: &Run, id: CardId) -> usize { run.state.deck.iter().filter(|c| c.id == id).count() }
+pub(super) fn base(character: Character) -> u32 { BASE_MAX_HP.iter().find(|(c, _)| *c == character).unwrap().1 }
 
 #[test]
 fn m28_big_fish_branches() {
@@ -537,7 +537,7 @@ fn m28_event_room_monster_fallback() {
 /// Item 15: an event whose body lands later rejects the move with its chunk's interim, unchanged.
 #[test]
 fn m28_unlanded_event_body_interim() {
-    for (event, act, interim) in [(EventId::Cleric, 1, "M28 event body lands in M28d"), (EventId::Library, 2, "M28 event body lands in M28e"), (EventId::Nloth, 2, "M28 event body lands in M28f")] {
+    for (event, act, interim) in [(EventId::CursedTome, 2, "M28 event body lands in M28e"), (EventId::Library, 2, "M28 event body lands in M28e"), (EventId::Nloth, 2, "M28 event body lands in M28f")] {
         let (mut run, node) = before_event(Character::Ironclad, act, event, 31);
         run.state.gold = 100; run.state.relics.push(RelicId::Anchor);
         let before = run.clone();
@@ -790,7 +790,7 @@ fn m28_room_removal_without_purgeable_cards() {
 fn m28_event_combat_escape_without_rewards() {
     let mut run = at_event(Character::Ironclad, 3, EventId::GoldenShrine, 48);
     run.state.potions[0] = Some(crate::content::PotionId::SmokeBomb);
-    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: None, next_stage: 0 }]).unwrap();
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: None, next_stage: 0, elite: false }]).unwrap();
     run.choose_combat(CombatAction::UsePotion { slot: 0, target: None }).unwrap();
     assert!(run.state.combat.is_none() && run.state.fault.is_none());
     let rows = view(&run);
@@ -809,8 +809,8 @@ fn m28_event_combat_escape_with_rewards() {
     let mut run = at_event(Character::Silent, 3, EventId::GoldenShrine, 49);
     run.state.potions[0] = Some(crate::content::PotionId::SmokeBomb);
     let (offset, gold) = (run.state.potion_offset, run.state.gold);
-    let spec = RewardSpec { gold: 20, relic_tiers: vec![crate::content::RelicTier::Common] };
-    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: Some(spec), next_stage: DONE }]).unwrap();
+    let spec = RewardSpec { gold: 20, gold_range: None, relics: vec![rooms::standard::event_exec::RelicChoice::Tier(crate::content::RelicTier::Common)] };
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: Some(spec), next_stage: DONE, elite: false }]).unwrap();
     let pools = run.state.relic_pools.clone();
     run.choose_combat(CombatAction::UsePotion { slot: 0, target: None }).unwrap();
     let rows = view(&run);
@@ -820,4 +820,265 @@ fn m28_event_combat_escape_with_rewards() {
     let id = row(&run, &RoomChoiceKind::Proceed).id;
     run.step(&GameAction::Choose(id)).unwrap();
     assert_eq!((view(&run).kind, run.state.gold), (RoomViewKind::Map, gold), "nothing hidden is granted");
+}
+
+// ---- M28d seams (plan-check m28d X1–X7, N1, N2, F1, F2) ----
+
+/// N1 (M28c review v2): buying a specific relic already owned is rejected by the preconditions,
+/// atomically, as obtaining it is; before M28d it passed `check` and faulted the Run.
+#[test]
+fn m28_executor_buy_owned_specific_relic_rejected() {
+    use rooms::standard::event_exec::RelicChoice;
+    let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 60);
+    let before = run.clone();
+    let list = vec![Outcome::BuyRelic { choice: RelicChoice::Specific(RelicId::BurningBlood), gold: 10 }, Outcome::NextStage(DONE)];
+    assert_eq!(event_frame::choose_constructed(&mut run, list), Err(RunError::InvalidAction));
+    assert!(run == before && run.state.fault.is_none());
+}
+
+/// N2 (M28c review v2): the cumulative check is exact. An earlier selection takes from a later one
+/// only the cards it is forced to share; deterministic card outcomes change the deck first.
+#[test]
+fn m28_executor_check_is_exact() {
+    // A 10-card deck with exactly one upgradeable card: remove one (of the other nine), then upgrade.
+    let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 61);
+    for card in run.state.deck.iter_mut() { if card.id != CardId::Bash { card.upgrades = 1; } }
+    assert_eq!(rooms::standard::event_exec::select_candidates(&run.state, EventSelectOp::Upgrade).len(), 1);
+    let list = || vec![Outcome::Select { op: EventSelectOp::Remove, count: 1, skippable: false },
+        Outcome::Select { op: EventSelectOp::Upgrade, count: 1, skippable: false }, Outcome::NextStage(DONE)];
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &list()), Ok(()), "the reviewer probe is now allowed");
+    // Forced overlap: a two-card deck whose one upgradeable card must be removed with the other.
+    let bash = run.state.deck.iter().find(|c| c.id == CardId::Bash).unwrap().clone();
+    run.state.deck.truncate(1); run.state.deck.push(bash);
+    let remove_two = vec![Outcome::Select { op: EventSelectOp::Remove, count: 2, skippable: false },
+        Outcome::Select { op: EventSelectOp::Upgrade, count: 1, skippable: false }, Outcome::NextStage(DONE)];
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &remove_two), Err(RunError::InvalidAction));
+    // An upgrade takes nothing from a later removal.
+    let upgrade_then_remove = vec![Outcome::Select { op: EventSelectOp::Upgrade, count: 1, skippable: false },
+        Outcome::Select { op: EventSelectOp::Remove, count: 2, skippable: false }, Outcome::NextStage(DONE)];
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &upgrade_then_remove), Ok(()));
+    // A deterministic obtain before a selection adds its candidate (Note For Yourself's shape):
+    // with no purgeable card, obtain-then-choose is allowed; an Omamori-negated curse adds nothing.
+    let mut run = at_event(Character::Silent, 1, EventId::GoldenShrine, 62);
+    run.state.deck.truncate(1); run.state.deck[0].id = CardId::Necronomicurse;
+    let obtain = |id| vec![Outcome::ObtainCard { id, upgrades: 0 }, Outcome::Select { op: EventSelectOp::Choose, count: 1, skippable: false }, Outcome::NextStage(DONE)];
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &obtain(CardId::Neutralize)), Ok(()));
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &[Outcome::Select { op: EventSelectOp::Choose, count: 1, skippable: false }, Outcome::NextStage(DONE)]), Err(RunError::InvalidAction));
+    let curse = vec![Outcome::ObtainCurse(CardId::Regret), Outcome::Select { op: EventSelectOp::Remove, count: 1, skippable: false }, Outcome::NextStage(DONE)];
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &curse), Ok(()));
+    run.state.relics.push(RelicId::Omamori);
+    run.state.relic_counters.insert(RelicId::Omamori, 2);
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &curse), Err(RunError::InvalidAction), "Omamori negates the curse");
+    // A removal of a card an earlier outcome removed is rejected.
+    let instance = run.state.deck[0].instance;
+    assert_eq!(rooms::standard::event_exec::check(&run.state, &[Outcome::ObtainCard { id: CardId::Neutralize, upgrades: 0 }, Outcome::RemoveSpecific(instance), Outcome::RemoveSpecific(instance), Outcome::Select { op: EventSelectOp::Choose, count: 1, skippable: false }, Outcome::NextStage(DONE)]), Err(RunError::InvalidAction));
+}
+
+/// X1: `Roll` draws at its point of the list and continues with the first arm whose bound exceeds
+/// the draw; every arm is checked before anything applies, and a Roll must end its list.
+#[test]
+fn m28_executor_roll_arms() {
+    let roll = |a: u32, b: u32| vec![Outcome::Roll { bound: 2, arms: vec![(1, vec![Outcome::GainGold(a), Outcome::NextStage(DONE)]), (2, vec![Outcome::GainGold(b), Outcome::NextStage(DONE)])] }];
+    let mut seen = std::collections::BTreeSet::new();
+    for seed in 0..24u8 {
+        let mut run = at_event(Character::Defect, 1, EventId::GoldenShrine, seed);
+        let gold = run.state.gold;
+        event_frame::choose_constructed(&mut run, roll(1, 2)).unwrap();
+        seen.insert(run.state.gold - gold);
+        leave(&mut run);
+    }
+    assert_eq!(seen.into_iter().collect::<Vec<_>>(), vec![1, 2], "both arms are reached");
+    let mut run = at_event(Character::Defect, 1, EventId::GoldenShrine, 63);
+    let failing = vec![Outcome::Roll { bound: 2, arms: vec![(1, vec![Outcome::NextStage(DONE)]), (2, vec![Outcome::LoseGold(run.state.gold + 1), Outcome::NextStage(DONE)])] }];
+    let before = run.clone();
+    assert_eq!(event_frame::choose_constructed(&mut run, failing), Err(RunError::InvalidAction), "an arm failing its precondition rejects the option");
+    assert!(run == before);
+    for bad in [vec![Outcome::Roll { bound: 2, arms: vec![(1, vec![Outcome::NextStage(DONE)])] }],
+        vec![Outcome::Roll { bound: 1, arms: vec![(1, vec![Outcome::NextStage(DONE)])] }, Outcome::GainGold(1)]] {
+        assert_eq!(rooms::standard::event_exec::check(&run.state, &bad), Err(RunError::InvalidAction), "{bad:?}");
+    }
+}
+
+/// X2: `SetValue` writes the frame's captured values (per-event progress).
+#[test]
+fn m28_executor_set_value() {
+    let mut run = at_event(Character::Watcher, 1, EventId::GoldenShrine, 64);
+    event_frame::choose_constructed(&mut run, vec![Outcome::SetValue { slot: 3, value: 7 }, Outcome::NextStage(0)]).unwrap();
+    let frame = run.state.room_loop.as_ref().unwrap().standard_event.as_ref().unwrap();
+    assert_eq!((frame.captured.values.clone(), frame.stage), (vec![0, 0, 0, 7], 0));
+}
+
+/// X4: an event's non-combat reward screen (Lab, Wheel of Change): the relic rows, `potions` flat
+/// class potions, then Proceed; no card offer. Claims use the shared screen; Proceed reaches the map.
+#[test]
+fn m28_event_rewards_screen() {
+    use rooms::standard::event_exec::RelicChoice;
+    for character in [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher] {
+        let mut run = at_event(character, 1, EventId::GoldenShrine, 65);
+        event_frame::choose_constructed(&mut run, vec![Outcome::Rewards { potions: 3, relics: vec![RelicChoice::RandomTier] }]).unwrap();
+        let screen = view(&run);
+        assert_eq!(screen.kind, RoomViewKind::Rewards);
+        let kinds: Vec<_> = screen.choices.iter().map(|c| c.kind.clone()).collect();
+        assert!(matches!(kinds[0], RoomChoiceKind::Relic(_)) && kinds[1..4].iter().all(|k| matches!(k, RoomChoiceKind::Potion(_))) && kinds[4] == RoomChoiceKind::Proceed && kinds.len() == 5, "{character:?}: {kinds:?}");
+        let pool = crate::items::potion_generation::candidates(character, false).unwrap();
+        assert!(kinds[1..4].iter().all(|k| matches!(k, RoomChoiceKind::Potion(p) if pool.contains(p))), "{character:?}: class potions");
+        let RoomChoiceKind::Potion(potion) = kinds[1] else { unreachable!() };
+        let id = screen.choices[1].id;
+        run.step(&GameAction::Choose(id)).unwrap();
+        assert!(run.state.potions.contains(&Some(potion)));
+        let id = row(&run, &RoomChoiceKind::Proceed).id;
+        run.step(&GameAction::Choose(id)).unwrap();
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+/// X5: an event fight's listed gold range is drawn when it starts and merged with its fixed gold
+/// into one row (`addGoldToRewards`); listed relics are fixed or rolled reward offers; `elite`
+/// sets the source's `eliteTrigger` for the fight only.
+#[test]
+fn m28_event_combat_rewards_and_elite_trigger() {
+    use rooms::standard::event_exec::{RelicChoice, RewardSpec};
+    let mut golds = std::collections::BTreeSet::new();
+    for seed in 0..12u8 {
+        let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 70 + seed);
+        let spec = RewardSpec { gold: 30, gold_range: Some((25, 35)), relics: vec![RelicChoice::Specific(RelicId::OddMushroom), RelicChoice::RandomTier] };
+        event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::LagavulinEvent, rewards: Some(spec), next_stage: DONE, elite: seed % 2 == 0 }]).unwrap();
+        let elite = run.state.combat.as_ref().unwrap().item_context().unwrap().battle.elite_trigger;
+        assert_eq!(elite, seed % 2 == 0, "eliteTrigger follows the event");
+        super::m28_world::win(&mut run);
+        let rows: Vec<_> = view(&run).choices.into_iter().map(|c| c.kind).collect();
+        let gold: Vec<u32> = rows.iter().filter_map(|k| match k { RoomChoiceKind::Gold(n) => Some(*n), _ => None }).collect();
+        assert_eq!(gold.len(), 1, "one merged gold row: {rows:?}");
+        assert!((55..=65).contains(&gold[0]), "{gold:?}");
+        golds.insert(gold[0]);
+        assert!(rows.contains(&RoomChoiceKind::Relic(RelicId::OddMushroom)));
+        assert_eq!(rows.iter().filter(|k| matches!(k, RoomChoiceKind::Relic(_))).count(), 2, "{rows:?}");
+        assert!(!rows.contains(&RoomChoiceKind::Emerald));
+    }
+    assert!(golds.len() > 1, "the range is drawn: {golds:?}");
+}
+
+/// F1/F2 (design §5.8): `ThreeFungiBeasts` is three independent Fungi Beasts in slot order;
+/// `LagavulinEvent` is Dead Adventurer's awake Lagavulin (no Block 8 or Metallicize 8; Siphon Soul
+/// first), both admitted only as event fights of a standard Run.
+#[test]
+fn m28_formation_fights() {
+    use crate::content::EnemyId;
+    let mut run = at_event(Character::Silent, 1, EventId::GoldenShrine, 80);
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::ThreeFungiBeasts, rewards: None, next_stage: DONE, elite: false }]).unwrap();
+    let enemies = run.state.combat.as_ref().unwrap().public_full().unwrap().enemies;
+    assert_eq!(enemies.len(), 3);
+    assert!(enemies.iter().all(|e| e.enemy_id == EnemyId::FungiBeast));
+    assert_eq!(enemies.iter().map(|e| e.logical_slot).collect::<Vec<_>>(), vec![0, 1, 2]);
+    assert!(enemies.iter().all(|e| (22..=28).contains(&e.hp) && e.powers.iter().any(|p| p.id.0 == "spore_cloud")), "{enemies:?}");
+    let ids: std::collections::BTreeSet<_> = enemies.iter().map(|e| e.instance_id.clone()).collect();
+    assert_eq!(ids.len(), 3, "separate actors");
+    let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 81);
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::LagavulinEvent, rewards: None, next_stage: DONE, elite: true }]).unwrap();
+    let enemies = run.state.combat.as_ref().unwrap().public_full().unwrap().enemies;
+    assert_eq!(enemies.len(), 1);
+    let lagavulin = &enemies[0];
+    assert!((109..=111).contains(&lagavulin.hp));
+    assert_eq!((lagavulin.block, lagavulin.intent.as_str()), (0, "siphon"));
+    assert!(!lagavulin.powers.iter().any(|p| p.id.0 == "metallicize"), "{:?}", lagavulin.powers);
+    // The ordinary Lagavulin still sleeps behind Block 8 and Metallicize 8 (the map elite).
+    let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 82);
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::Lagavulin, rewards: None, next_stage: DONE, elite: true }]).unwrap();
+    let enemies = run.state.combat.as_ref().unwrap().public_full().unwrap().enemies;
+    assert_eq!((enemies[0].block, enemies[0].intent.as_str()), (8, "sleep"));
+    assert!(enemies[0].powers.iter().any(|p| p.id.0 == "metallicize" && p.amount == 8), "{:?}", enemies[0].powers);
+}
+
+/// Chunk plan §3, extended by M28d: no frozen profile reaches the new event formations, from a map
+/// room, an event origin or training-free entry; each is rejected with the Run unchanged.
+#[test]
+fn m28_frozen_profiles_never_reach_standard_owners_d() {
+    use RoomScenario::*;
+    let frozen = [
+        (M5Act1Captured, Character::Ironclad), (M10IroncladHeart, Character::Ironclad), (M12SilentAct1, Character::Silent),
+        (M17DefectAct1, Character::Defect), (M22WatcherAct1, Character::Watcher), (M25WatcherHeart, Character::Watcher),
+    ];
+    let profile = CreationProfile { neow_eligible: false, ..CreationProfile::experienced() };
+    for (scenario, character) in frozen {
+        let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile.clone(), rng(4), scenario).unwrap();
+        let lament = view(&run).choices.iter().find(|row| row.kind == RoomChoiceKind::NeowLament).map(|row| row.id);
+        if let Some(id) = lament { run.step(&GameAction::Choose(id)).unwrap(); }
+        let node = run.state.map.as_ref().and_then(|map| map.nodes.first()).map_or(NodeId(0), |n| n.id);
+        for encounter in [EncounterId::ThreeFungiBeasts, EncounterId::LagavulinEvent] {
+            for origin in [CombatOrigin::MapRoom { node, kind: MapNodeKind::Monster }, CombatOrigin::Event { node, event: EventId::DeadAdventurer, stage: 0 }] {
+                let before = run.clone();
+                assert_eq!(run.enter_owned(encounter, origin), Err(RunError::Unsupported("encounter outside authored M3 profile")), "{scenario:?} {encounter:?} {origin:?}");
+                assert!(run == before, "{scenario:?} {encounter:?}");
+            }
+        }
+    }
+}
+
+/// N2 (M28c review v2): the precondition check is exact for every landed body. It simulates
+/// deterministic card outcomes and the player's choices exactly; only a random deck outcome before a
+/// selection would fall back to the worst case. No landed body, at any stage, option or Roll arm, on
+/// any character, has that shape.
+#[test]
+fn m28_event_body_shapes_check_exactly() {
+    fn walk(list: &[Outcome], random: bool, path: &str) {
+        let mut random = random;
+        for outcome in list {
+            match outcome {
+                Outcome::TransformRandom(_) | Outcome::UpgradeRandom(_) | Outcome::UpgradeAll => random = true,
+                Outcome::Select { .. } => assert!(!random, "{path}: a selection after a random deck outcome"),
+                Outcome::Roll { arms, .. } => for (_, arm) in arms { walk(arm, random, path) },
+                _ => {}
+            }
+        }
+    }
+    let mut landed = 0;
+    for event in crate::content::Catalog::standard().events().iter().map(|row| row.id) {
+        let Some(body) = rooms::standard::events::body(event) else { continue };
+        landed += 1;
+        let row = crate::content::Catalog::standard().event(event).unwrap();
+        let act = (1..=3).find(|act| row.acts & (1 << act) != 0).unwrap();
+        for character in [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher] {
+            let (mut run, node) = before_event(character, act, event, 90);
+            run.state.floor = run.state.floor.max(7); run.state.gold = 300;
+            let mut curse = run.state.deck[0].clone(); curse.id = CardId::Regret; curse.instance = 9_500; run.state.deck.push(curse);
+            if run.step(&GameAction::Move(node)).is_err() { continue }
+            let captured = run.state.room_loop.as_ref().unwrap().standard_event.as_ref().map(|f| f.captured.clone()).unwrap_or_default();
+            for stage in (0..=16).chain([DONE]) {
+                for option in 0..=12 {
+                    let Ok(list) = (body.choose)(&run.state, &captured, stage, option) else { continue };
+                    walk(&list, false, &format!("{event:?} {character:?} stage {stage} option {option}"));
+                }
+                if let Some(hook) = body.selected {
+                    for card in run.state.deck.clone() {
+                        if let Ok(list) = hook(&run.state, &captured, stage, std::slice::from_ref(&card)) {
+                            assert!(!list.iter().any(|o| matches!(o, Outcome::Select { .. } | Outcome::Roll { .. })), "{event:?}: a selection hook opens no selection");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(landed >= 4, "{landed} landed bodies");
+}
+
+/// Global fix (lane B2 finding): Note For Yourself's take obtains the stored card directly, which
+/// bypasses Omamori's obtain-effect constructor but not the other obtain hooks (event-neow research
+/// §6 "Note direct obtain"). Before M28d a stored curse with an Omamori charge was negated and the
+/// direct-obtain owner returned an error.
+#[test]
+fn m28_note_direct_obtain_bypasses_omamori() {
+    let mut run = at_event(Character::Silent, 1, EventId::GoldenShrine, 66);
+    run.state.relics.push(RelicId::Omamori);
+    run.state.relic_counters.insert(RelicId::Omamori, 2);
+    let size = run.state.deck.len();
+    mutations::obtain_stored_card(&mut run.state, CardId::Regret, 0).unwrap();
+    assert_eq!((run.state.deck.len(), count(&run, CardId::Regret)), (size + 1, 1));
+    assert_eq!(run.state.relic_counters.get(&RelicId::Omamori), Some(&2), "no charge spent");
+    // An ordinary obtain of the same curse is still negated and spends a charge.
+    assert_eq!(mutations::obtain_card_or_negated(&mut run.state, CardId::Regret, 0).unwrap(), None);
+    assert_eq!(run.state.relic_counters.get(&RelicId::Omamori), Some(&1));
+    // The egg obtain hook still applies to a direct obtain.
+    run.state.relics.push(RelicId::MoltenEgg);
+    let instance = mutations::obtain_stored_card(&mut run.state, CardId::IronWave, 0).unwrap();
+    assert_eq!(run.state.deck.iter().find(|c| c.instance == instance).unwrap().upgrades, 1);
 }

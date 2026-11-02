@@ -41,7 +41,10 @@ pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,
     /// M28 full Neow blessing offer (design §6.5); only `RoomScenario::StandardA0` builds it.
     NeowBlessing{category:u8,reward:NeowReward,drawback:Option<NeowDrawback>},
     /// M28 standard event option (design §5.3): option `option` of the event's stage `stage`.
-    EventOption{stage:u8,option:u8} }
+    EventOption{stage:u8,option:u8},
+    /// M28 standard event card-board option (Match and Keep, D2): `card` is the position's
+    /// identity once revealed.
+    EventCard{stage:u8,option:u8,card:Option<CardId>} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -82,7 +85,7 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         // M28 standard event options are offered only while their outcomes pass the executor's
         // preconditions (design §5.4).
-        if matches!(row.kind,RoomChoiceKind::EventOption{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
+        if matches!(row.kind,RoomChoiceKind::EventOption{..}|RoomChoiceKind::EventCard{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Rest{..}){row.kind=RoomChoiceKind::Rest{heal:(run.state.max_hp as f32*0.3_f32) as u32};}
         if run.state.pending.is_some(){row.status=RoomChoiceStatus::Disabled;}

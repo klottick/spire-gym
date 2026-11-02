@@ -223,7 +223,9 @@ pub(crate) enum RunItemEvent {
         singing_bowl: bool,
     },
     ChestOpened { boss: bool },
-    CardObtaining { id: CardId, upgrades: u32, negated: bool },
+    /// `direct`: Note For Yourself's direct obtain, which bypasses Omamori's obtain-effect
+    /// constructor but not the other obtain hooks (event-neow research §6).
+    CardObtaining { id: CardId, upgrades: u32, negated: bool, direct: bool },
     CardObtained { id: CardId, instance: u64 },
     CardRemoved,
     GoldGaining { amount: u32 },

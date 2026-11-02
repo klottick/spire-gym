@@ -132,7 +132,10 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
         return Err(RunError::Unsupported("encounter outside authored M3 profile"));
     }
     let mut rng=state.rng.clone();
-    let mut battle=crate::items::NativeBattleContext{elite_trigger:m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:false,burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
+    // An event fight's `eliteTrigger` (Dead Adventurer) applies elite-only combat effects; the room
+    // stays an EventRoom (event-neow research §6).
+    let event_elite=standard&&matches!(origin,CombatOrigin::Event{..})&&super::rooms::standard::event_frame::combat_elite(state);
+    let mut battle=crate::items::NativeBattleContext{elite_trigger:event_elite||m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:false,burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
     // An event combat fights its encounter's own setup act (design §5.7: Mind Bloom's Act 1 boss in Act 3).
     let event_act=matches!(origin,CombatOrigin::Event{..}).then(||enemies::A0_ENCOUNTER_SETUPS.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,_)|*act)).flatten();
     let mut entry=enemies::setup(encounter,m16_metadata.map(|(act,_)|act).or(event_act).unwrap_or(state.act),state.ascension,&mut rng,SetupContext {

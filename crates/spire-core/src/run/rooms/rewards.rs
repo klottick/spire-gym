@@ -350,9 +350,19 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
     let minimum=match kind{MapNodeKind::Elite=>Some(25),MapNodeKind::Boss=>Some(95),MapNodeKind::Event=>None,_ if all_escaped=>None,_=>Some(10)};
     if let Some(spec)=&event_spec{
         if spec.gold>0{rows.push((RoomChoiceKind::Gold(spec.gold),None));apply_gold_bonus(&mut rows,gold_percent)?;}
-        for (slot,tier) in spec.relic_tiers.iter().enumerate(){
+        // Listed relics are ordinary reward offers (not screenless): a fixed relic, a tier, or a
+        // tier rolled on M27's ordinary table (Dead Adventurer's RELIC token).
+        for (slot,choice) in spec.relics.iter().enumerate(){
+            use super::standard::event_exec::RelicChoice;
             let key=[key[0],key[1],key[2],key[3],key[4],0xE0,slot as u64];
-            let relic=relic_pools::take(&mut producer,*tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?;
+            let relic=match *choice{
+                RelicChoice::Specific(id)=>id,
+                RelicChoice::Tier(tier)=>relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?,
+                RelicChoice::RandomTier=>{
+                    let tier=relic_pools::roll_tier(&mut producer,relic_pools::TierTable::Ordinary,&key);
+                    relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?
+                }
+            };
             rows.push((RoomChoiceKind::Relic(relic),None));
         }
     }

@@ -66,8 +66,9 @@ const VISIT_ALLOW_LIST: &[(&str, usize)] = &[
     ("items/dispatch.rs", 4),
     ("items/laws.rs", 1),
     ("items/run_laws.rs", 5),
-    // O: Run reward owner offers additional elite relic rows.
-    ("run/rooms/rewards.rs", 4),
+    // O: Run reward owner offers additional elite relic rows; M28d adds the event fight's listed
+    // reward relic choices (`RewardSpec.relics`, not the inventory).
+    ("run/rooms/rewards.rs", 5),
     // O: the inventory validators (`validate_combat_inventory`, `validate_complete_inventory`).
     ("items/mod.rs", 10),
     // O: the starter-slot replacement owners (`replace_cracked_core`, `replace_pure_water`).

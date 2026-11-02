@@ -1,6 +1,17 @@
 # Work status
 
-## Current snapshot — 2026-11-02, M28b merged; M28c candidate
+## Current snapshot — 2026-11-02, M28c merged; M28d candidate
+
+- M28c merged as PR #76 (`0fe65dd5`), the M28d source base.
+- M28d (events batch 1) is a source candidate and not accepted. It lands 19 event bodies: the ten
+  remaining Act 1 ordinary events, Match and Keep, Transmogrifier and Wheel of Change, and six
+  one-time events. It adds two event fights, `ThreeFungiBeasts` (Mushrooms) and the awake
+  `LagavulinEvent` (Dead Adventurer). The executor gains choice-time draws, a non-combat reward
+  screen and an exact precondition check. SOFTLOCK-001 now also covers Transmogrifier and Wing
+  Statue. The remaining 22 events return their chunk's typed interim (M28e–M28f). See the
+  [M28 candidate profile](milestones/m28-events-economy.md).
+
+## Snapshot — 2026-11-02, M28b merged; M28c candidate
 
 - M28b merged as PR #74 (`8137c664`); fuzz fix chunk A merged as PR #75 (`afb51f5f`), the M28c
   source base.

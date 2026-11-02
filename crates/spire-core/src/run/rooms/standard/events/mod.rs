@@ -8,6 +8,7 @@ mod act1;
 mod act2;
 mod act3;
 mod shrines;
+mod one_time;
 pub(in crate::run) use act3::MIND_BLOOM_BOSSES;
 
 /// The draw context of `construct` (`M28EventBody`, keyed by act, floor, node and event).
@@ -25,7 +26,19 @@ pub(in crate::run) struct Body {
     pub rows:fn(&RunState,&EventCaptures,u8)->Vec<(u8,Option<u32>)>,
     /// An option's outcomes; `InvalidAction` for an option the stage does not offer.
     pub choose:fn(&RunState,&EventCaptures,u8,u8)->Result<Vec<Outcome>,RunError>,
+    /// An `EventSelectOp::Choose` result: the chosen cards' outcomes, run before the rest of the
+    /// list (X3: Bonfire Spirits' offering, Note For Yourself's stored card).
+    pub selected:Option<fn(&RunState,&EventCaptures,u8,&[CardInstance])->Result<Vec<Outcome>,RunError>>,
+    /// A card board (X7, D2): the identity a stage's option row shows, if revealed.
+    pub card:Option<fn(&EventCaptures,u8,u8)->Option<CardId>>,
 }
+
+/// The defaults of the optional hooks, for `Body{.., ..PLAIN}`.
+/// The source's `AbstractDungeon.ascensionLevel >= 15` event band (PM source check
+/// m28d/source-check-act-dependence-v1): the A15 amounts below are read from it.
+pub(in crate::run) fn a15(state:&RunState)->bool{state.ascension>=15}
+
+pub(in crate::run) const PLAIN:Body=Body{construct:|_|Ok(EventCaptures::default()),rows:|_,_,_|vec![],choose:|_,_,_,_|Err(RunError::InvalidAction),selected:None,card:None};
 
 /// The landed body of `event`; `None` until its chunk lands (the six accepted events keep their
 /// own handlers and never reach here).
@@ -35,7 +48,7 @@ pub(in crate::run) fn body(event:EventId)->Option<&'static Body>{
         EventId::Addict=>Some(&act2::ADDICT),
         EventId::MindBloom=>Some(&act3::MIND_BLOOM),
         EventId::GoldenShrine=>Some(&shrines::GOLDEN_SHRINE),
-        _=>None,
+        _=>act1::body(event).or_else(||shrines::body(event)).or_else(||one_time::body(event)),
     }
 }
 
@@ -43,9 +56,6 @@ pub(in crate::run) fn body(event:EventId)->Option<&'static Body>{
 pub(in crate::run) fn interim(event:EventId)->&'static str{
     use EventId::*;
     match event{
-        DeadAdventurer|GoldenIdol|Mushrooms|LivingWall|ScrapOoze|ShiningLight|Cleric|Ssssserpent|WingStatue|WorldOfGoop
-        |MatchAndKeep|Transmogrifier|WheelOfChange|AccursedBlacksmith|BonfireSpirits|FaceTrader|FountainOfCleansing|Lab|NoteForYourself
-            =>"M28 event body lands in M28d",
         Beggar|Colosseum|CursedTome|DrugDealer|ForgottenAltar|Ghosts|MaskedBandits|Nest|Library|Mausoleum|Vampires|WeMeetAgain|WomanInBlue
             =>"M28 event body lands in M28e",
         MoaiHead|MysteriousSphere|SensoryStone|WindingHalls|SecretPortal|Designer|Duplicator|KnowingSkull|Nloth=>"M28 event body lands in M28f",

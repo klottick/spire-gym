@@ -50,7 +50,9 @@ pub enum EncounterId {
     ShelledParasiteAndFungi, GremlinLeader, Slavers, BookOfStabbing, BronzeAutomaton, Collector, Champ,
     ThreeDarklings, OrbWalker, ThreeShapes, SpireGrowth, Transient, FourShapes, Maw,
     SphereAndTwoShapes, JawWormHorde, WrithingMass, GiantHead, Nemesis, Reptomancer,
-    AwakenedOne, TimeEater, DonuAndDeca, ShieldAndSpear, CorruptHeart, Unknown(&'static str)
+    AwakenedOne, TimeEater, DonuAndDeca, ShieldAndSpear, CorruptHeart,
+    // M28d event formations (design §5.8), appended.
+    ThreeFungiBeasts, LagavulinEvent, Unknown(&'static str)
 }
 impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::Cultist=>"cultist", Self::JawWorm=>"jaw_worm", Self::TwoLouse=>"two_louse", Self::SmallSlimes=>"small_slimes",
@@ -66,5 +68,6 @@ impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::OrbWalker=>"orb_walker", Self::ThreeShapes=>"three_shapes", Self::SpireGrowth=>"spire_growth", Self::Transient=>"transient", Self::FourShapes=>"four_shapes",
     Self::Maw=>"maw", Self::SphereAndTwoShapes=>"sphere_and_two_shapes", Self::JawWormHorde=>"jaw_worm_horde", Self::WrithingMass=>"writhing_mass",
     Self::GiantHead=>"giant_head", Self::Nemesis=>"nemesis", Self::Reptomancer=>"reptomancer", Self::AwakenedOne=>"awakened_one",
-    Self::TimeEater=>"time_eater", Self::DonuAndDeca=>"donu_and_deca",Self::ShieldAndSpear=>"shield_and_spear",Self::CorruptHeart=>"corrupt_heart", Self::Unknown(s)=>s,
+    Self::TimeEater=>"time_eater", Self::DonuAndDeca=>"donu_and_deca",Self::ShieldAndSpear=>"shield_and_spear",Self::CorruptHeart=>"corrupt_heart",
+    Self::ThreeFungiBeasts=>"three_fungi_beasts", Self::LagavulinEvent=>"lagavulin_event", Self::Unknown(s)=>s,
 } } }

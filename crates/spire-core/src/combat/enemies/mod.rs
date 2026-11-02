@@ -1001,6 +1001,9 @@ pub const A0_ENCOUNTER_SETUPS:&[(crate::content::EncounterId,u8,EncounterKind)]=
     (crate::content::EncounterId::SnakePlant,2,EncounterKind::Monster), // RNG scope key 55
     (crate::content::EncounterId::CultistAndChosen,2,EncounterKind::Monster), // RNG scope key 56
     (crate::content::EncounterId::ShelledParasiteAndFungi,2,EncounterKind::Monster), // RNG scope key 57
+    // M28d event formations (design §5.8).
+    (crate::content::EncounterId::ThreeFungiBeasts,1,EncounterKind::Monster), // RNG scope key 58
+    (crate::content::EncounterId::LagavulinEvent,1,EncounterKind::Elite), // RNG scope key 59
 ];
 
 pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
@@ -1038,6 +1041,9 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::SentryAndSphere=>vec![EnemyId::Sentry,EnemyId::SphericGuardian],
         EncounterId::CultistAndChosen=>vec![EnemyId::Cultist,EnemyId::Chosen],
         EncounterId::ShelledParasiteAndFungi=>vec![EnemyId::ShelledParasite,EnemyId::FungiBeast],
+        // M28d (design §5.8): Mushrooms' three independent Fungi Beasts; Dead Adventurer's Lagavulin.
+        EncounterId::ThreeFungiBeasts=>vec![EnemyId::FungiBeast;3],
+        EncounterId::LagavulinEvent=>vec![EnemyId::Lagavulin],
         EncounterId::GremlinGang=>{
             let mut pool=act2::gremlin_leader::POOL.to_vec();
             (0..4).map(|slot|{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[1,encounter_key,visit,slot,0],pool.len() as u64);pool.remove(index)}).collect()
@@ -1170,6 +1176,8 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         let profile = if encounter == EncounterId::JawWormHorde {
             EnemyProfile::JawWormHorde
         } else if encounter==EncounterId::ThreeSentries&&slot==1{EnemyProfile::SentryCenter
+        // Dead Adventurer's Lagavulin is awake (`new Lagavulin(false)`): no Block 8 or Metallicize 8.
+        } else if encounter==EncounterId::LagavulinEvent{EnemyProfile::LagavulinAwake
         } else { EnemyProfile::Standard };
         let mut memory = EnemyMemory::for_profile(id, ascension, profile)
             .map_err(|_| crate::run::RunError::Unsupported("enemy memory unavailable"))?;

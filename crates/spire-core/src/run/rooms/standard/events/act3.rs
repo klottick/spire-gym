@@ -19,10 +19,11 @@ pub(in crate::run) const MIND_BLOOM:Body=Body{
     },
     rows:|_,_,_|vec![(0,None),(1,None),(2,None)],
     choose:|_,c,_,option|Ok(match option{
-        0=>vec![Outcome::Combat{encounter:c.encounter.ok_or(RunError::InvalidAction)?,rewards:Some(RewardSpec{gold:50,relic_tiers:vec![RelicTier::Rare]}),next_stage:DONE}],
+        0=>vec![Outcome::Combat{encounter:c.encounter.ok_or(RunError::InvalidAction)?,rewards:Some(RewardSpec{gold:50,gold_range:None,relics:vec![RelicChoice::Tier(RelicTier::Rare)]}),next_stage:DONE,elite:false}],
         1=>vec![Outcome::UpgradeAll,Outcome::ObtainRelic(RelicChoice::Specific(RelicId::MarkOfBloom)),Outcome::NextStage(DONE)],
         2 if c.values[0]==1=>vec![Outcome::GainGold(999),Outcome::ObtainCurse(CardId::Normality),Outcome::ObtainCurse(CardId::Normality),Outcome::NextStage(DONE)],
         2=>vec![Outcome::Heal(c.values[1]),Outcome::ObtainCurse(CardId::Doubt),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    ..PLAIN
 };

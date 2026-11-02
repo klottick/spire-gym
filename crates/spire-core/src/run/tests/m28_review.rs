@@ -90,11 +90,12 @@ fn m28_review_eggs_apply_after_the_upgrade_roll() {
 /// m3: an Event node and a question room that rolls an event (Tiny Chest counter and ramps
 /// present) whose selected event has no landed body return the typed interim and leave the whole
 /// Run unchanged, choice tokens and event pools included. M28c: the interim names the event's
-/// chunk; a one-event pool (Living Wall, M28d) makes the selection fixed.
+/// chunk; a one-event pool makes the selection fixed. M28d lands Living Wall, so the pool is the
+/// one-time Woman in Blue (M28e; the empty ordinary list delegates to it).
 #[test]
 fn m28_review_event_interim_leaves_the_whole_run() {
-    const INTERIM: &str = "M28 event body lands in M28d";
-    let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![crate::content::EventId::LivingWall], shrines: vec![], one_time: vec![], seen: vec![] });
+    const INTERIM: &str = "M28 event body lands in M28e";
+    let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![], shrines: vec![], one_time: vec![crate::content::EventId::WomanInBlue], seen: vec![] });
     for character in CHARACTERS {
         let mut run = on_map(character, 9);
         run.state.event_pools = pools();
