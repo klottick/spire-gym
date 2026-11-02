@@ -20,6 +20,9 @@ m25-diagnostics = ["m24-diagnostics"]
 m26-diagnostics = ["m25-diagnostics", "m20-diagnostics"]
 # Default-off full-state access and fixed pair fixtures for the M27 replay harness.
 m27-diagnostics = ["m26-diagnostics", "m25-diagnostics"]
+# Default-off M28 standard A0 Run constructors and fixed-state builders (StandardA0 is
+# diagnostics-only until M28f).
+m28-diagnostics = ["m27-diagnostics"]
 
 # The frozen replay harness is built only with its feature (default builds skip it).
 [[example]]

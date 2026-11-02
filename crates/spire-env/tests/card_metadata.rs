@@ -32,7 +32,7 @@ fn descriptor_is_versioned_deterministic_bounded_and_self_fingerprinted() {
     assert_eq!((&d["content_revision"]["cards_sha256"], &d["content_revision"]["rows"], &d["content_revision"]["faces"]),
         (&Value::from(hex(cards.finalize().into())), &Value::from(369), &Value::from(faces)));
     // Pinned: any content, constructor, cost, payload or schema change must be an explicit update.
-    assert_eq!(d["fingerprint"], "3e922792b73e10ce2214d1e97a8bbcd46af1dad1320b85d41c2310c6b855071c");
+    assert_eq!(d["fingerprint"], "cb753725f58cec83633d9a51eb4941f622523843fad6ecff0874f79016308112");
 }
 
 #[test]
@@ -57,7 +57,8 @@ fn every_catalog_card_has_one_stable_row_and_upgrade_variants() {
 fn representative_faces_match_native_definitions() {
     let d = card_metadata_descriptor();
     assert_eq!((&face(&d, "strike", 0)["cost"], &face(&d, "strike", 0)["target"]), (&Value::from(1), &Value::from("enemy")));
-    assert_eq!(row(&d, "strike")["tags"], serde_json::json!(["strike"]));
+    // M28 G1: every basic Strike carries STARTER_STRIKE (the fingerprint above moved with it).
+    assert_eq!(row(&d, "strike")["tags"], serde_json::json!(["strike", "starter_strike"]));
     assert_eq!(face(&d, "defend", 1)["target"], "untargeted");
     assert_eq!(face(&d, "whirlwind", 0)["cost"], "x");
     assert_eq!(face(&d, "carnage", 0)["keywords"], serde_json::json!(["ethereal"]));

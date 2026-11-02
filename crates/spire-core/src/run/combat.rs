@@ -337,7 +337,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,potion_potencies:Default::default(),we_meet_again:false,
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,potion_potencies:Default::default(),we_meet_again:false,
         },candidates:vec![],next_choice:0}
     }
 

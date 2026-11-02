@@ -212,7 +212,8 @@ fn open_equip_offer_group(run:&mut Run,choice:ChoiceId,relic:RelicId,spec:Reward
     previous:Option<Box<CapturedRewards>>,queued:Vec<RewardSpec>,finish_parent:bool)->Result<RunTransition,RunError>{
     if run.state.item_admission!=ItemAdmission::Complete{return Err(RunError::InvalidAction)}
     let RewardSpec{card_rewards,relic_tiers,potions,gold}=spec;
-    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
+    // G4: a Neow relic's offers open over the Map before the first move (PRE_MAP_NODE).
+    let node=selection_node(&run.state)?;
     let mut staged=run.clone();
     let mut next=staged.next_choice;
     let mut rows=Vec::new();

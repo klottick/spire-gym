@@ -52,7 +52,7 @@ pub(crate) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunEr
     let parasite=state.deck[at].id==CardId::Parasite;
     if parasite&&(state.combat.is_some()||state.max_hp==0||state.max_hp>999||state.hp>state.max_hp){return Err(RunError::InvalidAction)}
     let card=state.deck.remove(at);
-    if parasite{state.max_hp=state.max_hp.saturating_sub(3).max(1);state.hp=state.hp.min(state.max_hp);}
+    if parasite{decrease_max_hp(state,3);}
     crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::CardRemoved)?;Ok(card)
 }
 pub(crate) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
@@ -69,7 +69,7 @@ pub(crate) fn can_upgrade(state:&RunState,card:&CardInstance)->bool{
     (supported_in(state,card.id)||!super::rooms::uses_watcher_content(state)&&!super::rooms::is_m20(state)&&!super::rooms::uses_silent_content(state)&&matches!(card.id,CardId::Armaments|CardId::SearingBlow))
         &&crate::combat::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)
 }
-fn removable(id:CardId)->bool{!crate::content::complete::supports_permanent(id)||crate::content::complete::is_removable(id)}
+pub(in crate::run) fn removable(id:CardId)->bool{!crate::content::complete::supports_permanent(id)||crate::content::complete::is_removable(id)}
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 fn admits(state:&RunState,id:CardId)->bool{
     if state.card_admission==CardAdmission::Complete{crate::content::complete::supports_permanent(id)}else{supported_in(state,id)}
@@ -145,6 +145,9 @@ pub(crate) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     if state.hp>0{state.hp=state.hp.saturating_add(heal).min(state.max_hp)}
     crate::combat::observe::run_heal(state,before);Ok(())
 }
+/// The one max-HP loss owner (M28 design §5.4): max HP falls by `amount` to at least 1 and
+/// current HP is clamped to it. Parasite, Neow's drawback and events call it.
+pub(crate) fn decrease_max_hp(state:&mut RunState,amount:u32){state.max_hp=state.max_hp.saturating_sub(amount).max(1);state.hp=state.hp.min(state.max_hp);}
 pub(crate) fn increase_max_hp(state:&mut RunState,amount:u32)->Result<(),RunError>{
     let max=state.max_hp.checked_add(amount).filter(|m|*m<=999).ok_or(RunError::Unsupported("maximum HP overflow"))?;
     if state.max_hp==0||state.hp>state.max_hp||amount>i32::MAX as u32{return Err(RunError::InvalidAction)}

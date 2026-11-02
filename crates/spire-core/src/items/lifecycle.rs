@@ -78,6 +78,12 @@ pub(crate) fn after_obtain(run:&mut Run,choice:ChoiceId,relic:RelicId,obtained:R
 }
 
 pub(crate) fn neow_boss_swap(state:&mut RunState,key:&[u64])->Result<RelicId,RunError>{
+    neow_boss_swap_obtained(state,key).map(|(relic,_)|relic)
+}
+
+/// As `neow_boss_swap`, also returning the obtain's equip continuation for `after_obtain`
+/// (the M27-carried Neow boss-swap equip offer; M28 design §6.5).
+pub(crate) fn neow_boss_swap_obtained(state:&mut RunState,key:&[u64])->Result<(RelicId,RelicObtained),RunError>{
     if state.item_admission!=ItemAdmission::Complete||state.combat.is_some()||state.active_combat.is_some()||state.pending.is_some(){
         return Err(RunError::InvalidAction)
     }
@@ -85,9 +91,9 @@ pub(crate) fn neow_boss_swap(state:&mut RunState,key:&[u64])->Result<RelicId,Run
     let mut staged=state.clone();
     lose_relic(&mut staged,starter)?;
     let relic=super::relic_pools::take(&mut staged,RelicTier::Boss,super::relic_pools::Selector::Front,RelicSource::Neow,key)?;
-    let _obtained=obtain_relic(&mut staged,relic,RelicSource::Neow)?;
+    let obtained=obtain_relic(&mut staged,relic,RelicSource::Neow)?;
     *state=staged;
-    Ok(relic)
+    Ok((relic,obtained))
 }
 
 /// Complete-profile relic loss is one atomic inventory mutation; Profile has no loss path.
@@ -109,7 +115,7 @@ pub(crate) fn lose_relic(state:&mut RunState,id:RelicId)->Result<(),RunError>{
 pub(crate) fn open_equip_selection(run:&mut Run,choice:ChoiceId,relic:RelicId,spec:SelectionSpec,after:Vec<RewardSpec>)->Result<RunTransition,RunError>{
     if run.state().item_admission!=ItemAdmission::Complete||!run.state().relics.contains(&relic)
         ||spec.eligible.len()<=spec.count||spec.count==0{return Err(RunError::InvalidAction)}
-    let node=run.state().map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
+    let node=crate::run::rooms::selection_node(run.state())?;
     let mut seen=std::collections::BTreeSet::new();
     let mut staged=run.clone();
     let selection_ids=crate::run::rooms::reserve_selection_ids(&mut staged,spec.eligible.len())?;

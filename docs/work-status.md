@@ -1,5 +1,18 @@
 # Work status
 
+## Current snapshot — 2026-11-02, M27 merged; M28a in progress
+
+- M27 (relic and potion lifecycles) merged as PR #69 (`5d6a6be9`). The opt-in card metadata
+  descriptor (spire-90f) merged as PR #70 (`991dc4b4`), and the generated encoder vocabularies
+  (spire-85d) merged as PR #71 (`3312c052`), the M28a source base.
+- M28 (events and economy rooms) is delivered in six merge chunks, M28a–M28f. M28a (seams, Neow,
+  standard shop) is a source candidate and not accepted; the standard A0 Run stays behind the
+  default-off `m28-diagnostics` feature until M28f. Its starter-tag fix moves the card metadata
+  descriptor fingerprint (disclosed in the [M28 candidate profile](milestones/m28-events-economy.md)).
+- Until the roadmap milestones are complete there is no backward-compatibility promise and no
+  freeze step: a chunk goes from green suites to a read-only candidate, one independent review and
+  merge. Frozen-replay results are recorded for information.
+
 ## Current snapshot — 2026-11-01, M26 merged; M27 candidate for final review
 
 - M26 (shared and off-colour card coverage) merged as PR #66 (`918f628`). The native-fault fix

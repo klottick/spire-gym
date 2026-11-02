@@ -154,8 +154,14 @@ pub(crate) fn run_event(id: RelicId, state: &mut RunState, event: &mut RunItemEv
         (RelicId::BloodyIdol, RunItemEvent::GoldGained { amount }) if *amount > 0 => {
             crate::run::mutations::heal(state, 5)?;
         }
-        (RelicId::TheCourier, RunItemEvent::ShopPrice { price }) => *price = scale_price(*price, 80),
-        (RelicId::MembershipCard, RunItemEvent::ShopPrice { price }) => *price = scale_price(*price, 50),
+        // Source applies The Courier's pass, then Membership Card's, whatever the acquisition
+        // order (economy research :172); the Courier arm runs both when both are owned.
+        (RelicId::TheCourier, RunItemEvent::ShopPrice { price }) => {
+            *price = scale_price(*price, 80);
+            if state.relics.contains(&RelicId::MembershipCard) { *price = scale_price(*price, 50); }
+        }
+        (RelicId::MembershipCard, RunItemEvent::ShopPrice { price })
+            if !state.relics.contains(&RelicId::TheCourier) => *price = scale_price(*price, 50),
         (RelicId::SmilingMask, RunItemEvent::RemovalPrice { price }) => *price = 50,
         // Source applyDiscount recomputes removal from its base, so Membership Card's pass
         // supersedes The Courier's at shop entry (economy research §3.2: base 75 -> 38).
