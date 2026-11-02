@@ -121,7 +121,7 @@ pub(super) fn capture_nightmare_template(state:&mut State,owner:crate::combat::C
 pub(super) fn capture_nightmare_template_from_owner(state:&mut State,owner:crate::combat::CardHandle,
     source:&crate::combat::CardHandle)->Result<(),crate::combat::InputError>{copy::capture_from_owner(state,owner,source)}
 
-pub(super) fn nightmare_pre_draw(state:&State)->Vec<Effect>{copy::pre_draw(state)}
+pub(super) fn nightmare_pre_draw(state:&State,k:usize)->Option<Effect>{copy::pre_draw(state,k)}
 
 pub(super) fn apply_nightmare_copy(state:&mut State,effect:&Effect,owner:&crate::combat::CardHandle,installation_id:u64)
     ->Result<(),super::super::EffectError>{copy::deliver(state,effect,owner,installation_id)}
@@ -212,6 +212,7 @@ pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
 }
 
 pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{powers::hook(state,hook,target,work)}
+pub(super) fn start_power(state:&State,hook:Hook,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>){powers::start_power(state,hook,power,work)}
 pub(super) fn power_on_use(state:&mut State)->Result<(),EffectError>{powers::card_on_use(state)}
 pub(super) fn power_after_played(state:&mut State){powers::card_after_played(state)}
 pub(super) fn power_after_damage(state:&mut State,result:&crate::combat::model::DamageResult){powers::after_damage(state,result)}

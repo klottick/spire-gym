@@ -28,7 +28,7 @@ pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match pow
     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"shackled"|"constricted"|"slow"|"draw_reduction"|"poison"
         |"no_draw"|"lose_strength"|"lose_dexterity"|"choked"|"corpse_explosion"|"no_block"|"wraith_form"|"bias"|"lock_on"
         |"mark"|"block_return"|"energy_down"|"cannot_change_stance"=>true,
-    "artifact"|"ritual"|"curl_up"|"split"|"enrage"|"metallicize"|"mode_shift"|"sharp_hide"|"barricade"|"flight"|"minion"
+    "night_terror"|"artifact"|"ritual"|"curl_up"|"split"|"enrage"|"metallicize"|"mode_shift"|"sharp_hide"|"barricade"|"flight"|"minion"
         |"angry"|"painful_stabs"|"stasis"|"regeneration"|"thorns"|"explosive"|"life_link"|"regrow"|"fading"|"shifting"
         |"reactive"|"malleable"|"intangible"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"strength_up"|"berserk"
         |"brutality"|"combust"|"corruption"|"dark_embrace"|"demon_form"|"double_tap"|"evolve"|"feel_no_pain"
@@ -89,6 +89,35 @@ fn just_applied(state: &State, effect: &Effect) -> bool {
     }
 }
 
+/// AbstractPower.priority, which orders the owner's power list: the 14 subclass overrides,
+/// otherwise 5 (source-check-power-priority-v1).
+pub(super) fn priority(id:FullPowerId)->i32{
+    match id.0 {
+        "confused"=>0,
+        "double_damage"|"pen_nib"=>6,
+        "frail"=>10,
+        "draw_card_next_turn"=>20,
+        "establishment"|"tools_of_the_trade"=>25,
+        "flight"|"reactive"=>50,
+        "intangible"|"intangible_player"=>75,
+        "invincible"|"weak"=>99,
+        "constricted"=>105,
+        _=>5,
+    }
+}
+
+/// ApplyPowerAction's `Collections.sort` of the owner's whole list after a new power: stable.
+pub(super) fn sort_by_priority(list:&mut [FullPowerEntry]){list.sort_by_key(|p|priority(p.id));}
+
+/// NightmarePower ("Night Terror"): ApplyPowerAction never stacks it, so each installed
+/// Nightmare adds its own priority-5 player list entry. The engine keeps it out of public
+/// views, as before; its k-th entry in list order owns the k-th Nightmare template.
+pub(super) const NIGHT_TERROR:FullPowerId=FullPowerId("night_terror");
+
+/// Engine-only power entries that no public channel shows: the player view and the observed
+/// effect stream both filter through this one predicate.
+pub(super) fn publicly_hidden(id:FullPowerId)->bool{id==NIGHT_TERROR}
+
 fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
     let grace = just_applied(state, effect);
     let actor = effect.target.as_ref().expect("validated power target");
@@ -105,12 +134,18 @@ fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
             monster_source_grace: legacy_id == PowerId::Vulnerable && grace,
         }});
     } else {
+        // ApplyPowerAction adds a new power and then stable-sorts the owner's WHOLE list by
+        // priority (Collections.sort), which also moves any entry an unsorted addPower appended
+        // earlier. Philosopher's Stone uses AbstractCreature.addPower, which only appends (as
+        // Red Skull's `add_direct_strength` does). Stacking leaves the list unsorted.
+        let sorted=!matches!(effect.source,Source::Relic(crate::content::RelicId::PhilosophersStone));
         full.push(FullPowerEntry { id, state: PowerState { amount: value,
             skip_first: (matches!(id.0,"ritual"|"draw_reduction")
                 && !matches!(effect.source,Source::Potion{id:crate::content::PotionId::CultistPotion,..}))
                 ||id.0=="intangible"&&matches!(actor,Actor::Enemy(_)),
             monster_source_grace: matches!(id.0, "weak" | "vulnerable" | "frail") && grace,
         }});
+        if sorted{sort_by_priority(full);}
     }
     if value == 0 {
         state.pending.push_front(Effect { source: effect.source.clone(), target: effect.target.clone(),

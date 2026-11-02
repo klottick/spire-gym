@@ -91,7 +91,10 @@ fn removing_power(state: &State, actor: &Actor, id: &str) -> bool {
 fn valid_runtime_full_powers(powers: &[FullPowerEntry], state: &State, actor: &Actor) -> bool {
     let actor_scope_ok=matches!(actor,Actor::Player)||powers.iter().all(|power|power.id.0!="combust");
     let mut seen = BTreeSet::new();
-    actor_scope_ok&&powers.iter().all(|power| seen.insert(power.id) &&
+    // Night Terror does not stack: each Nightmare installs its own entry (ApplyPowerAction's
+    // "Night Terror" exception), so only that player entry may repeat.
+    actor_scope_ok&&powers.iter().all(|power| (power.id==super::powers::NIGHT_TERROR&&matches!(actor,Actor::Player)
+        || seen.insert(power.id)) &&
         (valid_full_powers(std::slice::from_ref(power))
             || (power.id.0=="poison" && power.state.amount>0
                 && !power.state.skip_first && !power.state.monster_source_grace)
@@ -710,6 +713,9 @@ impl Combat {
             if super::cards::watcher::modal(selection.operation){for selected in &selection.selected{
                 actions.push(CombatAction::DeselectCard{instance:selected.as_str().parse().map_err(|_|crate::run::RunError::InvalidAction)?});
             }}
+            // Confirm is published whenever the selected count allows it, so a selection always has
+            // a completing action. A commit the preflight rejects fails with no state change, so a
+            // preflight defect stays visible as a rejected published action, not a dead-end menu.
             if (selection.minimum < selection.maximum||super::cards::watcher::modal(selection.operation)) && selection.selected.len() >= selection.minimum {
                 actions.push(CombatAction::ConfirmSelection);
             }
@@ -1019,7 +1025,7 @@ impl Combat {
             SelectionParent::Power{turn,id} if self.state.full_runtime&&*turn==self.state.turn&&power_selection_owner(&self.state,selection,id)=>(),
             SelectionParent::EndTurn{turn} if self.state.full_runtime&&self.state.in_play.is_none()
                 &&self.state.phase==Phase::Selection&&*turn==self.state.turn
-                &&self.state.temporary_retain.is_none()
+                &&self.state.temporary_retain.as_ref().is_none_or(|retain|retain.turn==*turn)
             &&self.state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1=>(),
             _=>return Err(crate::run::RunError::InvalidAction),
         }
@@ -1139,6 +1145,8 @@ impl Combat {
                 };
                 if card.full().is_some_and(|live|!live.local.ethereal){retained.insert(selected.clone());}
             }
+            // The choice adds to this turn's set from any other retain owner.
+            if let Some(existing)=self.state.temporary_retain.as_ref(){retained.extend(existing.cards.iter().cloned());}
             self.state.temporary_retain=Some(super::model::TemporaryRetain{turn,cards:retained});
         } else {
         for selected in &selection.selected {
@@ -1540,6 +1548,19 @@ pub(super) fn retained_fault(state: &State) -> crate::run::RunError {
     })
 }
 
+/// Distilled Chaos custody belongs to the use, not to the slot's current contents: a burst
+/// Alchemize may refill the emptied slot. Where the profile records potion uses, the slot must
+/// still hold Distilled Chaos (the pre-commit preflight) or be the recorded Distilled Chaos use.
+/// Untracked profiles have no use record, so any valid slot is accepted there.
+fn distilled_chaos_use_slot(state:&State,slot:usize)->bool{
+    use crate::content::PotionId::DistilledChaos;
+    valid_potion_slot(state,slot)&&state.item_context.as_ref().is_some_and(|items|slot<items.potions().len()
+        &&match items.recorded_potion_use(){
+            Some(used)=>items.potions()[slot]==Some(DistilledChaos)||used==Some((slot,DistilledChaos)),
+            None=>true,
+        })
+}
+
 pub(super) fn valid_potion_slot(state:&State,slot:usize)->bool{
     slot<3||state.item_context.as_ref().is_some_and(|items|(items.shared_generated_profile()||items.complete_items())
         &&items.owns_relic(crate::content::RelicId::PotionBelt)&&items.potions().len()==5&&slot<5)
@@ -1728,14 +1749,12 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 super::PotionEffect::DistilledChaosTopCard{target,energy_on_use}=>require(state.full_runtime&&effect.target.is_none()
                     // Target and burst energy are captured together when the potion is used.
                     &&if target.is_none(){*energy_on_use==-1}else{(0..=999).contains(energy_on_use)}
-                    &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos}
-                        if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(|owned|owned.is_none()||*owned==Some(crate::content::PotionId::DistilledChaos)))
+                    &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos} if distilled_chaos_use_slot(state,*slot))
                     &&target.as_ref().is_none_or(|owner|state.enemies.iter().any(|enemy|enemy.instance_id==*owner)),
                     "Distilled Chaos top action retains its captured target proposal")?,
                 super::PotionEffect::DistilledChaosQueuedChild{child,target,energy_on_use,cancelled:_}=>require(
                     state.full_runtime&&effect.target.is_none()&&(0..=999).contains(energy_on_use)
-                    &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos}
-                        if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))
+                    &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::DistilledChaos} if distilled_chaos_use_slot(state,*slot))
                     &&state.queued_autoplay.contains_key(child)
                     &&target.as_ref().is_none_or(|owner|state.enemies.iter().any(|enemy|enemy.instance_id==*owner)),
                     "Distilled Chaos materialized child retains typed potion custody")?,
@@ -2287,9 +2306,8 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
                     parent.full().is_some()&&parent_context.card==parent.handle()&&*handle==parent.handle(),
                 (super::model::PlayFrameParentOwner::Card(handle),None,None)=>state.card_ids_issued.contains(handle)
                     &&super::piles::owned_full_cards(state).any(|card|super::card_state::handle(card.instance)==*handle),
-                (super::model::PlayFrameParentOwner::Potion{slot,id},None,None)=>valid_potion_slot(state,*slot)
-                    &&*id==crate::content::PotionId::DistilledChaos
-                    &&state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none),
+                (super::model::PlayFrameParentOwner::Potion{slot,id},None,None)=>*id==crate::content::PotionId::DistilledChaos
+                    &&distilled_chaos_use_slot(state,*slot),
                 _=>false,
             };
             require(parent_matches&&state.card_ids_issued.contains(&frame.child)&&frame.captured_energy>=-1&&frame.paid>=0

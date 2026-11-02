@@ -195,15 +195,6 @@ pub(super) fn creation_template(state:&State,work:&GenerationWork,id:CardId,whit
     Ok(template)
 }
 
-pub(super) fn start_turn(state:&State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>){
-    // M20's required L34 callback uses source-time capture below. The frozen
-    // older profiles retain their existing deferred-generation checkpoint.
-    if state.item_context.as_ref().is_some_and(|items|items.m20_profile()){return}
-    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)||!state.enemies.iter().any(|enemy|enemy.hp>0&&enemy.life==ActorLife::Active){return}
-    let count=state.player_full_powers.iter().find(|power|power.id.0=="magnetism").map_or(0,|power|power.state.amount);
-    for _ in 0..count{work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Generate(request(GenerationPool::Colorless,1,CardDestination::Hand,GenerationCost::Ordinary,false,None))});}
-}
-
 pub(super) fn upgrade_local(card:&mut LiveCard)->Result<(),crate::run::RunError>{
     match card.id{CardId::Distraction|CardId::Alchemize=>super::card_state::upgrade_base_cost(card,1,0)?,
         CardId::Magnetism=>super::card_state::upgrade_base_cost(card,2,1)?,
@@ -221,29 +212,36 @@ fn not_basically_dead(state:&State)->bool{
     state.enemies.iter().any(|enemy|enemy.life==ActorLife::HalfDead||enemy.life==ActorLife::Active&&enemy.hp>0)
 }
 
-/// M20 required start callbacks select now; generated delivery remains queued.
-/// Older-profile Magnetism invocation/capture behavior is unchanged.
-pub(super) fn blue_start_turn(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    // M26 §6.3 L / F13: Hello World and Creative AI run for any holder under the complete capability
-    // (player's pool). Magnetism's M20 branch stays C: other contexts keep the legacy start_turn path.
-    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player)
-        ||state.silent.source_character!=Some(Character::Defect)&&!super::cards::watcher::complete(state){return Ok(())}
-    for power in state.player_full_powers.clone(){
-        let pool=match power.id.0 {
-            "hello_world" if not_basically_dead(state)=>GenerationPool::Common,
-            "creative_ai"=>GenerationPool::Power,
-            "magnetism" if state.item_context.as_ref().is_some_and(|items|items.m20_profile())&&not_basically_dead(state)=>GenerationPool::Colorless,
-            _=>continue,
-        };
-        for _ in 0..power.state.amount.max(0){
-            let mut request=request(pool,1,CardDestination::Hand,GenerationCost::Ordinary,false,None);
-            let result=capture_one(state,&mut request);
-            let effect=Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Generate(request)};
-            if let Err(error)=result{
-                for accepted in work.drain(..).rev(){state.pending.push_front(accepted);}
-                state.current=Some(effect);return Err(error)
-            }
-            work.push(effect);
+/// One player power's atStartOfTurn card generation, dispatched in power-list order by
+/// `hooks::dispatch`. Hello World, Creative AI and Magnetism choose their card when the
+/// callback runs; delivery stays queued.
+pub(super) fn start_power(state:&mut State,power:&FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    // M26 §6.3 L / F13: Hello World and Creative AI run for any holder under the complete
+    // capability (player's pool). Magnetism is colorless and runs for every holder.
+    let blue=state.silent.source_character==Some(Character::Defect)||super::cards::watcher::complete(state);
+    let pool=match power.id.0 {
+        "hello_world" if blue&&not_basically_dead(state)=>GenerationPool::Common,
+        "creative_ai" if blue=>GenerationPool::Power,
+        "magnetism" if not_basically_dead(state)=>GenerationPool::Colorless,
+        _=>return Ok(()),
+    };
+    for _ in 0..power.state.amount.max(0){
+        let mut request=request(pool,1,CardDestination::Hand,GenerationCost::Ordinary,false,None);
+        let result=capture_one(state,&mut request);
+        let effect=Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Generate(request)};
+        if let Err(error)=result{
+            for accepted in work.drain(..).rev(){state.pending.push_front(accepted);}
+            state.current=Some(effect);return Err(error)
         }
-    }Ok(())
+        work.push(effect);
+    }
+    Ok(())
+}
+
+/// Test view of the generation callbacks of one start slot, in power-list order.
+#[cfg(test)]
+pub(super) fn blue_start_turn(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    if hook!=Hook::TurnStartedPreDraw||target!=Some(&Actor::Player){return Ok(())}
+    for power in state.player_full_powers.clone(){start_power(state,&power,work)?;}
+    Ok(())
 }

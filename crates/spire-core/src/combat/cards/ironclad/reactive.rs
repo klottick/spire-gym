@@ -101,9 +101,3 @@ pub(in crate::combat) fn turn_ended(state:&mut State,work:&mut Vec<Effect>){
         work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("rage"))});
     }
 }
-
-pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>){
-    if state.player_full_powers.iter().any(|power|power.id.0=="flame_barrier"){
-        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("flame_barrier"))});
-    }
-}

@@ -341,26 +341,35 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Opti
     Ok(())
 }
 
-pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    // M26 §6.3 split (seam map §2): Echo reset and Bias loss are L (any holder of the power), Loop
-    // and start passives are S (an orb slot exists), Emotion Chip and Cables stay
-    // Defect's (relics / class C). The recharge is the shared turn-start recharge (`turns::recharge`).
+fn has_orbs(state:&State)->bool{
+    state.silent.source_character==Some(crate::content::Character::Defect)||!state.character.orb_slots.is_empty()
+}
+
+/// Loop and Bias's atStartOfTurn callbacks, run in power-list order by `hooks::dispatch`.
+/// M26 §6.3 split (seam map §2): Bias loss is L (any holder of the power); Loop is S (an orb slot exists).
+pub(in crate::combat) fn start_power(state:&mut State,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    use crate::combat::characters::{self,OrbPassivePhase};
+    let source=Source::Actor(Actor::Player);
+    match power.id.0 {
+        "loop" if has_orbs(state)=>for _ in 0..power.state.amount.max(0){
+            for phase in [OrbPassivePhase::Start,OrbPassivePhase::End]{if let Some(effect)=characters::passive_work(state,&source,0,phase)?{work.push(effect);}}
+        },
+        "bias" if power.state.amount>0=>work.push(Effect{source,target:Some(Actor::Player),kind:EffectKind::Character(C::Focus(-power.state.amount))}),
+        _=>(),
+    }
+    Ok(())
+}
+
+/// The turn-start orb pass, after every power callback (applyStartOfTurnOrbs). Echo's reset is
+/// L (any holder); start passives are S (an orb slot exists); Cables stays Defect's (class C).
+/// Emotion Chip is an atTurnStart relic: its work is queued by the relic phase, ahead of this.
+/// The recharge is the shared turn-start recharge (`turns::recharge`).
+pub(in crate::combat) fn orbs_start(state:&mut State,work:&mut Vec<Effect>)->Result<(),EffectError>{
     let defect=state.silent.source_character==Some(crate::content::Character::Defect);
-    let orbs=defect||!state.character.orb_slots.is_empty();
-    if !defect&&!orbs&&!state.player_full_powers.iter().any(|p|matches!(p.id.0,"echo_form"|"bias")){return Ok(())}
+    let orbs=has_orbs(state);
     use crate::combat::characters::{self,OrbPassivePhase};
     if defect||state.player_full_powers.iter().any(|p|p.id.0=="echo_form"){state.defect.echo_doubled_this_turn=0;}
     let source=Source::Actor(Actor::Player);
-    // Emotion Chip is an atTurnStart relic: its work is queued by the relic phase, ahead of this.
-    for power in state.player_full_powers.clone(){
-        match power.id.0 {
-            "loop" if orbs=>for _ in 0..power.state.amount.max(0){
-                for phase in [OrbPassivePhase::Start,OrbPassivePhase::End]{if let Some(effect)=characters::passive_work(state,&source,0,phase)?{work.push(effect);}}
-            },
-            "bias" if power.state.amount>0=>work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(C::Focus(-power.state.amount))}),
-            _=>(),
-        }
-    }
     for index in 0..if orbs{state.character.orb_slots.len()}else{0}{if let Some(effect)=characters::passive_work(state,&source,index,OrbPassivePhase::Start)?{work.push(effect);}}
     if defect&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::GoldPlatedCables)) {
         if let Some(effect)=characters::passive_work(state,&source,0,OrbPassivePhase::Start)?{work.push(effect);}

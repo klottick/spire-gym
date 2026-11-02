@@ -45,10 +45,6 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             }
         }
     }
-    if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
-        super::cards::ironclad::reactive::turn_started(state,&mut work);
-        work.extend(super::cards::silent_nightmare_pre_draw(state));
-    }
     if hook == Hook::CardPlayed {
         if let Source::Card(owner)=source {
             if let Some(card)=state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|c|c.full()) {
@@ -142,45 +138,15 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     }
     if let Some(Actor::Player)=target {
         match hook {
-            Hook::TurnStartedPreDraw=>{
-                for power in &state.player_full_powers {
-                    if power.id.0=="berserk"&&power.state.amount>0 {
-                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainEnergy(power.state.amount)});
-                    }
-                    // EnergyDownPower.atStartOfTurn queues the loss (G7: the power persists).
-                    if power.id.0=="energy_down"&&power.state.amount>0 {
-                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::LoseEnergy(power.state.amount)});
-                    }
-                }
-            }
-            Hook::TurnStarted=>{
-                for power in &state.player_full_powers {
-                    match power.id.0 {
-                        "brutality" if power.state.amount>0=>{
-                            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Draw(power.state.amount)});
-                            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(power.state.amount))});
-                        }
-                        "demon_form" if power.state.amount>0=>work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}}),
-                        "noxious_fumes" if power.state.amount>0=>{
-                            // The player-owned callback emits one ordinary
-                            // application per eligible live enemy. The shared
-                            // power owner still handles Artifact and relics.
-                            for enemy in state.enemies.iter().filter(|enemy|
-                                enemy.life==super::ActorLife::Active&&enemy.hp>0) {
-                                work.push(Effect{source:Source::Actor(Actor::Player),
-                                    target:Some(Actor::Enemy(enemy.instance_id.clone())),
-                                    kind:EffectKind::ApplyFullPower{id:super::FullPowerId("poison"),amount:power.state.amount}});
-                            }
-                        }
-                        _=>(),
-                    }
-                }
-            }
             Hook::PlayerPreEndTurnCards=>{
                 if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="metallicize"&&power.state.amount>0){
                     work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
                 }
-                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="retain_cards"&&power.state.amount>0){
+                // RetainCardPower.atEndOfTurn retains nothing when Runic Pyramid or Equilibrium
+                // already applies (source-check-turnstart-hooks-v1).
+                let retained=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::RunicPyramid))
+                    ||state.player_full_powers.iter().any(|power|power.id.0=="equilibrium");
+                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="retain_cards"&&power.state.amount>0).filter(|_|!retained){
                     work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
                         kind:EffectKind::OpenRetainSelection{limit:power.state.amount}});
                 }
@@ -201,10 +167,23 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             _=>(),
         }
     }
-    if target==Some(&Actor::Player)&&hook==Hook::TurnStartedPreDraw {super::cards::defect::turn_started(state,&mut work)?;}
     if target==Some(&Actor::Player)&&hook==Hook::PlayerPreEndTurnCards {state.player_full_powers.retain(|p|p.id.0!="amplify");}
-    super::generation::start_turn(state,hook,target,&mut work);
-    super::generation::blue_start_turn(state,hook,target,&mut work)?;
+    // AbstractCreature.applyStartOfTurnPowers and applyStartOfTurnPostDrawPowers each loop once
+    // over the player's power list, so callbacks run in list order whichever engine module owns
+    // them (spire-oto.21), Night Terror included. The stance hook precedes them; the orb pass
+    // follows them.
+    if target==Some(&Actor::Player)&&matches!(hook,Hook::TurnStartedPreDraw|Hook::TurnStarted){
+        if hook==Hook::TurnStartedPreDraw{super::cards::watcher::stance_start(state,&mut work);}
+        let mut night_terror=0;
+        for power in state.player_full_powers.clone(){
+            if power.id==super::powers::NIGHT_TERROR{
+                if hook==Hook::TurnStartedPreDraw{work.extend(super::cards::silent_nightmare_pre_draw(state,night_terror));}
+                night_terror+=1;continue;
+            }
+            player_start_power(state,hook,&power,&mut work)?;
+        }
+        if hook==Hook::TurnStartedPreDraw{super::cards::defect::orbs_start(state,&mut work)?;}
+    }
     super::cards::defect::power_hook(state,hook,target,&mut work)?;
     super::cards::watcher::hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
@@ -285,6 +264,39 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     }
     for effect in after_use_bottom{super::enemies::act2::bottom(state,effect);}
     Ok(())
+}
+
+/// One player power's callback in a start slot. Each module still owns its powers' work.
+fn player_start_power(state:&mut State,hook:Hook,power:&super::FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    let player=|kind:EffectKind|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind};
+    let amount=power.state.amount;
+    match (hook,power.id.0) {
+        (Hook::TurnStartedPreDraw,"berserk") if amount>0=>work.push(player(EffectKind::GainEnergy(amount))),
+        // EnergyDownPower.atStartOfTurn queues the loss (G7: the power persists).
+        (Hook::TurnStartedPreDraw,"energy_down") if amount>0=>work.push(player(EffectKind::LoseEnergy(amount))),
+        (Hook::TurnStartedPreDraw,"flame_barrier")=>work.push(player(EffectKind::RemoveFullPower(super::FullPowerId("flame_barrier")))),
+        (Hook::TurnStarted,"brutality") if amount>0=>{
+            work.push(player(EffectKind::Draw(amount)));
+            work.push(player(EffectKind::Damage(super::DamagePayload::HpLoss(amount))));
+        }
+        (Hook::TurnStarted,"demon_form") if amount>0=>work.push(player(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount})),
+        // The player-owned callback emits one ordinary application per eligible live enemy.
+        // The shared power owner still handles Artifact and relics.
+        (Hook::TurnStarted,"noxious_fumes") if amount>0=>{
+            for enemy in state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0) {
+                work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(enemy.instance_id.clone())),
+                    kind:EffectKind::ApplyFullPower{id:super::FullPowerId("poison"),amount}});
+            }
+        }
+        _=>(),
+    }
+    if hook==Hook::TurnStartedPreDraw{
+        super::cards::defect::start_power(state,power,work)?;
+        super::generation::start_power(state,power,work)?;
+    }
+    super::cards::watcher::start_power(state,hook,power,work)?;
+    super::cards::silent_start_power(state,hook,power,work);
+    super::cards::colorless_start_power(state,hook,power,work)
 }
 
 fn stat_loss_work(state:&State,work:&mut Vec<Effect>) {

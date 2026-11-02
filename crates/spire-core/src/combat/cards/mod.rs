@@ -92,7 +92,7 @@ pub(super) fn capture_silent_nightmare_template(state:&mut State,owner:super::Ca
 pub(super) fn capture_silent_nightmare_template_from_owner(state:&mut State,owner:super::CardHandle,
     source:&super::CardHandle)->Result<(),super::InputError>{silent::capture_nightmare_template_from_owner(state,owner,source)}
 
-pub(super) fn silent_nightmare_pre_draw(state:&State)->Vec<super::Effect>{silent::nightmare_pre_draw(state)}
+pub(super) fn silent_nightmare_pre_draw(state:&State,k:usize)->Option<super::Effect>{silent::nightmare_pre_draw(state,k)}
 
 pub(super) fn apply_silent_nightmare_copy(state:&mut State,effect:&super::Effect,owner:&super::CardHandle,installation_id:u64)
     ->Result<(),super::EffectError>{silent::apply_nightmare_copy(state,effect,owner,installation_id)}
@@ -690,12 +690,14 @@ pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
 }
 
 pub(super) fn colorless_power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{colorless::power_hook(state,hook,target,work)}
+pub(super) fn colorless_start_power(state:&mut State,hook:Hook,power:&FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{colorless::start_power(state,hook,power,work)}
 pub(super) fn colorless_power_card_played(state:&mut State,source:&Source)->Result<(),EffectError>{colorless::card_played(state,source)}
 pub(super) fn validate_colorless_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->Result<(),InputError>{colorless::validate_power_application(state,effect,id,amount)}
 pub(super) fn validate_colorless_state(state:&State)->Result<(),InputError>{colorless::validate_state(state)}
 pub(super) fn colorless_power_applied(state:&mut State,actor:&Actor,id:FullPowerId,application:bool,previous:i32){colorless::power_applied(state,actor,id,application,previous)}
 pub(super) fn colorless_power_removed(state:&mut State,actor:&Actor,id:FullPowerId){colorless::power_removed(state,actor,id)}
 pub(super) fn silent_power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{silent::power_hook(state,hook,target,work)}
+pub(super) fn silent_start_power(state:&State,hook:Hook,power:&FullPowerEntry,work:&mut Vec<Effect>){silent::start_power(state,hook,power,work)}
 pub(super) fn silent_power_on_use(state:&mut State)->Result<(),EffectError>{silent::power_on_use(state)}
 pub(super) fn silent_power_after_played(state:&mut State){silent::power_after_played(state)}
 pub(super) fn silent_power_after_damage(state:&mut State,result:&super::model::DamageResult){silent::power_after_damage(state,result)}

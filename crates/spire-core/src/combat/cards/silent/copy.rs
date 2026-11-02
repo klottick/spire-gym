@@ -41,6 +41,18 @@ fn store_template(state:&mut State,owner:CardHandle,delivery_turn:u32,installati
         installation_id, owner, delivery_turn, delivered: 0, template,
     });
     state.next_nightmare_installation_id = next_installation_id;
+    // ApplyPowerAction(NightmarePower): a new, never-stacked entry, then the whole-list sort.
+    state.player_full_powers.push(crate::combat::FullPowerEntry{id:NIGHT_TERROR,
+        state:crate::combat::PowerState{amount:3,skip_first:false,monster_source_grace:false}});
+    super::super::super::powers::sort_by_priority(&mut state.player_full_powers);
+}
+
+use super::super::super::powers::NIGHT_TERROR;
+
+/// Player list index of the `k`-th Night Terror entry (installation order is kept by the
+/// stable sort, so it owns the `k`-th template).
+fn night_terror_entry(state:&State,k:usize)->Option<usize>{
+    state.player_full_powers.iter().enumerate().filter(|(_,p)|p.id==NIGHT_TERROR).nth(k).map(|(i,_)|i)
 }
 
 /// Preserve the established value-taking helper for compatibility callers.
@@ -61,12 +73,12 @@ pub(super) fn capture_from_owner(state:&mut State,owner:CardHandle,source:&CardH
     Ok(())
 }
 
-/// Queue one owner action per template due at this qualified player pre-draw.
-pub(super) fn pre_draw(state: &State) -> Vec<Effect> {
-    state.nightmare_templates.iter().filter(|pending| pending.delivery_turn == state.turn)
+/// NightmarePower.atStartOfTurn for the `k`-th Night Terror entry, run in power-list order:
+/// queue its owner action if its template is due at this qualified player pre-draw.
+pub(super) fn pre_draw(state: &State, k: usize) -> Option<Effect> {
+    state.nightmare_templates.get(k).filter(|pending| pending.delivery_turn == state.turn)
         .map(|pending| Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player),
             kind: EffectKind::NightmareCopy { owner: pending.owner.clone(), installation_id: pending.installation_id } })
-        .collect()
 }
 
 pub(super) fn deliver(state: &mut State, effect: &Effect, owner: &CardHandle, installation_id:u64)
@@ -95,6 +107,10 @@ pub(super) fn deliver(state: &mut State, effect: &Effect, owner: &CardHandle, in
         .ok_or_else(|| InputError::Invariant("Nightmare owner disappeared after insertion".into()))?;
     current.delivered += 1;
     if current.delivered == 3 {
+        // RemoveSpecificPowerAction follows the copies.
+        let entry = night_terror_entry(state, index)
+            .ok_or_else(|| InputError::Invariant("Nightmare delivery lacks its Night Terror entry".into()))?;
+        state.player_full_powers.remove(entry);
         state.nightmare_templates.remove(index);
     } else {
         state.pending.push_front(Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player),
@@ -106,6 +122,11 @@ pub(super) fn deliver(state: &mut State, effect: &Effect, owner: &CardHandle, in
 pub(super) fn validate_pending(state: &State) -> Result<(), InputError> {
     if state.next_nightmare_installation_id == 0 {
         return Err(InputError::Invariant("Nightmare installation counter is zero".into()));
+    }
+    let entries = state.player_full_powers.iter().filter(|p| p.id == NIGHT_TERROR).collect::<Vec<_>>();
+    if entries.len() != state.nightmare_templates.len() || entries.iter().any(|p| p.state.amount != 3
+        || p.state.skip_first || p.state.monster_source_grace) {
+        return Err(InputError::Invariant("Night Terror entries do not match Nightmare templates".into()));
     }
     if state.nightmare_templates.is_empty() { return Ok(()); }
     if !state.full_runtime { return Err(InputError::Invariant("legacy combat cannot own Nightmare templates".into())); }

@@ -102,24 +102,28 @@ pub(super) fn card_played(state:&mut State,source:&Source)->Result<(),EffectErro
     Ok(())
 }
 
-pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)
+/// Panache and Mayhem's atStartOfTurn callbacks, run in power-list order by `hooks::dispatch`.
+pub(super) fn start_power(state:&mut State,hook:Hook,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>)
     ->Result<(),EffectError>{
-    if !state.full_runtime{return Ok(())}
-    if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
-        if state.player_full_powers.iter().any(|power|power.id.0=="panache"&&power.state.amount>0){
-            state.colorless.panache_remaining=Some(5);
-        }
-        let amount=state.player_full_powers.iter().find(|power|power.id.0=="mayhem")
-            .map_or(0,|power|power.state.amount);
-        if amount>0&& !active_targets(state).is_empty(){
+    if !state.full_runtime||hook!=Hook::TurnStartedPreDraw{return Ok(())}
+    match power.id.0 {
+        "panache" if power.state.amount>0=>state.colorless.panache_remaining=Some(5),
+        "mayhem" if power.state.amount>0&&!active_targets(state).is_empty()=>{
             let owner=state.played_powers.iter().filter_map(OwnedCard::full)
                 .find(|card|card.id==crate::content::CardId::Mayhem).map(|card|crate::combat::card_state::handle(card.instance))
                 .ok_or_else(||InputError::Invariant("Mayhem power card owner absent".into()))?;
-            for _ in 0..amount{
+            for _ in 0..power.state.amount{
                 work.push(Effect{source:Source::Card(owner.clone()),target:None,kind:EffectKind::Colorless(ColorlessEffect::MayhemQueueTopCard)});
             }
         }
+        _=>(),
     }
+    Ok(())
+}
+
+pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)
+    ->Result<(),EffectError>{
+    if !state.full_runtime{return Ok(())}
     if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&!active_targets(state).is_empty(){
         for bomb in state.colorless.bombs.clone(){
             work.push(Effect{source:Source::Card(bomb.owner),target:Some(Actor::Player),

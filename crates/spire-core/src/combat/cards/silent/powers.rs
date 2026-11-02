@@ -77,30 +77,25 @@ pub(in crate::combat) fn card_after_played(state:&mut State){
     }
 }
 
-pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    let player=target==Some(&Actor::Player);
-    let powers=state.player_full_powers.clone();
-    if player&&hook==Hook::TurnStartedPreDraw{
-        for power in &powers{
-            match power.id.0 {
-                "next_turn_block"=>{work.push(player_work(EffectKind::GainBlock(power.state.amount)));work.push(remove("next_turn_block"));}
-                "infinite_blades"=>{for _ in 0..power.state.amount{work.push(player_work(EffectKind::CreateCard{id:CardId::Shiv,destination:crate::combat::CardDestination::Hand,upgrades:0}));}}
-                "phantasmal"=>{work.push(power_work("double_damage",power.state.amount));work.push(player_work(EffectKind::ReduceFullPower{id:power.id,amount:1}));}
-                _=>(),
-            }
-        }
-    }
-    if player&&hook==Hook::TurnStarted{
-        // The source priorities are DrawNextTurn20, Tools25. Preserve source
-        // insertion order within each category, independent of install order.
-        for power in powers.iter().filter(|p|p.id.0=="draw_card_next_turn"){
-            work.push(player_work(EffectKind::Draw(power.state.amount)));work.push(remove("draw_card_next_turn"));
-        }
-        for power in powers.iter().filter(|p|p.id.0=="tools_of_the_trade"){
+/// Silent power callbacks in the two start slots, run in power-list order by `hooks::dispatch`.
+/// Draw Card (priority 20) and Tools of the Trade (25) follow that list's priority order.
+pub(in crate::combat) fn start_power(state:&State,hook:Hook,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>){
+    match (hook,power.id.0) {
+        (Hook::TurnStartedPreDraw,"next_turn_block")=>{work.push(player_work(EffectKind::GainBlock(power.state.amount)));work.push(remove("next_turn_block"));}
+        (Hook::TurnStartedPreDraw,"infinite_blades")=>{for _ in 0..power.state.amount{work.push(player_work(EffectKind::CreateCard{id:CardId::Shiv,destination:crate::combat::CardDestination::Hand,upgrades:0}));}}
+        (Hook::TurnStartedPreDraw,"phantasmal")=>{work.push(power_work("double_damage",power.state.amount));work.push(player_work(EffectKind::ReduceFullPower{id:power.id,amount:1}));}
+        (Hook::TurnStarted,"draw_card_next_turn")=>{work.push(player_work(EffectKind::Draw(power.state.amount)));work.push(remove("draw_card_next_turn"));}
+        (Hook::TurnStarted,"tools_of_the_trade")=>{
             work.push(player_work(EffectKind::Draw(power.state.amount)));
             work.push(player_work(EffectKind::Silent(super::SilentEffect::ToolsDiscard{count:power.state.amount as usize,turn:state.turn})));
         }
+        _=>(),
     }
+}
+
+pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    let player=target==Some(&Actor::Player);
+    let powers=state.player_full_powers.clone();
     if player&&hook==Hook::PlayerPreEndTurnCards{
         for power in powers.iter().filter(|p|p.id.0=="wraith_form"){work.push(power_work("dexterity",power.state.amount));}
     }

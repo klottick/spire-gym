@@ -860,6 +860,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             }
             state.pending.clear();
             state.nightmare_templates.clear();
+            state.player_full_powers.retain(|p|p.id!=super::powers::NIGHT_TERROR);
             state.colorless=super::model::ColorlessState::default();
             state.pending_time_warp=None;
             // Do not run FinishCard or reset diagnostic piles/block. dispatch_one

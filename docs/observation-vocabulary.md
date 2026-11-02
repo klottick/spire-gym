@@ -224,3 +224,48 @@ The internal effect shapes `MayhemPlayTopCard`, `OmnisciencePlay` and
 transcripts that pass through a Mayhem turn or an Omniscience play differ from
 earlier ones; replays recorded before this change are not expected to reproduce
 them.
+
+## 2026-11-02 power-list order and potion-action fixes (spire-oto.10, .12, .15, .21)
+
+No observation descriptor fingerprint changes: no observation name, vocabulary or row count
+changed. Behaviour that observations and transcripts can show changed as follows.
+
+**Power-list order.** Applying a new power stable-sorts the owner's list by source priority, so
+each power follows every power of equal or lower priority (`source-check-power-priority-v1`). The default priority is 5,
+with these overrides:
+
+| Priority | Powers |
+| ---: | --- |
+| 0 | Confused |
+| 6 | Double Damage, Pen Nib |
+| 10 | Frail |
+| 20 | Draw Card |
+| 25 | Establishment, Tools of the Trade |
+| 50 | Flight, Reactive |
+| 75 | Intangible |
+| 99 | Invincible, Weak |
+| 105 | Constricted |
+
+So a monster's Weak, for example, is listed after its Poison or Vulnerable, whichever was
+applied first. Adding a new power re-sorts the whole list (a stable sort), and stacking a power
+keeps its place. Two Strength paths append without sorting, as the source's direct add does:
+Philosopher's Stone, and Red Skull's battle-start Strength. Such an entry keeps its place only
+until the next new power re-sorts the list. For example, a Byrd with Philosopher's Stone shows
+[Flight, Strength]; after Poison it shows [Strength, Poison, Flight].
+
+**Start-of-turn power callbacks.** The start-of-turn and post-draw power callbacks run in that
+list order, for every character. Before, they were grouped by engine module. Nightmare's copies
+take part: each Nightmare holds its own Night Terror list entry, which observations do not show,
+so its copies follow powers applied before it. Around them:
+- Divinity's exit runs before them.
+- The orb start pass (start passives, Gold-Plated Cables) runs after them.
+
+Magnetism, Creative AI and Hello World choose their card when the callback runs, under every
+profile. Before, Magnetism outside the M20 profile chose its card later, when the card was
+created. End-of-turn power slots are unchanged (spire-oto.22).
+
+**Fixes.**
+- A Meditate played by Distilled Chaos ends the turn after the potion's remaining work.
+- A Distilled Chaos burst continues when a burst Alchemize refills the potion's slot.
+- Well-Laid Plans opens no retain choice when Runic Pyramid or Equilibrium already retains
+  the hand. A retain choice adds to any retention set earlier that turn.

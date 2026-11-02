@@ -15,13 +15,15 @@ use spire_core::{
 fn m13_caller_transcripts_unchanged_by_m14_extension() {
     // spire-oto.8 re-pin: only the additive CombatPublic phase/selection_resume_phase
     // Debug fields changed (docs/observation-vocabulary.md); stripped text hashes to the prior pins.
+    // spire-oto.21 re-pin: monster power lists take their source priority order (Weak 99 after
+    // Poison; a Byrd's Strength before Flight 50). Each transcript is the same multiset of lines.
     const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
-        "b0242fa54e673cc2b5d4240beb30cbedf9763e8d02e19a3e369e4414a0242622",
-        "d6a2e5c262ad0049e6384fde4d316f414f27671c2fb554ca79405e5334012588",
-        "2b25945623c55c78b74eba0cfa0fc0b8d46535c2aacb2c509538d23d7f5575da",
-        "907f70ed5071e1d4f41c608aa65d6b0022270d553af87eac865cdd614dc885d4",
-        "325bfaa6615757e24f66bd8c57c5837c9c3bfd68a624d23b95cbce5bfef7b123",
-        "9b8330c1788027c7e35d2ae73c3f19a341bd52dc79623d5304d3f87e29836c33",
+        "ad0829f7683e82a6129d07e3a62e309e10be09845fb20504d7b22e32da63959e",
+        "7dab1875c23c05dc6e4391aa9b044f3692c6a4af898d78a711e130199e11e4ea",
+        "bebb1b63da1777523adb9728ad5f4a19d92063f05f5308c2c8f63a875a0f41c6",
+        "e3f25024abcab3233cea97041381fead20e1367eb0d8444e038a5f162c5b5cdf",
+        "af7faf3b3a61d5eb2fbd533f67d481da32c23da1f23429146d823f94db312e91",
+        "89d04ce8f07fb87b985f48d98ccb0cdfb627fff1b51847e81e51521788962ceb",
     ];
     let mut completions = 0;
     // The separately approved coverage amendment aggregates real final-act
