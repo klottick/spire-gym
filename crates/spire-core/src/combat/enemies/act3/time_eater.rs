@@ -64,6 +64,6 @@ pub(in crate::combat) fn force_end(state:&mut State,effect:&Effect)->Result<(),I
 
 pub(in crate::combat) fn cleanse(state:&mut State,owner:&EnemyHandle)->Result<(),InputError>{
     let enemy=state.enemies.iter().find(|e|&e.instance_id==owner).ok_or_else(||InputError::Invariant("Haste cleanse owner absent".into()))?;let mut removals=vec![];
-    for p in &enemy.full_powers{if super::super::super::powers::cleanse_debuff(p).ok_or_else(||InputError::Unsupported(format!("Haste cleanse power category unavailable: {}",p.id.0)))?{removals.push(p.id);}}
+    for p in &enemy.full_powers{if super::super::super::powers::cleanse_debuff(p).ok_or_else(||InputError::Invariant(format!("Haste cleanse met a non-engine power id: {}",p.id.0)))?{removals.push(p.id);}}
     let actor=Actor::Enemy(owner.clone());for id in removals.into_iter().rev(){state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(id)));}Ok(())
 }

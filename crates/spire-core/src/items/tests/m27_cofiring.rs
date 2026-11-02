@@ -127,11 +127,14 @@ const COFIRING_PAIRS: &[PairCase] = &[
 const EMPTY_OUTPUT_EXCEPTIONS: &[(&str, RelicId)] = &[
     ("P45", RelicId::SelfFormingClay),
     ("P46", RelicId::SelfFormingClay),
-    ("P66", RelicId::EmotionChip),
+    // Cracked Core channels at atPreBattle (the startup dispatch), not at CombatStarted
+    // (source-check-turnstart-hooks-v1).
+    ("P62", RelicId::CrackedCore),
+    ("P64", RelicId::CrackedCore),
     ("P66", RelicId::GoldPlatedCables),
-    ("P71", RelicId::EmotionChip),
+    ("P67", RelicId::CrackedCore),
+    ("P68", RelicId::CrackedCore),
     ("P72", RelicId::GoldPlatedCables),
-    ("P73", RelicId::EmotionChip),
     ("P74", RelicId::GoldPlatedCables),
     ("P76", RelicId::PureWater),
     ("P77", RelicId::PureWater),
@@ -247,6 +250,11 @@ fn source_top(id: RelicId) -> bool {
             | RelicId::CoffeeDripper
             | RelicId::CursedKey
             | RelicId::NlothsHungryFace
+            // atBattleStart addToTop (source-check-turnstart-hooks-v1).
+            | RelicId::Akabeko | RelicId::BronzeScales | RelicId::ClockworkSouvenir | RelicId::DataDisk
+            | RelicId::DuVuDoll | RelicId::Girya | RelicId::MutagenicStrength | RelicId::OddlySmoothStone
+            | RelicId::Pantograph | RelicId::SlingOfCourage | RelicId::ThreadAndNeedle | RelicId::Vajra
+            | RelicId::NeowsLament | RelicId::PreservedInsect | RelicId::PhilosophersStone | RelicId::TeardropLocket
     )
 }
 

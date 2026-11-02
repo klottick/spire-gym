@@ -1247,29 +1247,19 @@ impl Combat {
                 SelectionOperation::Retain=>unreachable!("retain handled without moving card"),
                 SelectionOperation::RetrieveMemories=>unreachable!("retrieval handled before source-card movement"),
                 SelectionOperation::Omniscience=>{
-                    let Some(live)=card.full() else{
+                    if card.full().is_none(){
                         super::model::mark_fault(&mut self.state,FaultKind::Invariant,"Omniscience selected a non-full card".into());
                         return Err(retained_fault(&self.state))
-                    };
-                    let targeted=crate::content::Catalog::standard().card(live.id).is_some_and(|definition|
-                        !matches!(definition.card_type,crate::content::CardType::Status|crate::content::CardType::Curse))
-                        &&matches!(super::cards::payload_with_wrist_blade(&self.state,live,None),Err(crate::run::RunError::InvalidAction));
+                    }
+                    // Both queue items are random-target: each picks its live target when it is
+                    // dequeued, not here (source-check-dead-target-v1).
                     let child=card.handle();
                     if self.state.queued_autoplay.insert(child.clone(),card).is_some(){
                         super::model::mark_fault(&mut self.state,FaultKind::Invariant,"Omniscience selected card already queued".into());
                         return Err(retained_fault(&self.state))
                     }
-                    let (target,repeat_target)=if targeted{
-                        let first=match super::cards::ironclad::autoplay::capture_random_enemy_target(&mut self.state){
-                            Ok(target)=>target,Err(error)=>{super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience first random target failed: {error:?}"));return Err(retained_fault(&self.state))}
-                        };
-                        let repeat=match super::cards::ironclad::autoplay::capture_random_enemy_target(&mut self.state){
-                            Ok(target)=>target,Err(error)=>{super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience repeat random target failed: {error:?}"));return Err(retained_fault(&self.state))}
-                        };
-                        (first,repeat)
-                    }else{(None,None)};
                     let queued=Effect{source:parent_source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(
-                        super::cards::watcher::WatcherEffect::OmnisciencePlay{child,target,repeat_target,energy_on_use:-1,cancelled:false})};
+                        super::cards::watcher::WatcherEffect::OmnisciencePlay{child,energy_on_use:-1,cancelled:false})};
                     if let Err(error)=super::cards::ironclad::autoplay::queue_after_finish(&mut self.state,&parent_source,queued){
                         super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience queue insertion failed: {error:?}"));
                         return Err(retained_fault(&self.state))
@@ -1691,6 +1681,10 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
                 &&items.owns_relic(crate::content::RelicId::GamblingChip)&&items.local(crate::content::RelicId::GamblingChip)==1),
             "Gambling Chip selection requires its armed complete relic owner")?,
+        EffectKind::Relic(super::RelicEffect::RedSkullCheck)=>require(state.full_runtime
+            &&effect.source==Source::None&&effect.target==Some(Actor::Player)
+            &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::RedSkull)),
+            "Red Skull check requires its relic owner")?,
         EffectKind::Relic(super::RelicEffect::RetainHand)=>require(state.full_runtime
             &&effect.source==Source::Relic(crate::content::RelicId::RunicPyramid)&&effect.target==Some(Actor::Player)
             &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
@@ -1805,14 +1799,12 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         // The callback is produced only by the shared discard owner, tagged with its origin.
         EffectKind::Hook(Hook::CardManuallyDiscarded)=>return Err(InputError::Invariant("manual-discard callback requires its tagged discard origin".into())),
         EffectKind::ManualDiscardCallback{origin}=>{
+            // Only the shared discard owner creates this effect, tagged with its producer: a confirmed
+            // selection's selected card, or a card or power discarding directly from the hand. Either is
+            // valid in whatever continuation produced it; no phase is assumed (spire-oto.20, review m2).
+            let (super::model::ManualDiscardOrigin::SelectionCommit|super::model::ManualDiscardOrigin::Direct)=origin;
             let moved=matches!(&effect.source,Source::Card(owner) if state.piles.discard.iter().any(|card|card.handle()==*owner));
-            let producer=match origin{
-                // A confirmed selection's selected card, in whatever continuation it resumes.
-                super::model::ManualDiscardOrigin::SelectionCommit=>true,
-                // A card or turn-start power discarding directly from the hand.
-                super::model::ManualDiscardOrigin::Direct=>matches!(state.phase,Phase::PlayerStart|Phase::PlayerAction|Phase::Selection),
-            };
-            require(state.full_runtime&&effect.target.is_none()&&moved&&producer,
+            require(state.full_runtime&&effect.target.is_none()&&moved,
                 "manual-discard relic callback requires the actually moved discarded card")?;
         },
         EffectKind::HexaghostBurn(_) => {
@@ -2022,7 +2014,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         }
         // LoseEnergyAction keeps no card reference: a queued Void loss resolves
         // after a later action moves the drawn Void anywhere it remains owned.
-        EffectKind::LoseEnergy(n)=>require(state.full_runtime&&*n==1&&effect.target==Some(Actor::Player)&&matches!(&effect.source,Source::Card(id) if super::piles::owned_full_cards(state).any(|c|super::card_state::handle(c.instance)==*id&&c.id==crate::content::CardId::Void)),"Void actual-draw energy owner/amount")?,
+        // Energy Down's queued start-of-turn loss is player-owned and matches the persisting power.
+        EffectKind::LoseEnergy(n)=>require(state.full_runtime&&effect.target==Some(Actor::Player)&&(*n==1&&matches!(&effect.source,Source::Card(id) if super::piles::owned_full_cards(state).any(|c|super::card_state::handle(c.instance)==*id&&c.id==crate::content::CardId::Void))
+            ||effect.source==Source::Actor(Actor::Player)&&state.player_full_powers.iter().any(|p|p.id.0=="energy_down"&&p.state.amount==*n)),"Void actual-draw energy owner/amount")?,
         EffectKind::CreateCard { id, destination: _, upgrades } => {
             let supported = matches!((*id, *upgrades),
                 (crate::content::CardId::Miracle, 0 | 1)
@@ -2893,36 +2887,6 @@ pub(super) fn resolve_from(state: &mut State, mut marks: super::model::ResolveMa
             continue;
         }
         if !state.pending.is_empty() {
-            if !marks.after_draw&&state.full_runtime&&state.phase==Phase::PlayerStart
-                &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
-                &&state.pending.len()==1
-                &&state.pending.front().is_some_and(|effect|effect.kind==EffectKind::Decision) {
-                let decision=state.pending.pop_front().expect("checked start-turn decision marker");
-                let phase=if state.turn<=1 {
-                    // M27 seam: after-opening-draw
-                    crate::items::dispatch::ItemPhase::AfterOpeningDraw
-                }else{
-                    // M27 seam: after-draw
-                    crate::items::dispatch::ItemPhase::AfterDraw
-                };
-                let work=if let Some(items)=state.item_context.as_mut(){
-                    let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
-                    facts.hand_size=state.piles.hand.len();facts.draw_size=state.piles.draw.len();
-                    facts.discard_size=state.piles.discard.len();
-                    facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
-                    Some(crate::items::dispatch::combat_phase(items,phase,&facts))
-                }else{None};
-                marks.after_draw=true;
-                if let Some(work)=work {
-                    let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};
-                    if work.direct_strength!=0 {
-                        if let Err(error)=super::powers::add_direct_strength(state,work.direct_strength){retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}
-                    }
-                    if let Err(error)=super::effects::queue_relic_work(state,work){retain_error(state,error);return Transition{status:TransitionStatus::Fault}}
-                }
-                state.pending.push_back(decision);
-                continue;
-            }
             dispatch_one(state);
             continue;
         }

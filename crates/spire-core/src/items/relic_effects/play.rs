@@ -50,7 +50,8 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
                 context.set_counter(id, next);
             }
         }
-        (RelicId::PenNib, ItemPhase::CombatStartPreDraw) if context.counter(id) == 9 => {
+        // atBattleStart (bottom), raised once in every profile.
+        (RelicId::PenNib, ItemPhase::CombatStart) if context.counter(id) == 9 => {
             queue_bottom(id, Actor::Player, EffectKind::ApplyFullPower { id: FullPowerId("pen_nib"), amount: 1 }, work);
         }
         (RelicId::PenNib, ItemPhase::CardUsed) if facts.card.is_some_and(|card|card.card_type==CardType::Attack) => {
@@ -66,7 +67,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             }
         }
         (RelicId::Kunai | RelicId::OrnamentalFan | RelicId::Shuriken | RelicId::LetterOpener,
-            ItemPhase::TurnStartPreDraw | ItemPhase::TurnStart) => context.set_local(id, 0),
+            ItemPhase::TurnStartPreDraw) => context.set_local(id, 0),
         (RelicId::GremlinHorn, ItemPhase::EnemyDied) if facts.dead_enemy.is_some_and(|(_, _, live)|live > 0) => {
             queue_bottom(id, Actor::Player, EffectKind::GainEnergy(1), work);
             queue_bottom(id, Actor::Player, EffectKind::Draw(1), work);
@@ -138,7 +139,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
                 next: 0,
             }), work);
         }
-        (RelicId::OrangePellets, ItemPhase::TurnStartPreDraw | ItemPhase::TurnStart) => {
+        (RelicId::OrangePellets, ItemPhase::TurnStartPreDraw) => {
             context.set_local(id, 0);
         }
         (RelicId::OrangePellets, ItemPhase::CardUsed) if let Some(card) = facts.card => {

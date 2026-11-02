@@ -113,6 +113,12 @@ fn m26_burst_replay_preserves_collect_captured_x() {
 fn m26_mayhem_collect_uses_turn_start_energy_without_spending_it() {
     let mut combat = fight_as(Character::Watcher, EncounterId::Cultist, 1, &[(Mayhem, 0), (Collect, 0)]);
     arrange(&mut combat, &[1], &[2]);
+    // Mayhem's play-top follows five natural draws; leave Collect sixth.
+    for instance in 3..=7{
+        let filler=card(Defend,instance,0);
+        combat.state.card_ids_issued.insert(card_state::handle(CardInstanceId(instance)));
+        combat.state.piles.draw.push(OwnedCard::Full(filler));
+    }
     combat.state.player.energy = 3;
     combat.state.player.max_energy = 3;
     play(&mut combat, 1, None);
@@ -163,13 +169,18 @@ fn m26_zero_energy_autoplay_skips_cost_check_and_uses_positive_x_upgrade() {
 #[test]
 fn m26_mayhem_tools_of_the_trade_turn_start_selection_is_accepted() {
     let mut combat = fight_as(Character::Silent, EncounterId::Cultist, 1, &[
-        (Mayhem, 0), (ToolsOfTheTrade, 0), (Strike, 0), (Defend, 0), (DodgeAndRoll, 0),
+        (Mayhem, 0), (ToolsOfTheTrade, 0), (Strike, 0), (Defend, 0), (DodgeAndRoll, 0), (Defend, 0), (Defend, 0),
     ]);
-    arrange(&mut combat, &[1], &[5, 4, 3, 2]);
+    arrange(&mut combat, &[1], &[2, 5, 4, 3, 6, 7]);
     play(&mut combat, 1, None);
     combat.step_full(&CombatAction::EndTurn)
         .unwrap_or_else(|error| panic!("Mayhem + Tools start turn: {error:?}; fault={:?}", combat.fault_record()));
-    assert_no_fault(&combat, "Mayhem + Tools start turn");
+    assert_no_fault(&combat, "Mayhem + Tools first start turn");
+    assert!(combat.state.pending_selection.is_none(), "Mayhem plays Tools after this turn's post-draw power hook");
+    assert!(player_power(&combat, "tools_of_the_trade") > 0, "the post-draw Mayhem child installs Tools");
+    combat.step_full(&CombatAction::EndTurn)
+        .unwrap_or_else(|error| panic!("Tools next start turn: {error:?}; fault={:?}", combat.fault_record()));
+    assert_no_fault(&combat, "Tools next start turn");
     let selection = combat.state.pending_selection.as_ref()
         .expect("Tools of the Trade opens its turn-start discard selection");
     assert!(matches!(selection.parent,
@@ -214,14 +225,13 @@ fn m26_normality_blocks_autoplay() {
 
     // RetainCards keeps Normality in hand through EndTurn; the accepted natural-turn
     // fixture is m26_normality_counts_autoplay_and_late_draw (m26_cards.rs:272-284).
-    // Mayhem runs at TurnStartedPreDraw (colorless/powers.rs:108-120). Stacking four
-    // triggers makes the fourth known top Defend the first child blocked by Normality.
+    // Mayhem queues its play-top work at TurnStartedPreDraw, then uses cards only
+    // after the one-card turn draw. Draw 7 first; children 3–6 follow in order.
     let mut mayhem = fight(EncounterId::JawWorm, 1, &[
         (Normality, 0), (Mayhem, 0), (Defend, 0), (Defend, 0), (Defend, 0), (Defend, 0), (Defend, 0),
     ]);
-    arrange(&mut mayhem, &[1, 2], &[7, 6, 5, 4, 3]);
-    // Leave the blocked fourth child in Discard after Mayhem's pre-draw hook; the
-    // fifth known card remains available for a manual fourth-play legality check.
+    arrange(&mut mayhem, &[1, 2], &[6, 5, 4, 3, 7]);
+    // Keep 7 as the natural draw and 3–6 beneath it; child 6 is blocked fourth.
     mayhem.state.player.draw_per_turn = 1;
     mayhem.state.player_full_powers.push(FullPowerEntry { id: FullPowerId("retain_cards"),
         state: PowerState { amount: 1, skip_first: false, monster_source_grace: false } });

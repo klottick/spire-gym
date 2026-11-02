@@ -24,6 +24,11 @@ fn bottom(work: &mut RelicHookWork, id: RelicId, target: Actor, kind: EffectKind
     work.bottom.push(Effect { source: Source::Relic(id), target: Some(target), kind });
 }
 
+/// atBattleStart addToTop work (source-check-turnstart-hooks-v1); `dispatch::source_top` lists these relics.
+fn top(work: &mut RelicHookWork, id: RelicId, target: Actor, kind: EffectKind) {
+    work.top.push(Effect { source: Source::Relic(id), target: Some(target), kind });
+}
+
 fn bottom_relic(work: &mut RelicHookWork, id: RelicId, kind: EffectKind) {
     work.bottom.push(Effect { source: Source::Relic(id), target: None, kind });
 }
@@ -41,7 +46,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
 
     match id {
         RelicId::Akabeko => match phase {
-            ItemPhase::CombatStart => bottom(work, id, Actor::Player,
+            ItemPhase::CombatStart => top(work, id, Actor::Player,
                 EffectKind::ApplyFullPower { id: FullPowerId("vigor"), amount: 8 }),
             ItemPhase::CardUsed if facts.card.is_some_and(|card| card.card_type == CardType::Attack) =>
                 bottom(work, id, Actor::Player, EffectKind::RemoveFullPower(FullPowerId("vigor"))),
@@ -51,7 +56,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             ItemPhase::CombatStart => context.set_local(id, -1),
             ItemPhase::CardUsed if facts.card.is_some_and(|card| card.card_type == CardType::Attack) =>
                 context.set_local(id, 1),
-            ItemPhase::TurnStart if facts.target == Some(&Actor::Player) => {
+            ItemPhase::TurnStartPreDraw if facts.target == Some(&Actor::Player) => {
                 let prior = context.local(id);
                 if prior == -1 {
                     // The opening player turn has no preceding qualifying interval.
@@ -63,7 +68,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             }
             _ => (),
         },
-        RelicId::HappyFlower if phase == ItemPhase::TurnStart && facts.target == Some(&Actor::Player) => {
+        RelicId::HappyFlower if phase == ItemPhase::TurnStartPreDraw && facts.target == Some(&Actor::Player) => {
             let next = if context.counter(id) == -1 { 1 } else { context.counter(id) + 1 };
             if next >= 3 {
                 context.set_counter(id, 0);
@@ -72,12 +77,13 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
                 context.set_counter(id, next);
             }
         }
+        // Its HP cut is immediate in the source; top is the nearest queued position.
         RelicId::PreservedInsect if phase == ItemPhase::CombatStart && facts.elite => {
-            bottom_relic(work, id, EffectKind::Relic(RelicEffect::CapEnemyHp { percent: 75 }));
+            work.top.push(Effect { source: Source::Relic(id), target: None, kind: EffectKind::Relic(RelicEffect::CapEnemyHp { percent: 75 }) });
         }
         RelicId::HornCleat => match phase {
             ItemPhase::CombatStart => context.set_local(id, 0),
-            ItemPhase::TurnStart if facts.target == Some(&Actor::Player) => {
+            ItemPhase::TurnStartPreDraw if facts.target == Some(&Actor::Player) => {
                 let turn = context.local(id) + 1;
                 context.set_local(id, turn);
                 if turn == 2 { bottom(work, id, Actor::Player, EffectKind::GainBlock(14)); }
@@ -85,11 +91,11 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             _ => (),
         },
         RelicId::MeatOnTheBone => (),
-        RelicId::MercuryHourglass if phase == ItemPhase::TurnStart && facts.target == Some(&Actor::Player) => {
+        RelicId::MercuryHourglass if phase == ItemPhase::TurnStartPreDraw && facts.target == Some(&Actor::Player) => {
             damage_all(work, id, facts.live_enemies, 3);
         }
         RelicId::Pantograph if phase == ItemPhase::CombatStart && facts.boss => {
-            bottom(work, id, Actor::Player, EffectKind::Heal(25));
+            top(work, id, Actor::Player, EffectKind::Heal(25));
         }
         RelicId::Sundial if phase == ItemPhase::DrawPileShuffled => {
             let callbacks = context.counter(id) + 1;
@@ -102,7 +108,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         }
         RelicId::CaptainsWheel => match phase {
             ItemPhase::CombatStart => context.set_local(id, 0),
-            ItemPhase::TurnStart if facts.target == Some(&Actor::Player) => {
+            ItemPhase::TurnStartPreDraw if facts.target == Some(&Actor::Player) => {
                 let turn = context.local(id) + 1;
                 context.set_local(id, turn);
                 if turn == 3 { bottom(work, id, Actor::Player, EffectKind::GainBlock(18)); }
@@ -112,7 +118,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         RelicId::DuVuDoll if phase == ItemPhase::CombatStart => {
             let curses = facts.deck_curses.min(i32::MAX as usize) as i32;
             if curses > 0 {
-                bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+                top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                     id: FullPowerId("strength"), amount: curses,
                 });
             }
@@ -122,7 +128,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
                 id: FullPowerId("buffer"), amount: 1,
             });
         }
-        RelicId::IncenseBurner if phase == ItemPhase::TurnStart && facts.target == Some(&Actor::Player) => {
+        RelicId::IncenseBurner if phase == ItemPhase::TurnStartPreDraw && facts.target == Some(&Actor::Player) => {
             let next = if context.counter(id) == -1 { 1 } else { context.counter(id) + 1 };
             if next >= 6 {
                 context.set_counter(id, 0);
@@ -135,8 +141,8 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         }
         RelicId::Pocketwatch => match phase {
             ItemPhase::CardPlayed => context.set_local(id, context.local(id) + 1),
-            // Main-2 dispatches only AfterOpeningDraw on turn one and AfterDraw on later
-            // turns. Pocketwatch intentionally has no opening-turn bonus.
+            // atTurnStartPostDraw: AfterOpeningDraw on turn one, AfterDraw on later turns.
+            // Pocketwatch intentionally has no opening-turn bonus.
             ItemPhase::AfterDraw => {
                 if context.local(id) <= 3 { bottom(work, id, Actor::Player, EffectKind::Draw(3)); }
                 context.set_local(id, 0);
@@ -144,13 +150,13 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             _ => (),
         },
         RelicId::StoneCalendar => match phase {
-            ItemPhase::TurnStart if facts.target == Some(&Actor::Player) =>
+            ItemPhase::TurnStartPreDraw if facts.target == Some(&Actor::Player) =>
                 context.set_local(id, context.local(id) + 1),
             ItemPhase::EndTurn if context.local(id) == 7 => damage_all(work, id, facts.live_enemies, 52),
             _ => (),
         },
         RelicId::ThreadAndNeedle if phase == ItemPhase::CombatStart => {
-            bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+            top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("plated_armor"), amount: 4,
             });
         }
@@ -158,19 +164,19 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
             bottom(work, id, Actor::Player, EffectKind::GainBlock(6));
         }
         RelicId::ClockworkSouvenir if phase == ItemPhase::CombatStart => {
-            bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+            top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("artifact"), amount: 1,
             });
         }
         RelicId::SlingOfCourage if phase == ItemPhase::CombatStart && facts.elite => {
-            bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+            top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("strength"), amount: 2,
             });
         }
         RelicId::CultistHeadpiece => {
             // Its “Caw” is cosmetic; the combat model has no speech/audio output surface.
         }
-        RelicId::Enchiridion if phase == ItemPhase::CombatStartPreDraw => {
+        RelicId::Enchiridion if phase == ItemPhase::CombatStartPreDraw && context.is_pre_draw_visit(facts.hook) => {
             bottom(work, id, Actor::Player, EffectKind::Generate(GenerationWork {
                 pool: GenerationPool::Power,
                 count: 1,
@@ -193,10 +199,10 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         // Catalog MUTAGENIC_STRENGTH (F15): 3 Strength, then a matching Strength Down (the shared
         // `lose_strength` debuff, as Flex), so Artifact can block it and Orange Pellets can remove it.
         RelicId::MutagenicStrength if phase == ItemPhase::CombatStart => {
-            bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+            top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("strength"), amount: 3,
             });
-            bottom(work, id, Actor::Player, EffectKind::ApplyFullPower {
+            top(work, id, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("lose_strength"), amount: 3,
             });
         }

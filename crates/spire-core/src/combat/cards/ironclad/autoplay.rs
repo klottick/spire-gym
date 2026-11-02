@@ -13,6 +13,28 @@ pub(in crate::combat) fn prepare_child_work(state:&State,child:&LiveCard,target:
     }
 }
 
+/// PlayTopCardAction (Havoc, Mayhem, Distilled Chaos). An empty draw pile is shuffled
+/// from the discard and `retry` runs again; otherwise the top card is revealed, held in
+/// queued-autoplay custody and refreshed (applyPowers) before it is queued
+/// (source-check-outofhand-turnorder-v1). `None` when no card is taken now.
+pub(in crate::combat) fn take_top_card(state:&mut State,retry:&Effect)->Result<Option<crate::combat::CardHandle>,EffectError>{
+    if state.piles.draw.is_empty(){
+        if state.piles.discard.is_empty(){return Ok(None)}
+        state.pending.push_front(retry.clone());
+        state.pending.push_front(Effect{source:retry.source.clone(),target:Some(Actor::Player),kind:EffectKind::Recycle});
+        return Ok(None)
+    }
+    let child=state.piles.draw.pop().unwrap();let handle=child.handle();
+    if state.public.known_draw.first()==Some(&handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
+    state.public.known_draw_bottom.retain(|known|known!=&handle);state.public.revealed_order.push(handle.clone());
+    if state.queued_autoplay.insert(handle.clone(),child).is_some(){
+        return Err(InputError::Invariant("top card already has queued ownership".into()).into())
+    }
+    crate::combat::piles::refresh_hand_values(state);
+    crate::combat::piles::refresh_queued_values(state,&handle);
+    Ok(Some(handle))
+}
+
 fn capture_autoplay_energy(state:&State,requested:i32)->Result<i32,EffectError>{
     let captured=if requested==-1{state.player.energy}else{requested};
     if !(0..=999).contains(&captured){return Err(InputError::Unsupported("autoplay energy_on_use outside supported energy surface".into()).into())}
@@ -66,6 +88,8 @@ pub(in crate::combat) fn start_queued_child(state:&mut State,child_handle:&crate
         &&state.play_frames.last().is_some_and(|frame|frame.child==*child_handle&&frame.parent_finish_checkpoint_done);
     if already_deferred{
         if parent.is_some()||parent_context.is_some(){return Err(InputError::Invariant("deferred autoplay unexpectedly has a live parent".into()).into())}
+        // A random-target item's frame was pushed before its dequeue-time target existed.
+        state.play_frames.last_mut().unwrap().target=target.clone();
     }else{
         let resume_phase=state.phase;
         state.play_frames.push(PlayFrame{parent,parent_owner,parent_context,child:child_handle.clone(),target:target.clone(),
@@ -96,6 +120,12 @@ pub(in crate::combat) fn queued_child_is_playable(state:&State,child_handle:&cra
     Ok(prepare_child_work(state,preview.full().unwrap(),target.as_ref(),child_handle,energy_on_use)?.is_some())
 }
 
+/// A cancelled card-queue item whose card is not otherwise owned (Mayhem): discarded unused.
+pub(in crate::combat) fn discard_cancelled_queued_card(state:&mut State,child:&crate::combat::CardHandle)->Result<(),EffectError>{
+    let card=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("cancelled queued card custody absent".into()))?;
+    dispose_unplayed(state,card,FinishDisposition::Natural)
+}
+
 fn dispose_unplayed(state:&mut State,card:OwnedCard,disposition:FinishDisposition)->Result<(),EffectError>{
     super::super::super::piles::finish_owned_card(state,card,disposition,true)?;
     Ok(())
@@ -108,7 +138,8 @@ pub(in crate::combat) fn is_queued_card_dispatch(kind:&EffectKind)->bool{
         |EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{..})
         |EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{..})
         |EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmnisciencePlay{..}|super::super::super::cards::watcher::WatcherEffect::OmniscienceRepeat{..})
-        |EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{..}|crate::combat::PotionEffect::DistilledChaosQueuedChild{..}))
+        |EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{..}|crate::combat::PotionEffect::DistilledChaosQueuedChild{..})
+        |EffectKind::Colorless(super::super::super::cards::ColorlessEffect::MayhemAutoplay{..}))
 }
 
 pub(in crate::combat) fn queue_after_finish(state:&mut State,parent:&crate::combat::Source,work:Effect)->Result<(),EffectError>{
@@ -129,10 +160,11 @@ fn next_parent_continuation(state:&State,owner:&crate::combat::CardHandle)
         EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{child,target,energy_on_use,..})
         |EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{child,target,energy_on_use,..})
             =>(child.clone(),target.clone(),*energy_on_use,FinishDisposition::Purge),
-        EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmnisciencePlay{child,target,energy_on_use,..})
-            =>(child.clone(),target.as_ref().map(|id|Actor::Enemy(id.clone())),*energy_on_use,FinishDisposition::Exhaust),
-        EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmniscienceRepeat{child,target,energy_on_use,..})
-            =>(child.clone(),target.as_ref().map(|id|Actor::Enemy(id.clone())),*energy_on_use,FinishDisposition::Purge),
+        // Random-target items: the target is picked at dequeue (`start_queued_child` records it).
+        EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmnisciencePlay{child,energy_on_use,..})
+            =>(child.clone(),None,*energy_on_use,FinishDisposition::Exhaust),
+        EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmniscienceRepeat{child,energy_on_use,..})
+            =>(child.clone(),None,*energy_on_use,FinishDisposition::Purge),
         EffectKind::Potion(crate::combat::PotionEffect::DuplicationRepeat{child,target,energy_on_use,..})
             =>(child.clone(),target.clone(),*energy_on_use,FinishDisposition::Purge),
         _=>return None,
@@ -145,6 +177,7 @@ pub(in crate::combat) fn cancel_pending_card_queue(state:&mut State){
             EffectKind::Ironclad(IroncladEffect::HavocQueued{cancelled,..}|IroncladEffect::DoubleTapRepeat{cancelled,..})=>*cancelled=true,
             EffectKind::Defect(super::super::super::cards::DefectEffect::Repeat{cancelled,..})=>*cancelled=true,
             EffectKind::Silent(super::super::super::cards::SilentEffect::BurstRepeat{cancelled,..})=>*cancelled=true,
+            EffectKind::Colorless(super::super::super::cards::ColorlessEffect::MayhemAutoplay{cancelled,..})=>*cancelled=true,
             EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{cancelled,..}
                 |crate::combat::PotionEffect::DuplicationRepeat{cancelled,..})=>*cancelled=true,
             EffectKind::Watcher(super::super::super::cards::watcher::WatcherEffect::OmnisciencePlay{cancelled,..}
@@ -267,16 +300,9 @@ pub(in crate::combat) fn apply_potion_work(state:&mut State,effect:&Effect,work:
                 return Err(InputError::Invariant("Distilled Chaos top action lost its potion owner".into()).into())};
             if !(0..=999).contains(energy_on_use){
                 return Err(InputError::Invariant("Distilled Chaos top action lost its captured burst energy".into()).into())}
-            let Some(child)=state.piles.draw.pop() else{return Ok(())};
-            let child_handle=child.handle();
-            super::super::super::piles::refresh_hand_values(state);
-            if state.public.known_draw.first()==Some(&child_handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
-            state.public.known_draw_bottom.retain(|known|known!=&child_handle);
-            state.public.revealed_order.push(child_handle.clone());
-            if state.queued_autoplay.insert(child_handle.clone(),child).is_some(){
-                return Err(InputError::Invariant("Distilled Chaos top card already has queued ownership".into()).into())
-            }
-            state.pending.push_front(Effect{source:effect.source.clone(),target:None,
+            let Some(child_handle)=take_top_card(state,effect)? else{return Ok(())};
+            // Every top-card action of the burst runs before the first queued card is used.
+            crate::combat::enemies::act2::queue_card(state,Effect{source:effect.source.clone(),target:None,
                 kind:EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{
                     child:child_handle,target:target.clone(),energy_on_use:*energy_on_use,cancelled:false})});
             Ok(())
@@ -323,7 +349,7 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&crate::combat::Sou
         // duplicator queues resolve before this relic repeat (M27 ruling F9).
         let extra=crate::items::laws::repeat_play(items,crate::items::dispatch::PhaseCard{
             id:card_id,card_type:definition.card_type,cost_paid:if x_cost{energy_on_use}else{paid}});
-        for _ in 0..extra{queue_blue_repeat(state,source,target,energy_on_use)?;}
+        for _ in 0..extra{queue_blue_repeat(state,source,target,energy_on_use,true)?;}
     }
     let duplication=state.player_full_powers.iter().find(|power|power.id.0=="duplication").map_or(0,|power|power.state.amount);
     if duplication>0 {
@@ -427,17 +453,8 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
             state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Ironclad(IroncladEffect::HavocExtract{target:target.clone()})});Ok(())
         }
         IroncladEffect::HavocExtract{target}=>{
-            if state.piles.draw.is_empty(){
-                if state.piles.discard.is_empty(){return Ok(())}
-                state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Ironclad(IroncladEffect::HavocExtract{target:target.clone()})});
-                state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::Recycle});return Ok(())
-            }
-            let child=state.piles.draw.pop().unwrap();let handle=child.handle();
-            crate::combat::piles::refresh_hand_values(state);
-            if state.public.known_draw.first()==Some(&handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
-            state.public.known_draw_bottom.retain(|known|known!=&handle);state.public.revealed_order.push(handle);
+            let Some(child_handle)=take_top_card(state,effect)? else{return Ok(())};
             let energy_on_use=state.player.energy;
-            let child_handle=child.handle();state.queued_autoplay.insert(child_handle.clone(),child);
             let queued=Effect{source:effect.source.clone(),target:None,kind:EffectKind::Ironclad(IroncladEffect::HavocQueued{child:child_handle,target:target.clone(),energy_on_use,cancelled:false})};
             queue_after_finish(state,&effect.source,queued)
         }
@@ -464,13 +481,15 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
 }
 
 /// New producers share physical copy allocation, parent finish and autoplay.
-pub(in crate::combat) fn queue_blue_repeat(state:&mut State,source:&crate::combat::Source,target:Option<&Actor>,energy_on_use:i32)->Result<(),EffectError>{
+/// A copy keeps the original's values; `refresh` re-applies powers to it (Necronomicon).
+pub(in crate::combat) fn queue_blue_repeat(state:&mut State,source:&crate::combat::Source,target:Option<&Actor>,energy_on_use:i32,refresh:bool)->Result<(),EffectError>{
     let crate::combat::Source::Card(owner)=source else{return Err(InputError::Invariant("repeat parent source".into()).into())};
     let instance=crate::combat::piles::next_generated_instance(state)?;
     let mut copied=crate::combat::piles::make_same_instance_family_copy_from_owner(state,owner,instance)?;
     copied.local.free_play=true;copied.local.purge=true;
     let child=OwnedCard::Full(copied);let handle=child.handle();
     state.card_ids_issued.insert(handle.clone());state.queued_autoplay.insert(handle.clone(),child);
+    if refresh{crate::combat::piles::refresh_queued_values(state,&handle);}
     queue_after_finish(state,source,Effect{source:source.clone(),target:None,kind:EffectKind::Defect(crate::combat::cards::DefectEffect::Repeat{child:handle,target:target.cloned(),energy_on_use,cancelled:false})})
 }
 pub(in crate::combat) fn apply_shared_repeat(state:&mut State,effect:&Effect,child:&crate::combat::CardHandle,target:&Option<Actor>,energy_on_use:i32,cancelled:bool)->Result<(),EffectError>{

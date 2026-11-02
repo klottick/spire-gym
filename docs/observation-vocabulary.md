@@ -137,3 +137,90 @@ to its previous pin; nothing else changed:
 | 3 | `749e206bc53aace53973bea3a5f91305a31baf1d0e8f28265ea5f863b92ced47` | `907f70ed5071e1d4f41c608aa65d6b0022270d553af87eac865cdd614dc885d4` |
 | 4 | `2c42be5086c090b30d5d379512c7c559d809f8055a58e51c4483db0e05d89a34` | `325bfaa6615757e24f66bd8c57c5837c9c3bfd68a624d23b95cbce5bfef7b123` |
 | 5 | `700cb47702ab4ce25ef72d600288798933dac99d7da7e624bc7eb22d7ff7b09e` | `9b8330c1788027c7e35d2ae73c3f19a341bd52dc79623d5304d3f87e29836c33` |
+
+## 2026-11-02 turn-start order and out-of-hand card values (spire-oto.11, .13, .14, .19, .20)
+
+No observation descriptor fingerprint changes: no observation name, vocabulary or row
+count changed. The opt-in [card metadata](card-metadata.md) descriptor moved from
+`b60b66c69bce54a6652442e54bc42a2a446d05ec7efa39bb1b11cf4b8c6ff5fb` to
+`effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406`. Mind Blast, Stack and
+Blizzard now resolve their static cost and target, so they left `unresolved_cards`.
+Behaviour that observations and transcripts can show changed as follows.
+
+**Turn start.** Each relic and player power runs at its source hook
+(`source-check-turnstart-hooks-v1`), for every character:
+- **Turn 2 and later:**
+  1. start-of-turn (atTurnStart) relics, such as Art of War, Happy Flower, Mercury Hourglass
+     and Lantern;
+  2. card, power and orb start callbacks, including Mayhem's wrappers;
+  3. the recharge, synchronous when the turn draw is built;
+  4. the draw;
+  5. post-draw (atTurnStartPostDraw) relics, such as Pocketwatch and Gambling Chip;
+  6. post-draw powers, such as Brutality and Devotion;
+  7. Mayhem's play-top actions.
+
+  All the queued work of steps 1 and 2 resolves before the draw. Start-of-turn relics
+  were raised after the draw before.
+- **Turn 1 (battle start):**
+  1. atBattleStart relics;
+  2. start-of-turn relics;
+  3. post-draw relics;
+  4. card, power and orb callbacks.
+
+  Each step's bottom work follows the previous step's. There are no post-draw power
+  callbacks on turn 1. Before, the post-draw relics ran before the start-of-turn relics.
+- **Recharge:** the recharge law, then the power onEnergyRecharge callbacks in power
+  order (Collect, Energized, Energized Blue, Deva Form's growing gain). Collect's Miracle
+  is now created at the recharge, not with the start callbacks.
+- **Energy Down:** its loss is queued with the other start-of-turn power work (it still
+  persists), after the start-of-turn relics' queued energy. Before, it was subtracted at
+  the recharge.
+
+**Mayhem.** Mayhem plays the card on top after the turn's draw, after the post-draw relics
+and powers. Its target is picked after the start-of-turn relics resolved; a lethal Mercury
+Hourglass ends combat before any target is drawn. X is the energy when its play-top action
+queues the card, so it includes Art of War, Happy Flower, Berserk, Deva Form and Ice Cream.
+
+**Relic queue sides.** Battle-start and start-of-turn relics queue their work at the top
+or the bottom as the source does:
+- **Now top:** Akabeko, Clockwork Souvenir, Du-Vu Doll, Girya, Mutagenic Strength,
+  Pantograph, Sling of Courage, Thread and Needle, Preserved Insect and Philosopher's Stone.
+  Among top relics, the later relic's work runs first.
+- **Now bottom:** Bag of Preparation, Ring of the Snake, Bag of Marbles, Red Mask, Twisted
+  Funnel, Mark of Pain, Damaru, Runic Capacitor, Inserter, Emotion Chip and Self-Forming
+  Clay.
+- **Moved slot:**
+  - Cracked Core channels at atPreBattle, in relic order with Symbiotic Virus and Nuclear
+    Battery.
+  - Teardrop Locket enters Calm at battle start, for every holder.
+  - Pen Nib and Enchiridion fire once per combat. Watcher contexts fired them twice.
+- **Red Skull:** its battle-start bloodied check is queued at the bottom and reads HP when
+  it resolves, after top-queued heals such as Blood Vial and Pantograph. When it activates,
+  it still adds +3 Strength directly. Pending-queue Debug text shows the new
+  `RelicEffect::RedSkullCheck`.
+- **Consequence:** with Clockwork Souvenir acquired before Mutagenic Strength, Strength Down
+  now lands before the Artifact.
+
+**Autoplay bursts.** Havoc, Mayhem and Distilled Chaos share one top-card action:
+- an empty draw pile is shuffled from the discard and the action retries (new for
+  Mayhem and Distilled Chaos);
+- every top-card action of a burst runs before the first queued card is used.
+
+**Card values.** The top-card action refreshes the card's values (Stack, Mind Blast)
+before queueing it, and so does Necronomicon's copy. Blizzard counts Frost when it is
+used.
+
+**Targets.** Omniscience's card and its repeat each pick a fresh live random target
+when they are dequeued; before, both were drawn at selection commit.
+
+**Energy cap.** Energized saturates at 999 energy for every character; before,
+Ironclad and Silent faulted above 999.
+
+**Cleanse.** The shared cleanse classifier covers every public power. Shackled is a
+debuff. Orange Pellets also removes negative Focus and Constricted.
+
+The internal effect shapes `MayhemPlayTopCard`, `OmnisciencePlay` and
+`OmniscienceRepeat` changed. Pending-queue Debug text, state fingerprints and replay
+transcripts that pass through a Mayhem turn or an Omniscience play differ from
+earlier ones; replays recorded before this change are not expected to reproduce
+them.

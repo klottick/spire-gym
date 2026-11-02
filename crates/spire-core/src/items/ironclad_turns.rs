@@ -11,7 +11,7 @@ pub(super) fn phase(id:RelicId,_context:&mut super::CombatItemContext,phase:supe
     use super::dispatch::ItemPhase;
     match id{
         RelicId::MarkOfPain=>if facts.hook==Some(Hook::CombatStarted){
-            for _ in 0..2{work.top.push(Effect{source:Source::None,target:Some(Actor::Player),
+            for _ in 0..2{work.bottom.push(Effect{source:Source::None,target:Some(Actor::Player),
                 kind:EffectKind::CreateCard{id:CardId::Wound,destination:crate::combat::CardDestination::ShuffledDraw,upgrades:0}});}
         },
         RelicId::Brimstone=>if facts.hook==Some(Hook::TurnStartedPreDraw){

@@ -412,6 +412,12 @@ pub(crate) fn relic_phase_effects(context: &mut CombatItemContext, facts: &dispa
     Ok(work)
 }
 
+/// One relic slot of a player turn-start checkpoint (`dispatch::turn_start_phases`).
+pub(crate) fn turn_start_relic_work(context: &mut CombatItemContext, phase: dispatch::ItemPhase, facts: &dispatch::PhaseFacts<'_>) -> Result<RelicHookWork, InputError> {
+    if context.m20_profile()&&phase==dispatch::ItemPhase::TurnStartPreDraw{validate_defect_relic_counters(context)?;}
+    dispatch::combat_phase(context,phase,facts)
+}
+
 /// The accepted tests' bridge entry points, kept as thin calls into the one dispatcher.
 #[cfg(test)]
 pub(crate) fn relic_hook_effects(context: &mut CombatItemContext, hook: Hook, hp: i32,max_hp:i32,block:i32) -> RelicHookWork {
@@ -428,7 +434,8 @@ pub(crate) fn defect_pre_battle_effects(context:&mut CombatItemContext)->Result<
 #[cfg(test)]
 pub(crate) fn defect_turn_start_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
     let mut facts=dispatch::PhaseFacts::new(Some(Hook::TurnStartedPreDraw),0,0,0);facts.target=Some(&crate::combat::Actor::Player);
-    Ok(relic_phase_effects(context,&facts)?.top)
+    let work=relic_phase_effects(context,&facts)?;
+    Ok(work.top.into_iter().chain(work.bottom).collect())
 }
 #[cfg(test)]
 pub(crate) fn defect_end_turn_work(context:&CombatItemContext,has_empty_orb:bool)->Vec<Effect>{
@@ -867,20 +874,29 @@ mod m15_potion_generation_tests;
 /// dispatch, the one atTurnStart pass before player powers and orbs, and Frozen Core's
 /// end-of-turn Frost. Counter commit occurs even when the later Slots request caps at 10.
 pub(crate) fn defect_phase(id:RelicId,context:&mut CombatItemContext,phase:dispatch::ItemPhase,facts:&dispatch::PhaseFacts<'_>,work:&mut RelicHookWork)->Result<bool,InputError>{
-    if !matches!(id,RelicId::SymbioticVirus|RelicId::NuclearBattery|RelicId::RunicCapacitor|RelicId::Inserter|RelicId::FrozenCore){return Ok(false)}
-    if !(context.m20_profile()||context.complete_items()){return Ok(true)}
+    if !matches!(id,RelicId::SymbioticVirus|RelicId::NuclearBattery|RelicId::RunicCapacitor|RelicId::Inserter|RelicId::EmotionChip|RelicId::FrozenCore){return Ok(false)}
     let player=facts.target==Some(&crate::combat::Actor::Player);
+    // Emotion Chip (atTurnStart, bottom) is armed by HP loss in every profile that owns it.
+    if id==RelicId::EmotionChip{
+        if facts.hook==Some(Hook::TurnStartedPreDraw)&&player&&context.emotion_chip_armed{
+            context.emotion_chip_armed=false;
+            work.bottom.push(crate::combat::Effect{source:crate::combat::Source::Actor(crate::combat::Actor::Player),target:Some(crate::combat::Actor::Player),
+                kind:crate::combat::EffectKind::Character(crate::combat::CharacterEffect::PassiveGroup(crate::combat::OrbPassiveGroup::All))});
+        }
+        return Ok(true)
+    }
+    if !(context.m20_profile()||context.complete_items()){return Ok(true)}
     match (id,phase,facts.hook) {
         (RelicId::RunicCapacitor,dispatch::ItemPhase::CombatStartPreDraw,None)=>context.runic_capacitor_armed=true,
         (RelicId::SymbioticVirus,dispatch::ItemPhase::CombatStartPreDraw,None)=>work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Dark))),
         (RelicId::NuclearBattery,dispatch::ItemPhase::CombatStartPreDraw,None)=>work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Plasma))),
         (RelicId::RunicCapacitor,_,Some(Hook::TurnStartedPreDraw)) if player&&context.runic_capacitor_armed=>{
-            context.runic_capacitor_armed=false;work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(3)));
+            context.runic_capacitor_armed=false;work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(3)));
         }
         (RelicId::Inserter,_,Some(Hook::TurnStartedPreDraw)) if player=>{
             let old=context.counter(RelicId::Inserter);let next=if old<0{1}else{old+1};
             context.set_counter(RelicId::Inserter,if next==2{0}else{next});
-            if next==2{work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(1)));}
+            if next==2{work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(1)));}
         }
         (RelicId::FrozenCore,_,Some(Hook::PlayerPreEndTurnCards)) if player&&facts.has_empty_orb=>
             work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Frost))),

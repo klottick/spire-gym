@@ -58,9 +58,12 @@ pub(in crate::combat) fn initialize(card:&mut LiveCard) {
 
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum WatcherEffect { OpenStanceChoice, PotionEnergy{slot:usize,amount:i32}, CreateRequest{id:crate::content::CardId,count:u32}, Create{template:LiveCard,count:u32,next:u32}, CreateShuffled{template:LiveCard,count:u32,next:u32}, WishOption{option:crate::content::CardId}, Meditate{count:usize}, RequestEndTurn, Scry{amount:i32}, ScryFromRelic{relic:crate::content::RelicId,amount:i32}, CommitSelection{selection:super::super::PendingSelection,next:usize}, RetainRestore { cards:Vec<CardHandle>,next:usize }, ReduceCost{card:CardHandle,delta:i32}, EstablishmentDiscount{amount:i32}, GainMantra { amount:i32 }, StanceEnergy { reason:StanceEnergy }, ReturnDiscard { card:CardHandle },
-    PressurePoints, GrantExtraTurn, ExhaustDrawnDeus{card:CardHandle}, DevaRecharge{amount:i32},
-    OpenOmniscience, OpenForeignInfluence, JudgmentKill{threshold:i32}, OmnisciencePlay{child:CardHandle,target:Option<crate::combat::EnemyHandle>,repeat_target:Option<crate::combat::EnemyHandle>,energy_on_use:i32,cancelled:bool},
-    OmniscienceRepeat{child:CardHandle,target:Option<crate::combat::EnemyHandle>,energy_on_use:i32,cancelled:bool} }
+    PressurePoints, GrantExtraTurn, ExhaustDrawnDeus{card:CardHandle},
+    OpenOmniscience, OpenForeignInfluence, JudgmentKill{threshold:i32},
+    /// Omniscience's queue items are random-target: each picks its live target when it is
+    /// dequeued (GameActionManager randomTarget; source-check-dead-target-v1).
+    OmnisciencePlay{child:CardHandle,energy_on_use:i32,cancelled:bool},
+    OmniscienceRepeat{child:CardHandle,energy_on_use:i32,cancelled:bool} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum StanceEnergy { CalmExit, DivinityEntry, VioletLotus }
 pub(in crate::combat) fn active(state:&State)->bool {
@@ -165,31 +168,19 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             let owned=state.piles.hand.remove(index);
             super::super::piles::exhaust_owned_card(state,owned)?;
         },
-        WatcherEffect::DevaRecharge{amount}=>{
-            let growth=state.player_full_powers.iter().find(|power|power.id.0=="deva_form")
-                .map(|power|power.state.amount).filter(|growth|*growth>0)
-                .ok_or_else(||InputError::Invariant("Deva Form recharge lost its growth step".into()))?;
-            if state.watcher.deva_energy_gain!=*amount||*amount<=0{
-                return Err(InputError::Invariant("Deva Form recharge lost its current stack".into()).into())
-            }
-            let next_gain=amount.checked_add(growth)
-                .ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?;
-            super::super::effects::gain_energy(state,*amount,true)?;
-            state.watcher.deva_energy_gain=next_gain;
-        },
         WatcherEffect::OpenOmniscience=>open_omniscience(state,effect)?,
         WatcherEffect::OpenForeignInfluence=>m25_foreign::open(state,effect)?,
         WatcherEffect::JudgmentKill{threshold}=>if state.enemies.iter().any(|enemy|matches!(&effect.target,Some(Actor::Enemy(owner)) if &enemy.instance_id==owner&&enemy.hp<=*threshold)){
             super::super::effects::instant_kill(state,effect)?
         },
-        WatcherEffect::OmnisciencePlay{child,target,repeat_target,energy_on_use,cancelled}=>{
+        WatcherEffect::OmnisciencePlay{child,energy_on_use,cancelled}=>{
             let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Omniscience autoplay lost card parent".into()).into())};
             if *cancelled{
                 let card=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience original absent".into()))?;
                 super::super::piles::finish_owned_card(state,card,super::super::model::FinishDisposition::Exhaust,true)?;
                 super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
-                let actor=target.clone().map(Actor::Enemy);
+                let actor=omniscience_random_target(state,child)?;
                 let playable=super::ironclad::autoplay::queued_child_is_playable(state,child,actor.clone(),*energy_on_use,false)?;
                 let repeat=if playable{
                     let instance=super::super::piles::next_generated_instance(state)?;
@@ -205,22 +196,35 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
                     super::super::model::PlayFrameParentOwner::Card(parent.clone()))?;
                 if let Some(copy)=repeat{
                     super::ironclad::autoplay::queue_after_finish(state,&Source::Card(child.clone()),Effect{source:Source::Card(child.clone()),target:Some(Actor::Player),
-                        kind:EffectKind::Watcher(WatcherEffect::OmniscienceRepeat{child:copy,target:repeat_target.clone(),energy_on_use:-1,cancelled:false})})?;
+                        kind:EffectKind::Watcher(WatcherEffect::OmniscienceRepeat{child:copy,energy_on_use:-1,cancelled:false})})?;
                 }
             }
         },
-        WatcherEffect::OmniscienceRepeat{child,target,energy_on_use,cancelled}=>{
+        WatcherEffect::OmniscienceRepeat{child,energy_on_use,cancelled}=>{
             let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Omniscience repeat lost selected-card parent".into()).into())};
             if *cancelled{
                 let copy=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience repeat copy absent".into()))?;
                 super::super::piles::finish_owned_card(state,copy,super::super::model::FinishDisposition::Purge,true)?;
                 super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
-                super::ironclad::autoplay::start_queued_child(state,child,target.clone().map(Actor::Enemy),true,false,*energy_on_use,
+                let target=omniscience_random_target(state,child)?;
+                super::ironclad::autoplay::start_queued_child(state,child,target,true,false,*energy_on_use,
                     super::super::model::PlayFrameParentOwner::Card(parent.clone()))?;
             }
         },
     }Ok(())
+}
+/// A random-target queue item's dequeue-time target: a card that needs an enemy target
+/// picks a fresh live one from the card-random stream (the shared Havoc selector); the
+/// original Omniscience card and its repeat each pick their own (source-check-dead-target-v1).
+fn omniscience_random_target(state:&mut State,child:&CardHandle)->Result<Option<Actor>,EffectError>{
+    let live=state.queued_autoplay.get(child).and_then(OwnedCard::full)
+        .ok_or_else(||InputError::Invariant("queued Omniscience card absent".into()))?;
+    let targeted=crate::content::Catalog::standard().card(live.id).is_some_and(|definition|
+        !matches!(definition.card_type,crate::content::CardType::Status|crate::content::CardType::Curse))
+        &&matches!(super::payload_with_wrist_blade(state,live,None),Err(crate::run::RunError::InvalidAction));
+    if !targeted{return Ok(None)}
+    Ok(super::ironclad::autoplay::capture_random_enemy_target(state)?.map(Actor::Enemy))
 }
 pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffect)->Result<(),InputError> {
     if !cards_active(state)||(!matches!(work,WatcherEffect::JudgmentKill{..})&&effect.target!=Some(Actor::Player)){
@@ -282,11 +286,6 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
         WatcherEffect::ExhaustDrawnDeus{card}=>if !matches!(&effect.source,Source::Card(owner) if owner==card)
             ||!state.piles.hand.iter().any(|owned|owned.handle()==*card&&owned.full().is_some_and(|live|live.id==crate::content::CardId::DeusExMachina))
             ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards()){return Err(invalid())},
-        WatcherEffect::DevaRecharge{amount}=>if *amount<=0||effect.source!=Source::Actor(Actor::Player)
-            ||state.turn<=1||state.phase!=Phase::PlayerStart
-            ||!state.item_context.as_ref().is_some_and(|items|items.m25_cards())
-            ||state.watcher.deva_energy_gain!=*amount
-            ||!state.player_full_powers.iter().any(|power|power.id.0=="deva_form"&&power.state.amount>0){return Err(invalid())},
         WatcherEffect::OpenForeignInfluence=>if !matches!((&effect.source,&state.in_play),
             (Source::Card(owner),Some(card)) if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::ForeignInfluence)
                 &&state.item_context.as_ref().is_some_and(|items|items.m25_cards())
@@ -303,17 +302,15 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
                 return Err(invalid())
             }
         },
-        WatcherEffect::OmnisciencePlay{child,target,repeat_target,energy_on_use,..}=>{
+        WatcherEffect::OmnisciencePlay{child,energy_on_use,..}=>{
             let Source::Card(parent)=&effect.source else{return Err(invalid())};
             let queued=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some();
             let frame=state.play_frames.last().is_some_and(|frame|frame.child==*child&&frame.parent_finish_checkpoint_done
                 &&matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent)
                 &&frame.parent.as_ref().is_some_and(|owner|owner.handle()==*parent&&owner.full().is_some_and(|live|live.id==crate::content::CardId::Omniscience)));
-            if !queued||!frame||*energy_on_use!= -1
-                ||target.as_ref().is_some_and(|target|!state.enemies.iter().any(|enemy|&enemy.instance_id==target))
-                ||repeat_target.as_ref().is_some_and(|target|!state.enemies.iter().any(|enemy|&enemy.instance_id==target)){return Err(invalid())}
+            if !queued||!frame||*energy_on_use!= -1{return Err(invalid())}
         },
-        WatcherEffect::OmniscienceRepeat{child,target,energy_on_use,..}=>{
+        WatcherEffect::OmniscienceRepeat{child,energy_on_use,..}=>{
             let Source::Card(parent)=&effect.source else{return Err(invalid())};
             let queued=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some_and(|live|live.local.purge&&live.local.free_play);
             let frame=state.play_frames.last().is_some_and(|frame|frame.child==*child&&frame.parent_finish_checkpoint_done
@@ -323,7 +320,7 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
                 // source is in play or suspended as a play-frame parent, as for Burst's repeat.
                 ||state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
                 ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent));
-            if !queued||!frame||*energy_on_use!= -1||target.as_ref().is_some_and(|target|!state.enemies.iter().any(|enemy|&enemy.instance_id==target)){return Err(invalid())}
+            if !queued||!frame||*energy_on_use!= -1{return Err(invalid())}
         },
         WatcherEffect::Scry{amount}|WatcherEffect::ScryFromRelic{amount,..}|WatcherEffect::GainMantra{amount}=>if *amount<0{return Err(invalid())},
         WatcherEffect::Meditate{count}=>if !(1..=2).contains(count){return Err(invalid())},
@@ -638,9 +635,8 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
         m25_powers::after_card_use(state,&source);
     }
     // M26 §6.3 split: Divinity exit is S (any character in Divinity), the power callbacks are L
-    // (`cards_active`, each still requiring its power), the recharge is C (Watcher only).
-    // The Watcher's own order is unchanged.
-    let watcher=active(state);
+    // (`cards_active`, each still requiring its power). The recharge, Deva Form's gain included,
+    // is the shared turn-start recharge (`turns::recharge`).
     let laws=cards_active(state);
     if !(laws||state.character.stance==Stance::Divinity)||target!=Some(&Actor::Player){return Ok(())}
     let source=Source::Actor(Actor::Player);
@@ -650,22 +646,11 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
         if state.turn>1&&state.player_full_powers.iter().any(|power|power.id.0=="blasphemer"&&power.state.amount>0){
             work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Damage(super::super::DamagePayload::HpLoss(99_999))});
         }
-        if state.turn>1 {
-            if state.player_full_powers.iter().any(|power|power.id.0=="deva_form"&&power.state.amount>0)
-                &&state.watcher.deva_energy_gain>0{
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::DevaRecharge{amount:state.watcher.deva_energy_gain})});
-            }
-        }
         for power in state.player_full_powers.clone(){match power.id.0{
             "simmering_fury" if power.state.amount>0=>{
                 work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(CharacterEffect::Stance(Stance::Wrath))});
                 work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Draw(power.state.amount)});
                 work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
-            },
-            "collect" if power.state.amount>0=>{
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::CreateCard{
-                    id:crate::content::CardId::Miracle,destination:CardDestination::Hand,upgrades:1}});
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::ReduceFullPower{id:power.id,amount:1}});
             },
             _=>(),
         }}
@@ -683,29 +668,14 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
             },
             _=>(),
         }}
-        // Source recharge is synchronous after pre-draw callback construction.
-        // Energized is granted on recharge (and removed); Energy Down then loses energy, floored at 0.
-        if watcher&&state.turn>1{
-            let energy_down=state.player_full_powers.iter().find(|power|power.id.0=="energy_down")
-                .map_or(0,|power|power.state.amount.max(0));
-            let unspent=state.player.energy;
-            let ordinary=state.player.max_energy;
-            let mut energy=state.item_context.as_ref().map_or(ordinary,|items|
-                crate::items::laws::recharge(items,crate::content::Character::Watcher,unspent,ordinary));
-            for id in ["energized","energized_blue"]{
-                if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0==id&&p.state.amount>0).cloned(){
-                    energy=energy.saturating_add(power.state.amount).min(999);
-                    work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
-                }
-            }
-            state.player.energy=(energy-energy_down).max(0);
-        }
+    }
+    // DevotionPower.atStartOfTurnPostDraw (no turn-1 call: `effects::player_turn_start`).
+    if hook==Hook::TurnStarted&&laws{
         for power in state.player_full_powers.clone(){if power.id.0=="devotion"{
             let kind=if !state.player_full_powers.iter().any(|p|p.id.0=="mantra")&&power.state.amount>=10{
                 EffectKind::Character(CharacterEffect::Stance(Stance::Divinity))
             }else{construct_mantra(state,power.state.amount)?};
-            let at=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Hook(Hook::TurnStarted)|EffectKind::Decision)).unwrap_or(state.pending.len());
-            state.pending.insert(at,Effect{source:source.clone(),target:Some(Actor::Player),kind});
+            work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind});
         }}
     }
     if !laws{return Ok(())}

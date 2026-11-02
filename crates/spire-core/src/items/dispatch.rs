@@ -32,7 +32,7 @@ use super::lifecycle::EquipWork;
 /// laws (`items::laws`), not phases.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ItemPhase {
-    CombatStartPreDraw, CombatStart, AfterOpeningDraw, TurnStartPreDraw, TurnStart, AfterDraw,
+    CombatStartPreDraw, CombatStart, AfterOpeningDraw, TurnStartPreDraw, AfterDraw,
     CardDrawn, CardUsed, CardPlayed, AfterUse, AttackResolved, ManualDiscard, Exhaust,
     DrawPileShuffled, BlockBroken, HpLost, PowerApplied, EnemyDied, EnemySpawned, HandEmptied,
     PotionUsed, EndTurnBeforeHandCards, EndTurnBeforeCleanup, EndTurn, CombatEnd,
@@ -80,7 +80,6 @@ pub(crate) fn hook_phase(hook: Hook) -> Option<ItemPhase> {
         Hook::CombatStartedPreDraw => ItemPhase::CombatStartPreDraw,
         Hook::CombatStarted => ItemPhase::CombatStart,
         Hook::TurnStartedPreDraw => ItemPhase::TurnStartPreDraw,
-        Hook::TurnStarted => ItemPhase::TurnStart,
         Hook::CardDrawn => ItemPhase::CardDrawn,
         Hook::CardPlayed => ItemPhase::CardPlayed,
         Hook::CardAfterUse => ItemPhase::CardUsed,
@@ -93,6 +92,25 @@ pub(crate) fn hook_phase(hook: Hook) -> Option<ItemPhase> {
         Hook::CombatSettled => ItemPhase::CombatEnd,
         _ => return None,
     })
+}
+
+/// The relic slots of a player turn-start checkpoint, in source order
+/// (source-check-turnstart-hooks-v1). Each relic's arm reads only its source hook's slot:
+///
+/// | Source hook | Phase | Raised at |
+/// |---|---|---|
+/// | atTurnStart | `TurnStartPreDraw` | `Hook::TurnStartedPreDraw`, every turn, before the card, power and orb callbacks |
+/// | atTurnStartPostDraw | `AfterOpeningDraw` | turn 1: also `Hook::TurnStartedPreDraw`; the battle-start block calls it right after the start relics |
+/// | atTurnStartPostDraw | `AfterDraw` | later turns: `Hook::TurnStarted`, once the turn draw has resolved |
+///
+/// No relic overrides onEnergyRecharge; the post-draw slots belong to the complete item layer.
+pub(crate) fn turn_start_phases(hook: Hook, first_turn: bool, complete: bool) -> &'static [ItemPhase] {
+    match (hook, first_turn, complete) {
+        (Hook::TurnStartedPreDraw, true, true) => &[ItemPhase::TurnStartPreDraw, ItemPhase::AfterOpeningDraw],
+        (Hook::TurnStartedPreDraw, _, _) => &[ItemPhase::TurnStartPreDraw],
+        (Hook::TurnStarted, false, true) => &[ItemPhase::AfterDraw],
+        _ => &[],
+    }
 }
 
 /// Relics that consume a phase whose engine hook is produced only on demand (M25's
@@ -110,7 +128,12 @@ pub(crate) fn phase_consumed(context: &CombatItemContext, phase: ItemPhase) -> b
 fn source_top(id: RelicId) -> bool {
     matches!(id, RelicId::BloodVial | RelicId::Lantern | RelicId::Orichalcum | RelicId::Brimstone | RelicId::RunicCube
         | RelicId::CharonsAshes | RelicId::AncientTeaSet | RelicId::BottledFlame | RelicId::BirdFacedUrn
-        | RelicId::CoffeeDripper | RelicId::CursedKey | RelicId::NlothsHungryFace)
+        | RelicId::CoffeeDripper | RelicId::CursedKey | RelicId::NlothsHungryFace
+        // atBattleStart addToTop (source-check-turnstart-hooks-v1).
+        | RelicId::Akabeko | RelicId::BronzeScales | RelicId::ClockworkSouvenir | RelicId::DataDisk | RelicId::DuVuDoll
+        | RelicId::Girya | RelicId::MutagenicStrength | RelicId::OddlySmoothStone | RelicId::Pantograph
+        | RelicId::SlingOfCourage | RelicId::ThreadAndNeedle | RelicId::Vajra | RelicId::NeowsLament
+        | RelicId::PreservedInsect | RelicId::PhilosophersStone | RelicId::TeardropLocket)
 }
 
 /// The one per-relic handler chain: accepted owners first, then the M27 lane files. A relic

@@ -41,7 +41,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
     work: &mut RelicHookWork) -> Result<bool, InputError> {
     if !owned_complete(id, context) { return Ok(false); }
     match (id, phase) {
-        (RelicId::AncientTeaSet, ItemPhase::TurnStart) if facts.target == Some(&Actor::Player)
+        (RelicId::AncientTeaSet, ItemPhase::TurnStartPreDraw) if facts.target == Some(&Actor::Player)
             && context.counter(id) == 1 => {
                 context.set_counter(id, 0);
                 work.top.push(player_effect(id, EffectKind::GainEnergy(2)));
@@ -49,7 +49,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         (RelicId::Girya, ItemPhase::CombatStart) => {
             let lifts = context.counter(id).clamp(0, 3);
             if lifts > 0 {
-                work.bottom.push(player_effect(id, EffectKind::ApplyFullPower {
+                work.top.push(player_effect(id, EffectKind::ApplyFullPower {
                     id: FullPowerId("strength"), amount: lifts,
                 }));
             }

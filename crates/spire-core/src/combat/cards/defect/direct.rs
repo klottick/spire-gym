@@ -82,7 +82,9 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
             work.push((Some(PayloadTarget::Player),EffectKind::ApplyFullPower{id:FullPowerId("energized_blue"),amount:1}));
         }
         Stack=>{
-            let base=card.local.base_block.ok_or(RunError::Unsupported("Stack Block was not refreshed on hand entry"))?;
+            // applyPowers() is Stack's only value source: an instance never refreshed (e.g.
+            // Omniscience from the draw pile) keeps its constructor base, 0.
+            let base=card.local.base_block.unwrap_or(0);
             work.push((Some(PayloadTarget::Player),EffectKind::GainBlock(super::super::modified_block(state,base)?)));
         }
         Turbo=>{
@@ -96,7 +98,8 @@ pub(super) fn payload(state:&State,card:&LiveCard,target:Option<u64>)
             }
         }
         Blizzard=>{
-            let base=card.local.base_damage.ok_or(RunError::Unsupported("Blizzard damage was not refreshed from Frost history"))?;
+            // use() recounts the Frost channeled this combat on every play path.
+            let base=(state.defect.frost_channeled as i32).wrapping_mul(if up{3}else{2});
             damage_all(state,base,&mut work)?;
         }
         BootSequence=>work.push((Some(PayloadTarget::Player),EffectKind::GainBlock(super::super::modified_block(state,if up{13}else{10})?))),

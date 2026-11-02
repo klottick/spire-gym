@@ -11,16 +11,18 @@ pub(super) fn phase(id:RelicId,context:&mut CombatItemContext,phase:super::dispa
     let hook=facts.hook;
     match id{
         RelicId::RedSkull=>{
+            // atBattleStart: clear the latch and queue the bloodied check at the bottom
+            // (source-check-turnstart-hooks-v1), after any top-queued battle-start heal.
             if hook==Some(Hook::CombatStarted){
-                let active=facts.hp>0&&i64::from(facts.hp)*2<=i64::from(facts.max_hp);
-                context.set_counter(RED_ACTIVE,i32::from(active));
-                if active{work.direct_strength=3;}
+                context.set_counter(RED_ACTIVE,0);
+                work.bottom.push(Effect{source:Source::None,target:Some(Actor::Player),
+                    kind:EffectKind::Relic(crate::combat::RelicEffect::RedSkullCheck)});
             }else if hook==Some(Hook::CombatSettled){context.set_counter(RED_ACTIVE,0);}
         }
         RelicId::SelfFormingClay=>{
             if hook==Some(Hook::TurnStartedPreDraw){
                 let pending=context.counter(CLAY_PENDING);
-                if pending>0{context.set_counter(CLAY_PENDING,0);work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(pending)});}
+                if pending>0{context.set_counter(CLAY_PENDING,0);work.bottom.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(pending)});}
             }
             if hook==Some(Hook::CombatSettled){context.set_counter(CLAY_PENDING,0);}
         }

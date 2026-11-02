@@ -224,6 +224,9 @@ fn m15_duplication_repeats_x_card_with_captured_energy_and_no_child_payment() {
 fn m15_distilled_chaos_holds_potion_parent_through_child_selection_and_resumes_queue() {
     let cards = [CardId::DefendGreen, CardId::StrikeGreen, CardId::DefendGreen, CardId::SecretTechnique];
     let mut combat = fight(&cards, 0, PotionId::DistilledChaos, vec![], 2, &[], &[]);
+    let extra=crate::combat::permanent_live_card(CardId::DefendGreen,crate::combat::CardInstanceId(5),0);
+    combat.state.card_ids_issued.insert(crate::combat::card_state::handle(extra.instance));
+    combat.state.piles.draw.push(crate::combat::model::OwnedCard::Full(extra));
     place_on_top(&mut combat,4);
     use_potion(&mut combat);
     assert_eq!(combat.state.phase, crate::combat::Phase::Selection);
@@ -233,8 +236,8 @@ fn m15_distilled_chaos_holds_potion_parent_through_child_selection_and_resumes_q
     assert!(matches!(frame.parent_owner, crate::combat::model::PlayFrameParentOwner::Potion { slot: 0, id: PotionId::DistilledChaos }));
     assert!(frame.parent.is_none() && frame.parent_context.is_none());
     assert_eq!(combat.state.pending.iter().filter(|effect| matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard { target: Some(_), .. }))).count(), 2,
-        "remaining use-time target proposals are already captured while the first child is suspended");
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild { target: Some(_), .. }))).count(), 2,
+        "the later queued children, with their captured targets, wait behind the suspended first child");
     combat.validate_runtime_for_test().unwrap();
     combat.step_full(&CombatAction::SelectCard { instance: 1 }).unwrap();
     assert_eq!(combat.state.phase, crate::combat::Phase::Decision);
@@ -243,30 +246,39 @@ fn m15_distilled_chaos_holds_potion_parent_through_child_selection_and_resumes_q
     assert_eq!(combat.state.player.energy, 3, "autoplay child cards do not pay hand energy");
     assert!(combat.state.piles.hand.iter().any(|owned| owned.full().is_some_and(|card| card.instance.0 == 1)));
     assert_eq!(combat.state.pending.iter().filter(|effect| matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard { .. }))).count(), 0);
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard { .. }
+            | crate::combat::PotionEffect::DistilledChaosQueuedChild { .. }))).count(), 0);
 }
 
 #[test]
 fn m15_distilled_chaos_bark_captures_all_six_targets_before_first_child_resolves() {
     let cards=[CardId::DefendGreen,CardId::StrikeGreen,CardId::DefendGreen,CardId::SecretTechnique];
     let mut combat=fight(&cards,0,PotionId::DistilledChaos,vec![RelicId::SacredBark],2,&[],&[]);
+    for instance in 5..=8{
+        let extra=crate::combat::permanent_live_card(CardId::DefendGreen,crate::combat::CardInstanceId(instance),0);
+        combat.state.card_ids_issued.insert(crate::combat::card_state::handle(extra.instance));
+        combat.state.piles.draw.push(crate::combat::model::OwnedCard::Full(extra));
+    }
     place_on_top(&mut combat,4);
     use_potion(&mut combat);
     assert_eq!(combat.state.phase,crate::combat::Phase::Selection);
     assert_eq!(combat.state.pending.iter().filter(|effect|matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{target:Some(_),..}))).count(),5,
-        "all five remaining proposals are captured before the first child's selection suspends");
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{target:Some(_),..}))).count(),5,
+        "all five later queued children remain behind the suspended first child");
     combat.step_full(&CombatAction::SelectCard{instance:1}).unwrap();
     assert_eq!(combat.state.phase,crate::combat::Phase::Decision);
     assert!(combat.state.play_frames.is_empty());
     assert!(!combat.state.pending.iter().any(|effect|matches!(effect.kind,
-        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosTopCard{..}))));
+        EffectKind::Potion(crate::combat::PotionEffect::DistilledChaosQueuedChild{..}))));
 }
 
 #[test]
 fn m15_distilled_chaos_first_child_fault_retains_typed_potion_frame_and_source() {
     let cards = [CardId::DefendGreen, CardId::StrikeGreen, CardId::DefendGreen, CardId::SecretTechnique];
     let mut combat = fight(&cards, 0, PotionId::DistilledChaos, vec![], 1, &[], &[]);
+    let extra=crate::combat::permanent_live_card(CardId::DefendGreen,crate::combat::CardInstanceId(5),0);
+    combat.state.card_ids_issued.insert(crate::combat::card_state::handle(extra.instance));
+    combat.state.piles.draw.push(crate::combat::model::OwnedCard::Full(extra));
     place_on_top(&mut combat,4);
     use_potion(&mut combat);
     assert_eq!(combat.state.phase,crate::combat::Phase::Selection);

@@ -115,11 +115,8 @@ pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&
             let owner=state.played_powers.iter().filter_map(OwnedCard::full)
                 .find(|card|card.id==crate::content::CardId::Mayhem).map(|card|crate::combat::card_state::handle(card.instance))
                 .ok_or_else(||InputError::Invariant("Mayhem power card owner absent".into()))?;
-            // Every stack's top-card entry is created now, before any is used.
-            let energy_on_use=state.player.energy;
             for _ in 0..amount{
-                work.push(Effect{source:Source::Card(owner.clone()),target:None,
-                    kind:EffectKind::Colorless(ColorlessEffect::MayhemPlayTopCard{energy_on_use})});
+                work.push(Effect{source:Source::Card(owner.clone()),target:None,kind:EffectKind::Colorless(ColorlessEffect::MayhemQueueTopCard)});
             }
         }
     }
@@ -144,15 +141,23 @@ fn validate_owned_mayhem(state:&State,source:&Source)->Result<crate::combat::Car
 
 pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->Result<(),InputError>{
     match work{
-        ColorlessEffect::MayhemPlayTopCard{energy_on_use}=>{
-            if effect.target.is_some()||!(0..=999).contains(energy_on_use){return Err(InputError::Invariant("Mayhem top-card target shape".into()))}
+        ColorlessEffect::MayhemQueueTopCard=>{
+            if effect.target.is_some(){return Err(InputError::Invariant("Mayhem top-card target shape".into()))}
             validate_owned_mayhem(state,&effect.source).map(|_|())
         }
-        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use}=>{
+        // The captured target may die before the deferred card is used; the child's
+        // preparation then decides, as for Distilled Chaos.
+        ColorlessEffect::MayhemPlayTopCard{target}=>{
+            if effect.target.is_some()||!state.enemies.iter().any(|enemy|enemy.instance_id==*target){
+                return Err(InputError::Invariant("Mayhem top-card target shape".into()))
+            }
+            validate_owned_mayhem(state,&effect.source).map(|_|())
+        }
+        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use,..}=>{
             validate_owned_mayhem(state,&effect.source)?;
             let child_owned=state.queued_autoplay.get(child).and_then(OwnedCard::full);
             let target_valid=matches!(target.as_ref(),Some(Actor::Enemy(owner))
-                if state.enemies.iter().any(|enemy|enemy.instance_id==*owner&&enemy.life==ActorLife::Active&&enemy.hp>0));
+                if state.enemies.iter().any(|enemy|enemy.instance_id==*owner));
             if effect.target.is_some()||child_owned.is_none()||!target_valid||!(0..=999).contains(energy_on_use){
                 return Err(InputError::Invariant("Mayhem autoplay child/target custody".into()))
             }
@@ -191,23 +196,24 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&ColorlessEffect)->
 
 pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Result<(),EffectError>{
     match work{
-        ColorlessEffect::MayhemPlayTopCard{energy_on_use}=>{
+        ColorlessEffect::MayhemQueueTopCard=>{
             validate_owned_mayhem(state,&effect.source)?;
-            if state.piles.draw.is_empty(){return Ok(())}
             let Some(target)=super::super::ironclad::autoplay::capture_random_enemy_target(state)? else{return Ok(())};
-            let child=state.piles.draw.pop().unwrap();let child_handle=child.handle();
-            crate::combat::piles::refresh_hand_values(state);
-            if state.public.known_draw.first()==Some(&child_handle){state.public.known_draw.remove(0);}
-            else{state.public.known_draw.clear()}
-            state.public.known_draw_bottom.retain(|known|known!=&child_handle);
-            state.public.revealed_order.push(child_handle.clone());
-            state.queued_autoplay.insert(child_handle.clone(),child);
-            state.pending.push_front(Effect{source:effect.source.clone(),target:None,
-                kind:EffectKind::Colorless(ColorlessEffect::MayhemAutoplay{child:child_handle,target:Some(Actor::Enemy(target)),energy_on_use:*energy_on_use})});
+            crate::combat::enemies::act2::bottom(state,Effect{source:effect.source.clone(),target:None,
+                kind:EffectKind::Colorless(ColorlessEffect::MayhemPlayTopCard{target})});
             Ok(())
         }
-        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use}=>{
+        ColorlessEffect::MayhemPlayTopCard{target}=>{
+            validate_owned_mayhem(state,&effect.source)?;
+            let Some(child)=super::super::ironclad::autoplay::take_top_card(state,effect)? else{return Ok(())};
+            // The card queue item is created now; every stack's play-top runs before any card is used.
+            crate::combat::enemies::act2::queue_card(state,Effect{source:effect.source.clone(),target:None,
+                kind:EffectKind::Colorless(ColorlessEffect::MayhemAutoplay{child,target:Some(Actor::Enemy(target.clone())),energy_on_use:state.player.energy,cancelled:false})});
+            Ok(())
+        }
+        ColorlessEffect::MayhemAutoplay{child,target,energy_on_use,cancelled}=>{
             let parent=validate_owned_mayhem(state,&effect.source)?;
+            if *cancelled{return super::super::ironclad::autoplay::discard_cancelled_queued_card(state,child)}
             super::super::ironclad::autoplay::start_queued_child(state,child,target.clone(),false,false,*energy_on_use,crate::combat::model::PlayFrameParentOwner::Card(parent))
         }
         ColorlessEffect::BombInstall{damage}=>{

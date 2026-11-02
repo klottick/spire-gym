@@ -535,13 +535,14 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             super::piles::refresh_hand_values(state);
         }
         EffectKind::Relic(RelicEffect::RemovePlayerDebuffs)=>{
+            // The shared type-only cleanse (RemoveDebuffsAction) over every player power,
+            // including Focus, which the player keeps in the character state.
             let mut remove=std::collections::BTreeSet::new();
-            for power in &state.player_full_powers {
-                if super::powers::cleanse_debuff(power)==Some(true){remove.insert(power.id.0);}
-            }
-            for power in &state.player.powers {
-                let full=super::FullPowerEntry{id:super::FullPowerId(power.id.as_str()),state:power.state.clone()};
-                if super::powers::cleanse_debuff(&full)==Some(true){remove.insert(full.id.0);}
+            let focus=(state.character.focus!=0).then(||super::FullPowerEntry{id:super::FullPowerId("focus"),
+                state:super::PowerState{amount:state.character.focus,skip_first:false,monster_source_grace:false}});
+            let legacy=state.player.powers.iter().map(|power|super::FullPowerEntry{id:super::FullPowerId(power.id.as_str()),state:power.state.clone()});
+            for power in state.player_full_powers.iter().cloned().chain(legacy).chain(focus) {
+                if super::powers::cleanse_debuff(&power).ok_or_else(||InputError::Invariant(format!("Orange Pellets met a non-engine power id: {}",power.id.0)))?{remove.insert(power.id.0);}
             }
             for id in remove.into_iter().rev(){
                 state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),
@@ -557,6 +558,14 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 crate::content::RelicId::GamblingChip),super::selection::SelectionSourceZone::Hand,
                 candidates.clone(),0,candidates.len(),super::selection::SelectionDisposition::Discard,
                 super::selection::EmptySelection::Continue)?;}
+        }
+        EffectKind::Relic(RelicEffect::RedSkullCheck)=>{
+            // Strength is added directly when the check activates, as the battle-start path did.
+            let bloodied=state.player.hp>0&&i64::from(state.player.hp)*2<=i64::from(state.player.max_hp);
+            if let Some(items)=state.item_context.as_mut().filter(|items|bloodied&&items.counter(crate::content::RelicId::RedSkull)<=0){
+                items.set_counter(crate::content::RelicId::RedSkull,1);
+                super::powers::add_direct_strength(state,3)?;
+            }
         }
         EffectKind::Relic(RelicEffect::RetainHand)=>{
             // M27 seam: Runic Pyramid shares Equilibrium's non-Ethereal retain set.
@@ -1065,6 +1074,9 @@ fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError
         // Darkling downing calls the same source death callbacks without
         // becoming final actor death or combat settlement.
         let callback=if *hook==Hook::HalfDeath{Hook::Death}else{*hook};
+        if matches!(callback,Hook::TurnStartedPreDraw|Hook::TurnStarted)&&effect.target==Some(Actor::Player){
+            return player_turn_start(state,effect,callback);
+        }
         if *hook==Hook::CombatSettled{state.hp_before_healing=Some(state.player.hp);}
         super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
         let hp = state.player.hp;
@@ -1103,5 +1115,54 @@ fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError
         state.hook_events.push(HookEvent { hook: *hook,
             source: effect.source.clone(), target: effect.target.clone() });
     }
+    Ok(())
+}
+
+/// A player turn-start checkpoint in the source order (source-check-turnstart-hooks-v1). The
+/// relic callbacks of each slot (`dispatch::turn_start_phases`) run first, then the card, power
+/// and orb callbacks (`hooks::dispatch`, which also recharges energy).
+/// - Later turns: all work goes to the front, relic work first. At TurnStartedPreDraw it precedes
+///   the queued turn draw; at TurnStarted (after the draw) the post-draw relic and power work
+///   precedes anything queued at the bottom since, such as Mayhem's play-top or a drawn Void's loss.
+/// - Turn 1, the battle-start block: the battle-start work is already queued, so bottom work joins
+///   after it: start relics, post-draw relics, then cards, powers and orbs. The block calls no
+///   post-draw power callbacks.
+fn player_turn_start(state:&mut State,effect:&Effect,hook:Hook)->Result<(),EffectError>{
+    let first=state.turn<=1;
+    let complete=state.item_context.as_ref().is_some_and(|items|items.complete_items());
+    let enemies=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
+    let live_enemies=state.enemies.iter().filter(|enemy|enemy.targetable())
+        .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
+    let (hp,max_hp,block)=(state.player.hp,state.player.max_hp,state.player.block);
+    let has_empty_orb=state.character.orb_slots.iter().any(Option::is_none);
+    let (hand_size,draw_size,discard_size)=(state.piles.hand.len(),state.piles.draw.len(),state.piles.discard.len());
+    let no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
+    let mut relic=Vec::new();
+    for phase in crate::items::dispatch::turn_start_phases(hook,first,complete) {
+        let Some(items)=state.item_context.as_mut() else{break};
+        // Only the atTurnStart slot carries the hook, so hook-keyed start arms fire once.
+        let start=*phase==crate::items::dispatch::ItemPhase::TurnStartPreDraw;
+        let mut facts=crate::items::dispatch::PhaseFacts::new(start.then_some(hook),hp,max_hp,block);
+        facts.target=effect.target.as_ref();facts.source=Some(&effect.source);
+        facts.enemies=&enemies;facts.live_enemies=&live_enemies;facts.has_empty_orb=has_empty_orb;
+        facts.hand_size=hand_size;facts.draw_size=draw_size;facts.discard_size=discard_size;facts.no_draw=no_draw;
+        let mut work=crate::items::turn_start_relic_work(items,*phase,&facts)?;
+        super::cards::watcher::capture(state,&mut work.top)?;
+        super::cards::watcher::capture(state,&mut work.bottom)?;
+        if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
+        relic.push(work);
+    }
+    if first {
+        for work in relic{queue_relic_work(state,work)?;}
+        if hook==Hook::TurnStartedPreDraw{super::hooks::dispatch(state,hook,&effect.source,effect.target.as_ref())?;}
+    } else {
+        super::hooks::dispatch(state,hook,&effect.source,effect.target.as_ref())?;
+        for work in relic.into_iter().rev(){
+            for queued in work.top.iter().chain(&work.bottom){super::engine::validate_effect(queued,state)?;}
+            for queued in work.bottom.into_iter().rev(){state.pending.push_front(queued);}
+            for queued in work.top.into_iter().rev(){state.pending.push_front(queued);}
+        }
+    }
+    state.hook_events.push(HookEvent{hook,source:effect.source.clone(),target:effect.target.clone()});
     Ok(())
 }

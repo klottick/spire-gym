@@ -70,7 +70,8 @@ fn m6_champ_cleanse_removes_poison_signed_debuffs_and_explicit_shackled() {
 fn m6_champ_unknown_power_category_faults_before_any_cleanse_removal() {
     let mut c=champ();power(&mut c,"weak",2);power(&mut c,"unknown_category_fixture",1);hit(&mut c,0,211);roll(&mut c);
     let actor=Actor::Enemy(c.state.enemies[0].instance_id.clone());assert!(c.enqueue_native_effects(vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::EnemyMove}],None).is_err());
-    assert_eq!(c.state.fault.as_ref().unwrap().kind,FaultKind::Unsupported);assert_eq!((amount(&c,0,"weak"),amount(&c,0,"unknown_category_fixture"),amount(&c,0,"strength")),(2,1,0));assert_eq!(c.state.current.as_ref().unwrap().kind,EffectKind::ChampCleanse);
+    // spire-oto.11: the classifier is total over engine power ids, so a non-engine id is an invariant fault.
+    assert_eq!(c.state.fault.as_ref().unwrap().kind,FaultKind::Invariant);assert_eq!((amount(&c,0,"weak"),amount(&c,0,"unknown_category_fixture"),amount(&c,0,"strength")),(2,1,0));assert_eq!(c.state.current.as_ref().unwrap().kind,EffectKind::ChampCleanse);
     assert!(matches!(c.state.enemies[0].full_memory,Some(EnemyMemory::Champ{angered:true,..})));let before=c.snapshot();assert!(c.step_full(&CombatAction::EndTurn).is_err());assert_eq!(c.snapshot(),before);
 }
 
@@ -197,4 +198,16 @@ fn m6_automaton_six_step_cycle_and_independent_orbs() {
         c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!((c.state.player.hp,amount(&c,0,"strength"),c.state.enemies[0].block,c.state.enemies[0].intent_id.as_str()),(hp,strength,block,next));
     }
     assert_eq!(c.state.enemies.len(),3,"the opening summon is not repeated after Stun");assert_eq!(c.state.enemies[0].full_ai_rng,ai,"deterministic cycle/derived child streams do not spend ignored AI entropy");
+}
+
+/// spire-oto.11 (F12): Lock-On on Champ is a debuff, so Anger removes it. The
+/// recorded fuzz fault was `Unsupported("Champ cleanse power category unavailable: lock_on")`.
+#[test]
+fn fuzzfix_b_champ_anger_cleanses_lock_on() {
+    // Lock-On reaches Champ from Bullseye; seed it directly so only the cleanse is under test.
+    let mut c=champ();power(&mut c,"strength",2);
+    c.state.enemies[0].full_powers.push(FullPowerEntry{id:FullPowerId("lock_on"),state:PowerState{amount:2,skip_first:false,monster_source_grace:false}});
+    hit(&mut c,0,211);roll(&mut c);assert_eq!(c.state.enemies[0].intent_id.as_str(),"champ_anger");act(&mut c);
+    assert!(c.state.fault.is_none(),"{:?}",c.state.fault);
+    assert_eq!((amount(&c,0,"lock_on"),amount(&c,0,"strength")),(0,8));
 }

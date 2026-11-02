@@ -85,7 +85,8 @@ fn m20_defect_items_opening_first_turn_relics_use_distinct_real_phases(){
     let relics=vec![RelicId::CrackedCore,RelicId::SymbioticVirus,RelicId::NuclearBattery,RelicId::RunicCapacitor];
     let mut owner=Some(blue_items(relics,vec![None;3]));
     let mut c=crate::combat::Combat::enter_with_item_context(super::full_entry(Character::Defect,1,10),&mut owner).unwrap();
-    assert_eq!(c.public_full().unwrap().character.orbs,vec![Some(crate::combat::OrbKind::Dark),Some(crate::combat::OrbKind::Plasma),Some(crate::combat::OrbKind::Lightning),None,None,None]);
+    // Cracked Core is atPreBattle like the other two (source-check-turnstart-hooks-v1): relic order.
+    assert_eq!(c.public_full().unwrap().character.orbs,vec![Some(crate::combat::OrbKind::Lightning),Some(crate::combat::OrbKind::Dark),Some(crate::combat::OrbKind::Plasma),None,None,None]);
     assert!(owner.is_none());
     c.step_full(&CombatAction::EndTurn).unwrap();
     assert_eq!(c.public_full().unwrap().character.orbs.len(),6,"Runic Capacitor is one first-turn callback, not each turn");
@@ -113,7 +114,7 @@ fn m20_defect_items_callback_primitive_keeps_prebattle_turn_and_end_work_separat
     let mut items=blue_items(vec![RelicId::CrackedCore,RelicId::SymbioticVirus,RelicId::NuclearBattery,RelicId::RunicCapacitor,RelicId::Inserter],vec![None;3]);
     // Primitive callback facts; this intentionally does not claim joined engine execution.
     let pre=defect_pre_battle_effects(&mut items).unwrap();
-    assert_eq!(pre.iter().map(|e|e.kind.clone()).collect::<Vec<_>>(),vec![EffectKind::Character(C::Channel(O::Dark)),EffectKind::Character(C::Channel(O::Plasma))]);
+    assert_eq!(pre.iter().map(|e|e.kind.clone()).collect::<Vec<_>>(),vec![EffectKind::Character(C::Channel(O::Lightning)),EffectKind::Character(C::Channel(O::Dark)),EffectKind::Character(C::Channel(O::Plasma))]);
     assert!(pre.iter().all(|e|e.source==crate::combat::Source::None&&e.target==Some(Actor::Player)));
     let first=defect_turn_start_effects(&mut items).unwrap();assert_eq!(first.iter().map(|e|e.kind.clone()).collect::<Vec<_>>(),vec![EffectKind::Character(C::Slots(3))]);assert_eq!(items.counter(RelicId::Inserter),1);
     let second=defect_turn_start_effects(&mut items).unwrap();assert_eq!(second.iter().map(|e|e.kind.clone()).collect::<Vec<_>>(),vec![EffectKind::Character(C::Slots(1))]);assert_eq!(items.counter(RelicId::Inserter),0);

@@ -147,6 +147,10 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
                     if power.id.0=="berserk"&&power.state.amount>0 {
                         work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainEnergy(power.state.amount)});
                     }
+                    // EnergyDownPower.atStartOfTurn queues the loss (G7: the power persists).
+                    if power.id.0=="energy_down"&&power.state.amount>0 {
+                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::LoseEnergy(power.state.amount)});
+                    }
                 }
             }
             Hook::TurnStarted=>{
@@ -205,6 +209,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     super::cards::watcher::hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
     super::cards::colorless_power_hook(state,hook,target,&mut work)?;
+    // Later turns recharge at the turn draw's construction; turn 1's initial energy action adds
+    // the starting energy (set at entry) and dispatches the same onEnergyRecharge callbacks.
+    if target==Some(&Actor::Player)&&hook==Hook::TurnStartedPreDraw {
+        if state.turn>1 {super::turns::recharge(state,&mut work)?;} else {super::turns::on_energy_recharge(state,&mut work)?;}
+    }
     let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());
     // M26 §6.3 L: Plated Armor (Wish) for any holder under the complete capability. Ritual and
     // Regeneration stay as they are: no card grants them to the player (potions, M27), and the
@@ -265,6 +274,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             let decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
             state.pending.insert(decision,effect);
         }
+    } else if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player)&&state.turn<=1 {
+        // The battle-start block: card, power and orb work follows the battle-start and
+        // turn-start relic work already queued (`effects::player_turn_start`).
+        for effect in work { super::enemies::act2::bottom(state,effect); }
+        for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }
     } else {
         for effect in work.into_iter().rev() { state.pending.push_front(effect); }
         for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }

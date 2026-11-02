@@ -37,7 +37,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect)->Result<(),Input
     match effect.kind{
         EffectKind::AwakenedCollapse=>{
             let enemy=state.enemies.iter().find(|e|&e.instance_id==owner).unwrap();let mut removals=vec![];
-            for p in &enemy.full_powers{let remove=if matches!(p.id.0,"curiosity"|"unawakened"|"shackled"){true}else{super::super::super::powers::cleanse_debuff(p).ok_or_else(||InputError::Unsupported(format!("Awakened cleanse power category unavailable: {}",p.id.0)))?};if remove{removals.push(p.id);}}
+            for p in &enemy.full_powers{let remove=if matches!(p.id.0,"curiosity"|"unawakened"|"shackled"){true}else{super::super::super::powers::cleanse_debuff(p).ok_or_else(||InputError::Invariant(format!("Awakened cleanse met a non-engine power id: {}",p.id.0)))?};if remove{removals.push(p.id);}}
             let actor=Actor::Enemy(owner.clone());for id in removals.into_iter().rev(){state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(id)));}
         },
         EffectKind::AwakenedRebirth=>{

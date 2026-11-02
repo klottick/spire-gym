@@ -5,11 +5,30 @@ use super::model::{FinishDisposition,OwnedCard, State};
 /// Apply dynamic card values at the same shared checkpoint after pile actions
 /// refresh the hand. Card owners update only their own values here.
 pub(super) fn refresh_hand_values(state:&mut State){
-    let draw_count=state.piles.draw.len();
-    let discard_count=state.piles.discard.len();
-    let (frost,lightning)=(state.defect.frost_channeled,state.defect.lightning_channeled);
+    let inputs=ValueInputs::of(state);
     for owned in &mut state.piles.hand {
-        if let Some(card)=owned.full_mut(){super::cards::capture_colorless_draw_value(card,draw_count);super::cards::defect::refresh_values(card,frost,lightning,discard_count);}
+        if let Some(card)=owned.full_mut(){inputs.refresh(card);}
+    }
+}
+
+/// One card's own applyPowers() value refresh, outside the hand: PlayTopCardAction
+/// refreshes the card it takes off the top before queueing it, and Necronomicon
+/// refreshes its copy (source-check-outofhand-turnorder-v1). Other out-of-hand plays
+/// (Omniscience, Double Tap/Burst/Echo Form/Duplication copies) keep the instance's
+/// last refreshed or copied value.
+pub(super) fn refresh_queued_values(state:&mut State,handle:&CardHandle){
+    let inputs=ValueInputs::of(state);
+    if let Some(card)=state.queued_autoplay.get_mut(handle).and_then(OwnedCard::full_mut){inputs.refresh(card);}
+}
+
+#[derive(Clone,Copy)]
+struct ValueInputs{draw:usize,discard:usize,frost:u32,lightning:u32}
+impl ValueInputs{
+    fn of(state:&State)->Self{Self{draw:state.piles.draw.len(),discard:state.piles.discard.len(),
+        frost:state.defect.frost_channeled,lightning:state.defect.lightning_channeled}}
+    fn refresh(self,card:&mut super::LiveCard){
+        super::cards::capture_colorless_draw_value(card,self.draw);
+        super::cards::defect::refresh_values(card,self.frost,self.lightning,self.discard);
     }
 }
 
@@ -378,9 +397,7 @@ pub(super) fn after_draw(state:&mut State,owner:&CardHandle)->Result<(),EffectEr
     }
     // Void's actual-draw callback queues before installed onCardDraw powers.
     if card.id==crate::content::CardId::Void{
-        let effect=Effect{source:Source::Card(owner.clone()),target:Some(Actor::Player),kind:EffectKind::LoseEnergy(1)};
-        let before_decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
-        state.pending.insert(before_decision,effect);
+        super::enemies::act2::bottom(state,Effect{source:Source::Card(owner.clone()),target:Some(Actor::Player),kind:EffectKind::LoseEnergy(1)});
     }
     // Confusion mutates the real drawn object synchronously during its power
     // callback; the reactive powers below only enqueue their later actions.

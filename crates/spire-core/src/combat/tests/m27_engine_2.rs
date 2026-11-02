@@ -236,3 +236,21 @@ fn m27_engine_2_frozen_empty_context_keeps_generic_paths_inert() {
         assert!(combat.preflight_native_effects(&[effect]).is_err(), "{source:?} stays unreachable in the frozen context");
     }
 }
+
+/// spire-oto.11 (F12): Orange Pellets is the type-only cleanse over every player
+/// power. Constricted and negative Focus are DEBUFFs (source-check-power-types-v1);
+/// before, Constricted was unclassified and silently kept, and Focus was not scanned.
+#[test]
+fn fuzzfix_b_orange_pellets_removes_constricted_and_negative_focus_and_keeps_buffs() {
+    let mut run = complete_run(vec![RelicId::OrangePellets], EncounterId::Cultist);
+    {
+        let state = &mut full_combat(&mut run).state;
+        state.player_full_powers.extend([full_power("constricted", 3), full_power("vigor", 2), full_power("strength", 1)]);
+        state.character.focus = -2;
+    }
+    relic_effect(&mut run, RelicId::OrangePellets, RelicEffect::RemovePlayerDebuffs);
+    let state = &full_combat(&mut run).state;
+    assert!(!state.player_full_powers.iter().any(|power| power.id.0 == "constricted"));
+    assert_eq!(state.character.focus, 0, "negative Focus is a DEBUFF");
+    for buff in ["vigor", "strength"] { assert!(state.player_full_powers.iter().any(|power| power.id.0 == buff), "{buff} is kept"); }
+}

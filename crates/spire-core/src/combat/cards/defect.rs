@@ -328,12 +328,12 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Opti
     let position=i64::try_from(state.silent.played_this_turn.len()).map_err(|_|InputError::Unsupported("Echo turn position exhausted".into()))?;
     if echo>0&&position-i64::from(state.defect.echo_doubled_this_turn)<=i64::from(echo){
         let next=state.defect.echo_doubled_this_turn.checked_add(1).ok_or_else(||InputError::Unsupported("Echo counter exhausted".into()))?;
-        super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy)?;
+        super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy,false)?;
         state.defect.echo_doubled_this_turn=next;
     }
     if is_power {
         if let Some(index)=state.player_full_powers.iter().position(|p|p.id.0=="amplify"&&p.state.amount>0){
-            super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy)?;
+            super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy,false)?;
             state.player_full_powers[index].state.amount-=1;
             if state.player_full_powers[index].state.amount==0{state.player_full_powers.remove(index);}
         }
@@ -343,19 +343,15 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Opti
 
 pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->Result<(),EffectError>{
     // M26 §6.3 split (seam map §2): Echo reset and Bias loss are L (any holder of the power), Loop
-    // and start passives are S (an orb slot exists), Emotion Chip, Cables and the recharge stay
-    // Defect's (relics / class C). The Defect's own order is unchanged.
+    // and start passives are S (an orb slot exists), Emotion Chip and Cables stay
+    // Defect's (relics / class C). The recharge is the shared turn-start recharge (`turns::recharge`).
     let defect=state.silent.source_character==Some(crate::content::Character::Defect);
     let orbs=defect||!state.character.orb_slots.is_empty();
     if !defect&&!orbs&&!state.player_full_powers.iter().any(|p|matches!(p.id.0,"echo_form"|"bias")){return Ok(())}
     use crate::combat::characters::{self,OrbPassivePhase};
     if defect||state.player_full_powers.iter().any(|p|p.id.0=="echo_form"){state.defect.echo_doubled_this_turn=0;}
     let source=Source::Actor(Actor::Player);
-    // Relic callback invocation queues Impulse before the powers' queued work.
-    if let Some(items)=state.item_context.as_mut().filter(|items|defect&&items.emotion_chip_armed){
-        items.emotion_chip_armed=false;
-        work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::Character(C::PassiveGroup(OrbPassiveGroup::All))});
-    }
+    // Emotion Chip is an atTurnStart relic: its work is queued by the relic phase, ahead of this.
     for power in state.player_full_powers.clone(){
         match power.id.0 {
             "loop" if orbs=>for _ in 0..power.state.amount.max(0){
@@ -368,23 +364,6 @@ pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->R
     for index in 0..if orbs{state.character.orb_slots.len()}else{0}{if let Some(effect)=characters::passive_work(state,&source,index,OrbPassivePhase::Start)?{work.push(effect);}}
     if defect&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::GoldPlatedCables)) {
         if let Some(effect)=characters::passive_work(state,&source,0,OrbPassivePhase::Start)?{work.push(effect);}
-    }
-    // Later-turn DrawCardAction construction recharges synchronously after hook
-    // invocation, before any of the queued energy actions above execute.
-    if defect&&state.turn>1 {
-        let unspent=state.player.energy;
-        let ordinary=state.player.max_energy;
-        state.player.energy=state.item_context.as_ref().map_or(ordinary,|items|
-            crate::items::laws::recharge(items,crate::content::Character::Defect,unspent,ordinary));
-        for id in ["energized","energized_blue"] {
-            if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0==id&&p.state.amount>0).cloned(){
-                state.player.energy=state.player.energy.saturating_add(power.state.amount).min(999);
-                work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
-            }
-        }
-        // G7 next-turn energy law: Energy Down (Fasting) then loses energy, floored at 0; it persists.
-        let energy_down=state.player_full_powers.iter().find(|p|p.id.0=="energy_down").map_or(0,|p|p.state.amount.max(0));
-        state.player.energy=(state.player.energy-energy_down).max(0);
     }
     Ok(())
 }

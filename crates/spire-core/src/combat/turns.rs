@@ -47,26 +47,10 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
             crate::items::laws::block_decay(items,block_before,ordinary_kept))
     }else{ordinary_kept};
     state.player.block=kept;
-    let defect=state.silent.source_character==Some(crate::content::Character::Defect);
-    let deferred=defect||super::cards::watcher::active(state);
-    if !deferred {
-        let unspent=state.player.energy;
-        let ordinary=state.player.max_energy;
-        let character=state.silent.source_character.unwrap_or(crate::content::Character::Ironclad);
-        state.player.energy=state.item_context.as_ref().map_or(ordinary,|items|
-            crate::items::laws::recharge(items,character,unspent,ordinary));
-    }
-    // G7 next-turn energy law (design §6.3, disclosed): energized, then energized_blue (each applied
-    // once and removed), then Energy Down (persists), floored at 0 — the Watcher owner's order.
-    for id in ["energized","energized_blue"]{
-        if let Some(power)=state.player_full_powers.iter().find(|p|!deferred&&p.id.0==id&&p.state.amount>0).cloned(){
-            state.player.energy=state.player.energy.checked_add(power.state.amount).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("native recharge energy exhausted".into()))?;
-            state.pending.push_back(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(power.id)});
-        }
-    }
-    if !deferred{
-        let energy_down=state.player_full_powers.iter().find(|p|p.id.0=="energy_down").map_or(0,|p|p.state.amount.max(0));
-        state.player.energy=(state.player.energy-energy_down).max(0);
+    // Native combat recharges inside the start-of-turn hook (`recharge`); the frozen
+    // legacy runtime has no start-of-turn callbacks and recharges here.
+    if !state.full_runtime {
+        let mut removals=Vec::new();recharge(state,&mut removals)?;state.pending.extend(removals);
     }
     for enemy in &mut state.enemies { enemy.intent_id = enemy.selected_move.clone(); }
     super::effects::refresh_enemy_values(state)?;
@@ -79,6 +63,44 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
             kind: EffectKind::Hook(Hook::TurnStarted) });
     }
     state.pending.push_back(work(EffectKind::Decision));
+    Ok(())
+}
+
+/// The turn draw's construction recharges energy synchronously, after every start-of-turn
+/// relic, card, power and orb callback has queued its work and before any of it runs, for
+/// every character (source-check-outofhand-turnorder-v1): the recharge law (Ice Cream and
+/// other conservers), then the onEnergyRecharge callbacks. Energy Down's loss is queued work.
+pub(super) fn recharge(state:&mut State,work:&mut Vec<Effect>)->Result<(),InputError>{
+    let character=state.silent.source_character.unwrap_or(crate::content::Character::Ironclad);
+    let (unspent,ordinary)=(state.player.energy,state.player.max_energy);
+    state.player.energy=state.item_context.as_ref().map_or(ordinary,|items|
+        crate::items::laws::recharge(items,character,unspent,ordinary));
+    on_energy_recharge(state,work)
+}
+
+/// The power onEnergyRecharge callbacks, in power order (source-check-turnstart-hooks-v1; no
+/// relic overrides it): Collect queues an upgraded Miracle; Energized and Energized Blue add
+/// their energy now (capped) and queue their removal; Deva Form adds its growing gain now.
+pub(super) fn on_energy_recharge(state:&mut State,work:&mut Vec<Effect>)->Result<(),InputError>{
+    let player=|kind|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind};
+    for power in state.player_full_powers.clone().into_iter().filter(|power|power.state.amount>0){
+        match power.id.0 {
+            "collect"=>{
+                work.push(player(EffectKind::CreateCard{id:crate::content::CardId::Miracle,destination:CardDestination::Hand,upgrades:1}));
+                work.push(player(EffectKind::ReduceFullPower{id:power.id,amount:1}));
+            }
+            "energized"|"energized_blue"=>{
+                super::effects::gain_energy(state,power.state.amount,true)?;
+                work.push(player(EffectKind::RemoveFullPower(power.id)));
+            }
+            "deva_form" if state.watcher.deva_energy_gain>0=>{
+                let gain=state.watcher.deva_energy_gain;
+                super::effects::gain_energy(state,gain,true)?;
+                state.watcher.deva_energy_gain=gain.checked_add(power.state.amount).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?;
+            }
+            _=>(),
+        }
+    }
     Ok(())
 }
 

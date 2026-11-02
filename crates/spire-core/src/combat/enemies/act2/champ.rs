@@ -37,11 +37,11 @@ pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
 
 pub(in crate::combat) fn cleanse(state:&mut State,owner:&EnemyHandle)->Result<(),InputError>{
     let enemy=state.enemies.iter().find(|e|&e.instance_id==owner).ok_or_else(||InputError::Invariant("Champ cleanse owner absent".into()))?;
-    // Classify the complete finite input before committing any removal. Unknown
-    // positive IDs are not evidence of BUFF type, and must remain explicit faults.
+    // Classify the complete input before committing any removal: the shared type-only
+    // cleanse removes every DEBUFF; the explicit Shackled removal follows in the intent.
     let mut removals=vec![];
     for power in &enemy.full_powers {
-        let harmful=super::super::super::powers::cleanse_debuff(power).ok_or_else(||InputError::Unsupported(format!("Champ cleanse power category unavailable: {}",power.id.0)))?;if harmful{removals.push(power.id)}
+        let harmful=super::super::super::powers::cleanse_debuff(power).ok_or_else(||InputError::Invariant(format!("Champ cleanse met a non-engine power id: {}",power.id.0)))?;if harmful{removals.push(power.id)}
     }
     let actor=Actor::Enemy(owner.clone());for id in removals.into_iter().rev(){state.pending.push_front(effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(id)));}Ok(())
 }

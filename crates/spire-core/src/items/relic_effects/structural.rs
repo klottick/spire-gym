@@ -25,7 +25,7 @@ pub(crate) const RELICS: &[RelicId] = &[
 pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPhase, facts: &PhaseFacts<'_>,
     work: &mut RelicHookWork) -> Result<bool, InputError> {
     if !RELICS.contains(&id) { return Ok(false); }
-    let player_turn_start = phase == ItemPhase::TurnStart && facts.target == Some(&Actor::Player);
+    let player_turn_start = phase == ItemPhase::TurnStartPreDraw && facts.target == Some(&Actor::Player);
     match id {
         // ChooseOneColorless before the opening draw (spec ruling TOOLBOX-POOL): three distinct
         // ordinary colourless ids, choose one into the hand; nothing auto-plays.
