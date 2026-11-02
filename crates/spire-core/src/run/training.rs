@@ -119,9 +119,14 @@ pub enum CompleteCombatStart{Supplied(AuthoredRunStart)}
 impl CompleteCombatStart{
     /// Validate supplied resources against the complete permanent union (upgrade limits of
     /// design §8.1, obtain `misc`) and the character's Heart inventory context plus the overlay.
-    pub fn normalized(self,character:Character)->Result<Self,RunError>{
+    pub fn normalized(self,character:Character)->Result<Self,RunError>{self.normalized_for(character,ItemAdmission::Profile)}
+    /// M27 design §5.3: the same normalization with the item admission as a parameter. Under
+    /// `Complete` the supplied relics, potions and counters go through the one complete
+    /// validator, and the supplied relic order is kept: it is the acquisition order (§6.1).
+    pub(crate) fn normalized_for(self,character:Character,items:ItemAdmission)->Result<Self,RunError>{
         let Self::Supplied(mut resources)=self;
-        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=128).contains(&resources.deck.len())||resources.potions.len()!=3{return Err(RunError::InvalidAction)}
+        let complete_items=items==ItemAdmission::Complete;
+        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=128).contains(&resources.deck.len())||!complete_items&&resources.potions.len()!=3{return Err(RunError::InvalidAction)}
         let mut ids=std::collections::BTreeSet::new();
         if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||!crate::content::complete::supports_permanent(c.id)
             ||!complete_upgrades_valid(c.id,c.upgrades)||c.misc!=complete_obtain_misc(c.id)){
@@ -129,8 +134,12 @@ impl CompleteCombatStart{
         }
         if ids.last().is_none_or(|id|*id==u64::MAX){return Err(RunError::Unsupported("permanent identity exhausted"))}
         let context=crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone());
-        crate::items::validate_combat_inventory(&complete_heart_context(context,character),character)?;
-        resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));resources.relics.sort_by_key(|r|r.as_str());Ok(Self::Supplied(resources))
+        let context=complete_heart_context(context,character);
+        let context=if complete_items{context.with_complete_items()}else{context};
+        crate::items::validate_combat_inventory(&context,character)?;
+        resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));
+        if !complete_items{resources.relics.sort_by_key(|r|r.as_str());}
+        Ok(Self::Supplied(resources))
     }
 }
 /// Upgrade limits under complete admission (design §8.1): Searing Blow any count the
@@ -155,11 +164,19 @@ impl Run{
     /// A supplied complete-card start for one A0 training encounter: the Run's admission is
     /// `Complete`, so its combat context carries `with_complete_cards()` (tests/diagnostics only).
     pub(crate) fn prepare_complete_combat(start:CompleteCombatStart,character:Character,encounter:EncounterId,rng:RunRng)->Result<Self,RunError>{
+        Self::prepare_complete_admission_combat(start,character,RunAdmission::new(CardAdmission::Complete,ItemAdmission::Profile)?,encounter,rng)
+    }
+    /// M27: the same start under an explicit admission pair (complete cards are required; an
+    /// invalid pair is rejected by `RunAdmission::new` before any Run state exists).
+    pub(crate) fn prepare_complete_admission_combat(start:CompleteCombatStart,character:Character,admission:RunAdmission,encounter:EncounterId,rng:RunRng)->Result<Self,RunError>{
+        if admission.cards!=CardAdmission::Complete{return Err(RunError::InvalidAction)}
         let (act,_)=m21_watcher_combat_encounter_metadata(encounter).ok_or(RunError::InvalidAction)?;
-        let CompleteCombatStart::Supplied(resources)=start.normalized(character)?;
+        let CompleteCombatStart::Supplied(resources)=start.normalized_for(character,admission.items)?;
         let next=resources.deck.iter().map(|c|c.instance).max().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
         let mut run=Self::from_validated_combat_resources(RunConfig{character,ascension:0},resources,rng,next);
-        run.state.card_admission=CardAdmission::Complete;run.state.training_encounter=Some(encounter);run.state.act=act;run.state.room="M26SuppliedCombat";Ok(run)
+        run.state.card_admission=CardAdmission::Complete;run.state.item_admission=admission.items;run.state.training_encounter=Some(encounter);run.state.act=act;run.state.room="M26SuppliedCombat";
+        if admission.items==ItemAdmission::Complete{run.state.relic_pools=Some(crate::items::relic_pools::build(&run.state,&[])?);}
+        Ok(run)
     }
 }
 pub fn m21_watcher_combat_encounter_metadata(encounter:EncounterId)->Option<(u8,crate::combat::enemies::EncounterKind)>{

@@ -123,8 +123,13 @@ pub(in crate::combat) fn after_card_use(state: &mut State, source: &Source) {
     let attack = state.in_play.as_ref().filter(|card| card.handle() == *owner)
         .and_then(OwnedCard::full).is_some_and(|card| crate::content::Catalog::standard().card(card.id)
             .is_some_and(|row| row.card_type == crate::content::CardType::Attack));
-    if attack && state.player_full_powers.iter().any(|power| power.id.0 == "vigor") {
-        state.pending.insert(0, Effect { source: source.clone(), target: Some(Actor::Player),
-            kind: EffectKind::RemoveFullPower(FullPowerId("vigor")) });
+    if attack {
+        for (id, present) in [("pen_nib", state.player_full_powers.iter().any(|power|power.id.0=="pen_nib")),
+            ("vigor", state.player_full_powers.iter().any(|power|power.id.0=="vigor"))] {
+            if present {
+                state.pending.insert(0, Effect { source: source.clone(), target: Some(Actor::Player),
+                    kind: EffectKind::RemoveFullPower(FullPowerId(id)) });
+            }
+        }
     }
 }

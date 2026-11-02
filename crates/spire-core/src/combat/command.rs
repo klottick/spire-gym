@@ -12,6 +12,7 @@ pub enum CombatAction {
     SelectCard { instance: u64 },
     ConfirmSelection,
     UsePotion { slot: usize, target: Option<TargetId> },
+    DiscardPotion { slot: usize },
     EndTurn,
     ChooseCardOffer { index:u32 },
     SkipCardOffer,

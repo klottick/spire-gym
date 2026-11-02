@@ -344,6 +344,7 @@ pub(super) fn apply_replacement(state: &mut State, parent_handle: &EnemyHandle,
     parent.hp = 0;
     parent.life = ActorLife::Replaced;
     let prepared = candidate.replacement_progress.as_ref().unwrap().prepared.clone();
+    let spawned=prepared.iter().map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
     candidate.enemies.extend(prepared);
     let stored = candidate.enemies.len();
     let active = candidate.enemies.iter().filter(|enemy|
@@ -360,6 +361,22 @@ pub(super) fn apply_replacement(state: &mut State, parent_handle: &EnemyHandle,
     state.replacement_progress = None;
     // The live queue, not the detached candidate: hits already queued at the retired parent do nothing.
     super::effects::cancel_queued_hits_at(state, &Actor::Enemy(parent_handle.clone()));
+    for child in spawned{dispatch_spawned(state,&child)?;}
+    Ok(())
+}
+
+/// M27 phase owner for actors added after the initial formation is installed.
+pub(super) fn dispatch_spawned(state:&mut State,spawned:&EnemyHandle)->Result<(),super::EffectError>{
+    // M27 seam: enemy-spawned
+    let work=if let Some(items)=state.item_context.as_mut(){
+        let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
+        facts.spawned=Some(spawned);
+        Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::EnemySpawned,&facts)?)
+    }else{None};
+    if let Some(work)=work{
+        if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
+        super::effects::queue_relic_work(state,work)?;
+    }
     Ok(())
 }
 
@@ -916,6 +933,15 @@ pub struct SetupContext {
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum EncounterKind{Monster,Elite,Boss}
 impl EncounterKind{pub fn label(self)->&'static str{match self{Self::Monster=>"Monster",Self::Elite=>"Elite",Self::Boss=>"Boss"}}}
+/// Shared enemy fact used by potion rules that depend on an actor's boss type.
+pub(crate) fn is_boss_type(id:crate::content::EnemyId)->bool{
+    matches!(id,crate::content::EnemyId::SlimeBoss|crate::content::EnemyId::Guardian
+        |crate::content::EnemyId::Hexaghost|crate::content::EnemyId::BronzeAutomaton
+        |crate::content::EnemyId::Champ|crate::content::EnemyId::Collector
+        |crate::content::EnemyId::AwakenedOne|crate::content::EnemyId::Deca
+        |crate::content::EnemyId::Donu|crate::content::EnemyId::TimeEater
+        |crate::content::EnemyId::CorruptHeart)
+}
 pub const A0_ENCOUNTER_SETUPS:&[(crate::content::EncounterId,u8,EncounterKind)]=&[
     (crate::content::EncounterId::Cultist,1,EncounterKind::Monster), // RNG scope key 1
     (crate::content::EncounterId::JawWorm,1,EncounterKind::Monster), // RNG scope key 2

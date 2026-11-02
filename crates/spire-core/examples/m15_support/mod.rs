@@ -259,6 +259,7 @@ pub(crate) fn native_action_value(action: &spire_core::run::GameAction) -> serde
             CombatAction::SelectCard { instance } => json!({"verb":"combat.select_card","instance":instance}),
             CombatAction::ConfirmSelection => json!({"verb":"combat.confirm_selection"}),
             CombatAction::UsePotion { slot, target } => json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|target|target.0)}),
+            CombatAction::DiscardPotion { .. } => panic!("M27 discard is outside the frozen M15 caller"),
             CombatAction::EndTurn => json!({"verb":"combat.end_turn"}),
         },
     }

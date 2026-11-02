@@ -64,7 +64,8 @@ fn accepted_startup_fault_keeps_lament_counter_and_move_reward() {
     r.state.deck=(1..=999).map(|instance|CardInstance{ misc:0,instance,id:crate::content::CardId::Strike,upgrades:0}).collect();
     let error=r.step(&GameAction::Move(NodeId(2))).unwrap_err();assert!(matches!(error,RunError::Faulted(_)));
     assert_eq!(r.state.reward_ledger.total,1);assert!(r.state.relic_counters.is_empty());
-    let items=r.state.combat.as_ref().unwrap().item_context().unwrap();assert_eq!(items.counters().get(&RelicId::NeowsLament),Some(&2));
+    // G10 (M27): Pure Water faults during hook-free startup, before CombatStarted can decrement Neow's Lament (design §7.6; spec-rulings-main2-v1.md G10).
+    let items=r.state.combat.as_ref().unwrap().item_context().unwrap();assert_eq!(items.counters().get(&RelicId::NeowsLament),Some(&3));
     let before=r.clone();assert_eq!(r.step(&GameAction::Move(NodeId(2))),Err(error));assert!(r==before);
 }
 

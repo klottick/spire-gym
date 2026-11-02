@@ -640,7 +640,8 @@ fn starter_entry_fault_retains_committed_ring_draw_and_context_without_retry() {
     assert!(owner.is_none());
     let CombatEntryFailure::Faulted { combat, fault } = failure else { panic!("expected entry fault") };
     let mut combat = *combat;
-    assert_eq!(combat.state.piles.hand.len(), 7, "Ring draw committed before later item fault");
+    // G10 (M27): Legacy Pure Water faults at hook-free pre-draw startup, before CombatStarted can draw for Ring of the Snake (design §7.6; spec-rulings-main2-v1.md G10).
+    assert_eq!(combat.state.piles.hand.len(), 0, "Pure Water startup fault precedes the CombatStarted Ring draw");
     assert_eq!(combat.state.item_context.as_ref().unwrap().relics(),
         &[crate::content::RelicId::RingOfTheSnake, crate::content::RelicId::PureWater]);
     assert_eq!(combat.state.fault.as_ref().unwrap(), match &fault.kind {

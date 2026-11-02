@@ -13,7 +13,7 @@ fn prepare_gains(state:&RunState)->Result<Option<(Vec<CardInstance>,u64,u64)>,Ru
     let journal=state.combat.as_ref().ok_or(RunError::InvalidAction)?.permanent_gains();
     if journal.is_empty()&&active.applied_gain_ordinal==0&&active.acquired_instances.is_empty(){return Ok(None)}
     let applied=usize::try_from(active.applied_gain_ordinal).map_err(|_|RunError::InvalidAction)?;
-    if applied>journal.len()||active.acquired_instances.len()!=applied||!state.relics.is_empty()||!state.potions.is_empty()||!state.relic_counters.is_empty(){return Err(RunError::InvalidAction)}
+    if applied>journal.len()||active.acquired_instances.len()!=applied||!state.relics.is_empty()||!state.potions.is_empty()||!state.relic_counters.is_empty()||!state.potion_potencies.is_empty(){return Err(RunError::InvalidAction)}
     for (i,gain) in journal.iter().enumerate(){if gain.ordinal!=i as u64+1||gain.id!=CardId::Parasite||gain.upgrades!=0{return Err(RunError::InvalidAction)}}
     let mut existing=BTreeSet::new();if state.deck.iter().any(|c|c.instance==0||!existing.insert(c.instance)){return Err(RunError::InvalidAction)}
     let mut mapped=BTreeSet::new();for (gain,id) in journal[..applied].iter().zip(&active.acquired_instances){if !mapped.insert(*id)||!state.deck.iter().any(|c|c.instance==*id&&c.id==gain.id&&c.upgrades==gain.upgrades){return Err(RunError::InvalidAction)}}
@@ -74,7 +74,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     let active=state.active_combat.as_ref().ok_or(RunError::InvalidAction)?;
     let settled=state.combat_progress.settled.checked_add(1).ok_or(RunError::Unsupported("settlement count exhausted"))?;
     if settled!=state.combat_progress.entered || active.visit!=state.combat_progress.settled
-        || !state.relics.is_empty() || !state.potions.is_empty() || !state.relic_counters.is_empty() { return Err(RunError::InvalidAction); }
+        || !state.relics.is_empty() || !state.potions.is_empty() || !state.relic_counters.is_empty() || !state.potion_potencies.is_empty() { return Err(RunError::InvalidAction); }
     let exit=state.combat.as_ref().ok_or(RunError::InvalidAction)?.exit()?;
     if exit.max_hp<=0 || exit.max_hp>999 || exit.hp<0 || exit.hp>exit.max_hp
         || (exit.hp==0)!=(exit.outcome==Outcome::Death) || exit.item_context.is_none() {
@@ -261,6 +261,13 @@ impl Run {
         if let Some((act,visits))=local_visits{let room=self.state.room_loop.as_mut().unwrap();match act{1=>room.act1.as_mut().unwrap().combat_visits=visits,2=>room.act2.as_mut().unwrap().combat_visits=visits,3=>room.act3.as_mut().unwrap().combat_visits=visits,4=>room.act4.as_mut().unwrap().combat_visits=visits,_=>unreachable!()}}
         self.state.last_combat_checkpoint=Some(checkpoint);
         self.state.last_combat=Some(record.clone());
+        if self.state.item_admission==super::ItemAdmission::Complete {
+            let mut item_event=crate::items::dispatch::RunItemEvent::CombatSettled{outcome:record.outcome};
+            // M27 seam: combat settled
+            if crate::items::dispatch::run_event(&mut self.state,&mut item_event).is_err(){
+                return Err(self.retain_fault(RunFaultKind::Invariant("accepted combat-settled item event failed"),"run.combat.item-settled"));
+            }
+        }
         self.state.active_combat=None;
         self.state.combat=None;
         self.candidates.clear();
@@ -330,7 +337,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,potion_potencies:Default::default(),we_meet_again:false,
         },candidates:vec![],next_choice:0}
     }
 
@@ -352,6 +359,7 @@ impl Run {
         let context=if super::rooms::is_m25(&self.state){context.with_m25_profile()}else if super::rooms::is_m24(&self.state){context.with_m24_profile()}else if super::rooms::uses_watcher_content(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
         // Complete admission: the character's Heart context plus the overlay (design §5.2).
         let context=if self.state.card_admission==super::CardAdmission::Complete{super::complete_heart_context(context,self.state.character)}else{context};
+        let context=if self.state.item_admission==super::ItemAdmission::Complete{context.with_complete_items()}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
         let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {

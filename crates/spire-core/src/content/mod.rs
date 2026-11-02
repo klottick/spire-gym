@@ -63,9 +63,7 @@ impl Catalog {
     }
     pub fn relic(&self, id: RelicId) -> Option<&'static RelicDefinition> { self.relics.iter().find(|x| x.id == id) }
     pub fn relic_tier(&self, id: RelicId) -> Option<RelicTier> {
-        if id==RelicId::HolyWater{return Some(RelicTier::Boss)}
-        items::SILENT_RELIC_TIERS.iter().chain(items::DEFECT_RELIC_TIERS.iter()).chain(items::M25_WATCHER_RELIC_TIERS.iter())
-            .find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
+        items::RELIC_TIERS.iter().find(|(candidate, _)| *candidate == id).map(|(_, tier)| *tier)
     }
     /// Character eligibility for a registered relic. `None` means the ID has no definition;
     /// relics without an exclusive-character row are shared by all characters.
@@ -76,8 +74,7 @@ impl Catalog {
     }
     pub fn potion(&self, id: PotionId) -> Option<&'static PotionDefinition> { self.potions.iter().find(|x| x.id == id) }
     pub fn potion_rarity(&self, id: PotionId) -> Option<PotionRarity> {
-        items::SILENT_POTION_RARITIES.iter().chain(items::DEFECT_POTION_RARITIES.iter())
-            .find(|(candidate, _)| *candidate == id).map(|(_, rarity)| *rarity)
+        items::POTION_RARITIES.iter().find(|(candidate, _)| *candidate == id).map(|(_, rarity)| *rarity)
     }
     /// Character eligibility for a registered potion definition. `None` means
     /// the ID has no definition; shared potions are eligible for all characters.

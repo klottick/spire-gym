@@ -196,6 +196,31 @@ fn sample_from_pool<E>(
     }
 }
 
+/// Unrestricted rarity-first proposal for reward producers, merchants and
+/// outside-combat Entropic Brew (design §8.5).
+pub(crate) fn rarity_first(
+    character: Character,
+    mut draw: impl FnMut(u64) -> Result<usize, RunError>,
+) -> Result<PotionId, RunError> {
+    let pool = candidates(character, false).map_err(|_| RunError::InvalidAction)?;
+    sample_from_pool(pool, false, |bound| {
+        let index = draw(bound)?;
+        if index >= bound as usize { return Err(RunError::InvalidAction); }
+        Ok::<usize, RunError>(index)
+    })
+}
+
+/// Equal-ID proposal from the player's complete 33-potion class pool
+/// (design §8.5).
+pub(crate) fn flat(
+    character: Character,
+    mut draw: impl FnMut(u64) -> Result<usize, RunError>,
+) -> Result<PotionId, RunError> {
+    let pool = candidates(character, false).map_err(|_| RunError::InvalidAction)?;
+    let index = draw(pool.len() as u64)?;
+    pool.get(index).copied().ok_or(RunError::InvalidAction)
+}
+
 /// Sample from the actual combat card-random stream, returning its committed
 /// successor. The source-qualified pool is never filtered by handler support.
 pub(crate) fn sample(

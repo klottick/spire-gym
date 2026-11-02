@@ -133,9 +133,10 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
     let mut next=run.next_choice;let mut rng=run.state.rng.clone();
     let screen=if encounter.is_none(){Some(match node.kind{
         MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
-        MapNodeKind::Shop=>shop::screen_with_rng_at(run,&mut next,&mut rng,(4,node.floor,target))?,
+        MapNodeKind::Shop=>shop::screen_with_rng_at(&mut *run,&mut next,&mut rng,(4,node.floor,target))?,
         _=>return Err(RunError::InvalidAction),
     })}else{None};
+    let entered_kind=screen.as_ref().map(|screen|screen.kind).unwrap_or(RoomViewKind::Combat);
     let map=run.state.map.as_mut().ok_or(RunError::InvalidAction)?;
     map.current=Some(target);let entered=map.nodes.iter_mut().find(|n|n.id==target).ok_or(RunError::InvalidAction)?;
     entered.visited=true;entered.revealed=true;entered.encounter=encounter;
@@ -144,6 +145,14 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
     run.next_choice=next;run.state.rng=rng;
     if let Some(screen)=screen{run.state.room_loop.as_mut().unwrap().screen=screen;}
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
+    if run.state.item_admission==ItemAdmission::Complete {
+        // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
+        let mut floor_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor:run.state.floor};
+        crate::items::dispatch::run_event(&mut run.state,&mut floor_event)?;
+        let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
+        // M27 seam: RoomEntered
+        crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
+    }
     if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act4 room-entry hook failed"),fault_label(&run.state,Act4FaultSite::Room)))}
     if let Some(encounter)=encounter{
         match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:node.kind}){

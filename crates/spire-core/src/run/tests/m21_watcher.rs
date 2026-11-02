@@ -27,8 +27,11 @@ fn m21_watcher_startup_pure_water_predraw_preserves_legacy_overflow() {
     assert!(view.hand.iter().any(|card|card.id==CardId::Miracle));assert!(view.discard.is_empty());
     let mut legacy=Some(CombatItemContext::new(vec![RelicId::PureWater],vec![None;3]));
     let legacy=Combat::enter_with_item_context(make(),&mut legacy).unwrap().public_full().unwrap();
-    assert_eq!(legacy.draw_count,0);assert!(legacy.hand.iter().all(|card|card.id==CardId::DefendPurple));
-    assert_eq!(legacy.discard.iter().filter(|card|card.id==CardId::Miracle).count(),1);
+    // G10 (M27): This second fixture is Legacy, not M21; its Miracle is in hand before the opening draw (design §7.6; spec-rulings-main2-v1.md G10).
+    assert_eq!(legacy.draw_count,1);
+    assert_eq!(legacy.hand.iter().filter(|card|card.id==CardId::DefendPurple).count(),9);
+    assert_eq!(legacy.hand.iter().filter(|card|card.id==CardId::Miracle).count(),1);
+    assert!(legacy.discard.is_empty());
 }
 #[test]
 fn m21_watcher_items_teardrop_opens_calm_before_any_action(){

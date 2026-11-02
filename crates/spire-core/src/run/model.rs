@@ -63,7 +63,7 @@ pub struct PendingSelection { pub candidates:Vec<SelectionCandidate>, pub requir
 pub enum ContinuationTarget { ResumeDecision(Candidate), NeowConsequence { parent:Candidate, offer:NeowOffer },
     Room {node:super::NodeId,choice:ChoiceId,operation:RoomSelectionOperation} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove,AncientElegance,EmptyCage}
+pub enum RoomSelectionOperation {ShopPurge{price:u32},Smith,ShrineUpgrade,ShrineRemove,AncientElegance,EmptyCage,RelicEquip{relic:RelicId},CampfireToke}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingContinuation { pub parent:ContinuationTarget, pub selection:PendingSelection, pub resumed:bool }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -119,6 +119,18 @@ pub struct RunState {
     pub(crate) next_instance:u64, pub(crate) resume_count:u8,
     /// M26 card admission selector; `Profile` keeps every scenario's finite law.
     pub(crate) card_admission:CardAdmission,
+    /// M27 item admission selector; `Profile` keeps every scenario's finite item law.
+    pub(crate) item_admission:ItemAdmission,
+    /// M27 complete-admission relic offer history; absent under every frozen profile.
+    pub(crate) relic_pools:Option<crate::items::relic_pools::RelicPools>,
+    /// Bottled relic card links (design §7.5), moved into combat with the inventory.
+    pub(crate) relic_cards:BTreeMap<RelicId,u64>,
+    /// Complete-item potion appearance history; zero under every frozen profile.
+    pub(crate) potion_offset:i32,
+    /// Complete-item per-slot stored potency, paired with its potion identity.
+    pub(crate) potion_potencies:Vec<Option<(PotionId,i32)>>,
+    /// M27 Run-potion restriction supplied by We Meet Again (false in frozen profiles).
+    pub(crate) we_meet_again:bool,
 }
 
 /// The derived field text, with `card_admission` printed only when `Complete`
@@ -163,7 +175,13 @@ impl std::fmt::Debug for RunState {
         value.field("pending",&self.pending);
         value.field("next_instance",&self.next_instance);
         value.field("resume_count",&self.resume_count);
+        if let Some(pools)=&self.relic_pools{value.field("relic_pools",pools);}
         if self.card_admission!=CardAdmission::Profile{value.field("card_admission",&self.card_admission);}
+        if self.item_admission!=ItemAdmission::Profile{value.field("item_admission",&self.item_admission);}
+        if !self.relic_cards.is_empty(){value.field("relic_cards",&self.relic_cards);}
+        if self.potion_offset!=0{value.field("potion_offset",&self.potion_offset);}
+        if !self.potion_potencies.is_empty(){value.field("potion_potencies",&self.potion_potencies);}
+        if self.we_meet_again{value.field("we_meet_again",&self.we_meet_again);}
         value.finish()
     }
 }
@@ -175,6 +193,26 @@ pub enum CardAdmission{
     #[default] Profile,
     /// The complete permanent union (`content::complete::supports_permanent`).
     Complete,
+}
+
+/// Which relic and potion sets the Run's item owners and combat entry admit (M27 design
+/// §5.3). `Complete` requires `CardAdmission::Complete` (`RunAdmission::new`).
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq)]
+pub enum ItemAdmission{
+    /// Each scenario's finite item law.
+    #[default] Profile,
+    /// The character's complete relic and potion unions (`content::complete`).
+    Complete,
+}
+
+/// A valid pair of admissions, checked before any Run state is built.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) struct RunAdmission{pub(crate) cards:CardAdmission,pub(crate) items:ItemAdmission}
+impl RunAdmission{
+    pub(crate) fn new(cards:CardAdmission,items:ItemAdmission)->Result<Self,RunError>{
+        if items==ItemAdmission::Complete&&cards!=CardAdmission::Complete{return Err(RunError::Unsupported("complete items require complete card admission"))}
+        Ok(Self{cards,items})
+    }
 }
 
 /// Finite native authored combat, independent of normal Run progression.

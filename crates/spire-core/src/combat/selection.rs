@@ -12,6 +12,7 @@ pub enum SelectionSourceZone { Hand, Draw, Discard, Exhaust }
 pub enum SelectionParent {
     Card(super::CardHandle),
     Potion { slot:usize,id:crate::content::PotionId },
+    Relic(crate::content::RelicId),
     /// One optional card choice suspended under the live player EndTurn queue.
     EndTurn { turn:u32 },
     Power { turn:u32, id:super::FullPowerId },

@@ -9,6 +9,7 @@ pub fn combat_action_value(action:&CombatAction)->Value{match action{
     CombatAction::DeselectCard{instance}=>json!({"verb":"combat.deselect_card","instance":instance}),
     CombatAction::ChooseStance{stance}=>json!({"verb":"combat.choose_stance","stance":match stance{spire_core::combat::Stance::Neutral=>"neutral",spire_core::combat::Stance::Wrath=>"wrath",spire_core::combat::Stance::Calm=>"calm",spire_core::combat::Stance::Divinity=>"divinity"}}),
     CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),
+    CombatAction::DiscardPotion{..}=>Value::Null,
     CombatAction::EndTurn=>json!({"verb":"combat.end_turn"}),CombatAction::ConfirmSelection=>json!({"verb":"combat.confirm_selection"}),
     CombatAction::ChooseCardOffer{index}=>json!({"verb":"combat.choose_card_offer","index":index}),CombatAction::SkipCardOffer=>json!({"verb":"combat.skip_card_offer"}),
 }}

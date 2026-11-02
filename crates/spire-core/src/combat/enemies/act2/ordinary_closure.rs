@@ -238,7 +238,7 @@ fn source_is_nonnull_and_external(source: &Source, target: &Actor) -> bool {
     match source {
         Source::None => false,
         Source::Actor(actor) => actor != target,
-        Source::Card(_) | Source::Potion { .. } => true,
+        Source::Card(_) | Source::Potion { .. } | Source::Relic(_) => true,
     }
 }
 

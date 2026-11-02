@@ -137,6 +137,15 @@ pub(super) fn validate(state:&State,effect:&Effect,work:&GenerationWork)->Result
             state.player_full_powers.iter().any(|power|power.id.0==id&&power.state.amount>0)
                 .then(||request(work.pool,1,CardDestination::Hand,GenerationCost::Ordinary,false,None))
         },
+        Source::Relic(crate::content::RelicId::Enchiridion)=>
+            Some(request(GenerationPool::Power,1,CardDestination::Hand,GenerationCost::TurnZero,false,None)),
+        Source::Relic(crate::content::RelicId::DeadBranch)=>
+            Some(request(GenerationPool::Any,1,CardDestination::Hand,GenerationCost::Ordinary,false,None)),
+        // M27 seam: Toolbox and Nilry's Codex own distinct, source-qualified offers.
+        Source::Relic(crate::content::RelicId::Toolbox)=>
+            Some(request(GenerationPool::Colorless,3,CardDestination::Hand,GenerationCost::Ordinary,false,Some((false,1)))),
+        Source::Relic(crate::content::RelicId::NilrysCodex)=>
+            Some(request(GenerationPool::Any,3,CardDestination::ShuffledDraw,GenerationCost::Ordinary,false,Some((true,1)))),
         _=>None,
     }.ok_or_else(||InputError::Invariant("generator source/request owner mismatch".into()))?;
     let mut shape=work.clone();shape.captured=false;shape.cards.clear();shape.next=0;

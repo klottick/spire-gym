@@ -64,7 +64,7 @@ mod m12_silent_values;
 
 mod m13_silent_interactions;
 mod m14_silent_interactions;
-mod m15_silent_items;
+pub(crate) mod m15_silent_items;
 
 mod encounter_thieves;
 mod encounter_ordinary;
@@ -144,3 +144,71 @@ mod m26_cross_character;
 mod m26_generation;
 mod m26_copies;
 mod m26_corrections;
+mod m27_potions;
+mod m27_rescue_escape;
+mod m27_engine_2;
+mod m27_engine_3;
+
+/// Test-only accessors used by sibling item tests that cannot name combat's private `State`.
+pub(crate) mod m27_state {
+    use super::super::{Combat, Effect, EnemyHandle};
+    use crate::items::CombatItemContext;
+
+    pub(crate) fn set_player_hp(combat: &mut Combat, hp: i32) {
+        combat.state_mut_for_test().player.hp = hp;
+    }
+
+    pub(crate) fn set_player_block(combat: &mut Combat, block: i32) {
+        combat.state_mut_for_test().player.block = block;
+    }
+
+    pub(crate) fn set_enemy_block(combat: &mut Combat, slot: usize, block: i32) {
+        combat.state_mut_for_test().enemies[slot].block = block;
+    }
+
+    pub(crate) fn set_player_energy(combat: &mut Combat, energy: i32) {
+        let state = combat.state_mut_for_test();
+        state.player.energy = energy;
+        state.player.max_energy = energy;
+    }
+
+    pub(crate) fn set_enemy_hp(combat: &mut Combat, slot: usize, hp: i32) {
+        combat.state_mut_for_test().enemies[slot].hp = hp;
+    }
+
+    pub(crate) fn enemy_max_hp(combat: &mut Combat, slot: usize) -> i32 {
+        combat.state_mut_for_test().enemies[slot].max_hp
+    }
+
+    pub(crate) fn enemy_hp(combat: &mut Combat, slot: usize) -> i32 {
+        combat.state_mut_for_test().enemies[slot].hp
+    }
+
+    pub(crate) fn enemy_instance_id(combat: &mut Combat, slot: usize) -> EnemyHandle {
+        combat.state_mut_for_test().enemies[slot].instance_id.clone()
+    }
+
+    pub(crate) fn push_pending(combat: &mut Combat, effect: Effect) {
+        combat.state_mut_for_test().pending.push_back(effect);
+    }
+
+    pub(crate) fn pending_effects(combat: &mut Combat) -> Vec<Effect> {
+        combat.state_mut_for_test().pending.iter().cloned().collect()
+    }
+
+    pub(crate) fn set_item_context(combat: &mut Combat, context: Option<CombatItemContext>) {
+        combat.state_mut_for_test().item_context = context;
+    }
+
+    pub(crate) fn without_item_context(combat: &Combat) -> Combat {
+        let mut copy = combat.clone();
+        copy.state.item_context = None;
+        copy
+    }
+
+    pub(crate) fn debug_without_item_context(combat: &Combat) -> String {
+        let mut state = combat.state.clone();
+        state.item_context = None;
+        format!("{state:?}")
+    }
+}

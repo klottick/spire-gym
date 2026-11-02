@@ -39,7 +39,7 @@ pub(in crate::run) fn elite_relic_with_exhaustion(start:usize,owned:&[RelicId],m
     ELITE_RELICS.iter().enumerate().skip(start).find(|(_,id)|!owned.contains(id))
         .map(|(i,id)|(*id,i+1)).ok_or(RunError::Unsupported(message))
 }
-pub(super) fn shop_cards(later:bool)->[CardId;3]{
+pub(in crate::run) fn shop_cards(later:bool)->[CardId;3]{
     if later{[CardId::Deflect,CardId::Tactician,CardId::Nightmare]}else{[CardId::QuickSlash,CardId::Reflex,CardId::Catalyst]}
 }
 

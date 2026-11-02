@@ -227,7 +227,7 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
         return Err(InputError::Invariant("Watcher effect lacks its character/target owner".into()))
     }
     let invalid=||InputError::Invariant("Watcher payload lost its owned source/cursor/template".into());
-    let potion_capture=|slot:usize,id:crate::content::PotionId,amount:i32|state.item_context.as_ref().is_some_and(|items|items.m21_profile()&&
+    let potion_capture=|slot:usize,id:crate::content::PotionId,amount:i32|state.item_context.as_ref().is_some_and(|items|(items.m21_profile()||items.complete_items())&&
         (items.potions().get(slot)==Some(&Some(id))&&items.potion_potency(slot)==Some(amount)||items.consumed_potion_potency(slot,id)==Some(amount)));
     match work{
         WatcherEffect::OpenStanceChoice=>if !matches!(effect.source,Source::Potion{slot,id:crate::content::PotionId::StancePotion} if potion_capture(slot,crate::content::PotionId::StancePotion,0)){return Err(invalid())},
@@ -331,7 +331,7 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
     }
     if let WatcherEffect::PotionEnergy{slot,amount}=work{
         let valid=matches!(effect.source,Source::Potion{slot:source_slot,id:crate::content::PotionId::EnergyPotion} if source_slot==*slot)
-            &&state.item_context.as_ref().is_some_and(|items|items.m21_profile()&&
+            &&state.item_context.as_ref().is_some_and(|items|(items.m21_profile()||items.complete_items())&&
                 (items.potions().get(*slot)==Some(&Some(crate::content::PotionId::EnergyPotion))&&items.potion_potency(*slot)==Some(*amount)
                 ||items.consumed_potion_potency(*slot,crate::content::PotionId::EnergyPotion)==Some(*amount)));
         if !valid{return Err(InputError::Invariant("Watcher potion energy requires its actual captured slot/potency".into()))}
@@ -685,7 +685,10 @@ pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,w
         if watcher&&state.turn>1{
             let energy_down=state.player_full_powers.iter().find(|power|power.id.0=="energy_down")
                 .map_or(0,|power|power.state.amount.max(0));
-            let mut energy=state.player.max_energy;
+            let unspent=state.player.energy;
+            let ordinary=state.player.max_energy;
+            let mut energy=state.item_context.as_ref().map_or(ordinary,|items|
+                crate::items::laws::recharge(items,crate::content::Character::Watcher,unspent,ordinary));
             for id in ["energized","energized_blue"]{
                 if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0==id&&p.state.amount>0).cloned(){
                     energy=energy.saturating_add(power.state.amount).min(999);
@@ -813,6 +816,10 @@ pub(in crate::combat) fn power_id(id:FullPowerId)->bool{matches!(id.0,"devotion"
     |"vigor"|"wave_of_the_hand"|"free_attack"|"simmering_fury"|"energy_down"|"deva_form"|"collect"|"blasphemer"|"study"|"omega")}
 
 pub(in crate::combat) fn valid_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->bool{
+    if matches!(effect.source,Source::Relic(_)){
+        return id.0=="vigor"&&effect.target==Some(Actor::Player)&&(1..=999).contains(&amount)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items());
+    }
     if !cards_active(state)||effect.target!=Some(Actor::Player){return false}
     if !matches!(id.0,"vigor"|"wave_of_the_hand"|"free_attack"|"simmering_fury"|"energy_down"|"deva_form"|"collect"|"blasphemer"|"study"|"omega"){
         return if id.0=="master_reality"{amount== -1}else{amount>0};

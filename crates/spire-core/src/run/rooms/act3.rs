@@ -34,9 +34,10 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let shops=if captured.kind==MapNodeKind::Shop{p.shop_visits.checked_add(1).ok_or(RunError::Unsupported("Act3 shop visits exhausted"))?}else{p.shop_visits};
     let mut next=run.next_choice;let mut shop_rng=run.state.rng.clone();let prepared_event=if let Some(event)=captured.event{Some(events::act3::prepare(run,event,target,u64::try_from(p.question_visits).map_err(|_|RunError::InvalidAction)?,&mut next)?)}else{None};
     let screen=if let Some(event)=&prepared_event{Some(event.screen.clone())}else if captured.encounter.is_none(){Some(match captured.kind{
-        MapNodeKind::Shop=>shop::screen_with_rng_at(run,&mut next,&mut shop_rng,(3,node.floor,target))?,MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
+        MapNodeKind::Shop=>shop::screen_with_rng_at(&mut *run,&mut next,&mut shop_rng,(3,node.floor,target))?,MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
         MapNodeKind::Treasure=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?,_=>return Err(RunError::InvalidAction),
     })}else{None};
+    let entered_kind=screen.as_ref().map(|screen|screen.kind).unwrap_or(RoomViewKind::Combat);
     let event=CommittedEvent::FloorEntered{act:3,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     if uses_act4(&run.state)&&captured.kind==MapNodeKind::Shop{run.state.rng=shop_rng;}
     let map=run.state.map.as_mut().unwrap();map.current=Some(target);let n=map.nodes.iter_mut().find(|n|n.id==target).unwrap();n.visited=true;n.revealed=true;n.encounter=captured.encounter;if node.kind==MapNodeKind::Question{n.hidden_kind=Some(captured.kind)}
@@ -46,6 +47,14 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if let Some(screen)=screen{room.screen=screen;run.next_choice=next;}
     if let Some(prepared)=prepared_event{room.act3_event=Some(prepared.frame);run.state.rng=prepared.rng;}
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
+    if run.state.item_admission==ItemAdmission::Complete {
+        // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
+        let mut floor_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor:run.state.floor};
+        crate::items::dispatch::run_event(&mut run.state,&mut floor_event)?;
+        let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
+        // M27 seam: RoomEntered
+        crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
+    }
     let (hook_error,hook_checkpoint,entry_error,entry_checkpoint)=if is_m25(&run.state){("accepted M25 room-entry hook failed","run.m25.room","accepted M25 encounter entry failed","run.m25.encounter")}else if is_m24(&run.state){("accepted M24 room-entry hook failed","run.m24.room","accepted M24 encounter entry failed","run.m24.encounter")}else if is_m10(&run.state){("accepted M10 room-entry hook failed","run.m10.room","accepted M10 encounter entry failed","run.m10.encounter")}else if is_m9(&run.state){("accepted M9 room-entry hook failed","run.m9.room","accepted M9 encounter entry failed","run.m9.encounter")}else if is_m14(&run.state){("accepted M14 room-entry hook failed","run.m14.room","accepted M14 encounter entry failed","run.m14.encounter")}else{("accepted M8 room-entry hook failed","run.m8.room","accepted M8 encounter entry failed","run.m8.encounter")};
     if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant(hook_error),hook_checkpoint))}
     if let Some(encounter)=captured.encounter{let mut t=match run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind}){Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant(entry_error),entry_checkpoint))};t.reward+=credit;t.committed_events.insert(0,event);return Ok(t)}

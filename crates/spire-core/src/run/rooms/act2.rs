@@ -34,12 +34,19 @@ pub(in crate::run) fn capture_room(state:&RunState,node:NodeId)->Result<super::a
 
 pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let node=world::preflight_move(&run.state,target)?;let captured=capture_room(&run.state,target)?;
+    let entered_kind=if captured.encounter.is_some(){RoomViewKind::Combat}else{match captured.kind{
+        MapNodeKind::Shop=>RoomViewKind::Shop,
+        MapNodeKind::Rest=>RoomViewKind::Campfire,
+        MapNodeKind::Event=>RoomViewKind::Event(captured.event.ok_or(RunError::InvalidAction)?),
+        MapNodeKind::Treasure=>RoomViewKind::Treasure,
+        _=>return Err(RunError::InvalidAction),
+    }};
     let p=run.state.room_loop.as_ref().and_then(|r|r.act2.as_ref()).ok_or(RunError::InvalidAction)?;
     let questions=if node.kind==MapNodeKind::Question{p.question_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 question visits exhausted"))?}else{p.question_visits};
     let shops=if captured.kind==MapNodeKind::Shop{p.shop_visits.checked_add(1).ok_or(RunError::Unsupported("Act2 shop visits exhausted"))?}else{p.shop_visits};
     let mut next=run.next_choice;let mut rng=run.state.rng.clone();let screen=if captured.encounter.is_none(){Some(match captured.kind{
         MapNodeKind::Event=>events::screen(&mut next,captured.event.ok_or(RunError::InvalidAction)?)?,
-        MapNodeKind::Shop=>shop::screen_with_rng_at(run,&mut next,&mut rng,(2,node.floor,target))?,MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
+        MapNodeKind::Shop=>shop::screen_with_rng_at(&mut *run,&mut next,&mut rng,(2,node.floor,target))?,MapNodeKind::Rest=>rest::screen_for_run(run,&mut next)?,
         MapNodeKind::Treasure=>view(&mut next,RoomViewKind::Treasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?,_=>return Err(RunError::InvalidAction),
     })}else{None};
     let event=CommittedEvent::FloorEntered{act:2,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
@@ -48,6 +55,14 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     run.state.floor=node.floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:2,floor:node.floor,label:captured.kind.label()});
     let room=run.state.room_loop.as_mut().unwrap();let p=room.act2.as_mut().unwrap();p.question_visits=questions;p.shop_visits=shops;room.joust=None;
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
+    if run.state.item_admission==ItemAdmission::Complete {
+        // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
+        let mut floor_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor:run.state.floor};
+        crate::items::dispatch::run_event(&mut run.state,&mut floor_event)?;
+        let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
+        // M27 seam: RoomEntered
+        crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
+    }
     if crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted M6 room-entry hook failed"),"run.m6.room"))}
     if let Some(encounter)=captured.encounter{
         let entered=run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind});

@@ -14,8 +14,20 @@ pub(super) fn dispatch(state:&State,source:&Source)->Result<(Vec<Effect>,Vec<Eff
     // Relic listeners may own top-queued children; power and card callback
     // children retain their established placement behind the batch continuation.
     let enemies=state.enemies.iter().filter(|enemy|enemy.targetable()).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
-    let top=state.item_context.as_ref().map_or_else(Vec::new,|context|crate::items::relic_exhaust_effects(context,source,&enemies));
-    let mut work=Vec::new();
+    let (top,bottom)=match state.item_context.as_ref(){
+        Some(context)=>{
+            let mut facts=crate::items::dispatch::PhaseFacts::new(Some(super::Hook::CardExhausted),state.player.hp,state.player.max_hp,state.player.block);
+            facts.source=Some(source);facts.live_enemies=&enemies;
+            facts.card=super::effects::phase_card_facts(state,source);
+            // The Exhaust relic phase; its handlers read but do not mutate the item owner.
+            let work=crate::items::dispatch::combat_phase(&mut context.clone(),crate::items::dispatch::ItemPhase::Exhaust,&facts)?;
+            (work.top,work.bottom)
+        }
+        None=>(Vec::new(),Vec::new()),
+    };
+    // Source order: relic onExhaust, then power onExhaust, then the card trigger, so relic
+    // bottom work (Dead Branch) is queued at its visit, before power and card children.
+    let mut work=bottom;
     work.extend(super::powers::on_card_exhausted(state,source));
     work.extend(super::cards::on_card_exhausted(state,source,card)?);
     super::cards::curses::on_exhaust(state,card,&mut work);

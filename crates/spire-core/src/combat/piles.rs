@@ -33,7 +33,7 @@ pub(super) fn expire_turn_scoped_costs(state:&mut State){
 }
 
 fn notify_draw_pile_shuffled(state:&mut State) {
-    if !state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::Melange)) {return}
+    if !state.item_context.as_ref().is_some_and(|items|crate::items::dispatch::phase_consumed(items,crate::items::dispatch::ItemPhase::DrawPileShuffled)) {return}
     // A real shuffle caused by a draw sits before that draw's continuation.
     // Inserting after it lets all recursively queued DrawOne pieces finish first.
     let after_draw=state.pending.iter().position(|pending|
@@ -427,12 +427,39 @@ pub(super) fn exhaust_owned_card(state: &mut State, card: OwnedCard) -> Result<(
 /// UseCard's purge checkpoint precedes Power retirement; Power cards never
 /// become drawable discard. Suppressed/cancelled cards use finish_owned_card
 /// directly because they did not actually complete a use.
-pub(super) fn finish_played_card(state:&mut State,mut card:OwnedCard,disposition:FinishDisposition)->Result<(),InputError>{
+pub(super) fn finish_played_card(state:&mut State,mut card:OwnedCard,mut disposition:FinishDisposition)->Result<(),InputError>{
     let purge=disposition==FinishDisposition::Purge||card.full().is_some_and(|live|live.local.purge);
     let power=card.full().is_some_and(|live|crate::content::Catalog::standard().card(live.id)
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Power));
     if purge {return finish_owned_card(state,card,FinishDisposition::Purge,true)}
     if power {state.played_powers.push(card);return Ok(())}
+    let would_exhaust=disposition==FinishDisposition::Exhaust
+        ||disposition==FinishDisposition::Natural&&card.full().is_some_and(|live|live.local.exhaust_on_finish);
+    if would_exhaust {
+        if let (Some(items),Some(live))=(state.item_context.as_mut(),card.full()) {
+            let definition=crate::content::Catalog::standard().card(live.id)
+                .ok_or_else(||InputError::Invariant("played card definition absent at exhaust law".into()))?;
+            let paid=state.play_context.as_ref().filter(|context|context.card==card.handle()).map_or(0,|context|context.paid);
+            // M27 seam: Strange Spoon rolls once in the played-card cleanup owner.
+            if items.complete_items()&&items.owns_relic(crate::content::RelicId::StrangeSpoon)
+                &&definition.card_type!=crate::content::CardType::Power {
+                let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Strange Spoon card RNG absent".into()))?;
+                let (bit,next)=super::rng::uniform_below(stream,2)
+                    .map_err(|error|InputError::Unsupported(format!("Strange Spoon card RNG unavailable: {error:?}")))?;
+                state.card_rng=Some(next);
+                items.set_local(crate::content::RelicId::StrangeSpoon,if bit==0{
+                    crate::items::relic_effects::structural::SPOON_SAVE
+                }else{2});
+            }
+            // M27 seam: would-exhaust (Strange Spoon), before exhaust callbacks.
+            let exhaust=crate::items::laws::would_exhaust(items,crate::items::dispatch::PhaseCard{
+                id:live.id,card_type:definition.card_type,cost_paid:paid});
+            if !exhaust {
+                disposition=FinishDisposition::Natural;
+                if let Some(live)=card.full_mut(){live.local.exhaust_on_finish=false;}
+            }
+        }
+    }
     if disposition==FinishDisposition::Natural&&state.item_context.as_ref().is_some_and(|items|items.m25_cards())
         &&card.full().is_some_and(|live|live.id==crate::content::CardId::Tantrum){return shuffle_owned_into_draw(state,card)}
     let rebound=card.full().is_some_and(|live|live.local.rebound_on_finish&&!live.local.exhaust_on_finish)&&disposition==FinishDisposition::Natural;
@@ -524,7 +551,7 @@ pub(super) fn discard_selected_card_ordered(state:&mut State,card:OwnedCard,manu
             state.pending.push_front(notification);
         }
         let has_m15_discard_listener=manual_hand_discard&&state.item_context.as_ref().is_some_and(|items|
-            items.m15_profile()&&[crate::content::RelicId::ToughBandages,
+            (items.m15_profile()||items.complete_items())&&[crate::content::RelicId::ToughBandages,
                 crate::content::RelicId::Tingsha,crate::content::RelicId::HoveringKite]
                 .iter().any(|relic|items.owns_relic(*relic)));
         if has_m15_discard_listener {
@@ -644,11 +671,17 @@ pub(super) fn shuffle_all_to_draw(state:&mut State)->Result<(),EffectError>{
 
 /// Opening and queued profile startup share this exact physical deal owner.
 pub(super) fn opening_hand_count(state:&State,requested:usize)->usize{
-    let innate=state.piles.draw.iter().filter(|c|c.full().is_some_and(|c|c.local.innate)).count();
+    let innate=state.piles.draw.iter().filter(|c|c.full().is_some_and(|c|opening_first(state,c))).count();
     requested.max(innate).min(10).min(10usize.saturating_sub(state.piles.hand.len())).min(state.piles.draw.len())
 }
+/// Innate cards and, under complete items, an owned bottle's linked permanent instance share
+/// `initializeDeck`'s top placement (M27 relic research §3.8); the bottle is not Innate.
+fn opening_first(state:&State,card:&super::card_state::LiveCard)->bool{
+    card.local.innate||state.item_context.as_ref().is_some_and(|items|items.complete_items()
+        &&crate::items::relic_effects::structural::bottled(items,card.instance.0))
+}
 pub(super) fn deal_opening_one(state:&mut State)->Option<Effect>{
-    let innate=state.piles.draw.iter().position(|c|c.full().is_some_and(|c|c.local.innate));
+    let innate=state.piles.draw.iter().position(|c|c.full().is_some_and(|c|opening_first(state,c)));
     let card=if let Some(at)=innate{state.piles.draw.remove(at)}else{state.piles.draw.pop().expect("opening count bounded by draw size")};
     let owner=card.handle();
     let callback=if state.silent.history_enabled{

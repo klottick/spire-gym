@@ -100,7 +100,8 @@ fn burning_startup_fault_keeps_lament_buffs_and_first_owned_work_without_retry()
     enemies::apply_burning_buff(&mut e,enemies::BurningBuff::Strength).unwrap();
     let mut items=Some(CombatItemContext::new(vec![RelicId::NeowsLament,RelicId::PureWater],vec![]));
     let Err(CombatEntryFailure::Faulted{mut combat,fault})=Combat::enter_with_item_context(e,&mut items)else{panic!("expected retained native generated-ID fault")};
-    assert!(items.is_none());for i in 0..3{assert_eq!(combat.state.enemies[i].hp,1);assert_eq!(amount(&combat,i,"strength"),2);}
-    assert_eq!(combat.item_context().unwrap().counters().get(&RelicId::NeowsLament),Some(&2));
+    // G10 (M27): Pure Water now faults at its hook-free pre-draw visit before Neow's Lament; design §7.6 and spec-rulings-main2-v1.md G10.
+    assert!(items.is_none());for i in 0..3{assert!((38..=42).contains(&combat.state.enemies[i].hp));assert_eq!(amount(&combat,i,"strength"),2);}
+    assert_eq!(combat.item_context().unwrap().counters().get(&RelicId::NeowsLament),Some(&3));
     let before=combat.snapshot();assert_eq!(combat.step_full(&CombatAction::EndTurn),Err(crate::run::RunError::Faulted(fault)));assert_eq!(combat.snapshot(),before);
 }
