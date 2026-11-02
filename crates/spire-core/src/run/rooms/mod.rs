@@ -28,12 +28,18 @@ pub(super) mod shop;
 pub(super) mod events;
 mod rest;
 pub(super) mod selection;
+pub(in crate::run) mod standard;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart, M22WatcherAct1, M23WatcherAct2, M24WatcherAct3, M25WatcherHeart }
+pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart, M22WatcherAct1, M23WatcherAct2, M24WatcherAct3, M25WatcherHeart,
+    /// M28 standard A0 Run (design §7). Constructible only with `m28-diagnostics` (or in crate
+    /// tests) until M28f completes every room (PM ruling 2026-11-02).
+    StandardA0 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Lift,Toke,Dig,SingingBowl,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8} }
+pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Lift,Toke,Dig,SingingBowl,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8},
+    /// M28 full Neow blessing offer (design §6.5); only `RoomScenario::StandardA0` builds it.
+    NeowBlessing{category:u8,reward:NeowReward,drawback:Option<NeowDrawback>} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -96,7 +102,10 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
 pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunError>{
     if !candidates(run)?.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction)}
     match action {
+        // The standard Neow owns its screen and every child screen until its map is shown.
+        GameAction::Choose(id) if is_standard(&run.state)&&run.state.room=="Neow"=>standard::neow::choose(run,*id),
         GameAction::Choose(id) if public(run)?.kind==RoomViewKind::Neow=>neow::choose(run,*id),
+        GameAction::Move(_) if is_standard(&run.state)=>Err(RunError::Unsupported(standard::MAP_ROOMS_INTERIM)),
         GameAction::Move(id)=>if uses_act4(&run.state)&&run.state.act==4{act4::enter(run,*id)}else if uses_captured_act3(&run.state)&&run.state.act==3{act3::enter(run,*id)}else if uses_captured_act2(&run.state)&&run.state.act==2{act2::enter(run,*id)}else if uses_captured_act1(&run.state){act1::enter(run,*id)}else{profile::enter(run,*id)},
         GameAction::DiscardPotion{slot}=>{let slot=*slot as usize;run.state.potions[slot]=None;if let Some(potency)=run.state.potion_potencies.get_mut(slot){*potency=None;}if !run.state.potions.iter().any(Option::is_some){run.state.potion_potencies.clear();}Ok(empty_transition())},
         GameAction::UsePotion{slot,target:None}=>{let we_meet_again=run.state.item_admission==ItemAdmission::Complete&&run.state.we_meet_again;crate::items::use_run_potion(&mut run.state,*slot as usize,false,we_meet_again)?;Ok(empty_transition())},
@@ -109,6 +118,18 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
             RoomViewKind::Shop=>shop::choose(run,*id),RoomViewKind::Campfire=>rest::choose(run,*id),RoomViewKind::Event(_)=>events::choose(run,*id),_=>rewards::choose(run,*id),
         },
         _=>Err(RunError::Unsupported("room handler pending")),
+    }
+}
+/// The M28 standard Run (design §7): checked first, never a member of a captured helper.
+pub(crate) fn is_standard(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|room|room.scenario==RoomScenario::StandardA0)}
+/// A standard Run before its first map move (Neow and the continuations of its rewards) has no
+/// current node; its room selections use this parent node. Every other Run needs its current node.
+pub(crate) const PRE_MAP_NODE:NodeId=NodeId(u64::MAX);
+pub(crate) fn selection_node(state:&RunState)->Result<NodeId,RunError>{
+    match state.map.as_ref().and_then(|map|map.current){
+        Some(node)=>Ok(node),
+        None if is_standard(state)=>Ok(PRE_MAP_NODE),
+        None=>Err(RunError::InvalidAction),
     }
 }
 pub(super) fn empty_transition()->RunTransition{RunTransition{reward:0,terminal:None,committed_events:vec![]}}
@@ -208,11 +229,15 @@ pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
     if uses_captured_act3(&run.state)&&run.state.act==3{return act3::finish_room(run)}
     if uses_act4(&run.state)&&run.state.act==4{return act4::finish_room(run)}
     if uses_captured_act2(&run.state)&&run.state.act==2{return act2::finish_room(run)}
+    // M28b: a standard Run needs its own branch BEFORE this rule. NodeId(59) is row 8 (floor 9,
+    // the treasure row) of a generated standard Act 1 map, so this rule must not apply to it. M28a
+    // is unaffected: a standard shop is never on floor 9.
     let kind=if !uses_captured_act1(&run.state)&&run.state.map.as_ref().and_then(|m|m.current)==Some(NodeId(59)){RoomViewKind::CheckpointComplete}else{RoomViewKind::Map};
     run.state.room_loop.as_mut().unwrap().screen=RoomView{kind,choices:vec![]};run.candidates.clear();Ok(empty_transition())
 }
 impl Run {
     pub fn new_room_scenario(config:RunConfig,profile:CreationProfile,rng:RunRng,scenario:RoomScenario)->Result<Self,RunError>{
+        if scenario==RoomScenario::StandardA0{return standard::create(config,profile,rng)}
         let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart);
         let character=if matches!(scenario,RoomScenario::M22WatcherAct1|RoomScenario::M23WatcherAct2|RoomScenario::M24WatcherAct3|RoomScenario::M25WatcherHeart){crate::content::Character::Watcher}else if matches!(scenario,RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3|RoomScenario::M20DefectHeart){crate::content::Character::Defect}else if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
         if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M25WatcherHeart=>"M25 requires Watcher A0 short Neow",RoomScenario::M24WatcherAct3=>"M24 requires Watcher A0 short Neow",RoomScenario::M23WatcherAct2=>"M23 requires Watcher A0 short Neow",RoomScenario::M22WatcherAct1=>"M22 requires Watcher A0 short Neow",RoomScenario::M20DefectHeart=>"M20 requires Defect A0 short Neow",RoomScenario::M19DefectAct3=>"M19 requires Defect A0 short Neow",RoomScenario::M18DefectAct2=>"M18 requires Defect A0 short Neow",RoomScenario::M17DefectAct1=>"M17 requires Defect A0 short Neow",RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",RoomScenario::M15SilentHeart=>"M15 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}

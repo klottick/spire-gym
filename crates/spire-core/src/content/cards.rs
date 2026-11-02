@@ -472,8 +472,13 @@ pub(crate) const CARDS: &[CardDefinition] = &[
 ];
 
 /// The single card-tag owner. Defect kinds return their `BlueCardMetadata` tags
-/// unchanged. Every other kind is tagged only with `Healing` and `Strike`;
-/// `StarterStrike` and `StarterDefend` stay Defect-only metadata.
+/// unchanged. Every other kind is tagged with `Healing`, `Strike`, `StarterStrike` and
+/// `StarterDefend` here.
+///
+/// STARTER_STRIKE / STARTER_DEFEND: every character's basic Strike and Defend (M28 G1; the
+/// character research records them on Strike_R/G/P and Defend_R/G/P as on the Defect's,
+/// `docs/research/2026-10-19-act1-content-silent.md:49`, `...-watcher.md:65-66`,
+/// `...-defect.md:60-61`). Pandora's Box and Vampires read them.
 ///
 /// HEALING: Feed, Reaper, Alchemize, Lesson Learned, Wish and Bandage Up (with
 /// Self Repair's Defect metadata), per the HEALING exclusions list of
@@ -488,7 +493,9 @@ pub fn card_tags(id: CardId) -> &'static [CardTag] {
     }
     match id {
         CardId::Feed | CardId::Reaper | CardId::Alchemize | CardId::LessonLearned | CardId::Wish | CardId::BandageUp => &[CardTag::Healing],
-        CardId::Strike | CardId::StrikeGreen | CardId::StrikePurple | CardId::PerfectedStrike | CardId::PommelStrike
+        CardId::Strike | CardId::StrikeGreen | CardId::StrikePurple => &[CardTag::Strike, CardTag::StarterStrike],
+        CardId::Defend | CardId::DefendGreen | CardId::DefendPurple => &[CardTag::StarterDefend],
+        CardId::PerfectedStrike | CardId::PommelStrike
         | CardId::TwinStrike | CardId::WildStrike | CardId::SwiftStrike | CardId::SneakyStrike | CardId::WindmillStrike => &[CardTag::Strike],
         _ => &[],
     }

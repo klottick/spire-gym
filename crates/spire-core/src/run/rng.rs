@@ -3,7 +3,7 @@ use crate::combat::rng::{hmac_sha256, make_stream, Domain, Partition, RngError, 
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RunRngScope { NeowCategory0, NeowCategory1, NeowDrawback, NeowCategory2,
-     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture,M23RelicCapture,M24RelicCapture,M25CardOffer,M25RelicCapture,M26CardOffer,M26CardTransform,M26CardCurse,M27RelicPools,M27RelicTier,M27PotionOffer }
+     MapTopology, MapRoomBucket, MapBurningElite, MapEncounter, MapQuestionRoom, CombatEnemySetup, CombatGoldReward, Act1BossOrder, BurningEliteBuff,Act2BossOrder,Act2Joust,Act3BossOrder,Act3Falling,M10CardOffer,M15PotionGeneration,M15CardOffer,M20CardOffer,M22RelicCapture,M23RelicCapture,M24RelicCapture,M25CardOffer,M25RelicCapture,M26CardOffer,M26CardTransform,M26CardCurse,M27RelicPools,M27RelicTier,M27PotionOffer,M28EventBranch,M28EventPick,M28EventBody,M28CardRarity,M28ShopStock,M28ShopPrice,M28Chest }
 impl RunRngScope {
     fn as_str(self)->&'static str { match self {
         Self::Act3Falling=>"run.act3.falling",
@@ -22,6 +22,13 @@ impl RunRngScope {
         Self::M27RelicPools=>"run.m27.relic.pools",
         Self::M27RelicTier=>"run.m27.relic.tier",
         Self::M27PotionOffer=>"run.m27.potion.offer",
+        Self::M28EventBranch=>"run.m28.event.branch",
+        Self::M28EventPick=>"run.m28.event.pick",
+        Self::M28EventBody=>"run.m28.event.body",
+        Self::M28CardRarity=>"run.m28.card.rarity",
+        Self::M28ShopStock=>"run.m28.shop.stock",
+        Self::M28ShopPrice=>"run.m28.shop.price",
+        Self::M28Chest=>"run.m28.chest",
         Self::NeowCategory0=>"run.neow.category0", Self::NeowCategory1=>"run.neow.category1",
         Self::NeowDrawback=>"run.neow.drawback", Self::NeowCategory2=>"run.neow.category2",
         Self::MapTopology=>"run.map.topology", Self::MapRoomBucket=>"run.map.room_bucket",
@@ -51,6 +58,13 @@ impl RunRngScope {
         "run.m27.relic.pools"=>Ok(Self::M27RelicPools),
         "run.m27.relic.tier"=>Ok(Self::M27RelicTier),
         "run.m27.potion.offer"=>Ok(Self::M27PotionOffer),
+        "run.m28.event.branch"=>Ok(Self::M28EventBranch),
+        "run.m28.event.pick"=>Ok(Self::M28EventPick),
+        "run.m28.event.body"=>Ok(Self::M28EventBody),
+        "run.m28.card.rarity"=>Ok(Self::M28CardRarity),
+        "run.m28.shop.stock"=>Ok(Self::M28ShopStock),
+        "run.m28.shop.price"=>Ok(Self::M28ShopPrice),
+        "run.m28.chest"=>Ok(Self::M28Chest),
         "run.neow.category0"=>Ok(Self::NeowCategory0), "run.neow.category1"=>Ok(Self::NeowCategory1),
         "run.neow.drawback"=>Ok(Self::NeowDrawback), "run.neow.category2"=>Ok(Self::NeowCategory2),
         "run.map.topology"=>Ok(Self::MapTopology), "run.map.room_bucket"=>Ok(Self::MapRoomBucket),

@@ -79,6 +79,11 @@ fn domain(act: u8, kind: MapNodeKind, regular_count: usize) -> Option<&'static [
     }
 }
 
+/// The act's boss through the standard selector (M28 design §7).
+pub(super) fn act_boss(state: &mut RunState) -> Result<EncounterId, RunError> {
+    let choices = domain(state.act, MapNodeKind::Boss, 0).ok_or(RunError::Registry("no boss domain for act"))?;
+    boss_selection(state, choices)
+}
 fn boss_selection(state: &mut RunState, choices: &[Weighted]) -> Result<EncounterId, RunError> {
     if choices.is_empty() { return Err(RunError::Registry("empty boss encounter domain")); }
     let seen = state.seen_bosses.get((state.act.saturating_sub(1)) as usize)

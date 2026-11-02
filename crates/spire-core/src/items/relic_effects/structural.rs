@@ -161,7 +161,8 @@ pub(crate) fn equip(id: RelicId, state: &mut RunState, work: &mut EquipWork) -> 
         }
         // Every starter-tagged Strike and Defend is transformed (no upgrade); no selection.
         RelicId::PandorasBox => {
-            let starters: Vec<u64> = state.deck.iter().filter(|card| STARTER_STRIKES_AND_DEFENDS.contains(&card.id))
+            let starters: Vec<u64> = state.deck.iter().filter(|card| crate::content::card_tags(card.id).iter()
+                .any(|tag| matches!(tag, crate::content::CardTag::StarterStrike | crate::content::CardTag::StarterDefend)))
                 .map(|card| card.instance).collect();
             for instance in starters {
                 let key = run_key(state, id, instance);
@@ -240,10 +241,6 @@ const TINY_HOUSE_MAX_HP: u32 = 5;
 const TINY_HOUSE_GOLD: u32 = 50;
 const CAULDRON_POTIONS: usize = 5;
 const ORRERY_CARD_REWARDS: usize = 5;
-/// Source STARTER_STRIKE / STARTER_DEFEND tags (Strike_R/G/B/P, Defend_R/G/B/P). The catalog tag
-/// owner keeps these tags Defect-only metadata (content/cards.rs card_tags), so the box lists them.
-const STARTER_STRIKES_AND_DEFENDS: [CardId; 8] = [CardId::Strike, CardId::StrikeGreen, CardId::StrikeBlue,
-    CardId::StrikePurple, CardId::Defend, CardId::DefendGreen, CardId::DefendBlue, CardId::DefendPurple];
 
 fn bottle_type(id: RelicId) -> Option<CardType> {
     match id {

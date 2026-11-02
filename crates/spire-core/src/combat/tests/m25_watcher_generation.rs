@@ -141,7 +141,13 @@ fn m25_identity_catalog_rows_and_capability() {
     assert!(!is_strike(Thunderclap));
     for row in catalog.cards() {
         if let Some(metadata) = row.blue_metadata { assert_eq!(card_tags(row.id), metadata.tags, "{:?}", row.id); }
-        else { assert!(card_tags(row.id).iter().all(|tag| matches!(tag, CardTag::Healing | CardTag::Strike)), "{:?}", row.id); }
+        else {
+            // M28 G1 (disclosed amendment): every character's basic Strike and Defend carries the
+            // starter tag; no other non-Defect card gains one.
+            let starter = matches!(row.id, Strike | StrikeGreen | StrikePurple | Defend | DefendGreen | DefendPurple);
+            assert!(card_tags(row.id).iter().all(|tag| matches!(tag, CardTag::Healing | CardTag::Strike)
+                || (starter && matches!(tag, CardTag::StarterStrike | CardTag::StarterDefend))), "{:?}", row.id);
+        }
     }
 
     // The M20 Defect and colourless generator pools are unchanged.

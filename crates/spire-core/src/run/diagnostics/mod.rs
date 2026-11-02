@@ -35,3 +35,7 @@ pub use m26::{complete_run,complete_combat};
 mod m27;
 #[cfg(feature="m27-diagnostics")]
 pub use m27::{complete_act4_run,m27_capture_run,m27_pair_combat,m27_m14_supplied_run,m27_m15_supplied_run,CompleteItemSupply,M27RunCapture};
+#[cfg(feature="m28-diagnostics")]
+mod m28;
+#[cfg(feature="m28-diagnostics")]
+pub use m28::{standard_run, standard_shop_run, ShopSupply};

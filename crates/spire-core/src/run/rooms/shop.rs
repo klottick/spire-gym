@@ -86,7 +86,20 @@ const COMPLETE_COURIER_CARD_SOURCE_TAG:u64=6;
 
 fn complete_act4_shop<R:RunEventTarget>(run:&R,destination:(u8,u32,NodeId))->bool{
     run.item_admission()==ItemAdmission::Complete&&run.as_run().state.relic_pools.is_some()
-        &&destination.0==4&&destination.1==52
+        &&destination.0==4&&destination.1==52&&!is_standard(&run.as_run().state)
+}
+
+/// The M28 standard shop's rows (design §6.3) after its stock and sticker prices (sale
+/// included) are drawn: the shared M27 shop-entry and discount seams, then the screen.
+pub(in crate::run) fn standard_screen(run:&mut Run,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RoomView,RunError>{
+    if !is_standard(&run.state){return Err(RunError::InvalidAction)}
+    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
+    let destination=(run.state.act,run.state.floor,node);
+    let mut next=run.next_choice;
+    let mut rng=run.state.rng.clone();
+    let view=finish_screen(&mut &mut *run,&mut next,rows,&mut rng,destination)?;
+    run.next_choice=next;
+    Ok(view)
 }
 
 fn potion_base_price(potion:PotionId)->Result<u32,RunError>{
@@ -167,7 +180,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
             crate::items::dispatch::run_event(&mut staged.state,&mut crate::items::dispatch::RunItemEvent::ShopPurchase)?;
             reprice_after_discount_relic(&mut staged,relic)?;
             // The Courier restocks before any equip continuation replaces the shop screen.
-            if staged.state.relic_pools.is_some()&&staged.state.act==4&&staged.state.floor==52&&staged.state.relics.contains(&RelicId::TheCourier) {
+            if complete_courier_shop(&staged) {
                 restock_courier_relic(&mut staged)?;
             }
             let transition=crate::items::lifecycle::after_obtain(&mut staged,id,relic,obtained)?;
@@ -228,7 +241,7 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
 
 /// Economy research §3.2/§3.3: buying The Courier or Membership Card runs its discount pass at once over every
 /// current priced row (each step rounded), and the removal price is recomputed from its base; Smiling Mask sets 50.
-fn reprice_after_discount_relic(run:&mut Run,relic:RelicId)->Result<(),RunError>{
+pub(in crate::run) fn reprice_after_discount_relic(run:&mut Run,relic:RelicId)->Result<(),RunError>{
     let factor=match relic {RelicId::TheCourier=>80,RelicId::MembershipCard=>50,RelicId::SmilingMask=>100,_=>return Ok(())};
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     let base=room.purge_cost;
@@ -249,80 +262,186 @@ fn reprice_after_discount_relic(run:&mut Run,relic:RelicId)->Result<(),RunError>
 
 fn complete_courier_shop(run:&Run)->bool{
     run.state.item_admission==ItemAdmission::Complete&&run.state.relic_pools.is_some()
-        &&run.state.act==4&&run.state.floor==52&&run.state.relics.contains(&RelicId::TheCourier)
+        &&(run.state.act==4&&run.state.floor==52||is_standard(&run.state))&&run.state.relics.contains(&RelicId::TheCourier)
 }
 
-fn append_shop_row(run:&mut Run,kind:RoomChoiceKind,price:u32)->Result<(),RunError>{
+/// The Courier law of the current shop: Act 4 keeps `ACT4_COURIER`; the standard shop reads the
+/// live offset and jitters relic and potion bases on `M28ShopPrice` (design §6.3).
+fn courier_law(run:&Run)->CourierLaw{
+    if !is_standard(&run.state){return ACT4_COURIER}
+    CourierLaw{card:crate::run::RunRngScope::M28ShopStock,potion:crate::run::RunRngScope::M28ShopStock,
+        offset:run.state.card_rarity_offset.unwrap_or(super::standard::rewards::OFFSET_START),
+        item_jitter:Some(crate::run::RunRngScope::M28ShopPrice),colourless:true}
+}
+
+pub(in crate::run) fn append_shop_row(run:&mut Run,kind:RoomChoiceKind,price:u32)->Result<(),RunError>{
     let mut replacement=view(&mut run.next_choice,RoomViewKind::Shop,vec![(kind,Some(price))])?;
     let choice=replacement.choices.pop().ok_or(RunError::InvalidAction)?;
     run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen.choices.push(choice);
     Ok(())
 }
 
-fn restock_courier_potion(mut run:&mut Run,row_index:u64)->Result<(),RunError>{
-    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
-    let destination=(run.state.act,run.state.floor,node);
-    let mut rng=run.state.rng.clone();
-    let (potion,base)=sample_shop_potion(run,&mut rng,destination,row_index,COMPLETE_COURIER_POTION_SOURCE_TAG)?;
-    run.state.rng=rng;
+/// One Courier restock law (economy research §3.3), shared by the Complete Act 4 shop and the
+/// M28 standard shop. Act 4 passes `ACT4_COURIER`, its accepted arguments: the M26 card scope,
+/// a fixed offset 5, the fixed tier base prices and no colourless rows.
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(in crate::run) struct CourierLaw {
+    /// Rarity, identity and jitter draws of a card replacement.
+    pub card:crate::run::RunRngScope,
+    /// The potion replacement's `rarity_first` draws.
+    pub potion:crate::run::RunRngScope,
+    /// The card-rarity offset read (never written; design §6.1).
+    pub offset:i32,
+    /// `Some(scope)`: relic and potion bases carry a fresh `.95–1.05` jitter `G`-rounded on that
+    /// scope; `None`: the fixed tier bases.
+    pub item_jitter:Option<crate::run::RunRngScope>,
+    /// Whether a colourless purchase restocks (rare on strict binary32 `< .3`, else uncommon).
+    pub colourless:bool,
+}
+const ACT4_COURIER:CourierLaw=CourierLaw{card:crate::run::RunRngScope::M26CardOffer,potion:crate::run::RunRngScope::M27PotionOffer,
+    offset:5,item_jitter:None,colourless:false};
+
+/// `L(a, b, k) = F(a + F(F(k / 2^24) × F(b − a)))` on the 24-bit grid (economy research :52-59).
+pub(in crate::run) fn jitter(low:f32,high:f32,k:u64)->f32{
+    let unit=(k as f32)/16_777_216.0_f32;
+    low+(high-low)*unit
+}
+/// The displayed removal price after a paid purge (economy research :180-183): Smiling Mask 50;
+/// otherwise `G(F(F(new_base × .8) × .5))` with each owned factor, one rounding. It is display-only:
+/// the claimed row grants no second removal in the same shop.
+pub(in crate::run) fn next_removal_price(state:&RunState,new_base:u32)->u32{
+    if state.relics.contains(&RelicId::SmilingMask){return 50}
+    let mut price=new_base as f32;
+    if state.relics.contains(&RelicId::TheCourier){price*=0.8_f32;}
+    if state.relics.contains(&RelicId::MembershipCard){price*=0.5_f32;}
+    libgdx_round(price)
+}
+/// libGDX `MathUtils.round(float)`: `int(binary64(x + 16384.5)) − 16384` (economy research :45-50).
+pub(in crate::run) fn libgdx_round(value:f32)->u32{
+    ((f64::from(value)+16384.5) as i64-16384).clamp(0,i64::from(u32::MAX)) as u32
+}
+/// A relic or potion sticker `G(F(base × L(F(.95), F(1.05), k)))` (economy research :167-169).
+pub(in crate::run) fn item_sticker(base:u32,k:u64)->u32{libgdx_round((base as f32)*jitter(0.95_f32,1.05_f32,k))}
+/// Card rarity base price (economy research :167).
+pub(in crate::run) fn card_base(rarity:CardRarity)->Result<u32,RunError>{
+    match rarity{CardRarity::Common=>Ok(50),CardRarity::Uncommon=>Ok(75),CardRarity::Rare=>Ok(150),_=>Err(RunError::InvalidAction)}
+}
+fn relic_base(relic:RelicId)->Result<u32,RunError>{
+    match crate::content::Catalog::standard().relic_tier(relic).ok_or(RunError::Registry("complete relic tier missing"))? {
+        crate::content::RelicTier::Common=>Ok(150),crate::content::RelicTier::Uncommon=>Ok(250),crate::content::RelicTier::Rare=>Ok(300),
+        crate::content::RelicTier::Shop=>Ok(150),_=>Err(RunError::InvalidAction),
+    }
+}
+fn shop_price_event(run:&mut Run,base:u32)->Result<u32,RunError>{
     let mut item_event=crate::items::dispatch::RunItemEvent::ShopPrice{price:base};
     crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
     let crate::items::dispatch::RunItemEvent::ShopPrice{price}=item_event else {unreachable!("shop-price event kept its kind")};
+    Ok(price)
+}
+fn item_price(run:&mut Run,base:u32,key:&[u64],law:CourierLaw)->Result<u32,RunError>{
+    let base=match law.item_jitter{
+        None=>base,
+        Some(scope)=>{
+            let jitter_key=[key,&[2]].concat();
+            item_sticker(base,run.state.rng.bounded_scoped_checked(scope,&jitter_key,1<<24)? as u64)
+        }
+    };
+    // The Courier and Membership Card passes, each `G`-rounded (M27 `ShopPrice`).
+    shop_price_event(run,base)
+}
+
+/// Courier potion replacement: one `rarity_first` proposal, then its price (economy research §3.3).
+pub(in crate::run) fn courier_potion(run:&mut Run,key:&[u64],law:CourierLaw)->Result<(PotionId,u32),RunError>{
+    let character=run.state.character;
+    let mut rng=run.state.rng.clone();
+    let potion=crate::items::potion_generation::rarity_first(character,|bound|rng.bounded_scoped_checked(law.potion,key,bound))?;
+    run.state.rng=rng;
+    let base=potion_base_price(potion)?;
+    Ok((potion,item_price(run,base,key,law)?))
+}
+
+/// Courier card replacement (economy research §3.3): the purchased type, ShopRoom rarity at the
+/// read-only offset (a common Power falls through to Uncommon), and base × jitter (× 1.2 if
+/// colourless) × .8 × .5 with one final truncation and no sale.
+pub(in crate::run) fn courier_card(run:&mut Run,purchased:crate::content::CardId,key:&[u64],law:CourierLaw)->Result<(crate::content::CardId,u32),RunError>{
+    let definition=crate::content::Catalog::standard().card(purchased).ok_or(RunError::Registry("complete shop card missing"))?;
+    let colourless=definition.color==CardColor::Colorless;
+    if colourless&&!law.colourless||!colourless&&!matches!(definition.card_type,CardType::Attack|CardType::Skill|CardType::Power){
+        return Err(RunError::InvalidAction)
+    }
+    let character=run.state.character;
+    let (rarity,candidates)=if colourless{
+        let roll=run.state.rng.bounded_scoped_checked(law.card,key,1<<24)? as f32/16_777_216.0_f32;
+        let rarity=if roll<0.3_f32{CardRarity::Rare}else{CardRarity::Uncommon};
+        (rarity,crate::content::pools::cards(crate::content::pools::CardPool::Colourless{rarity:Some(rarity)})
+            .map_err(|_|RunError::Unsupported("complete Courier colourless family is incomplete"))?)
+    }else{
+        let rarity_roll=run.state.rng.bounded_scoped_checked(law.card,key,100)?;
+        // The shared card-rarity owner (M28a item 9); a shop is an ordinary room (R 3, U 37).
+        let mut rarity=super::standard::rewards::classify(super::standard::rewards::RarityRoom::Ordinary,rarity_roll as u32,law.offset,1);
+        let mut candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
+            character,rarity:Some(rarity),card_type:Some(definition.card_type),
+        }).map_err(|_|RunError::Unsupported("complete Courier card family is incomplete"))?;
+        if candidates.is_empty()&&rarity==CardRarity::Common&&definition.card_type==CardType::Power{
+            // Merchant Power rows have no Common family; source common proposals fall through to Uncommon.
+            rarity=CardRarity::Uncommon;
+            candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
+                character,rarity:Some(rarity),card_type:Some(definition.card_type),
+            }).map_err(|_|RunError::Unsupported("complete Courier Power family is incomplete"))?;
+        }
+        (rarity,candidates)
+    };
+    let identity_key=[key,&[1]].concat();
+    let identity=run.state.rng.bounded_scoped_checked(law.card,&identity_key,candidates.len() as u64)?;
+    let replacement=candidates[identity];
+
+    // Economy §3.3 keeps the replacement's binary32 discounts together and truncates once.
+    let jitter_key=[key,&[2]].concat();
+    let k=run.state.rng.bounded_scoped_checked(law.card,&jitter_key,1<<24)? as u64;
+    let mut raw=(card_base(rarity)? as f32)*jitter(0.9_f32,1.1_f32,k);
+    if colourless{raw*=1.2_f32;}
+    Ok((replacement,courier_card_discount(&run.state,raw)))
+}
+
+/// A Courier card replacement's discounts on its binary32 price: × .8 Courier, × .5 Membership
+/// Card, then one final truncation (economy research §3.3; c-a.md S8: 151 → 60 here, against 61
+/// from the sequential shop-entry `G` passes).
+pub(in crate::run) fn courier_card_discount(state:&RunState,mut raw:f32)->u32{
+    if state.relics.contains(&RelicId::TheCourier){raw*=0.8_f32;}
+    if state.relics.contains(&RelicId::MembershipCard){raw*=0.5_f32;}
+    raw as u32
+}
+
+/// Courier relic replacement: a fresh merchant tier (also in the former Shop slot), the end
+/// selector, and Old Coin, Smiling Mask, Maw Bank and The Courier excluded (economy research §3.3).
+pub(in crate::run) fn courier_relic(run:&mut Run,key:&[u64],law:CourierLaw)->Result<(RelicId,u32),RunError>{
+    let tier=crate::items::relic_pools::roll_tier(&mut run.state,crate::items::relic_pools::TierTable::Merchant,key);
+    let relic=crate::items::relic_pools::exclude_take(&mut run.state,tier,crate::items::relic_pools::Selector::Back,
+        crate::items::lifecycle::RelicSource::Shop,
+        &[RelicId::OldCoin,RelicId::SmilingMask,RelicId::MawBank,RelicId::TheCourier],key)?;
+    let base=relic_base(relic)?;
+    Ok((relic,item_price(run,base,key,law)?))
+}
+
+fn shop_node_key(run:&Run,row_index:u64,source_tag:u64)->Result<[u64;5],RunError>{
+    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
+    Ok([u64::from(run.state.act),u64::from(run.state.floor),node.0,row_index,source_tag])
+}
+
+fn restock_courier_potion(run:&mut Run,row_index:u64)->Result<(),RunError>{
+    let key=shop_node_key(run,row_index,COMPLETE_COURIER_POTION_SOURCE_TAG)?;
+    let (potion,price)=courier_potion(run,&key,courier_law(run))?;
     append_shop_row(run,RoomChoiceKind::Potion(potion),price)
 }
 
 fn restock_courier_card(run:&mut Run,purchased:crate::content::CardId,row_index:u64)->Result<(),RunError>{
-    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
-    let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,row_index,COMPLETE_COURIER_CARD_SOURCE_TAG];
-    let definition=crate::content::Catalog::standard().card(purchased).ok_or(RunError::Registry("complete shop card missing"))?;
-    if definition.color==CardColor::Colorless||!matches!(definition.card_type,CardType::Attack|CardType::Skill|CardType::Power){
-        return Err(RunError::InvalidAction)
-    }
-
-    // The accepted finite Act 4 row has no carried rarity offset. Use the ordinary
-    // ShopRoom thresholds (R=3, U=37) at their accepted starting b=5, without mutating history.
-    let character=run.state.character;
-    let rarity_roll=run.state.rng.bounded_scoped_checked(crate::run::RunRngScope::M26CardOffer,&key,100)?;
-    let adjusted=rarity_roll+5;
-    let mut rarity=if adjusted<3{CardRarity::Rare}else if adjusted<40{CardRarity::Uncommon}else{CardRarity::Common};
-    let mut candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
-        character,rarity:Some(rarity),card_type:Some(definition.card_type),
-    }).map_err(|_|RunError::Unsupported("complete Courier card family is incomplete"))?;
-    if candidates.is_empty()&&rarity==CardRarity::Common&&definition.card_type==CardType::Power{
-        // Merchant Power rows have no Common family; source common proposals fall through to Uncommon.
-        rarity=CardRarity::Uncommon;
-        candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
-            character,rarity:Some(rarity),card_type:Some(definition.card_type),
-        }).map_err(|_|RunError::Unsupported("complete Courier Power family is incomplete"))?;
-    }
-    let identity_key=[key[0],key[1],key[2],key[3],key[4],1];
-    let identity=run.state.rng.bounded_scoped_checked(crate::run::RunRngScope::M26CardOffer,&identity_key,candidates.len() as u64)?;
-    let replacement=candidates[identity];
-
-    // Economy §3.3 keeps the replacement's binary32 discounts together and truncates once.
-    let jitter_key=[key[0],key[1],key[2],key[3],key[4],2];
-    let jitter=run.state.rng.bounded_scoped_checked(crate::run::RunRngScope::M26CardOffer,&jitter_key,1<<24)? as f32;
-    let unit=jitter/16_777_216.0_f32;
-    let base=match rarity{CardRarity::Common=>50,CardRarity::Uncommon=>75,CardRarity::Rare=>150,_=>return Err(RunError::InvalidAction)};
-    let mut raw=(base as f32)*(0.9_f32+(1.1_f32-0.9_f32)*unit);
-    if run.state.relics.contains(&RelicId::TheCourier){raw*=0.8_f32;}
-    if run.state.relics.contains(&RelicId::MembershipCard){raw*=0.5_f32;}
-    append_shop_row(run,RoomChoiceKind::Card{id:replacement,upgrades:0},raw as u32)
+    let key=shop_node_key(run,row_index,COMPLETE_COURIER_CARD_SOURCE_TAG)?;
+    let (card,price)=courier_card(run,purchased,&key,courier_law(run))?;
+    append_shop_row(run,RoomChoiceKind::Card{id:card,upgrades:0},price)
 }
 
 fn restock_courier_relic(run:&mut Run)->Result<(),RunError>{
-    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
-    let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,0,COMPLETE_COURIER_RELIC_SOURCE_TAG];
-    let tier=crate::items::relic_pools::roll_tier(&mut run.state,crate::items::relic_pools::TierTable::Merchant,&key);
-    let relic=crate::items::relic_pools::exclude_take(&mut run.state,tier,crate::items::relic_pools::Selector::Back,
-        crate::items::lifecycle::RelicSource::Shop,
-        &[RelicId::OldCoin,RelicId::SmilingMask,RelicId::MawBank,RelicId::TheCourier],&key)?;
-    let price=match crate::content::Catalog::standard().relic_tier(relic).ok_or(RunError::Registry("complete relic tier missing"))? {
-        crate::content::RelicTier::Common=>150,crate::content::RelicTier::Uncommon=>250,crate::content::RelicTier::Rare=>300,
-        _=>return Err(RunError::InvalidAction),
-    };
-    let mut item_event=crate::items::dispatch::RunItemEvent::ShopPrice{price};
-    crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
-    let crate::items::dispatch::RunItemEvent::ShopPrice{price}=item_event else {unreachable!("shop-price event kept its kind")};
+    let key=shop_node_key(run,0,COMPLETE_COURIER_RELIC_SOURCE_TAG)?;
+    let (relic,price)=courier_relic(run,&key,courier_law(run))?;
     append_shop_row(run,RoomChoiceKind::Relic(relic),price)
 }
