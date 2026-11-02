@@ -243,7 +243,12 @@ fn m15_generation_alchemize_uses_real_factory_obtain_and_actual_card_payment(){
         let mut c=Combat::enter_with_item_context(entry("alchemize",upgrades),&mut context).unwrap();let rng=c.state.card_rng.clone();
         c.step_full(&CombatAction::PlayCard{instance:3,target:None}).unwrap();
         assert_ne!(c.state.card_rng,rng,"even Sozu/full capacity retains source sampling");
-        assert_eq!(c.state.player.energy,if upgrades==0{8}else{9});
+        let expected_energy=match (mode,upgrades){
+            (1,0)=>9,(1,1)=>10,
+            (0|2,0)=>8,(0|2,1)=>9,
+            _=>unreachable!("bounded M15 fixture mode/upgrade"),
+        };
+        assert_eq!(c.state.player.energy,expected_energy,"Sozu contributes the corrected G1 master energy");
         assert!(c.state.piles.exhaust.iter().any(|card|card.handle().as_str()=="3"));
         let after=c.item_context().unwrap().potions();
         if mode==0{assert_eq!(after.iter().flatten().count(),1);assert_ne!(after[0],Some(PotionId::FruitJuice));}

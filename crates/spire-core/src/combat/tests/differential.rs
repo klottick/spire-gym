@@ -161,9 +161,10 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::Potion(_) => panic!("M15 potion continuation is unsupported by M9 v1"),
         EffectKind::ObtainPotion{..} => panic!("M15 generated potion obtain is unsupported by M9 v1"),
         EffectKind::SilentItem(_) => panic!("M15 Silent item work is unsupported by M9 v1"),
+        EffectKind::Relic(_) => panic!("M27 relic effect is unsupported by M9 v1"),
         EffectKind::ShieldBashFocus => panic!("M10 Shield Bash continuation is unsupported by M9 v1"),
     };
-    let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),Source::Actor(a)=>json!({"actor":actor(a)})};
+    let source=match &e.source {Source::None=>Value::Null,Source::Card(c)=>json!({"card":c.as_str()}),Source::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),Source::Actor(a)=>json!({"actor":actor(a)}),Source::Relic(id)=>json!({"relic":id.as_str()})};
     json!({"kind":kind,"source":source,"target":e.target.as_ref().map(actor),"payload":payload})
 }
 fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>panic!("M15 escape is unsupported by M9 v1")} }
@@ -180,13 +181,15 @@ fn combat_action(a: &CombatAction) -> Value { match a {
     CombatAction::SelectCard { instance } => json!({"select_card":{"instance":instance}}),
     CombatAction::ConfirmSelection=>json!("confirm_selection"),
     CombatAction::UsePotion { slot, target } => json!({"use_potion":{"slot":slot,"target":target.map(|id|id.0)}}),
+    CombatAction::DiscardPotion { .. } => panic!("M27 discard is unsupported by the frozen M9 differential profile"),
     CombatAction::EndTurn => json!("end_turn"),
 } }
 fn selection_capture(s: &super::super::model::PendingSelection) -> Value {
     let parent=match &s.parent{SelectionParent::Card(card)=>json!({"card":card.as_str()}),
         SelectionParent::Potion{slot,id}=>json!({"potion":{"slot":slot,"id":id.as_str()}}),
         SelectionParent::Power{..}=>panic!("M9 replay-v1 cannot encode M15 power selections"),
-        SelectionParent::EndTurn{..}=>panic!("M9 replay-v1 cannot encode the M11 end-turn selection parent")};
+        SelectionParent::EndTurn{..}=>panic!("M9 replay-v1 cannot encode the M11 end-turn selection parent"),
+        SelectionParent::Relic(_)=>panic!("M9 replay-v1 cannot encode an M27 relic selection parent")};
     json!({"parent":parent,"source_zone":format!("{:?}",s.source_zone),"candidates":s.candidates.iter().map(CardHandle::as_str).collect::<Vec<_>>(),
         "selected":s.selected.iter().map(CardHandle::as_str).collect::<Vec<_>>(),"minimum":s.minimum,"maximum":s.maximum,
         "disposition":format!("{:?}",s.disposition),"empty":format!("{:?}",s.empty)})

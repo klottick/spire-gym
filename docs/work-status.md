@@ -1,6 +1,37 @@
 # Work status
 
-## Current snapshot — 2026-11-01, M25 merged; M26 candidate ready for final review
+## Current snapshot — 2026-11-01, M26 merged; M27 candidate for final review
+
+- M26 (shared and off-colour card coverage) merged as PR #66 (`918f628`). The native-fault fix
+  "drop remaining hits of a dead or half-dead attacker" merged as PR #67 (`a86df922`). The No Draw
+  no-op and soak-found native-fault fix (spire-14g; shared targetable() all-enemy rule, queued-hit
+  cancellation, Large Slime split order) merged as PR #68 (`db42bf4d`) and is the M27 source base.
+  M27 was rebased onto it, with no replay change.
+- M27 (relic and potion lifecycles) is a source candidate; it is not accepted. It is a native item
+  layer with no public profile, descriptor or Python surface: 179 complete relics and 42 potions
+  under one catalog-derived capability, one acquisition-order relic dispatcher for every context,
+  and one Run/combat inventory owner. See the [M27 profile](milestones/m27-items.md),
+  [coverage ledger](milestones/m27-items-coverage-ledger.md) and
+  [reconciliation](milestones/m27-items-reconciliation.md).
+- The freeze v5 tree (1090 files, on PR #68) passes the workspace suite (3986 passed,
+  0 failed, 11 ignored) and the `m27-diagnostics` core suite (3380, 0, 5). The frozen transcript replay (323 inputs)
+  differs from the pre-M27 base only in the disclosed G4 reorder pair-059 and pair-060 (M15
+  Silent). The gate audit found no other frozen change. The evidence is Constructed, plus four
+  Supplied played Act 4 Runs.
+- Global corrections G1–G10, the lane-P potion fixes and the user and PM rulings (no curses in
+  shops or card rewards, F7 Red Circlet fallback, the Smoke Bomb source check) are disclosed in
+  the reconciliation, with six amended accepted assertions (G1 and G10).
+- At the PM's ruling, plan Tasks X1 (design §15.3 cross-character matrix, 9 Constructed tests) and
+  X2 (§15.4 supplied Act 4 Runs, one per character) were executed. X2 found three shared-owner
+  defects (the elite potion-row count, Golden Idol's room scope and Maw Bank's floor entry), which
+  were fixed for every character with disclosure. After the rebase the M27 all-enemy relic producers
+  use PR #68's targetable() rule (D4, same result). Candidate v2 supersedes the unreviewed candidate v1.
+- The final review of candidate v2 was NOT READY (4 Important, 7 Minor, none frozen-reachable). The fixes
+  D5–D16 (Maw Bank purge, Mutagenic Strength Down, the heal law, Tiny Chest/Matryoshka/Hungry Face chest
+  and Unknown-room laws, Exhaust order, Potion Belt loss, Red Circlet, Eggs, Entropic Brew, potion offset)
+  are at the shared owners with red-then-green tests; freeze v5 and candidate v3 supersede candidate v2.
+
+## Prior status body — 2026-11-01, M25 merged; M26 candidate ready for final review, retained verbatim
 
 - M25 (finite native Watcher A0 Acts 1–4 and Heart) merged as PR65 (`3729b29eed33317cd2d6573b9d5ad7d1c7fc441c`,
   feature `ac87e978a1ee5af0c03daa7ff0f8d11c73cfe849`). The M25 body below predates that merge.

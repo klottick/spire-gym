@@ -18,6 +18,13 @@ m24-diagnostics = ["m23-diagnostics"]
 m25-diagnostics = ["m24-diagnostics"]
 # Default-off M26 complete-card supplied Run and combat starts (tests and diagnostics only).
 m26-diagnostics = ["m25-diagnostics", "m20-diagnostics"]
+# Default-off full-state access and fixed pair fixtures for the M27 replay harness.
+m27-diagnostics = ["m26-diagnostics", "m25-diagnostics"]
+
+# The frozen replay harness is built only with its feature (default builds skip it).
+[[example]]
+name = "m27_frozen_replay"
+required-features = ["m27-diagnostics"]
 
 [dependencies]
 hmac = "=0.12.1"

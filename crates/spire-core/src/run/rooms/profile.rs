@@ -18,6 +18,21 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     run.state.floor=node.floor;run.state.room=kind.label();
     run.state.history.rooms.push(VisitedRoom{act:1,floor:node.floor,label:kind.label()});
     let credited=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
+    let entered_kind=match kind {
+        MapNodeKind::Monster|MapNodeKind::Elite|MapNodeKind::Boss=>RoomViewKind::Combat,
+        MapNodeKind::Shop=>RoomViewKind::Shop,
+        MapNodeKind::Rest=>RoomViewKind::Campfire,
+        MapNodeKind::Question|MapNodeKind::Event=>RoomViewKind::Event(if target.0==10{EventId::UpgradeShrine}else{EventId::Purifier}),
+        MapNodeKind::Treasure=>RoomViewKind::Treasure,
+    };
+    if run.state.item_admission==ItemAdmission::Complete {
+        // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
+        let mut floor_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor:run.state.floor};
+        crate::items::dispatch::run_event(&mut run.state,&mut floor_event)?;
+        let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
+        // M27 seam: RoomEntered
+        crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
+    }
     crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered)?;
     if let Some(e)=encounter {
         let mut t=match run.enter_owned(e,CombatOrigin::MapRoom{node:target,kind}) {Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("room combat entry failed"),"run.room.combat"))};

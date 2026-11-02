@@ -154,6 +154,36 @@ pub(super) fn enemy_block_return_after_damage(state:&mut State,result:&super::mo
 /// Only ordinary supported applications spend Artifact. Reductions/removals
 /// reach this same owner without being reclassified as fresh applications.
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), InputError> {
+    let application=match effect.kind {
+        EffectKind::ApplyFullPower{id,amount}=>(id,amount),
+        EffectKind::ApplyPower{id,amount}=>(FullPowerId(id.as_str()),amount),
+        _=>return apply_effect_inner(state,effect),
+    };
+    let target=effect.target.as_ref().ok_or_else(||InputError::Invariant("power target absent at M27 phase".into()))?;
+    let before=amount(state,target,application.0)?;
+    apply_effect_inner(state,effect)?;
+    let after=amount(state,target,application.0)?;
+    let applied=after.saturating_sub(before);
+    if state.full_runtime&&applied!=0 {
+        // M27 seam: power-applied
+        let work=if let Some(items)=state.item_context.as_mut(){
+            let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
+            facts.target=Some(target);facts.source=Some(&effect.source);facts.power=Some((application.0.0,applied));
+            Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::PowerApplied,&facts)?)
+        }else{None};
+        if let Some(work)=work {
+            if work.direct_strength!=0{add_direct_strength(state,work.direct_strength)?;}
+            match super::effects::queue_relic_work(state,work){
+                Ok(())=>(),
+                Err(super::EffectError::Invalid(error))=>return Err(error),
+                Err(super::EffectError::Random(_))=>return Err(InputError::Invariant("relic phase validation unexpectedly requested randomness".into())),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputError> {
     let (id, mut delta, application) = match effect.kind {
         EffectKind::ApplyFullPower { id, amount } => (id, amount, true),
         EffectKind::ApplyPower { id, amount } => (FullPowerId(id.as_str()), amount, true),
@@ -206,6 +236,14 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Inp
         if damage>0{
             super::enemies::act2::bottom(state,Effect{source:Source::Actor(Actor::Player),target:Some(actor.clone()),
                 kind:EffectKind::Damage(super::DamagePayload::Thorns(damage))});
+        }
+    }
+    if application && state.full_runtime {
+        if let Some(items) = state.item_context.as_ref() {
+            // M27 seam: power-attempt follows source callbacks and gates before Artifact.
+            if !crate::items::laws::power_attempt(items, actor, id.0, delta) {
+                return Ok(());
+            }
         }
     }
     if application && debuff && artifact > 0 {

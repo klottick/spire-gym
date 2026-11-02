@@ -108,8 +108,9 @@ fn pure_water_generates_a_unique_temporary_miracle_that_plays_and_exhausts() {
         CombatItemContext::new(vec![RelicId::PureWater], vec![]));
     let full = full_hand.public_full().unwrap();
     assert_eq!(full.hand.len(), 10);
-    assert_eq!(full.discard.iter().filter(|card| card.id == CardId::Miracle).count(), 1,
-        "the generated temporary card respects hand capacity via discard overflow");
+    // G10 (M27): Legacy Pure Water creates its Miracle in hand before the opening draw, so the full hand leaves a starter card in draw (design §7.6; spec-rulings-main2-v1.md G10).
+    assert_eq!(full.hand.iter().filter(|card| card.id == CardId::Miracle).count(), 1,
+        "the generated temporary Miracle occupies hand before the full opening draw");
 }
 
 #[test]
@@ -1091,3 +1092,18 @@ fn m24_watcher_act3_context_admits_red_mask_and_survives_rebuild(){
     let m22=format!("{:?}",CombatItemContext::new(vec![RelicId::PureWater],potions.clone()).with_m22_profile());assert!(!m22.contains("watcher_act3"));
 }
 mod m25_watcher;
+pub(crate) mod m27_capability;
+mod m27_dispatch;
+mod m27_cofiring;
+pub(crate) mod m27_support;
+mod m27_seams;
+mod m27_relics_turns;
+mod m27_relics_play;
+mod m27_relics_structural;
+mod m27_existing_relics;
+mod m27_inert;
+mod m27_gate_audit;
+mod m27_energy_law;
+mod m27_potion_owner;
+mod m27_potion_factory;
+mod m27_cross_character;

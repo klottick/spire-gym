@@ -4,6 +4,13 @@ use super::*;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct BossProgress {pub selected:Option<RelicId>,pub source_complete:bool,pub skip_parent:Option<RoomView>}
 
+#[cfg(test)]
+impl Run {
+    pub(crate) fn m27_test_set_boss_progress(&mut self,selected:Option<RelicId>,source_complete:bool){
+        self.state.room_loop.as_mut().expect("test room loop").boss=Some(BossProgress{selected,source_complete,skip_parent:None});
+    }
+}
+
 fn source_floors(state:&RunState)->Result<(u32,u32),RunError>{
     match state.act {
         1 if uses_captured_act1(state)=>Ok((16,17)),
@@ -22,12 +29,20 @@ pub(super) fn enter_treasure(run:&mut Run)->Result<RunTransition,RunError>{
     run.state.floor=treasure_floor;run.state.room="BossTreasure";run.state.history.rooms.push(VisitedRoom{act:run.state.act,floor:treasure_floor,label:"BossTreasure"});
     run.next_choice=next;let room=run.state.room_loop.as_mut().unwrap();room.screen=screen;room.active_rewards=None;room.reward_parent=None;room.boss=Some(BossProgress{selected:None,source_complete:false,skip_parent:None});
     let reward=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
+    if run.state.item_admission==ItemAdmission::Complete {
+        // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
+        let mut floor_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor:run.state.floor};
+        crate::items::dispatch::run_event(&mut run.state,&mut floor_event)?;
+        let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:RoomViewKind::BossTreasure};
+        // M27 seam: room entered
+        crate::items::dispatch::run_event(&mut run.state,&mut item_event)?;
+    }
     crate::items::on_hook(&mut run.state,crate::combat::Hook::RoomEntered)?;
     Ok(RunTransition{reward,terminal:None,committed_events:vec![event]})
 }
 
-fn eligible(state:&RunState)->Vec<CardInstance>{state.deck.iter().filter(|card|crate::content::Catalog::standard().card(card.id).is_some_and(|c|c.note_storage==crate::content::NoteStorage::RemovablePermanent)).cloned().collect()}
-fn child(next:&mut u64)->Result<RoomView,RunError>{view(next,RoomViewKind::BossRelicChild,vec![(RoomChoiceKind::Proceed,None)])}
+pub(super) fn eligible(state:&RunState)->Vec<CardInstance>{state.deck.iter().filter(|card|crate::content::Catalog::standard().card(card.id).is_some_and(|c|c.note_storage==crate::content::NoteStorage::RemovablePermanent)).cloned().collect()}
+pub(super) fn child(next:&mut u64)->Result<RoomView,RunError>{view(next,RoomViewKind::BossRelicChild,vec![(RoomChoiceKind::Proceed,None)])}
 
 fn warn(run:&mut Run)->Result<RunTransition,RunError>{
     let mut next=run.next_choice;let warning=view(&mut next,RoomViewKind::ProceedWithoutRelic,vec![(RoomChoiceKind::ConfirmSkip,None),(RoomChoiceKind::CancelSkip,None)])?;
@@ -44,8 +59,9 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
             if is_m10(&run.state){rows.extend([(RoomChoiceKind::Relic(RelicId::MarkOfPain),None),(RoomChoiceKind::Relic(RelicId::RunicCube),None)]);}
             rows.push((RoomChoiceKind::Skip,None));let mut screen=view(&mut next,RoomViewKind::BossRelicChoice,rows)?;
             for row in &mut screen.choices{if let RoomChoiceKind::Relic(relic)=row.kind{if run.state.relics.contains(&relic)||(relic==RelicId::HolyWater&&run.state.relics.first()!=Some(&RelicId::PureWater))||(relic==RelicId::FrozenCore&&!run.state.relics.contains(&RelicId::CrackedCore))||(relic==RelicId::RingOfTheSerpent&&!run.state.relics.contains(&RelicId::RingOfTheSnake))||(relic==RelicId::BlackBlood&&run.state.relics.first()!=Some(&RelicId::BurningBlood)){row.status=RoomChoiceStatus::Disabled;}}}
-            crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:true})?;
             run.next_choice=next;run.state.room_loop.as_mut().unwrap().screen=screen;
+            rewards::chest_opened(run,true)?;
+            crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpened{boss:true})?;
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpenedAfter{boss:true})?;
         },
         (RoomViewKind::BossTreasure,RoomChoiceKind::Proceed)|(RoomViewKind::BossRelicChoice,RoomChoiceKind::Skip)=>return warn(run),
@@ -57,13 +73,14 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         (RoomViewKind::BossRelicChoice,RoomChoiceKind::Relic(relic))=>{
             if run.state.room_loop.as_ref().unwrap().boss.as_ref().unwrap().selected.is_some()||run.state.relics.contains(&relic){return Err(RunError::InvalidAction)}
             if !(uses_watcher_content(&run.state)&&super::m22_content::BOSS_RELICS.contains(&relic)||is_m20(&run.state)&&super::m20_content::BOSS_RELICS.contains(&relic)||is_m15(&run.state)&&super::m15_content::M15_BOSS_RELICS.contains(&relic)||!uses_watcher_content(&run.state)&&!is_m15(&run.state)&&(matches!(relic,RelicId::BlackBlood|RelicId::EmptyCage|RelicId::SlaversCollar)||is_m10(&run.state)&&matches!(relic,RelicId::MarkOfPain|RelicId::RunicCube))){return Err(RunError::InvalidAction)}
+            if run.state.item_admission==ItemAdmission::Complete{return choose_complete_relic(run,id,relic,row)}
             let cards=if relic==RelicId::EmptyCage{eligible(&run.state)}else{vec![]};let grid=relic==RelicId::EmptyCage&&cards.len()>2;
             if !cards.is_empty()&&!grid&&cards.len()==run.state.deck.len(){reward::preflight(&run.state,&[CommittedEvent::Ended(RunTerminal::EmptyDeck)])?;}
             let mut next=run.next_choice;
             let candidates=if grid{let c=cards.iter().map(|card|Ok(SelectionCandidate{id:SelectionId(token(&mut next)?.0),card:card.clone()})).collect::<Result<Vec<_>,RunError>>()?;next.checked_add(cards.len() as u64).ok_or(RunError::Unsupported("Cage publication identity exhausted"))?;c}else{vec![]};
             let child=if grid{RoomView{kind:RoomViewKind::BossRelicChild,choices:vec![row.clone()]}}else{child(&mut next)?};
             let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;
-            if relic==RelicId::BlackBlood{crate::items::replace_burning_blood(&mut run.state)?;}else{crate::items::acquire_relic(&mut run.state,relic)?;}
+            crate::items::obtain_relic(&mut run.state,relic,crate::items::lifecycle::RelicSource::Boss)?;
             run.next_choice=next;let room=run.state.room_loop.as_mut().unwrap();room.screen=child;let boss=room.boss.as_mut().unwrap();boss.selected=Some(relic);boss.source_complete=!grid;
             if grid {
                 if run.begin_selection(ContinuationTarget::Room{node,choice:id,operation:RoomSelectionOperation::EmptyCage},candidates,2,EmptySelectionRule::Fault).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Cage selector preparation failed"),"run.boss.cage"))}
@@ -75,6 +92,23 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         },
         _=>return Err(RunError::InvalidAction),
     }Ok(empty_transition())
+}
+
+fn choose_complete_relic(run:&mut Run,choice:ChoiceId,relic:RelicId,row:RoomChoiceView)->Result<RunTransition,RunError>{
+    let mut staged=run.clone();
+    let obtained=crate::items::obtain_relic(&mut staged.state,relic,crate::items::lifecycle::RelicSource::Boss)?;
+    let grid=obtained.selection.as_ref().is_some_and(|spec|spec.eligible.len()>spec.count);
+    let mut next=staged.next_choice;
+    let screen=if grid{RoomView{kind:RoomViewKind::BossRelicChild,choices:vec![row]}}else{child(&mut next)?};
+    staged.next_choice=next;
+    let room=staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
+    room.screen=screen;
+    let boss=room.boss.as_mut().ok_or(RunError::InvalidAction)?;
+    boss.selected=Some(relic);
+    boss.source_complete=!grid;
+    let transition=crate::items::lifecycle::after_obtain(&mut staged,choice,relic,obtained)?;
+    *run=staged;
+    Ok(transition)
 }
 
 pub(super) fn select_cage(run:&mut Run,id:SelectionId)->Result<RunTransition,RunError>{

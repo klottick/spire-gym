@@ -5,9 +5,16 @@ mod potions;
 mod ironclad;
 mod ironclad_turns;
 mod silent;
+pub(crate) mod dispatch;
+pub(crate) mod laws;
+pub(crate) mod run_laws;
+pub(crate) mod lifecycle;
+pub(crate) mod relic_effects;
+pub(crate) use lifecycle::{lose_relic, obtain_relic, open_equip_selection, RelicObtained};
+pub(crate) mod relic_pools;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 #[cfg(test)]
 mod m10_ironclad_relic_turns;
 #[cfg(test)]
@@ -19,6 +26,13 @@ use crate::{combat::{Combat, Effect, EnemyHandle, Hook, InputError}, content::{C
 pub struct RelicCounterView {pub relic:RelicId,pub value:i32}
 pub(crate) fn visible_counters(counters:&std::collections::BTreeMap<RelicId,i32>)->Vec<RelicCounterView>{
     [RelicId::NeowsLament,RelicId::Inserter].into_iter().filter_map(|relic|counters.get(&relic).map(|value|RelicCounterView{relic,value:*value})).collect()
+}
+pub(crate) fn complete_counter_view(counters:&std::collections::BTreeMap<RelicId,i32>)->Vec<RelicCounterView>{
+    [RelicId::NeowsLament,RelicId::Inserter,RelicId::AncientTeaSet,RelicId::HappyFlower,RelicId::MawBank,
+        RelicId::Nunchaku,RelicId::Omamori,RelicId::PenNib,RelicId::TinyChest,RelicId::InkBottle,
+        RelicId::Matryoshka,RelicId::Sundial,RelicId::Girya,RelicId::IncenseBurner,RelicId::LizardTail,
+        RelicId::WingBoots,RelicId::Circlet,RelicId::NlothsHungryFace]
+        .into_iter().filter_map(|relic|counters.get(&relic).map(|value|RelicCounterView{relic,value:*value})).collect()
 }
 pub(crate) fn replace_burning_blood(state:&mut RunState)->Result<(),RunError>{relics::replace_burning_blood(state)}
 
@@ -37,6 +51,13 @@ pub struct CombatItemContext {
     watcher_heart:bool,
     /// M26 complete card capability overlay (`with_complete_cards`).
     complete_cards:bool,
+    /// M27 complete item capability overlay (`with_complete_items`); valid only with
+    /// `complete_cards` (design §5.2).
+    complete_items:bool,
+    /// Combat-local relic state (design §7.5), dropped at settlement.
+    local:std::collections::BTreeMap<RelicId,i32>,
+    /// Bottled relic card links moved with the inventory (design §7.5).
+    relic_cards:std::collections::BTreeMap<RelicId,u64>,
     potion_potencies:Vec<Option<i32>>,
     last_potion_use:Option<(usize,PotionId,i32)>,
     pub(crate) collar_activated:bool,
@@ -48,6 +69,7 @@ pub struct CombatItemContext {
     runic_capacitor_armed: bool,
     kite_triggered: bool,
     wrist_blade_bonus: i32,
+    damage_card: Option<dispatch::PhaseCard>,
     lantern_armed: bool,
     heal_room: NativeHealRoom,
 }
@@ -72,11 +94,19 @@ impl std::fmt::Debug for CombatItemContext{
         if self.emotion_chip_armed{value.field("emotion_chip_armed",&self.emotion_chip_armed);}
         if self.kite_triggered{value.field("kite_triggered",&self.kite_triggered);}
         if self.wrist_blade_bonus!=0{value.field("wrist_blade_bonus",&self.wrist_blade_bonus);}
+        if self.damage_card.is_some(){value.field("damage_card",&self.damage_card);}
         if self.m22_profile(){value.field("watcher_progression",&true);}
         if self.watcher_act3{value.field("watcher_act3",&true);}
         if self.watcher_heart{value.field("watcher_heart",&true);}
         if self.complete_cards{value.field("complete_cards",&true);}
-        if self.m21_profile(){value.field("startup_profile",&self.startup_profile).field("potion_potencies",&self.potion_potencies).field("last_potion_use",&self.last_potion_use);}value.finish()
+        if self.complete_items{value.field("complete_items",&true);}
+        if !self.local.is_empty(){value.field("local",&self.local);}
+        if !self.relic_cards.is_empty(){value.field("relic_cards",&self.relic_cards);}
+        if self.m21_profile(){value.field("startup_profile",&self.startup_profile);}
+        if self.m21_profile() || self.potion_potencies.iter().any(Option::is_some) || self.last_potion_use.is_some(){
+            value.field("potion_potencies",&self.potion_potencies).field("last_potion_use",&self.last_potion_use);
+        }
+        value.finish()
     }
 }
 
@@ -94,47 +124,76 @@ impl RelicHookWork {
 impl CombatItemContext {
     /// Damage-path rescue consumes the first live Fairy without potion-use hooks.
     pub(crate) fn consume_fairy_for_rescue(&mut self,max_hp:i32)->Option<(usize,i32)> {
-        if !self.shared_generated_profile()||self.owns_relic(RelicId::MarkOfBloom){return None}
+        if !(self.shared_generated_profile()||self.complete_items())||self.owns_relic(RelicId::MarkOfBloom){return None}
         let slot=self.potions.iter().position(|potion|*potion==Some(PotionId::FairyPotion))?;
-        let percent=if self.owns_relic(RelicId::SacredBark){60.0_f32}else{30.0_f32};
-        let amount=((max_hp as f32)*(percent/100.0_f32)) as i32;
-        self.potions[slot]=None;Some((slot,amount.max(1)))
+        let percent=if self.complete_items(){self.potion_potency(slot).unwrap_or(30)}
+            else if self.owns_relic(RelicId::SacredBark){60}else{30};
+        let amount=((max_hp as f32)*(percent as f32/100.0_f32)) as i32;
+        self.potions[slot]=None;
+        if let Some(potency)=self.potion_potencies.get_mut(slot){*potency=None;}
+        Some((slot,amount.max(1)))
     }
 
     pub fn new(relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Self {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,complete_items:false,local:Default::default(),relic_cards:Default::default(),counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,damage_card:None,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
     /// Move permanent inventory into the single active combat owner.
     pub(crate) fn take_from_run(state: &mut RunState) -> Self {
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics: std::mem::take(&mut state.relics),
-            potions: std::mem::take(&mut state.potions), orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,lantern_armed: false,
+        let complete_items=state.item_admission==crate::run::ItemAdmission::Complete;
+        let relics=std::mem::take(&mut state.relics);
+        let potions=std::mem::take(&mut state.potions);
+        let stored=std::mem::take(&mut state.potion_potencies);
+        let run_potencies=if complete_items{main_relics::reconcile_potion_potencies(&relics,&potions,&stored)}else{Vec::new()};
+        let potion_potencies=if complete_items {
+            if run_potencies.is_empty(){vec![None;potions.len()]}
+            else{run_potencies.iter().map(|slot|slot.map(|(_,potency)|potency)).collect()}
+        }else{Vec::new()};
+        Self { potion_potencies,last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,complete_items:false,local:Default::default(),relic_cards:std::mem::take(&mut state.relic_cards),runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics,
+            potions, orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,damage_card:None,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
 
     /// Return active ownership once without replacing another live inventory.
     pub(crate) fn return_to_run(self, state: &mut RunState) -> Result<(), RunError> {
-        if !state.relics.is_empty() || !state.potions.is_empty() || !state.relic_counters.is_empty() {
+        if !state.relics.is_empty() || !state.potions.is_empty() || !state.relic_counters.is_empty() || !state.relic_cards.is_empty() || !state.potion_potencies.is_empty() {
             return Err(RunError::InvalidAction);
         }
+        let returned_potencies=if self.complete_items {
+            let bark=self.relics.contains(&RelicId::SacredBark);
+            self.potions.iter().enumerate().map(|(slot,potion)|potion.map(|id|{
+                let potency=self.potion_potencies.get(slot).copied().flatten()
+                    .unwrap_or_else(||main_relics::initial_potion_potency(id,bark));
+                (id,potency)
+            })).collect()
+        }else{Vec::new()};
         state.relics = self.relics;
         state.potions = self.potions;
         state.relic_counters=self.counters;
+        state.relic_cards=self.relic_cards;
+        state.potion_potencies=returned_potencies;
+        if !state.potion_potencies.iter().any(Option::is_some){state.potion_potencies.clear();}
         Ok(())
     }
 
-    pub(crate) fn with_startup_profile(mut self,profile:CombatStartupProfile)->Self{self.startup_profile=profile;self.reinitialize_potion_potencies();self}
-    pub(crate) fn reinitialize_potion_potencies(&mut self){
-        self.potion_potencies=if self.m21_profile(){self.potions.iter().map(|p|p.map(|id|self.initial_potency(id))).collect()}else{vec![]};
+    pub(crate) fn with_startup_profile(mut self,profile:CombatStartupProfile)->Self{self.startup_profile=profile;self.fill_potion_potencies();self}
+    /// Gives every held potion without a potency its initial one; stored potencies
+    /// (Run custody, F4) are kept. Contexts that do not track potency hold none.
+    fn fill_potion_potencies(&mut self){
+        if !self.potion_potency_enabled(){self.potion_potencies.clear();return}
+        self.potion_potencies.resize(self.potions.len(),None);
+        for slot in 0..self.potions.len(){
+            if let (Some(id),None)=(self.potions[slot],self.potion_potencies[slot]){self.potion_potencies[slot]=Some(self.initial_potency(id));}
+        }
     }
     fn initial_potency(&self,id:PotionId)->i32{
-        let base=match id{PotionId::StancePotion=>0,PotionId::Ambrosia|PotionId::BottledMiracle|PotionId::EnergyPotion|PotionId::DexterityPotion=>2,PotionId::BlockPotion=>12,PotionId::AncientPotion=>1,_=>0};
-        base*if self.owns_relic(RelicId::SacredBark){2}else{1}
+        main_relics::initial_potion_potency(id,self.owns_relic(RelicId::SacredBark))
     }
+    fn potion_potency_enabled(&self)->bool{self.m21_profile()||self.complete_items}
     pub(crate) fn potion_potency(&self,slot:usize)->Option<i32>{self.potion_potencies.get(slot).copied().flatten()}
     pub(crate) fn consumed_potion_potency(&self,slot:usize,id:PotionId)->Option<i32>{
         self.last_potion_use.filter(|(s,p,_)|*s==slot&&*p==id&&self.potions.get(slot)==Some(&None)).map(|(_,_,amount)|amount)
@@ -153,6 +212,27 @@ impl CombatItemContext {
     /// Relic and potion validation stay the base context's.
     pub(crate) fn with_complete_cards(mut self)->Self{self.complete_cards=true;self}
     pub(crate) fn complete_cards(&self)->bool{self.complete_cards}
+    /// M27 complete item capability (design §5.2). Validation rejects it without
+    /// `with_complete_cards()`.
+    pub(crate) fn with_complete_items(mut self)->Self{self.complete_items=true;self.fill_potion_potencies();self}
+    pub(crate) fn complete_items(&self)->bool{self.complete_items}
+    /// Selects the single pre-draw visit used by item dispatch.
+    /// `Combat::enter_with_item_context` queues `Hook::CombatStartedPreDraw` iff
+    /// the active item context satisfies `m21_profile()`; it queues that hook
+    /// immediately before `OpeningHand`. Other contexts visit startup work with
+    /// `hook == None` (`combat/engine.rs`, combat-entry opening sequence).
+    pub(crate) fn is_pre_draw_visit(&self, hook: Option<crate::combat::Hook>) -> bool {
+        if self.m21_profile() {
+            hook == Some(crate::combat::Hook::CombatStartedPreDraw)
+        } else {
+            hook.is_none()
+        }
+    }
+    /// Combat-local relic state (0 when unset).
+    pub(crate) fn local(&self,id:RelicId)->i32{self.local.get(&id).copied().unwrap_or(0)}
+    pub(crate) fn set_local(&mut self,id:RelicId,value:i32){if value==0{self.local.remove(&id);}else{self.local.insert(id,value);}}
+    /// The permanent card instance a bottle relic is linked to.
+    pub(crate) fn relic_card(&self,id:RelicId)->Option<u64>{self.relic_cards.get(&id).copied()}
     /// M26 §6.3 class L: an M25 Watcher card law is reachable under the M25 profile or the
     /// complete card capability (seam map §3; one helper, no per-site character list).
     pub(crate) fn m25_cards(&self)->bool{self.watcher_heart||self.complete_cards}
@@ -160,10 +240,10 @@ impl CombatItemContext {
     pub(crate) fn m21_profile(&self)->bool{self.startup_profile==CombatStartupProfile::M21Watcher}
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
     pub(crate) fn valid_potion_capacity(&self) -> bool {
-        valid_potion_capacity(&self.relics, &self.potions)
+        valid_potion_capacity(&self.relics, &self.potions, self.complete_items())
     }
     pub(crate) fn validate_potion_obtain_input(&self, id: PotionId) -> Result<(), InputError> {
-        validate_potion_obtain_input(&self.relics,&self.potions,id)
+        validate_potion_obtain_input(&self.relics,&self.potions,self.complete_items(),id)
     }
     /// Ordinary first-empty-slot obtain. Sozu is checked by the accepted
     /// effect/run consumer at dispatch, never by this inventory owner.
@@ -171,6 +251,10 @@ impl CombatItemContext {
         self.validate_potion_obtain_input(id)?;
         if let Some(slot) = self.potions.iter().position(Option::is_none) {
             self.potions[slot] = Some(id);
+            if self.complete_items {
+                self.potion_potencies.resize(self.potions.len(),None);
+                self.potion_potencies[slot]=Some(self.initial_potency(id));
+            }
             Ok(true)
         } else {
             Ok(false)
@@ -188,12 +272,21 @@ impl CombatItemContext {
     pub(crate) fn kite_triggered(&self)->bool{self.kite_triggered}
     pub(crate) fn wrist_blade_bonus(&self)->i32{self.wrist_blade_bonus}
     pub(crate) fn set_wrist_blade_bonus(&mut self,value:i32){self.wrist_blade_bonus=value;}
+    pub(crate) fn damage_card(&self)->Option<dispatch::PhaseCard>{self.damage_card}
+    pub(crate) fn set_damage_card_for_projection(&mut self,card:dispatch::PhaseCard){self.damage_card=Some(card);}
     pub(crate) fn relics(&self) -> &[RelicId] { &self.relics }
     pub(crate) fn potions(&self) -> &[Option<PotionId>] { &self.potions }
     pub(crate) fn counters(&self)->&std::collections::BTreeMap<RelicId,i32>{&self.counters}
     pub(crate) fn counter(&self,id:RelicId)->i32{self.counters.get(&id).copied().unwrap_or(0)}
     pub(crate) fn set_counter(&mut self,id:RelicId,value:i32){if value==0&&id!=RelicId::Inserter{self.counters.remove(&id);}else{self.counters.insert(id,value);}}
     pub(crate) fn with_counters(mut self,counters:std::collections::BTreeMap<RelicId,i32>)->Self{self.counters=counters;self}
+    pub(crate) fn discard_potion(&mut self,slot:usize)->Result<(),RunError>{
+        if !self.complete_items||self.potions.get(slot).is_none_or(Option::is_none){return Err(RunError::InvalidAction)}
+        self.potions[slot]=None;
+        if let Some(potency)=self.potion_potencies.get_mut(slot){*potency=None;}
+        if self.last_potion_use.is_some_and(|(used_slot,_,_)|used_slot==slot){self.last_potion_use=None;}
+        Ok(())
+    }
     pub(crate) fn heal_room(&self) -> NativeHealRoom { self.heal_room }
 
     pub(crate) fn with_native_room(mut self, phase: PotionRoomPhase,
@@ -207,20 +300,22 @@ impl CombatItemContext {
     pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
-        Self { potion_potencies:if self.m21_profile(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
-            last_potion_use:if self.m21_profile(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
-            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
-            orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,lantern_armed: self.lantern_armed,
+        Self { potion_potencies:if self.potion_potency_enabled(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
+            last_potion_use:if self.potion_potency_enabled(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
+            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,complete_items:self.complete_items,local:self.local.clone(),relic_cards:self.relic_cards.clone(),runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+            orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,damage_card:None,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
 }
 
-fn valid_potion_capacity(relics: &[RelicId], potions: &[Option<PotionId>]) -> bool {
-    if relics.contains(&RelicId::PotionBelt) { potions.len() == 5 } else { potions.len() == 3 }
+/// F6: under complete admission a lost Potion Belt keeps its two slots, so five slots stay valid
+/// without the belt.
+fn valid_potion_capacity(relics: &[RelicId], potions: &[Option<PotionId>], complete: bool) -> bool {
+    if relics.contains(&RelicId::PotionBelt) { potions.len() == 5 } else { potions.len() == 3 || complete && potions.len() == 5 }
 }
 
-fn validate_potion_obtain_input(relics:&[RelicId],potions:&[Option<PotionId>],id:PotionId)->Result<(),InputError>{
-    if !valid_potion_capacity(relics,potions)||potions.iter().flatten().any(|id|crate::content::Catalog::standard().potion(*id).is_none())
+fn validate_potion_obtain_input(relics:&[RelicId],potions:&[Option<PotionId>],complete:bool,id:PotionId)->Result<(),InputError>{
+    if !valid_potion_capacity(relics,potions,complete)||potions.iter().flatten().any(|id|crate::content::Catalog::standard().potion(*id).is_none())
         ||crate::content::Catalog::standard().potion(id).is_none(){
         return Err(InputError::Invariant("generated potion obtain input invalid".into()))
     }
@@ -270,7 +365,8 @@ pub(crate) struct PotionUseEffects {
 /// Active-combat item effects use the same handlers with the combat-owned item
 /// context and are committed through Combat's ordinary resolver.
 pub fn on_hook(state: &mut RunState, hook: Hook) -> Result<(), RunError> {
-    relics::on_run_hook(state, hook)
+    if hook==Hook::CombatSettled{relics::settlement_heal_bridge(state);}
+    Ok(())
 }
 
 /// Native relic acquisition while RunState owns the permanent inventory.
@@ -284,6 +380,13 @@ pub(crate) fn ordinary_heal_amount(relics: &[RelicId], amount: i32) -> i32 {
     ordinary_heal_amount_in_room(relics, amount, NativeHealRoom::default())
 }
 
+/// The one heal law (design §9.1) for an onVictory heal committed at combat settlement (Meat on
+/// the Bone, Face of Cleric): the room is still COMBAT, so Magic Flower applies.
+pub(crate) fn victory_heal_amount(state: &RunState, amount: i32) -> i32 {
+    ordinary_heal_amount_in_room(&state.relics, amount,
+        NativeHealRoom::from_map(PotionRoomPhase::Combat, state.map.as_ref()))
+}
+
 pub(crate) fn ordinary_heal_amount_in_room(relics: &[RelicId], amount: i32,
     room: NativeHealRoom) -> i32 {
     if relics.contains(&RelicId::MarkOfBloom) { return 0; }
@@ -294,40 +397,58 @@ pub(crate) fn ordinary_heal_amount_in_room(relics: &[RelicId], amount: i32,
     amount
 }
 
-/// Produce ordered native effects for a combat lifecycle checkpoint.
+/// Produce ordered native effects for a combat lifecycle checkpoint: the hook's phase
+/// through the one relic dispatcher (`dispatch::combat_phase`).
+pub(crate) fn relic_phase_effects(context: &mut CombatItemContext, facts: &dispatch::PhaseFacts<'_>) -> Result<RelicHookWork, InputError> {
+    let Some(hook)=facts.hook else { return Ok(RelicHookWork::default()) };
+    if hook==Hook::CombatSettled {context.emotion_chip_armed=false;}
+    if context.m20_profile()&&hook==Hook::TurnStartedPreDraw&&facts.target==Some(&crate::combat::Actor::Player){validate_defect_relic_counters(context)?;}
+    let Some(phase)=dispatch::hook_phase(hook) else { return Ok(RelicHookWork::default()) };
+    let mut work=dispatch::combat_phase(context,phase,facts)?;
+    if phase==dispatch::ItemPhase::CardUsed {
+        let after=dispatch::combat_phase(context,dispatch::ItemPhase::AfterUse,facts)?;
+        work.top.extend(after.top);work.bottom.extend(after.bottom);
+    }
+    Ok(work)
+}
+
+/// The accepted tests' bridge entry points, kept as thin calls into the one dispatcher.
+#[cfg(test)]
 pub(crate) fn relic_hook_effects(context: &mut CombatItemContext, hook: Hook, hp: i32,max_hp:i32,block:i32) -> RelicHookWork {
-    let mut work=relics::on_combat_hook(context, hook, hp,block);
-    let silent=silent::on_combat_hook(context,hook);
-    work.top.extend(silent.top);work.bottom.extend(silent.bottom);
-    let ic=ironclad::on_hook(context,hook,hp,max_hp);
-    work.top.extend(ic.top);work.bottom.extend(ic.bottom);work.direct_strength=ic.direct_strength;
-    work.top.extend(ironclad_turns::relic_hook(context,hook));
-    work
+    relic_phase_effects(context,&dispatch::PhaseFacts::new(Some(hook),hp,max_hp,block)).expect("accepted bridge hook")
+}
+#[cfg(test)]
+pub(crate) fn silent_death_work(context:&CombatItemContext,dead_owner:EnemyHandle,callback_poison:Option<i32>,live_eligible_count:usize)->Vec<Effect>{
+    let mut facts=dispatch::PhaseFacts::new(Some(Hook::Death),0,0,0);facts.dead_enemy=Some((&dead_owner,callback_poison,live_eligible_count));
+    let work=dispatch::combat_phase(&mut context.clone(),dispatch::ItemPhase::EnemyDied,&facts).expect("accepted death bridge");
+    work.top.into_iter().chain(work.bottom).collect()
+}
+#[cfg(test)]
+pub(crate) fn defect_pre_battle_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{startup_work(context)}
+#[cfg(test)]
+pub(crate) fn defect_turn_start_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
+    let mut facts=dispatch::PhaseFacts::new(Some(Hook::TurnStartedPreDraw),0,0,0);facts.target=Some(&crate::combat::Actor::Player);
+    Ok(relic_phase_effects(context,&facts)?.top)
+}
+#[cfg(test)]
+pub(crate) fn defect_end_turn_work(context:&CombatItemContext,has_empty_orb:bool)->Vec<Effect>{
+    let mut facts=dispatch::PhaseFacts::new(Some(Hook::PlayerPreEndTurnCards),0,0,0);facts.target=Some(&crate::combat::Actor::Player);facts.has_empty_orb=has_empty_orb;
+    relic_phase_effects(&mut context.clone(),&facts).expect("accepted end-turn bridge").top
 }
 
-pub(crate) fn relic_damage_effects(context:&mut CombatItemContext,target:&crate::combat::Actor,hp_lost:i32,hp_after:i32,max_hp:i32)->Result<Vec<Effect>,crate::combat::InputError>{ironclad::on_damage(context,target,hp_lost,hp_after,max_hp)}
-pub(crate) fn relic_hp_state_effects(context:&mut CombatItemContext,hp:i32,max_hp:i32)->Vec<Effect>{ironclad::on_hp_state(context,hp,max_hp)}
-pub(crate) fn relic_exhaust_effects(context:&CombatItemContext,source:&crate::combat::Source,enemies:&[crate::combat::EnemyHandle])->Vec<Effect>{ironclad::on_exhaust(context,source,enemies)}
-
-pub(crate) fn brimstone_enemy_work(context:&CombatItemContext,hook:Hook,enemies:&[EnemyHandle])->Vec<Effect>{ironclad_turns::brimstone_enemy_work(context,hook,enemies)}
-pub(crate) fn runic_cube_draw(context:&CombatItemContext,positive_hp_lost:i32)->Option<Effect>{ironclad_turns::runic_cube_draw(context,positive_hp_lost)}
-
-pub(crate) fn battle_start_enemy_effects(context:&CombatItemContext,targets:&[EnemyHandle])->Vec<Effect>{
-    let mut work=relics::battle_start_enemy_effects(context,targets);
-    work.extend(silent::battle_start_enemy_effects(context,targets));work
+/// The combat-entry startup dispatch (before the opening hand): Defect atPreBattle work and
+/// Ninja Scroll's generated Shivs, in acquisition order, as ordinary bottom work.
+pub(crate) fn startup_work(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
+    let mut facts=dispatch::PhaseFacts::new(None,0,0,0);
+    facts.elite=context.battle.elite_trigger;facts.boss=context.battle.boss;
+    startup_work_with_facts(context,&facts)
 }
 
-/// Relic callback bridge used by the shared Death hook. The caller snapshots
-/// Poison and the live eligible count at callback time; Specimen target choice
-/// remains deferred to the typed effect's ordinary resolver dispatch.
-pub(crate) fn silent_death_work(context:&CombatItemContext,dead_owner:EnemyHandle,
-    callback_poison:Option<i32>,live_eligible_count:usize)->Vec<Effect>{
-    silent::death_work(context,dead_owner,callback_poison,live_eligible_count)
+pub(crate) fn startup_work_with_facts(context:&mut CombatItemContext,facts:&dispatch::PhaseFacts<'_>)->Result<Vec<Effect>,InputError>{
+    if context.m20_profile(){validate_defect_relic_counters(context)?;}
+    let work=dispatch::combat_phase(context,dispatch::ItemPhase::CombatStartPreDraw,facts)?;
+    Ok(work.top.into_iter().chain(work.bottom).collect())
 }
-
-/// M15-only generated hand work runs through the ordinary CreateCard resolver
-/// before Combat's existing opening draw.
-pub(crate) fn silent_pre_draw_work(context:&CombatItemContext)->Vec<Effect>{silent::pre_draw_work(context)}
 
 /// Validate and prepare a potion use without mutating the caller's item owner.
 /// The returned post-use slots are committed only alongside validated effects.
@@ -342,6 +463,7 @@ pub(crate) fn potion_use_effects_for_character(context: &CombatItemContext, slot
 
 /// Finite supported startup/use IDs, independent of registration metadata.
 pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:crate::content::Character) -> Result<(), RunError> {
+    if context.complete_items(){return validate_complete_inventory(context,character)}
     // M26 overlay potion-belt admission: under the complete capability a held potion is admitted
     // when it is in the player's class pool (Alchemize gains settle there); relics, counters and
     // belt shape stay the base context's rules, checked with those potions set aside.
@@ -443,6 +565,41 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
     Ok(())
 }
 
+/// The domain of each persistent relic counter (design §7.5). `None`: the relic keeps no
+/// persistent counter, so a counter key for it is invalid.
+pub(crate) fn counter_domain(id:RelicId)->Option<std::ops::RangeInclusive<i32>>{
+    Some(match id{
+        RelicId::PenNib|RelicId::Nunchaku|RelicId::InkBottle=>0..=9,
+        RelicId::IncenseBurner=>0..=5,
+        RelicId::HappyFlower|RelicId::Sundial|RelicId::Omamori|RelicId::Matryoshka=>0..=2,
+        RelicId::WingBoots|RelicId::Girya|RelicId::TinyChest=>0..=3,
+        RelicId::Inserter=>-1..=1,
+        RelicId::NeowsLament=>-2..=3,
+        RelicId::Circlet=>1..=i32::MAX,
+        // Used / disabled / armed flags.
+        RelicId::LizardTail|RelicId::MawBank|RelicId::NlothsHungryFace|RelicId::AncientTeaSet=>1..=1,
+        _=>return None,
+    })
+}
+
+/// The one complete-inventory validator (design §5.2), reached first from
+/// `validate_combat_inventory` under `complete_items()`.
+pub(crate) fn validate_complete_inventory(context:&CombatItemContext,character:Character)->Result<(),RunError>{
+    if !context.complete_cards(){return Err(RunError::Unsupported("complete items require the complete card capability"))}
+    let union=crate::content::complete::relic_union(character);
+    let mut seen=std::collections::BTreeSet::new();
+    // F7 makes Red Circlet the exhausted Boss fallback, so owned inventory admits it outside ordinary relic unions.
+    if context.relics.iter().any(|id|!(union.contains(id)||*id==RelicId::RedCirclet)||!seen.insert(*id)){return Err(RunError::InvalidAction)}
+    const REPLACEMENTS:[(RelicId,RelicId);4]=[(RelicId::BurningBlood,RelicId::BlackBlood),(RelicId::RingOfTheSnake,RelicId::RingOfTheSerpent),
+        (RelicId::CrackedCore,RelicId::FrozenCore),(RelicId::PureWater,RelicId::HolyWater)];
+    if REPLACEMENTS.iter().any(|(starter,boss)|context.owns_relic(*starter)&&context.owns_relic(*boss)){return Err(RunError::InvalidAction)}
+    let potions=crate::content::complete::potion_union(character);
+    if context.potions.iter().flatten().any(|id|!potions.contains(id))||!context.valid_potion_capacity(){return Err(RunError::InvalidAction)}
+    if context.counters.iter().any(|(id,value)|!context.owns_relic(*id)||!counter_domain(*id).is_some_and(|domain|domain.contains(value))){return Err(RunError::InvalidAction)}
+    if context.owns_relic(RelicId::NeowsLament)&&!matches!(context.counters.get(&RelicId::NeowsLament),Some(1..=3)|Some(-2)){return Err(RunError::InvalidAction)}
+    Ok(())
+}
+
 /// Pure full-combat preparation used by both legal menus and accepted use.
 pub(crate) fn prepare_combat_potion(combat: &Combat, slot: usize,
     target: Option<EnemyHandle>, we_meet_again: bool) -> Result<PotionUseEffects, RunError> {
@@ -462,6 +619,12 @@ fn prepare_combat_potion_inner(combat: &Combat, slot: usize,
         Some(character) => potion_use_effects_for_character(context, slot, target, &facts, character)?,
         None => potion_use_effects(context, slot, target, &facts)?,
     };
+    // Frozen item profiles keep the accepted Toy Ornithopter effect in the
+    // prepared potion prefix. Complete items route it through PotionUsed below.
+    if context.owns_relic(RelicId::ToyOrnithopter)&&!context.complete_items(){
+        prepared.effects.push(Effect { source: crate::combat::Source::None,
+            target: Some(crate::combat::Actor::Player), kind: crate::combat::EffectKind::Heal(5) });
+    }
     if potion==Some(PotionId::ExplosivePotion){
         for effect in &mut prepared.effects {
             if let (Some(crate::combat::Actor::Enemy(owner)),crate::combat::EffectKind::Damage(
@@ -469,10 +632,6 @@ fn prepare_combat_potion_inner(combat: &Combat, slot: usize,
                 *amount=combat.normal_potion_damage_to(owner,*amount)?;
             }
         }
-    }
-    if context.owns_relic(RelicId::ToyOrnithopter) {
-        prepared.effects.push(Effect { source: crate::combat::Source::None,
-            target: Some(crate::combat::Actor::Player), kind: crate::combat::EffectKind::Heal(5) });
     }
     combat.preflight_native_effects(&prepared.effects)?;
     Ok(prepared)
@@ -486,15 +645,23 @@ pub(crate) fn use_combat_potion(combat: &mut Combat, slot: usize,
     let prepared = prepare_combat_potion(combat, slot, target, we_meet_again)?;
     let mut prepared=prepared;
     combat.capture_distilled_chaos_targets(&mut prepared.effects)?;
-    combat.enqueue_native_effects(prepared.effects,
-        Some(context.with_potions(prepared.potions)))
+    let (_,hp,max_hp,_)=combat.native_potion_use_state()?;
+    let mut next_items=context.with_potions(prepared.potions);
+    let mut facts=dispatch::PhaseFacts::new(None,hp,max_hp,0);
+    let potion_source=crate::combat::Source::Potion{slot,id:context.potions().get(slot).copied().flatten().ok_or(RunError::InvalidAction)?};
+    facts.source=Some(&potion_source);
+    // M27 seam: potion-used; the returned bottom work follows all potion effects.
+    let work=dispatch::combat_phase(&mut next_items,dispatch::ItemPhase::PotionUsed,&facts)
+        .map_err(|_|RunError::InvalidAction)?;
+    combat.enqueue_native_effects_with_relic_work(prepared.effects,Some(next_items),work)
 }
 
 /// Native noncombat use while RunState is the sole owner of HP and potion slots.
 /// This deliberately does not create a public action or advance room progression.
 pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
     turn_ended: bool, we_meet_again: bool) -> Result<(), RunError> {
-    if (crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state))&&state.potions.get(slot).copied().flatten()==Some(PotionId::EntropicBrew){
+    if (crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state)||state.item_admission==crate::run::ItemAdmission::Complete)
+        &&state.potions.get(slot).copied().flatten()==Some(PotionId::EntropicBrew){
         if turn_ended{return Err(RunError::InvalidAction)}
         return use_m15_entropic_brew_outside(state,slot,we_meet_again)
     }
@@ -503,6 +670,9 @@ pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
         if let Some(values)=observed.as_mut(){values.push((before,after,source.clone()));}
     })?;
     state.hp=hp;state.max_hp=max_hp;state.potions=potions;
+    if state.item_admission==crate::run::ItemAdmission::Complete {
+        state.potion_potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
+    }
     // Preparation is also used by legal menus. Publish its detached primitive
     // checkpoints only after this real use commits, never during menu queries.
     if let Some(values)=observed {for (before,after,source) in values {crate::combat::observe::run_heal_values(state,before,after,&source);}}
@@ -512,10 +682,13 @@ pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
 /// Outside-combat first-empty-slot obtain. This inventory helper deliberately
 /// has no Sozu branch; accepted generated obtains check Sozu at execution.
 pub(crate) fn obtain_run_potion(state: &mut RunState, id: PotionId) -> Result<bool, RunError> {
-    validate_potion_obtain_input(&state.relics,&state.potions,id)
+    validate_potion_obtain_input(&state.relics,&state.potions,state.item_admission==crate::run::ItemAdmission::Complete,id)
         .map_err(|_|RunError::Unsupported("generated potion obtain input invalid"))?;
     if let Some(slot) = state.potions.iter().position(Option::is_none) {
         state.potions[slot] = Some(id);
+        if state.item_admission==crate::run::ItemAdmission::Complete {
+            state.potion_potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
+        }
         Ok(true)
     } else {
         Ok(false)
@@ -526,7 +699,7 @@ pub(crate) fn obtain_run_potion(state: &mut RunState, id: PotionId) -> Result<bo
 /// Any invalid proposal retains the first Run fault and the successful prefix.
 pub(crate) fn apply_accepted_run_potion_obtain(state: &mut RunState, id: PotionId) -> Result<bool, RunError> {
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
-    let prepared=validate_potion_obtain_input(&state.relics,&state.potions,id)
+    let prepared=validate_potion_obtain_input(&state.relics,&state.potions,state.item_admission==crate::run::ItemAdmission::Complete,id)
         .map_err(|_|RunError::Unsupported("generated potion obtain input invalid"))
         .and_then(|_|if state.relics.contains(&RelicId::Sozu){Ok(false)}else{obtain_run_potion(state,id)});
     match prepared {
@@ -554,10 +727,15 @@ pub(crate) fn use_m15_entropic_brew_outside(
 
     if state.relics.contains(&RelicId::Sozu) {
         state.potions[slot] = None;
+        if state.item_admission==crate::run::ItemAdmission::Complete {
+            state.potion_potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
+        }
         apply_run_potion_use_hook(state);
         return Ok(());
     }
 
+    // One proposal per live slot under every admission (research table: full/unused proposals
+    // are not evidence of fewer source draws).
     let count = state.potions.len();
     let semantic = [state.floor as u64, slot as u64];
     let proposals = match potion_generation::sample_many_for_run(
@@ -576,6 +754,9 @@ pub(crate) fn use_m15_entropic_brew_outside(
         }
     };
     state.potions[slot] = None;
+    if state.item_admission==crate::run::ItemAdmission::Complete {
+        state.potion_potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
+    }
     apply_run_potion_use_hook(state);
     for id in proposals {
         apply_accepted_run_potion_obtain(state, id)?;
@@ -586,19 +767,25 @@ pub(crate) fn use_m15_entropic_brew_outside(
 fn validate_m15_entropic_brew_outside(state:&RunState,slot:usize,we_meet_again:bool)->Result<(),RunError>{
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
     if state.terminal.is_some() { return Err(RunError::Terminal); }
-    if state.combat.is_some() || !(state.character == Character::Silent
+    let complete=state.item_admission==crate::run::ItemAdmission::Complete;
+    if state.combat.is_some() || !(complete || state.character == Character::Silent
         || state.character == Character::Defect && crate::run::rooms::is_m20(state)) || we_meet_again
         || state.max_hp == 0 || state.max_hp > 999 || state.hp > state.max_hp
         || state.potions.get(slot).copied().flatten() != Some(PotionId::EntropicBrew)
-        || !valid_potion_capacity(&state.relics, &state.potions)
+        || !valid_potion_capacity(&state.relics, &state.potions, complete)
         || !state.potions.iter().flatten().all(|owned| crate::content::Catalog::standard().potion(*owned).is_some()) {
         return Err(RunError::InvalidAction);
+    }
+    if complete {
+        let pool=potion_generation::candidates(state.character,false).map_err(|_|RunError::InvalidAction)?;
+        if state.potions.iter().flatten().any(|id|!pool.contains(id)){return Err(RunError::InvalidAction)}
     }
     Ok(())
 }
 pub(crate) fn can_use_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->bool{
     prepare_run_potion(state,slot,turn_ended,we_meet_again).is_ok()
-        ||(crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state))&&!turn_ended&&validate_m15_entropic_brew_outside(state,slot,we_meet_again).is_ok()
+        ||(crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state)||state.item_admission==crate::run::ItemAdmission::Complete)
+            &&!turn_ended&&validate_m15_entropic_brew_outside(state,slot,we_meet_again).is_ok()
 }
 pub(crate) fn prepare_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->Result<(u32,u32,Vec<Option<PotionId>>),RunError>{
     prepare_run_potion_inner(state,slot,turn_ended,we_meet_again,|_,_,_|{})
@@ -614,7 +801,7 @@ fn prepare_run_potion_inner(state:&RunState,slot:usize,turn_ended:bool,we_meet_a
     let facts = NativePotionUseContext { phase: PotionRoomPhase::OutsideCombat,
         turn_ended, we_meet_again, hp: state.hp, max_hp: state.max_hp,
         live_targets: &[] };
-    let owned = CombatItemContext::new(state.relics.clone(), state.potions.clone());
+    let owned = run_potion_context(state);
     let prepared = potion_use_effects(&owned, slot, None, &facts)?;
     let mut hp = state.hp;
     let mut max_hp = state.max_hp;
@@ -645,6 +832,17 @@ fn prepare_run_potion_inner(state:&RunState,slot:usize,turn_ended:bool,we_meet_a
     Ok((hp,max_hp,prepared.potions))
 }
 
+fn run_potion_context(state:&RunState)->CombatItemContext{
+    let mut owned=CombatItemContext::new(state.relics.clone(),state.potions.clone());
+    if state.item_admission==crate::run::ItemAdmission::Complete {
+        let potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
+        owned.potion_potencies=if potencies.is_empty(){vec![None;state.potions.len()]}
+            else{potencies.iter().map(|slot|slot.map(|(_,potency)|potency)).collect()};
+        owned=owned.with_complete_items();
+    }
+    owned
+}
+
 fn run_potion_use_heal(relics: &[RelicId], hp: u32, max_hp: u32) -> Option<(u32, u32)> {
     if !relics.contains(&RelicId::ToyOrnithopter) { return None; }
     let heal = ordinary_heal_amount(relics, 5) as u32;
@@ -660,49 +858,35 @@ fn apply_run_potion_use_hook(state: &mut RunState) {
 }
 
 pub(crate) mod potion_generation;
+pub(crate) mod potion_offers;
+pub(crate) mod main_relics;
 #[cfg(test)]
 mod m15_potion_generation_tests;
 
-/// Relic atPreBattle requests. The shared engine owns invocation and dispatch.
-/// No slots or orbs are stored by this callback owner.
-pub(crate) fn defect_pre_battle_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
-    if !context.m20_profile(){return Ok(vec![])}
-    validate_defect_relic_counters(context)?;
-    context.runic_capacitor_armed=context.owns_relic(RelicId::RunicCapacitor);
-    let mut work=Vec::new();
-    for relic in context.relics(){
-        let orb=match relic{RelicId::SymbioticVirus=>crate::combat::OrbKind::Dark,RelicId::NuclearBattery=>crate::combat::OrbKind::Plasma,_=>continue};
-        work.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(orb)));
-    }
-    Ok(work)
-}
-/// Exactly one source relic atTurnStart pass, before player powers/orbs.
-/// Counter commit occurs even when the later ordinary Slots request caps at10.
-pub(crate) fn defect_turn_start_effects(context:&mut CombatItemContext)->Result<Vec<Effect>,InputError>{
-    if !context.m20_profile(){return Ok(vec![])}
-    validate_defect_relic_counters(context)?;
-    let mut work=Vec::new();
-    for index in 0..context.relics.len(){
-        match context.relics[index]{
-            RelicId::RunicCapacitor if context.runic_capacitor_armed=>{
-                context.runic_capacitor_armed=false;work.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(3)));
-            },
-            RelicId::Inserter=>{
-                let old=context.counter(RelicId::Inserter);let next=if old<0{1}else{old+1};
-                context.set_counter(RelicId::Inserter,if next==2{0}else{next});
-                if next==2{work.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(1)));}
-            },
-            _=>{},
+/// Combat phase work of the M20 Defect relics (bodies unchanged): atPreBattle at the startup
+/// dispatch, the one atTurnStart pass before player powers and orbs, and Frozen Core's
+/// end-of-turn Frost. Counter commit occurs even when the later Slots request caps at 10.
+pub(crate) fn defect_phase(id:RelicId,context:&mut CombatItemContext,phase:dispatch::ItemPhase,facts:&dispatch::PhaseFacts<'_>,work:&mut RelicHookWork)->Result<bool,InputError>{
+    if !matches!(id,RelicId::SymbioticVirus|RelicId::NuclearBattery|RelicId::RunicCapacitor|RelicId::Inserter|RelicId::FrozenCore){return Ok(false)}
+    if !(context.m20_profile()||context.complete_items()){return Ok(true)}
+    let player=facts.target==Some(&crate::combat::Actor::Player);
+    match (id,phase,facts.hook) {
+        (RelicId::RunicCapacitor,dispatch::ItemPhase::CombatStartPreDraw,None)=>context.runic_capacitor_armed=true,
+        (RelicId::SymbioticVirus,dispatch::ItemPhase::CombatStartPreDraw,None)=>work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Dark))),
+        (RelicId::NuclearBattery,dispatch::ItemPhase::CombatStartPreDraw,None)=>work.bottom.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Plasma))),
+        (RelicId::RunicCapacitor,_,Some(Hook::TurnStartedPreDraw)) if player&&context.runic_capacitor_armed=>{
+            context.runic_capacitor_armed=false;work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(3)));
         }
+        (RelicId::Inserter,_,Some(Hook::TurnStartedPreDraw)) if player=>{
+            let old=context.counter(RelicId::Inserter);let next=if old<0{1}else{old+1};
+            context.set_counter(RelicId::Inserter,if next==2{0}else{next});
+            if next==2{work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Slots(1)));}
+        }
+        (RelicId::FrozenCore,_,Some(Hook::PlayerPreEndTurnCards)) if player&&facts.has_empty_orb=>
+            work.top.push(defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Frost))),
+        _=>{}
     }
-    Ok(work)
-}
-/// `has_empty_orb` is the real slot owner's source callback-time predicate.
-/// The ordinary channel later owns full-slot eviction and any accepted fault.
-pub(crate) fn defect_end_turn_work(context:&CombatItemContext,has_empty_orb:bool)->Vec<Effect>{
-    if context.m20_profile()&&context.owns_relic(RelicId::FrozenCore)&&has_empty_orb{
-        vec![defect_relic_effect(crate::combat::CharacterEffect::Channel(crate::combat::OrbKind::Frost))]
-    }else{vec![]}
+    Ok(true)
 }
 fn defect_relic_effect(effect:crate::combat::CharacterEffect)->Effect{
     Effect{source:crate::combat::Source::None,target:Some(crate::combat::Actor::Player),kind:crate::combat::EffectKind::Character(effect)}

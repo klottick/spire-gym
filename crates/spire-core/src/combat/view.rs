@@ -220,7 +220,14 @@ pub(super) fn full_player(state: &State) -> Result<FullPlayerView,crate::run::Ru
         max_energy: p.max_energy, powers })
 }
 
-pub(super) fn full_enemies(state: &State) -> Vec<FullEnemyView> {
+pub(super) fn public_rules(state:&State)->crate::items::laws::PublicViewRules{
+    state.item_context.as_ref().map_or_else(crate::items::laws::PublicViewRules::default,|context|{
+        // M27 seam: public-view
+        crate::items::laws::public_view(context)
+    })
+}
+
+pub(super) fn full_enemies(state: &State,hide_intents:bool) -> Vec<FullEnemyView> {
     state.enemies.iter().map(|e| FullEnemyView {
         instance_id: e.instance_id.clone(),
         enemy_id: match e.enemy_id { super::ActorEnemyId::Full(id) => id,
@@ -229,9 +236,11 @@ pub(super) fn full_enemies(state: &State) -> Vec<FullEnemyView> {
         powers: e.powers.iter().map(|p| FullPowerView { id: super::FullPowerId(p.id.as_str()), amount: p.state.amount })
             .chain(e.full_powers.iter().map(|p| FullPowerView { id: p.id, amount: p.state.amount }))
             .collect(),
-        intent: match e.intent_id { super::ActorIntentId::Full(id) => id,
-            super::ActorIntentId::Legacy(id) => super::FullIntentId::from_name(id.as_str()) },
-        intent_damage: e.intent_damage, replaced: e.life == super::ActorLife::Replaced,
+        intent: if hide_intents { super::FullIntentId::Unknown("hidden") } else {
+            match e.intent_id { super::ActorIntentId::Full(id) => id,
+                super::ActorIntentId::Legacy(id) => super::FullIntentId::from_name(id.as_str()) }
+        },
+        intent_damage: if hide_intents{None}else{e.intent_damage}, replaced: e.life == super::ActorLife::Replaced,
         escaped:e.life==super::ActorLife::Escaped,half_dead:e.life==super::ActorLife::HalfDead,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
     }).collect()
 }

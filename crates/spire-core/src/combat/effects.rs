@@ -45,19 +45,51 @@ pub(super) fn refreshed_damage_with_paper_krane(base: i32, enemy_powers: &[Power
     else { rules::normal_damage_modifiers(base, strength, weak, wrath, vulnerable) }
 }
 
+pub(super) fn refreshed_damage_with_vulnerable_factor(base:i32,enemy_powers:&[PowerEntry],
+    enemy_full_powers:&[super::FullPowerEntry],player_powers:&[PowerEntry],
+    player_full_powers:&[super::FullPowerEntry],wrath:bool,full_runtime:bool,
+    back_attack:bool,paper_krane:bool,vulnerable_factor:f32)->Result<i32,InputError>{
+    if !full_runtime||vulnerable_factor==1.5_f32 {
+        return refreshed_damage_with_paper_krane(base,enemy_powers,enemy_full_powers,
+            player_powers,player_full_powers,wrath,full_runtime,back_attack,paper_krane);
+    }
+    let strength=amount(enemy_powers,PowerId::Strength)
+        +enemy_full_powers.iter().find(|power|power.id.0=="strength").map_or(0,|power|power.state.amount);
+    let vulnerable=amount(player_powers,PowerId::Vulnerable)>0
+        ||player_full_powers.iter().any(|power|power.id.0=="vulnerable"&&power.state.amount>0);
+    let weak=enemy_full_powers.iter().any(|power|power.id.0=="weak"&&power.state.amount>0);
+    let weak_multiplier=if paper_krane{0.6_f32}else{0.75_f32};
+    let modified=rules::full_normal_damage_given_received_with_weak_multiplier(base,strength,weak,
+        weak_multiplier,wrath,false,[if vulnerable{vulnerable_factor}else{1.0_f32}])?;
+    if back_attack {
+        let after=(modified as f32*1.5_f32).trunc() as i32;
+        if after>30_012{return Err(InputError::Unsupported("full Back Attack damage outside supported range".into()))}
+        Ok(after.max(0))
+    }else{Ok(modified)}
+}
+
+pub(super) fn player_vulnerable_factor(state:&State)->f32{
+    state.item_context.as_ref().map_or(1.5_f32,|context|{
+        // M27 seam: player-vulnerable-factor
+        crate::items::laws::player_vulnerable_factor(context)
+    })
+}
+
 pub(super) fn refresh_enemy_values(state: &mut State) -> Result<(), InputError> {
     let wrath = state.character.stance == super::characters::Stance::Wrath;
     let player_powers = &state.player.powers;
     let player_full_powers = &state.player_full_powers;
     let paper_krane=state.item_context.as_ref().is_some_and(|items|
-        items.m15_profile()&&items.owns_relic(crate::content::RelicId::PaperKrane));
+        (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::PaperKrane));
+    let vulnerable_factor=player_vulnerable_factor(state);
     let back_attack=state.enemies.iter().map(|enemy|(enemy.instance_id.clone(),back_attack_active(state,enemy))).collect::<std::collections::BTreeMap<_,_>>();
     for enemy in &mut state.enemies {
         if state.full_runtime{super::enemies::act3::elites::refresh_actor(enemy);}
         let behind=back_attack.get(&enemy.instance_id).copied().unwrap_or(false);
         for entry in enemy.damage_entries.values_mut().chain(enemy.full_damage_entries.values_mut()) {
-            entry.output = refreshed_damage_with_paper_krane(entry.base, &enemy.powers, &enemy.full_powers,
-                player_powers, player_full_powers, wrath, state.full_runtime,behind,paper_krane)?;
+            // M27 seam: player-vulnerable-factor; the default follows the exact old path.
+            entry.output=refreshed_damage_with_vulnerable_factor(entry.base,&enemy.powers,&enemy.full_powers,
+                player_powers,player_full_powers,wrath,state.full_runtime,behind,paper_krane,vulnerable_factor)?;
         }
         enemy.intent_damage = match &enemy.intent_id {
             ActorIntentId::Legacy(id) => enemy.damage_entries.get(id).map(|d| d.output),
@@ -86,6 +118,42 @@ fn is_enemy_poison_tick(state:&State,effect:&Effect)->bool {
         (&effect.source,&effect.target,&effect.kind) else { return false; };
     source==target&&source==owner&&state.full_runtime&&*amount>0&&state.enemies.iter().any(|enemy|
         &enemy.instance_id==owner&&enemy.life==super::ActorLife::Active&&enemy.hp>0)
+}
+
+/// Queue one relic phase through the shared resolver, preserving its source side.
+pub(super) fn queue_relic_work(state:&mut State,work:crate::items::RelicHookWork)->Result<(),EffectError>{
+    queue_relic_work_with_startup_order(state,work,false)
+}
+
+fn queue_relic_work_with_startup_order(state:&mut State,work:crate::items::RelicHookWork,
+    preserve_finite_startup_order:bool)->Result<(),EffectError>{
+    if work.is_empty(){return Ok(())}
+    for effect in work.top.iter().chain(&work.bottom){super::engine::validate_effect(effect,state)?;}
+    for effect in work.top.into_iter().rev(){state.pending.push_front(effect);}
+    if preserve_finite_startup_order||state.item_context.as_ref().is_some_and(|items|items.complete_items()) {
+        for effect in work.bottom{super::enemies::act2::bottom(state,effect);}
+    } else {
+        for effect in work.bottom{state.pending.push_back(effect);}
+    }
+    Ok(())
+}
+
+pub(super) fn phase_card_facts(state:&State,source:&Source)->Option<crate::items::dispatch::PhaseCard>{
+    let Source::Card(owner)=source else{return None};
+    let card=super::piles::owned_full_cards(state).find(|card|super::card_state::handle(card.instance)==*owner)?;
+    let card_type=crate::content::Catalog::standard().card(card.id)?.card_type;
+    let context=state.play_context.as_ref().filter(|context|context.card==*owner);
+    let cost_paid=context.map_or(0,|context|if card.local.x_cost{context.energy_on_use}else{context.paid});
+    Some(crate::items::dispatch::PhaseCard{id:card.id,card_type,cost_paid})
+}
+
+pub(super) fn fill_combat_entry_facts(facts:&mut crate::items::dispatch::PhaseFacts<'_>,state:&State){
+    if let Some(items)=state.item_context.as_ref(){
+        facts.elite=items.battle.elite_trigger;facts.boss=items.battle.boss;
+    }
+    facts.deck_curses=state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
+        .filter_map(OwnedCard::full).filter(|card|crate::content::Catalog::standard().card(card.id)
+            .is_some_and(|definition|definition.color==crate::content::CardColor::Curse)).count();
 }
 
 pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
@@ -192,6 +260,41 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if full_runtime&&*target==Actor::Player {super::cards::defect::on_attacked(state,effect,payload,damage.saturating_sub(block_at_entry).max(0));}
             let damage_event_count=state.damage_events_this_combat;
             if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
+            if full_runtime {
+                let normal=matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_));
+                if normal&&matches!(target,Actor::Enemy(_))
+                    &&matches!(effect.source,Source::Card(_)|Source::Actor(Actor::Player)) {
+                    if let Some(context)=state.item_context.as_ref(){
+                        let unblocked=damage.saturating_sub(block_at_entry);
+                        // M27 seam: unblocked-outgoing-damage
+                        let adjusted=crate::items::laws::unblocked_outgoing_damage(context,target,unblocked);
+                        damage=block_at_entry.checked_add(adjusted)
+                            .ok_or_else(||InputError::Unsupported("unblocked outgoing damage overflow".into()))?;
+                    }
+                }
+                if normal&&*target==Actor::Player&&matches!(effect.source,Source::Actor(Actor::Enemy(_))){
+                    if let Some(context)=state.item_context.as_ref(){
+                        let unblocked=damage.saturating_sub(block_at_entry);
+                        let attacker=match &effect.source{Source::Actor(actor)=>Some(actor),_=>None};
+                        // M27 seam: incoming-damage
+                        let adjusted=crate::items::laws::incoming_damage(context,attacker,unblocked);
+                        damage=block_at_entry.checked_add(adjusted)
+                            .ok_or_else(||InputError::Unsupported("incoming damage overflow".into()))?;
+                    }
+                }
+                if *target==Actor::Player {
+                    let ignores_block=matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..});
+                    let hp_loss=if ignores_block{damage}else{damage.saturating_sub(block_at_entry)};
+                    if hp_loss>0 {
+                        if let Some(context)=state.item_context.as_ref(){
+                            // M27 seam: hp-loss
+                            let adjusted=crate::items::laws::hp_loss(context,hp_loss);
+                            damage=if ignores_block{adjusted}else{block_at_entry.checked_add(adjusted)
+                                .ok_or_else(||InputError::Unsupported("player HP loss overflow".into()))?};
+                        }
+                    }
+                }
+            }
             let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source);
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
@@ -228,6 +331,18 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}=>DamageCategory::HpLoss,
                     _=>DamageCategory::Normal },
             });
+            if full_runtime&&matches!(target,Actor::Enemy(_))
+                &&!matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..})
+                &&block_before>0&&next_block==0 {
+                // M27 seam: block-broken
+                let work=if let Some(items)=state.item_context.as_mut(){
+                    let (hp,max_hp,block)=(state.player.hp,state.player.max_hp,state.player.block);
+                    let mut facts=crate::items::dispatch::PhaseFacts::new(Some(Hook::Damage),hp,max_hp,block);
+                    facts.target=Some(target);facts.source=Some(&effect.source);
+                    Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::BlockBroken,&facts)?)
+                }else{None};
+                if let Some(work)=work{queue_relic_work(state,work)?;}
+            }
             let damage_result=super::model::DamageResult{source:effect.source.clone(),target:target.clone(),normal:matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_)),hp_loss:matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}),thorns:matches!(payload,DamagePayload::Thorns(_)|DamagePayload::Orb(_)|DamagePayload::CorpseExplosion{..}),attempted:damage,blocked:block_before-next_block,hp_lost:hp_before-next_hp,hp_after:next_hp};
             *damage_result_out=Some(damage_result.clone());
             if full_runtime {
@@ -243,19 +358,22 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 super::enemies::act2::after_damage(state,&damage_result)?;
                 super::powers::player_thorns_after_damage(state,&damage_result);
                 super::cards::silent_power_after_damage(state,&damage_result);
-                if let Some(context)=state.item_context.as_mut(){
-                    let work=crate::items::relic_damage_effects(context,&damage_result.target,damage_result.hp_lost,damage_result.hp_after,state.player.max_hp)?;
+                if let Some(context)=state.item_context.as_mut().filter(|_|damage_result.target==Actor::Player&&damage_result.hp_lost>0){
+                    let work=crate::items::laws::hp_changed(context,damage_result.hp_lost,damage_result.hp_after,state.player.max_hp)?;
                     for child in work.into_iter().rev(){super::engine::validate_effect(&child,state)?;state.pending.push_front(child);}
                 }
                 super::cards::ironclad::reactive::after_damage(state,&damage_result)?;
                 super::powers::enemy_block_return_after_damage(state,&damage_result);
                 super::cards::watcher::after_damage(state,&damage_result)?;
                 if damage_result.target==Actor::Player {
-                    if let Some(effect)=state.item_context.as_ref().and_then(|items|
-                        crate::items::runic_cube_draw(items,damage_result.hp_lost)) {
-                        super::engine::validate_effect(&effect,state)?;
-                        state.pending.push_front(effect);
-                    }
+                    // The HpLost relic phase (Runic Cube), at its existing callback point.
+                    let (hp,max_hp,block)=(state.player.hp,state.player.max_hp,state.player.block);
+                    let work=if let Some(items)=state.item_context.as_mut() {
+                        let mut facts=crate::items::dispatch::PhaseFacts::new(Some(Hook::Damage),hp,max_hp,block);
+                        facts.hp_lost=damage_result.hp_lost;facts.target=Some(&damage_result.target);facts.source=Some(&effect.source);
+                        Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::HpLost,&facts)?)
+                    }else{None};
+                    if let Some(work)=work{queue_relic_work(state,work)?;}
                 }
             }
             if let Actor::Enemy(id) = target {
@@ -271,6 +389,15 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     let heal=Effect{source:Source::Potion{slot,id:crate::content::PotionId::FairyPotion},
                         target:Some(Actor::Player),kind:EffectKind::Heal(amount)};
                     heal_player(state,&heal,amount,true)?;
+                }
+                if state.player.hp==0 {
+                    // M27 seam: would-die
+                    let revive=state.item_context.as_mut().and_then(|items|
+                        crate::items::laws::would_die(items,state.player.max_hp));
+                    if let Some(amount)=revive {
+                        let heal=Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Heal(amount)};
+                        heal_player(state,&heal,amount,true)?;
+                    }
                 }
             }
             let half_death=already_half_dead||(state.full_runtime&&next_hp==0&&match target{Actor::Enemy(owner)=>super::enemies::act3::darklings::down(state,owner,&effect.source)||super::enemies::act3::awakened::down(state,owner,&effect.source),_=>false});
@@ -353,6 +480,90 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Enemy(candidates[index as usize].clone())),kind:EffectKind::Damage(DamagePayload::Thorns(*damage))});
         }
         EffectKind::CardOffer{..}|EffectKind::DeliverCardOffer{..}=>super::card_offers::apply(state,effect)?,
+        EffectKind::Relic(RelicEffect::UpgradeRandomHandCard)=>{
+            let candidates=state.piles.hand.iter().filter_map(OwnedCard::full)
+                .filter(|card|crate::content::Catalog::standard().card(card.id)
+                    .is_some_and(|definition|definition.card_type!=crate::content::CardType::Status)
+                    &&super::cards::ironclad::rules::can_upgrade(card.id,card.upgrades))
+                .map(|card|card.instance).collect::<Vec<_>>();
+            if candidates.is_empty(){return Ok(())}
+            let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("random upgrade card stream absent".into()))?;
+            let (index,next)=super::rng::uniform_below(stream,candidates.len() as u128)?;state.card_rng=Some(next);
+            let instance=candidates[index as usize];
+            let card=state.piles.hand.iter().filter_map(OwnedCard::full).find(|card|card.instance==instance)
+                .ok_or_else(||InputError::Invariant("random upgrade hand owner absent".into()))?.clone();
+            let upgraded=super::card_state::upgrade_live_card(state,&card)
+                .map_err(|error|InputError::Unsupported(format!("relic hand upgrade failed: {error:?}")))?;
+            *state.piles.hand.iter_mut().filter_map(OwnedCard::full_mut).find(|card|card.instance==instance)
+                .ok_or_else(||InputError::Invariant("random upgrade hand slot absent".into()))?=upgraded;
+            super::piles::refresh_hand_values(state);
+        }
+        EffectKind::Relic(RelicEffect::CapEnemyHp{percent})=>{
+            for enemy in state.enemies.iter_mut().filter(|enemy|enemy.targetable()){
+                let cap=(i64::from(enemy.max_hp)*i64::from(*percent)/100) as i32;
+                enemy.hp=enemy.hp.min(cap);
+            }
+        }
+        EffectKind::Relic(RelicEffect::SetRandomHandCardCostZeroThisTurn)=>{
+            let mut unavailable=std::collections::BTreeSet::new();
+            if let Some(card)=state.in_play.as_ref(){unavailable.insert(card.handle());}
+            if let Some(context)=state.play_context.as_ref(){unavailable.insert(context.card.clone());}
+            for (owner,card) in &state.queued_autoplay { unavailable.insert(owner.clone());unavailable.insert(card.handle()); }
+            for frame in &state.play_frames {
+                unavailable.insert(frame.child.clone());
+                if let Some(card)=frame.parent.as_ref(){unavailable.insert(card.handle());}
+                if let super::model::PlayFrameParentOwner::Card(owner)=&frame.parent_owner{unavailable.insert(owner.clone());}
+            }
+            let candidates=state.piles.hand.iter().filter_map(OwnedCard::full).filter_map(|card|{
+                let base=super::cards::base_cost(state,card)?;
+                let current=super::card_state::effective_cost(card,base).ok()?;
+                (!unavailable.contains(&super::card_state::handle(card.instance))
+                    &&base>0&&current>0&&!card.local.x_cost&&!card.local.free_to_play_once
+                    &&!card.local.free_play).then_some(card.instance)
+            }).collect::<Vec<_>>();
+            if candidates.is_empty(){return Ok(())}
+            let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Mummified Hand card stream absent".into()))?;
+            let (index,next)=super::rng::uniform_below(stream,candidates.len() as u128)?;state.card_rng=Some(next);
+            let instance=candidates[index as usize];
+            let card=state.piles.hand.iter_mut().filter_map(OwnedCard::full_mut)
+                .find(|card|card.instance==instance)
+                .ok_or_else(||InputError::Invariant("Mummified Hand selected card absent".into()))?;
+            card.local.turn_cost=Some(0);
+            super::piles::refresh_hand_values(state);
+        }
+        EffectKind::Relic(RelicEffect::RemovePlayerDebuffs)=>{
+            let mut remove=std::collections::BTreeSet::new();
+            for power in &state.player_full_powers {
+                if super::powers::cleanse_debuff(power)==Some(true){remove.insert(power.id.0);}
+            }
+            for power in &state.player.powers {
+                let full=super::FullPowerEntry{id:super::FullPowerId(power.id.as_str()),state:power.state.clone()};
+                if super::powers::cleanse_debuff(&full)==Some(true){remove.insert(full.id.0);}
+            }
+            for id in remove.into_iter().rev(){
+                state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),
+                    kind:EffectKind::RemoveFullPower(super::FullPowerId(id))});
+            }
+        }
+        EffectKind::Relic(RelicEffect::GamblingChipSelect)=>{
+            let Source::Relic(crate::content::RelicId::GamblingChip)=&effect.source else{
+                return Err(InputError::Invariant("Gambling Chip selection lost its relic parent".into()).into())};
+            // M27 seam: the owned relic opens the existing optional manual-discard selection.
+            let candidates=state.piles.hand.iter().map(|card|card.handle()).collect::<Vec<_>>();
+            if !candidates.is_empty(){begin_selection_range(state,super::selection::SelectionParent::Relic(
+                crate::content::RelicId::GamblingChip),super::selection::SelectionSourceZone::Hand,
+                candidates.clone(),0,candidates.len(),super::selection::SelectionDisposition::Discard,
+                super::selection::EmptySelection::Continue)?;}
+        }
+        EffectKind::Relic(RelicEffect::RetainHand)=>{
+            // M27 seam: Runic Pyramid shares Equilibrium's non-Ethereal retain set.
+            let mut retained=state.piles.hand.iter().filter(|card|card.full().is_some_and(|live|!live.local.ethereal))
+                .map(|card|card.handle()).collect::<std::collections::BTreeSet<_>>();
+            if let Some(existing)=state.temporary_retain.as_ref().filter(|retain|retain.turn==state.turn){
+                retained.extend(existing.cards.iter().cloned());
+            }
+            state.temporary_retain=Some(super::model::TemporaryRetain{turn:state.turn,cards:retained});
+        }
         EffectKind::Potion(super::PotionEffect::UpgradeHand) => {
             for index in 0..state.piles.hand.len() {
                 if let Some(card)=state.piles.hand[index].full().filter(|card|super::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)).cloned() {
@@ -503,7 +714,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 .ok_or_else(|| InputError::Unsupported("player maximum HP overflow".into()))?;
             state.player.max_hp = max_hp;
             if let Some(context)=state.item_context.as_mut(){
-                let work=crate::items::relic_hp_state_effects(context,state.player.hp,state.player.max_hp);
+                let work=crate::items::laws::hp_changed(context,0,state.player.hp,state.player.max_hp)?;
                 for child in work.into_iter().rev(){super::engine::validate_effect(&child,state)?;state.pending.push_front(child);}
             }
             state.pending.push_front(Effect { source: effect.source.clone(),
@@ -558,7 +769,13 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         EffectKind::HexaghostBurn(gate)=>super::enemies::hexaghost::apply(state,effect,*gate)?,
         EffectKind::GroundByrd=>super::enemies::act2::flight::ground(state,effect)?,
         EffectKind::SpawnEnemy(request)=>super::enemies::act2::spawn::apply(state,request)?,
-        EffectKind::CompleteSpawn=>super::enemies::act2::spawn::complete(state)?,
+        EffectKind::CompleteSpawn=>{
+            let before=state.enemies.len();
+            super::enemies::act2::spawn::complete(state)?;
+            for handle in state.enemies.iter().skip(before).map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>(){
+                super::enemies::dispatch_spawned(state,&handle)?;
+            }
+        },
         EffectKind::CaptureStasis{orb}=>super::enemies::act2::stasis::capture(state,orb)?,
         EffectKind::ReleaseStasis{orb}=>super::enemies::act2::stasis::release(state,orb)?,
         EffectKind::ChampCleanse=>{
@@ -708,8 +925,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         }
         EffectKind::SmokeEscape=>{
             state.silent.smoked=true;
-            state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Terminal(Outcome::Escaped)});
-            state.pending.push_front(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Hook(Hook::CombatSettled)});
+            // Smoke Bomb only starts the escape; work already queued (Toy Ornithopter's potion-used
+            // Heal) still resolves before the escape settles (source check 2026-11-01, M27).
+            state.pending.push_back(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Hook(Hook::CombatSettled)});
+            state.pending.push_back(Effect{source:effect.source.clone(),target:None,kind:EffectKind::Terminal(Outcome::Escaped)});
         }
         EffectKind::Generate(work)=>super::generation::apply(state,effect,work)?,
         EffectKind::Defect(work)=>super::cards::defect::apply(state,effect,work)?,
@@ -730,41 +949,31 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                         items.collar_activated=false;
                     }
                 }
+                // The one relic phase dispatch for this checkpoint (M27 design §6.2). Battle-start
+                // enemy debuffs and Brimstone's monster Strength are their relics' own work (G4).
+                // Every relic all-enemy producer reads live_enemies, the shared targetable() set.
+                let enemies=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
+                let live_enemies=state.enemies.iter().filter(|enemy|enemy.targetable())
+                    .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
+                let has_empty_orb=state.character.orb_slots.iter().any(Option::is_none);
+                let mut facts=crate::items::dispatch::PhaseFacts::new(Some(callback),hp,state.player.max_hp,state.player.block);
+                facts.target=effect.target.as_ref();facts.source=Some(&effect.source);
+                facts.enemies=&enemies;facts.live_enemies=&live_enemies;facts.has_empty_orb=has_empty_orb;
+                if matches!(callback,Hook::CardDrawn|Hook::CardPlayed|Hook::CardAfterUse|Hook::CardManuallyDiscarded){
+                    facts.card=phase_card_facts(state,&effect.source);
+                }
+                if matches!(callback,Hook::CombatStarted|Hook::CombatStartedPreDraw){fill_combat_entry_facts(&mut facts,state);}
+                let preserve_finite_startup_order=callback==Hook::CombatStarted
+                    &&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile());
                 let mut work = if let Some(context) = state.item_context.as_mut() {
-                    crate::items::relic_hook_effects(context, callback, hp,state.player.max_hp,state.player.block)
+                    crate::items::relic_phase_effects(context,&facts)?
                 } else {
-                    crate::items::relic_hook_effects(
-                        &mut crate::items::CombatItemContext::default(), callback, hp,state.player.max_hp,state.player.block)
+                    crate::items::relic_phase_effects(&mut crate::items::CombatItemContext::default(),&facts)?
                 };
                 super::cards::watcher::capture(state,&mut work.top)?;
                 super::cards::watcher::capture(state,&mut work.bottom)?;
                 if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
-                if *hook==Hook::CombatStarted{
-                    let targets=state.enemies.iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
-                    if let Some(context)=state.item_context.as_ref(){for work in crate::items::battle_start_enemy_effects(context,&targets).into_iter().rev(){state.pending.push_front(work);}}
-                }
-                if *hook==Hook::TurnStartedPreDraw&&effect.target.as_ref()==Some(&Actor::Player){
-                    let targets=state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0)
-                        .map(|enemy|enemy.instance_id.clone()).collect::<Vec<_>>();
-                    if let Some(context)=state.item_context.as_ref(){
-                        let mut enemy_work=crate::items::brimstone_enemy_work(context,callback,&targets);
-                        enemy_work.reverse();
-                        work.top.splice(0..0,enemy_work);
-                    }
-                }
-                for effect in work.bottom {
-                    super::engine::validate_effect(&effect, state)?;
-                    // These startup profiles have an explicit opening Decision marker. Ordinary
-                    // relic actions remain before that marker, after already
-                    // queued start callbacks, through the shared bottom owner.
-                    if *hook==Hook::CombatStarted&&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile()){
-                        super::enemies::act2::bottom(state,effect);
-                    }else{state.pending.push_back(effect);}
-                }
-                for effect in work.top.into_iter().rev() {
-                    super::engine::validate_effect(&effect, state)?;
-                    state.pending.push_front(effect);
-                }
+                queue_relic_work_with_startup_order(state,work,preserve_finite_startup_order)?;
                 state.hook_events.push(HookEvent { hook: *hook,
                     source: effect.source.clone(), target: effect.target.clone() });
             }
@@ -799,12 +1008,16 @@ fn heal_player(state:&mut State,effect:&Effect,amount:i32,rescue:bool)->Result<(
                 state.item_context.as_ref().map_or(
                     crate::items::NativeHealRoom::default(), |context| context.heal_room()))
         } else { amount };
+        let amount=if state.full_runtime&&!rescue {
+            // M27 seam: heal-amount
+            state.item_context.as_ref().map_or(amount,|context|crate::items::laws::heal_amount(context,amount))
+        }else{amount};
         state.player.hp = i32::try_from((i64::from(state.player.hp) + i64::from(amount))
             .min(i64::from(state.player.max_hp)))
             .map_err(|_| InputError::Invariant("healing overflow".into()))?;
     }
     if state.full_runtime { if let Some(context)=state.item_context.as_mut(){
-        let work=crate::items::relic_hp_state_effects(context,state.player.hp,state.player.max_hp);
+        let work=crate::items::laws::hp_changed(context,0,state.player.hp,state.player.max_hp)?;
         for child in work.into_iter().rev(){super::engine::validate_effect(&child,state)?;state.pending.push_front(child);}
     }}
     super::observe::emit(state, &effect.source, Some(&Actor::Player), ||
@@ -848,6 +1061,12 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     match &parent{
         super::selection::SelectionParent::Card(card) if state.in_play.as_ref().map(OwnedCard::handle).as_ref()==Some(card)=>(),
         super::selection::SelectionParent::Potion{slot,..} if state.in_play.is_none()&&super::engine::valid_potion_slot(state,*slot)=>(),
+        super::selection::SelectionParent::Relic(crate::content::RelicId::GamblingChip)
+            if state.full_runtime&&state.phase==Phase::PlayerStart
+                &&state.pending.iter().any(|effect|effect.kind==EffectKind::Decision)
+                &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                    &&items.owns_relic(crate::content::RelicId::GamblingChip)
+                    &&items.local(crate::content::RelicId::GamblingChip)==1)=>(),
         super::selection::SelectionParent::Power{turn,id} if state.full_runtime&&*turn==state.turn&&(
             (id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(state)&&id.0=="foresight"))
                 &&state.phase==Phase::PlayerStart&&state.in_play.is_none()

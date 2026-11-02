@@ -269,15 +269,24 @@ impl Combat {
         Ok(())
     }
 
-    pub(crate) fn enqueue_native_effects(&mut self, mut effects: Vec<Effect>,
+    pub(crate) fn enqueue_native_effects(&mut self, effects: Vec<Effect>,
         next_items: Option<crate::items::CombatItemContext>) -> Result<(), crate::run::RunError> {
+        self.enqueue_native_effects_with_relic_work(effects,next_items,crate::items::RelicHookWork::default())
+    }
+
+    pub(crate) fn enqueue_native_effects_with_relic_work(&mut self, mut effects: Vec<Effect>,
+        next_items: Option<crate::items::CombatItemContext>,mut relic_work:crate::items::RelicHookWork)
+        -> Result<(), crate::run::RunError> {
         let potion_sources=effects.iter().filter_map(|effect|match (&effect.source,&effect.kind) {
             (Source::Potion{slot,id},_) if super::cards::watcher::active(&self.state)=>Some((*slot,*id)),
             (Source::Potion{slot,id},EffectKind::SelectHandCardsAfterDraw{..})=>Some((*slot,*id)),
             (Source::Potion{slot,id:crate::content::PotionId::EnergyPotion},EffectKind::GainEnergy(_))=>Some((*slot,crate::content::PotionId::EnergyPotion)),_=>None,
         }).collect::<Vec<_>>();
         if !potion_sources.is_empty(){
-            if potion_sources.len()!=1{return Err(crate::run::RunError::InvalidAction)}
+            let complete_items=self.state.item_context.as_ref().is_some_and(|items|items.complete_items());
+            if potion_sources.len()!=1&&!(complete_items&&potion_sources.iter().all(|source|*source==potion_sources[0])){
+                return Err(crate::run::RunError::InvalidAction)
+            }
             let (slot,id)=potion_sources[0];
             let Some(current)=self.state.item_context.as_ref() else{return Err(crate::run::RunError::InvalidAction)};
             let Some(next)=next_items.as_ref() else{return Err(crate::run::RunError::InvalidAction)};
@@ -291,6 +300,9 @@ impl Combat {
             }
         }
         self.preflight_native_effects(&effects)?;
+        for effect in relic_work.top.iter().chain(&relic_work.bottom){
+            validate_effect(effect,&self.state).map_err(|_|crate::run::RunError::InvalidAction)?;
+        }
         if next_items.is_some() && self.state.item_context.is_none() {
             return Err(crate::run::RunError::InvalidAction);
         }
@@ -300,6 +312,19 @@ impl Combat {
             self.state.current=effects.first().cloned();retain_error(&mut self.state,error);return Err(retained_fault(&self.state))
         }
         for effect in effects.into_iter().rev() { self.state.pending.push_front(effect); }
+        if !relic_work.is_empty(){
+            if let Err(error)=super::cards::watcher::capture(&mut self.state,&mut relic_work.top)
+                .and_then(|_|super::cards::watcher::capture(&mut self.state,&mut relic_work.bottom)){
+                self.state.current=relic_work.top.first().or_else(||relic_work.bottom.first()).cloned();
+                retain_error(&mut self.state,error);return Err(retained_fault(&self.state))
+            }
+            if relic_work.direct_strength!=0 {
+                super::powers::add_direct_strength(&mut self.state,relic_work.direct_strength)
+                    .map_err(|_|crate::run::RunError::InvalidAction)?;
+            }
+            super::effects::queue_relic_work(&mut self.state,relic_work)
+                .map_err(|_|crate::run::RunError::InvalidAction)?;
+        }
         let transition = resolve(&mut self.state);
         self.refresh_legacy_cache();
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
@@ -499,6 +524,7 @@ impl Combat {
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let source_character=setup.character;
         let mut combat = Self::build_full(setup, rng);
+        if source_character!=crate::content::Character::Defect&&combat.state.character.orb_slots.is_empty()&&item_context.as_ref().is_some_and(|items|items.complete_items()&&items.owns_relic(crate::content::RelicId::PrismaticShard)){combat.state.character.orb_slots.resize(1,None);}
         if source_character==crate::content::Character::Defect||entry.cards.iter().any(|card|super::generation::needs_character(card.id))||item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.m21_profile()||items.complete_cards()){combat.state.silent.source_character=Some(source_character);}
         // M26 overlay trackers (design §5.2): the union of the Heart contexts' history trackers.
         combat.state.silent.history_enabled=entry.cards.iter().any(|card|super::cards::requires_draw_history(card.id))||item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.m21_profile()||items.complete_cards());
@@ -545,13 +571,16 @@ impl Combat {
             .map_err(|_| CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("full combat shuffle failed")))?;
         combat.state.rng.shuffle = next;
         combat.state.piles.draw = shuffled;
-        // Collar's temporary master-energy change belongs to beforeEnergyPrep,
-        // not equip or a recurring turn-energy action. Reject overflow before transfer.
+        // Master energy is prepared once before transfer. Slaver's Collar keeps its
+        // accepted temporary/cleanup lifecycle; every relic bonus comes from the shared G1 law.
         let serpent=item_context.as_ref().is_some_and(|items|
             items.m15_profile()&&items.owns_relic(crate::content::RelicId::RingOfTheSerpent));
-        let collar=item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::SlaversCollar)&&(items.battle.elite_trigger||items.battle.boss));
-        let mark_of_pain=item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::MarkOfPain));
-        let energy_bonus=i32::from(collar)+i32::from(mark_of_pain);
+        // M27 seam: Snecko Eye grants two complete-item hand slots for opening and recurring draws.
+        let snecko=item_context.as_ref().is_some_and(|items|
+            items.complete_items()&&items.owns_relic(crate::content::RelicId::SneckoEye));
+        let elite_or_boss=item_context.as_ref().is_some_and(|items|items.battle.elite_trigger||items.battle.boss);
+        let collar=item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::SlaversCollar)&&elite_or_boss);
+        let energy_bonus=item_context.as_ref().map_or(0,|items|crate::items::laws::master_energy(items,elite_or_boss));
         let master=combat.state.player.max_energy.checked_add(energy_bonus).filter(|n|*n<=999)
             .ok_or(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("combat relic master energy overflow")))?;
         combat.state.item_context=item_context.take();
@@ -560,6 +589,9 @@ impl Combat {
         combat.state.player.max_energy=master;
         if serpent {
             combat.state.player.draw_per_turn=(combat.state.player.draw_per_turn+1).min(10);
+        }
+        if snecko {
+            combat.state.player.draw_per_turn=combat.state.player.draw_per_turn.saturating_add(2).min(10);
         }
         if let Err(error)=super::effects::refresh_enemy_values(&mut combat.state){
             super::model::mark_fault(&mut combat.state,FaultKind::Invariant,format!("item damage modifier refresh failed: {error:?}"));
@@ -571,11 +603,17 @@ impl Combat {
         }
         // Ninja Scroll's ordinary generated Shivs are created at its owned
         // pre-draw checkpoint, before the standard opening hand is dealt.
-        let mut startup_work=if let Some(items)=combat.state.item_context.as_mut(){
-            crate::items::defect_pre_battle_effects(items).map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?
+        let mut startup_facts=crate::items::dispatch::PhaseFacts::new(None,combat.state.player.hp,combat.state.player.max_hp,combat.state.player.block);
+        super::effects::fill_combat_entry_facts(&mut startup_facts,&combat.state);
+        let startup_work=if let Some(items)=combat.state.item_context.as_mut(){
+            crate::items::startup_work_with_facts(items,&startup_facts).map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?
         }else{vec![]};
-        startup_work.extend(combat.state.item_context.as_ref().map(crate::items::silent_pre_draw_work).unwrap_or_default());
-        if !startup_work.is_empty(){
+        let deferred_startup_offer=combat.state.item_context.as_ref().is_some_and(|items|items.complete_items())
+            &&startup_work.iter().any(|effect|matches!(&effect.kind,EffectKind::Generate(work) if work.offer.is_some()));
+        if deferred_startup_offer{
+            // M27 seam: keep an offer-producing startup relic ahead of its opening-draw continuation.
+            combat.state.pending.extend(startup_work);
+        }else if !startup_work.is_empty(){
             combat.state.pending.extend(startup_work);
             let startup=resolve(&mut combat.state);
             if startup.status==TransitionStatus::Fault{
@@ -590,16 +628,23 @@ impl Combat {
         // Intrinsic Innate cards join the ordinary opening draw rather than
         // competing for one of its slots. Keep the existing ten-card cap; any
         // additional Innate descriptors remain owned in the draw pile.
-        let opening_draw=entry.opening_draw.saturating_add(usize::from(serpent)).min(10);
+        let opening_draw=entry.opening_draw.saturating_add(usize::from(serpent))
+            .saturating_add(2*usize::from(snecko)).min(10);
         if combat.state.item_context.as_ref().is_some_and(|items|items.m21_profile()){
             combat.state.phase=Phase::PlayerStart;
             combat.state.pending.push_back(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Hook(Hook::CombatStartedPreDraw)});
+            combat.state.pending.push_back(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::OpeningHand{count:opening_draw}});
+        }else if deferred_startup_offer{
+            // M27 seam: the opening draw remains queued behind a pre-draw relic offer.
             combat.state.pending.push_back(Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::OpeningHand{count:opening_draw}});
         }else{
             let count=super::piles::opening_hand_count(&combat.state,opening_draw);
             for _ in 0..count{if let Some(callback)=super::piles::deal_opening_one(&mut combat.state){combat.state.pending.push_back(callback);}}
         }
-        if combat.state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.complete_cards()){combat.state.phase=Phase::PlayerStart;}
+        if combat.state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.complete_cards()||deferred_startup_offer)
+            &&combat.state.pending_selection.is_none()&&combat.state.silent.card_offer.is_none(){
+            combat.state.phase=Phase::PlayerStart;
+        }
         combat.state.player.energy = combat.state.player.max_energy;
         combat.state.pending.extend(prebattle);
         combat.state.pending.push_back(Effect { source: Source::None, target: None,
@@ -683,6 +728,10 @@ impl Combat {
             }
         }
         if let Some(items) = &self.state.item_context {
+            if items.complete_items(){
+                actions.extend(items.potions().iter().enumerate().filter_map(|(slot,potion)|
+                    potion.is_some().then_some(CombatAction::DiscardPotion{slot})));
+            }
             for slot in 0..items.potions().len() {
                 for target in &targets {
                     let owner = self.full_target(*target)?;
@@ -734,6 +783,13 @@ impl Combat {
             || super::view::ready(&self.state).is_err() {
             return Err(crate::run::RunError::InvalidAction);
         }
+        if let CombatAction::DiscardPotion{slot}=action{
+            let mut items=self.state.item_context.clone().ok_or(crate::run::RunError::InvalidAction)?;
+            items.discard_potion(*slot)?;
+            self.state.item_context=Some(items);
+            self.refresh_legacy_cache();
+            return Ok(())
+        }
         if let CombatAction::UsePotion { slot, target } = action {
             let owner = self.full_target(*target)?;
             crate::items::prepare_combat_potion(self, *slot, owner.clone(), false)?;
@@ -759,7 +815,10 @@ impl Combat {
                     self.state.attempted_action = Some(action.clone());
                     self.state.phase = Phase::PlayerAction;
                     let mut card = self.state.piles.hand.remove(prepared.hand_index);
-                    if let Some(full)=card.full_mut(){full.local.free_play=false;}
+                    if let Some(full)=card.full_mut(){
+                        full.local.free_play=false;
+                        if prepared.exhaust_on_finish{full.local.exhaust_on_finish=true;}
+                    }
                     self.state.in_play = Some(card);
                     self.state.play_context=Some(play_context);
                     self.state.player.energy = prepared.remaining_energy;
@@ -804,6 +863,7 @@ impl Combat {
             CombatAction::SelectCard { .. } => unreachable!("selection is handled before combat-action translation"),
             CombatAction::ConfirmSelection => unreachable!("selection confirmation is handled before combat-action translation"),
             CombatAction::UsePotion { .. } => unreachable!("potions are handled before legacy translation"),
+            CombatAction::DiscardPotion { .. } => unreachable!("discard is handled before legacy translation"),
             CombatAction::PlayCard { instance, target } => {
                 let card = CardHandle::parse(&instance.to_string())
                     .map_err(|_| crate::run::RunError::InvalidAction)?;
@@ -931,6 +991,12 @@ impl Combat {
             SelectionParent::Potion{slot,id} if self.state.in_play.is_none()&&valid_potion_slot(&self.state,*slot)
                 &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
                     ||self.state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none))=>(),
+            SelectionParent::Relic(crate::content::RelicId::GamblingChip) if self.state.full_runtime
+                &&self.state.in_play.is_none()&&self.state.phase==Phase::Selection
+                &&self.state.pending.iter().any(|effect|effect.kind==EffectKind::Decision)
+                &&self.state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                    &&items.owns_relic(crate::content::RelicId::GamblingChip)
+                    &&items.local(crate::content::RelicId::GamblingChip)==1)=>(),
             SelectionParent::Power{turn,id} if self.state.full_runtime&&*turn==self.state.turn&&(
                 self.state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(&self.state)&&id.0=="foresight"))
                     &&self.state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
@@ -949,6 +1015,14 @@ impl Combat {
             ||(selection.operation==SelectionOperation::Retain
                 &&(selection.source_zone!=SelectionSourceZone::Hand
                     ||selection.disposition!=SelectionDisposition::Hand||selection.minimum!=0)){
+            return Err(crate::run::RunError::InvalidAction)
+        }
+        if matches!(selection.parent,SelectionParent::Relic(crate::content::RelicId::GamblingChip))
+            &&(selection.operation!=SelectionOperation::Move(SelectionDisposition::Discard)
+                ||selection.source_zone!=SelectionSourceZone::Hand
+                ||selection.disposition!=SelectionDisposition::Discard
+                ||selection.minimum!=0||selection.maximum!=selection.candidates.len()
+                ||selection.candidates!=self.state.piles.hand.iter().map(OwnedCard::handle).collect::<Vec<_>>()){
             return Err(crate::run::RunError::InvalidAction)
         }
         super::cards::watcher::validate_selection(&self.state,selection).map_err(|_|crate::run::RunError::InvalidAction)?;
@@ -1029,6 +1103,7 @@ impl Combat {
         self.preflight_selection_commit(&selection)?;
         let parent_source=match &selection.parent{SelectionParent::Card(parent)=>Source::Card(parent.clone()),
             SelectionParent::Potion{slot,id}=>Source::Potion{slot:*slot,id:*id},
+            SelectionParent::Relic(id)=>Source::Relic(*id),
             SelectionParent::EndTurn{..}|SelectionParent::Power{..}=>Source::Actor(Actor::Player)};
         let observed_before=super::observe::mark(&self.state);
         self.state.fault_selection=Some(selection.clone());
@@ -1135,6 +1210,7 @@ impl Combat {
                                         matches!(card.id, crate::content::CardId::DaggerThrow | crate::content::CardId::Survivor | crate::content::CardId::Acrobatics | crate::content::CardId::Prepared | crate::content::CardId::Concentrate)),
                                 (SelectionParent::Power{id,..},None) if id.0=="tools_of_the_trade"=>true,
                                 (SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..},None)=>true,
+                                (SelectionParent::Relic(crate::content::RelicId::GamblingChip),None)=>true,
                                 _ => false,
                             };
                         if let Err(error) = super::piles::discard_selected_card(&mut self.state, card,
@@ -1186,13 +1262,14 @@ impl Combat {
             }
         }
         super::piles::refresh_hand_values(&mut self.state);
-        if matches!(selection.parent,SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..})
+        if matches!(selection.parent,SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..}
+            |SelectionParent::Relic(crate::content::RelicId::GamblingChip))
             &&!selection.selected.is_empty(){
             let at=self.state.pending.iter().position(|effect|effect.kind==EffectKind::Decision).unwrap_or(self.state.pending.len());
             self.state.pending.insert(at,Effect{source:parent_source.clone(),target:Some(Actor::Player),
                 kind:EffectKind::Draw(selection.selected.len() as i32)});
         }
-        if matches!(selection.parent,SelectionParent::Potion{..}) {
+        if matches!(selection.parent,SelectionParent::Potion{..}|SelectionParent::Relic(_)) {
             self.state.phase=Phase::Decision;
         }
         if matches!(&selection.parent,SelectionParent::Power{id,..} if id.0!="melange"){self.state.phase=Phase::PlayerStart;}
@@ -1220,6 +1297,25 @@ impl Combat {
         validate_runtime(&self.state)
     }
 
+    #[cfg(test)]
+    pub(crate) fn state_mut_for_test(&mut self)->&mut State{&mut self.state}
+
+    #[cfg(test)]
+    pub(crate) fn queue_relic_work_for_test(&mut self,work:crate::items::RelicHookWork)->Result<(),EffectError>{
+        super::effects::queue_relic_work(&mut self.state,work)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn exhaust_card_for_test(&mut self,instance:CardInstanceId)->bool{
+        let Some(card)=self.state.piles.hand.iter_mut().find(|owned|owned.full().is_some_and(|live|live.instance==instance))
+            .and_then(super::model::OwnedCard::full_mut) else{return false};
+        card.local.exhaust_on_finish=true;true
+    }
+
+    /// Full internal State Debug text for the default-off M27 replay harness.
+    #[cfg(feature = "m27-diagnostics")]
+    pub fn m27_state_debug(&self) -> String { format!("{:?}", self.state) }
+
     pub fn public_full(&self) -> Result<CombatPublic, crate::run::RunError> {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         if !self.state.full_runtime { return Err(crate::run::RunError::InvalidAction); }
@@ -1228,6 +1324,7 @@ impl Combat {
         } else {
             super::view::ready(&self.state).map_err(|_| crate::run::RunError::InvalidAction)?;
         }
+        let public_rules=super::view::public_rules(&self.state);
         let cards = |pile: &[OwnedCard]| -> Result<Vec<LiveCardView>, crate::run::RunError> {
             pile.iter().map(|card| card.full().map(|live| LiveCardView { misc:live.misc, instance: live.instance,
                 id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live) })
@@ -1251,9 +1348,15 @@ impl Combat {
                 source_zone:pending.source_zone,minimum:pending.minimum,maximum:pending.maximum })
         } else { None };
         let mut known_draw=Vec::new();
-        for (offset,id) in self.state.public.known_draw.iter().enumerate(){known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:true,offset});}
-        for (offset,id) in self.state.public.known_draw_bottom.iter().enumerate(){
-            known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:false,offset});
+        if public_rules.reveal_draw_order {
+            for (offset,card) in self.state.piles.draw.iter().rev().enumerate(){
+                known_draw.push(super::view::KnownDrawCardView{card:card_view(&card.handle())?,from_top:true,offset});
+            }
+        }else{
+            for (offset,id) in self.state.public.known_draw.iter().enumerate(){known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:true,offset});}
+            for (offset,id) in self.state.public.known_draw_bottom.iter().enumerate(){
+                known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:false,offset});
+            }
         }
         let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,
             origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction))
@@ -1265,7 +1368,7 @@ impl Combat {
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
             stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
-            player: super::view::full_player(&self.state)?, enemies: super::view::full_enemies(&self.state),
+            player: super::view::full_player(&self.state)?, enemies: super::view::full_enemies(&self.state,public_rules.hide_intents),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
                 relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
             character: super::view::CharacterCombatView { stance: self.state.character.stance,
@@ -1430,7 +1533,7 @@ pub(super) fn retained_fault(state: &State) -> crate::run::RunError {
 }
 
 pub(super) fn valid_potion_slot(state:&State,slot:usize)->bool{
-    slot<3||state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile()
+    slot<3||state.item_context.as_ref().is_some_and(|items|(items.shared_generated_profile()||items.complete_items())
         &&items.owns_relic(crate::content::RelicId::PotionBelt)&&items.potions().len()==5&&slot<5)
 }
 
@@ -1465,6 +1568,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         Source::Card(id) => require(state.card_ids_issued.contains(id), "effect card owner")?,
         Source::Potion{slot,..}=>require(state.full_runtime&&valid_potion_slot(state,*slot),"potion source belongs to a valid full-combat slot")?,
         Source::Actor(actor) => validate_actor(actor, state)?,
+        Source::Relic(id)=>require(state.full_runtime&&state.item_context.as_ref()
+            .is_some_and(|items|items.complete_items()&&items.owns_relic(*id)),"relic effect source requires its owned complete item")?,
     }
     if let Some(actor) = &effect.target { validate_actor(actor, state)?; }
     if matches!(&effect.kind, EffectKind::Damage(_)) {
@@ -1491,7 +1596,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         require(cultist_target, "Ritual payload owner")?;
     }
     match &effect.kind {
-        EffectKind::OpeningHand{count}=>require(state.full_runtime&&*count<=10&&state.phase==Phase::PlayerStart&&state.item_context.as_ref().is_some_and(|i|i.m21_profile()),"M21 owned opening continuation")?,
+        EffectKind::OpeningHand{count}=>require(state.full_runtime&&*count<=10
+            &&(state.phase==Phase::PlayerStart||state.phase==Phase::Selection&&state.silent.card_offer.is_some())
+            &&state.item_context.as_ref().is_some_and(|i|i.m21_profile()||i.complete_items()),"M21/M27 owned opening continuation")?,
         EffectKind::Watcher(work)=>super::cards::watcher::validate(state,effect,work)?,
         EffectKind::Thief(kind)=>super::enemies::act1::thieves::validate_effect(state,effect,kind)?,
         EffectKind::Damage(DamagePayload::CorpseExplosion{owner,amount})=>require(state.full_runtime&&*amount>=0&&effect.source==Source::None
@@ -1499,7 +1606,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&state.hook_events.iter().any(|event|matches!(event.hook,Hook::Death|Hook::HalfDeath)&&event.target==Some(Actor::Enemy(owner.clone()))),"Corpse Explosion retains an actual death callback owner")?,
         EffectKind::Damage(DamagePayload::Fixed(n)) => {
             let maximum = if state.full_runtime { 30_012 } else { 1_515 };
-            require((0..=maximum).contains(n)||(state.full_runtime&&*n>=0&&(super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source))), "damage payload bounds/producer")?;
+            require((0..=maximum).contains(n)||(state.full_runtime&&*n>=0&&(super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source)||matches!(&effect.source,Source::Relic(_)))), "damage payload bounds/producer")?;
         }
         EffectKind::Damage(DamagePayload::Orb(n)) => require((0..=1515).contains(n)||super::cards::defect::valid_orb_source(state,&effect.source), "orb payload bounds/producer")?,
         EffectKind::Damage(DamagePayload::HpLoss(n)) =>
@@ -1533,7 +1640,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     &&((state.combust.is_some_and(|power|power.copies>0)&&state.player_full_powers.iter().any(|power|power.id.0=="combust"&&power.state.amount==*n))
                          ||state.player_full_powers.iter().any(|power|power.id.0=="fire_breathing"&&power.state.amount==*n&&effect.source==Source::None)
                          ||(*n==3&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::CharonsAshes)))))
-                || (effect.source==Source::Actor(Actor::Player) && matches!(&effect.target,Some(Actor::Enemy(_)))),
+                || (effect.source==Source::Actor(Actor::Player) && matches!(&effect.target,Some(Actor::Enemy(_))))
+                || (matches!(&effect.source,Source::Relic(_))&&matches!(&effect.target,Some(Actor::Player|Actor::Enemy(_)))),
                 "THORNS source/target must have a supported native producer")?;
         }
         EffectKind::JuggernautRandomDamage(damage) => require(state.full_runtime
@@ -1550,16 +1658,32 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&proposal.is_none_or(|id|state.silent.source_character.is_some_and(|character|crate::items::potion_generation::candidates(character,true).is_ok_and(|pool|pool.contains(&id)))),
             "Alchemize retains its real card and eligible proposal")?,
         EffectKind::SmokeEscape=>require(super::smoke::allowed(state)&&effect.target.is_none()
-            &&state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile())
+            &&state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.complete_items())
             &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::SmokeBomb}
                 if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(|id|id.is_none()||*id==Some(crate::content::PotionId::SmokeBomb))),"Smoke escape requires its actual permitted potion owner")?,
         EffectKind::Generate(work)=>super::generation::validate(state,effect,work)?,
+        EffectKind::Relic(super::RelicEffect::UpgradeRandomHandCard)=>require(state.full_runtime&&matches!(&effect.source,Source::Relic(_))&&effect.target.is_none(),"random upgrade relic action shape")?,
+        EffectKind::Relic(super::RelicEffect::CapEnemyHp{percent})=>require(state.full_runtime&&matches!(&effect.source,Source::Relic(_))&&effect.target.is_none()&&(1..=100).contains(percent),"enemy HP cap relic action percent/target")?,
+        EffectKind::Relic(super::RelicEffect::SetRandomHandCardCostZeroThisTurn)=>require(state.full_runtime
+            &&effect.source==Source::Relic(crate::content::RelicId::MummifiedHand)&&effect.target.is_none(),"Mummified Hand action shape")?,
+        EffectKind::Relic(super::RelicEffect::RemovePlayerDebuffs)=>require(state.full_runtime
+            &&effect.source==Source::Relic(crate::content::RelicId::OrangePellets)&&effect.target.is_none(),"Orange Pellets action shape")?,
+        EffectKind::Relic(super::RelicEffect::GamblingChipSelect)=>require(state.full_runtime
+            &&effect.source==Source::Relic(crate::content::RelicId::GamblingChip)&&effect.target==Some(Actor::Player)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                &&items.owns_relic(crate::content::RelicId::GamblingChip)&&items.local(crate::content::RelicId::GamblingChip)==1),
+            "Gambling Chip selection requires its armed complete relic owner")?,
+        EffectKind::Relic(super::RelicEffect::RetainHand)=>require(state.full_runtime
+            &&effect.source==Source::Relic(crate::content::RelicId::RunicPyramid)&&effect.target==Some(Actor::Player)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                &&items.owns_relic(crate::content::RelicId::RunicPyramid)),
+            "Runic Pyramid retain action requires its complete relic owner")?,
         EffectKind::CardOffer{..}|EffectKind::DeliverCardOffer{..}=>super::card_offers::validate_work(state,effect)?,
         EffectKind::Potion(work)=>{
             match work {
                 super::PotionEffect::EntropicBrew{character,count}=>require(state.full_runtime&&effect.target==Some(Actor::Player)
                     &&state.silent.source_character==Some(*character)
-                    &&state.item_context.as_ref().is_some_and(|items|((items.m15_profile()&&*character==crate::content::Character::Silent)||(items.m20_profile()&&*character==crate::content::Character::Defect))&&*count==items.potions().len()&&items.valid_potion_capacity())
+                    &&state.item_context.as_ref().is_some_and(|items|((items.m15_profile()&&*character==crate::content::Character::Silent)||(items.m20_profile()&&*character==crate::content::Character::Defect)||items.complete_items())&&*count==items.potions().len()&&items.valid_potion_capacity())
                     &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::EntropicBrew} if state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some()),
                     "Entropic Brew retains actual character and live belt owner")?,
 
@@ -1567,7 +1691,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     let expected=if matches!(work,super::PotionEffect::UpgradeHand){crate::content::PotionId::BlessingOfTheForge}
                         else{crate::content::PotionId::SneckoOil};
                     require(state.full_runtime&&effect.target==Some(Actor::Player)
-                        &&state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile())
+                        &&state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.complete_items())
                         &&matches!(&effect.source,Source::Potion{slot,id} if *id==expected
                             &&state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(|owned|owned.is_none()||*owned==Some(*id))),
                         "generated M15 potion action retains its native source")?;
@@ -1619,7 +1743,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 match &effect.source {
                     Source::Potion{slot,id:crate::content::PotionId::EntropicBrew}=>*slot<items.potions().len()
                         &&(items.m15_profile()
-                            ||(items.m20_profile()&&state.silent.source_character==Some(crate::content::Character::Defect))),
+                        ||(items.m20_profile()&&state.silent.source_character==Some(crate::content::Character::Defect))
+                        ||items.complete_items()),
                     // Alchemize remains an actual-Silent producer. Preserve its
                     // accepted retained card/frame ownership; M20 gains no card source.
                     Source::Card(owner)=>(items.m15_profile()||items.complete_cards())&&(state.in_play.as_ref().is_some_and(|card|card.handle()==*owner)
@@ -1631,7 +1756,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             require(state.full_runtime && *amount > 0 && *amount <= 9_999
                 && effect.source == Source::Actor(Actor::Player) && effect.target.is_none()
                 && state.item_context.as_ref().is_some_and(|items|
-                    items.m15_profile() && items.owns_relic(crate::content::RelicId::TheSpecimen))
+                    (items.m15_profile()||items.complete_items()) && items.owns_relic(crate::content::RelicId::TheSpecimen))
                 && state.enemies.iter().any(|enemy| &enemy.instance_id == callback_owner),
                 "Specimen transfer requires its owned M15 callback actor and positive captured Poison")?;
         }
@@ -1657,9 +1782,13 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&matches!((&effect.source,&state.in_play),(Source::Card(owner),Some(card)) if owner==&card.handle())
             &&state.pending.iter().any(|pending|pending.source==effect.source&&pending.kind==EffectKind::FinishCard),
             "CardAfterUse requires the actual in-play card and its queued finish")?,
-        EffectKind::Hook(Hook::CardManuallyDiscarded)=>require(state.full_runtime
-            &&matches!(state.phase,Phase::PlayerAction|Phase::Selection)&&effect.target.is_none()
-            &&matches!(&effect.source,Source::Card(owner) if state.piles.discard.iter().any(|card|card.handle()==*owner)),
+        EffectKind::Hook(Hook::CardManuallyDiscarded)=>require(state.full_runtime&&effect.target.is_none()
+            &&matches!(&effect.source,Source::Card(owner) if state.piles.discard.iter().any(|card|card.handle()==*owner)
+                &&(matches!(state.phase,Phase::PlayerAction|Phase::Selection)
+                    ||state.phase==Phase::Decision&&state.fault_selection.as_ref().is_some_and(|selection|
+                        matches!(selection.parent,SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..}
+                            |SelectionParent::Relic(crate::content::RelicId::GamblingChip))
+                            &&selection.selected.contains(owner)))),
             "manual-discard relic callback requires the actually moved discarded card")?,
         EffectKind::HexaghostBurn(_) => {
             require(state.full_runtime&&matches!((&effect.source,&effect.target),(Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target))) if source==target&&state.enemies.iter().any(|e|e.instance_id==*target&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Hexaghost))),"Hexaghost gate source/target")?;
@@ -1951,6 +2080,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             && matches!((&effect.source,&effect.target,&state.in_play),(Source::Card(owner),Some(Actor::Player),Some(card))
                 if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Combust)),
             "Combust application requires its current player card owner and exact payload")?;},
+        EffectKind::ApplyFullPower { id, amount } if id.0=="pen_nib"=>require(state.full_runtime
+            &&effect.target==Some(Actor::Player)&&*amount==1
+            &&effect.source==Source::Relic(crate::content::RelicId::PenNib)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items()&&items.owns_relic(crate::content::RelicId::PenNib)),
+            "Pen Nib power requires its owned complete relic and exact player payload")?,
         EffectKind::ApplyFullPower { id, amount } if matches!(id.0,"mark"|"block_return")=>{
             let expected=if id.0=="mark"{crate::content::CardId::PressurePoints}else{crate::content::CardId::TalkToTheHand};
             let owner=match &effect.source{Source::Card(owner)=>Some(owner),_=>None};
@@ -2408,16 +2542,17 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
         Phase::Decision => {
             require(quiet && state.player.hp > 0 && state.enemies.iter().any(|e|
                 e.life == super::ActorLife::HalfDead || e.life == super::ActorLife::Active && e.hp > 0), "live quiescent decision")?;
+            let vulnerable_factor=super::effects::player_vulnerable_factor(state);
             for e in state.enemies.iter().filter(|e|
                 e.life == super::ActorLife::Active && e.hp > 0) {
             require(e.intent_id == e.selected_move, "decision published move")?;
             for entry in e.damage_entries.values().chain(e.full_damage_entries.values()) {
                 let paper_krane=state.item_context.as_ref().is_some_and(|items|
-                    items.m15_profile()&&items.owns_relic(crate::content::RelicId::PaperKrane));
-                let expected = super::effects::refreshed_damage_with_paper_krane(entry.base, &e.powers, &e.full_powers,
+                    (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::PaperKrane));
+                let expected = super::effects::refreshed_damage_with_vulnerable_factor(entry.base, &e.powers, &e.full_powers,
                     &state.player.powers, &state.player_full_powers,
                     state.character.stance == super::characters::Stance::Wrath, state.full_runtime,
-                    state.full_runtime&&super::effects::back_attack_active(state,e),paper_krane)?;
+                    state.full_runtime&&super::effects::back_attack_active(state,e),paper_krane,vulnerable_factor)?;
                 require(entry.output == expected, "decision refreshed damage")?;
             }
             let damage = match &e.intent_id {
@@ -2478,6 +2613,13 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     &&(!matches!(id,crate::content::PotionId::Elixir|crate::content::PotionId::GamblersBrew|crate::content::PotionId::LiquidMemories)
                         ||state.item_context.as_ref().and_then(|items|items.potions().get(*slot)).is_some_and(Option::is_none)),
                     "potion selection has a valid consumed parent")?,
+                SelectionParent::Relic(crate::content::RelicId::GamblingChip)=>require(state.full_runtime&&state.in_play.is_none()
+                    &&state.pending.iter().any(|effect|effect.kind==EffectKind::Decision)
+                    &&state.item_context.as_ref().is_some_and(|items|items.complete_items()
+                        &&items.owns_relic(crate::content::RelicId::GamblingChip)
+                        &&items.local(crate::content::RelicId::GamblingChip)==1),
+                    "Gambling Chip selection has its armed complete relic parent")?,
+                SelectionParent::Relic(_)=>return Err(InputError::Invariant("unsupported relic selection parent".into())),
                 SelectionParent::Power{turn,id}=>require(state.full_runtime&&*turn==state.turn&&(
                     state.in_play.is_none()&&(id.0=="tools_of_the_trade"||(super::cards::watcher::cards_active(state)&&id.0=="foresight"&&state.watcher.resume_phase==Some(Phase::PlayerStart)))
                         &&state.player_full_powers.iter().any(|p|p.id==*id&&p.state.amount>0)
@@ -2516,6 +2658,8 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                 &&selection.minimum==0&&state.in_play.is_none()
                 &&state.pending.iter().filter(|effect|effect.kind==EffectKind::DiscardHand).count()==1,
             (SelectionParent::EndTurn{..},_)=>false,
+            (SelectionParent::Relic(crate::content::RelicId::GamblingChip),SelectionOperation::Move(SelectionDisposition::Discard))=>true,
+            (SelectionParent::Relic(_),_)=>false,
             (_,SelectionOperation::Retain)=>false,
             _=>true,
         },"retain selection operation and EndTurn parent agree")?;
@@ -2533,6 +2677,13 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                 &&selection.source_zone==SelectionSourceZone::Hand&&selection.disposition==SelectionDisposition::Discard
                 &&selection.minimum==0&&selection.maximum==selection.candidates.len(),
                 "Gambler's Brew selection retains its optional manual-discard range")?;
+        }
+        if matches!(selection.parent,SelectionParent::Relic(crate::content::RelicId::GamblingChip)) {
+            require(selection.operation==SelectionOperation::Move(SelectionDisposition::Discard)
+                &&selection.source_zone==SelectionSourceZone::Hand&&selection.disposition==SelectionDisposition::Discard
+                &&selection.minimum==0&&selection.maximum==selection.candidates.len()
+                &&selection.candidates==state.piles.hand.iter().map(OwnedCard::handle).collect::<Vec<_>>(),
+                "Gambling Chip retains its optional manual-discard range")?;
         }
         if selection.operation==SelectionOperation::NightmareCapture {
             require(state.full_runtime&&selection.source_zone==SelectionSourceZone::Hand
@@ -2681,6 +2832,8 @@ pub(super) fn dispatch_one(state: &mut State) {
 }
 
 pub(super) fn resolve(state: &mut State) -> Transition {
+    let mut after_draw_dispatched=false;
+    let mut hand_emptied_dispatched=false;
     loop {
         if state.fault.is_some() { return Transition { status: TransitionStatus::Fault }; }
         if state.pending_selection.is_some()||state.silent.card_offer.is_some()||state.watcher.stance_choice.is_some() { return Transition { status: TransitionStatus::Selection }; }
@@ -2689,8 +2842,60 @@ pub(super) fn resolve(state: &mut State) -> Transition {
             continue;
         }
         if !state.pending.is_empty() {
+            if !after_draw_dispatched&&state.full_runtime&&state.phase==Phase::PlayerStart
+                &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
+                &&state.pending.len()==1
+                &&state.pending.front().is_some_and(|effect|effect.kind==EffectKind::Decision) {
+                let decision=state.pending.pop_front().expect("checked start-turn decision marker");
+                let phase=if state.turn<=1 {
+                    // M27 seam: after-opening-draw
+                    crate::items::dispatch::ItemPhase::AfterOpeningDraw
+                }else{
+                    // M27 seam: after-draw
+                    crate::items::dispatch::ItemPhase::AfterDraw
+                };
+                let work=if let Some(items)=state.item_context.as_mut(){
+                    let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
+                    facts.hand_size=state.piles.hand.len();facts.draw_size=state.piles.draw.len();
+                    facts.discard_size=state.piles.discard.len();
+                    facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
+                    Some(crate::items::dispatch::combat_phase(items,phase,&facts))
+                }else{None};
+                after_draw_dispatched=true;
+                if let Some(work)=work {
+                    let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};
+                    if work.direct_strength!=0 {
+                        if let Err(error)=super::powers::add_direct_strength(state,work.direct_strength){retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}
+                    }
+                    if let Err(error)=super::effects::queue_relic_work(state,work){retain_error(state,error);return Transition{status:TransitionStatus::Fault}}
+                }
+                state.pending.push_back(decision);
+                continue;
+            }
             dispatch_one(state);
             continue;
+        }
+        if !hand_emptied_dispatched&&state.full_runtime
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
+            &&state.phase==Phase::Decision
+            &&state.player.hp>0&&state.piles.hand.is_empty() {
+            // M27 seam: hand-emptied
+            let work=if let Some(items)=state.item_context.as_mut(){
+                let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
+                facts.hand_size=state.piles.hand.len();facts.draw_size=state.piles.draw.len();
+                facts.discard_size=state.piles.discard.len();
+                facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
+                Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::HandEmptied,&facts))
+            }else{None};
+            hand_emptied_dispatched=true;
+            if let Some(work)=work {
+                let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};
+                if work.direct_strength!=0 {
+                    if let Err(error)=super::powers::add_direct_strength(state,work.direct_strength){retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}
+                }
+                if let Err(error)=super::effects::queue_relic_work(state,work){retain_error(state,error);return Transition{status:TransitionStatus::Fault}}
+                if !state.pending.is_empty(){continue}
+            }
         }
         let status = match state.phase {
             Phase::Decision => TransitionStatus::Decision,

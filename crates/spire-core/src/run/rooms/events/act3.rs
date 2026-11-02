@@ -64,11 +64,17 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
     let frame=run.state.room_loop.as_ref().and_then(|r|r.act3_event.as_ref()).cloned().ok_or(RunError::InvalidAction)?;
     let Some((choice,kind))=&frame.accepted else{return Err(RunError::InvalidAction)};
     if frame.complete||check_source(run,&frame).is_err()||!run.state.room_loop.as_ref().unwrap().screen.choices.iter().any(|r|r.id==*choice&&r.kind==*kind){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act3 event source changed"),"run.event.act3"))}
+    let mut obtained=None;
     if !frame.mutation_complete{
         let result=match kind{
             RoomChoiceKind::FallingLose{..}=>captured(&frame,kind).filter(|card|run.state.deck.contains(card)).ok_or(RunError::InvalidAction).and_then(|card|mutations::remove_card(&mut run.state,card.instance).map(|_|())),
             RoomChoiceKind::TombGold if frame.has_mask&&run.state.gold==frame.gold&&run.state.relics.contains(&RelicId::RedMask)=>mutations::gain_gold(&mut run.state,222),
-            RoomChoiceKind::TombOfferGold if !frame.has_mask&&run.state.gold==frame.gold&&!run.state.relics.contains(&RelicId::RedMask)=>{run.state.gold=0;crate::items::acquire_relic(&mut run.state,RelicId::RedMask)},
+            RoomChoiceKind::TombOfferGold if !frame.has_mask&&run.state.gold==frame.gold&&!run.state.relics.contains(&RelicId::RedMask)=>{
+                run.state.gold=0;
+                crate::items::obtain_relic(&mut run.state,RelicId::RedMask,crate::items::lifecycle::RelicSource::Event).map(|result|{
+                    if run.state.item_admission==ItemAdmission::Complete{obtained=Some(result);}
+                })
+            },
             _=>Err(RunError::InvalidAction),
         };
         if result.is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act3 event mutation failed"),"run.event.act3"))}
@@ -85,5 +91,7 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
         return match run.commit_terminal(RunTerminal::EmptyDeck){Ok(t)=>{run.state.room_loop.as_mut().unwrap().act3_event.as_mut().unwrap().complete=true;Ok(t)},Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted Falling terminal settlement failed"),"run.event.act3"))}
     }
     let mut next=run.next_choice;let screen=match view(&mut next,RoomViewKind::Event(frame.event),vec![(RoomChoiceKind::Leave,None)]){Ok(s)=>s,Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted Act3 event result publication failed"),"run.event.act3"))};
-    let room=run.state.room_loop.as_mut().unwrap();room.act3_event.as_mut().unwrap().complete=true;room.screen=screen;run.next_choice=next;run.candidates.clear();Ok(empty_transition())
+    let room=run.state.room_loop.as_mut().unwrap();room.act3_event.as_mut().unwrap().complete=true;room.screen=screen;run.next_choice=next;run.candidates.clear();
+    if let Some(obtained)=obtained{return crate::items::lifecycle::after_obtain(run,*choice,RelicId::RedMask,obtained)}
+    Ok(empty_transition())
 }

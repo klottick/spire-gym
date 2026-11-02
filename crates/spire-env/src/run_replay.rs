@@ -600,6 +600,7 @@ pub(crate) fn combat_action_value(a:&CombatAction,watcher:bool)->Value{match a{
  CombatAction::SelectCard{instance}=>json!({"verb":"combat.select_card","instance":instance}),
  CombatAction::ConfirmSelection=>json!({"verb":"combat.confirm_selection"}),
  CombatAction::UsePotion{slot,target}=>json!({"verb":"combat.use_potion","slot":slot,"target":target.map(|t|t.0)}),
+ CombatAction::DiscardPotion{..}=>Value::Null,
  CombatAction::EndTurn=>json!({"verb":"combat.end_turn"}),
  CombatAction::ChooseCardOffer{index}=>json!({"verb":"combat.choose_card_offer","index":index}),
  CombatAction::SkipCardOffer=>json!({"verb":"combat.skip_card_offer"}),

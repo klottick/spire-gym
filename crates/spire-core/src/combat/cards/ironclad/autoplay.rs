@@ -295,11 +295,20 @@ pub(in crate::combat) fn apply_potion_work(state:&mut State,effect:&Effect,work:
 
 pub(in crate::combat) fn card_played(state:&mut State,source:&crate::combat::Source,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
     let crate::combat::Source::Card(owner)=source else{return Ok(())};
-    let Some((card_id,purge))=state.in_play.as_ref().filter(|owned|owned.handle()==*owner).and_then(OwnedCard::full)
-        .map(|card|(card.id,card.local.purge))else{return Ok(())};
+    let Some((card_id,purge,x_cost))=state.in_play.as_ref().filter(|owned|owned.handle()==*owner).and_then(OwnedCard::full)
+        .map(|card|(card.id,card.local.purge,card.local.x_cost))else{return Ok(())};
     let Some(definition)=Catalog::standard().card(card_id)else{return Ok(())};
     if purge||state.play_frames.last().is_some_and(|frame|frame.child==*owner&&frame.disposition==FinishDisposition::Purge){return Ok(())}
     let energy_on_use=state.play_context.as_ref().filter(|context|context.card==*owner).map_or(state.player.energy,|context|context.energy_on_use);
+    if let Some(items)=state.item_context.as_mut(){
+        let paid=state.play_context.as_ref().filter(|context|context.card==*owner).map_or(0,|context|context.paid);
+        // M27 seam: repeat-play. X-cost cards record paid=0; energy_on_use is their paid X.
+        // queue_after_finish inserts at the front of the post-finish batch, so later power
+        // duplicator queues resolve before this relic repeat (M27 ruling F9).
+        let extra=crate::items::laws::repeat_play(items,crate::items::dispatch::PhaseCard{
+            id:card_id,card_type:definition.card_type,cost_paid:if x_cost{energy_on_use}else{paid}});
+        for _ in 0..extra{queue_blue_repeat(state,source,target,energy_on_use)?;}
+    }
     let duplication=state.player_full_powers.iter().find(|power|power.id.0=="duplication").map_or(0,|power|power.state.amount);
     if duplication>0 {
         let charge=state.player_full_powers.iter_mut().find(|power|power.id.0=="duplication")

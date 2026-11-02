@@ -267,7 +267,7 @@ pub struct Transition { pub status: TransitionStatus }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Actor { Player, Enemy(EnemyHandle) }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Source { None, Card(CardHandle), Potion{slot:usize,id:crate::content::PotionId}, Actor(Actor) }
+pub enum Source { None, Card(CardHandle), Potion{slot:usize,id:crate::content::PotionId}, Actor(Actor), Relic(crate::content::RelicId) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DamagePayload {
     Fixed(i32), Orb(i32),
@@ -299,6 +299,15 @@ pub enum PotionEffect {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SilentItemEffect {
     SpecimenPoisonTransfer { callback_owner: EnemyHandle, amount: i32 },
+}
+#[derive(Clone,Debug,PartialEq,Eq)]
+pub enum RelicEffect {
+    UpgradeRandomHandCard,
+    CapEnemyHp { percent:i32 },
+    SetRandomHandCardCostZeroThisTurn,
+    RemovePlayerDebuffs,
+    GamblingChipSelect,
+    RetainHand,
 }
 /// Detached result from the single shared damage commit, not a second calculator.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -364,6 +373,7 @@ pub enum EffectKind {
     Colorless(super::cards::ColorlessEffect),
     ShuffleDraw,
     Potion(PotionEffect),
+    Relic(RelicEffect),
     CardOffer { cards:Vec<crate::content::CardId>,optional:bool,copies:u8,zero_cost:bool },
     SmokeEscape,
     Alchemize { proposal:Option<crate::content::PotionId> },

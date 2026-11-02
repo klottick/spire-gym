@@ -179,6 +179,7 @@ pub(super) struct PreparedCard {
     pub remaining_energy: i32,
     pub target: Option<Actor>,
     pub effects: Vec<Effect>,
+    pub exhaust_on_finish: bool,
 }
 
 /// Validate a full-card play and construct its ordered native effects without
@@ -194,9 +195,10 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         .find(|(_, card)| card.handle() == handle)
         .ok_or(crate::run::RunError::InvalidAction)?;
     let card = owned.full().ok_or(crate::run::RunError::InvalidAction)?;
-    validate_card_use(&combat.state,card,*target)?;
+    let exhaust_on_finish=validate_card_use(&combat.state,card,*target)?;
     let captured_energy=combat.state.player.energy;
-    let (cost, payloads) = payload_with_wrist_blade(&combat.state, card, target.map(|id| id.0))?;
+    let (cost, payloads) = if exhaust_on_finish { (0,Vec::new()) }
+        else { payload_with_wrist_blade(&combat.state, card, target.map(|id| id.0))? };
     let attack=crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
     // Free Attack (Swivel) makes every Attack free while a positive count remains; the count
     // is spent by the shared CardPlayed owner for any non-purge Attack use (watcher.md:123).
@@ -231,12 +233,20 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
         }), kind,
     }).collect::<Vec<_>>();
     Ok(PreparedCard { hand_index, instance: card.instance,captured_energy,paid:payment.paid,
-        remaining_energy: payment.remaining_energy, target: actor, effects })
+        remaining_energy: payment.remaining_energy, target: actor, effects, exhaust_on_finish })
 }
 
 /// Shared accepted-use legality used by both ordinary hand plays and autoplay
 /// children. Payload production remains read-only; payment is a separate owner.
-pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<(),crate::run::RunError>{
+pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<TargetId>)->Result<bool,crate::run::RunError>{
+    let paid=state.play_context.as_ref().filter(|context|context.card==card_handle(card)).map_or(0,|context|context.paid);
+    let rule=state.item_context.as_ref().and_then(|context|{
+        let definition=crate::content::Catalog::standard().card(card.id)?;
+        // M27 seam: play-allowed; this validator also drives the legal-action mask.
+        Some(crate::items::laws::play_allowed(context,crate::items::dispatch::PhaseCard{
+            id:card.id,card_type:definition.card_type,cost_paid:paid}))
+    });
+    if rule.is_some_and(|rule|rule.allow==Some(false)){return Err(crate::run::RunError::InvalidAction)}
     if curses::play_blocked(state){return Err(crate::run::RunError::InvalidAction)}
     if card.id==crate::content::CardId::SignatureMove {
         let owner=card_handle(card);
@@ -247,10 +257,18 @@ pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<Target
     }
     if state.player_full_powers.iter().any(|p|p.id.0=="entangled"&&p.state.amount>0)
         &&crate::content::Catalog::standard().card(card.id).is_some_and(|card|card.card_type==crate::content::CardType::Attack){return Err(crate::run::RunError::InvalidAction)}
-    if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane
+    let unplayable_curse_or_status=matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Reflex|crate::content::CardId::Tactician|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane
         // Shared fix (M25, same shape as M26): Deus Ex Machina is Unplayable; only its on-draw trigger acts, so one
         // that reaches the hand without a draw (a Stasis return, Discovery, copies) is unplayable, never Unsupported.
-        |crate::content::CardId::DeusExMachina){return Err(crate::run::RunError::InvalidAction);}
+        |crate::content::CardId::DeusExMachina);
+    let card_type=crate::content::Catalog::standard().card(card.id).map(|definition|definition.card_type);
+    let exhaust_unplayable=unplayable_curse_or_status
+        && card_type.is_some_and(|kind|matches!(kind,crate::content::CardType::Curse|crate::content::CardType::Status))
+        && state.item_context.as_ref().is_some_and(crate::items::CombatItemContext::complete_items)
+        && rule.is_some_and(|rule|rule.allow==Some(true));
+    if unplayable_curse_or_status&&!exhaust_unplayable{
+        return Err(crate::run::RunError::InvalidAction);
+    }
     if matches!(card.id, crate::content::CardId::Defend | crate::content::CardId::DefendGreen
         | crate::content::CardId::DefendBlue | crate::content::CardId::DefendPurple
         | crate::content::CardId::Survivor | crate::content::CardId::Zap
@@ -273,7 +291,7 @@ pub(super) fn validate_card_use(state:&State,card:&LiveCard,target:Option<Target
     if matches!(card.id, crate::content::CardId::SweepingBeam) && target.is_some() {
         return Err(crate::run::RunError::InvalidAction);
     }
-    Ok(())
+    Ok(exhaust_unplayable)
 }
 
 /// Public card adapter. Native play validation and commit remain in
@@ -490,9 +508,10 @@ pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option
     let vigor=if watcher::cards_active(state)&&attack{state.player_full_powers.iter()
         .find(|power|power.id.0=="vigor").map_or(0,|power|power.state.amount.max(0))}else{0};
     let eligible=state.item_context.as_ref().is_some_and(|items|
-        items.m15_profile()&&items.owns_relic(crate::content::RelicId::WristBlade))
+        (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::WristBlade))
         &&attack&&!card.local.x_cost;
-    let mut projection=if vigor>0||eligible{Some(state.clone())}else{None};
+    let complete_items=state.item_context.as_ref().is_some_and(crate::items::CombatItemContext::complete_items);
+    let mut projection=if vigor>0||eligible||complete_items{Some(state.clone())}else{None};
     if vigor>0 {
         let projected=projection.as_mut().expect("Vigor projection allocated");
         projected.player_full_powers.push(super::FullPowerEntry{id:super::FullPowerId("strength"),
@@ -500,9 +519,27 @@ pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option
     }
     let base=payload(projection.as_ref().unwrap_or(state),card,target)?;
     let wrist=eligible&&super::card_state::effective_cost(card,base.0).ok()==Some(0);
-    if !wrist{return Ok(base)}
+    if !wrist {
+        if complete_items {
+            let projected=projection.get_or_insert_with(||state.clone());
+            let definition=crate::content::Catalog::standard().card(card.id).expect("validated live card definition");
+            let paid=state.play_context.as_ref().filter(|context|context.card==card_handle(card)).map_or(0,|context|context.paid);
+            if let Some(items)=projected.item_context.as_mut(){
+                items.set_damage_card_for_projection(crate::items::dispatch::PhaseCard{id:card.id,card_type:definition.card_type,cost_paid:paid});
+            }
+            return payload(projected,card,target);
+        }
+        return Ok(base)
+    }
     let projected=projection.get_or_insert_with(||state.clone());
     if let Some(items)=projected.item_context.as_mut(){items.set_wrist_blade_bonus(4);}
+    if complete_items {
+        let definition=crate::content::Catalog::standard().card(card.id).expect("validated live card definition");
+        let paid=state.play_context.as_ref().filter(|context|context.card==card_handle(card)).map_or(0,|context|context.paid);
+        if let Some(items)=projected.item_context.as_mut(){
+            items.set_damage_card_for_projection(crate::items::dispatch::PhaseCard{id:card.id,card_type:definition.card_type,cost_paid:paid});
+        }
+    }
     let boosted=payload(projected,card,target)?;
     if boosted.0!=base.0{return Err(crate::run::RunError::Unsupported("Wrist Blade payload cost changed during source modification"));}
     Ok(boosted)
@@ -552,6 +589,12 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
     let item_bonus=state.item_context.as_ref().map_or(0,crate::items::CombatItemContext::wrist_blade_bonus);
     let base=base.checked_add(item_bonus)
         .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?;
+    let base=state.item_context.as_ref().filter(|context|context.complete_items())
+        .and_then(crate::items::CombatItemContext::damage_card).map_or(base,|card|{
+            // M27 seam: outgoing-damage, after Wrist Blade and before Strength.
+            crate::items::laws::outgoing_damage(state.item_context.as_ref().expect("item context present"),Some(card),
+                &Actor::Enemy(enemy.instance_id.clone()),base)
+        });
     if !signed&&(!(0..=3003).contains(&base) || !(-9990..=9990).contains(&strength)) {
         return Err(crate::run::RunError::Unsupported("normal damage outside supported numeric surface"));
     }
@@ -567,6 +610,10 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
         "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>{},
     }}
+    // Pen Nib is a separate ×2 atDamageGive multiplier. Applying its exact power-of-two
+    // here preserves the shared damage calculator while stacking with double_damage.
+    let pen_nib=state.player_full_powers.iter().any(|power|power.id.0=="pen_nib"&&power.state.amount>0);
+    if pen_nib { receive.push(2.0f32); }
     // M26 §6.3 S: the stance pipeline runs once a stance or Vigor exists for any character.
     if watcher::active(state)||state.character.stance!=super::characters::Stance::Neutral
         ||state.player_full_powers.iter().any(|p|p.id.0=="vigor"){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,

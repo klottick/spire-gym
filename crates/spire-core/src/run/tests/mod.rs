@@ -66,3 +66,18 @@ mod m26_capability;
 mod m26_pools;
 mod m26_card_mutations;
 mod m26_supplied;
+mod m27_relic_pools;
+mod m27_capability;
+mod m27_relic_selections;
+mod m27_relics_run;
+mod m27_potion_lifecycle;
+mod m27_supplied;
+mod m27_run_seams;
+mod m27_relic_lifecycle;
+mod m27_relic_offers;
+#[cfg(feature="m27-diagnostics")]
+mod m27_act4_producers;
+#[cfg(feature="m27-diagnostics")]
+mod m27_potion_shop;
+#[cfg(feature="m27-diagnostics")]
+mod m27_potion_rewards;

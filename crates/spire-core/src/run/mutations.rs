@@ -1,12 +1,23 @@
 use super::*;
 use crate::content::CardId;
-pub(super) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
-    state.gold=state.gold.checked_add(amount).ok_or(RunError::Unsupported("gold overflow"))?;Ok(())
+pub(crate) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
+    // M27 gold seams (design §6.5): handlers may change the amount before it is added.
+    let mut gaining=crate::items::dispatch::RunItemEvent::GoldGaining{amount};
+    crate::items::dispatch::run_event(state,&mut gaining)?;
+    let crate::items::dispatch::RunItemEvent::GoldGaining{amount}=gaining else {unreachable!("gold event kept its kind")};
+    state.gold=state.gold.checked_add(amount).ok_or(RunError::Unsupported("gold overflow"))?;
+    crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::GoldGained{amount})
 }
 pub(super) fn supported(id:CardId)->bool {matches!(id,CardId::Strike|CardId::Defend|CardId::Bash|CardId::Clothesline
     |CardId::IronWave|CardId::PommelStrike|CardId::ShrugItOff|CardId::Anger|CardId::Bloodletting|CardId::BurningPact|CardId::Disarm)}
 pub(super) fn supported_in(state:&RunState,id:CardId)->bool{if super::rooms::is_m25(state){return super::M25_WATCHER_HEART_CARDS.contains(&id)}if super::rooms::is_m24(state){return super::M24_WATCHER_ACT3_CARDS.contains(&id)}if super::rooms::uses_watcher_content(state){return super::M22_WATCHER_ACT1_CARDS.contains(&id)}if super::rooms::is_m20(state){return id==CardId::Parasite||crate::content::defect::supports_m20_permanent(id)}if super::rooms::is_m19(state){return super::M19_DEFECT_ACT3_CARDS.contains(&id)&&(id==CardId::Parasite||crate::content::defect::supports_permanent(id))}if super::rooms::is_m18(state){return super::M18_DEFECT_ACT2_CARDS.contains(&id)&&crate::content::defect::supports_permanent(id)}if super::rooms::is_m17(state){return super::M17_DEFECT_ACT1_CARDS.contains(&id)}if state.authored_combat&&state.character==crate::content::Character::Defect{return crate::content::defect::supports_permanent(id)}if super::rooms::is_m15(state){return super::M15_SILENT_HEART_CARDS.contains(&id)}if super::rooms::is_m14(state){return super::M14_SILENT_ACT3_CARDS.contains(&id)}if super::rooms::is_m12(state)||super::rooms::is_m13(state){return super::M12_SILENT_ACT1_CARDS.contains(&id)}supported(id)||(super::rooms::is_m10(state)&&[crate::content::CardRarity::Basic,crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Rare].into_iter().any(|rarity|super::rooms::m10_content::red_candidates(rarity).contains(&id)))||(super::rooms::uses_captured_act1(state)&&matches!(id,CardId::Cleave|CardId::TwinStrike|CardId::Thunderclap|CardId::Bludgeon|CardId::Impervious|CardId::Offering))||(super::rooms::uses_captured_act3(state)&&state.act==3&&id==CardId::Inflame)}
-pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
+/// Complete-item obtain owners (rewards, shop, relic equips): a negated obtain is `Ok(None)`.
+pub(crate) fn obtain_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32)->Result<Option<u64>,RunError>{
+    if state.card_admission!=CardAdmission::Complete{return obtain_card(state,id,upgrades).map(Some)}
+    if !crate::content::complete::supports_permanent(id)||!super::training::complete_upgrades_valid(id,upgrades){return Err(RunError::InvalidAction)}
+    push_card_or_negated(state,id,upgrades,super::training::complete_obtain_misc(id))
+}
+pub(crate) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
     if state.card_admission==CardAdmission::Complete{
         // Design §8.1: any complete permanent card; Searing Blow any count, curses 0, others 0 or 1.
         if !crate::content::complete::supports_permanent(id)||!super::training::complete_upgrades_valid(id,upgrades){return Err(RunError::InvalidAction)}
@@ -18,13 +29,23 @@ pub(super) fn obtain_card(state:&mut RunState,id:CardId,upgrades:u32)->Result<u6
 }
 /// The one physical-instance allocator for obtain, duplicate and note retrieval.
 fn push_card(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<u64,RunError>{
+    push_card_or_negated(state,id,upgrades,misc)?.ok_or(RunError::Unsupported("a negated card obtain needs an *_or_negated owner"))
+}
+/// Design §6.5: a `CardObtaining` handler (Omamori, complete items only) may negate the obtain;
+/// the card is then not created and `None` is returned.
+fn push_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<Option<u64>,RunError>{
     if state.deck.len()>=999{return Err(RunError::InvalidAction)}
+    // M27 card-obtain seam (design §6.5, H0 §2): every obtain path reaches this allocator.
+    let mut obtaining=crate::items::dispatch::RunItemEvent::CardObtaining{id,upgrades,negated:false};
+    crate::items::dispatch::run_event(state,&mut obtaining)?;
+    let crate::items::dispatch::RunItemEvent::CardObtaining{upgrades,negated,..}=obtaining else {unreachable!("obtain event kept its kind")};
+    if negated{return Ok(None)}
     let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
     if instance==0||state.deck.iter().any(|c|c.instance==instance){return Err(RunError::InvalidAction)}
     state.deck.push(CardInstance{misc,id,instance,upgrades});state.next_instance=next;
-    crate::items::on_hook(state,crate::combat::Hook::CardAcquired)?;Ok(instance)
+    crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::CardObtained{id,instance})?;Ok(Some(instance))
 }
-pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunError>{
+pub(crate) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunError>{
     let at=state.deck.iter().position(|c|c.instance==id).ok_or(RunError::InvalidAction)?;
     // Design §8.2: CurseOfTheBell, Necronomicurse and Ascender's Bane are never removed.
     if !removable(state.deck[at].id){return Err(RunError::InvalidAction)}
@@ -32,16 +53,16 @@ pub(super) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunEr
     if parasite&&(state.combat.is_some()||state.max_hp==0||state.max_hp>999||state.hp>state.max_hp){return Err(RunError::InvalidAction)}
     let card=state.deck.remove(at);
     if parasite{state.max_hp=state.max_hp.saturating_sub(3).max(1);state.hp=state.hp.min(state.max_hp);}
-    crate::items::on_hook(state,crate::combat::Hook::CardRemoved)?;Ok(card)
+    crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::CardRemoved)?;Ok(card)
 }
-pub(super) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
+pub(crate) fn upgrade_card(state:&mut RunState,id:u64)->Result<(),RunError>{
     let at=state.deck.iter().position(|c|c.instance==id&&can_upgrade(state,c)).ok_or(RunError::InvalidAction)?;
     let original=&state.deck[at];
     let mut live=crate::combat::permanent_live_card_with_misc(original.id,crate::combat::CardInstanceId(original.instance),original.upgrades,original.misc);
     crate::combat::cards::ironclad::rules::upgrade(&mut live)?;
     state.deck[at].upgrades=live.upgrades;Ok(())
 }
-pub(super) fn can_upgrade(state:&RunState,card:&CardInstance)->bool{
+pub(crate) fn can_upgrade(state:&RunState,card:&CardInstance)->bool{
     if state.card_admission==CardAdmission::Complete{
         return crate::content::complete::supports_permanent(card.id)&&crate::combat::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)
     }
@@ -58,7 +79,14 @@ fn pool_error(_:crate::content::RegistryError)->RunError{RunError::Unsupported("
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 /// Design §8.3: remove a removable card (Parasite's loss applies) and obtain one fresh card
 /// drawn uniformly from `Transform(character, input)`. Preflights before any mutation.
-pub(super) fn transform_card(state:&mut RunState,instance:u64,auto_upgrade:bool,key:&[u64])->Result<u64,RunError>{
+pub(crate) fn transform_card(state:&mut RunState,instance:u64,auto_upgrade:bool,key:&[u64])->Result<u64,RunError>{
+    let mut staged=state.clone();
+    let created=transform_card_or_negated(&mut staged,instance,auto_upgrade,key)?
+        .ok_or(RunError::Unsupported("a negated card obtain needs an *_or_negated owner"))?;
+    *state=staged;Ok(created)
+}
+/// As `transform_card`; the removal stands when the fresh card's obtain is negated.
+pub(crate) fn transform_card_or_negated(state:&mut RunState,instance:u64,auto_upgrade:bool,key:&[u64])->Result<Option<u64>,RunError>{
     let input=state.deck.iter().find(|c|c.instance==instance).ok_or(RunError::InvalidAction)?.id;
     if !removable(input)||!admits(state,input){return Err(RunError::InvalidAction)}
     let support=crate::content::pools::cards(crate::content::pools::CardPool::Transform{character:state.character,input}).map_err(pool_error)?;
@@ -67,21 +95,21 @@ pub(super) fn transform_card(state:&mut RunState,instance:u64,auto_upgrade:bool,
     let output=support[index];
     let upgrades=u32::from(auto_upgrade&&crate::combat::cards::ironclad::rules::can_upgrade(output,0));
     remove_card(&mut staged,instance)?;
-    let created=obtain_fresh(&mut staged,output,upgrades)?;
+    if !admits(&staged,output){return Err(RunError::InvalidAction)}
+    let created=push_card_or_negated(&mut staged,output,upgrades,super::training::complete_obtain_misc(output))?;
     *state=staged;Ok(created)
 }
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
-/// A fresh card of a pool output: obtain admission, base `misc`.
-fn obtain_fresh(state:&mut RunState,id:CardId,upgrades:u32)->Result<u64,RunError>{
-    if !admits(state,id){return Err(RunError::InvalidAction)}
-    push_card(state,id,upgrades,super::training::complete_obtain_misc(id))
-}
-#[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 /// Design §8.4: a new physical instance with the same id, upgrades and `misc`.
-pub(super) fn duplicate_card(state:&mut RunState,instance:u64)->Result<u64,RunError>{
+pub(crate) fn duplicate_card(state:&mut RunState,instance:u64)->Result<u64,RunError>{
+    let mut staged=state.clone();
+    let created=duplicate_card_or_negated(&mut staged,instance)?.ok_or(RunError::Unsupported("a negated card obtain needs an *_or_negated owner"))?;
+    *state=staged;Ok(created)
+}
+pub(crate) fn duplicate_card_or_negated(state:&mut RunState,instance:u64)->Result<Option<u64>,RunError>{
     let card=state.deck.iter().find(|c|c.instance==instance).ok_or(RunError::InvalidAction)?.clone();
     if !admits(state,card.id){return Err(RunError::InvalidAction)}
-    let mut staged=state.clone();let created=push_card(&mut staged,card.id,card.upgrades,card.misc)?;*state=staged;Ok(created)
+    let mut staged=state.clone();let created=push_card_or_negated(&mut staged,card.id,card.upgrades,card.misc)?;*state=staged;Ok(created)
 }
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 /// Design §8.5: a stored card returns fresh, its upgrades applied through the shared upgrade
@@ -109,7 +137,7 @@ pub(super) fn draw_distinct(state:&mut RunState,pool:crate::content::pools::Card
     let slots=vec![family.as_slice();count];
     super::rooms::m15_content::sample_capture_row_for(&mut state.rng,key,&slots,scope,"card pool is incomplete","card pool has too few distinct cards")
 }
-pub(super) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
+pub(crate) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     if state.max_hp==0||state.max_hp>999||state.hp>state.max_hp{return Err(RunError::InvalidAction)}
     let amount=i32::try_from(amount).map_err(|_|RunError::InvalidAction)?;
     let heal=crate::items::ordinary_heal_amount(&state.relics,amount).max(0) as u32;
@@ -117,7 +145,7 @@ pub(super) fn heal(state:&mut RunState,amount:u32)->Result<(),RunError>{
     if state.hp>0{state.hp=state.hp.saturating_add(heal).min(state.max_hp)}
     crate::combat::observe::run_heal(state,before);Ok(())
 }
-pub(super) fn increase_max_hp(state:&mut RunState,amount:u32)->Result<(),RunError>{
+pub(crate) fn increase_max_hp(state:&mut RunState,amount:u32)->Result<(),RunError>{
     let max=state.max_hp.checked_add(amount).filter(|m|*m<=999).ok_or(RunError::Unsupported("maximum HP overflow"))?;
     if state.max_hp==0||state.hp>state.max_hp||amount>i32::MAX as u32{return Err(RunError::InvalidAction)}
     state.max_hp=max;heal(state,amount)

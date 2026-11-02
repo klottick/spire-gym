@@ -22,6 +22,7 @@ pub fn combat_action_value(action: &CombatAction) -> Value {
         CombatAction::SkipCardOffer=>json!(["skip-card-offer"]),
         CombatAction::ConfirmSelection => json!(["confirm-selection"]),
         CombatAction::UsePotion { slot, target } => json!(["potion", slot, target.map(|t| t.0)]),
+        CombatAction::DiscardPotion { .. } => Value::Null,
         CombatAction::EndTurn => json!(["end-turn"]),
     }
 }

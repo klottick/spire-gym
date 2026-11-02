@@ -8,7 +8,7 @@ mod training;
 pub use training::*;
 mod observe;
 mod reward;
-mod mutations;
+pub(crate) mod mutations;
 pub(crate) mod rooms;
 pub use rooms::{RoomScenario,RoomView,RoomViewKind,RoomChoiceKind,RoomChoiceView,RoomChoiceStatus};
 mod rng;

@@ -33,7 +33,7 @@ pub mod snapshot;
 
 pub use content::*;
 pub use model::{AccessError, Action, Actor, CardHandle, CardInstance, CombatRng,
-    ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind, SilentItemEffect, PotionEffect,
+    ActorEnemyId, ActorIntentId, ActorLife, DamageEntry, DamagePayload, Effect, EffectError, EffectKind, SilentItemEffect, PotionEffect, RelicEffect,
     EnemyHandle, EnemySetup, EnemyState, EnemyReplacementDiagnostics, SpawnRequest, EnemySpawnDiagnostics,
     CombatEntry, CombatFault, FaultKind, FaultRecord, FullCombatSetup, FullEnemySetup, FullIntentId, FullPowerEntry, FullPowerId, InputError, Outcome, Phase, Piles, PlayerState, PowerEntry,
     PowerState, PublicKnowledge, PendingSelection, RestoreError, Scenario, Source, StepError, Transition,

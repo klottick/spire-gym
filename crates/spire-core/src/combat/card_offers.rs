@@ -16,6 +16,9 @@ pub(super) fn validate_owner(state:&State,source:&Source)->Result<(),InputError>
         Source::Potion{slot,id}=>state.item_context.as_ref().and_then(|items|items.potions().get(*slot))
             .is_some_and(|owned|owned.is_none()||*owned==Some(*id)),
         Source::Actor(Actor::Player)=>state.in_play.is_none(),
+        Source::Relic(id)=>matches!(*id,crate::content::RelicId::Enchiridion|crate::content::RelicId::DeadBranch
+            |crate::content::RelicId::Toolbox|crate::content::RelicId::NilrysCodex)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items()&&items.owns_relic(*id)),
         _=>false,
     };
     if valid{Ok(())}else{Err(InputError::Invariant("generated offer parent owner absent".into()))}
@@ -59,6 +62,11 @@ pub(super) fn validate_work(state:&State,effect:&Effect)->Result<(),InputError>{
             cards.len()==3&&cards.iter().enumerate().all(|(i,id)|!cards[..i].contains(id))
             &&kinds_valid&&foreign_parent.is_none_or(|parent|*optional&&*copies==1&&*zero_cost==(parent.upgrades>0))
             &&wish_parent.is_none_or(|_|!*optional&&*copies==1&&!*zero_cost)
+            &&match &effect.source {
+                Source::Relic(crate::content::RelicId::Toolbox)=>!*optional&&*copies==1&&!*zero_cost,
+                Source::Relic(crate::content::RelicId::NilrysCodex)=>*optional&&*copies==1&&!*zero_cost,
+                _=>true,
+            }
             &&(1..=2).contains(copies)
             &&state.pending_selection.is_none()&&state.silent.card_offer.is_none()
         },
@@ -68,6 +76,10 @@ pub(super) fn validate_work(state:&State,effect:&Effect)->Result<(),InputError>{
             kind_valid&&(1..=2).contains(copies)&&next<=copies
                 &&foreign_parent.is_none_or(|parent|*copies==1&&*zero_cost==(parent.upgrades>0))
                 &&wish_parent.is_none_or(|_|*copies==1&&!*zero_cost)
+                &&match &effect.source {
+                    Source::Relic(crate::content::RelicId::Toolbox|crate::content::RelicId::NilrysCodex)=>*copies==1&&!*zero_cost,
+                    _=>true,
+                }
         },
         _=>false,
     };
@@ -112,7 +124,13 @@ pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
                     card.local.turn_cost=Some(0);
                 }
                 let route=if foreign{super::piles::MasterRealityRoute::RouteChecked}else{super::piles::MasterRealityRoute::Creation};
-                super::piles::insert_generated_with(state,card,CardDestination::Hand,route)?;
+                // M27 seam: only the owned Nilry's Codex offer routes into ShuffledDraw;
+                // existing card and relic offers retain their Hand destination.
+                let destination=match &effect.source {
+                    Source::Relic(crate::content::RelicId::NilrysCodex)=>CardDestination::ShuffledDraw,
+                    _=>CardDestination::Hand,
+                };
+                super::piles::insert_generated_with(state,card,destination,route)?;
                 if let Some(current)=state.current.as_mut(){
                     current.kind=EffectKind::DeliverCardOffer{id:*id,copies:*copies,next:index+1,zero_cost:*zero_cost};
                 }

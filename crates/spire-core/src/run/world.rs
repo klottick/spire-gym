@@ -220,11 +220,18 @@ pub fn enter(state: &mut RunState, target: NodeId) -> Result<RunTransition, RunE
         if kind == MapNodeKind::Monster { map.regular_encounter_history.push(encounter); }
         if kind == MapNodeKind::Elite { map.elite_encounter_history.push(encounter); }
     }
-    state.floor = node.floor;
+    let floor=node.floor;
+    state.floor = floor;
     state.act = map.act;
+    let map_act=map.act;
+    if state.item_admission==crate::run::ItemAdmission::Complete {
+        let mut item_event=crate::items::dispatch::RunItemEvent::FloorEntered{floor};
+        // M27 seam: floor entered
+        crate::items::dispatch::run_event(state,&mut item_event)?;
+    }
     state.room = kind.label();
-    let event = CommittedEvent::FloorEntered { act: map.act, floor: node.floor };
-    state.history.rooms.push(super::VisitedRoom { act: map.act, floor: node.floor, label: kind.label() });
+    let event = CommittedEvent::FloorEntered { act: map_act, floor };
+    state.history.rooms.push(super::VisitedRoom { act: map_act, floor, label: kind.label() });
     super::reward::commit(state,&[event])?;
 
     let fault_boundary = match kind {

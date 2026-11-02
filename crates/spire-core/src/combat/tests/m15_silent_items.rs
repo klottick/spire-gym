@@ -12,7 +12,7 @@ fn full_power(id: &'static str, amount: i32) -> FullPowerEntry {
     } }
 }
 
-fn entry(cards: &[CardId], opening_draw: usize, enemy_count: usize,
+pub(crate) fn entry(cards: &[CardId], opening_draw: usize, enemy_count: usize,
     enemy_id: EnemyId, intent: FullIntentId, enemy_powers: &[FullPowerEntry],
     player_powers: &[FullPowerEntry]) -> CombatEntry {
     let scope = format!("m15-silent-items-{}-{opening_draw}-{enemy_count}-{enemy_id:?}-{intent:?}", cards.len());
@@ -43,7 +43,7 @@ fn entry(cards: &[CardId], opening_draw: usize, enemy_count: usize,
         opening_draw, cards: live_cards }
 }
 
-fn enter(entry: CombatEntry, relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Combat {
+pub(crate) fn enter(entry: CombatEntry, relics: Vec<RelicId>, potions: Vec<Option<PotionId>>) -> Combat {
     let mut owner = Some(CombatItemContext::new(relics, potions).with_m15_profile());
     let combat = Combat::enter_with_item_context(entry, &mut owner).unwrap();
     assert!(owner.is_none(), "the entered combat takes the one native inventory owner");

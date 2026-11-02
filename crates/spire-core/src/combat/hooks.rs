@@ -24,12 +24,8 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     let mut work = Vec::new();
     let mut after_use_bottom=Vec::new();
     let mut exhaust_top = Vec::new();
-    if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player){
-        if let Some(items)=state.item_context.as_mut(){work.extend(crate::items::defect_turn_start_effects(items)?);}
-    }
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player){
-        if let Some(items)=state.item_context.as_ref(){work.extend(crate::items::defect_end_turn_work(items,state.character.orb_slots.iter().any(Option::is_none)));}
-    }
+    // Defect relic turn-start and end-of-turn work runs in the generic relic phase dispatch
+    // (`items::relic_phase_effects`), whose top work precedes this hook's work.
     if hook==Hook::Death {
         work.extend(super::cards::silent_poison_death_work(state,target)?);
         super::enemies::act2::stasis::on_death(state,target);
@@ -37,11 +33,15 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         work.extend(super::enemies::act1::thieves::death_reward_work(state,target));
         // Monster power callbacks precede player relic callbacks. Capture the
         // dying owner's Poison here; the transfer chooses its live target later.
-        if let (Some(items),Some(Actor::Enemy(owner)))=(state.item_context.as_ref(),target) {
+        if let (Some(items),Some(Actor::Enemy(owner)))=(state.item_context.as_mut(),target) {
             if let Some(enemy)=state.enemies.iter().find(|enemy|enemy.instance_id==*owner&&enemy.hp<=0) {
                 let poison=enemy.full_powers.iter().find(|power|power.id.0=="poison").map(|power|power.state.amount);
                 let live=state.enemies.iter().filter(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0).count();
-                work.extend(crate::items::silent_death_work(items,owner.clone(),poison,live));
+                // The one EnemyDied relic dispatch (M27), at the existing relic callback point.
+                let mut facts=crate::items::dispatch::PhaseFacts::new(Some(Hook::Death),state.player.hp,state.player.max_hp,state.player.block);
+                facts.target=target;facts.dead_enemy=Some((owner,poison,live));
+                let relic=crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::EnemyDied,&facts)?;
+                work.extend(relic.top);work.extend(relic.bottom);
             }
         }
     }

@@ -250,7 +250,7 @@ Use existing locked dependencies, no dependency sync or installation required:
 ```sh
 CARGO_TARGET_DIR="$PWD/target" TMPDIR="$PWD/.superpowers/gym66/scratch" \
 CARGO_BUILD_JOBS=2 CARGO_NET_OFFLINE=true \
-/path/to/existing/gym-venv/bin/maturin build --interpreter /path/to/existing/gym-venv/bin/python \
+/path/to/existing/gym-venv/bin/maturin build --release --interpreter /path/to/existing/gym-venv/bin/python \
   --out target/gym66-wheels --locked --offline
 ```
 

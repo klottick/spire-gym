@@ -39,10 +39,23 @@ pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputEr
     state.phase = Phase::PlayerStart;
     let retain_player_block=state.full_runtime&&(state.silent.retain_block_next_start||state.player_full_powers.iter().any(|power|power.id.0=="barricade"&&power.state.amount>0));
     state.silent.retain_block_next_start=false;
-    if !retain_player_block{state.player.block = 0;}
+    let block_before=state.player.block;
+    let ordinary_kept=if retain_player_block{block_before}else{0};
+    let kept=if state.full_runtime {
+        // M27 seam: block-decay
+        state.item_context.as_ref().map_or(ordinary_kept,|items|
+            crate::items::laws::block_decay(items,block_before,ordinary_kept))
+    }else{ordinary_kept};
+    state.player.block=kept;
     let defect=state.silent.source_character==Some(crate::content::Character::Defect);
     let deferred=defect||super::cards::watcher::active(state);
-    if !deferred {state.player.energy = state.player.max_energy;}
+    if !deferred {
+        let unspent=state.player.energy;
+        let ordinary=state.player.max_energy;
+        let character=state.silent.source_character.unwrap_or(crate::content::Character::Ironclad);
+        state.player.energy=state.item_context.as_ref().map_or(ordinary,|items|
+            crate::items::laws::recharge(items,character,unspent,ordinary));
+    }
     // G7 next-turn energy law (design §6.3, disclosed): energized, then energized_blue (each applied
     // once and removed), then Energy Down (persists), floored at 0 — the Watcher owner's order.
     for id in ["energized","energized_blue"]{
@@ -112,7 +125,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     kind: EffectKind::Character(super::characters::CharacterEffect::EndTurn) });
             }
             state.pending.push_front(work(EffectKind::DiscardHand));
-            if state.full_runtime&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::CloakClasp)) {
+            if state.full_runtime&&state.item_context.as_ref().is_some_and(|items|
+                items.owns_relic(crate::content::RelicId::CloakClasp)
+                    ||items.complete_items()&&items.owns_relic(crate::content::RelicId::Orichalcum)) {
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
                     kind:EffectKind::Hook(Hook::CloakClaspBeforeCleanup{hand_size:state.piles.hand.len()})});
             }

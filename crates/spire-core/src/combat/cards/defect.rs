@@ -6,6 +6,12 @@ pub(in crate::combat) use direct::DirectEffect;
 mod state;
 mod powers;
 use crate::content::CardId;
+
+fn potion_potency(items:&crate::items::CombatItemContext,slot:usize,id:crate::content::PotionId,base:i32)->i32{
+    items.consumed_potion_potency(slot,id)
+        .or_else(||(items.potions().get(slot)==Some(&Some(id))).then(||items.potion_potency(slot)).flatten())
+        .unwrap_or(if items.owns_relic(crate::content::RelicId::SacredBark){base.saturating_mul(2)}else{base})
+}
 use crate::run::RunError;
 use crate::combat::characters::{CharacterEffect as C,OrbKind,OrbPassiveGroup};
 
@@ -172,7 +178,8 @@ pub(in crate::combat) fn validate_work(state:&State,effect:&Effect,work:&DefectE
     if let DefectEffect::EssenceOfDarkness{potency}=work {
         return if state.full_runtime&&effect.target==Some(Actor::Player)
             &&matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::EssenceOfDarkness} if state.item_context.as_ref().is_some_and(|items|
-                items.potions().get(*slot).is_some_and(|potion|potion.is_none()||*potion==Some(crate::content::PotionId::EssenceOfDarkness))&&*potency==if items.owns_relic(crate::content::RelicId::SacredBark){2}else{1}))
+                items.potions().get(*slot).is_some_and(|potion|potion.is_none()||*potion==Some(crate::content::PotionId::EssenceOfDarkness))
+                    &&*potency==potion_potency(items,*slot,crate::content::PotionId::EssenceOfDarkness,1)))
             {Ok(())}else{Err(InputError::Invariant("Essence of Darkness source/potency".into()))}
     }
     if let DefectEffect::Repeat{child,target,energy_on_use,..}=work {
@@ -290,7 +297,7 @@ pub(in crate::combat) fn valid_focus_application(state:&State,source:&Source,amo
         Source::Actor(Actor::Player)=>state.player_full_powers.iter().any(|p|p.id.0=="bias"&&p.state.amount>0&&amount== -p.state.amount),
         Source::Potion{slot,id:crate::content::PotionId::FocusPotion}=>state.item_context.as_ref().is_some_and(|items|
             items.potions().get(*slot).is_some_and(|p|p.is_none()||*p==Some(crate::content::PotionId::FocusPotion))
-                &&amount==if items.owns_relic(crate::content::RelicId::SacredBark){4}else{2}),
+                &&amount==potion_potency(items,*slot,crate::content::PotionId::FocusPotion,2)),
         Source::None=>amount==1&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::DataDisk)),
         _=>false,
     }
@@ -365,7 +372,10 @@ pub(in crate::combat) fn turn_started(state:&mut State,work:&mut Vec<Effect>)->R
     // Later-turn DrawCardAction construction recharges synchronously after hook
     // invocation, before any of the queued energy actions above execute.
     if defect&&state.turn>1 {
-        state.player.energy=state.player.max_energy;
+        let unspent=state.player.energy;
+        let ordinary=state.player.max_energy;
+        state.player.energy=state.item_context.as_ref().map_or(ordinary,|items|
+            crate::items::laws::recharge(items,crate::content::Character::Defect,unspent,ordinary));
         for id in ["energized","energized_blue"] {
             if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0==id&&p.state.amount>0).cloned(){
                 state.player.energy=state.player.energy.saturating_add(power.state.amount).min(999);
@@ -417,7 +427,8 @@ pub(in crate::combat) fn valid_orb_source(state:&State,source:&Source)->bool{
         Source::Card(owner)=>super::super::piles::owned_full_cards(state).any(|card|
             super::super::card_state::handle(card.instance)==*owner&&(crate::content::defect::supports_permanent(card.id)
                 ||(m20||complete)&&crate::content::defect::supports_m20_permanent(card.id))),
-        Source::Potion{slot,id:crate::content::PotionId::EssenceOfDarkness}=>m20
+        Source::Potion{slot,id:crate::content::PotionId::EssenceOfDarkness}=>state.silent.source_character==Some(crate::content::Character::Defect)
+            &&(m20||state.item_context.as_ref().is_some_and(|items|items.complete_items()))
             &&state.item_context.as_ref().is_some_and(|items|items.potions().get(*slot).is_some_and(Option::is_none)),
         _=>false,
     }
@@ -426,12 +437,13 @@ pub(in crate::combat) fn valid_orb_source(state:&State,source:&Source)->bool{
 pub(in crate::combat) fn validate_character(state:&State,effect:&Effect,action:C)->Result<(),InputError>{
     let actual=match &effect.source {Source::Card(owner)=>state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()),_=>None};
     let valid=match action {
-        C::Slots(delta)=>matches!(effect.source,Source::None)&&state.phase==Phase::PlayerStart&&state.item_context.as_ref().is_some_and(|items|items.m20_profile()&&(
+        C::Slots(delta)=>matches!(effect.source,Source::None)&&state.phase==Phase::PlayerStart&&state.item_context.as_ref().is_some_and(|items|(items.m20_profile()||items.complete_items())&&(
             delta==3&&state.turn==1&&items.owns_relic(crate::content::RelicId::RunicCapacitor)
             ||delta==1&&items.owns_relic(crate::content::RelicId::Inserter)))
             ||actual.is_some_and(|card|match card.id{CardId::Capacitor=>delta==if card.upgrades>0{3}else{2},CardId::Consume=>delta== -1,_=>false})
             ||matches!(&effect.source,Source::Potion{slot,id:crate::content::PotionId::PotionOfCapacity} if state.item_context.as_ref().is_some_and(|items|
-                items.potions().get(*slot).is_some_and(|p|p.is_none()||*p==Some(crate::content::PotionId::PotionOfCapacity))&&delta==if items.owns_relic(crate::content::RelicId::SacredBark){4}else{2})),
+                items.potions().get(*slot).is_some_and(|p|p.is_none()||*p==Some(crate::content::PotionId::PotionOfCapacity))
+                    &&delta==potion_potency(items,*slot,crate::content::PotionId::PotionOfCapacity,2))),
         C::Recursion=>actual.is_some_and(|card|card.id==CardId::Recursion),
         C::Fission{evoke}=>actual.is_some_and(|card|card.id==CardId::Fission&&evoke==(card.upgrades>0)),
         C::Lightning{amount}=>state.full_runtime&&(0..=1007).contains(&amount),
@@ -449,6 +461,11 @@ pub(in crate::combat) fn valid_mutable_attack_source(state:&State,source:&Source
 }
 
 pub(in crate::combat) fn validate_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->Result<(),InputError>{
+    if matches!(effect.source,Source::Relic(_)){
+        let valid=id.0=="buffer"&&effect.target==Some(Actor::Player)&&(1..=999).contains(&amount)
+            &&state.item_context.as_ref().is_some_and(|items|items.complete_items());
+        return if valid{Ok(())}else{Err(InputError::Invariant("relic Defect buffer source/amount".into()))}
+    }
     let Source::Card(owner)=&effect.source else{return Err(InputError::Invariant("blue power requires actual notified card".into()))};
     let Some(card)=state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full())else{return Err(InputError::Invariant("blue power in-play source".into()))};
     let up=card.upgrades>0;
@@ -474,19 +491,21 @@ pub(in crate::combat) fn capped_energy_source(state:&State,source:&Source,amount
         super::super::card_state::handle(card.instance)==*owner&&matches!(card.id,CardId::Aggregate|CardId::DoubleEnergy|CardId::Recycle))){return true;}
     // M26 §6.3 L: card sources for any character under the complete capability; potion subcases unchanged.
     let blue=state.silent.source_character==Some(crate::content::Character::Defect)
-        &&state.item_context.as_ref().is_some_and(|items|items.m20_profile());
+        &&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.complete_items());
     if !blue&&!super::watcher::complete(state){return false;}
     match source {
         Source::Card(owner)=>state.in_play.as_ref().filter(|card|card.handle()==*owner).and_then(|card|card.full()).is_some_and(|card|match card.id{
             CardId::Turbo=>amount==if card.upgrades>0{3}else{2},CardId::Sunder=>amount==3,_=>false,
         }),
-        Source::Potion{slot,id:crate::content::PotionId::EnergyPotion} if blue=>{
+        // M27: under complete items the generic Energy Potion resolver owns every character's use.
+        Source::Potion{slot,id:crate::content::PotionId::EnergyPotion}
+            if blue||state.item_context.as_ref().is_some_and(|items|items.complete_items())=>{
             let items=state.item_context.as_ref().unwrap();
             let owner=if let Some(current)=state.current.as_ref(){
                 current.source==*source&&current.target==Some(Actor::Player)&&current.kind==EffectKind::GainEnergy(amount)
                     &&items.potions().get(*slot)==Some(&None)
             }else{items.potions().get(*slot)==Some(&Some(crate::content::PotionId::EnergyPotion))};
-            owner&&amount==if items.owns_relic(crate::content::RelicId::SacredBark){4}else{2}
+            owner&&amount==potion_potency(items,*slot,crate::content::PotionId::EnergyPotion,2)
         },
         _=>false,
     }

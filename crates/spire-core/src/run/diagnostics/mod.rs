@@ -1,4 +1,6 @@
 //! Default-off fixed diagnostic initialization and read-only checkpoints. No arbitrary state importer.
+#[cfg(feature="m27-diagnostics")]
+pub(crate) mod m15_supplied_act4;
 #[cfg(any(test,feature="m20-diagnostics"))]
 mod m20;
 #[cfg(any(test,feature="m20-diagnostics"))]
@@ -28,3 +30,8 @@ pub use m25::{M25DiagnosticBoss,M25DiagnosticLoadout,M25PlayedFixture,M25Diagnos
 mod m26;
 #[cfg(any(test,feature="m26-diagnostics"))]
 pub use m26::{complete_run,complete_combat};
+
+#[cfg(feature="m27-diagnostics")]
+mod m27;
+#[cfg(feature="m27-diagnostics")]
+pub use m27::{complete_act4_run,m27_capture_run,m27_pair_combat,m27_m14_supplied_run,m27_m15_supplied_run,CompleteItemSupply,M27RunCapture};
