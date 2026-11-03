@@ -1,6 +1,6 @@
 //! M28d review-v1 fix round: the A15 band of every M28d body and Golden Shrine, the act gates of the
 //! one-time rows, and the unupgraded transform (PM source check m28d/source-check-act-dependence-v1,
-//! binding). Each value is pinned at the A14/A15 boundary. StandardA0 runs A0 today; these tests set
+//! binding). Each value is pinned at the A14/A15 boundary. Standard runs A0 today; these tests set
 //! `RunState::ascension` on the diagnostic event Run before the event is built.
 use super::super::*;
 use super::m28_event_core::{before_event, count, leave, row, view};

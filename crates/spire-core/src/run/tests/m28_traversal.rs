@@ -8,7 +8,7 @@ const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Char
 
 fn standard(character: Character, full: bool, seed: u8) -> Run {
     let profile = CreationProfile { neow_eligible: full, ..CreationProfile::experienced() };
-    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, RunRng::new([seed; 32], Partition::Test, 0), RoomScenario::StandardA0).unwrap()
+    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, RunRng::new([seed; 32], Partition::Test, 0), RoomScenario::Standard).unwrap()
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn m28_traversal_smoke() {
             let mut steps = 0;
             loop {
                 let decision = run.decision().unwrap();
-                assert_eq!(decision.content_profile, Some(RoomScenario::StandardA0));
+                assert_eq!(decision.content_profile, Some(RoomScenario::Standard));
                 if decision.terminal.is_some() { break } // a death is a policy outcome
                 assert!(!decision.candidates.is_empty(), "{character:?} full={full} step {steps}: no candidates at {:?}", decision.room);
                 assert!(steps < 20_000, "{character:?} full={full}: action cap");
@@ -72,7 +72,7 @@ fn m28_traversal_smoke() {
 }
 
 /// Review m1 (reviewer probes `m28f2-review-v1/g14-probe-tests-v1.rs`, adopted): G14 on the elite
-/// and boss entry paths. A StandardA0 elite and Act 1 boss decided at entry settle to their normal
+/// and boss entry paths. A Standard elite and Act 1 boss decided at entry settle to their normal
 /// reward screens.
 #[test]
 fn m28_g14_elite_and_boss_won_during_entry_settle() {
@@ -136,16 +136,16 @@ fn m28_g14_colosseum_fights_won_during_entry_settle_all_characters() {
     }
 }
 
-/// Review m8: the public StandardA0 constructor rejects a stored note that Note For Yourself's
+/// Review m8: the public Standard constructor rejects a stored note that Note For Yourself's
 /// take row could not obtain (not storable, or more upgrades than the card allows).
 #[test]
 fn m28_standard_a0_rejects_an_unobtainable_stored_note() {
     use crate::content::CardId;
     let create = |stored_note| {
         let profile = CreationProfile { neow_eligible: false, stored_note, ..CreationProfile::experienced() };
-        Run::new_room_scenario(RunConfig { character: Character::Silent, ascension: 0 }, profile, RunRng::new([0x46; 32], Partition::Test, 0), RoomScenario::StandardA0).map(|_| ())
+        Run::new_room_scenario(RunConfig { character: Character::Silent, ascension: 0 }, profile, RunRng::new([0x46; 32], Partition::Test, 0), RoomScenario::Standard).map(|_| ())
     };
-    let rejected = Err(RunError::Unsupported("StandardA0 stored note must be a storable card with legal upgrades"));
+    let rejected = Err(RunError::Unsupported("Standard stored note must be a storable card with legal upgrades"));
     for bad in [(CardId::IronWave, 2), (CardId::Dazed, 0)] { assert_eq!(create(bad), rejected, "{bad:?}"); }
     for good in [(CardId::IronWave, 0), (CardId::IronWave, 1), (CardId::SearingBlow, 5)] { assert_eq!(create(good), Ok(()), "{good:?}"); }
 }

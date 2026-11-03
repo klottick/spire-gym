@@ -3,10 +3,10 @@ use crate::content::Character;
 use crate::run::{CreationProfile, Run, RunConfig, RunError, RunRng, RoomScenario};
 
 /// A standard A0 Run at Neow for `character`, full Neow when `full_neow` (the public constructor
-/// `Run::new_room_scenario(.., RoomScenario::StandardA0)` with `CreationProfile::experienced()`).
+/// `Run::new_room_scenario(.., RoomScenario::Standard)` with `CreationProfile::experienced()`).
 pub fn standard_run(character: Character, full_neow: bool, rng: RunRng) -> Result<Run, RunError> {
     let profile = CreationProfile { neow_eligible: full_neow, ..CreationProfile::experienced() };
-    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, rng, RoomScenario::StandardA0)
+    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, rng, RoomScenario::Standard)
 }
 
 pub use crate::run::rooms::standard::shop::ShopSupply;

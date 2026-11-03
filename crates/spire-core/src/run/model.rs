@@ -141,9 +141,9 @@ pub struct RunState {
     pub(crate) relic_cards:BTreeMap<RelicId,u64>,
     /// Complete-item potion appearance history; zero under every frozen profile.
     pub(crate) potion_offset:i32,
-    /// M28 standard card-rarity offset `b` (design §6.1); `None` outside `RoomScenario::StandardA0`.
+    /// M28 standard card-rarity offset `b` (design §6.1); `None` outside `RoomScenario::Standard`.
     pub(crate) card_rarity_offset:Option<i32>,
-    /// M28 standard event lists and history (design §5.2); `None` outside `RoomScenario::StandardA0`.
+    /// M28 standard event lists and history (design §5.2); `None` outside `RoomScenario::Standard`.
     pub(crate) event_pools:Option<super::rooms::standard::event_pool::EventPools>,
     /// Complete-item per-slot stored potency, paired with its potion identity.
     pub(crate) potion_potencies:Vec<Option<(PotionId,i32)>>,

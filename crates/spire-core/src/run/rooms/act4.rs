@@ -84,14 +84,15 @@ pub(in crate::run) fn prepare_transition(run:&Run)->Result<PreparedAct4,RunError
     let event=CommittedEvent::ActAdvanced{from:3,to:4};
     reward::preflight(&run.state,std::slice::from_ref(&event))?;
     // Validate the ordinary healing owner's complete input before accepting the
-    // door choice. The detached amount is the actual maxHP nominal request.
+    // door choice. The detached amount is the fresh act's heal request (maxHP below A5).
+    let nominal_heal=super::transition::act_entry_heal_amount(&run.state);
     let mut heal_probe=run.state.clone();
-    mutations::heal(&mut heal_probe,run.state.max_hp)?;
+    mutations::heal(&mut heal_probe,nominal_heal)?;
     let route=route_ids();
     let progress=Act4Progress{route,source_node:frame.node,source_record:frame.record.clone(),
         accepted_choice:room.screen.choices.iter().find(|row|row.kind==RoomChoiceKind::Act3Continue{stage:4}).unwrap().id,
         phase:Act4TransitionPhase::ChoiceAccepted,combat_visits:0,elite_record:None,elite_rewards_closed:false,heart_record:None,heart_proceed:None,heart_proceed_phase:None};
-    Ok(PreparedAct4{map:fixed_map(),progress,event,nominal_heal:run.state.max_hp})
+    Ok(PreparedAct4{map:fixed_map(),progress,event,nominal_heal})
 }
 
 /// Commit the already accepted door exactly once. Any impossible post-accept
@@ -132,7 +133,7 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
 
 fn enter_room(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let node=world::preflight_move(&run.state,target)?;
-    // Floor 52 under `StandardA0` is the standard shop (design §6.7), built after the move commits.
+    // Floor 52 under `Standard` is the standard shop (design §6.7), built after the move commits.
     let standard_shop=is_standard(&run.state)&&node.kind==MapNodeKind::Shop;
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
     if progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||run.state.act!=4

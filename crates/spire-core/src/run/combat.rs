@@ -253,6 +253,7 @@ impl Run {
         // source/frame before releasing the real combat inventory and census.
         let ending=match super::rooms::act3_end::prepare(self,&record){
             Ok(prepared)=>prepared,
+            Err(RunError::Unsupported(message))=>return Err(self.retain_fault(RunFaultKind::UnsupportedBoundary(message),super::rooms::act3_end::fault_checkpoint(&self.state))),
             Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("Act3 ending preparation failed"),super::rooms::act3_end::fault_checkpoint(&self.state))),
         };
         let rewards=match if ending.is_some()||heart_victory.is_some(){Ok(None)}else{super::rooms::rewards::prepare_combat(self,&record)}{

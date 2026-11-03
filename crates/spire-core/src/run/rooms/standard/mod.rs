@@ -1,4 +1,4 @@
-//! M28 standard A0 Run owners (design §6–§7). Reached only from `RoomScenario::StandardA0`,
+//! M28 standard A0 Run owners (design §6–§7). Reached only from `RoomScenario::Standard`,
 //! which every finite scenario helper excludes; the standard branch is checked first.
 use super::*;
 pub(in crate::run) mod neow;
@@ -12,11 +12,23 @@ pub(in crate::run) mod event_exec;
 pub(in crate::run) mod events;
 
 
-/// `Run::new_room_scenario(.., RoomScenario::StandardA0)`: any character at A0, full or short
+/// The highest ascension the standard Run admits (M29 design §6.1); M30–M33 raise it.
+pub(crate) const STANDARD_MAX_ASCENSION:u8=5;
+
+/// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A5, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
 /// Public in the core crate since M28f2 (design §13, PM ruling Q1); no spire-env profile.
+/// A1–A5 are diagnostics-only (`m29-diagnostics`) until M29f (M29 plan §1, review I1).
 pub(in crate::run) fn create(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
-    if config.ascension!=0{return Err(RunError::Unsupported("StandardA0 is A0 only"))}
+    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A5"))}
+    if config.ascension!=0&&!cfg!(feature="m29-diagnostics"){return Err(RunError::Unsupported("Standard is A0 only until M29f"))}
+    build(config,profile,rng)
+}
+
+/// The standard Run at any admitted ascension, without the M29 exposure gate: `create`, in-crate
+/// tests and the M29 diagnostics builders.
+pub(in crate::run) fn build(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
+    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A5"))}
     let mut run=Run::new(config,profile,rng)?;
     let admission=RunAdmission::new(CardAdmission::Complete,ItemAdmission::Complete)?;
     run.state.card_admission=admission.cards;
@@ -24,12 +36,12 @@ pub(in crate::run) fn create(config:RunConfig,profile:CreationProfile,rng:RunRng
     // The public contract (review m8): Note For Yourself's stored card must be obtainable by its
     // take row, checked by the same obtain on a scratch state.
     let (note,upgrades)=run.state.stored_note;
-    if mutations::obtain_stored_card(&mut run.state.clone(),note,upgrades).is_err(){return Err(RunError::Unsupported("StandardA0 stored note must be a storable card with legal upgrades"))}
+    if mutations::obtain_stored_card(&mut run.state.clone(),note,upgrades).is_err(){return Err(RunError::Unsupported("Standard stored note must be a storable card with legal upgrades"))}
     run.state.relic_pools=Some(crate::items::relic_pools::build(&run.state,&[])?);
     run.state.card_rarity_offset=Some(rewards::OFFSET_START);
     run.state.event_pools=Some(event_pool::EventPools::new(1));
     let choices=neow::screen(&run)?;
-    run.state.room_loop=Some(RoomLoop{scenario:RoomScenario::StandardA0,act1:None,act2:None,act3:None,act4:None,m10_elite_relic_cursor:0,
+    run.state.room_loop=Some(RoomLoop{scenario:RoomScenario::Standard,act1:None,act2:None,act3:None,act4:None,m10_elite_relic_cursor:0,
         screen:RoomView{kind:RoomViewKind::Neow,choices},purge_cost:75,reward_parent:None,active_rewards:None,boss:None,transition:None,
         act2_boss_order:None,act3_boss_order:None,joust:None,joust_visits:0,act3_event:None,act3_end:None,standard_event:None});
     Ok(run)

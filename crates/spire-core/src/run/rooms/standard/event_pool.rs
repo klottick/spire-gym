@@ -1,5 +1,5 @@
 //! Standard event pools, eligibility and the selection law (design §5.2). State lives on
-//! `RunState::event_pools`, present only under `RoomScenario::StandardA0`.
+//! `RunState::event_pools`, present only under `RoomScenario::Standard`.
 use super::*;
 use crate::content::{CardType, Catalog, EventPool};
 

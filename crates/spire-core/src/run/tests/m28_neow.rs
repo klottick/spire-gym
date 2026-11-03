@@ -25,7 +25,7 @@ fn profile() -> CreationProfile {
 
 fn standard(character: Character, seed: u64) -> Run {
     Run::new_room_scenario(
-        RunConfig { character, ascension: 0 }, profile(), rng(seed), RoomScenario::StandardA0,
+        RunConfig { character, ascension: 0 }, profile(), rng(seed), RoomScenario::Standard,
     ).unwrap()
 }
 

@@ -326,10 +326,8 @@ pub(in crate::run) fn next_removal_price(state:&RunState,new_base:u32)->u32{
     if state.relics.contains(&RelicId::MembershipCard){price*=0.5_f32;}
     libgdx_round(price)
 }
-/// libGDX `MathUtils.round(float)`: `int(binary64(x + 16384.5)) − 16384` (economy research :45-50).
-pub(in crate::run) fn libgdx_round(value:f32)->u32{
-    ((f64::from(value)+16384.5) as i64-16384).clamp(0,i64::from(u32::MAX)) as u32
-}
+/// libGDX `MathUtils.round(float)`, moved unchanged to the shared numeric module (M29a1).
+pub(in crate::run) use crate::run::numeric::libgdx_round;
 /// A relic or potion sticker `G(F(base × L(F(.95), F(1.05), k)))` (economy research :167-169).
 pub(in crate::run) fn item_sticker(base:u32,k:u64)->u32{libgdx_round((base as f32)*jitter(0.95_f32,1.05_f32,k))}
 /// Card rarity base price (economy research :167).

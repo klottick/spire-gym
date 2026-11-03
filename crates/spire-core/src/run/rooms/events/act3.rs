@@ -8,7 +8,9 @@ pub(crate) struct Act3EventFrame{
 }
 pub(in crate::run) struct PreparedAct3Event{pub screen:RoomView,pub frame:Act3EventFrame,pub rng:RunRng}
 pub(in crate::run) fn prepare(run:&Run,event:EventId,node:NodeId,visit:u64,next:&mut u64)->Result<PreparedAct3Event,RunError>{
-    if run.state.act!=3||run.state.ascension!=0||run.state.combat.is_some()||run.state.pending.is_some()||run.state.fault.is_some()||run.state.terminal.is_some()
+    // Falling and Tomb of Lord Red Mask have no ascension check (M29 inventory §1); the standard Run
+    // reads its own ascension, frozen finite profiles stay A0.
+    if run.state.act!=3||(run.state.ascension!=0&&!is_standard(&run.state))||run.state.combat.is_some()||run.state.pending.is_some()||run.state.fault.is_some()||run.state.terminal.is_some()
         ||!run.state.map.as_ref().is_some_and(|m|m.act==3&&m.nodes.iter().any(|n|n.id==node)){return Err(RunError::InvalidAction)}
     let mut rng=run.state.rng.clone();let has_mask=run.state.relics.contains(&RelicId::RedMask);let mut captures=vec![];
     let rows=match event{

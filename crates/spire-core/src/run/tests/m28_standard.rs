@@ -9,7 +9,7 @@ const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Char
 fn rng(seed: u8) -> RunRng { RunRng::new([seed; 32], Partition::Test, 0) }
 fn profile(full: bool) -> CreationProfile { let mut p = CreationProfile::experienced(); p.neow_eligible = full; p }
 fn standard(character: Character, full: bool) -> Run {
-    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile(full), rng(0x28), RoomScenario::StandardA0).unwrap()
+    Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile(full), rng(0x28), RoomScenario::Standard).unwrap()
 }
 
 #[test]
@@ -36,9 +36,12 @@ fn m28_standard_creation_all_characters() {
                 assert_eq!(kinds, [RoomChoiceKind::NeowLament, RoomChoiceKind::NeowMaxHp { amount: b }], "{character:?}");
             }
         }
-        // A0 only.
-        assert!(matches!(Run::new_room_scenario(RunConfig { character, ascension: 1 }, profile(false), rng(1), RoomScenario::StandardA0),
-            Err(RunError::Unsupported(_))));
+        // Amended (M29a1, plan erratum v3 n2): A0 only in a default build until M29f; A6+ never.
+        #[cfg(not(feature = "m29-diagnostics"))]
+        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 1 }, profile(false), rng(1), RoomScenario::Standard).err(),
+            Some(RunError::Unsupported("Standard is A0 only until M29f")));
+        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 6 }, profile(false), rng(1), RoomScenario::Standard).err(),
+            Some(RunError::Unsupported("Standard supports A0–A5")));
     }
 }
 

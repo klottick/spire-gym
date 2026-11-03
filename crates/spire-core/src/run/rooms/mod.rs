@@ -33,12 +33,12 @@ pub(in crate::run) mod standard;
 pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart, M22WatcherAct1, M23WatcherAct2, M24WatcherAct3, M25WatcherHeart,
     /// M28 standard A0 Run (design §7). Public in the core crate (design §13); M28 adds no
     /// spire-env or Python profile (PM ruling Q1).
-    StandardA0 }
+    Standard }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,Card{id:CardId,upgrades:u32},Potion(PotionId),Relic(RelicId),Sapphire,Emerald,OpenChest,Rest{heal:u32},Smith,Recall,Lift,Toke,Dig,SingingBowl,Purge,ShrineUpgrade,ShrineRemove,AncientElegance,AncientSimplicity,JoustMurderer,JoustOwner,JoustContinue,JoustResult{owner_wins:bool},FallingLose{card_type:crate::content::CardType,instance:Option<u64>},TombGold,TombOfferGold,Leave,Proceed,Skip,ConfirmSkip,CancelSkip,Act3Continue{stage:u8},
-    /// M28 full Neow blessing offer (design §6.5); only `RoomScenario::StandardA0` builds it.
+    /// M28 full Neow blessing offer (design §6.5); only `RoomScenario::Standard` builds it.
     NeowBlessing{category:u8,reward:NeowReward,drawback:Option<NeowDrawback>},
     /// M28 standard event option (design §5.3): option `option` of the event's stage `stage`.
     EventOption{stage:u8,option:u8},
@@ -57,7 +57,7 @@ pub struct RoomChoiceView {pub id:ChoiceId,pub kind:RoomChoiceKind,pub price:Opt
 pub struct RoomView {pub kind:RoomViewKind,pub choices:Vec<RoomChoiceView>}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct RoomLoop {pub scenario:RoomScenario,pub act1:Option<act1::Act1Progress>,pub act2:Option<act2::Act2Progress>,pub act3:Option<act3::Act3Progress>,pub act4:Option<act4::Act4Progress>,pub m10_elite_relic_cursor:usize,pub screen:RoomView,pub purge_cost:u32,pub reward_parent:Option<RoomView>,pub active_rewards:Option<rewards::CapturedRewards>,pub boss:Option<boss::BossProgress>,pub transition:Option<ActTransition>,pub act2_boss_order:Option<Vec<crate::content::EncounterId>>,pub act3_boss_order:Option<Vec<crate::content::EncounterId>>,pub joust:Option<events::JoustProgress>,pub joust_visits:u64,pub act3_event:Option<events::act3::Act3EventFrame>,pub act3_end:Option<act3_end::Act3EndFrame>,
-    /// M28 standard event frame (design §5.3); only `RoomScenario::StandardA0` builds it.
+    /// M28 standard event frame (design §5.3); only `RoomScenario::Standard` builds it.
     pub standard_event:Option<standard::event_frame::StandardEventFrame>}
 
 /// Mutable Run owners commit item events to the live state. Read-only room probes use a
@@ -144,7 +144,7 @@ pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunErr
 pub(in crate::run) fn uses_act4_route(state:&RunState)->bool{uses_act4(state)||is_standard(state)}
 pub(in crate::run) fn uses_act3_ending(state:&RunState)->bool{uses_full_act3(state)||is_standard(state)}
 /// The M28 standard Run (design §7): checked first, never a member of a captured helper.
-pub(crate) fn is_standard(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|room|room.scenario==RoomScenario::StandardA0)}
+pub(crate) fn is_standard(state:&RunState)->bool{state.room_loop.as_ref().is_some_and(|room|room.scenario==RoomScenario::Standard)}
 /// A standard Run before its first map move (Neow and the continuations of its rewards) has no
 /// current node; its room selections use this parent node. Every other Run needs its current node.
 pub(crate) const PRE_MAP_NODE:NodeId=NodeId(u64::MAX);
@@ -265,7 +265,7 @@ pub(super) fn finish(run:&mut Run)->Result<RunTransition,RunError>{
 }
 impl Run {
     pub fn new_room_scenario(config:RunConfig,profile:CreationProfile,rng:RunRng,scenario:RoomScenario)->Result<Self,RunError>{
-        if scenario==RoomScenario::StandardA0{return standard::create(config,profile,rng)}
+        if scenario==RoomScenario::Standard{return standard::create(config,profile,rng)}
         let silent=matches!(scenario,RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart);
         let character=if matches!(scenario,RoomScenario::M22WatcherAct1|RoomScenario::M23WatcherAct2|RoomScenario::M24WatcherAct3|RoomScenario::M25WatcherHeart){crate::content::Character::Watcher}else if matches!(scenario,RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3|RoomScenario::M20DefectHeart){crate::content::Character::Defect}else if silent{crate::content::Character::Silent}else{crate::content::Character::Ironclad};
         if config.character!=character||config.ascension!=0||profile.neow_eligible{return Err(RunError::Unsupported(match scenario{RoomScenario::M25WatcherHeart=>"M25 requires Watcher A0 short Neow",RoomScenario::M24WatcherAct3=>"M24 requires Watcher A0 short Neow",RoomScenario::M23WatcherAct2=>"M23 requires Watcher A0 short Neow",RoomScenario::M22WatcherAct1=>"M22 requires Watcher A0 short Neow",RoomScenario::M20DefectHeart=>"M20 requires Defect A0 short Neow",RoomScenario::M19DefectAct3=>"M19 requires Defect A0 short Neow",RoomScenario::M18DefectAct2=>"M18 requires Defect A0 short Neow",RoomScenario::M17DefectAct1=>"M17 requires Defect A0 short Neow",RoomScenario::M12SilentAct1=>"M12 requires Silent A0 short Neow",RoomScenario::M13SilentAct2=>"M13 requires Silent A0 short Neow",RoomScenario::M14SilentAct3=>"M14 requires Silent A0 short Neow",RoomScenario::M15SilentHeart=>"M15 requires Silent A0 short Neow",_=>"M4 requires Ironclad A0 short Neow"}))}
