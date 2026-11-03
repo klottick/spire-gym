@@ -1,6 +1,14 @@
 use super::*;
 use crate::content::EncounterId;
 
+/// The fresh act's heal request (source `AbstractDungeon.dungeonTransitionSetup`, M29 inventory
+/// §1): `maxHealth` below A5, else `MathUtils.round((float)(max − cur) * 0.75f)`. It goes through
+/// the ordinary heal owner (`mutations::heal`, relic heal hooks) at 1→2, 2→3 and 3→4.
+pub(in crate::run) fn act_entry_heal_amount(state:&RunState)->u32{
+    if state.ascension<5{return state.max_hp}
+    crate::run::numeric::libgdx_round(state.max_hp.saturating_sub(state.hp) as f32*0.75_f32)
+}
+
 pub(super) fn begin(run:&mut Run)->Result<RunTransition,RunError>{
     let (from,to,floor,boss_floor)=match run.state.act {
         1 if uses_captured_act1(&run.state)||is_standard(&run.state)=>(1,2,17,16),
@@ -59,7 +67,7 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
         let room=run.state.room_loop.as_mut().unwrap();room.act1=None;room.act2=None;room.act3=None;room.act3_event=None;room.joust=None;room.joust_visits=0;room.active_rewards=None;room.reward_parent=None;room.boss=None;room.act2_boss_order=None;room.act3_boss_order=None;room.transition.as_mut().unwrap().reset_applied=true;
     }
     if !frame.heal_applied {
-        let amount=run.state.max_hp;
+        let amount=act_entry_heal_amount(&run.state);
         if mutations::heal(&mut run.state,amount).is_err(){return Err(run.retain_fault(RunFaultKind::Invariant("accepted act healing failed"),"run.act.transition"))}
         run.state.room_loop.as_mut().unwrap().transition.as_mut().unwrap().heal_applied=true;
     }

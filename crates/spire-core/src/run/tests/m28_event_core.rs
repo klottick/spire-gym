@@ -456,7 +456,7 @@ fn m28_event_history_consumes_on_selection() {
 /// Review focus 3 (core): nested selections return to their exact parent.
 #[test]
 fn m28_nested_selection_returns_to_parent() {
-    // Purifier and Upgrade Shrine through their accepted handlers, reached from StandardA0.
+    // Purifier and Upgrade Shrine through their accepted handlers, reached from Standard.
     for (event, kind) in [(EventId::Purifier, RoomChoiceKind::ShrineRemove), (EventId::UpgradeShrine, RoomChoiceKind::ShrineUpgrade)] {
         let mut run = at_event(Character::Silent, 1, event, 21);
         let id = row(&run, &kind).id;

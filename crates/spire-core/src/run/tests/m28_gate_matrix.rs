@@ -48,7 +48,7 @@ fn standard(character: Character, seed: u8) -> Run {
         RunConfig { character, ascension: 0 },
         CreationProfile::experienced(),
         RunRng::new([seed; 32], Partition::Test, 0),
-        RoomScenario::StandardA0,
+        RoomScenario::Standard,
     ).unwrap()
 }
 

@@ -7,11 +7,14 @@ pub type ActMap = RunMap;
 /// Inputs governing whether this generated map may include the Act 4 burning-Elite marker.
 /// The flags are intentionally opaque outside this module's constructor contract.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MapEligibility { act4_enabled: bool, emerald_key_owned: bool }
+pub struct MapEligibility { act4_enabled: bool, emerald_key_owned: bool, ascension: u8 }
 impl MapEligibility {
-    pub const fn new(act4_enabled: bool, emerald_key_owned: bool) -> Self { Self { act4_enabled, emerald_key_owned } }
+    /// An A0 map's inputs; `with_ascension` sets the Run's ascension (M29 design §6.2).
+    pub const fn new(act4_enabled: bool, emerald_key_owned: bool) -> Self { Self { act4_enabled, emerald_key_owned, ascension: 0 } }
+    pub const fn with_ascension(self, ascension: u8) -> Self { Self { ascension, ..self } }
+    /// Frozen finite profiles are A0 by construction, so they pass 0.
     pub(crate) fn from_run(state: &RunState) -> Self {
-        Self { act4_enabled: state.act4_enabled, emerald_key_owned: state.keys[2] }
+        Self { act4_enabled: state.act4_enabled, emerald_key_owned: state.keys[2], ascension: state.ascension }
     }
 }
 
@@ -87,8 +90,15 @@ fn node_id(x: usize, y: usize) -> super::NodeId {
     super::NodeId((y * WIDTH + x) as u64)
 }
 
-fn round_half_up(n: usize, percent: usize) -> usize {
-    (n * percent + 50) / 100
+/// The ordinary room-type targets `[shop, rest, elite, event]` for `n` connected nodes (source
+/// `AbstractDungeon.generateRoomTypes`, binary32): `Math.round((float)n * chance)` with chances
+/// 0.05f, 0.12f, 0.08f and 0.22f; from A1 the elite target is `Math.round((float)n * 0.08f * 1.6f)`,
+/// multiplied left to right (M29 inventory §1). Act 4's special map has no quota.
+pub fn room_quotas(n: usize, ascension: u8) -> [usize; 4] {
+    use super::numeric::java_round_f32;
+    let n = n as f32;
+    let elite = if ascension >= 1 { (n * 0.08_f32) * 1.6_f32 } else { n * 0.08_f32 };
+    [n * 0.05_f32, n * 0.12_f32, elite, n * 0.22_f32].map(|target| java_round_f32(target).max(0) as usize)
 }
 
 /// Generate a connected representative map with scoped topology and room draws.
@@ -161,8 +171,7 @@ fn generate_draft(act: u8, draft: u64, rng: &mut RunRng, eligibility: MapEligibi
     let active_quota = (0..=LAST_ROW).filter(|&y| y != 13).map(|y| active[y].iter().filter(|&&v| v).count()).sum::<usize>();
     let assignable = (0..=LAST_ROW).map(|y| active[y].iter().filter(|&&v| v).count()).sum::<usize>()
         - [0usize, 8, 14].iter().map(|&y| active[y].iter().filter(|&&v| v).count()).sum::<usize>();
-    let quotas = [round_half_up(active_quota, 5), round_half_up(active_quota, 12),
-        round_half_up(active_quota, 8), round_half_up(active_quota, 22)];
+    let quotas = room_quotas(active_quota, eligibility.ascension);
     let monsters = assignable.checked_sub(quotas.iter().sum()).ok_or(RunError::Unsupported("room quota exceeds active map nodes"))?;
     let mut bucket = Vec::with_capacity(assignable);
     bucket.extend(std::iter::repeat(MapNodeKind::Shop).take(quotas[0]));

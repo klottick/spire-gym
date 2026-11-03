@@ -19,7 +19,7 @@ pub(in crate::run) struct PreparedAct3End {screen:RoomView,next:u64,frame:Act3En
 /// enters that node from a lower floor (PM check m28f/source-check-events-v1: the ending follows any
 /// cleared Beyond `MonsterRoomBoss`; M28f global fix, every map path still beats it at floor 50).
 fn source(state:&RunState,node:NodeId,record:&CombatRecord)->bool{
-    uses_act3_ending(state)&&state.act==3&&state.ascension==0
+    uses_act3_ending(state)&&state.act==3&&state.ascension<20
         &&record.outcome==Outcome::Victory
         &&matches!(record.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         &&state.map.as_ref().is_some_and(|m|m.act==3&&m.current==Some(node)
@@ -28,6 +28,8 @@ fn source(state:&RunState,node:NodeId,record:&CombatRecord)->bool{
 pub(in crate::run) fn prepare(run:&Run,record:&CombatRecord)->Result<Option<PreparedAct3End>,RunError>{
     if !uses_act3_ending(&run.state)||run.state.act!=3||record.outcome!=Outcome::Victory{return Ok(None)}
     let Some(CombatOrigin::MapRoom{node,kind:MapNodeKind::Boss})=run.state.active_combat.as_ref().map(|a|a.origin)else{return Ok(None)};
+    // The A20 two-boss route (source `ProceedButton`, M29 inventory §3) lands in M33.
+    if run.state.ascension>=20{return Err(RunError::Unsupported("A20 double boss lands in M33"))}
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if !source(&run.state,node,record)||run.state.pending.is_some()||run.state.terminal.is_some()||run.state.fault.is_some()
         ||run.state.deck.is_empty()||room.act3_end.is_some()||room.reward_parent.is_some()||room.active_rewards.is_some()

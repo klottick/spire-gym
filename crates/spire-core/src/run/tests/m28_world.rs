@@ -1,4 +1,4 @@
-//! M28b world entry, act transitions, keys and Act 4 under `StandardA0` (chunk plan §4 M28b items
+//! M28b world entry, act transitions, keys and Act 4 under `Standard` (chunk plan §4 M28b items
 //! 1, 2, 17–19; design §6.6, §6.7, §7). Combats are won with a constructed lethal hit (supplied
 //! frontier, not a strategy claim); routes avoid Event outcomes until M28c.
 use super::super::*;
@@ -12,7 +12,7 @@ fn rng(seed: u8) -> RunRng { RunRng::new([seed; 32], Partition::Test, 0) }
 /// A standard Run past the short Neow (max-HP blessing), standing on the Act 1 map.
 pub(super) fn on_map(character: Character, seed: u8) -> Run {
     let mut profile = CreationProfile::experienced(); profile.neow_eligible = false;
-    let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, rng(seed), RoomScenario::StandardA0).unwrap();
+    let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile, rng(seed), RoomScenario::Standard).unwrap();
     let id = rooms::public(&run).unwrap().choices[1].id;
     run.step(&GameAction::Choose(id)).unwrap();
     assert_eq!(rooms::public(&run).unwrap().kind, RoomViewKind::Map);

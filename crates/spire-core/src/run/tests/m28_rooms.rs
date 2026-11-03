@@ -415,7 +415,7 @@ fn m28_neow_three_potions_discards_card_row() {
     for seed in 0..5_000_u64 {
         if tested_offers == 64 { break; }
         let character = CHARACTERS[(seed as usize) % CHARACTERS.len()];
-        let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, standard_profile(true), rng(seed), RoomScenario::StandardA0).unwrap();
+        let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, standard_profile(true), rng(seed), RoomScenario::Standard).unwrap();
         let Some(offer) = run.candidates.iter().find(|candidate| candidate.neow_offer.as_ref().is_some_and(|offer|
             offer.category == 1 && offer.reward == NeowReward::ThreePotions)).map(|candidate| candidate.id) else { continue };
         assert_eq!(run.state.card_rarity_offset, Some(5));

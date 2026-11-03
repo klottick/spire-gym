@@ -1,4 +1,4 @@
-//! Standard shop (design §6.3), reached only from `RoomScenario::StandardA0`.
+//! Standard shop (design §6.3), reached only from `RoomScenario::Standard`.
 //! Lane body: see `m28a/task0/spec-sheets/c-a.md` rules S1.. .
 use super::*;
 use crate::content::{CardId, CardRarity, CardType, PotionId, PotionRarity, RelicId, RelicTier};
@@ -170,7 +170,7 @@ fn potion_base(id:PotionId)->Result<u32,RunError>{
 #[cfg(any(test,feature="m28-diagnostics"))]
 pub(in crate::run) fn diagnostic_shop(character:crate::content::Character,supply:ShopSupply,rng:RunRng)->Result<Run,RunError>{
     let profile=CreationProfile{neow_eligible:false,..CreationProfile::experienced()};
-    let mut run=Run::new_room_scenario(RunConfig{character,ascension:0},profile,rng,RoomScenario::StandardA0)?;
+    let mut run=Run::new_room_scenario(RunConfig{character,ascension:0},profile,rng,RoomScenario::Standard)?;
     let max_hp=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.choices.iter()
         .find(|row|matches!(row.kind,RoomChoiceKind::NeowMaxHp{..})).ok_or(RunError::InvalidAction)?.id;
     run.step(&GameAction::Choose(max_hp))?;

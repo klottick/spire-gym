@@ -20,9 +20,11 @@ m25-diagnostics = ["m24-diagnostics"]
 m26-diagnostics = ["m25-diagnostics", "m20-diagnostics"]
 # Default-off full-state access and fixed pair fixtures for the M27 replay harness.
 m27-diagnostics = ["m26-diagnostics", "m25-diagnostics"]
-# Default-off M28 fixed-state and supplied builders for StandardA0 (the constructor itself is
+# Default-off M28 fixed-state and supplied builders for Standard (the constructor itself is
 # public in the core crate since M28f2; no spire-env profile).
 m28-diagnostics = ["m27-diagnostics"]
+# Default-off M29 A1–A5 standard Runs (diagnostics-only until M29f) and their builders.
+m29-diagnostics = ["m28-diagnostics"]
 
 # Read-only fuzz invariant accessors. Default-off and opt-in with the harness diagnostics lane.
 fuzz-diagnostics = []

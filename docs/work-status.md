@@ -1,6 +1,16 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M28f1 merged; M28f2 (M28 close) candidate
+## Current snapshot — 2026-11-03, M28 merged; M29a1 (Ascension run rules) candidate
+
+- M28f2 merged as PR #83 (`ec8716bb`), closing M28 and the M29a1 source base.
+- M29 (Ascension 1–5) is planned in eight merge chunks, merged in order a1 → a2 → b → c → d → e1 →
+  e2 → f. M29a1 is a source candidate, not accepted: it renames `RoomScenario::StandardA0` to
+  `Standard`, admits A1–A5 standard Runs under `m29-diagnostics` only (a default build stays A0),
+  and lands the A1 elite quota (binary32) and the A5 act-transition heal, plus the A0-only gate
+  audit. A1–A5 combats stay a typed interim until M29a2–M29e2. See the
+  [M29 candidate profile](milestones/m29-ascension1-5.md).
+
+## Snapshot — 2026-11-03, M28f1 merged; M28f2 (M28 close) candidate
 
 - M28f1 merged as PR #82 (`8446e9db`), the M28f2 source base; every standard event has a body.
 - M28f2 closes M28 and is a source candidate, not yet accepted. `StandardA0` is now a public
