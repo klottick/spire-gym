@@ -6,7 +6,7 @@ use super::super::enemies::{self, ascension, EnemyMemory, EnemyProfile};
 use crate::content::{Character, CardId, EncounterId, EnemyId};
 use crate::run::RunError;
 
-fn context(visit: u64) -> enemies::SetupContext {
+pub(super) fn context(visit: u64) -> enemies::SetupContext {
     enemies::SetupContext {
         player: PlayerState { hp: 999, max_hp: 999, block: 0, energy: 3, max_energy: 3, draw_per_turn: 5, powers: vec![] },
         player_powers: vec![], character: Character::Ironclad,
@@ -19,12 +19,12 @@ fn act_of(encounter: EncounterId) -> u8 {
     enemies::A0_ENCOUNTER_SETUPS.iter().find(|(id, _, _)| *id == encounter).unwrap().1
 }
 
-fn setup(encounter: EncounterId, ascension: u8, seed: u8, visit: u64) -> Result<CombatEntry, RunError> {
+pub(super) fn setup(encounter: EncounterId, ascension: u8, seed: u8, visit: u64) -> Result<CombatEntry, RunError> {
     enemies::setup(encounter, act_of(encounter), ascension,
         &mut crate::run::RunRng::new([seed; 32], rng::Partition::Test, 0), context(visit))
 }
 
-fn ai_stream(actor: &str) -> rng::StreamState {
+pub(super) fn ai_stream(actor: &str) -> rng::StreamState {
     let id = rng::StreamId::new(rng::Domain::RunCombatEnemyAi, vec!["m29a2".into(), actor.into()]).unwrap();
     rng::make_stream(&[29; 32], rng::Partition::Test, "m29a2", &id).unwrap()
 }
@@ -107,9 +107,11 @@ fn m29_spawned_and_split_children_read_combat_ascension() {
     let child = enemies::prepare_split_child(EnemyId::AcidSlimeM, handle.clone(), 30, ai_stream("slime"), 0).ok().unwrap();
     assert_eq!(child.full_damage_entries.iter().map(|(id, entry)| (id.as_str().to_owned(), entry.base)).collect::<Vec<_>>(),
         vec![("acid_tackle".to_owned(), 10), ("acid_spit".to_owned(), 7)], "A0 split child values unchanged");
-    assert!(matches!(enemies::prepare_split_child(EnemyId::AcidSlimeM, handle, 30, ai_stream("slime"), 1),
-        Err(enemies::SelectError::Invalid(InputError::Unsupported(reason))) if reason == ascension::INTERIM),
-        "a split child is built at the combat ascension (typed interim until M29b), never silently A0");
+    // M29b landed the Acid Slime M ladder: the child is built at the requested ascension (A2 bases).
+    let child = enemies::prepare_split_child(EnemyId::AcidSlimeM, handle, 30, ai_stream("slime"), 2).ok().unwrap();
+    assert_eq!(child.full_damage_entries.iter().map(|(id, entry)| (id.as_str().to_owned(), entry.base)).collect::<Vec<_>>(),
+        vec![("acid_tackle".to_owned(), 12), ("acid_spit".to_owned(), 8)],
+        "a split child is built at the combat ascension, never silently A0");
 
     // Summons: the Collector summons Torch Heads on its first turn.
     let at = |forced: Option<u8>| {
@@ -169,7 +171,9 @@ fn m29_spawn_closure_gates_encounter() {
 fn m29_playable_ceiling_rejects_above() {
     assert_eq!(setup(EncounterId::TwoLouse, 17, 1, 0).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
     assert!(ascension::ABOVE_CEILING.contains("M32"));
-    assert_eq!(setup(EncounterId::TwoLouse, 16, 1, 0).err(), Some(RunError::Unsupported(ascension::INTERIM)));
+    // M29b: Louse landed, so A16 is admitted; Slaver Red (M29c) is still interim at its ceiling.
+    assert!(setup(EncounterId::TwoLouse, 16, 1, 0).is_ok());
+    assert_eq!(setup(EncounterId::RedSlaver, 16, 1, 0).err(), Some(RunError::Unsupported(ascension::INTERIM)));
     assert_eq!(setup(EncounterId::Cultist, 21, 1, 0).err(), Some(RunError::Unsupported(ascension::OUT_OF_RANGE)));
     assert!(setup(EncounterId::Cultist, 20, 1, 0).is_ok());
     assert!(!enemies::setup_supports_ascension(EncounterId::TwoLouse, 17));
@@ -246,9 +250,9 @@ fn m29_every_encounter_every_ascension() {
 #[test]
 fn m29_split_call_site_reads_combat_ascension() {
     // Review v1 m3: the live split path (`apply_replacement`) builds children at the combat
-    // ascension. A Large Slime entered at A0 and then forced to A1 must fail its split with the
-    // typed interim (children not landed), never build A0 children silently.
-    for (forced, splits_cleanly) in [(None, true), (Some(1), false)] {
+    // ascension. A Large Slime entered at A0 and then forced to A2 must build A2 children
+    // (M29b landed the slime ladders; before M29b the forced split failed with the interim).
+    for forced in [None, Some(2)] {
         let mut combat = Combat::enter(setup(EncounterId::LargeSlime, 0, 6, 0).unwrap()).unwrap();
         if let Some(a) = forced { combat.state.ascension = a; }
         let max = combat.state.enemies[0].max_hp;
@@ -258,11 +262,14 @@ fn m29_split_call_site_reads_combat_ascension() {
         let mut text = format!("{:?}", combat.step_full(&strike));
         if combat.state.fault.is_none() { text += &format!(" {:?}", combat.step_full(&CombatAction::EndTurn)); }
         text += &format!(" {:?}", combat.state.fault);
-        if splits_cleanly {
-            assert!(combat.state.fault.is_none(), "{text}");
-            assert!(combat.state.enemies.iter().filter(|e| e.life == ActorLife::Active).count() >= 2, "A0 split produced children: {text}");
-        } else {
-            assert!(text.contains(ascension::INTERIM), "the split reads the combat ascension: {text}");
+        assert!(combat.state.fault.is_none(), "{text}");
+        let children = combat.state.enemies.iter().filter(|e| e.life == ActorLife::Active).collect::<Vec<_>>();
+        assert!(children.len() >= 2, "split produced children: {text}");
+        for child in children {
+            let (id, base) = child.full_damage_entries.iter().find(|(id, _)| matches!(id.as_str(), "acid_tackle" | "spike_flame_tackle"))
+                .map(|(id, entry)| (id.as_str(), entry.base)).unwrap();
+            let want = match (id, forced) { ("acid_tackle", None) => 10, ("acid_tackle", Some(_)) => 12, (_, None) => 8, (_, Some(_)) => 10 };
+            assert_eq!(base, want, "{id} child at {forced:?}: {text}");
         }
     }
 }

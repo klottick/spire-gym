@@ -1,11 +1,11 @@
-//! A0 Looter/Mugger turn production and theft lifecycle on the shared resolver.
+//! Looter/Mugger turn production and theft lifecycle on the shared resolver; the
+//! per-hit gold cap is the species' ascension value (`ascension::thievery_gold`).
 use super::super::{Actor, ActorEnemyId, ActorIntentId, DamagePayload, Effect, EffectKind,
     EnemyMemory, EnemyState, FullIntentId, InputError, Source};
 use super::super::super::model::{ActorLife, EnemyHandle, State};
 use super::super::rng::{self, StreamState};
+use super::super::ascension::thievery_gold;
 use crate::content::EnemyId;
-
-const THIEVERY_GOLD_A0: u32 = 15;
 
 const LOOTER_MUG: &str = "looter_mug";
 const LOOTER_LUNGE: &str = "looter_lunge";
@@ -159,11 +159,11 @@ pub(in crate::combat) fn validate_effect(
         .ok_or_else(|| InputError::Invariant("thief gold custody is absent".into()))?;
     match thief_effect {
         ThiefEffect::Ledger { owner, cap, intent } => {
-            if *cap != THIEVERY_GOLD_A0 || !expected_actor_source(effect, owner, false) {
-                return Err(InputError::Invariant("thief ledger source, target or A0 cap mismatch".into()));
-            }
             let enemy = require_active_thief(state, owner)?;
             let id = match &enemy.enemy_id { ActorEnemyId::Full(id) => *id, _ => unreachable!() };
+            if *cap != thievery_gold(id, state.ascension) || !expected_actor_source(effect, owner, false) {
+                return Err(InputError::Invariant("thief ledger source, target or cap mismatch".into()));
+            }
             if !is_attack_intent(id, *intent) || current_intent(enemy)? != *intent
                 || enemy.selected_move != ActorIntentId::Full(*intent) {
                 return Err(InputError::Invariant("thief ledger move does not match its actor".into()));
@@ -175,11 +175,11 @@ pub(in crate::combat) fn validate_effect(
             let _ = gold;
         }
         ThiefEffect::TheftDamage { owner, cap, intent } => {
-            if *cap != THIEVERY_GOLD_A0 || !expected_actor_source(effect, owner, false) {
-                return Err(InputError::Invariant("thief debit source, target or A0 cap mismatch".into()));
-            }
             let enemy = require_active_thief(state, owner)?;
             let id = match &enemy.enemy_id { ActorEnemyId::Full(id) => *id, _ => unreachable!() };
+            if *cap != thievery_gold(id, state.ascension) || !expected_actor_source(effect, owner, false) {
+                return Err(InputError::Invariant("thief debit source, target or cap mismatch".into()));
+            }
             if !is_attack_intent(id, *intent) || current_intent(enemy)? != *intent
                 || enemy.selected_move != ActorIntentId::Full(*intent) {
                 return Err(InputError::Invariant("thief debit move does not match its actor".into()));
@@ -413,9 +413,11 @@ pub(in crate::combat) fn validate_state(state: &State) -> Result<(), InputError>
         }
         if let Some(intent) = memory.pending_theft {
             let owner = &enemy.instance_id;
+            let ActorEnemyId::Full(id) = enemy.enemy_id else { unreachable!() };
+            let expected_cap = thievery_gold(id, state.ascension);
             let effect_matches = |effect: &Effect| matches!(&effect.kind,
-                EffectKind::Thief(ThiefEffect::TheftDamage { owner: effect_owner, cap: THIEVERY_GOLD_A0, intent: effect_intent })
-                    if effect_owner == owner && *effect_intent == intent);
+                EffectKind::Thief(ThiefEffect::TheftDamage { owner: effect_owner, cap, intent: effect_intent })
+                    if effect_owner == owner && *cap == expected_cap && *effect_intent == intent);
             if state.fault.is_none()
                 && !state.current.as_ref().is_some_and(effect_matches)
                 && !state.pending.iter().any(effect_matches) {
@@ -545,8 +547,9 @@ pub(in crate::combat) fn take_turn(
     }
     let actor = Actor::Enemy(owner.clone());
     if is_attack_intent(id, intent) {
-        let ledger = ThiefEffect::Ledger { owner: owner.clone(), cap: THIEVERY_GOLD_A0, intent };
-        let damage = ThiefEffect::TheftDamage { owner: owner.clone(), cap: THIEVERY_GOLD_A0, intent };
+        let cap = thievery_gold(id, state.ascension);
+        let ledger = ThiefEffect::Ledger { owner: owner.clone(), cap, intent };
+        let damage = ThiefEffect::TheftDamage { owner: owner.clone(), cap, intent };
         Ok(vec![
             make_effect(actor.clone(), Actor::Player, EffectKind::Thief(ledger)),
             make_effect(actor, Actor::Player, EffectKind::Thief(damage)),

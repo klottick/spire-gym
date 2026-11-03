@@ -63,7 +63,7 @@ pub(in crate::combat) fn protect(state:&mut State,owner:&EnemyHandle)->Result<()
     let target=if targets.is_empty(){owner.clone()}else{
         let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();let (index,next)=rng::uniform_below(enemy.full_ai_rng.as_ref().unwrap(),targets.len() as u128)?;enemy.full_ai_rng=Some(next);targets[index as usize].clone()
     };
-    state.pending.push_front(effect(Actor::Enemy(owner.clone()),Actor::Enemy(target),EffectKind::GainBlock(7)));Ok(())
+    state.pending.push_front(effect(Actor::Enemy(owner.clone()),Actor::Enemy(target),EffectKind::GainBlock(super::super::ascension::gremlin_shield_protect(state.ascension))));Ok(())
 }
 
 pub(in crate::combat) fn set_move(state:&mut State,owner:&EnemyHandle,intent:FullIntentId)->Result<(),InputError>{

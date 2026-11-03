@@ -1,8 +1,8 @@
 //! M29 per-species ascension owner. Combat code reads the one combat-level
 //! ascension (`State.ascension`) and asks this module for species values, so no
 //! A0 literal that depends on ascension lives outside a species function.
-//! M29a2 lands the plumbing: every value function returns the A0 literal until
-//! its species' chunk (M29b–e2) fills the ladder from the reviewed spec sheet.
+//! M29a2 landed the plumbing; each species' chunk (M29b–e2) fills its ladder from
+//! the reviewed spec sheet. M29b: the 17 Act 1 normal species.
 use super::super::{FullPowerEntry, FullPowerId};
 use crate::content::{EncounterId, EnemyId};
 
@@ -15,8 +15,12 @@ pub const OUT_OF_RANGE: &str = "enemy ascension must be within 0..=20";
 
 /// Whether the species' numeric ascension values are implemented at `ascension`.
 pub fn species_supports_ascension(id: EnemyId, ascension: u8) -> bool {
+    use EnemyId::*;
     ascension == 0 || ascension <= 20 && matches!(id,
-        EnemyId::Cultist | EnemyId::JawWorm | EnemyId::GremlinNob | EnemyId::SlaverBlue | EnemyId::FungiBeast)
+        Cultist | JawWorm | GremlinNob | SlaverBlue | FungiBeast
+        // M29b: Act 1 normals.
+        | AcidSlimeS | AcidSlimeM | AcidSlimeL | SpikeSlimeS | SpikeSlimeM | SpikeSlimeL | LouseRed | LouseGreen
+        | Looter | GremlinMad | GremlinSneaky | GremlinFat | GremlinShield | GremlinWizard)
 }
 
 /// Highest ascension whose behaviour the engine implements for the species
@@ -105,9 +109,11 @@ pub fn species_admission(id: EnemyId, ascension: u8) -> Result<(), &'static str>
 }
 
 /// Louse Bite base range drawn at setup (inclusive).
-pub fn louse_bite_range(_ascension: u8) -> (i32, i32) { (5, 7) }
+pub fn louse_bite_range(ascension: u8) -> (i32, i32) { if ascension >= 2 { (6, 8) } else { (5, 7) } }
 /// Louse Curl Up amount range drawn at setup (inclusive).
-pub fn louse_curl_up_range(_ascension: u8) -> (i32, i32) { (3, 7) }
+pub fn louse_curl_up_range(ascension: u8) -> (i32, i32) {
+    if ascension >= 17 { (9, 12) } else if ascension >= 7 { (4, 8) } else { (3, 7) }
+}
 /// Darkling Nip base range drawn at setup (inclusive).
 pub fn darkling_nip_range(_ascension: u8) -> (i32, i32) { (7, 11) }
 /// Giant Head "It Is Time" base for the current countdown (`count` ≤ 0 once the countdown is spent).
@@ -115,7 +121,16 @@ pub fn giant_head_time_base(count: i8, _ascension: u8) -> i32 { 30 - 5 * i32::fr
 /// Transient's first attack base.
 pub fn transient_start_base(_ascension: u8) -> i32 { 30 }
 /// Angry amount of a Mad Gremlin, at setup and when summoned.
-pub fn gremlin_mad_angry(_ascension: u8) -> i32 { 1 }
+pub fn gremlin_mad_angry(ascension: u8) -> i32 { if ascension >= 17 { 2 } else { 1 } }
+/// Gold a thief steals per hit (and its Thievery amount).
+pub fn thievery_gold(id: EnemyId, ascension: u8) -> u32 {
+    // The Mugger's ladder lands in M29d.
+    if id == EnemyId::Looter && ascension >= 17 { 20 } else { 15 }
+}
+/// Block a Shield Gremlin's Protect gives.
+pub fn gremlin_shield_protect(ascension: u8) -> i32 {
+    if ascension >= 17 { 11 } else if ascension >= 7 { 8 } else { 7 }
+}
 /// Awakened One's maximum HP after rebirth.
 pub fn awakened_rebirth_max_hp(_ascension: u8) -> i32 { 300 }
 
@@ -148,7 +163,7 @@ pub fn setup_powers(encounter: EncounterId, id: EnemyId, ascension: u8) -> Vec<F
     if id == EnemyId::Guardian { powers.push(power("mode_shift", 30)); }
     if id == EnemyId::ShelledParasite { powers.push(power("plated_armor", 14)); }
     if id == EnemyId::SnakePlant { powers.push(power("malleable", 3)); }
-    if matches!(id, EnemyId::Looter | EnemyId::Mugger) { powers.push(power("thievery", 15)); }
+    if matches!(id, EnemyId::Looter | EnemyId::Mugger) { powers.push(power("thievery", thievery_gold(id, ascension) as i32)); }
     if id == EnemyId::FungiBeast { powers.push(power("spore_cloud", 2)); }
     if id == EnemyId::Sentry { powers.push(power("artifact", 1)); }
     powers
