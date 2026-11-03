@@ -12,20 +12,21 @@ pub(in crate::run) mod event_exec;
 pub(in crate::run) mod events;
 
 
-/// The highest ascension the standard Run admits (M29 design §6.1); M30–M33 raise it.
-pub(crate) const STANDARD_MAX_ASCENSION:u8=5;
+/// The highest ascension the standard Run admits (M29 design §6.1; M30 design §6.1); M31–M33 raise it.
+pub(crate) const STANDARD_MAX_ASCENSION:u8=10;
 
-/// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A5, full or short
+/// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A10, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
 /// Public in the core crate since M28f2 (design §13, PM ruling Q1); no spire-env profile.
-/// A1–A5 are public in every build since M29 close (M29f, folded into M29d); A6+ awaits M30–M33.
+/// A1–A5 are public in every build since M29 close (M29f, folded into M29d); A6–A10 since M30;
+/// A11+ awaits M31–M33.
 pub(in crate::run) fn create(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
     build(config,profile,rng)
 }
 
 /// The standard Run at any admitted ascension: `create`, in-crate tests and the M29 diagnostics builders.
 pub(in crate::run) fn build(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
-    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A5"))}
+    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A10"))}
     let mut run=Run::new(config,profile,rng)?;
     let admission=RunAdmission::new(CardAdmission::Complete,ItemAdmission::Complete)?;
     run.state.card_admission=admission.cards;

@@ -13,12 +13,17 @@
 //! supplied max HP and keys so it plays through every act (design §14 grade Supplied).
 //!
 //! M29 (plan M29a1 item 9, erratum v3 n4): `--ascension N` or `--ascensions A-B` runs each level
-//! (A1–A5 are public since the M29 close; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
+//! (A1–A5 are public since the M29 close and A6–A10 since M30; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
 //! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by
 //! public room context, its per-act elite target/placement and its HP around each act transition. One ascension writes
 //! `DIR/traversal.json`; a range writes `DIR/a<N>/traversal.json` per level.
+//!
+//! M30 (plan item 10): each Run also records its start HP and max HP, the Ascender's Bane count and
+//! first index at creation and at the end, and a census of Toke rows (offered, disabled, cancelled),
+//! affordable shop purge rows disabled for want of a purgeable card (G2) and Bane copies, under the separate `m30` key (outside the A0 control
+//! projection, as the `m29` key is).
 //!
 //! Usage: cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR
 //!        [--seeds 25] [--cap 20000] [--policy uniform|reach|supplied] [--ascension N | --ascensions A-B]
@@ -26,8 +31,8 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use spire_core::{
     combat::rng::Partition,
-    content::Character,
-    run::{map::room_quotas, CommittedEvent, CreationProfile, GameAction, MapNodeKind, PublicDecision, RoomScenario, RoomViewKind, Run, RunConfig, RunError, RunRng},
+    content::{CardId, Character},
+    run::{map::room_quotas, CommittedEvent, CreationProfile, GameAction, MapNodeKind, PublicDecision, RoomChoiceKind, RoomChoiceStatus, RoomScenario, RoomViewKind, Run, RunConfig, RunError, RunRng},
 };
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -121,7 +126,27 @@ impl Census {
 }
 
 struct Outcome { steps: usize, terminal: Option<String>, fault: Option<String>, act: u8, floor: u32, actions: Vec<GameAction>, last: Option<PublicDecision>,
-    interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value> }
+    interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value>,
+    m30: M30Facts }
+
+/// M30 (plan item 10) per-Run facts.
+#[derive(Default)]
+struct M30Facts { start: Option<(u32, u32)>, bane_creation: Option<(usize, Option<usize>)>, bane_end: (usize, Option<usize>), bane_max: usize,
+    toke_offered: u64, toke_disabled: u64, toke_cancelled: u64, purge_disabled: u64 }
+
+/// The Bane count and first master-deck index of a decision.
+fn bane(decision: &PublicDecision) -> (usize, Option<usize>) {
+    (decision.objects.iter().filter(|o| o.id == CardId::AscendersBane).count(), decision.objects.iter().position(|o| o.id == CardId::AscendersBane))
+}
+
+impl M30Facts {
+    fn to_json(&self) -> Value {
+        let bane = |(count, index): (usize, Option<usize>)| json!({"count":count,"index":index});
+        json!({"start_hp":self.start.map(|s| s.0),"start_max_hp":self.start.map(|s| s.1),"bane_creation":self.bane_creation.map(bane),
+            "bane_end":bane(self.bane_end),"bane_max":self.bane_max,"bane_copies":self.bane_max.saturating_sub(self.bane_creation.map_or(0, |b| b.0)),
+            "toke_offered":self.toke_offered,"toke_disabled":self.toke_disabled,"toke_cancelled":self.toke_cancelled,"shop_purge_disabled":self.purge_disabled})
+    }
+}
 
 /// Attribute a typed interim rejection to public map facts or the named event screen.
 fn interim_context(run: &Run, decision: &PublicDecision, action: &GameAction) -> String {
@@ -172,14 +197,19 @@ fn rollout(mut run: Run) -> i64 {
 
 fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: bool, ascension: u8, census: &mut Census) -> Outcome {
     let mut out = Outcome { steps: 0, terminal: None, fault: None, act: 0, floor: 0, actions: Vec::new(), last: None,
-        interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new() };
+        interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new(), m30: M30Facts::default() };
     let mut run = match new_run(character, seed, supplied, ascension) { Ok(run) => run, Err(error) => { out.fault = Some(error); return out } };
     let mut map_act = 0u8;
     let mut policy = u64::from_le_bytes(root(character, seed)[..8].try_into().unwrap()) ^ if reach { 0x5245_4143_48 } else { 0x4D32_3846 };
     let mut room_kind = String::new();
+    let mut last_choice: Option<RoomChoiceKind> = None;
     loop {
         let decision = match run.decision() { Ok(decision) => decision, Err(error) => { out.fault = Some(format!("decision at step {}: {error:?}", out.steps)); break } };
         census.observe(&decision);
+        // M30 facts: creation values from the first decision; the Bane at every decision (the last one is the end).
+        if out.m30.start.is_none() { out.m30.start = Some((decision.player.hp, decision.player.max_hp)); out.m30.bane_creation = Some(bane(&decision)); }
+        out.m30.bane_end = bane(&decision);
+        out.m30.bane_max = out.m30.bane_max.max(out.m30.bane_end.0);
         (out.act, out.floor) = (decision.act, decision.floor);
         // Each fresh ordinary map's elite target (connected rows 0–14 except row 13) and placement.
         if let Some(map) = run.public_map().filter(|map| map.act != map_act) {
@@ -199,6 +229,16 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
             let kind = variant(format!("{:?}", room.kind));
             if kind != room_kind {
                 *census.rooms.entry(kind.clone()).or_default() += 1;
+                // M30: Toke and purge row status at room entry (G1, G2).
+                for row in &room.choices {
+                    match (&row.kind, row.status) {
+                        (RoomChoiceKind::Toke, RoomChoiceStatus::Offered) => out.m30.toke_offered += 1,
+                        (RoomChoiceKind::Toke, RoomChoiceStatus::Disabled) => out.m30.toke_disabled += 1,
+                        // G2 only: a purge row Disabled although its price is affordable (not the price rule).
+                        (RoomChoiceKind::Purge, RoomChoiceStatus::Disabled) if row.price.is_some_and(|p| p <= decision.player.gold) => out.m30.purge_disabled += 1,
+                        _ => (),
+                    }
+                }
                 if let RoomViewKind::Event(event) = room.kind { *census.events.entry(format!("{event:?}")).or_default() += 1; }
                 room_kind = kind;
             }
@@ -244,6 +284,10 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
             }
         }
         let action = candidate.action.clone();
+        if action == GameAction::Cancel && last_choice == Some(RoomChoiceKind::Toke) { out.m30.toke_cancelled += 1; }
+        if let GameAction::Choose(id) = &action {
+            last_choice = decision.room.as_ref().and_then(|room| room.choices.iter().find(|row| row.id == *id)).map(|row| row.kind.clone());
+        }
         match catch_unwind(AssertUnwindSafe(|| run.step(&action))) {
             Ok(Ok(transition)) => {
                 for event in &transition.committed_events {
@@ -314,7 +358,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let jobs: Vec<(&str, Character, u64)> = policies.iter().flat_map(|p| CHARACTERS.into_iter().flat_map(move |c| (1..=seeds).map(move |seed| (*p, c, seed))))
         .filter(|(_, c, seed)| only.is_none_or(|only| only == format!("{c:?}/{seed}"))).collect();
     // Runs are independent and deterministic; each is its own thread, results kept in job order.
-    let results: Vec<(Value, Value, Census)> = std::thread::scope(|scope| {
+    let results: Vec<(Value, Value, Value, Census)> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs.iter().map(|&(policy, character, seed)| scope.spawn(move || {
             let mut census = Census::default();
             let supplied = policy == "supplied";
@@ -329,15 +373,21 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
             let m29 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,
                 "interim_rejections":outcome.interim_rejections,"interim_by_context":outcome.interim_by_context,
                 "interim_blocked":outcome.interim_blocked,"elites":outcome.elites,"transitions":outcome.transitions});
-            eprintln!("{record} {m29}");
-            (record, m29, census)
+            let m30 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m30.to_json()});
+            eprintln!("{record} {m29} {m30}");
+            (record, m29, m30, census)
         })).collect();
         handles.into_iter().map(|handle| handle.join().expect("traversal thread")).collect()
     });
     let (mut runs, mut faults, mut total, mut per_character) = (Vec::new(), Vec::new(), Census::default(), BTreeMap::<String, Census>::new());
     let (mut m29_runs, mut blocked, mut rejections, mut interim_by_context) = (Vec::new(), 0u64, 0u64, BTreeMap::<String, u64>::new());
     let mut elite_census = BTreeMap::<String, [u64; 3]>::new();
-    for ((policy, character, _), (record, m29, census)) in jobs.iter().zip(results) {
+    let (mut m30_runs, mut m30_totals) = (Vec::new(), BTreeMap::<String, u64>::new());
+    for ((policy, character, _), (record, m29, m30, census)) in jobs.iter().zip(results) {
+        for key in ["toke_offered", "toke_disabled", "toke_cancelled", "shop_purge_disabled", "bane_copies"] {
+            *m30_totals.entry(key.to_string()).or_default() += m30["facts"][key].as_u64().unwrap_or(0);
+        }
+        m30_runs.push(m30);
         if !record["fault"].is_null() { faults.push(record.clone()) }
         total.merge(&census);
         per_character.entry(format!("{policy}/{character:?}")).or_default().merge(&census);
@@ -358,7 +408,8 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let report = json!({"schema":"spire-gym.m28-traversal.v1","seeds_per_character":seeds,"cap":cap,"policies":{"uniform":"seeded uniform random over advertised candidates","supplied":"reach policy on a Standard Run with supplied max HP 400 and, on even seeds, all three keys (m28-diagnostics; grade Supplied, not traversal)","reach":"combat: each candidate valued by a greedy play-out of the turn (survive, then kill); out of combat: one-step current-HP value; greedy on 90% of combat and 50% of other decisions, else uniform"},
         "runs":runs.len(),"fault_free":runs.len() - faults.len(),"faults":faults,"census":total.to_json(),"census_by_character":per_character,"results":runs,
         "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"interim_by_context":interim_by_context,
-            "elites_by_act":elite_census,"runs":m29_runs}});
+            "elites_by_act":elite_census,"runs":m29_runs},
+        "m30":{"ascension":ascension,"totals":m30_totals,"runs":m30_runs}});
     fs::write(dir.join("traversal.json"), serde_json::to_vec_pretty(&report).unwrap()).expect("write traversal.json");
     println!("A{ascension}: {} of {} runs fault-free ({blocked} interim-blocked)", runs.len() - faults.len(), runs.len());
     faults.is_empty()

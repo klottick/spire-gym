@@ -28,7 +28,7 @@ impl EventPools {
 /// `isCursed` (event-neow research :287; E9): a curse other than Ascender's Bane, Curse of the Bell
 /// and Necronomicurse.
 fn is_cursed(state:&RunState)->bool{
-    state.deck.iter().any(|card|!matches!(card.id,CardId::AscendersBane|CardId::CurseOfTheBell|CardId::Necronomicurse)
+    state.deck.iter().any(|card|mutations::removable(card.id)
         &&Catalog::standard().card(card.id).is_some_and(|row|row.card_type==CardType::Curse))
 }
 

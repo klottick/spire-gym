@@ -11,8 +11,10 @@ pub(in crate::run) fn open(run:&mut Run,choice:ChoiceId,operation:RoomSelectionO
             // economy research :161; M28a G5 made this shop-wide, not standard-only).
             // G10: Purifier and Ancient Writing's Elegance remove a purgeable card (event-neow research
             // :245-251, :275; acts23 research :180-185), as every shop purge does.
+            // M30 G1: Toke opens on the unbottled purgeable group (CampfireTokeEffect.java:61-71).
             RoomSelectionOperation::NeowSelect{..}|RoomSelectionOperation::ShopPurge{..}
-            |RoomSelectionOperation::ShrineRemove|RoomSelectionOperation::AncientElegance=>purgeable(&run.state,card),
+            |RoomSelectionOperation::ShrineRemove|RoomSelectionOperation::AncientElegance
+            |RoomSelectionOperation::CampfireToke=>purgeable(&run.state,card),
             RoomSelectionOperation::EventSelect{op,..}=>standard::event_exec::select_candidates(&run.state,op).contains(&card),
             _=>true,
         })
@@ -27,7 +29,8 @@ pub(in crate::run) fn open(run:&mut Run,choice:ChoiceId,operation:RoomSelectionO
 
 /// Removable permanent cards minus bottled ones (design §5.6 "removable"; economy research :161):
 /// never Necronomicurse, Curse of the Bell, Ascender's Bane or a card bottled by a relic.
-/// Removability is `mutations::removable`, the owner `remove_card` enforces.
+/// Removability is `mutations::removable`, the owner `remove_card` enforces. With `removable` this is
+/// the only statement of the rule (M30 design §6.4, E7).
 pub(in crate::run) fn purgeable(state:&RunState,card:&CardInstance)->bool{
     mutations::removable(card.id)&&!state.relic_cards.values().any(|instance|*instance==card.instance)
 }

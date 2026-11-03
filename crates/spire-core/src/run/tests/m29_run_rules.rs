@@ -1,5 +1,5 @@
 //! M29a1 run rules (plan M29a1, erratum v3): Standard at A0–A5 (A1–A5 diagnostics-only until
-//! M29f; public in every build since the M29 close), the A1 elite quota (binary32), the A5 act-transition heal and the A0-only gate audit.
+//! M29f; public in every build since the M29 close; the cap is A10 since M30), the A1 elite quota (binary32), the A5 act-transition heal and the A0-only gate audit.
 //! Expected values are literals from `m29a1/spec/sheet.md` (an independent binary32 emulation,
 //! SHA256SUMS 9a9b6bcc…), never computed by the code under test.
 use super::super::*;
@@ -31,11 +31,12 @@ fn m29_standard_creation_all_characters_a0_to_a5() {
     }
 }
 
-/// Retargeted at the M29 close (erratum n2): A1–A5 are public, so a default build admits them and
-/// rejects A6 (the only remaining rejection). Renamed from `m29_standard_default_build_rejects_a1`
-/// (review m3), whose name no longer matched the assertion.
+/// Retargeted at the M29 close (erratum n2): A1–A5 are public, so a default build admits them.
+/// Formerly `m29_standard_default_build_admits_a1_to_a5_rejects_a6` (M30 plan item 1(a), review m10):
+/// M30 admits A6, so its A6 rejection moved to `m30_standard_rejects_a11_and_above` as the A11
+/// boundary. It was itself renamed from `m29_standard_default_build_rejects_a1` (M29 review m3).
 #[test]
-fn m29_standard_default_build_admits_a1_to_a5_rejects_a6() {
+fn m29_standard_default_build_admits_a1_to_a5() {
     for character in CHARACTERS {
         for ascension in 0..=5 {
             for full in [false, true] {
@@ -44,22 +45,22 @@ fn m29_standard_default_build_admits_a1_to_a5_rejects_a6() {
                 assert_eq!(run.state.ascension, ascension);
             }
         }
-        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 6 }, profile(false), rng(1), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard supports A0–A5")), "{character:?}");
     }
 }
 
+/// Formerly `m29_standard_rejects_a6_and_above` (M30 plan item 1(a), review m10): the cap is A10
+/// since M30, so the rejected levels are 11, 15, 20 and 21, with the A0–A10 message.
 #[test]
-fn m29_standard_rejects_a6_and_above() {
+fn m29_standard_rejects_above_cap() {
     for character in CHARACTERS {
-        for ascension in [6, 7, 15, 20] {
+        for ascension in [11, 15, 20] {
             assert_eq!(Run::new_room_scenario(RunConfig { character, ascension }, profile(false), rng(1), RoomScenario::Standard).err(),
-                Some(RunError::Unsupported("Standard supports A0–A5")), "{character:?} A{ascension}");
+                Some(RunError::Unsupported("Standard supports A0–A10")), "{character:?} A{ascension}");
             assert_eq!(rooms::standard::build(RunConfig { character, ascension }, profile(false), rng(1)).err(),
-                Some(RunError::Unsupported("Standard supports A0–A5")));
+                Some(RunError::Unsupported("Standard supports A0–A10")));
         }
         assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 21 }, profile(false), rng(1), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard supports A0–A5")));
+            Some(RunError::Unsupported("Standard supports A0–A10")));
     }
 }
 

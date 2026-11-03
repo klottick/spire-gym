@@ -580,7 +580,11 @@ impl Combat {
         if !(1..=999).contains(&issued.len()) {
             return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
         }
-        if item_context.as_ref().is_some_and(|items|items.m21_profile()){combat.state.piles.draw.sort_by_key(|c|{let c=c.full().unwrap();(c.id.as_str(),c.upgrades,c.instance.0)});}
+        // The finite M21–M25 Watcher profiles define their canonical master order by this sort (their
+        // decks are authored lists). Every Complete-admission Run (the Standard Run; the M26/M27 supplied
+        // diagnostics, whose decks are pre-sorted by this key) shuffles its master deck as is, as the
+        // source does (M30 G4, PM ruling W1).
+        if item_context.as_ref().is_some_and(|items|items.m21_profile()&&!items.master_order()){combat.state.piles.draw.sort_by_key(|c|{let c=c.full().unwrap();(c.id.as_str(),c.upgrades,c.instance.0)});}
         let (shuffled, next) = super::rng::shuffle(&combat.state.rng.shuffle, &combat.state.piles.draw)
             .map_err(|_| CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("full combat shuffle failed")))?;
         combat.state.rng.shuffle = next;
@@ -598,6 +602,8 @@ impl Combat {
         let master=combat.state.player.max_energy.checked_add(energy_bonus).filter(|n|*n<=999)
             .ok_or(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("combat relic master energy overflow")))?;
         combat.state.item_context=item_context.take();
+        // The entry-only G4 flag never survives into combat state.
+        if let Some(items)=combat.state.item_context.as_mut(){items.clear_master_order();}
         let _observation=super::observe::bind_entry(&combat);
         if let Some(items)=combat.state.item_context.as_mut(){items.collar_activated=collar;}
         combat.state.player.max_energy=master;

@@ -40,13 +40,13 @@ pub(super) fn phase(id:RelicId,context:&mut CombatItemContext,phase:super::dispa
 pub(super) fn hp_changed(id:RelicId,context:&mut CombatItemContext,hp_lost:i32,hp:i32,max_hp:i32,work:&mut Vec<Effect>)->Result<bool,crate::combat::InputError>{
     match id{
         RelicId::SelfFormingClay=>{if hp_lost>0{let next=context.counter(CLAY_PENDING).checked_add(3).filter(|next|*next<=999).ok_or_else(||crate::combat::InputError::Unsupported("Self-Forming Clay pending Block exceeded supported bound".into()))?;context.set_counter(CLAY_PENDING,next);}}
-        RelicId::RedSkull=>work.extend(on_hp_state(context,hp,max_hp)),
+        RelicId::RedSkull=>work.extend(on_hp_state(context,hp_lost,hp,max_hp)),
         _=>return Ok(false),
     }
     Ok(true)
 }
 
-fn on_hp_state(context:&mut CombatItemContext,hp:i32,max_hp:i32)->Vec<Effect>{
+fn on_hp_state(context:&mut CombatItemContext,hp_lost:i32,hp:i32,max_hp:i32)->Vec<Effect>{
     let mut work=Vec::new();
     // Existing source closure does not prove threshold callbacks after lethal
     // transitions. Keep the counted latch for settlement cleanup instead.
@@ -54,7 +54,10 @@ fn on_hp_state(context:&mut CombatItemContext,hp:i32,max_hp:i32)->Vec<Effect>{
     if context.owns_relic(RelicId::RedSkull){
         let active=context.counter(RED_ACTIVE)>0;
         let bloodied=i64::from(hp)*2<=i64::from(max_hp);
-        if bloodied&&!active{context.set_counter(RED_ACTIVE,1);work.push(power(3));}
+        // M30 G5: only damage reaches `onBloodied`; a heal calls `onNotBloodied` alone, on crossing above
+        // half (AbstractCreature.java:441; RedSkull.java). A heal that leaves the player bloodied (Burning
+        // Blood's victory heal after the settlement reset) must not re-arm the latch.
+        if bloodied&&!active&&hp_lost>0{context.set_counter(RED_ACTIVE,1);work.push(power(3));}
         else if !bloodied&&active{context.set_counter(RED_ACTIVE,0);work.push(power(-3));}
     }
     work

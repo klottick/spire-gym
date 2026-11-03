@@ -391,7 +391,9 @@ impl Run {
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
         let context=if super::rooms::is_m25(&self.state){context.with_m25_profile()}else if super::rooms::is_m24(&self.state){context.with_m24_profile()}else if super::rooms::uses_watcher_content(&self.state){context.with_m22_profile()}else if self.state.authored_combat&&self.state.character==Character::Watcher&&self.state.training_encounter.is_some(){context.with_startup_profile(crate::items::CombatStartupProfile::M21Watcher)}else{context};
         // Complete admission: the character's Heart context plus the overlay (design §5.2).
-        let context=if self.state.card_admission==super::CardAdmission::Complete{super::complete_heart_context(context,self.state.character)}else{context};
+        // M30 G4: every Complete-admission Run's master deck has an acquisition order (PM ruling W1);
+        // the M26/M27 supplied diagnostics pre-sort theirs, so only the Standard Run's order changes.
+        let context=if self.state.card_admission==super::CardAdmission::Complete{super::complete_heart_context(context,self.state.character).with_master_order()}else{context};
         let context=if self.state.item_admission==super::ItemAdmission::Complete{context.with_complete_items()}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);

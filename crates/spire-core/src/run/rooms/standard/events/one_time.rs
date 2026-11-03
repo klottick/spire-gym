@@ -94,10 +94,12 @@ pub(in crate::run) const FOUNTAIN_OF_CLEANSING:Body=Body{
                 let mut outcomes=Vec::new();
                 for card in state.deck.iter().rev(){
                     let is_curse=crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.rarity==crate::content::CardRarity::Curse);
-                    let protected=matches!(card.id,CardId::AscendersBane|CardId::CurseOfTheBell|CardId::Necronomicurse);
+                    // The three unremovable curses stay (`removable`, M30 design §6.4, E7), and so do cards in
+                    // Bottled Flame or Lightning: the source tests those two flags only, not Tornado
+                    // (FountainOfCurseRemoval.java:61), so this is not `purgeable`.
                     let bottled=state.relic_cards.get(&RelicId::BottledFlame)==Some(&card.instance)
                         ||state.relic_cards.get(&RelicId::BottledLightning)==Some(&card.instance);
-                    if is_curse&&!protected&&!bottled{outcomes.push(Outcome::RemoveSpecific(card.instance));}
+                    if is_curse&&mutations::removable(card.id)&&!bottled{outcomes.push(Outcome::RemoveSpecific(card.instance));}
                 }
                 outcomes.push(Outcome::NextStage(DONE));
                 Ok(outcomes)

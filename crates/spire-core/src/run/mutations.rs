@@ -71,7 +71,10 @@ pub(crate) fn can_upgrade(state:&RunState,card:&CardInstance)->bool{
     (supported_in(state,card.id)||!super::rooms::uses_watcher_content(state)&&!super::rooms::is_m20(state)&&!super::rooms::uses_silent_content(state)&&matches!(card.id,CardId::Armaments|CardId::SearingBlow))
         &&crate::combat::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)
 }
-pub(in crate::run) fn removable(id:CardId)->bool{!crate::content::complete::supports_permanent(id)||crate::content::complete::is_removable(id)}
+/// `CardGroup.getPurgeableCards` (M30 design §6.4): every card except Ascender's Bane, Curse of the
+/// Bell and Necronomicurse. The one statement of removability; callers add the bottle filter where
+/// the source does (`rooms::selection::purgeable`).
+pub(crate) fn removable(id:CardId)->bool{!crate::content::complete::supports_permanent(id)||crate::content::complete::is_removable(id)}
 #[cfg_attr(not(test),allow(dead_code))] // Run callers are M27/M28 (design §7.2, §8.3-8.5).
 fn admits(state:&RunState,id:CardId)->bool{
     if state.card_admission==CardAdmission::Complete{crate::content::complete::supports_permanent(id)}else{supported_in(state,id)}

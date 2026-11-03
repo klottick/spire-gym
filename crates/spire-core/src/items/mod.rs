@@ -51,6 +51,11 @@ pub struct CombatItemContext {
     watcher_heart:bool,
     /// M26 complete card capability overlay (`with_complete_cards`).
     complete_cards:bool,
+    /// M30 G4 (PM ruling W1): the entering Run's master deck has a real acquisition order, so combat
+    /// entry shuffles it as is and skips the finite M21–M25 Watcher canonical sort. Set by the Run
+    /// owner for every Complete-admission Run (the Standard Run; the M26/M27 supplied diagnostics,
+    /// whose decks are pre-sorted by that key, so their order is unchanged); combat entry clears it.
+    master_order:bool,
     /// M27 complete item capability overlay (`with_complete_items`); valid only with
     /// `complete_cards` (design §5.2).
     complete_items:bool,
@@ -99,6 +104,7 @@ impl std::fmt::Debug for CombatItemContext{
         if self.watcher_act3{value.field("watcher_act3",&true);}
         if self.watcher_heart{value.field("watcher_heart",&true);}
         if self.complete_cards{value.field("complete_cards",&true);}
+        if self.master_order{value.field("master_order",&true);}
         if self.complete_items{value.field("complete_items",&true);}
         if !self.local.is_empty(){value.field("local",&self.local);}
         if !self.relic_cards.is_empty(){value.field("relic_cards",&self.relic_cards);}
@@ -138,7 +144,7 @@ impl CombatItemContext {
         let mut counters=std::collections::BTreeMap::new();
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
-        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,complete_items:false,local:Default::default(),relic_cards:Default::default(),counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,damage_card:None,
+        Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,master_order:false,complete_items:false,local:Default::default(),relic_cards:Default::default(),counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,damage_card:None,
             lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
     }
 
@@ -153,7 +159,7 @@ impl CombatItemContext {
             if run_potencies.is_empty(){vec![None;potions.len()]}
             else{run_potencies.iter().map(|slot|slot.map(|(_,potency)|potency)).collect()}
         }else{Vec::new()};
-        Self { potion_potencies,last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,complete_items:false,local:Default::default(),relic_cards:std::mem::take(&mut state.relic_cards),runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics,
+        Self { potion_potencies,last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,master_order:false,complete_items:false,local:Default::default(),relic_cards:std::mem::take(&mut state.relic_cards),runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics,
             potions, orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,damage_card:None,lantern_armed: false,
             heal_room: NativeHealRoom::from_run(state) }
     }
@@ -216,6 +222,11 @@ impl CombatItemContext {
     /// Relic and potion validation stay the base context's.
     pub(crate) fn with_complete_cards(mut self)->Self{self.complete_cards=true;self}
     pub(crate) fn complete_cards(&self)->bool{self.complete_cards}
+    /// M30 G4: see `master_order`.
+    pub(crate) fn with_master_order(mut self)->Self{self.master_order=true;self}
+    pub(crate) fn master_order(&self)->bool{self.master_order}
+    /// Combat entry clears the flag on transfer, so it never survives into combat state.
+    pub(crate) fn clear_master_order(&mut self){self.master_order=false;}
     /// M27 complete item capability (design §5.2). Validation rejects it without
     /// `with_complete_cards()`.
     pub(crate) fn with_complete_items(mut self)->Self{self.complete_items=true;self.fill_potion_potencies();self}
@@ -306,7 +317,7 @@ impl CombatItemContext {
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { potion_potencies:if self.potion_potency_enabled(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},
             last_potion_use:if self.potion_potency_enabled(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
-            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,complete_items:self.complete_items,local:self.local.clone(),relic_cards:self.relic_cards.clone(),runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
+            startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,master_order:self.master_order,complete_items:self.complete_items,local:self.local.clone(),relic_cards:self.relic_cards.clone(),runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,damage_card:None,lantern_armed: self.lantern_armed,
             heal_room: self.heal_room }
     }
