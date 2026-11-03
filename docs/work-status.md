@@ -1,6 +1,22 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M28e merged; M28f1 candidate
+## Current snapshot — 2026-11-03, M28f1 merged; M28f2 (M28 close) candidate
+
+- M28f1 merged as PR #82 (`8446e9db`), the M28f2 source base; every standard event has a body.
+- M28f2 closes M28 and is a source candidate, not yet accepted. `StandardA0` is now a public
+  native Rust constructor in a default build (A0 only); M28 still adds no spire-env, Gym or Python
+  profile (PM ruling Q1).
+- Traversal: `crates/spire-core/examples/m28_traversal.rs` runs 25 seeds per character in each of
+  three modes. Uniform random and reach policies are the 100/100 fault-free gates; a supplied mode
+  (max HP 400 and keys) reaches Acts 2–4. Deaths are policy outcomes.
+- The traversal found one shared bug, fixed globally as G14: a combat won during entry (Neow's
+  Lament with Mercury Hourglass) left the Run with no legal action.
+- The gate audit's coverage ledger maps every event branch to its tests, and the audit added
+  per-character tests for 23 character-data branches. The D2 record corrections, the reconciliation
+  and the deviation rows EVENT-001 to EVENT-004 complete the M28 documents. See the
+  [M28 candidate profile](milestones/m28-events-economy.md).
+
+## Snapshot — 2026-11-03, M28e merged; M28f1 candidate
 
 - M28e merged as PR #80 (`754c0739`), the M28f1 source base.
 - M28f1 (events batch 3) is a source candidate and not accepted. It lands the last nine event bodies:

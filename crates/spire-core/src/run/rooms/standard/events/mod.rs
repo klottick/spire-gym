@@ -9,6 +9,7 @@ mod act2;
 mod act3;
 mod shrines;
 mod one_time;
+#[cfg(test)]
 pub(in crate::run) use act3::MIND_BLOOM_BOSSES;
 
 /// The draw context of `construct` (`M28EventBody`, keyed by act, floor, node and event).

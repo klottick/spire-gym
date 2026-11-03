@@ -42,3 +42,12 @@ listed in the task context. These are reference-informed facts, not original
 runtime validation. No source census or original-game execution was performed.
 The existing `combat::CONTENT_ID`, string vocabulary, and combat behavior are
 unchanged.
+
+## M28 events and the standard Run
+
+Since M28 the catalog's event definitions (`Catalog::event`) cover all 52 `EventId`s, 51 events and
+shrines plus Neow, each with its acts and pool and `definition_only: false`. The rows stay static
+metadata; the behaviour lives in the Run: the standard A0 Run (`RoomScenario::StandardA0`, a public native constructor since M28f2)
+selects events through `rooms/standard/event_pool.rs` and executes their bodies through
+`rooms/standard/event_frame.rs` and `events/`. Its reference record is
+[data/events](../data/events/README.md). See the [M28 profile](milestones/m28-events-economy.md).

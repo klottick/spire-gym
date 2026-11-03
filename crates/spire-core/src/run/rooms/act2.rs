@@ -69,7 +69,10 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
         let entered=run.enter_owned(encounter,CombatOrigin::MapRoom{node:target,kind:captured.kind});
         // Entry's native owner records accepted transfers even when startup faults.
         // Consume the selected boss only then, never during detached preparation.
-        if captured.kind==MapNodeKind::Boss&&run.state.active_combat.as_ref().is_some_and(|active|active.encounter==encounter){
+        // G14: a boss decided during entry has already settled; its CombatEntered still consumes it.
+        let accepted=run.state.active_combat.as_ref().is_some_and(|active|active.encounter==encounter)
+            ||entered.as_ref().is_ok_and(|t|t.committed_events.iter().any(|e|matches!(e,CommittedEvent::CombatEntered{encounter:entered,..} if *entered==encounter)));
+        if captured.kind==MapNodeKind::Boss&&accepted{
             run.state.room_loop.as_mut().unwrap().act2_boss_order.as_mut().unwrap().remove(0);
         }
         let mut t=match entered{Ok(t)=>t,Err(RunError::Faulted(f))=>return Err(RunError::Faulted(f)),Err(_)=>return Err(run.retain_fault(RunFaultKind::Invariant("accepted M6 encounter entry failed"),"run.m6.encounter"))};

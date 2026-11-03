@@ -301,7 +301,7 @@ enumerated encounters and Run profiles.
 Known limits: `spire-core/fuzz-diagnostics` alone is inert; use `spire-fuzz/diagnostics`, which enables the required M20+ diagnostic features.
 Known limit: CompleteCombat and CompleteItemsRun classify non-`InvalidAction` errors from illegal probes as `probe_rejected`.
 Known limit: diagnostics replay prefixes depend on `max_steps`, so replay/determinism repros may use another prefix and those failure kinds do not shrink.
-Known limit: StandardA0 Neow-start full Run (`standard_run(character, full_neow, rng)`) is behind `m28-diagnostics`, diagnostics-only until M28f; it is a future driver and is not built.
+Known limit: the native fuzz harness has no StandardA0 driver. StandardA0 is a public native constructor (M28f2) without a spire-env session or encoder (PM ruling Q1, M34–M36); `cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics] -- --out DIR` drives it (seeded uniform, reach and supplied modes; see the [M28 profile](milestones/m28-events-economy.md)).
 The `native_fuzz run` CLI defaults to `--threads 2`.
 
 ```sh

@@ -417,7 +417,14 @@ impl Run {
         let reward=super::reward::commit(&mut self.state,std::slice::from_ref(&event))?;
         if let Some(fault)=fault { self.state.fault=Some(fault.clone()); return Err(RunError::Faulted(fault)); }
         if !gold_attached{return Err(self.retain_fault(RunFaultKind::Invariant("combat gold custody attachment failed"),"run.combat.gold"));}
-        Ok(RunTransition {reward,terminal:None,committed_events:vec![event]})
+        let mut transition=RunTransition {reward,terminal:None,committed_events:vec![event]};
+        // M28f2 G14: a combat already decided during entry (start-of-combat effects killed every
+        // enemy) settles now, as after any action; the source ends the battle once the monsters die.
+        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some() {
+            let settled=self.settle_combat()?;
+            transition.reward+=settled.reward;transition.terminal=settled.terminal;transition.committed_events.extend(settled.committed_events);
+        }
+        Ok(transition)
     }
 }
 

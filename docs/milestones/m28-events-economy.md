@@ -1,23 +1,28 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunks M28a–M28e merged, M28f1 in review; M28f2 closes); M28 is not accepted.** M28 is delivered in
-merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
-what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
-profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
-fingerprint.
+Status: **source-complete candidate: chunks M28a–M28f1 merged, the M28f2 close-out (traversal, gate
+audit, coverage ledger, reconciliation, final documents) under final review; M28 is not accepted
+until M28f2 merges.** M28 was delivered in merge chunks M28a–M28f, each with green suites, one
+independent review and a separate merge. This page states what M28 provides and its limits. It is
+a candidate profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor
+or fingerprint (PM ruling Q1; native exposure is M34–M36).
 
 ## What M28 is
 
 M28 adds the standard A0 Run, `RoomScenario::StandardA0`: any of the four characters at A0, with
 full or short Neow, complete card and item admission, the generated act maps and bosses, and the
-standard economy rooms and events. It reuses the shared Run, room, card (M26) and item (M27)
+standard economy rooms and all 52 events. It reuses the shared Run, room, card (M26) and item (M27)
 owners. Until the roadmap completes there is no backward-compatibility promise for earlier
-profiles; each chunk still runs the frozen-replay harness and records any difference for
+profiles; each chunk still ran the frozen-replay harness and recorded any difference for
 information.
 
-`StandardA0` is reachable only from core crate tests and the default-off `m28-diagnostics`
-feature until M28f completes every room. A build without the feature returns
-`RunError::Unsupported("StandardA0 is diagnostics-only until M28f")`.
+Since M28f2, `Run::new_room_scenario(config, profile, rng, RoomScenario::StandardA0)` is a public
+native constructor in a default build (A0 only; `Unsupported("StandardA0 is A0 only")` above A0).
+The default-off `m28-diagnostics` feature keeps only the constructed-state and supplied builders
+used by tests and the supplied traversal. The [coverage ledger](m28-events-economy-coverage-ledger.md)
+maps every event branch, eligibility row, economy rule, enemy move and decision to its test; the
+[reconciliation](m28-events-economy-reconciliation.md) lists every disclosed decision and global
+fix across the chunks.
 
 ## M28a: seams, Neow and the standard shop
 
@@ -281,15 +286,62 @@ feature until M28f completes every room. A build without the feature returns
 - **Ascension 15 and above.** The Moai Head round(.18M); Winding Halls round(.18M) damage and
   round(.20M) heal; The Designer's costs as above.
 
-## Interim limits (shrink with each chunk)
+## M28f2: traversal and close
 
-- No event body interim remains. Encounters without enemy facts at the Run's ascension (the M28e
-  and M28f event fights and Secret Portal's boss entry above A0) stay the typed `Unsupported`,
-  rejected before the choice.
-- M28f2 closes M28: the traversal, the gate audit and coverage ledger, and the final documentation.
-  `StandardA0` stays diagnostics-only until then.
-- The native fuzz harness drives only the finite profiles; each chunk compares its 120 s campaign
-  with its base.
+- **The last interim.** `StandardA0` is no longer diagnostics-only (above). No `Unsupported` is
+  advertised as a legal action in a `StandardA0` Run: the remaining typed `Unsupported` rows (event
+  fights and Secret Portal's boss entry without enemy facts at the Run's ascension) exist only above
+  A0. They are disabled choices there, and `StandardA0` is A0 only. The public constructor also
+  rejects a `CreationProfile.stored_note` that Note For Yourself could not obtain (a card outside
+  the note-storable pool, or more upgrades than the card allows) with the typed
+  `Unsupported("StandardA0 stored note must be a storable card with legal upgrades")`.
+- **Traversal** (`crates/spire-core/examples/m28_traversal.rs`, design §14, PM ruling Q3). For each
+  character, 25 seeds per mode, with full Neow on odd seeds and short Neow on even seeds, and a
+  20,000-action cap. A fault is any of these:
+  - reaching the cap;
+  - any rejection of an advertised action, `Unsupported` included, whether on the Run or on a clone
+    (every candidate is tried on a clone at every decision);
+  - a non-terminal decision with no candidates;
+  - a decision outside `StandardA0`;
+  - a panic;
+  - a replay mismatch (the recorded actions replayed on a fresh Run must give the same final
+    decision).
+
+  The three modes are:
+  - `uniform`, the seeded random legal policy;
+  - `reach`, which values combat candidates by a greedy play-out of the turn;
+  - `supplied`, under `m28-diagnostics`: max HP 400 and, on even seeds, all three keys, so Runs reach
+    Acts 2–4. This is grade Supplied, not traversal.
+
+  Deaths are policy outcomes and never gate. The census of rooms, events, encounters, relics,
+  potions, cards and choices is informational; the constructed tests carry "no route omitted".
+
+  On the M28f2 tree, all 300 Runs (25 seeds × 4 characters × 3 modes) were fault-free, as were 100
+  uniform Runs from a default build without `m28-diagnostics`. Every Run ended in a death, a policy
+  outcome. Uniform Runs stayed in Act 1. One reach Run entered Act 2. Supplied Runs reached Act 2
+  (64), Act 3 (5) and Act 4 (1). The supplied census reached 48 of the 52 events, 59 encounters,
+  106 relics, 41 potions and 261 cards. It never reached Fountain of Cleansing, Mind Bloom, The
+  Moai Head or Sensory Stone; those are coverage gaps covered by constructed tests, not failures.
+  The frozen-replay comparison (323 inputs) and the native fuzz campaign (candidate against base)
+  showed no difference.
+- **Global fix G14.** A combat decided during entry, where start-of-combat effects such as Neow's
+  Lament with Mercury Hourglass kill every enemy, now settles at once with its normal rewards, as
+  the source's `AbstractRoom.update` ends the battle. Before, the Run kept a won combat with no
+  legal action (a softlock). The fix is in the shared entry owner, so it holds for every character
+  and profile. The frozen M6 Act 2 boss order also counts a boss settled at entry as fought.
+  Regression tests cover a monster room, an elite, the Act 1 boss and both Colosseum fights (the
+  first, rewards disabled, settles through the event's return and reopens the event). No admitted
+  relic in the frozen profiles can decide a combat at entry, so the fix is dormant there.
+
+## Limits
+
+- No spire-env, Gym or Python surface (PM ruling Q1); the native fuzz harness drives only the
+  finite profiles, and the traversal example is the `StandardA0` driver.
+- A0 only. Encounters without enemy facts at the Run's ascension stay the typed `Unsupported`,
+  rejected before the choice (A1–A20 are M29–M33).
+- No original-runtime or Java RNG parity (RNG-001); no score screen (M34); no strategy or win claim.
+  Values graded W rest on captured community pages. The disclosed project decisions are listed in
+  the reconciliation and in [intentional deviations](../intentional-deviations.md).
 
 ## Evidence and checks
 

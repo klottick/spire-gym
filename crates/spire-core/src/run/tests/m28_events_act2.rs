@@ -881,7 +881,7 @@ fn m28_drug_dealer_transforms_a_bottled_card() {
     assert!(fight.state.fault.is_none() && fight.state.combat.is_some(), "the next combat starts without a fault");
 }
 
-fn option_row(run: &mut Run, stage: u8, option: u8) {
+pub(super) fn option_row(run: &mut Run, stage: u8, option: u8) {
     let id = row(run, &RoomChoiceKind::EventOption { stage, option }).id;
     run.step(&GameAction::Choose(id)).unwrap();
 }
@@ -890,7 +890,7 @@ fn relic_tiers(run: &Run) -> Vec<Option<crate::content::RelicTier>> {
 }
 
 /// The diagnostic Run placed on a row-7 node whose row-8 child is the event room: the first row the Colosseum gate (E10) admits.
-fn colosseum(character: Character, seed: u8) -> Run {
+pub(super) fn colosseum(character: Character, seed: u8) -> Run {
     let (mut run, node) = colosseum_before(character, seed);
     run.step(&GameAction::Move(node)).unwrap();
     assert_eq!(view(&run).kind, RoomViewKind::Event(EventId::Colosseum));

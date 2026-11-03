@@ -31,8 +31,8 @@ pub(super) mod selection;
 pub(in crate::run) mod standard;
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomScenario { M4Act1Prefix, M5Act1Captured, M6Act2Prefix, M7Act2Captured, M8Act3Prefix, M9IroncladAct3, M10IroncladHeart, M12SilentAct1, M13SilentAct2, M14SilentAct3, M15SilentHeart, M17DefectAct1, M18DefectAct2, M19DefectAct3, M20DefectHeart, M22WatcherAct1, M23WatcherAct2, M24WatcherAct3, M25WatcherHeart,
-    /// M28 standard A0 Run (design §7). Constructible only with `m28-diagnostics` (or in crate
-    /// tests) until M28f completes every room (PM ruling 2026-11-02).
+    /// M28 standard A0 Run (design §7). Public in the core crate (design §13); M28 adds no
+    /// spire-env or Python profile (PM ruling Q1).
     StandardA0 }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomViewKind { Neow,Map,Combat,Rewards,CardReward,Shop,Campfire,Event(EventId),Treasure,CheckpointComplete,BossTreasure,BossRelicChoice,BossRelicChild,ProceedWithoutRelic,Act2Ready,Act2PrefixComplete,Act3Ready,Act3PrefixComplete,Act3BossComplete,Act3Ending,Act4Ready,HeartVictory,TrueVictory }

@@ -38,7 +38,7 @@ pub use m27::{complete_act4_run,m27_capture_run,m27_pair_combat,m27_m14_supplied
 #[cfg(feature="m28-diagnostics")]
 mod m28;
 #[cfg(feature="m28-diagnostics")]
-pub use m28::{standard_run, standard_shop_run, standard_event_run, ShopSupply};
+pub use m28::{standard_run, standard_shop_run, standard_event_run, standard_supplied_run, ShopSupply};
 
 #[cfg(feature="fuzz-diagnostics")]
 mod fuzz;
