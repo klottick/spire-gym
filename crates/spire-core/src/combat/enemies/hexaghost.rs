@@ -13,21 +13,21 @@ pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&St
     Ok(MoveSelection{intent:FullIntentId::from_name(name),stream:stream.clone(),memory:memory.clone()})
 }
 
-pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let intent=match enemy.intent_id{ActorIntentId::Full(i)=>i,_=>return Err(InputError::Invariant("Hexaghost intent missing".into()))};
     let upgraded=matches!(enemy.full_memory,Some(EnemyMemory::Hexaghost{sear_upgraded:true,..}));
     let work=match intent.as_str(){
         "activate"=>vec![],"divider"=>(0..6).map(|_|damage(actor.clone(),intent)).collect(),
-        "sear"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::CreateCard{id:CardId::Burn,destination:CardDestination::Discard,upgrades:u32::from(upgraded)})],
+        "sear"=>{let mut work=vec![damage(actor.clone(),intent)];work.extend((0..if ascension>=19{2}else{1}).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:CardId::Burn,destination:CardDestination::Discard,upgrades:u32::from(upgraded)})));work},
         "tackle"=>(0..2).map(|_|damage(actor.clone(),intent)).collect(),
-        "inflame"=>vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(12)),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2})],
+        "inflame"=>vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(12)),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if ascension>=19{3}else{2}})],
         "inferno"=>{let mut work=(0..6).map(|_|damage(actor.clone(),intent)).collect::<Vec<_>>();work.push(effect(actor.clone(),actor,EffectKind::HexaghostBurn(HexaghostEffect::UpgradeBurns)));work},
         _=>return Err(InputError::Invariant("invalid Hexaghost intent".into())),
     };Ok(work)
 }
 
-pub(super) fn take_turn(enemy:&mut EnemyState,player_hp:i32)->Result<Vec<Effect>,InputError>{
-    let work=move_work(enemy)?;
+pub(super) fn take_turn(enemy:&mut EnemyState,player_hp:i32,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let work=move_work(enemy,ascension)?;
     let Some(EnemyMemory::Hexaghost{divider_base,cycle,sear_upgraded})=enemy.full_memory.as_mut()else{return Err(InputError::Invariant("Hexaghost memory missing".into()))};
     match enemy.intent_id.as_str(){
         "activate"=>{if divider_base.is_some(){return Err(InputError::Invariant("Hexaghost cannot recapture Divider".into()))}let base=player_hp/12+1;*divider_base=Some(base);enemy.full_damage_entries.get_mut(&FullIntentId::from_name("divider")).ok_or_else(||InputError::Invariant("Divider damage missing".into()))?.base=base;},

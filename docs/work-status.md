@@ -1,6 +1,16 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M29a2 merged; M29b (Act 1 normals) candidate
+## Current snapshot — 2026-11-03, M29b merged; M29c (Act 1 elites and bosses, Slavers, Act 2 elites) candidate
+
+- M29b merged as PR #88 (`5a986e74`), the M29c source base.
+- M29c is a source candidate, not accepted: Lagavulin, Sentry, Hexaghost, Slime Boss, the Guardian,
+  Slaver Red, Book of Stabbing, Gremlin Leader and Taskmaster carry their full numeric ascension
+  ladder (A0–A20; table-level above each encounter's playable ceiling), and Gremlin Nob and Slaver
+  Blue are re-verified. Every Act 1 formation, the Act 2 Gremlin Leader, Slavers and Book of
+  Stabbing elites, and the Dead Adventurer, Colosseum and Mind Bloom fights leave the typed interim
+  list. See the [M29 candidate profile](milestones/m29-ascension1-5.md).
+
+## Snapshot — 2026-11-03, M29a2 merged; M29b (Act 1 normals) candidate
 
 - M29a2 merged as PR #86 (`d563b088`); fuzz chunk C2 (source monster-turn and end-of-round order)
   merged as PR #87 (`05b1975a`), the M29b source base.

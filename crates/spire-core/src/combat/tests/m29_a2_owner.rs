@@ -171,9 +171,11 @@ fn m29_spawn_closure_gates_encounter() {
 fn m29_playable_ceiling_rejects_above() {
     assert_eq!(setup(EncounterId::TwoLouse, 17, 1, 0).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
     assert!(ascension::ABOVE_CEILING.contains("M32"));
-    // M29b: Louse landed, so A16 is admitted; Slaver Red (M29c) is still interim at its ceiling.
+    // M29b: Louse landed, so A16 is admitted. M29c: Slaver Red landed too; the Mugger (M29d) is
+    // still interim.
     assert!(setup(EncounterId::TwoLouse, 16, 1, 0).is_ok());
-    assert_eq!(setup(EncounterId::RedSlaver, 16, 1, 0).err(), Some(RunError::Unsupported(ascension::INTERIM)));
+    assert!(setup(EncounterId::RedSlaver, 16, 1, 0).is_ok());
+    assert_eq!(setup(EncounterId::TwoThieves, 16, 1, 0).err(), Some(RunError::Unsupported(ascension::INTERIM)));
     assert_eq!(setup(EncounterId::Cultist, 21, 1, 0).err(), Some(RunError::Unsupported(ascension::OUT_OF_RANGE)));
     assert!(setup(EncounterId::Cultist, 20, 1, 0).is_ok());
     assert!(!enemies::setup_supports_ascension(EncounterId::TwoLouse, 17));
@@ -188,13 +190,17 @@ fn m29_playable_ceiling_rejects_above() {
     assert_eq!(Combat::enter(entry).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
     // Entry bounds a summoner or splitter by its spawn closure's ceiling (review v1 m1): a solo Slime
     // Boss (children 16) or Gremlin Leader (Wizard, Fat 16) is rejected up front at A17, although
-    // each species' own ceiling is 20.
+    // each species' own ceiling is 20. M29c: both landed, so A16 is admitted.
     for (encounter, owner) in [(EncounterId::SlimeBoss, EnemyId::SlimeBoss), (EncounterId::GremlinLeader, EnemyId::GremlinLeader)] {
         assert_eq!(ascension::playable_ceiling(owner), 20);
-        for (a, reason) in [(17, ascension::ABOVE_CEILING), (16, ascension::INTERIM)] {
+        for (a, reason) in [(17, Some(ascension::ABOVE_CEILING)), (16, None)] {
             let mut entry = setup(encounter, 0, 1, 0).unwrap();
             entry.setup.enemies.retain(|enemy| enemy.enemy_id == owner);
             for enemy in &mut entry.setup.enemies { enemy.ascension = a; }
+            let Some(reason) = reason else {
+                assert_eq!(ascension::species_admission(owner, a), Ok(()), "{owner:?} A{a}");
+                continue;
+            };
             assert_eq!(Combat::enter(entry).err(), Some(RunError::Unsupported(reason)), "{owner:?} A{a}");
             assert_eq!(ascension::species_admission(owner, a), Err(reason), "{owner:?} A{a}");
         }

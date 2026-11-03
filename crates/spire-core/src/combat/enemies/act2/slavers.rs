@@ -1,4 +1,4 @@
-//! A0 Slaver species; Entangle's consumed flag changes at takeTurn, not selection.
+//! Slaver species; Entangle's consumed flag changes at takeTurn, not selection.
 use super::*;
 
 pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
@@ -26,8 +26,9 @@ pub(super) fn take_turn(enemy:&mut EnemyState,ascension:u8)->Result<Vec<Effect>,
     let actor=Actor::Enemy(enemy.instance_id.clone());let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Slaver full intent absent".into()))};
     Ok(match intent.as_str(){
         "slaver_stab"=>vec![damage(actor,intent)],
-        "slaver_rake"|"slaver_scrape"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(if intent.as_str()=="slaver_rake"{"weak"}else{"vulnerable"}),amount:if intent.as_str()=="slaver_rake"&&ascension>=17{2}else{1}})],
-        "taskmaster_whip"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Wound,destination:super::super::super::CardDestination::Discard,upgrades:0})],
+        "slaver_rake"|"slaver_scrape"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(if intent.as_str()=="slaver_rake"{"weak"}else{"vulnerable"}),amount:if ascension>=17{2}else{1}})],
+        "taskmaster_whip"=>{let wounds=if ascension>=18{3}else if ascension>=3{2}else{1};let mut work=vec![damage(actor.clone(),intent)];
+            work.extend((0..wounds).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Wound,destination:super::super::super::CardDestination::Discard,upgrades:0})));work},
         "slaver_entangle"=>{
             let Some(EnemyMemory::SlaverRed{used_entangle})=enemy.full_memory.as_mut()else{return Err(InputError::Invariant("Red Slaver Entangle memory absent".into()))};*used_entangle=true;
             vec![effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("entangled"),amount:1})]

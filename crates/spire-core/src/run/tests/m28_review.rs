@@ -91,7 +91,8 @@ fn m28_review_eggs_apply_after_the_upgrade_roll() {
 /// present) whose selected event is rejected up front return the typed error and leave the whole
 /// Run unchanged, choice tokens and event pools included. M28f lands the last body, so the witness
 /// is the remaining typed rejection: the Colosseum above A0 (no enemy facts; review-v1 M2 of M28e),
-/// fixed by a one-event pool.
+/// fixed by a one-event pool. M29c lands the Colosseum's species, so the witness moves above its first
+/// fight's ceiling (A17; Slaver Red 16), rejected with the M32 reason (plan m4; name kept).
 #[test]
 fn m28_review_event_interim_leaves_the_whole_run() {
     // The diagnostic Run on a row-7 node whose row-8 child is the event room (E10: Colosseum needs y >= 8).
@@ -105,18 +106,18 @@ fn m28_review_event_interim_leaves_the_whole_run() {
         run.state.floor = from.floor;
         (run, node)
     }
-    const INTERIM: &str = "event combat enemy setup unavailable at this ascension";
+    const INTERIM: &str = crate::combat::enemies::ascension::ABOVE_CEILING;
     let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![crate::content::EventId::Colosseum], shrines: vec![], one_time: vec![], seen: vec![] });
     for character in CHARACTERS {
         let (mut run, target) = row8(character, 9);
         run.state.event_pools = pools();
-        run.state.ascension = 15;
+        run.state.ascension = 17;
         let before = run.clone();
         assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(INTERIM)));
         assert!(run == before, "{character:?}: whole Run unchanged");
         let (mut question, target) = row8(character, 10);
         question.state.event_pools = pools();
-        question.state.ascension = 15;
+        question.state.ascension = 17;
         question.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == target).unwrap().kind = MapNodeKind::Question;
         question.state.map.as_mut().unwrap().question_ramps = [0; 3];
         question.state.relics.push(RelicId::TinyChest); question.state.relic_counters.insert(RelicId::TinyChest, 1);
