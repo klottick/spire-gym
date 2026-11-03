@@ -30,6 +30,8 @@ const SLIME_BOSS: &[EnemyId] = &[EnemyId::SlimeBoss];
 const THREE_CULTISTS: &[EnemyId] = &[EnemyId::Cultist, EnemyId::Cultist, EnemyId::Cultist];
 const JAW_WORM_HORDE: &[EnemyId] = &[EnemyId::JawWorm, EnemyId::JawWorm, EnemyId::JawWorm];
 const ORB_WALKER:&[EnemyId]=&[EnemyId::OrbWalker];
+/// Mysterious Sphere's "2 Orb Walkers" (MonsterHelper: left x=-250, then right x=150).
+const TWO_ORB_WALKERS:&[EnemyId]=&[EnemyId::OrbWalker,EnemyId::OrbWalker];
 const DARKLINGS:&[EnemyId]=&[EnemyId::Darkling;3];
 const WRITHING:&[EnemyId]=&[EnemyId::WrithingMass];
 const GROWTH:&[EnemyId]=&[EnemyId::SpireGrowth];const TRANSIENT:&[EnemyId]=&[EnemyId::Transient];const MAW:&[EnemyId]=&[EnemyId::Maw];
@@ -123,6 +125,7 @@ pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
     EncounterDefinition{id:EncounterId::ColosseumSlavers,enemies:COLOSSEUM_SLAVERS,definition_only:false},
     EncounterDefinition{id:EncounterId::ColosseumNobs,enemies:COLOSSEUM_NOBS,definition_only:false},
     EncounterDefinition{id:EncounterId::MaskedBandits,enemies:MASKED_BANDITS,definition_only:false},
+    EncounterDefinition{id:EncounterId::TwoOrbWalkers,enemies:TWO_ORB_WALKERS,definition_only:false},
     // Randomized formations publish their complete species support set here;
     // the shared setup owner chooses ordered actors and multiplicities.
     EncounterDefinition{id:EncounterId::SmallSlimes,enemies:&[EnemyId::AcidSlimeS,EnemyId::AcidSlimeM,EnemyId::SpikeSlimeS,EnemyId::SpikeSlimeM],definition_only:false},

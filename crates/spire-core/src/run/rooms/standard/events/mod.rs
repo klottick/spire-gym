@@ -44,6 +44,8 @@ pub(in crate::run) enum Shows{
     Potion(Option<crate::content::PotionId>),
     /// The deck card instance the row gives up; `None` when no card was preselected.
     Card(Option<u64>),
+    /// The owned relic the row offers (N'loth).
+    Relic(Option<RelicId>),
 }
 
 /// The source's `AbstractDungeon.ascensionLevel >= 15` event band (PM source check
@@ -53,23 +55,17 @@ pub(in crate::run) fn a15(state:&RunState)->bool{state.ascension>=15}
 /// The defaults of the optional hooks, for `Body{.., ..PLAIN}`.
 pub(in crate::run) const PLAIN:Body=Body{construct:|_|Ok(EventCaptures::default()),rows:|_,_,_|vec![],choose:|_,_,_,_|Err(RunError::InvalidAction),selected:None,card:None,card_stage:None,shows:None};
 
-/// The landed body of `event`; `None` until its chunk lands (the six accepted events keep their
-/// own handlers and never reach here).
+/// The body of `event`; `None` only for the six accepted events, which keep their own handlers and
+/// never reach here.
 pub(in crate::run) fn body(event:EventId)->Option<&'static Body>{
     match event{
         EventId::BigFish=>Some(&act1::BIG_FISH),
         EventId::Addict=>Some(&act2::ADDICT),
         EventId::MindBloom=>Some(&act3::MIND_BLOOM),
         EventId::GoldenShrine=>Some(&shrines::GOLDEN_SHRINE),
-        _=>act1::body(event).or_else(||act2::body(event)).or_else(||shrines::body(event)).or_else(||one_time::body(event)),
+        _=>act1::body(event).or_else(||act2::body(event)).or_else(||act3::body(event)).or_else(||shrines::body(event)).or_else(||one_time::body(event)),
     }
 }
 
-/// The typed interim of an event whose body has not landed (chunk plan §3–§4).
-pub(in crate::run) fn interim(event:EventId)->&'static str{
-    use EventId::*;
-    match event{
-        MoaiHead|MysteriousSphere|SensoryStone|WindingHalls|SecretPortal|Designer|Duplicator|KnowingSkull|Nloth=>"M28 event body lands in M28f",
-        _=>"event handler unavailable",
-    }
-}
+/// The error of an event without a standard body (the accepted six use their own handlers).
+pub(in crate::run) const NO_HANDLER:&str="event handler unavailable";

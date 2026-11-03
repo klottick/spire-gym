@@ -9,7 +9,7 @@ use rooms::standard::event_frame;
 fn event_at_floor(character: Character, event: EventId, seed: u8, floor: u32) -> Run {
     let (mut run, node) = before_event(character, 1, event, seed);
     // Dead Adventurer and Mushrooms use the ordinary pool's floor > 6 gate.
-    run.state.floor = floor;
+    run.state.floor = floor - 1; // entry adds one (PM ruling m28f Q2)
     run.state.map.as_mut().unwrap().nodes.iter_mut().find(|map_node| map_node.id == node).unwrap().floor = floor;
     run.step(&GameAction::Move(node)).unwrap();
     assert_eq!(view(&run).kind, RoomViewKind::Event(event));
@@ -262,7 +262,7 @@ fn m28_golden_idol_leave() {
 #[test]
 fn m28_mushrooms_fight() {
     let (mut run, node) = before_event(Character::Silent, 1, EventId::Mushrooms, 18);
-    run.state.floor = 7;
+    run.state.floor = 6; // entry adds one: floor 7 (PM ruling m28f Q2)
     run.state.map.as_mut().unwrap().nodes.iter_mut().find(|map_node| map_node.id == node).unwrap().floor = 7;
     run.state.relics.push(RelicId::OddMushroom);
     run.step(&GameAction::Move(node)).unwrap();
@@ -281,7 +281,7 @@ fn m28_mushrooms_eat() {
     for (character, heal) in [(Character::Ironclad, 20), (Character::Silent, 17), (Character::Defect, 18), (Character::Watcher, 18)] {
         let m = base(character);
         let (mut run, node) = before_event(character, 1, EventId::Mushrooms, 19);
-        run.state.floor = 7;
+        run.state.floor = 6; // entry adds one: floor 7 (PM ruling m28f Q2)
         run.state.map.as_mut().unwrap().nodes.iter_mut().find(|map_node| map_node.id == node).unwrap().floor = 7;
         run.state.max_hp = m;
         run.state.hp = 1;
@@ -301,7 +301,7 @@ fn m28_mushrooms_eat() {
 #[test]
 fn m28_event_combat_mushrooms_returns() {
     let (mut run, node) = before_event(Character::Defect, 1, EventId::Mushrooms, 21);
-    run.state.floor = 7;
+    run.state.floor = 6; // entry adds one: floor 7 (PM ruling m28f Q2)
     run.state.map.as_mut().unwrap().nodes.iter_mut().find(|map_node| map_node.id == node).unwrap().floor = 7;
     run.state.relics.push(RelicId::OddMushroom);
     run.step(&GameAction::Move(node)).unwrap();
@@ -719,7 +719,7 @@ fn m28_event_combat_dead_adventurer_elite_relics() {
         assert!(found, "no fixed seed reached the {enemy:?} ambush");
     }
     let (mut run, node) = before_event(Character::Silent, 1, EventId::Mushrooms, 18);
-    run.state.floor = 7;
+    run.state.floor = 6; // entry adds one: floor 7 (PM ruling m28f Q2)
     run.state.map.as_mut().unwrap().nodes.iter_mut().find(|map_node| map_node.id == node).unwrap().floor = 7;
     run.state.relics.extend([RelicId::PreservedInsect, RelicId::SlingOfCourage]);
     run.step(&GameAction::Move(node)).unwrap();

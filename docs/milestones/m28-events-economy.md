@@ -1,6 +1,6 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunks M28a–M28d merged, M28e in review; six chunks); M28 is not accepted.** M28 is delivered in
+Status: **candidate in progress (chunks M28a–M28e merged, M28f1 in review; M28f2 closes); M28 is not accepted.** M28 is delivered in
 merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
 what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
 profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
@@ -235,13 +235,59 @@ feature until M28f completes every room. A build without the feature returns
   `aiRng.random(99)` is not modelled (their moves are fixed). Their intents are event intents outside
   the frozen policy vocabulary.
 
+## M28f1: events batch 3
+
+- **Bodies.** Four Act 3 ordinary events (The Moai Head, Mysterious Sphere, Sensory Stone, Winding
+  Halls) and five one-time events (Secret Portal, The Designer, Duplicator, Knowing Skull, N'loth).
+  Every standard event now has a body; values come from the M28f static source check.
+- **Event fight.** Mysterious Sphere fights `TwoOrbWalkers` (two Orb Walkers, left then right). Its
+  gold row (uniform 45–55) and a Rare relic row are fixed when the fight starts. The relic comes from
+  the screenless selector, which skips the bottles and Whetstone. After the fight come the EventRoom
+  potion roll and an ordinary card offer. Above A0 the fight is the typed `Unsupported`; Leave stays.
+- **Secret Portal.** Enter completes the event and enters the act's boss room through the shared
+  map-room producer, at the current floor plus one. The normal boss settlement and Act 3 ending
+  (the Heart door and keys) follow. Global fix: the accepted Act 3 ending and the Act 4 door no
+  longer require the Run to be on floor 50, only the boss victory at the map's boss node. Every map
+  path still beats that node at floor 50, so earlier profiles are unchanged. Above A0 Enter is the
+  typed `Unsupported`, rejected before the choice: no act boss has enemy facts there yet. Leave stays.
+- **Floors (PM ruling).** A standard room entry sets the floor to the Run's floor plus one, as the
+  source's `nextRoomTransition` does; a debug assertion checks it equals the node's floor except after
+  Secret Portal (the portal-free earlier profiles keep the equal node floor). After a portal at floor F
+  the boss is at F+1 and Act 4's rooms, the Heart and the victory room follow at F+2 to F+6. Event
+  gates, RNG keys and relic counters read the Run's floor; map paths are unchanged.
+- **Rewards.** Sensory Stone opens one, two or three colorless card offers through the shared
+  colorless helper, sized by the EventRoom card shape. Two and three offers cost 5 and 10 HP loss,
+  applied before the screen opens (no offer draw reads HP). N'loth's rows name the relic each
+  button offers (D2); trading gives up that relic for N'loth's Gift, or, if the Gift is already
+  owned, keeps it and gives Circlet. Global fix: every relic loss runs the source `onUnequip`.
+  Necronomicon takes the first Necronomicurse with it, with no removal hook, and a bottle's card is
+  unbottled. Energy and hand-size relics stop at the next combat, which derives both from owned relics.
+- **The Designer.** Two construction draws fix Adjustment (one chosen upgrade, or two random) and
+  Clean Up (remove one, or transform two). The option id names the drawn variant (D2): 0/1
+  Adjustment, 2/3 Clean Up, 4 Full Service, 5 Punch. Costs are 40/60/90 gold and 3 HP loss (A15:
+  50/75/110 and 5). Availability counts unbottled cards before the purgeable filter. Full Service
+  removes one card, then upgrades up to two (the source; the wiki says one). A grid short of cards
+  strands the source: SOFTLOCK-001 pays and completes without the removal, transform or upgrade.
+- **Knowing Skull.** Potion, Gold and Card each cost 6 HP loss plus one per earlier use of that
+  option, and Leave always costs 6. This corrects the 10% formula F8 assumed. The potion is a flat
+  character-pool draw; with Sozu nothing is drawn, and with full slots it is lost after payment.
+- **Duplicator.** Any deck card can be duplicated, bottled cards and curses included. The copy keeps
+  its upgrades, is not bottled, and takes the obtain hooks (Omamori, eggs).
+- **Screens and timing.** Every intro, Continue and goodbye page of these events is a pure page flip,
+  so all collapse under D1. Construction captures Moai Head's and Winding Halls' rounded amounts, The
+  Designer's variants and N'loth's offers. Sensory Stone's memory text draws nothing from the
+  simulator, and Mysterious Sphere's Orb Walkers draw their HP at combat entry, as keyed streams
+  make construction-time draws equivalent.
+- **Ascension 15 and above.** The Moai Head round(.18M); Winding Halls round(.18M) damage and
+  round(.20M) heal; The Designer's costs as above.
+
 ## Interim limits (shrink with each chunk)
 
-- The last nine event bodies (Moai Head, Mysterious Sphere, Sensory Stone, Winding Halls, Secret
-  Portal, The Designer, Duplicator, Knowing Skull and N'loth) land in M28f. When one is selected,
-  the move returns `RunError::Unsupported("M28 event body lands in M28f")` and leaves the Run
-  unchanged, event lists included. Secret Portal's boss entry is likewise typed as landing in M28f.
-
+- No event body interim remains. Encounters without enemy facts at the Run's ascension (the M28e
+  and M28f event fights and Secret Portal's boss entry above A0) stay the typed `Unsupported`,
+  rejected before the choice.
+- M28f2 closes M28: the traversal, the gate audit and coverage ledger, and the final documentation.
+  `StandardA0` stays diagnostics-only until then.
 - The native fuzz harness drives only the finite profiles; each chunk compares its 120 s campaign
   with its base.
 

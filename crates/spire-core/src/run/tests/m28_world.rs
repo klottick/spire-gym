@@ -62,8 +62,7 @@ fn advance_screen(run: &mut Run) {
         other => panic!("unexpected standard screen {other:?}"),
     }
 }
-/// Move to the first legal node whose room is not an Event (probed on a copy; an event whose body
-/// has not landed returns its typed interim and leaves the whole Run unchanged).
+/// Move to the first legal node whose room is not an Event (probed on a copy).
 fn move_avoiding_events(run: &mut Run) -> RunTransition {
     let moves = run.decision().unwrap().candidates.iter().filter_map(|c| match c.action { GameAction::Move(n) => Some(n), _ => None }).collect::<Vec<_>>();
     for target in moves {
@@ -71,9 +70,6 @@ fn move_avoiding_events(run: &mut Run) -> RunTransition {
         match probe.step(&GameAction::Move(target)) {
             Ok(_) if matches!(kind(&probe), RoomViewKind::Event(_)) => {}
             Ok(transition) => { *run = probe; return transition }
-            Err(RunError::Unsupported(message)) if message.starts_with("M28 event body lands") => {
-                assert!(probe == *run, "an interim event room leaves the whole Run unchanged");
-            }
             Err(error) => panic!("standard move failed: {error:?}"),
         }
     }
@@ -260,6 +256,39 @@ fn m28_sozu_shop_potion_rows_not_advertised() {
         // Every advertised shop choice is accepted.
         for candidate in advertised.iter().filter(|c| matches!(c.action, GameAction::Choose(_))) {
             assert!(run.clone().step(&candidate.action).is_ok(), "{character:?} advertised {:?} rejected", candidate.action);
+        }
+    }
+}
+
+/// M28f Secret Portal (`m28_secret_portal_boss`; PM check m28f/source-check-events-v1): Enter fights
+/// the Act 3 boss at floor + 1 from a map-room origin, then the normal Act 3 ending applies: without
+/// the three keys the Run ends at the accepted ending; with them Act 4 follows, its floors continuing
+/// from the portal's (PM ruling Q2).
+#[test]
+fn m28_secret_portal_boss_reaches_the_act3_ending() {
+    for keys in [false, true] {
+        let mut run = super::m28_event_core::at_event(Character::Watcher, 3, crate::content::EventId::SecretPortal, 0x46);
+        run.state.max_hp = 999; run.state.hp = 999;
+        run.state.keys = [keys; 3];
+        let floor = run.state.floor;
+        let id = rooms::public(&run).unwrap().choices.iter().find(|c| c.kind == RoomChoiceKind::EventOption { stage: 0, option: 0 }).unwrap().id;
+        run.step(&GameAction::Choose(id)).unwrap();
+        let boss = run.state.map.as_ref().unwrap().nodes.iter().find(|n| n.kind == MapNodeKind::Boss).unwrap().id;
+        assert_eq!(run.state.active_combat.as_ref().unwrap().origin, CombatOrigin::MapRoom { node: boss, kind: MapNodeKind::Boss });
+        assert_eq!(run.state.floor, floor + 1);
+        win(&mut run);
+        if keys {
+            drive(&mut run, |r| r.state.act == 4);
+            assert_eq!((run.state.act, kind(&run), run.state.floor), (4, RoomViewKind::Map, floor + 1), "Act 4 entered");
+            // PM ruling m28f Q2: floors continue from the portal (`floorNum++` per room): Act 4's rest,
+            // shop, elite and Heart at F+2..F+5 and the True Victory room at F+6, not 51–55.
+            let mut floors = vec![];
+            drive(&mut run, |r| { if floors.last() != Some(&r.state.floor) { floors.push(r.state.floor) } false });
+            assert_eq!(run.state.terminal, Some(RunTerminal::HeartVictory));
+            assert_eq!(run.state.history.rooms.iter().filter(|r| r.act == 4).map(|r| r.floor).collect::<Vec<_>>(), (floor + 2..=floor + 6).collect::<Vec<_>>());
+        } else {
+            drive(&mut run, |_| false);
+            assert_eq!(run.state.terminal, Some(RunTerminal::Act3NoKeys));
         }
     }
 }

@@ -1,6 +1,6 @@
 //! One-time event bodies (spec m28d/spec/batch1.md): run-wide, never replenished (design §5.2).
 use super::*;
-use super::super::event_exec::RelicChoice;
+use super::super::event_exec::{PotionChoice, RelicChoice};
 use super::super::event_frame::DONE;
 
 /// Accursed Blacksmith (event-neow research :284; W rev 68677). Forge upgrades one U1 card;
@@ -139,7 +139,7 @@ pub(in crate::run) const NOTE_FOR_YOURSELF:Body=Body{
     ..PLAIN
 };
 
-/// The bodies landed in this file by M28d (dispatch from `events::body`).
+/// The bodies landed in this file by M28d–M28f (dispatch from `events::body`).
 pub(super) fn body(event:EventId)->Option<&'static Body>{
     match event{
         EventId::AccursedBlacksmith=>Some(&ACCURSED_BLACKSMITH),
@@ -150,6 +150,11 @@ pub(super) fn body(event:EventId)->Option<&'static Body>{
         EventId::NoteForYourself=>Some(&NOTE_FOR_YOURSELF),
         EventId::WeMeetAgain=>Some(&WE_MEET_AGAIN),
         EventId::WomanInBlue=>Some(&WOMAN_IN_BLUE),
+        EventId::SecretPortal=>Some(&SECRET_PORTAL),
+        EventId::Designer=>Some(&DESIGNER),
+        EventId::Duplicator=>Some(&DUPLICATOR),
+        EventId::KnowingSkull=>Some(&KNOWING_SKULL),
+        EventId::Nloth=>Some(&NLOTH),
         _=>None,
     }
 }
@@ -205,6 +210,139 @@ pub(in crate::run) const WOMAN_IN_BLUE:Body=Body{
             }
             3 if a15(state)=>Ok(vec![Outcome::LoseHp(((state.max_hp as f32)*0.05_f32).ceil() as u32),Outcome::Leave]),
             3=>Ok(vec![Outcome::Leave]),
+            _=>Err(RunError::InvalidAction),
+        }
+    },
+    ..PLAIN
+};
+
+/// Secret Portal (PM check m28f/source-check-events-v1). Enter: the act's boss room at floor + 1, then
+/// the normal boss settlement and Act 3 ending; Leave. Both forced result pages collapse (D1).
+pub(in crate::run) const SECRET_PORTAL:Body=Body{
+    rows:|_,_,stage|if stage==0{vec![(0,None),(1,None)]}else{vec![]},
+    choose:|_,_,stage,option|match (stage,option){
+        (0,0)=>Ok(vec![Outcome::EnterBoss]),
+        (0,1)=>Ok(vec![Outcome::Leave]),
+        _=>Err(RunError::InvalidAction),
+    },
+    ..PLAIN
+};
+
+/// The Designer's master-deck cards outside Bottled Flame, Lightning and Tornado (its availability
+/// counts, taken before the purgeable filter).
+fn unbottled(state:&RunState)->usize{
+    let bottled=[RelicId::BottledFlame,RelicId::BottledLightning,RelicId::BottledTornado].map(|r|state.relic_cards.get(&r).copied());
+    state.deck.iter().filter(|c|!bottled.contains(&Some(c.instance))).count()
+}
+
+/// The Designer (PM check m28f/source-check-events-v1; Q1 ruling, plan-check §6). Construction draws
+/// two booleans: Adjustment upgrades one chosen card or two random ones, Clean Up removes one chosen
+/// card or transforms two. The option id names the drawn variant (D2): 0 Adjust chosen / 1 Adjust two
+/// random, 2 Clean Up remove / 3 Clean Up transform two, 4 Full Service, 5 Punch. Costs 40/60/90 gold
+/// and 3 HP_LOSS (A15 50/75/110, 5). Gold is paid before the grid; a grid short of cards (only the
+/// three unpurgeable curses) strands the source: SOFTLOCK-001 pays and completes with nothing more.
+pub(in crate::run) const DESIGNER:Body=Body{
+    construct:|cx|Ok(EventCaptures{values:vec![cx.draw(1,2)? as u32,cx.draw(2,2)? as u32],..Default::default()}),
+    rows:|state,c,stage|{
+        if stage!=0||c.values.len()<2{return vec![]}
+        let [adjust,clean,full]=if a15(state){[50,75,110]}else{[40,60,90]};
+        vec![(1-c.values[0] as u8,Some(adjust)),(3-c.values[1] as u8,Some(clean)),(4,Some(full)),(5,None)]
+    },
+    choose:|state,c,stage,option|{
+        use super::super::event_exec::select_candidates;
+        if stage!=0||c.values.len()<2{return Err(RunError::InvalidAction)}
+        let [adjust,clean,full]=if a15(state){[50,75,110]}else{[40,60,90]};
+        let removable=select_candidates(state,EventSelectOp::Remove).len();
+        let upgradable=!select_candidates(state,EventSelectOp::Upgrade).is_empty();
+        let mut list=match option{
+            0|1 if 1-c.values[0] as u8!=option||!upgradable=>return Err(RunError::InvalidAction),
+            0=>vec![Outcome::LoseGold(adjust),Outcome::Select{op:EventSelectOp::Upgrade,count:1,skippable:false}],
+            1=>vec![Outcome::LoseGold(adjust),Outcome::UpgradeRandom(2)],
+            2|3 if 3-c.values[1] as u8!=option=>return Err(RunError::InvalidAction),
+            2 if unbottled(state)<1=>return Err(RunError::InvalidAction),
+            2 if removable<1=>vec![Outcome::LoseGold(clean)],
+            2=>vec![Outcome::LoseGold(clean),Outcome::Select{op:EventSelectOp::Remove,count:1,skippable:false}],
+            3 if unbottled(state)<2=>return Err(RunError::InvalidAction),
+            3 if select_candidates(state,EventSelectOp::Transform).len()<2=>vec![Outcome::LoseGold(clean)],
+            3=>vec![Outcome::LoseGold(clean),Outcome::Select{op:EventSelectOp::Transform,count:2,skippable:false}],
+            4 if unbottled(state)<1=>return Err(RunError::InvalidAction),
+            4 if removable<1=>vec![Outcome::LoseGold(full)],
+            4=>vec![Outcome::LoseGold(full),Outcome::Select{op:EventSelectOp::Remove,count:1,skippable:false},Outcome::UpgradeRandom(2)],
+            5=>vec![Outcome::LoseHp(if a15(state){5}else{3})],
+            _=>return Err(RunError::InvalidAction),
+        };
+        list.push(Outcome::NextStage(DONE));
+        Ok(list)
+    },
+    ..PLAIN
+};
+
+/// Duplicator (PM check m28f/source-check-events-v1). Duplicate any master-deck card (bottled and
+/// curses included); the copy keeps upgrades, is not bottled, and goes through the obtain hooks
+/// (Omamori, eggs). Ignore leaves.
+pub(in crate::run) const DUPLICATOR:Body=Body{
+    rows:|_,_,stage|if stage==0{vec![(0,None),(1,None)]}else{vec![]},
+    choose:|_,_,stage,option|match (stage,option){
+        (0,0)=>Ok(vec![Outcome::Select{op:EventSelectOp::Duplicate,count:1,skippable:false},Outcome::NextStage(DONE)]),
+        (0,1)=>Ok(vec![Outcome::Leave]),
+        _=>Err(RunError::InvalidAction),
+    },
+    ..PLAIN
+};
+
+/// Knowing Skull (PM check m28f/source-check-events-v1). Potion, Gold and Card each cost 6 HP_LOSS plus
+/// one per earlier use of that option (values: uses); Leave always costs 6. Potion: a flat
+/// character-pool potion (none with Sozu; lost with full slots); Gold: 90 gold directly; Card: an
+/// Uncommon colorless card. The options repeat until Leave.
+pub(in crate::run) const KNOWING_SKULL:Body=Body{
+    construct:|_|Ok(EventCaptures{values:vec![0,0,0],..Default::default()}),
+    rows:|_,_,stage|if stage==0{vec![(0,None),(1,None),(2,None),(3,None)]}else{vec![]},
+    choose:|_,c,stage,option|{
+        if stage!=0{return Err(RunError::InvalidAction)}
+        if option==3{return Ok(vec![Outcome::LoseHp(6),Outcome::Leave])}
+        let uses=*c.values.get(usize::from(option)).ok_or(RunError::InvalidAction)?;
+        let mut list=vec![Outcome::LoseHp(6+uses),Outcome::SetValue{slot:option,value:uses+1}];
+        match option{
+            0=>list.push(Outcome::TryObtainPotion(PotionChoice::Flat)),
+            1=>list.push(Outcome::GainGold(90)),
+            _=>{
+                let cards=crate::content::pools::cards(crate::content::pools::CardPool::Colourless{rarity:Some(crate::content::CardRarity::Uncommon)})
+                    .map_err(|_|RunError::Unsupported("card pool is incomplete"))?;
+                if cards.is_empty(){list.push(Outcome::ObtainCard{id:CardId::SwiftStrike,upgrades:0})}
+                else{list.push(Outcome::Roll{bound:cards.len() as u32,arms:cards.iter().enumerate().map(|(i,id)|(i as u32+1,vec![Outcome::ObtainCard{id:*id,upgrades:0}])).collect()})}
+            }
+        }
+        Ok(list)
+    },
+    ..PLAIN
+};
+
+/// N'loth (PM check m28f/source-check-events-v1). Construction offers two distinct owned relics,
+/// uniformly (the source shuffles a copy and takes the first two). Trading reads N'loth's Gift at the
+/// choice: unowned, the relic is lost and the Gift obtained; owned, the relic stays and Circlet is
+/// obtained. Rows name the offered relic (D2). Leave.
+pub(in crate::run) const NLOTH:Body=Body{
+    construct:|cx|{
+        let mut owned=cx.state.relics.clone();
+        if owned.len()<2{return Err(RunError::InvalidAction)}
+        let first=owned.remove(cx.draw(1,owned.len())?);
+        let second=owned.remove(cx.draw(2,owned.len())?);
+        Ok(EventCaptures{relics:vec![first,second],..Default::default()})
+    },
+    rows:|_,_,stage|if stage==0{vec![(0,None),(1,None),(2,None)]}else{vec![]},
+    shows:Some(|_,c,stage,option|match (stage,option){
+        (0,0|1)=>super::Shows::Relic(c.relics.get(usize::from(option)).copied()),
+        _=>super::Shows::Nothing,
+    }),
+    choose:|state,c,stage,option|{
+        if stage!=0{return Err(RunError::InvalidAction)}
+        match option{
+            0|1 if state.relics.contains(&RelicId::NlothsGift)=>Ok(vec![Outcome::ObtainRelic(RelicChoice::Specific(RelicId::Circlet)),Outcome::NextStage(DONE)]),
+            0|1=>{
+                let offered=*c.relics.get(usize::from(option)).ok_or(RunError::InvalidAction)?;
+                Ok(vec![Outcome::LoseRelic(offered),Outcome::ObtainRelic(RelicChoice::Specific(RelicId::NlothsGift)),Outcome::NextStage(DONE)])
+            }
+            2=>Ok(vec![Outcome::Leave]),
             _=>Err(RunError::InvalidAction),
         }
     },

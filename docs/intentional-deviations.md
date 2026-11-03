@@ -106,8 +106,8 @@ choice. No product code or original-runtime-validation claim follows from record
 the decision.
 
 **M28 implementation (2026-11-02):** the standard Run's event eligibility treats the playtime gate
-as met. Secret Portal is eligible in Act 3 by the one-time rule (`event_pool::eligible`, M28c), and
-its body lands in M28f.
+as met. Secret Portal is eligible in Act 3 by the one-time rule (`event_pool::eligible`, M28c); its
+body landed in M28f.
 
 ## UNLOCK-001 — Note For Yourself treats the highest unlocked Ascension as 20
 
@@ -120,10 +120,10 @@ standard Run is A0 only until M29–M33. No other eligibility or history rule ch
 
 ## SOFTLOCK-001 — An unguarded empty event grid completes without a selection
 
-**Decision date:** 2026-11-02 (PM ruling, M28c review M4; extended in M28d, M28e). **Status:** disclosed
+**Decision date:** 2026-11-02 (PM ruling, M28c review M4; extended in M28d, M28e, M28f). **Status:** disclosed
 M28 deviation.
 
-In the original, four event options open a card grid with no check that it has a card. With no
+In the original, several event options open a card grid with no check that it has a card. With no
 purgeable card (every card is an unremovable curse or bottled), the grid is empty and strands the
 player. The simulator cannot model that soft-lock. In each case the option stays selectable, selects
 nothing and the event continues, as Ancient Writing's Elegance does with an empty group in the
@@ -135,6 +135,11 @@ original:
   shows the result. The source opens the removal grid after the damage with no local check.
 - **Beggar** (M28e; `Beggar`): Pay still takes the 75 gold, then removes nothing and the event
   completes. The source opens the removal grid after the payment with no local check.
+- **The Designer** (M28f; `Designer`, PM ruling 2026-11-03): Clean Up and Full Service count every
+  unbottled card, but their grids exclude Ascender's Bane, Curse of the Bell and Necronomicurse, so a
+  grid can open short of its one or two cards. A grid completes only at its full count and cannot
+  be cancelled, so the source strands. The gold is paid, nothing is removed or transformed, and the
+  event completes; Full Service's follow-up upgrade, which runs only after the grid, does not happen.
 
 Events that check for a card first are unaffected. The Upgrade Shrine, Living Wall's Grow and
 Accursed Blacksmith's Forge disable their upgrade option when no card can be upgraded. Living Wall,

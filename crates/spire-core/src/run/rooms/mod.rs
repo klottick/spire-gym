@@ -46,7 +46,9 @@ pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,
     /// identity once revealed.
     EventCard{stage:u8,option:u8,card:Option<CardId>},
     /// M28 standard event potion option (We Meet Again, D2): the held potion the row gives up.
-    EventPotion{stage:u8,option:u8,potion:Option<PotionId>} }
+    EventPotion{stage:u8,option:u8,potion:Option<PotionId>},
+    /// An event option row naming the owned relic it offers (D2, N'loth).
+    EventRelic{stage:u8,option:u8,relic:Option<RelicId>} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -87,7 +89,7 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         // M28 standard event options are offered only while their outcomes pass the executor's
         // preconditions (design §5.4).
-        if matches!(row.kind,RoomChoiceKind::EventOption{..}|RoomChoiceKind::EventCard{..}|RoomChoiceKind::EventPotion{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
+        if matches!(row.kind,RoomChoiceKind::EventOption{..}|RoomChoiceKind::EventCard{..}|RoomChoiceKind::EventPotion{..}|RoomChoiceKind::EventRelic{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Rest{..}){row.kind=RoomChoiceKind::Rest{heal:(run.state.max_hp as f32*0.3_f32) as u32};}
         if run.state.pending.is_some(){row.status=RoomChoiceStatus::Disabled;}

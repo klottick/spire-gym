@@ -79,6 +79,7 @@ mod m28_events_act1;
 mod m28_events_shared;
 mod m28_events_a15;
 mod m28_events_act2;
+mod m28_events_batch3;
 mod m28_event_enemies;
 mod m27_capability;
 mod m27_relic_selections;

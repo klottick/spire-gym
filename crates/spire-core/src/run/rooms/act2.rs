@@ -52,7 +52,8 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let event=CommittedEvent::FloorEntered{act:2,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     let map=run.state.map.as_mut().unwrap();map.current=Some(target);let n=map.nodes.iter_mut().find(|n|n.id==target).unwrap();n.visited=true;n.revealed=true;n.encounter=captured.encounter;if node.kind==MapNodeKind::Question{n.hidden_kind=Some(captured.kind)}
     if let Some(id)=captured.encounter{map.encounter_history.push(id);match captured.kind{MapNodeKind::Monster=>map.regular_encounter_history.push(id),MapNodeKind::Elite=>map.elite_encounter_history.push(id),_=>{}}}
-    run.state.floor=node.floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:2,floor:node.floor,label:captured.kind.label()});
+    let floor=crate::run::world::room_floor(&run.state,node.floor)?;
+    run.state.floor=floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:2,floor,label:captured.kind.label()});
     let room=run.state.room_loop.as_mut().unwrap();let p=room.act2.as_mut().unwrap();p.question_visits=questions;p.shop_visits=shops;room.joust=None;
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     if run.state.item_admission==ItemAdmission::Complete {

@@ -24,6 +24,7 @@ pub(super) fn enter_treasure(run:&mut Run)->Result<RunTransition,RunError>{
     let room=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?;
     if run.state.floor!=boss_floor||room.boss.is_some()||run.state.pending.is_some()||room.screen.kind!=RoomViewKind::Rewards||!room.active_rewards.as_ref().is_some_and(|r|r.return_to==rewards::RewardReturn::BossTreasure){return Err(RunError::InvalidAction)}
     if !run.state.map.as_ref().is_some_and(|map|map.act==run.state.act&&map.current.is_some_and(|id|map.nodes.iter().any(|n|n.id==id&&n.floor==boss_floor&&n.kind==MapNodeKind::Boss&&n.visited))){return Err(RunError::InvalidAction)}
+    let treasure_floor=crate::run::world::room_floor(&run.state,treasure_floor)?;
     let event=CommittedEvent::FloorEntered{act:run.state.act,floor:treasure_floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::BossTreasure,vec![(RoomChoiceKind::OpenChest,None),(RoomChoiceKind::Proceed,None)])?;
     run.state.floor=treasure_floor;run.state.room="BossTreasure";run.state.history.rooms.push(VisitedRoom{act:run.state.act,floor:treasure_floor,label:"BossTreasure"});

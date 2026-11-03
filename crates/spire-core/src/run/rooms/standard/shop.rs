@@ -16,8 +16,9 @@ pub(in crate::run) fn enter(run:&mut Run)->Result<RunTransition,RunError>{
     let map = staged.state.map.as_ref().ok_or(RunError::InvalidAction)?;
     let node_id = map.current.ok_or(RunError::InvalidAction)?;
     let node = map.nodes.iter().find(|node| node.id == node_id).ok_or(RunError::InvalidAction)?;
-    // A question room that resolved to a shop records the shop as its hidden kind (design §6.2).
-    if node.hidden_kind.unwrap_or(node.kind) != MapNodeKind::Shop || node.floor != staged.state.floor || map.act != staged.state.act {
+    // A question room that resolved to a shop records the shop as its hidden kind (design §6.2). The
+    // Run's floor is at most the node's: below it after Secret Portal (PM ruling m28f Q2).
+    if node.hidden_kind.unwrap_or(node.kind) != MapNodeKind::Shop || node.floor < staged.state.floor || map.act != staged.state.act {
         return Err(RunError::InvalidAction);
     }
     let destination = (staged.state.act, staged.state.floor, node_id);

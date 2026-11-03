@@ -4,7 +4,7 @@
 //! `RunState::ascension` on the diagnostic event Run before the event is built.
 use super::super::*;
 use super::m28_event_core::{before_event, count, leave, row, view};
-use crate::content::{CardId, CardRarity, Character, EventId, RelicId};
+use crate::content::{CardId, CardRarity, Character, EncounterId, EventId, RelicId};
 use crate::run::{GameAction, RoomChoiceKind, RoomChoiceStatus, RoomViewKind, Run, RunTransition};
 use rooms::standard::event_exec::Outcome;
 use rooms::standard::{event_pool, events};
@@ -16,6 +16,16 @@ fn frame(run: &Run) -> &rooms::standard::event_frame::StandardEventFrame {
 /// The event built at `ascension`; `setup` runs on the staged Run before the move.
 fn entered(event: EventId, act: u8, ascension: u8, seed: u8, setup: impl FnOnce(&mut Run, NodeId)) -> Run {
     let (mut run, node) = before_event(Character::Ironclad, act, event, seed);
+    run.state.ascension = ascension;
+    setup(&mut run, node);
+    run.step(&GameAction::Move(node)).unwrap();
+    assert_eq!(view(&run).kind, RoomViewKind::Event(event));
+    run
+}
+
+fn entered_character(character: Character, event: EventId, act: u8, ascension: u8, seed: u8,
+    setup: impl FnOnce(&mut Run, NodeId)) -> Run {
+    let (mut run, node) = before_event(character, act, event, seed);
     run.state.ascension = ascension;
     setup(&mut run, node);
     run.step(&GameAction::Move(node)).unwrap();
@@ -127,7 +137,7 @@ fn m28_a15_lab_potions() {
 fn m28_a15_dead_adventurer_thresholds() {
     // DeadAdventurer constructor/randomReward: fight thresholds 25/50/75, or 35/60/85 at A15.
     let floor7 = |run: &mut Run, node: NodeId| {
-        run.state.floor = 7;
+        run.state.floor = 6; // entry adds one: floor 7 (PM ruling m28f Q2)
         run.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == node).unwrap().floor = 7;
     };
     for (ascension, thresholds) in [(14_u8, [25_u32, 50, 75]), (15, [35, 60, 85])] {
@@ -382,5 +392,155 @@ fn m28_a15_and_act_gates_of_the_one_time_rows() {
                 assert_eq!(event_pool::eligible(&run.state, event, node), eligible, "{event:?} floor {floor} A{ascension}");
             }
         }
+    }
+}
+
+#[test]
+fn m28_a15_m28f_moai_head_jump() {
+    for (character, max_hp, amount) in [
+        (Character::Ironclad, 80, 14),
+        (Character::Silent, 70, 13),
+        (Character::Defect, 75, 14),
+        (Character::Watcher, 72, 13),
+    ] {
+        let mut run = entered_character(character, EventId::MoaiHead, 3, 15, 140, |run, _| {
+            run.state.max_hp = max_hp;
+            run.state.hp = max_hp / 2;
+        });
+        choose(&mut run, 0, 0);
+        assert_eq!((run.state.max_hp, run.state.hp), (max_hp - amount, max_hp - amount), "{character:?}");
+    }
+}
+
+#[test]
+fn m28_a15_m28f_winding_halls_madness() {
+    for (character, max_hp, amount) in [
+        (Character::Ironclad, 80, 14),
+        (Character::Silent, 70, 13),
+        (Character::Defect, 75, 14),
+        (Character::Watcher, 72, 13),
+    ] {
+        let mut run = entered_character(character, EventId::WindingHalls, 3, 15, 141, |run, _| {
+            run.state.max_hp = max_hp;
+            run.state.hp = max_hp;
+        });
+        let madness = count(&run, CardId::Madness);
+        choose(&mut run, 0, 0);
+        assert_eq!(run.state.hp, max_hp - amount, "{character:?}");
+        assert_eq!(count(&run, CardId::Madness), madness + 2, "{character:?}");
+    }
+}
+
+#[test]
+fn m28_a15_m28f_winding_halls_rest() {
+    for (character, max_hp, amount) in [
+        (Character::Ironclad, 80, 16),
+        (Character::Silent, 70, 14),
+        (Character::Defect, 75, 15),
+        (Character::Watcher, 72, 14),
+    ] {
+        let mut run = entered_character(character, EventId::WindingHalls, 3, 15, 142, |run, _| {
+            run.state.max_hp = max_hp;
+            run.state.hp = 1;
+        });
+        let writhe = count(&run, CardId::Writhe);
+        choose(&mut run, 0, 1);
+        assert_eq!(run.state.hp, 1 + amount, "{character:?}");
+        assert_eq!(count(&run, CardId::Writhe), writhe + 1, "{character:?}");
+    }
+}
+
+#[test]
+fn m28_a15_m28f_winding_halls_maze() {
+    for character in [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher] {
+        let mut run = entered_character(character, EventId::WindingHalls, 3, 15, 143, |run, _| {
+            let max_hp = match run.state.character {
+                Character::Ironclad => 80,
+                Character::Silent => 70,
+                Character::Defect => 75,
+                Character::Watcher => 72,
+            };
+            run.state.max_hp = max_hp;
+            run.state.hp = max_hp;
+        });
+        choose(&mut run, 0, 2);
+        assert_eq!(run.state.max_hp, run.state.hp);
+        assert_eq!(run.state.max_hp + 4, match character {
+            Character::Ironclad => 80,
+            Character::Silent => 70,
+            Character::Defect => 75,
+            Character::Watcher => 72,
+        });
+    }
+}
+
+#[test]
+fn m28_a15_m28f_designer_costs_and_rows() {
+    for (option, price) in [(0_u8, 50_u32), (1, 50), (2, 75), (3, 75), (4, 110), (5, 5)] {
+        let mut found = false;
+        for seed in 0..=u8::MAX {
+            let mut run = entered(EventId::Designer, 2, 15, seed, |run, _| {
+                run.state.gold = 500;
+                run.state.deck.iter_mut().for_each(|card| card.upgrades = 0);
+            });
+            run.state.gold = 49;
+            crate::run::rooms::standard::event_frame::publish(&mut run).unwrap();
+            if let Some(choice) = view(&run).choices.iter().find(|choice|
+                choice.kind == RoomChoiceKind::EventOption { stage: 0, option })
+            {
+                // A row price is a gold price (`public` gates it on gold); Punch's HP cost shows none.
+                assert_eq!(choice.price, (option != 5).then_some(price), "option {option}, A15 row price");
+                if option != 5 {
+                    assert_eq!(choice.status, RoomChoiceStatus::Disabled, "option {option} at 49 gold");
+                } else {
+                    assert_eq!(choice.status, RoomChoiceStatus::Offered, "Punch is not gold-gated");
+                }
+                found = true;
+                break;
+            }
+        }
+        assert!(found, "Designer constructor did not expose variant {option}");
+    }
+}
+
+#[test]
+fn m28_a15_m28f_mysterious_sphere_unsupported_and_leave() {
+    let mut run = entered(EventId::MysteriousSphere, 3, 1, 144, |_, _| {});
+    let fight = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
+    assert_eq!(fight.status, RoomChoiceStatus::Disabled, "typed setup gate above A0");
+    let before = run.clone();
+    assert_eq!(run.step(&GameAction::Choose(fight.id)), Err(crate::run::RunError::InvalidAction));
+    assert!(run == before, "disabled Fight is atomic");
+    let before = run.clone();
+    let unsupported = crate::run::rooms::standard::event_frame::choose_constructed(&mut run, vec![
+        Outcome::Combat {
+            encounter: EncounterId::TwoOrbWalkers,
+            rewards: None,
+            next_stage: 0,
+            elite: false,
+        },
+    ]);
+    assert!(matches!(unsupported, Err(crate::run::RunError::Unsupported(_))), "{unsupported:?}");
+    assert!(run == before, "typed Unsupported is atomic");
+    choose(&mut run, 0, 1);
+    assert_eq!(view(&run).kind, RoomViewKind::Map, "Leave remains available above A0");
+}
+
+#[test]
+fn m28_a15_m28f_secret_portal_enter_unsupported_and_leave() {
+    // Review-fixes M1: no Act 3 boss has enemy facts above A0, so Enter is the typed setup gate.
+    for ascension in [1_u8, 15] {
+        let mut run = entered(EventId::SecretPortal, 3, ascension, 22, |_, _| {});
+        let enter = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
+        assert_eq!(enter.status, RoomChoiceStatus::Disabled, "A{ascension}: typed setup gate");
+        let before = run.clone();
+        assert_eq!(run.step(&GameAction::Choose(enter.id)), Err(crate::run::RunError::InvalidAction));
+        assert!(run == before, "A{ascension}: disabled Enter is atomic");
+        let unsupported = crate::run::rooms::standard::event_frame::choose_constructed(&mut run, vec![Outcome::EnterBoss]);
+        assert!(matches!(unsupported, Err(crate::run::RunError::Unsupported(_))), "{unsupported:?}");
+        assert!(run == before, "A{ascension}: typed Unsupported is atomic");
+        assert!(run.state.fault.is_none());
+        choose(&mut run, 0, 1);
+        assert_eq!(view(&run).kind, RoomViewKind::Map, "A{ascension}: Leave remains available");
     }
 }

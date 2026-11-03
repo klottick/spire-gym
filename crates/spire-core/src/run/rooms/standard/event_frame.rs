@@ -46,9 +46,9 @@ pub(in crate::run) fn next_key(run:&mut Run)->Result<Vec<u64>,RunError>{
 }
 
 /// Construct `event` at `node` on the staged Run: capture its values and publish its first stage.
-/// An event whose body has not landed is the typed interim naming its chunk (chunk plan §3).
+/// Every standard event has a body since M28f; the accepted six keep their own handlers.
 pub(in crate::run) fn construct(run:&mut Run,event:EventId,node:NodeId)->Result<(),RunError>{
-    let body=events::body(event).ok_or(RunError::Unsupported(events::interim(event)))?;
+    let body=events::body(event).ok_or(RunError::Unsupported(events::NO_HANDLER))?;
     let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,catalog_index(event),0xC0];
     let mut rng=run.state.rng.clone();
     let captured=(body.construct)(&mut BodyContext{state:&run.state,rng:&mut rng,key})?;
@@ -78,12 +78,14 @@ pub(in crate::run) fn construct(run:&mut Run,event:EventId,node:NodeId)->Result<
 pub(in crate::run) fn publish(run:&mut Run)->Result<(),RunError>{
     let frame=frame(run)?.clone();
     let rows=if frame.stage==DONE{vec![(RoomChoiceKind::Leave,None)]}else{
-        let body=events::body(frame.event).ok_or(RunError::Unsupported(events::interim(frame.event)))?;
+        let body=events::body(frame.event).ok_or(RunError::Unsupported(events::NO_HANDLER))?;
         (body.rows)(&run.state,&frame.captured,frame.stage).into_iter().map(|(option,price)|(match (body.card_stage.is_some_and(|is_card_stage|is_card_stage(frame.stage)),body.card,body.shows.map(|shows|shows(&run.state,&frame.captured,frame.stage,option))){
             // A card-board stage shows the identity of a revealed position (D2, Match and Keep, Library).
             (true,Some(card),_)=>RoomChoiceKind::EventCard{stage:frame.stage,option,card:card(&frame.captured,frame.stage,option)},
             // An option row names the gift its button shows (D2, We Meet Again).
             (_,_,Some(events::Shows::Potion(potion)))=>RoomChoiceKind::EventPotion{stage:frame.stage,option,potion},
+            // N'loth's offered relic (D2).
+            (_,_,Some(events::Shows::Relic(relic)))=>RoomChoiceKind::EventRelic{stage:frame.stage,option,relic},
             (_,_,Some(events::Shows::Card(instance)))=>RoomChoiceKind::EventCard{stage:frame.stage,option,
                 card:instance.and_then(|instance|run.state.deck.iter().find(|c|c.instance==instance)).map(|c|c.id)},
             _=>RoomChoiceKind::EventOption{stage:frame.stage,option},
@@ -113,7 +115,7 @@ pub(in crate::run) fn row_object(run:&Run,kind:&RoomChoiceKind)->Option<PublicOb
 
 /// Whether an option row is offered now: its outcomes pass every executor precondition.
 pub(in crate::run) fn enabled(run:&Run,kind:&RoomChoiceKind)->bool{
-    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..})=*kind else {return true};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..}|RoomChoiceKind::EventRelic{stage,option,..})=*kind else {return true};
     frame(run).ok().and_then(|frame|outcomes(run,frame,stage,option).ok()).is_some_and(|list|event_exec::check(&run.state,&list).is_ok())
 }
 
@@ -127,7 +129,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
         if row.kind!=RoomChoiceKind::Leave{return Err(RunError::InvalidAction)}
         return leave(run)
     }
-    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..})=row.kind else {return Err(RunError::InvalidAction)};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..}|RoomChoiceKind::EventRelic{stage,option,..})=row.kind else {return Err(RunError::InvalidAction)};
     let list=outcomes(run,&frame,stage,option)?;
     accept(run,id,row.kind,list)
 }
@@ -148,7 +150,6 @@ fn accept(run:&mut Run,id:ChoiceId,kind:RoomChoiceKind,list:Vec<Outcome>)->Resul
     match event_exec::apply(&mut staged,list){
         Ok(transition)=>{*run=staged;Ok(transition)}
         Err(RunError::Faulted(fault))=>{*run=staged;Err(RunError::Faulted(fault))}
-        Err(RunError::Unsupported(message)) if message==event_exec::ENTER_BOSS_INTERIM=>Err(RunError::Unsupported(message)),
         Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted standard event outcome failed"),"run.event.standard")),
     }
 }
@@ -174,6 +175,21 @@ pub(in crate::run) fn open_rewards(run:&mut Run,rows:Vec<(RoomChoiceKind,Option<
     room.screen=screen;room.active_rewards=None;room.reward_parent=None;
     run.candidates.clear();
     Ok(empty_transition())
+}
+
+/// Publish Sensory Stone's colorless card offers on the shared reward screen; Proceed finishes the room.
+pub(in crate::run) fn open_colourless_rewards(run:&mut Run,count:u8,key:&[u64])->Result<RunTransition,RunError>{
+    frame_mut(run)?.complete=true;
+    crate::run::rooms::rewards::open_colourless(run,count,key)?;
+    Ok(empty_transition())
+}
+
+/// Secret Portal: the event room completes and the act's boss room is entered (PM check
+/// m28f/source-check-events-v1: `nextRoom` is a `MonsterRoomBoss` node, floor + 1).
+pub(in crate::run) fn enter_boss(run:&mut Run)->Result<RunTransition,RunError>{
+    // The event room closes as Leave does (the map view a move starts from), then the boss is entered.
+    leave(run)?;
+    super::map::enter_portal_boss(run)
 }
 
 /// Leave the event: the room closes through the shared standard `finish`.
@@ -233,7 +249,8 @@ pub(in crate::run) fn select(run:&mut Run,id:SelectionId)->Result<RunTransition,
                 let key=[u64::from(staged.state.act),u64::from(staged.state.floor),node.0,catalog_index(event),u64::from(stage),0x7F,slot as u64];
                 mutations::transform_card(&mut staged.state,card.instance,false,&key)?;
             }
-            EventSelectOp::Duplicate=>{mutations::duplicate_card(&mut staged.state,card.instance)?;}
+            // Duplicator's copy is a ShowCardAndObtainEffect: Omamori can negate a copied curse.
+            EventSelectOp::Duplicate=>{mutations::duplicate_card_or_negated(&mut staged.state,card.instance)?;}
             // The body decides what a chosen card does (X3: Bonfire Spirits, Note For Yourself).
             EventSelectOp::Choose=>{}
         }

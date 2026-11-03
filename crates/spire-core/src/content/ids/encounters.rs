@@ -57,7 +57,7 @@ pub enum EncounterId {
     // M28d event formations (design §5.8), appended.
     ThreeFungiBeasts, LagavulinEvent,
     // M28e Act 2 event formations (design §5.8), appended after M28d.
-    ColosseumSlavers, ColosseumNobs, MaskedBandits, Unknown(&'static str)
+    ColosseumSlavers, ColosseumNobs, MaskedBandits, TwoOrbWalkers, Unknown(&'static str)
 }
 impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::Cultist=>"cultist", Self::JawWorm=>"jaw_worm", Self::TwoLouse=>"two_louse", Self::SmallSlimes=>"small_slimes",
@@ -75,5 +75,5 @@ impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::GiantHead=>"giant_head", Self::Nemesis=>"nemesis", Self::Reptomancer=>"reptomancer", Self::AwakenedOne=>"awakened_one",
     Self::TimeEater=>"time_eater", Self::DonuAndDeca=>"donu_and_deca",Self::ShieldAndSpear=>"shield_and_spear",Self::CorruptHeart=>"corrupt_heart",
     Self::ThreeFungiBeasts=>"three_fungi_beasts", Self::LagavulinEvent=>"lagavulin_event",
-    Self::ColosseumSlavers=>"colosseum_slavers",Self::ColosseumNobs=>"colosseum_nobs",Self::MaskedBandits=>"masked_bandits",Self::Unknown(s)=>s,
+    Self::ColosseumSlavers=>"colosseum_slavers",Self::ColosseumNobs=>"colosseum_nobs",Self::MaskedBandits=>"masked_bandits",Self::TwoOrbWalkers=>"two_orb_walkers",Self::Unknown(s)=>s,
 } } }

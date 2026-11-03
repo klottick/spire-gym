@@ -238,10 +238,41 @@ pub(super) fn enter_standard(state: &mut RunState, target: NodeId) -> Result<(Ma
     commit_move(state, target, true)
 }
 
+/// Secret Portal (PM check m28f/source-check-events-v1): the event's `nextRoom` is a `MonsterRoomBoss`
+/// node outside the map's edges; `nextRoomTransition` advances the floor by one. Returns the act's boss
+/// node and the shared commit's results.
+/// The floor a room entry reaches (PM ruling m28f Q2, `AbstractDungeon.nextRoomTransition`: `floorNum++`
+/// on every room entry, never reset by an act): the Run's floor + 1. Every map path reaches the node's
+/// floor; only a standard Run after Secret Portal (Act 3 on) is below it. The captured profiles have no
+/// portal, so their node floor is the same value; they keep it (their fixtures place the Run directly).
+pub(in crate::run) fn room_floor(state: &RunState, node_floor: u32) -> Result<u32, RunError> {
+    if !super::rooms::is_standard(state) { return Ok(node_floor) }
+    let floor = state.floor.checked_add(1).ok_or(RunError::InvalidAction)?;
+    debug_assert!(floor == node_floor || state.act >= 3 && floor < node_floor,
+        "room floor {floor} differs from node floor {node_floor}");
+    Ok(floor)
+}
+
+pub(super) fn enter_portal_boss(state: &mut RunState) -> Result<(NodeId, MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
+    if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
+    if state.terminal.is_some() { return Err(RunError::Terminal); }
+    let map = state.map.as_ref().ok_or(RunError::InvalidAction)?;
+    if map.act != state.act { return Err(RunError::Registry("run/map act mismatch")); }
+    let boss = map.nodes.iter().find(|n| n.kind == MapNodeKind::Boss && !n.visited).cloned().ok_or(RunError::InvalidAction)?;
+    let (kind, encounter, event, credit) = commit_node(state, boss.clone(), true, true)?;
+    Ok((boss.id, kind, encounter, event, credit))
+}
+
 fn commit_move(state: &mut RunState, target: NodeId, standard: bool) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
     let target_node=preflight_move(state,target)?;
+    commit_node(state, target_node, standard, false)
+}
 
-    super::reward::preflight(state,&[CommittedEvent::FloorEntered{act:state.act,floor:target_node.floor}])?;
+/// The shared move commit; `portal` is Secret Portal's entry (no edge, no Winged Boots charge).
+fn commit_node(state: &mut RunState, target_node: super::MapNode, standard: bool, portal: bool) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
+    let target = target_node.id;
+    let entered_floor = room_floor(state, target_node.floor)?;
+    super::reward::preflight(state,&[CommittedEvent::FloorEntered{act:state.act,floor:entered_floor}])?;
     let mut kind = target_node.kind;
     let resolving_question = kind == MapNodeKind::Question;
     if resolving_question {
@@ -253,7 +284,7 @@ fn commit_move(state: &mut RunState, target: NodeId, standard: bool) -> Result<(
     } else { None };
 
     let map = state.map.as_mut().expect("map checked");
-    if map.current.is_some() && map.winged_moves > 0 {
+    if !portal && map.current.is_some() && map.winged_moves > 0 {
         let current = map.current.and_then(|id| map.nodes.iter().find(|n| n.id == id)).map(|n| n.y).unwrap_or(0);
         if target_node.y > current && !map.nodes.iter().find(|n| n.id == map.current.unwrap()).is_some_and(|n| n.edges.contains(&target)) {
             map.winged_moves -= 1;
@@ -270,7 +301,7 @@ fn commit_move(state: &mut RunState, target: NodeId, standard: bool) -> Result<(
         if kind == MapNodeKind::Monster { map.regular_encounter_history.push(encounter); }
         if kind == MapNodeKind::Elite { map.elite_encounter_history.push(encounter); }
     }
-    let floor=node.floor;
+    let floor=entered_floor;
     state.floor = floor;
     state.act = map.act;
     let map_act=map.act;

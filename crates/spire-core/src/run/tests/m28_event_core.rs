@@ -307,6 +307,7 @@ fn m28_mind_bloom_branches() {
     // Floor 40 (40 % 50 <= 40): I am Rich, 999 gold and two Normality.
     let (mut run, node) = before_event(Character::Silent, 3, EventId::MindBloom, 10);
     run.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == node).unwrap().floor = 40;
+    run.state.floor = 39; // entry adds one (PM ruling m28f Q2)
     run.step(&GameAction::Move(node)).unwrap();
     let gold = run.state.gold;
     option(&mut run, 2).unwrap();
@@ -315,6 +316,7 @@ fn m28_mind_bloom_branches() {
     for character in CHARACTERS {
         let (mut run, node) = before_event(character, 3, EventId::MindBloom, 11);
         run.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == node).unwrap().floor = 41;
+        run.state.floor = 40; // entry adds one (PM ruling m28f Q2)
         run.state.max_hp = base(character); run.state.hp = 1;
         run.step(&GameAction::Move(node)).unwrap();
         let gold = run.state.gold;
@@ -534,18 +536,20 @@ fn m28_event_room_monster_fallback() {
     assert!(view(&run).choices.iter().any(|c| matches!(c.kind, RoomChoiceKind::Gold(g) if (10..=20).contains(&g))), "ordinary monster rewards");
 }
 
-/// Item 15: an event whose body lands later rejects the move with its chunk's interim, unchanged.
+/// Item 15, closed by M28f: every standard event has a body (Neow and the accepted six keep their
+/// own handlers), so no move returns a body interim; the last two (The Designer, N'loth) now construct.
 #[test]
 fn m28_unlanded_event_body_interim() {
-    // M28e lands every M28e body; the M28f bodies remain interim.
-    assert_eq!(rooms::standard::events::interim(EventId::Colosseum), "event handler unavailable");
-    assert!(rooms::standard::events::body(EventId::Colosseum).is_some());
-    for (event, act, interim) in [(EventId::Designer, 2, "M28 event body lands in M28f"), (EventId::Nloth, 2, "M28 event body lands in M28f")] {
+    let accepted = [EventId::Neow, EventId::UpgradeShrine, EventId::Purifier, EventId::AncientWriting, EventId::Joust, EventId::Falling, EventId::TombOfLordRedMask];
+    for row in crate::content::Catalog::standard().events() {
+        if accepted.contains(&row.id) { continue }
+        assert!(rooms::standard::events::body(row.id).is_some(), "{:?} has a body", row.id);
+    }
+    for (event, act) in [(EventId::Designer, 2), (EventId::Nloth, 2)] {
         let (mut run, node) = before_event(Character::Ironclad, act, event, 31);
         run.state.gold = 100; run.state.relics.push(RelicId::Anchor);
-        let before = run.clone();
-        assert_eq!(run.step(&GameAction::Move(node)), Err(RunError::Unsupported(interim)), "{event:?}");
-        assert!(run == before);
+        assert_eq!(run.step(&GameAction::Move(node)).map(|_| ()), Ok(()), "{event:?}");
+        assert!(matches!(view(&run).kind, RoomViewKind::Event(e) if e == event), "{event:?}");
     }
 }
 
@@ -626,6 +630,20 @@ fn m28_frozen_profiles_never_reach_standard_owners_c() {
     assert_eq!(view(&captured).kind, RoomViewKind::Event(EventId::UpgradeShrine));
     assert!(captured.state.event_pools.is_none() && captured.state.room_loop.as_ref().unwrap().standard_event.is_none());
     assert!(!format!("{:?}", captured.state.rng).contains("M28Event"), "no M28 event scope drawn");
+}
+
+/// M28f owners: Secret Portal's boss entry (`EnterBoss`) is standard-only; every frozen scenario's
+/// Run rejects it unchanged, its map and floor included.
+#[test]
+fn m28_frozen_profiles_never_reach_standard_owners_f() {
+    use RoomScenario::*;
+    let profile = CreationProfile { neow_eligible: false, ..CreationProfile::experienced() };
+    for (scenario, character) in [(M9IroncladAct3, Character::Ironclad), (M14SilentAct3, Character::Silent), (M19DefectAct3, Character::Defect), (M24WatcherAct3, Character::Watcher)] {
+        let mut run = Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile.clone(), rng(3), scenario).unwrap();
+        let before = run.clone();
+        assert_eq!(rooms::standard::map::enter_portal_boss(&mut run).err(), Some(RunError::InvalidAction), "{scenario:?}");
+        assert!(run == before, "{scenario:?}");
+    }
 }
 
 /// Design §5.1 and §9: the reference record `data/events/events.json` names the same 52 events,
@@ -1046,6 +1064,9 @@ fn m28_event_body_shapes_check_exactly() {
         for character in [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher] {
             let (mut run, node) = before_event(character, act, event, 90);
             run.state.floor = run.state.floor.max(7); run.state.gold = 300;
+            // Entry adds one (PM ruling m28f Q2): the node sits one floor above the Run.
+            let entered = run.state.floor + 1;
+            run.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == node).unwrap().floor = entered;
             let mut curse = run.state.deck[0].clone(); curse.id = CardId::Regret; curse.instance = 9_500; run.state.deck.push(curse);
             if run.step(&GameAction::Move(node)).is_err() { continue }
             let captured = run.state.room_loop.as_ref().unwrap().standard_event.as_ref().map(|f| f.captured.clone()).unwrap_or_default();

@@ -46,7 +46,8 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if node.kind==MapNodeKind::Question{n.hidden_kind=Some(captured.kind)}
     if let Some(e)=captured.encounter{map.encounter_history.push(e);match captured.kind{MapNodeKind::Monster=>map.regular_encounter_history.push(e),MapNodeKind::Elite=>map.elite_encounter_history.push(e),_=>{}}}
     if node.kind==MapNodeKind::Question{run.state.room_loop.as_mut().unwrap().act1.as_mut().unwrap().question_visits+=1;}
-    run.state.floor=node.floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:run.state.act,floor:node.floor,label:captured.kind.label()});
+    let floor=crate::run::world::room_floor(&run.state,node.floor)?;
+    run.state.floor=floor;run.state.room=captured.kind.label();run.state.history.rooms.push(VisitedRoom{act:run.state.act,floor,label:captured.kind.label()});
     let credit=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     if run.state.item_admission==ItemAdmission::Complete {
         // Maw Bank's onEnterRoom is a floor entry for every room (Appendix A MawBank).
