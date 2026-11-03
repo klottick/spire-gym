@@ -20,8 +20,10 @@ engine owns the registry; encoders only derive from it.
 - `public_vocab` tests walk the full registry through every encoder (M9, M10,
   policy Run-v3, combat policy view-v1/v2, M12–M25 Run, M16 Defect combat and M21
   Watcher combat). `native_fault_regressions.rs` replays the retained M10 Flex
-  (`lose_strength`) and M22 burning-elite Gremlin Nob (`regeneration`) prefixes
-  at the session level.
+  (`lose_strength`) and M22 burning-elite Gremlin Nob (`regenerate`) prefixes
+  at the session level. Since spire-oto.27 the burning-elite buff publishes
+  `regenerate` (RegenerateMonsterPower, shared with the Awakened One); `regeneration`
+  is only the player's RegenPower.
 
 Limit (review F3): completeness is enforced dynamically. The debug view guard
 fires only on paths a test, fuzz or debug run actually reaches; there is no

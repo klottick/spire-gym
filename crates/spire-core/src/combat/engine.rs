@@ -1285,8 +1285,7 @@ impl Combat {
         if matches!(selection.parent,SelectionParent::Potion{id:crate::content::PotionId::GamblersBrew,..}
             |SelectionParent::Relic(crate::content::RelicId::GamblingChip))
             &&!selection.selected.is_empty(){
-            let at=self.state.pending.iter().position(|effect|effect.kind==EffectKind::Decision).unwrap_or(self.state.pending.len());
-            self.state.pending.insert(at,Effect{source:parent_source.clone(),target:Some(Actor::Player),
+            super::enemies::act2::bottom(&mut self.state,Effect{source:parent_source.clone(),target:Some(Actor::Player),
                 kind:EffectKind::Draw(selection.selected.len() as i32)});
         }
         }

@@ -155,7 +155,7 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
             let buff=match rng.bounded_scoped(RunRngScope::BurningEliteBuff,&[state.act as u64,node.id.0,state.combat_progress.entered],4) {
                 0=>BurningBuff::Strength,1=>BurningBuff::MaxHp,2=>BurningBuff::Metallicize,_=>BurningBuff::Regeneration,
             };
-            enemies::apply_burning_buff(&mut entry,buff)?;
+            enemies::apply_burning_buff(&mut entry,state.act,buff)?;
             battle.burning=Some(buff);
         }
     }

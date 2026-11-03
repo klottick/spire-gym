@@ -86,7 +86,7 @@ fn m5_marked_elite_rolls_one_formation_buff_before_lament_and_never_rerolls_faul
         let combat=r.state.combat.as_ref().unwrap();
         if !fault {for enemy in combat.public_full().unwrap().enemies {
             assert_eq!(enemy.hp,1);
-            for (index,id,want) in [(0,"strength",2),(2,"metallicize",4),(3,"regeneration",3)] {assert_eq!(enemy.powers.iter().find(|p|p.id.0==id).map_or(0,|p|p.amount),if buff==Some(index){want}else{0});}
+            for (index,id,want) in [(0,"strength",2),(2,"metallicize",4),(3,"regenerate",3)] {assert_eq!(enemy.powers.iter().find(|p|p.id.0==id).map_or(0,|p|p.amount),if buff==Some(index){want}else{0});}
         }}
         if fault {let before=r.clone();assert_eq!(r.choose_combat(CombatAction::EndTurn),result);assert!(r==before);}
     }

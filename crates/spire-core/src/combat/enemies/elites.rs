@@ -45,8 +45,9 @@ pub(super) fn on_hit(state:&mut State,target:&EnemyHandle,hp_damage:i32){
         if !*awake {
             *awake=true;let intent=super::super::ActorIntentId::Full(FullIntentId::from_name("stunned"));
             enemy.intent_id=intent.clone();enemy.selected_move=intent.clone();enemy.move_history.push(intent);enemy.intent_damage=None;
-            let checkpoint=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap_or(state.pending.len());
-            state.pending.insert(checkpoint,opening(target));
+            // Lagavulin.damage queues ChangeState OPEN at the bottom; in the monster turn (Poison)
+            // it resolves before the next takeTurn, not after the end-turn pass.
+            super::act2::bottom(state,opening(target));
         }
     }
 }

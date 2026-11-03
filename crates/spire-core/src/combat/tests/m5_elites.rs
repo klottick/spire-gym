@@ -67,7 +67,7 @@ fn burning_strength_and_rounded_hp_apply_to_every_member_before_lament() {
     for buff in [B::Strength,B::MaxHp] {
         let mut e=entry(EncounterId::ThreeSentries);
         for (actor,hp) in e.setup.enemies.iter_mut().zip([38,39,42]) {actor.hp=hp;actor.max_hp=hp;}
-        apply_burning_buff(&mut e,buff).unwrap();
+        apply_burning_buff(&mut e,1,buff).unwrap();
         let mut items=Some(CombatItemContext::new(vec![RelicId::NeowsLament],vec![]));
         let c=Combat::enter_with_item_context(e,&mut items).unwrap();
         for (i,max_hp) in [48,49,53].into_iter().enumerate(){assert_eq!(c.state.enemies[i].hp,1);assert_eq!(amount(&c,i,"strength"),if buff==B::Strength{2}else{0});assert_eq!(c.state.enemies[i].max_hp,if buff==B::MaxHp{max_hp}else{[38,39,42][i]});}
@@ -77,7 +77,7 @@ fn burning_strength_and_rounded_hp_apply_to_every_member_before_lament() {
 
 #[test]
 fn burning_metallicize_stacks_with_lagavulin_and_opening_removes_only_eight() {
-    let mut e=entry(EncounterId::Lagavulin);enemies::apply_burning_buff(&mut e,enemies::BurningBuff::Metallicize).unwrap();
+    let mut e=entry(EncounterId::Lagavulin);enemies::apply_burning_buff(&mut e,1,enemies::BurningBuff::Metallicize).unwrap();
     let mut c=Combat::enter(e).unwrap();assert_eq!(amount(&c,0,"metallicize"),12);
     hit(&mut c,0,9);assert_eq!(amount(&c,0,"metallicize"),4);assert_eq!(intent(&c,0),"stunned");
     c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.enemies[0].block,4);assert_eq!(amount(&c,0,"metallicize"),4);
@@ -85,19 +85,19 @@ fn burning_metallicize_stacks_with_lagavulin_and_opening_removes_only_eight() {
 
 #[test]
 fn burning_monster_regeneration_heals_caps_keeps_its_amount_and_never_revives() {
-    let mut e=entry(EncounterId::ThreeSentries);enemies::apply_burning_buff(&mut e,enemies::BurningBuff::Regeneration).unwrap();
+    let mut e=entry(EncounterId::ThreeSentries);enemies::apply_burning_buff(&mut e,1,enemies::BurningBuff::Regeneration).unwrap();
     let mut c=Combat::enter(e).unwrap();let max=c.state.enemies[1].max_hp;
     hit(&mut c,0,42);hit(&mut c,1,4);c.step_full(&CombatAction::EndTurn).unwrap();
     assert_eq!(c.state.enemies[0].hp,0);assert_eq!(c.state.enemies[1].hp,max-1);
     c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.enemies[1].hp,max);assert_eq!(c.state.enemies[0].hp,0);
-    assert_eq!(amount(&c,1,"regeneration"),3);
+    assert_eq!(amount(&c,1,"regenerate"),3);
 }
 
 #[test]
 fn burning_startup_fault_keeps_lament_buffs_and_first_owned_work_without_retry() {
     use crate::{content::RelicId,items::CombatItemContext};
     let mut e=entry(EncounterId::ThreeSentries);e.cards[0]=permanent_live_card(CardId::Strike,CardInstanceId(u64::MAX),0);
-    enemies::apply_burning_buff(&mut e,enemies::BurningBuff::Strength).unwrap();
+    enemies::apply_burning_buff(&mut e,1,enemies::BurningBuff::Strength).unwrap();
     let mut items=Some(CombatItemContext::new(vec![RelicId::NeowsLament,RelicId::PureWater],vec![]));
     let Err(CombatEntryFailure::Faulted{mut combat,fault})=Combat::enter_with_item_context(e,&mut items)else{panic!("expected retained native generated-ID fault")};
     // G10 (M27): Pure Water now faults at its hook-free pre-draw visit before Neow's Lament; design §7.6 and spec-rulings-main2-v1.md G10.

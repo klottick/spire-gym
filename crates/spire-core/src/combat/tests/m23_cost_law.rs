@@ -84,7 +84,7 @@ fn m23_cost_law_blood_for_blood_roll_replaces_and_upgrade_always_lowers_by_one()
 fn m23_cost_law_masterful_stab_roll_overrides_and_increase_continues(){
     // Masterful Stab, rev 57491: randomization overrides; "the Energy-cost will continue increasing as expected".
     let mut c=combat(Character::Silent);
-    let mut stab=permanent_live_card(CardId::MasterfulStab,CardInstanceId(1),0);card_state::modify_cost_for_combat(&mut stab,2).unwrap();
+    let mut stab=permanent_live_card(CardId::MasterfulStab,CardInstanceId(1),0);card_state::modify_cost_for_combat(&mut stab,2,None).unwrap();
     let prior=card_state::combat_price(&stab,0).unwrap();
     let r=draw_roll(&mut c,stab,Some(prior));assert_eq!(price(&c,1),r,"roll overrides the increased cost");
     c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::HpLoss(1))}],None).unwrap();

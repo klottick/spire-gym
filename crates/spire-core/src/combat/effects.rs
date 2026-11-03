@@ -148,8 +148,9 @@ pub(super) fn queue_relic_bottom(state:&mut State,bottom:Vec<Effect>,preserve_fi
     } else {
         // Bottom work joins the current queue ahead of an already queued player decision
         // (M20/M21/complete-card entry queues the opening Decision before CombatStarted),
-        // or of the next monster's move during the monster turn (`act2::bottom`).
-        let mut at=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EnemyMove)).unwrap_or(state.pending.len());
+        // or of the next monster's move (after the last move, the round end) during the monster
+        // turn (`act2::bottom`).
+        let mut at=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EnemyMove|EffectKind::EndRound)).unwrap_or(state.pending.len());
         for effect in bottom{state.pending.insert(at,effect);at+=1;}
     }
 }

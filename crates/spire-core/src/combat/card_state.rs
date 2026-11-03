@@ -394,9 +394,21 @@ pub(super) fn discount_force_field(card:&mut LiveCard){
 
 /// Source modifyCostForCombat: the positive turn price becomes both prices;
 /// a zero turn price instead preserves zero while reducing the combat price.
-pub(super) fn modify_cost_for_combat(card:&mut LiveCard,delta:i32)->Result<(),InputError>{
+/// `base` is the card's printed/payload price (`cards::base_cost`): a card without a local
+/// cost field (complete Ironclad and Silent payload cards) is discounted from it (spire-oto.23).
+pub(super) fn modify_cost_for_combat(card:&mut LiveCard,delta:i32,base:Option<i32>)->Result<(),InputError>{
     if card.local.x_cost{return Ok(())}
-    let Some(combat)=card.local.mutable_combat_cost.or(card.local.randomized_cost) else{return Ok(())};
+    if card.id==CardId::BloodForBlood&&card.local.mutable_combat_cost.is_none()&&card.local.randomized_cost.is_none(){
+        // Blood for Blood's mutable base is its printed cost less combat_cost_reduction (its
+        // HP-loss law keeps working on that field); the turn price is the temporary offset.
+        let printed:i32=if card.upgrades>0{3}else{4};
+        let combat=printed.saturating_sub(card.local.combat_cost_reduction).max(0);
+        let turn=combat.saturating_add(card.local.temporary_cost);
+        let (next,next_turn)=if turn>0{let next=turn.wrapping_add(delta).max(0);(next,next)}else{(combat.wrapping_add(delta).max(0),turn)};
+        card.local.combat_cost_reduction=printed-next.min(printed);card.local.temporary_cost=next_turn-next.min(printed);
+        return Ok(())
+    }
+    let Some(combat)=card.local.mutable_combat_cost.or(card.local.randomized_cost).or(base) else{return Ok(())};
     let turn=card.local.turn_cost.unwrap_or(combat);
     if combat<0||turn<0{return Ok(())}
     let next=if turn>0{turn.wrapping_add(delta).max(0)}else{combat.wrapping_add(delta).max(0)};

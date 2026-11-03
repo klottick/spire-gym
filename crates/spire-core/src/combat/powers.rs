@@ -408,8 +408,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
         &&matches!(actor,Actor::Enemy(_))
         &&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::ChampionsBelt)) {
         let belt_child=Effect{source:effect.source.clone(),target:Some(actor.clone()),kind:EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1}};
-        let decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
-        state.pending.insert(decision,belt_child);
+        super::enemies::act2::bottom(state,belt_child);
     }
     super::effects::refresh_enemy_values(state)
 }

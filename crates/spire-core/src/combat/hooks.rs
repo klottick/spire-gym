@@ -184,8 +184,9 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     if hook == Hook::TurnEnded {
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
         round_end_full_work(&mut state.player_full_powers, Actor::Player, &mut work);
-        for enemy in state.enemies.iter_mut().filter(|enemy|
-            enemy.life == super::ActorLife::Active && enemy.hp > 0) {
+        for index in slot_order(state) {
+            let enemy = &mut state.enemies[index];
+            if enemy.life != super::ActorLife::Active || enemy.hp <= 0 { continue; }
             let actor = Actor::Enemy(enemy.instance_id.clone());
             round_end_work(&mut enemy.powers, actor.clone(), &mut work);
             round_end_full_work(&mut enemy.full_powers, actor, &mut work);
@@ -202,10 +203,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         for effect in exhaust_top.into_iter().rev() {
             state.pending.insert(continuation,effect);
         }
-        for effect in work {
-            let decision=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision).unwrap_or(state.pending.len());
-            state.pending.insert(decision,effect);
-        }
+        for effect in work { super::enemies::act2::bottom(state,effect); }
     } else if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player)&&state.turn<=1 {
         // The battle-start block: card, power and orb work follows the battle-start and
         // turn-start relic work already queued (`effects::player_turn_start`).
@@ -311,7 +309,9 @@ fn player_end_power(state:&mut State,hook:Hook,power:&super::FullPowerEntry,top:
 /// except Intangible's justApplied skip, which clears at once.
 fn monster_end_turn(state:&mut State,work:&mut Vec<Effect>){
     // Only dying or escaping monsters are skipped (source-check-monsterturn-v3 Q2).
-    for enemy in state.enemies.iter_mut().filter(|enemy|enemy.life==super::ActorLife::HalfDead||enemy.life==super::ActorLife::Active&&enemy.hp>0){
+    for index in slot_order(state){
+        let enemy=&mut state.enemies[index];
+        if !(enemy.life==super::ActorLife::HalfDead||enemy.life==super::ActorLife::Active&&enemy.hp>0){continue}
         let actor=Actor::Enemy(enemy.instance_id.clone());
         let live=enemy.life==super::ActorLife::Active;
         let malleable=matches!(enemy.enemy_id,super::ActorEnemyId::Full(crate::content::EnemyId::SnakePlant|crate::content::EnemyId::WrithingMass));
@@ -323,9 +323,9 @@ fn monster_end_turn(state:&mut State,work:&mut Vec<Effect>){
                 "intangible"=>vec![EffectKind::ReduceFullPower{id:power.id,amount:1}],
                 // Shackled is GainStrengthPower: it restores the Strength, then removes itself.
                 "shackled" if amount>0=>vec![EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount},EffectKind::RemoveFullPower(power.id)],
-                // RegenerateMonsterPower (Awakened One; the burning-elite buff is "regeneration")
-                // skips a half-dead owner.
-                "regenerate"|"regeneration" if amount>0&&live=>vec![EffectKind::Heal(amount)],
+                // RegenerateMonsterPower (the Awakened One's and the burning-elite buff) skips a
+                // half-dead owner.
+                "regenerate" if amount>0&&live=>vec![EffectKind::Heal(amount)],
                 // MalleablePower resets to its base amount; nothing between here and the queued
                 // reset can hit the monster.
                 "malleable" if malleable=>vec![EffectKind::ResetMalleable],
@@ -334,6 +334,14 @@ fn monster_end_turn(state:&mut State,work:&mut Vec<Effect>){
             work.extend(kinds.into_iter().map(|kind|Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),kind}));
         }
     }
+}
+
+/// MonsterGroup order: a summoned minion takes its slot, not the end of the enemy list (as the
+/// MonsterStart queue does).
+fn slot_order(state:&State)->Vec<usize>{
+    let mut order=(0..state.enemies.len()).collect::<Vec<_>>();
+    order.sort_by_key(|&index|state.actor_slots.get(&state.enemies[index].instance_id).copied().unwrap_or(0));
+    order
 }
 
 fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work: &mut Vec<Effect>) {

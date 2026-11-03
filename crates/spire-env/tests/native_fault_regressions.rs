@@ -212,14 +212,15 @@ fn m10_flex_lose_strength_steps_cleanly(){
 }
 
 // M22 Watcher `RunSession::new_m22`, Test partition: the 98th action moves into the burning
-// elite Gremlin Nob, which publishes the enemy power `regeneration`.
+// elite Gremlin Nob, which publishes the enemy power `regenerate` (RegenerateMonsterPower; it was
+// `regeneration`, the player's RegenPower id, before spire-oto.27).
 const M22_BURNING_NOB:[i64;98]=[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,2,0,0,3,0,0,0,0,0,0,0,0,0,0,0];
 #[test]
 fn m22_burning_elite_nob_regeneration_steps_cleanly(){
     let config=RunSessionConfig{character:Character::Watcher,ascension:0,partition:Partition::Test,boss_history:M9BossHistory::Act1GuardianUnseen,capacities:RunCapacities::m10_default(),record_replay:true};
     let mut session=RunSession::new_m22(config).unwrap();
     step_prefix(&mut session,3_958_066_649_157_562_556,&M22_BURNING_NOB);
-    assert!(has_power(&session,false,"regeneration"));
+    assert!(has_power(&session,false,"regenerate"));
     session.decision().expect("published decision in the burning elite fight");
 }
 
