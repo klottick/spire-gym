@@ -28,10 +28,10 @@ pub(super) fn move_work(state:&State,owner:&EnemyHandle)->Result<Vec<Effect>,Inp
         "centurion_slash"|"mystic_attack"=>{let mut work=vec![damage(actor.clone(),intent)];if intent.as_str()=="mystic_attack"{work.push(effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("frail"),amount:2}));}work},
         "centurion_protect"=>{
             let target=state.enemies.iter().find(|e|e.enemy_id==ActorEnemyId::Full(EnemyId::Mystic)&&e.life==super::super::super::ActorLife::Active&&e.hp>0).map_or(actor.clone(),|e|Actor::Enemy(e.instance_id.clone()));
-            vec![effect(actor,target,EffectKind::GainBlock(15))]
+            vec![effect(actor,target,EffectKind::GainBlock(if state.ascension>=17{20}else{15}))]
         },
         "centurion_fury"=>(0..3).map(|_|damage(actor.clone(),intent)).collect(),
-        "mystic_heal"|"mystic_buff"=>state.enemies.iter().filter(|e|e.life==super::super::super::ActorLife::Active&&e.hp>0).map(|e|effect(actor.clone(),Actor::Enemy(e.instance_id.clone()),if intent.as_str()=="mystic_heal"{EffectKind::Heal(16)}else{EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2}})).collect(),
+        "mystic_heal"|"mystic_buff"=>state.enemies.iter().filter(|e|e.life==super::super::super::ActorLife::Active&&e.hp>0).map(|e|effect(actor.clone(),Actor::Enemy(e.instance_id.clone()),if intent.as_str()=="mystic_heal"{EffectKind::Heal(if state.ascension>=17{20}else{16})}else{EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if state.ascension>=17{4}else if state.ascension>=2{3}else{2}}})).collect(),
         _=>return Err(InputError::Invariant("partner intent mismatch".into())),
     })
 }

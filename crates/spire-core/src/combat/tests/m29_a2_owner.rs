@@ -125,9 +125,13 @@ fn m29_spawned_and_split_children_read_combat_ascension() {
     let torches = combat.state.enemies.iter().filter(|e| e.enemy_id == ActorEnemyId::Full(EnemyId::TorchHead)).collect::<Vec<_>>();
     assert_eq!(torches.len(), 2);
     assert!(torches.iter().all(|t| (38..=40).contains(&t.max_hp) && t.full_damage_entries[&FullIntentId::from_name("torch_attack")].base == 7));
-    let (combat, result) = at(Some(1));
-    let text = format!("{result:?} {:?}", combat.state.fault);
-    assert!(text.contains(ascension::INTERIM), "summons read the combat ascension: {text}");
+    // M29d landed the Torch Head: forced to A9, the summons carry the A9 HP band.
+    let (combat, result) = at(Some(9));
+    result.unwrap();
+    assert!(combat.state.fault.is_none(), "{:?}", combat.state.fault);
+    let torches = combat.state.enemies.iter().filter(|e| e.enemy_id == ActorEnemyId::Full(EnemyId::TorchHead)).collect::<Vec<_>>();
+    assert_eq!(torches.len(), 2);
+    assert!(torches.iter().all(|t| (40..=45).contains(&t.max_hp)), "summons read the combat ascension");
     // The Mad Gremlin's Angry and the Awakened One's rebirth HP are per-species functions (A0 here).
     assert_eq!((ascension::gremlin_mad_angry(0), ascension::awakened_rebirth_max_hp(0)), (1, 300));
 }
@@ -171,11 +175,10 @@ fn m29_spawn_closure_gates_encounter() {
 fn m29_playable_ceiling_rejects_above() {
     assert_eq!(setup(EncounterId::TwoLouse, 17, 1, 0).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
     assert!(ascension::ABOVE_CEILING.contains("M32"));
-    // M29b: Louse landed, so A16 is admitted. M29c: Slaver Red landed too; the Mugger (M29d) is
-    // still interim.
+    // M29b: Louse landed, so A16 is admitted. M29c: Slaver Red landed too; M29d: the Mugger.
     assert!(setup(EncounterId::TwoLouse, 16, 1, 0).is_ok());
     assert!(setup(EncounterId::RedSlaver, 16, 1, 0).is_ok());
-    assert_eq!(setup(EncounterId::TwoThieves, 16, 1, 0).err(), Some(RunError::Unsupported(ascension::INTERIM)));
+    assert!(setup(EncounterId::TwoThieves, 16, 1, 0).is_ok());
     assert_eq!(setup(EncounterId::Cultist, 21, 1, 0).err(), Some(RunError::Unsupported(ascension::OUT_OF_RANGE)));
     assert!(setup(EncounterId::Cultist, 20, 1, 0).is_ok());
     assert!(!enemies::setup_supports_ascension(EncounterId::TwoLouse, 17));
@@ -199,6 +202,9 @@ fn m29_playable_ceiling_rejects_above() {
             for enemy in &mut entry.setup.enemies { enemy.ascension = a; }
             let Some(reason) = reason else {
                 assert_eq!(ascension::species_admission(owner, a), Ok(()), "{owner:?} A{a}");
+                // M29c review m2: the solo owner-only entry is admitted, not only predicted.
+                let combat = Combat::enter(entry).unwrap_or_else(|e| panic!("{owner:?} A{a}: {e:?}"));
+                assert_eq!(combat.state.ascension, a);
                 continue;
             };
             assert_eq!(Combat::enter(entry).err(), Some(RunError::Unsupported(reason)), "{owner:?} A{a}");
@@ -244,8 +250,9 @@ fn m29_every_encounter_every_ascension() {
                     }
                 },
                 Err(reason) => {
-                    if a > ceiling { assert_eq!(reason, ascension::ABOVE_CEILING, "{encounter:?} A{a}"); }
-                    else { assert_eq!(reason, ascension::INTERIM, "{encounter:?} A{a}"); }
+                    // M29d (close): every species landed, so nothing is interim at or below the ceiling.
+                    assert!(a > ceiling, "{encounter:?} A{a} rejected at or below its ceiling {ceiling}: {reason}");
+                    assert_eq!(reason, ascension::ABOVE_CEILING, "{encounter:?} A{a}");
                     assert_eq!(setup(*encounter, a, 1, 0).err(), Some(RunError::Unsupported(reason)), "{encounter:?} A{a}");
                 },
             }

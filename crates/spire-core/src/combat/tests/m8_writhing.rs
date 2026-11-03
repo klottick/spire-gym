@@ -8,12 +8,12 @@ fn set(c:&mut Combat,name:&'static str){let i=ActorIntentId::Full(FullIntentId::
 #[test]
 fn m8_writhing_rerolls_each_qualifying_hit(){
     let mut e=entry(EncounterId::WrithingMass);e.cards[0]=permanent_live_card(CardId::TwinStrike,CardInstanceId(1),0);
-    let mut c=Combat::enter(e).unwrap();assert_eq!((c.state.enemies[0].hp,amount(&c,0,"malleable")),(160,4));
+    let mut c=Combat::enter(e).unwrap();assert_eq!((c.state.enemies[0].hp,amount(&c,0,"malleable")),(160,3));
     let stream=c.state.enemies[0].full_ai_rng.clone().unwrap();
     c.step_full(&CombatAction::PlayCard{instance:1,target:Some(TargetId(1))}).unwrap();
-    assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(150,9,6));
+    assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(150,7,5));
     assert_eq!(c.state.enemies[0].move_history.len(),3);let after=c.state.enemies[0].full_ai_rng.as_ref().unwrap();assert_eq!(after.id(),stream.id());assert!(after.word_index()>stream.word_index());
-    set(&mut c,"writhing_block");c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(amount(&c,0,"malleable"),4);
+    set(&mut c,"writhing_block");c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(amount(&c,0,"malleable"),3);
     assert_eq!((c.state.player.hp,c.state.enemies[0].block),(285,15));
 }
 
@@ -21,7 +21,7 @@ fn m8_writhing_rerolls_each_qualifying_hit(){
 fn m8_writhing_blocked_and_lethal_hits_do_not_reroll_or_gain_malleable_block(){
     let mut c=Combat::enter(entry(EncounterId::WrithingMass)).unwrap();let owner=Actor::Enemy(c.state.enemies[0].instance_id.clone());
     c.enqueue_native_effects(vec![Effect{source:Source::None,target:Some(owner),kind:EffectKind::GainBlock(6)}],None).unwrap();
-    let stream=c.state.enemies[0].full_ai_rng.clone();hit(&mut c,0,6);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,c.state.enemies[0].move_history.len(),amount(&c,0,"malleable")),(160,0,1,4));assert_eq!(c.state.enemies[0].full_ai_rng,stream);
+    let stream=c.state.enemies[0].full_ai_rng.clone();hit(&mut c,0,6);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,c.state.enemies[0].move_history.len(),amount(&c,0,"malleable")),(160,0,1,3));assert_eq!(c.state.enemies[0].full_ai_rng,stream);
     hit(&mut c,0,160);assert_eq!(c.state.outcome,Some(Outcome::Victory));assert_eq!(c.state.enemies[0].block,0);assert_eq!(c.state.enemies[0].full_ai_rng,stream);
 }
 
@@ -52,10 +52,10 @@ fn m8_writhing_reactive_excludes_orb_thorns_hp_loss_and_null_owner(){
     let start=c.state.enemies[0].full_ai_rng.clone();
     for (source,payload) in [(Source::None,DamagePayload::Fixed(1)),(Source::Actor(Actor::Player),DamagePayload::HpLoss(1))]{c.enqueue_native_effects(vec![Effect{source,target:Some(owner.clone()),kind:EffectKind::Damage(payload)}],None).unwrap();}
     c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:FullPowerId("thorns"),amount:1}},Effect{source:Source::Actor(Actor::Player),target:Some(owner.clone()),kind:EffectKind::Damage(DamagePayload::Thorns(1))}],None).unwrap();
-    assert_eq!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(157,0,4));
+    assert_eq!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(157,0,3));
     c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(owner),kind:EffectKind::Damage(DamagePayload::Orb(1))}],None).unwrap();
-    assert_eq!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(156,0,4));
-    hit(&mut c,0,1);assert_ne!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(155,4,5));
+    assert_eq!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(156,0,3));
+    hit(&mut c,0,1);assert_ne!(c.state.enemies[0].full_ai_rng,start);assert_eq!((c.state.enemies[0].hp,c.state.enemies[0].block,amount(&c,0,"malleable")),(155,3,4));
 }
 
 #[test]

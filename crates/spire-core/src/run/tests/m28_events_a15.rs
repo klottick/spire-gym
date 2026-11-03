@@ -4,7 +4,7 @@
 //! `RunState::ascension` on the diagnostic event Run before the event is built.
 use super::super::*;
 use super::m28_event_core::{before_event, count, leave, row, view};
-use crate::content::{CardId, CardRarity, Character, EncounterId, EventId, RelicId};
+use crate::content::{CardId, CardRarity, Character, EnemyId, EventId, RelicId};
 use crate::run::{GameAction, RoomChoiceKind, RoomChoiceStatus, RoomViewKind, Run, RunTransition};
 use rooms::standard::event_exec::Outcome;
 use rooms::standard::{event_pool, events};
@@ -503,43 +503,39 @@ fn m28_a15_m28f_designer_costs_and_rows() {
     }
 }
 
+/// M29d lands the Orb Walker (ceiling 20): above A0 the Fight is offered and enters at the Run's
+/// ascension; Leave stays available (name kept, plan m4; the former typed gate has no witness left).
 #[test]
 fn m28_a15_m28f_mysterious_sphere_unsupported_and_leave() {
-    let mut run = entered(EventId::MysteriousSphere, 3, 1, 144, |_, _| {});
-    let fight = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
-    assert_eq!(fight.status, RoomChoiceStatus::Disabled, "typed setup gate above A0");
-    let before = run.clone();
-    assert_eq!(run.step(&GameAction::Choose(fight.id)), Err(crate::run::RunError::InvalidAction));
-    assert!(run == before, "disabled Fight is atomic");
-    let before = run.clone();
-    let unsupported = crate::run::rooms::standard::event_frame::choose_constructed(&mut run, vec![
-        Outcome::Combat {
-            encounter: EncounterId::TwoOrbWalkers,
-            rewards: None,
-            next_stage: 0,
-            elite: false,
-        },
-    ]);
-    assert!(matches!(unsupported, Err(crate::run::RunError::Unsupported(_))), "{unsupported:?}");
-    assert!(run == before, "typed Unsupported is atomic");
-    choose(&mut run, 0, 1);
-    assert_eq!(view(&run).kind, RoomViewKind::Map, "Leave remains available above A0");
+    for ascension in [1_u8, 15] {
+        let mut run = entered(EventId::MysteriousSphere, 3, ascension, 144, |_, _| {});
+        let fight = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
+        assert_eq!(fight.status, RoomChoiceStatus::Offered, "A{ascension}: Fight is offered");
+        let mut fought = run.clone();
+        fought.step(&GameAction::Choose(fight.id)).unwrap();
+        let combat = fought.state.combat.as_ref().expect("Fight enters combat");
+        assert_eq!(combat.ascension(), ascension, "the fight enters at the Run's ascension");
+        let (lo, hi) = crate::combat::enemies::hp_range(EnemyId::OrbWalker, ascension);
+        assert!(combat.public_full().unwrap().enemies.iter().all(|e| (lo..=hi).contains(&e.max_hp)), "A{ascension} Orb Walker HP");
+        choose(&mut run, 0, 1);
+        assert_eq!(view(&run).kind, RoomViewKind::Map, "A{ascension}: Leave remains available above A0");
+    }
 }
 
+/// M29d lands every Act 3 boss: above A0 Enter is offered and the boss fight enters at the Run's
+/// ascension; Leave stays available (name kept, plan m4; Review-fixes M1's typed gate has no witness
+/// left at the Run's A1–A5, and A15 sits below every Act 3 boss ceiling).
 #[test]
 fn m28_a15_m28f_secret_portal_enter_unsupported_and_leave() {
-    // Review-fixes M1: no Act 3 boss has enemy facts above A0, so Enter is the typed setup gate.
     for ascension in [1_u8, 15] {
         let mut run = entered(EventId::SecretPortal, 3, ascension, 22, |_, _| {});
         let enter = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
-        assert_eq!(enter.status, RoomChoiceStatus::Disabled, "A{ascension}: typed setup gate");
-        let before = run.clone();
-        assert_eq!(run.step(&GameAction::Choose(enter.id)), Err(crate::run::RunError::InvalidAction));
-        assert!(run == before, "A{ascension}: disabled Enter is atomic");
-        let unsupported = crate::run::rooms::standard::event_frame::choose_constructed(&mut run, vec![Outcome::EnterBoss]);
-        assert!(matches!(unsupported, Err(crate::run::RunError::Unsupported(_))), "{unsupported:?}");
-        assert!(run == before, "A{ascension}: typed Unsupported is atomic");
-        assert!(run.state.fault.is_none());
+        assert_eq!(enter.status, RoomChoiceStatus::Offered, "A{ascension}: Enter is offered");
+        let mut entered_boss = run.clone();
+        entered_boss.step(&GameAction::Choose(enter.id)).unwrap();
+        assert!(entered_boss.state.fault.is_none(), "A{ascension}: {:?}", entered_boss.state.fault);
+        let combat = entered_boss.state.combat.as_ref().expect("Enter starts the boss combat");
+        assert_eq!(combat.ascension(), ascension, "the boss enters at the Run's ascension");
         choose(&mut run, 0, 1);
         assert_eq!(view(&run).kind, RoomViewKind::Map, "A{ascension}: Leave remains available");
     }

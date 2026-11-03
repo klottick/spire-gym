@@ -49,7 +49,7 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:next_memory,stream:next_stream})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let ActorEnemyId::Full(EnemyId::CorruptHeart)=enemy.enemy_id else{return Err(InputError::Invariant("Heart payload owner identity mismatch".into()))};
     let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Heart payload intent is not native".into()))};
     let actor=Actor::Enemy(enemy.instance_id.clone());
@@ -65,7 +65,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
             }
             work
         },
-        "heart_blood_shots"=>(0..12).map(|_|damage(actor.clone(),intent)).collect(),
+        "heart_blood_shots"=>(0..super::super::ascension::heart_blood_shots_hits(ascension)).map(|_|damage(actor.clone(),intent)).collect(),
         "heart_echo"=>vec![damage(actor,intent)],
         "heart_buff"=>vec![Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::CorruptHeartBuff}],
         _=>return Err(InputError::Unsupported("Corrupt Heart intent unavailable".into())),
@@ -74,7 +74,8 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
 
 pub(in crate::combat::enemies) fn selected(state:&mut State,owner:&EnemyHandle,intent:FullIntentId){
     let Some(enemy)=state.enemies.iter_mut().find(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart)) else{return};
-    let damage=match intent{FullIntentId::HeartBloodShots=>2,FullIntentId::HeartEcho=>40,_=>0};
+    let Ok(bases)=super::super::damage_bases_at_ascension(EnemyId::CorruptHeart,state.ascension) else{return};
+    let damage=bases.get(&intent).copied().unwrap_or(0);
     if let Some(entry)=enemy.full_damage_entries.get_mut(&intent){entry.base=damage;entry.output=damage;}
 }
 

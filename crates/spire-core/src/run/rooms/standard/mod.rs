@@ -18,15 +18,12 @@ pub(crate) const STANDARD_MAX_ASCENSION:u8=5;
 /// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A5, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
 /// Public in the core crate since M28f2 (design §13, PM ruling Q1); no spire-env profile.
-/// A1–A5 are diagnostics-only (`m29-diagnostics`) until M29f (M29 plan §1, review I1).
+/// A1–A5 are public in every build since M29 close (M29f, folded into M29d); A6+ awaits M30–M33.
 pub(in crate::run) fn create(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
-    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A5"))}
-    if config.ascension!=0&&!cfg!(feature="m29-diagnostics"){return Err(RunError::Unsupported("Standard is A0 only until M29f"))}
     build(config,profile,rng)
 }
 
-/// The standard Run at any admitted ascension, without the M29 exposure gate: `create`, in-crate
-/// tests and the M29 diagnostics builders.
+/// The standard Run at any admitted ascension: `create`, in-crate tests and the M29 diagnostics builders.
 pub(in crate::run) fn build(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
     if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A5"))}
     let mut run=Run::new(config,profile,rng)?;

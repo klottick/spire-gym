@@ -1314,6 +1314,13 @@ impl Combat {
 
     #[cfg(test)]
     pub(crate) fn state_mut_for_test(&mut self)->&mut State{&mut self.state}
+    /// The one combat-level ascension (M29a2 owner).
+    pub(crate) fn ascension(&self)->u8{self.state.ascension}
+    /// Each enemy's species and damage bases (tests: Run-level routing checks).
+    #[cfg(test)]
+    pub(crate) fn damage_bases_for_test(&self)->Vec<(crate::content::EnemyId,std::collections::BTreeMap<FullIntentId,i32>)>{
+        self.state.enemies.iter().filter_map(|e|match e.enemy_id{ActorEnemyId::Full(id)=>Some((id,e.full_damage_entries.iter().map(|(intent,entry)|(*intent,entry.base)).collect())),_=>None}).collect()
+    }
 
     #[cfg(test)]
     pub(crate) fn queue_relic_work_for_test(&mut self,work:crate::items::RelicHookWork)->Result<(),EffectError>{
@@ -1965,7 +1972,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::TransientFade|EffectKind::MawNom{..}=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Act3 ordinary continuation owner absent".into()))};let e=state.enemies.iter().find(|e|&e.instance_id==owner).unwrap();
             require(state.full_runtime&&effect.source==Source::Actor(Actor::Enemy(owner.clone()))&&e.life==ActorLife::Active&&e.hp>0,"ordinary continuation live owner")?;
-            require(match (&effect.kind,&e.full_memory){(EffectKind::TransientFade,Some(super::EnemyMemory::Transient{turns:5,..}))=>e.full_powers.iter().any(|p|p.id.0=="fading"&&p.state.amount==1),(EffectKind::MawNom{remaining},Some(super::EnemyMemory::Maw{turns,..}))=>*remaining>0&&*remaining<=(*turns+1)/2,_=>false},"ordinary continuation qualified stage/count")?;
+            require(match (&effect.kind,&e.full_memory){(EffectKind::TransientFade,Some(super::EnemyMemory::Transient{turns,..}))=>i32::from(*turns)==super::enemies::ascension::transient_fading(state.ascension)&&e.full_powers.iter().any(|p|p.id.0=="fading"&&p.state.amount==1),(EffectKind::MawNom{remaining},Some(super::EnemyMemory::Maw{turns,..}))=>*remaining>0&&*remaining<=(*turns+1)/2,_=>false},"ordinary continuation qualified stage/count")?;
         },
         EffectKind::ObtainParasite=>{
             require(state.full_runtime&&effect.target==Some(Actor::Player)&&state.player.hp>0&&matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::WrithingMass)&&e.hp>0&&matches!(e.full_memory,Some(super::EnemyMemory::WrithingMass{parasite_used:true,parasite_pending:true,..})))),"accepted Parasite execution owner")?;
@@ -2536,9 +2543,10 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                         && id == super::FullIntentId::Bite;
                     let divider=if *enemy_id==crate::content::EnemyId::Hexaghost&&id.as_str()=="divider"{match e.full_memory {Some(super::EnemyMemory::Hexaghost{divider_base,..})=>Some(divider_base.unwrap_or(1)),_=>None}}else{None};
                     let darkling_nip=*enemy_id==crate::content::EnemyId::Darkling&&id.as_str()=="darkling_nip";
-                    let transient_base=match e.full_memory{Some(super::EnemyMemory::Transient{base,..}) if id.as_str()=="transient_attack"=>Some(base),_=>None};
+                    let transient_base=match e.full_memory{Some(super::EnemyMemory::Transient{base,turns}) if id.as_str()=="transient_attack"=>{
+                        require(super::enemies::ascension::transient_base_valid(turns,base,ascension),"Transient base at the combat ascension")?;Some(base)},_=>None};
                     let head_base=match e.full_memory{Some(super::EnemyMemory::GiantHead{count}) if id.as_str()=="head_time"=>Some(super::enemies::ascension::giant_head_time_base(count,ascension)),_=>None};
-                    require((if louse_bite { let (lo,hi)=super::enemies::ascension::louse_bite_range(ascension); (lo..=hi).contains(&entry.base) } else if darkling_nip {matches!(e.full_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==entry.base)} else { entry.base == head_base.or(transient_base).or(divider).unwrap_or(base.base) })
+                    require((if louse_bite { let (lo,hi)=super::enemies::ascension::louse_bite_range(ascension); (lo..=hi).contains(&entry.base) } else if darkling_nip {let (lo,hi)=super::enemies::ascension::darkling_nip_range(ascension);(lo..=hi).contains(&entry.base)&&matches!(e.full_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==entry.base)} else { entry.base == head_base.or(transient_base).or(divider).unwrap_or(base.base) })
                         && (0..=30_012).contains(&entry.output), "full damage bounds")?;
                 }
             }

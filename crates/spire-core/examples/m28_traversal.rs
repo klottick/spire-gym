@@ -13,7 +13,7 @@
 //! supplied max HP and keys so it plays through every act (design §14 grade Supplied).
 //!
 //! M29 (plan M29a1 item 9, erratum v3 n4): `--ascension N` or `--ascensions A-B` runs each level
-//! (A1–A5 need `--features m29-diagnostics` until M29f). An advertised candidate rejected with a
+//! (A1–A5 are public since the M29 close; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
 //! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by

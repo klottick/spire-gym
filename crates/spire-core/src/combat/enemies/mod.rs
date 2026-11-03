@@ -127,7 +127,7 @@ impl EnemyMemory {
             EnemyId::TimeEater=>Ok(Self::TimeEater{haste_used:false}),
             EnemyId::AwakenedOne=>Ok(Self::AwakenedOne{phase:AwakenedPhase::First,first:true}),
             EnemyId::Reptomancer=>Ok(Self::Reptomancer{first:true,slots:Default::default()}),EnemyId::Dagger=>Ok(Self::Dagger{first:true}),
-            EnemyId::GiantHead=>Ok(Self::GiantHead{count:5}),
+            EnemyId::GiantHead=>Ok(Self::GiantHead{count:ascension::giant_head_count(ascension)}),
             EnemyId::Nemesis=>Ok(Self::Nemesis{first:true,cooldown:0}),
             EnemyId::WrithingMass=>Ok(Self::WrithingMass{first:true,parasite_used:false,parasite_pending:false}),
             EnemyId::SpireGrowth=>Ok(Self::SpireGrowth),EnemyId::Transient=>Ok(Self::Transient{turns:0,base:ascension::transient_start_base(ascension)}),EnemyId::Maw=>Ok(Self::Maw{turns:0,roared:false}),
@@ -189,9 +189,10 @@ impl EnemyMemory {
             (EnemyId::Nemesis,Self::Nemesis{cooldown,..})=>*cooldown<=2,
             (EnemyId::WrithingMass,Self::WrithingMass{parasite_pending,parasite_used,..})=>!*parasite_pending||*parasite_used,
             (EnemyId::SpireGrowth,Self::SpireGrowth)=>true,
-            (EnemyId::Transient,Self::Transient{turns,base})=>*turns<=5&&(*base==30+10*i32::from(*turns)||*turns>0&&*base==20+10*i32::from(*turns)),
+            // Structural bounds over every ascension; the validators check the combat ascension's start.
+            (EnemyId::Transient,Self::Transient{turns,base})=>[0,20].into_iter().any(|a|ascension::transient_base_valid(*turns,*base,a)),
             (EnemyId::Maw,Self::Maw{turns,..})=>*turns<i32::MAX as u32,
-            (EnemyId::Darkling,Self::Darkling{nip:7..=11,..})=>true,
+            (EnemyId::Darkling,Self::Darkling{nip,..})=>(ascension::darkling_nip_range(0).0..=ascension::darkling_nip_range(20).1).contains(nip),
             (EnemyId::OrbWalker,Self::OrbWalker)|(EnemyId::Repulsor,Self::Repulsor)|(EnemyId::Exploder,Self::Exploder{turns:0..=3})|(EnemyId::Spiker,Self::Spiker{buffs:0..=6})=>true,
             (EnemyId::Guardian,Self::Guardian{quota,loss,..})=>*quota>=30&&*loss>=0&&*loss<*quota,
             (EnemyId::Hexaghost,Self::Hexaghost{divider_base,cycle,..})=>*cycle<7&&divider_base.is_none_or(|base|(1..=84).contains(&base)),
@@ -391,17 +392,17 @@ pub fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> { move_w
 pub fn move_work_at(enemy: &EnemyState, ascension: u8) -> Result<Vec<Effect>, InputError> {
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::ShelledParasite|EnemyId::SnakePlant)){return act2::ordinary_closure::move_work(enemy)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::FungiBeast){return act1::fungi_move_work(enemy,ascension)}
-    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart){return act4::heart::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart){return act4::heart::move_work(enemy,ascension)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Deca|EnemyId::Donu)){return Err(InputError::Unsupported("Deca/Donu payload requires live group context".into()))}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater){return act3::time_eater::move_work(enemy)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::AwakenedOne){return act3::awakened::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::reptomancer::supports(id)){return act3::reptomancer::move_work(enemy)}
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::elites::supports(id)){return act3::elites::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::elites::supports(id)){return act3::elites::move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::WrithingMass){return act3::writhing::move_work(enemy)}
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::ordinary::supports(id)){return act3::ordinary::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::ordinary::supports(id)){return act3::ordinary::move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Darkling){return act3::darklings::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::supports(id)){return act3::shapes::move_work(enemy)}
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::SphericGuardian|EnemyId::Byrd)){return act2::flight::move_work(enemy);}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::SphericGuardian|EnemyId::Byrd)){return act2::flight::move_work(enemy,ascension);}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Chosen|EnemyId::Snecko)){return act2::chosen_snecko::move_work(enemy);}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Guardian){return guardian::move_work(enemy,ascension);}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){return hexaghost::move_work(enemy,ascension);}
@@ -700,9 +701,9 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::Lagavulin=>if ascension>=8{(112,115)}else{(109,111)},EnemyId::Sentry=>if ascension>=8{(39,45)}else{(38,42)},
         EnemyId::Guardian=>if ascension>=9{(250,250)}else{(240,240)},
         EnemyId::Hexaghost=>if ascension>=9{(264,264)}else{(250,250)},
-        EnemyId::SphericGuardian=>(20,20),EnemyId::Byrd=>(25,31),
-        EnemyId::Chosen=>(95,99),EnemyId::Snecko=>(114,120),
-        EnemyId::Centurion=>(76,80),EnemyId::Mystic=>(48,56),
+        EnemyId::SphericGuardian=>(20,20),EnemyId::Byrd=>if ascension>=7{(26,33)}else{(25,31)},
+        EnemyId::Chosen=>if ascension>=7{(98,103)}else{(95,99)},EnemyId::Snecko=>if ascension>=7{(120,125)}else{(114,120)},
+        EnemyId::Centurion=>if ascension>=7{(78,83)}else{(76,80)},EnemyId::Mystic=>if ascension>=7{(50,58)}else{(48,56)},
         EnemyId::LouseRed => if ascension >= 7 { (11, 16) } else { (10, 15) },
         EnemyId::LouseGreen => if ascension >= 7 { (12, 18) } else { (11, 17) },
         EnemyId::AcidSlimeS => if ascension >= 7 { (9, 13) } else { (8, 12) },
@@ -713,28 +714,29 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::SpikeSlimeL => if ascension >= 7 { (67, 73) } else { (64, 70) },
         EnemyId::SlimeBoss => if ascension >= 9 { (150, 150) } else { (140, 140) },
         EnemyId::Unknown(_) => (0, 0),
-        EnemyId::TimeEater=>(456,456),
-        EnemyId::Deca|EnemyId::Donu=>(250,250),
-        EnemyId::AwakenedOne=>(300,300),
-        EnemyId::Reptomancer=>(180,190),EnemyId::Dagger=>(20,25),
-        EnemyId::GiantHead=>(500,500),EnemyId::Nemesis=>(185,185),
-        EnemyId::WrithingMass=>(160,160),
-        EnemyId::SpireGrowth=>(170,170),EnemyId::Transient=>(999,999),EnemyId::Maw=>(300,300),
-        EnemyId::Darkling=>(48,56),
-        EnemyId::OrbWalker=>(90,96),EnemyId::Repulsor=>(29,35),EnemyId::Exploder=>(30,30),EnemyId::Spiker=>(42,56),
+        EnemyId::TimeEater=>if ascension>=9{(480,480)}else{(456,456)},
+        EnemyId::Deca|EnemyId::Donu=>if ascension>=9{(265,265)}else{(250,250)},
+        EnemyId::AwakenedOne=>if ascension>=9{(320,320)}else{(300,300)},
+        EnemyId::Reptomancer=>if ascension>=8{(190,200)}else{(180,190)},EnemyId::Dagger=>(20,25),
+        EnemyId::GiantHead=>if ascension>=8{(520,520)}else{(500,500)},EnemyId::Nemesis=>if ascension>=8{(200,200)}else{(185,185)},
+        EnemyId::WrithingMass=>if ascension>=7{(175,175)}else{(160,160)},
+        EnemyId::SpireGrowth=>if ascension>=7{(190,190)}else{(170,170)},EnemyId::Transient=>(999,999),EnemyId::Maw=>(300,300),
+        EnemyId::Darkling=>if ascension>=7{(50,59)}else{(48,56)},
+        EnemyId::OrbWalker=>if ascension>=7{(92,102)}else{(90,96)},EnemyId::Repulsor=>if ascension>=7{(31,38)}else{(29,35)},
+        EnemyId::Exploder=>if ascension>=7{(30,35)}else{(30,30)},EnemyId::Spiker=>if ascension>=7{(44,60)}else{(42,56)},
         EnemyId::GremlinLeader=>if ascension>=8{(145,155)}else{(140,148)},
         EnemyId::GremlinMad=>if ascension>=7{(21,25)}else{(20,24)},EnemyId::GremlinSneaky=>if ascension>=7{(11,15)}else{(10,14)},
         EnemyId::GremlinFat=>if ascension>=7{(14,18)}else{(13,17)},EnemyId::GremlinShield=>if ascension>=7{(13,17)}else{(12,15)},
         EnemyId::GremlinWizard=>if ascension>=7{(22,26)}else{(21,25)},
-        EnemyId::ShelledParasite=>(68,72),EnemyId::SnakePlant=>(75,79),
-        EnemyId::BanditPointy=>(30,30),EnemyId::BanditLeader=>(35,39),EnemyId::BanditBear=>(38,42),
-        EnemyId::Looter=>if ascension>=7{(46,50)}else{(44,48)},EnemyId::Mugger=>(48,52),
+        EnemyId::ShelledParasite=>if ascension>=7{(70,75)}else{(68,72)},EnemyId::SnakePlant=>if ascension>=7{(78,82)}else{(75,79)},
+        EnemyId::BanditPointy=>if ascension>=7{(34,34)}else{(30,30)},EnemyId::BanditLeader=>if ascension>=7{(37,41)}else{(35,39)},EnemyId::BanditBear=>if ascension>=7{(40,44)}else{(38,42)},
+        EnemyId::Looter=>if ascension>=7{(46,50)}else{(44,48)},EnemyId::Mugger=>if ascension>=7{(50,54)}else{(48,52)},
         EnemyId::FungiBeast=>if ascension>=7{(24,28)}else{(22,28)},
         EnemyId::SlaverBlue=>if ascension>=7{(48,52)}else{(46,50)},EnemyId::SlaverRed=>if ascension>=7{(48,52)}else{(46,50)},EnemyId::Taskmaster=>if ascension>=8{(57,64)}else{(54,60)},EnemyId::BookOfStabbing=>if ascension>=8{(168,172)}else{(160,164)},
-        EnemyId::Champ=>(420,420),EnemyId::CorruptHeart=>(750,750),
-        EnemyId::Collector=>(282,282),EnemyId::TorchHead=>(38,40),
-        EnemyId::BronzeAutomaton=>(300,300),EnemyId::BronzeOrb=>(52,58),
-        EnemyId::SpireShield=>(110,110),EnemyId::SpireSpear=>(160,160),
+        EnemyId::Champ=>if ascension>=9{(440,440)}else{(420,420)},EnemyId::CorruptHeart=>if ascension>=9{(800,800)}else{(750,750)},
+        EnemyId::Collector=>if ascension>=9{(300,300)}else{(282,282)},EnemyId::TorchHead=>if ascension>=9{(40,45)}else{(38,40)},
+        EnemyId::BronzeAutomaton=>if ascension>=9{(320,320)}else{(300,300)},EnemyId::BronzeOrb=>if ascension>=9{(54,60)}else{(52,58)},
+        EnemyId::SpireShield=>if ascension>=8{(125,125)}else{(110,110)},EnemyId::SpireSpear=>if ascension>=8{(180,180)}else{(160,160)},
     }
 }
 
@@ -758,12 +760,14 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::Lagavulin=>&[(Attack,if ascension>=3{20}else{18})],EnemyId::Sentry=>&[(FullIntentId::from_name("beam"),if ascension>=3{10}else{9})],
         EnemyId::Guardian=>&[(FullIntentId::from_name("fierce_bash"),if ascension>=4{36}else{32}),(FullIntentId::from_name("whirlwind"),5),(FullIntentId::from_name("roll_attack"),if ascension>=4{10}else{9}),(FullIntentId::from_name("twin_slam"),8)],
         EnemyId::Hexaghost=>&[(FullIntentId::from_name("divider"),1),(FullIntentId::from_name("sear"),6),(FullIntentId::from_name("tackle"),if ascension>=4{6}else{5}),(FullIntentId::from_name("inferno"),if ascension>=4{3}else{2})],
-        EnemyId::SphericGuardian=>&[(FullIntentId::from_name("sphere_debuff"),10),(FullIntentId::from_name("sphere_slam"),10),(FullIntentId::from_name("sphere_harden"),10)],
-        EnemyId::Byrd=>&[(FullIntentId::from_name("byrd_peck"),1),(FullIntentId::from_name("byrd_swoop"),12),(FullIntentId::from_name("byrd_headbutt"),3)],
-        EnemyId::Chosen=>&[(FullIntentId::from_name("chosen_poke"),5),(FullIntentId::from_name("chosen_debilitate"),10),(FullIntentId::from_name("chosen_zap"),18)],
-        EnemyId::Snecko=>&[(FullIntentId::from_name("snecko_bite"),15),(FullIntentId::from_name("snecko_tail_whip"),8)],
-        EnemyId::Centurion=>&[(FullIntentId::from_name("centurion_slash"),12),(FullIntentId::from_name("centurion_fury"),6)],
-        EnemyId::Mystic=>&[(FullIntentId::from_name("mystic_attack"),8)],
+        EnemyId::SphericGuardian=>if ascension>=2{&[(FullIntentId::from_name("sphere_debuff"),11),(FullIntentId::from_name("sphere_slam"),11),(FullIntentId::from_name("sphere_harden"),11)]}
+            else{&[(FullIntentId::from_name("sphere_debuff"),10),(FullIntentId::from_name("sphere_slam"),10),(FullIntentId::from_name("sphere_harden"),10)]},
+        EnemyId::Byrd=>&[(FullIntentId::from_name("byrd_peck"),1),(FullIntentId::from_name("byrd_swoop"),if ascension>=2{14}else{12}),(FullIntentId::from_name("byrd_headbutt"),3)],
+        EnemyId::Chosen=>if ascension>=2{&[(FullIntentId::from_name("chosen_poke"),6),(FullIntentId::from_name("chosen_debilitate"),12),(FullIntentId::from_name("chosen_zap"),21)]}
+            else{&[(FullIntentId::from_name("chosen_poke"),5),(FullIntentId::from_name("chosen_debilitate"),10),(FullIntentId::from_name("chosen_zap"),18)]},
+        EnemyId::Snecko=>if ascension>=2{&[(FullIntentId::from_name("snecko_bite"),18),(FullIntentId::from_name("snecko_tail_whip"),10)]}else{&[(FullIntentId::from_name("snecko_bite"),15),(FullIntentId::from_name("snecko_tail_whip"),8)]},
+        EnemyId::Centurion=>if ascension>=2{&[(FullIntentId::from_name("centurion_slash"),14),(FullIntentId::from_name("centurion_fury"),7)]}else{&[(FullIntentId::from_name("centurion_slash"),12),(FullIntentId::from_name("centurion_fury"),6)]},
+        EnemyId::Mystic=>&[(FullIntentId::from_name("mystic_attack"),if ascension>=2{9}else{8})],
         EnemyId::JawWorm => if ascension >= 2 { &[(Chomp, 12), (Thrash, 7)] }
             else { &[(Chomp, 11), (Thrash, 7)] },
         EnemyId::GremlinNob => &[
@@ -780,39 +784,45 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::SpikeSlimeL => if ascension >= 2 { &[(SpikeFlameTackle, 18)] } else { &[(SpikeFlameTackle, 16)] },
         EnemyId::SlimeBoss => &[(FullIntentId::from_name("slam"), if ascension >= 4 { 38 } else { 35 })],
         EnemyId::Unknown(name) => return Err(InputError::Unsupported(format!("damage bases missing for {name}"))),
-        EnemyId::TimeEater=>&[(FullIntentId::from_name("time_reverb"),7),(FullIntentId::from_name("time_slam"),26)],
-        EnemyId::Deca=>&[(FullIntentId::from_name("deca_beam"),10)],
-        EnemyId::Donu=>&[(FullIntentId::from_name("donu_beam"),10)],
+        EnemyId::TimeEater=>if ascension>=4{&[(FullIntentId::from_name("time_reverb"),8),(FullIntentId::from_name("time_slam"),32)]}else{&[(FullIntentId::from_name("time_reverb"),7),(FullIntentId::from_name("time_slam"),26)]},
+        EnemyId::Deca=>&[(FullIntentId::from_name("deca_beam"),if ascension>=4{12}else{10})],
+        EnemyId::Donu=>&[(FullIntentId::from_name("donu_beam"),if ascension>=4{12}else{10})],
         EnemyId::AwakenedOne=>&[(FullIntentId::from_name("awa_slash"),20),(FullIntentId::from_name("awa_soul"),6),(FullIntentId::from_name("awa_echo"),40),(FullIntentId::from_name("awa_sludge"),18),(FullIntentId::from_name("awa_tackle"),10)],
-        EnemyId::Reptomancer=>&[(FullIntentId::from_name("repto_snake"),13),(FullIntentId::from_name("repto_bite"),30)],
+        EnemyId::Reptomancer=>if ascension>=3{&[(FullIntentId::from_name("repto_snake"),16),(FullIntentId::from_name("repto_bite"),34)]}else{&[(FullIntentId::from_name("repto_snake"),13),(FullIntentId::from_name("repto_bite"),30)]},
         EnemyId::Dagger=>&[(FullIntentId::from_name("dagger_wound"),9),(FullIntentId::from_name("dagger_explode"),25)],
-        EnemyId::GiantHead=>&[(FullIntentId::from_name("head_count"),13),(FullIntentId::from_name("head_time"),30)],
-        EnemyId::Nemesis=>&[(FullIntentId::from_name("nemesis_tri"),6),(FullIntentId::from_name("nemesis_scythe"),45)],
-        EnemyId::WrithingMass=>&[(FullIntentId::from_name("writhing_multi"),7),(FullIntentId::from_name("writhing_block"),15),(FullIntentId::from_name("writhing_debuff"),10),(FullIntentId::from_name("writhing_big"),32)],
-        EnemyId::SpireGrowth=>&[(FullIntentId::from_name("growth_quick"),16),(FullIntentId::from_name("growth_smash"),22)],
-        EnemyId::Transient=>&[(FullIntentId::from_name("transient_attack"),30)],
-        EnemyId::Maw=>&[(FullIntentId::from_name("maw_slam"),25),(FullIntentId::from_name("maw_nom"),5)],
-        EnemyId::Darkling=>&[(FullIntentId::from_name("darkling_nip"),7),(FullIntentId::from_name("darkling_chomp"),8)],
-        EnemyId::OrbWalker=>&[(FullIntentId::from_name("orb_laser"),10),(FullIntentId::from_name("orb_claw"),15)],
-        EnemyId::Repulsor=>&[(FullIntentId::from_name("repulsor_attack"),11)],EnemyId::Exploder=>&[(FullIntentId::from_name("exploder_attack"),9)],EnemyId::Spiker=>&[(FullIntentId::from_name("spiker_attack"),7)],
+        EnemyId::GiantHead=>&[(FullIntentId::from_name("head_count"),13),(FullIntentId::from_name("head_time"),ascension::giant_head_time_base(0,ascension))],
+        EnemyId::Nemesis=>&[(FullIntentId::from_name("nemesis_tri"),if ascension>=3{7}else{6}),(FullIntentId::from_name("nemesis_scythe"),45)],
+        EnemyId::WrithingMass=>if ascension>=2{&[(FullIntentId::from_name("writhing_multi"),9),(FullIntentId::from_name("writhing_block"),16),(FullIntentId::from_name("writhing_debuff"),12),(FullIntentId::from_name("writhing_big"),38)]}
+            else{&[(FullIntentId::from_name("writhing_multi"),7),(FullIntentId::from_name("writhing_block"),15),(FullIntentId::from_name("writhing_debuff"),10),(FullIntentId::from_name("writhing_big"),32)]},
+        EnemyId::SpireGrowth=>if ascension>=2{&[(FullIntentId::from_name("growth_quick"),18),(FullIntentId::from_name("growth_smash"),25)]}else{&[(FullIntentId::from_name("growth_quick"),16),(FullIntentId::from_name("growth_smash"),22)]},
+        EnemyId::Transient=>&[(FullIntentId::from_name("transient_attack"),ascension::transient_start_base(ascension))],
+        EnemyId::Maw=>&[(FullIntentId::from_name("maw_slam"),if ascension>=2{30}else{25}),(FullIntentId::from_name("maw_nom"),5)],
+        // The Darkling Nip base is drawn per slot at setup; the table holds the range's low end.
+        EnemyId::Darkling=>&[(FullIntentId::from_name("darkling_nip"),ascension::darkling_nip_range(ascension).0),(FullIntentId::from_name("darkling_chomp"),if ascension>=2{9}else{8})],
+        EnemyId::OrbWalker=>if ascension>=2{&[(FullIntentId::from_name("orb_laser"),11),(FullIntentId::from_name("orb_claw"),16)]}else{&[(FullIntentId::from_name("orb_laser"),10),(FullIntentId::from_name("orb_claw"),15)]},
+        EnemyId::Repulsor=>&[(FullIntentId::from_name("repulsor_attack"),if ascension>=2{13}else{11})],EnemyId::Exploder=>&[(FullIntentId::from_name("exploder_attack"),if ascension>=2{11}else{9})],
+        EnemyId::Spiker=>&[(FullIntentId::from_name("spiker_attack"),if ascension>=2{9}else{7})],
         EnemyId::GremlinLeader=>&[(FullIntentId::from_name("leader_stab"),6)],
         EnemyId::GremlinMad=>&[(FullIntentId::from_name("gremlin_scratch"),if ascension>=2{5}else{4})],EnemyId::GremlinSneaky=>&[(FullIntentId::from_name("gremlin_puncture"),if ascension>=2{10}else{9})],
         EnemyId::GremlinFat=>&[(FullIntentId::from_name("gremlin_smash"),if ascension>=2{5}else{4})],EnemyId::GremlinShield=>&[(FullIntentId::from_name("gremlin_bash"),if ascension>=2{8}else{6})],
         EnemyId::GremlinWizard=>&[(FullIntentId::from_name("gremlin_blast"),if ascension>=2{30}else{25})],
-        EnemyId::ShelledParasite=>&[(FullIntentId::from_name("shelled_parasite_double_strike"),6),(FullIntentId::from_name("shelled_parasite_fell"),18),(FullIntentId::from_name("shelled_parasite_life_suck"),10)],
-        EnemyId::SnakePlant=>&[(FullIntentId::from_name("snake_plant_chomp_chomp"),7)],
+        EnemyId::ShelledParasite=>if ascension>=2{&[(FullIntentId::from_name("shelled_parasite_double_strike"),7),(FullIntentId::from_name("shelled_parasite_fell"),21),(FullIntentId::from_name("shelled_parasite_life_suck"),12)]}
+            else{&[(FullIntentId::from_name("shelled_parasite_double_strike"),6),(FullIntentId::from_name("shelled_parasite_fell"),18),(FullIntentId::from_name("shelled_parasite_life_suck"),10)]},
+        EnemyId::SnakePlant=>&[(FullIntentId::from_name("snake_plant_chomp_chomp"),if ascension>=2{8}else{7})],
         EnemyId::Looter=>&[(FullIntentId::from_name("looter_mug"),if ascension>=2{11}else{10}),(FullIntentId::from_name("looter_lunge"),if ascension>=2{14}else{12})],
-        EnemyId::Mugger=>&[(FullIntentId::from_name("mugger_mug"),10),(FullIntentId::from_name("mugger_lunge"),16)],
+        EnemyId::Mugger=>&[(FullIntentId::from_name("mugger_mug"),if ascension>=2{11}else{10}),(FullIntentId::from_name("mugger_lunge"),if ascension>=2{18}else{16})],
         EnemyId::FungiBeast=>&[(Bite,6)],
         EnemyId::SlaverBlue=>&[(FullIntentId::from_name("slaver_stab"),if ascension>=2{13}else{12}),(FullIntentId::from_name("slaver_rake"),if ascension>=2{8}else{7})],EnemyId::Taskmaster=>&[(FullIntentId::from_name("taskmaster_whip"),7)],EnemyId::SlaverRed=>&[(FullIntentId::from_name("slaver_stab"),if ascension>=2{14}else{13}),(FullIntentId::from_name("slaver_scrape"),if ascension>=2{9}else{8})],
-        EnemyId::BanditPointy=>&[(FullIntentId::from_name("pointy_special"),5)],EnemyId::BanditLeader=>&[(FullIntentId::from_name("romeo_agonizing_slash"),10),(FullIntentId::from_name("romeo_cross_slash"),15)],EnemyId::BanditBear=>&[(FullIntentId::from_name("bear_lunge"),9),(FullIntentId::from_name("bear_maul"),18)],
+        EnemyId::BanditPointy=>&[(FullIntentId::from_name("pointy_special"),if ascension>=2{6}else{5})],
+        EnemyId::BanditLeader=>if ascension>=2{&[(FullIntentId::from_name("romeo_agonizing_slash"),12),(FullIntentId::from_name("romeo_cross_slash"),17)]}else{&[(FullIntentId::from_name("romeo_agonizing_slash"),10),(FullIntentId::from_name("romeo_cross_slash"),15)]},
+        EnemyId::BanditBear=>if ascension>=2{&[(FullIntentId::from_name("bear_lunge"),10),(FullIntentId::from_name("bear_maul"),20)]}else{&[(FullIntentId::from_name("bear_lunge"),9),(FullIntentId::from_name("bear_maul"),18)]},
         EnemyId::BookOfStabbing=>&[(FullIntentId::from_name("book_multi"),if ascension>=3{7}else{6}),(FullIntentId::from_name("book_big"),if ascension>=3{24}else{21})],
-        EnemyId::Champ=>&[(FullIntentId::from_name("champ_slash"),16),(FullIntentId::from_name("champ_execute"),10),(FullIntentId::from_name("champ_slap"),12)],
-        EnemyId::Collector=>&[(FullIntentId::from_name("collector_rake"),18)],EnemyId::TorchHead=>&[(FullIntentId::from_name("torch_attack"),7)],
-        EnemyId::BronzeAutomaton=>&[(FullIntentId::from_name("automaton_flail"),7),(FullIntentId::from_name("automaton_beam"),45)],EnemyId::BronzeOrb=>&[(FullIntentId::from_name("orb_beam"),8)],
-        EnemyId::CorruptHeart=>&[(FullIntentId::from_name("heart_blood_shots"),2),(FullIntentId::from_name("heart_echo"),40)],
-        EnemyId::SpireShield=>&[(FullIntentId::from_name("shield_bash"),12),(FullIntentId::from_name("shield_smash"),34)],
-        EnemyId::SpireSpear=>&[(FullIntentId::from_name("spear_burn_strike"),5),(FullIntentId::from_name("spear_skewer"),10)],
+        EnemyId::Champ=>if ascension>=4{&[(FullIntentId::from_name("champ_slash"),18),(FullIntentId::from_name("champ_execute"),10),(FullIntentId::from_name("champ_slap"),14)]}else{&[(FullIntentId::from_name("champ_slash"),16),(FullIntentId::from_name("champ_execute"),10),(FullIntentId::from_name("champ_slap"),12)]},
+        EnemyId::Collector=>&[(FullIntentId::from_name("collector_rake"),if ascension>=4{21}else{18})],EnemyId::TorchHead=>&[(FullIntentId::from_name("torch_attack"),7)],
+        EnemyId::BronzeAutomaton=>if ascension>=4{&[(FullIntentId::from_name("automaton_flail"),8),(FullIntentId::from_name("automaton_beam"),50)]}else{&[(FullIntentId::from_name("automaton_flail"),7),(FullIntentId::from_name("automaton_beam"),45)]},EnemyId::BronzeOrb=>&[(FullIntentId::from_name("orb_beam"),8)],
+        EnemyId::CorruptHeart=>&[(FullIntentId::from_name("heart_blood_shots"),2),(FullIntentId::from_name("heart_echo"),if ascension>=4{45}else{40})],
+        EnemyId::SpireShield=>if ascension>=3{&[(FullIntentId::from_name("shield_bash"),14),(FullIntentId::from_name("shield_smash"),38)]}else{&[(FullIntentId::from_name("shield_bash"),12),(FullIntentId::from_name("shield_smash"),34)]},
+        EnemyId::SpireSpear=>&[(FullIntentId::from_name("spear_burn_strike"),if ascension>=3{6}else{5}),(FullIntentId::from_name("spear_skewer"),10)],
     };
     Ok(entries.iter().copied().collect())
 }
@@ -887,7 +897,7 @@ pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::E
     }
     if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart)){
         let enemy=state.enemies.iter().find(|enemy|&enemy.instance_id==owner).expect("selected Heart owner");
-        let work=act4::heart::move_work(enemy)?;
+        let work=act4::heart::move_work(enemy,state.ascension)?;
         for effect in work.into_iter().rev(){state.pending.push_front(effect);}
         super::effects::refresh_enemy_values(state)?;
         return Ok(())
@@ -907,7 +917,7 @@ pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::E
         .ok_or_else(|| InputError::Invariant("enemy turn actor missing".into()))?;
     let headbutt=enemy.enemy_id==ActorEnemyId::Full(EnemyId::Byrd)&&enemy.intent_id.as_str()=="byrd_headbutt";
     let work = if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin)){elites::take_turn(enemy,ascension)?}
-        else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Byrd){act2::flight::take_turn(enemy)?}
+        else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Byrd){act2::flight::take_turn(enemy,ascension)?}
         else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){hexaghost::take_turn(enemy,player_hp,ascension)?}else{move_work_at(enemy,ascension)?};
     if headbutt {state.pending.retain(|work|!(work.kind==EffectKind::RollMove&&work.target==Some(Actor::Enemy(owner.clone()))));}
     for effect in work.into_iter().rev() { state.pending.push_front(effect); }

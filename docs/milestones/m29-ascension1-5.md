@@ -1,9 +1,12 @@
 # M29 Ascension 1–5
 
-Status: **candidate, in progress: M29a1 (run rules), M29a2 (combat ascension owner) and M29b (Act 1 normals) merged; M29c (Act 1 elites and bosses, Slavers, Act 2 elites) under review; M29d–M29f to follow.** This
-page states what M29 provides so far and its limits. It is a candidate profile, not a public
-profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28 holds; native exposure is
-M34–M36). Until M29f, A1–A5 standard Runs are **diagnostics-only** (`m29-diagnostics`).
+Status: **source-complete candidate: M29a1, M29a2, M29b and M29c merged; M29d (the rest of M29
+and its close) under review.** This page states what M29 provides and its limits. It is a candidate
+profile, not a public profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28
+holds; native exposure is M34–M36). From M29d a default build admits A0–A5 standard Runs as a
+native Rust constructor; before M29d, A1–A5 was diagnostics-only (`m29-diagnostics`). The
+[coverage ledger](m29-ascension1-5-coverage-ledger.md) maps every inventory row to its tests and
+the [reconciliation](m29-ascension1-5-reconciliation.md) lists every disclosed change.
 
 ## What M29 is
 
@@ -14,14 +17,17 @@ new effects) stay in M32; each species has a playable ceiling below its first pe
 row. Values come from a static source check (the M29 ascension inventory); expected test values
 are copied from reviewed spec sheets.
 
-M29 is delivered in merge chunks, merged in the fixed order M29a1 → a2 → b → c → d → e1 → e2 → f.
+M29 is delivered in merge chunks, merged in the fixed order M29a1 → a2 → b → c → d. The planned
+chunks d, e1, e2 and f merge together as M29d (PM ruling: one merge per milestone chunk from now on).
 
 **Compatibility note.** M29a1 renames `RoomScenario::StandardA0` to `RoomScenario::Standard`.
 `StandardA0` in the accepted M28 records (the M28 profile, coverage ledger and reconciliation, and
 the `m28_*` test names they cite) means `Standard` at A0. The two M28 error strings were renamed
 too: M28's `Unsupported("StandardA0 is A0 only")` is now `Unsupported("Standard is A0 only until
 M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above A5), and
-`"StandardA0 stored note …"` is now `"Standard stored note …"`.
+`"StandardA0 stored note …"` is now `"Standard stored note …"`. M29d removes the default-build
+string `Unsupported("Standard is A0 only until M29f")`; A6+ still returns
+`Unsupported("Standard supports A0–A5")`.
 
 ## M29a1: run rules
 
@@ -29,7 +35,7 @@ M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above
   RoomScenario::Standard)` admits A0 in a default build and A0–A5 with `m29-diagnostics`. A default
   build rejects A1–A5 with `Unsupported("Standard is A0 only until M29f")`; every build rejects A6+
   with `Unsupported("Standard supports A0–A5")` (`STANDARD_MAX_ASCENSION = 5`). Frozen finite
-  profiles (M4–M25) stay A0-only.
+  profiles (M4–M25) stay A0-only. (M29d removes the default-build A1–A5 rejection.)
 - **A1 elite quota.** The ordinary map's room-type targets use the source's binary32 law,
   `Math.round((float)n * chance)` (JDK exact rounding), for every room kind; from A1 the elite target
   is `Math.round((float)n * 0.08f * 1.6f)`, left to right. For A0 the binary32 law equals the former
@@ -122,14 +128,71 @@ M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above
   checked at table level only. The behaviour rows behind those ceilings stay in M32: Slaver Red A17
   move selection, Book of Stabbing's A18 stab counter and Taskmaster's A18 Strength.
 
+## M29d: Act 2 normals and bosses, Act 3, Act 4 and the close
+
+- **Values.** The remaining 37 species carry their full numeric ladder, A0–A20 (normals change HP
+  at A7 and damage at A2; elites HP at A8 and damage at A3; bosses HP at A9 and damage at A4):
+  - Act 2: the three Bandits (Romeo's Agonizing Slash Weak 3 and Bear Hug Dexterity −4 from A17),
+    Byrd (Peck 6 hits from A2, Flight 4 from A17), Centurion (Protect Block 20 from A17), Mystic
+    (Strength 3 from A2 and 4 from A17; heal 20 from A17), Chosen, Mugger (Thievery 20 and Smoke
+    Bomb Block 17 from A17), Shelled Parasite, Snake Plant, Snecko, Spheric Guardian (Activate Block
+    35 from A17), Bronze Automaton (Boost Strength 4 from A4, Block 12 from A9) and Bronze Orb, the
+    Champ (Gloat, Anger, Defensive Stance Block and Metallicize at A4/A9/A19) and the Collector
+    (Buff Strength and Block at A4/A9/A19, Mega Debuff 5 from A19) with its Torch Heads.
+  - Act 3: Darkling (Nip roll 9–13 from A2), Exploder, the Maw (Drool Strength 5 and Roar 5 from
+    A17), Orb Walker (Strength Up 5 from A17), Repulsor, Spiker (Thorns 4 from A2 and 7 from A17),
+    Spire Growth (Constrict 12 from A17), Transient (attack sequence from 40 at A2, Fading 6 from
+    A17), Writhing Mass, Giant Head (It Is Time sequence from 40 at A3; first countdown 4 from A18),
+    Nemesis (5 Burns from A18), Reptomancer (two Daggers per Summon from A18, at most four) and the
+    Dagger.
+  - Bosses and Act 4: the Awakened One (Strength 2 from A4; rebirth HP 320 from A9; Regenerate 15 and
+    Curiosity 2 from A19), Time Eater, Deca and Donu (Artifact 3 from A19), Spire Shield and Spire
+    Spear (Artifact 2 from A18; Skewer 4 hits from A3) and the Corrupt Heart (Blood Shots 15 hits
+    from A4; Invincible 200 and Beat of Death 2 from A19).
+- **Owner sites.** The literals that lived outside the species code now read the per-species owner at
+  the combat ascension: the Heart's Invincible refill and Byrd's Flight refill (turn code), the
+  Transient's Fading validator, the Darkling Nip and Transient base checks of the runtime validator,
+  and the Giant Head's first countdown. The stored-memory check (`EnemyMemory::valid_for`) accepts
+  the union over ascensions for the Darkling and the Transient; the validator, which knows the
+  combat ascension, checks the exact value.
+- **Global fixes.** Writhing Mass's Malleable starts and resets at 3, not 4, at every ascension
+  (spire-oto.24; the one-argument `MalleablePower` constructor). The Awakened One's pre-battle
+  powers are in the source's queue order: Regenerate, Curiosity, Unawakened, then Strength from A4
+  (all have the same priority, so the stable sort keeps queue order). Both change A0 state; the
+  reconciliation lists the amended accepted assertions.
+- **Source.** Values come from three reviewed spec sheets (static source check, cross-checked with
+  `data/enemies/enemies.json`). The Writhing Mass record is corrected (Malleable 3); the other
+  disagreements are resolved by the source and listed in the reconciliation.
+- **Ceilings.** Species ceilings: 16 for Romeo, Chosen, Mystic, Shelled Parasite, Snake Plant,
+  Snecko, Darkling and Spire Growth; 17 for Spire Shield and Spire Spear; 18 for the Champ, Bronze
+  Automaton, Deca and Time Eater; 20 for the rest. Encounter ceilings follow (Masked Bandits,
+  Centurion and Mystic, Cultist and Chosen, the Shelled Parasite fights, Snake Plant, Snecko, Three
+  Darklings and Spire Growth 16; Shield and Spear 17; Bronze Automaton, Champ, Time Eater, Donu and
+  Deca 18). The behaviour rows behind them stay in M32 (the coverage ledger lists each one).
+- **Close.** Every species supports A0–A20 numerically, so no encounter returns the typed interim
+  rejection at or below its ceiling. A default build admits A0–A5 standard Runs for all four
+  characters; the retargeted M28 and M29a1 gate tests now check the A6 rejection.
+- **Traversal.** 25 seeds × 4 characters at each of A1–A5: a default build (uniform and reach) and
+  `m29-diagnostics` (uniform, reach and supplied) are fault-free with no typed interim rejection.
+  Supplied Runs reach the Act 2 bosses at every level and the Act 3 bosses at A1–A3. No traversal
+  Run reaches Act 4 at any level, the A0 base included (deaths are policy outcomes, not a gate), so
+  a constructed public Run (supplied HP and keys) covers the Act 3 boss and all of Act 4, Shield and
+  Spear then the Heart, at each of A1–A5 and checks every advertised Act 4 action
+  (`m29_act3_boss_and_act4_a1_to_a5`; PM acceptance at review m1: no Act 4 rule changes at A1–A5).
+  Reaching Act 4 with keys the policy earned itself stays outside this evidence. The A0 default traversal equals the base; under diagnostics two supplied
+  Runs differ, both after a Writhing Mass fight (the Malleable fix).
+
 ## Limits
 
-- **Interim.** Combat-level ascension values land chunk by chunk (M29b–M29e2). Under
-  `m29-diagnostics`, an A1–A5 combat is admitted when every species its encounter can contain has
-  landed. After M29c that is every Act 1 formation, plus the Act 2 Gremlin Leader, Slavers and Book
-  of Stabbing elites, Three Cultists, Three Fungi Beasts and the Act 3 Jaw Worm Horde. Every other
-  combat is rejected at entry with the typed `Unsupported("enemy setup facts unavailable for this
-  act/ascension")`. Event fights whose encounter has not landed stay disabled choices.
+- **Interim closed.** No standard-Run combat or event fight at A0–A5 returns the typed interim
+  `Unsupported("enemy setup facts unavailable for this act/ascension")`; the code path remains only
+  for an encounter with no species set and for ascensions above 20. Above an encounter's ceiling (A17+ for the lowest ceilings), setup still returns
+  `Unsupported("enemy behaviour above this ascension lands in M32")`; the Run never reaches it
+  (creation caps at A5).
+- **Behaviour rows (M32).** Enemy AI and new effects at A17+ (for example the Mystic's heal cutoff,
+  the Champ's Forge cutoff, the Snecko's Weak, Deca's Plated Armor, the Time Eater's A19 effects,
+  the Shield's 99 Block, the Spear's draw-pile Burns, the Darkling's Strength and Spire Growth's
+  forced Constrict) are not implemented. Their amounts are checked at table level where numeric.
 - A6+ run-level rules are dormant (`Run::new` codes A6/A10/A11/A14; creation caps at A5). Hand-forward
   for M30: `run/engine.rs:17` computes A6 start HP as the integer `(max * 9 + 5) / 10`; the source is
   `MathUtils.round(max * 0.9f)`.

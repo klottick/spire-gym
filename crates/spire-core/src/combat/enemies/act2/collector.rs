@@ -39,8 +39,10 @@ pub(super) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<Vec<Effect>
         "collector_spawn"=>vec![request(0),request(1)],
         "collector_revive"=>slots.iter().filter(|(_,child)|!state.enemies.iter().any(|e|&e.instance_id==*child&&e.life==ActorLife::Active&&e.hp>0)).map(|(slot,_)|request(*slot)).collect(),
         "collector_rake"=>vec![damage(actor.clone(),intent)],
-        "collector_buff"=>{let mut work=vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(15))];for enemy in spawn::ordered_actors(state){work.push(effect(actor.clone(),Actor::Enemy(enemy.instance_id.clone()),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3}));}work},
-        "collector_ultimate"=>["weak","vulnerable","frail"].into_iter().map(|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:3})).collect(),
+        "collector_buff"=>{let mut work=vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(if state.ascension>=19{23}else if state.ascension>=9{18}else{15}))];
+            let strength=if state.ascension>=19{5}else if state.ascension>=4{4}else{3};
+            for enemy in spawn::ordered_actors(state){work.push(effect(actor.clone(),Actor::Enemy(enemy.instance_id.clone()),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:strength}));}work},
+        "collector_ultimate"=>["weak","vulnerable","frail"].into_iter().map(|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:if state.ascension>=19{5}else{3}})).collect(),
         _=>return Err(InputError::Invariant("Collector intent mismatch".into()).into()),
     };
     let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();let Some(EnemyMemory::Collector{turns_taken,initial_spawn,ult_used,..})=enemy.full_memory.as_mut()else{unreachable!()};

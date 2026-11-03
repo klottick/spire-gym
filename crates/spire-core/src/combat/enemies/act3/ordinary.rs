@@ -25,28 +25,29 @@ pub(in crate::combat::enemies) fn select_move(id:EnemyId,history:&[FullIntentId]
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory,stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let a17=|base,raised|if ascension>=17{raised}else{base};
     let actor=Actor::Enemy(enemy.instance_id.clone());
     let own=|kind|effect(actor.clone(),actor.clone(),kind);
     let intent=FullIntentId::from_name(match enemy.intent_id{super::super::super::ActorIntentId::Full(i)=>i.as_str(),_=>return Err(InputError::Invariant("full ordinary intent absent".into()))});
     Ok(match intent.as_str(){
         "growth_quick"|"growth_smash"|"maw_slam"=>vec![damage(actor,intent)],
-        "growth_constrict"=>vec![effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("constricted"),amount:10})],
+        "growth_constrict"=>vec![effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("constricted"),amount:a17(10,12)})],
         "transient_attack"=>{
             let Some(EnemyMemory::Transient{turns,..})=enemy.full_memory else{return Err(InputError::Invariant("Transient counter absent".into()))};
-            vec![damage(actor.clone(),intent),own(if turns==4{EffectKind::TransientFade}else{EffectKind::ReduceFullPower{id:FullPowerId("fading"),amount:1}})]
+            vec![damage(actor.clone(),intent),own(if turns as i32+1==super::super::ascension::transient_fading(ascension){EffectKind::TransientFade}else{EffectKind::ReduceFullPower{id:FullPowerId("fading"),amount:1}})]
         },
-        "maw_roar"=>["weak","frail"].into_iter().map(|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:3})).collect(),
-        "maw_drool"=>vec![own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3})],
+        "maw_roar"=>["weak","frail"].into_iter().map(|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:a17(3,5)})).collect(),
+        "maw_drool"=>vec![own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:a17(3,5)})],
         "maw_nom"=>{let Some(EnemyMemory::Maw{turns,..})=enemy.full_memory else{return Err(InputError::Invariant("Maw turn counter absent".into()))};vec![own(EffectKind::MawNom{remaining:(turns+1)/2})]},
         _=>return Err(InputError::Unsupported("Act3 ordinary intent unavailable".into())),
     })
 }
 
-pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState)->Result<Vec<Effect>,InputError>{
-    let work=move_work(enemy)?;
+pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let work=move_work(enemy,ascension)?;
     match &mut enemy.full_memory{
-        Some(EnemyMemory::Transient{turns,..})=>*turns=turns.checked_add(1).filter(|t|*t<=5).ok_or_else(||InputError::Invariant("expired Transient turn".into()))?,
+        Some(EnemyMemory::Transient{turns,..})=>*turns=turns.checked_add(1).filter(|t|*t as i32<=super::super::ascension::transient_fading(ascension)).ok_or_else(||InputError::Invariant("expired Transient turn".into()))?,
         Some(EnemyMemory::Maw{roared,..}) if enemy.intent_id.as_str()=="maw_roar"=>*roared=true,_=>{},
     }Ok(work)
 }

@@ -555,7 +555,7 @@ pub(in crate::combat) fn take_turn(
             make_effect(actor, Actor::Player, EffectKind::Thief(damage)),
         ])
     } else if intent.as_str() == intent_name(id, "smoke_bomb") {
-        let block = if id == EnemyId::Looter { 6 } else { 11 };
+        let block = if id == EnemyId::Looter { 6 } else if state.ascension >= 17 { 17 } else { 11 };
         Ok(vec![make_effect(actor.clone(), actor, EffectKind::GainBlock(block))])
     } else if intent.as_str() == intent_name(id, "escape") {
         Ok(vec![make_effect(actor.clone(), actor,

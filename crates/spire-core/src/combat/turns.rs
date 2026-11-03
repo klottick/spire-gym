@@ -149,11 +149,12 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::MonsterStart => {
             state.phase = Phase::EnemyTurn;
             if state.full_runtime {
+                let ascension=state.ascension;
                 for enemy in state.enemies.iter_mut().filter(|enemy|
                     enemy.life == super::ActorLife::Active && enemy.hp > 0) {
                     if !enemy.full_powers.iter().any(|p|p.id.0=="barricade"&&p.state.amount>0){enemy.block=0;}
-                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="flight"){power.state.amount=3;}}
-                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="invincible"){power.state.amount=300;}}
+                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Byrd){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="flight"){power.state.amount=super::enemies::ascension::byrd_flight(ascension);}}
+                    if enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart){if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="invincible"){power.state.amount=super::enemies::ascension::heart_invincible(ascension);}}
                 }
                 state.pending.push_back(work(EffectKind::EndRound));
                 let mut scheduled=state.enemies.iter().filter(|e|e.life==super::ActorLife::HalfDead||(e.life==super::ActorLife::Active&&e.hp>0)).collect::<Vec<_>>();

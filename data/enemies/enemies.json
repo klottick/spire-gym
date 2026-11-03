@@ -8663,7 +8663,7 @@
         "distribution": "inclusive uniform integer for ordinary ranges; fixed when min=max; split-created actors override ordinary roll",
         "scaling_basis": "Wiki endpoints with normal A7 / Elite A8 / Boss A9 family thresholds; Bronze Orb and Torch Head follow parent Boss A9 (secondary corroboration)."
       },
-      "starting_state": "Malleable 4 ; Reactive",
+      "starting_state": "Malleable 3 ; Reactive",
       "moves": [
         {
           "id": "multi_hit",
@@ -8839,7 +8839,7 @@
       },
       "lifecycle": [
         "Owned-static Reactive requires positive nonlethal callback damage, nonnull attacker and neitherTHORNS norHP_LOSS; queues one bottom RollMove per qualifying hit, not one per card. Native Lightning Orb retains sourceTHORNS exclusions.",
-        "Malleable begins4; qualifying positive nonlethal NORMAL owned hits queue current Block then increment synchronously. Enemy resets at owner end-turn. Named TwinStrike queues both hits/cleanup before RollMove/Block4/RollMove/Block5; not a universal dynamically-generated-hit ordering rule.",
+        "Malleable begins3 (one-argument MalleablePower constructor; corrected 2026-11-03 from 4, spire-oto.24); qualifying positive nonlethal NORMAL owned hits queue current Block then increment synchronously. Enemy resets to 3 at owner end-turn. Named TwinStrike queues both hits/cleanup before RollMove/Block3/RollMove/Block4; not a universal dynamically-generated-hit ordering rule.",
         "Executed Parasite latches used before permanent obtain, not selection or current-combat pile insertion. Arbitrary prevention remains separately qualified; permanent removal lowers maxHP3 with floor1/currentHP clamp, not combat exhaustion."
       ],
       "variants": [],

@@ -13,10 +13,10 @@ fn m28_standard_a0_is_public_in_a_default_build() {
         let decision = run.decision().unwrap();
         assert_eq!(decision.content_profile, Some(RoomScenario::Standard), "{character:?}");
         assert_eq!(decision.room.map(|room| room.kind), Some(RoomViewKind::Neow), "{character:?}");
-        // Amended (M29a1, plan erratum v3 n2): A1–A5 are diagnostics-only until M29f; A6+ is never admitted.
-        assert_eq!(
-            Run::new_room_scenario(RunConfig { character, ascension: 1 }, CreationProfile::experienced(), rng(), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard is A0 only until M29f")),
+        // Amended (M29a1, plan erratum v3 n2): A1–A5 were diagnostics-only until M29f. Amended again at the
+        // M29 close (erratum n2): A1 is public in a default build; A6+ is never admitted.
+        assert!(
+            Run::new_room_scenario(RunConfig { character, ascension: 1 }, CreationProfile::experienced(), rng(), RoomScenario::Standard).is_ok(),
             "{character:?}",
         );
         assert_eq!(

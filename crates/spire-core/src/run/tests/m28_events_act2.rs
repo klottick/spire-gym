@@ -202,10 +202,11 @@ fn m28_event_outcome_replace_relic_in_slot() {
 /// ascension is the typed `Unsupported`, checked before any mutation, for every event encounter (M28d's Three
 /// Sentries at A15 here), never a fault after acceptance. Supported pairs (Gremlin Nob at A15) still start.
 /// M29c lands the Sentry, so the unavailable witness moves to Masked Bandits (M29d) at A15 (name kept).
+/// M29d lands Masked Bandits: the witness is A17, above its encounter ceiling (16).
 #[test]
 fn m28_event_combat_unsupported_ascension_is_rejected_up_front() {
     let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 94);
-    run.state.ascension = 15;
+    run.state.ascension = 17;
     let before = run.clone();
     let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::MaskedBandits, rewards: None, next_stage: 0, elite: true }]);
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");
@@ -1105,8 +1106,9 @@ fn m28_colosseum_above_a0_is_rejected_at_the_move() {
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");
     assert!(run == before && run.state.fault.is_none(), "rejected atomically, no fault");
 
+    // M29d lands Masked Bandits (ceiling 16): the fight is gated above the ceiling.
     let (mut run, node) = before_event(Character::Ironclad, 2, EventId::MaskedBandits, 7);
-    run.state.ascension = 1;
+    run.state.ascension = 17;
     run.step(&GameAction::Move(node)).unwrap();
     assert_eq!(event_row(&run, 0, 0).status, RoomChoiceStatus::Offered, "Pay stays legal");
     assert_eq!(event_row(&run, 0, 1).status, RoomChoiceStatus::Disabled, "the fight is gated");
