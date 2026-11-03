@@ -48,9 +48,9 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Nemesis)&&!enemy.full_powers.iter().any(|p|p.id.0=="intangible"){work.push(effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("intangible"),amount:1}));}
     Ok(work)
 }
-pub(in crate::combat) fn refresh_actor(enemy:&mut EnemyState){
+pub(in crate::combat) fn refresh_actor(enemy:&mut EnemyState,ascension:u8){
     if let Some(EnemyMemory::GiantHead{count})=enemy.full_memory{
-        if let Some(entry)=enemy.full_damage_entries.get_mut(&FullIntentId::from_name("head_time")){entry.base=30-5*i32::from(count.min(0));}
+        if let Some(entry)=enemy.full_damage_entries.get_mut(&FullIntentId::from_name("head_time")){entry.base=super::super::ascension::giant_head_time_base(count,ascension);}
     }
 }
 pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{

@@ -213,11 +213,11 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
             // An encounter without enemy facts at this ascension is the typed interim, before any
             // mutation (ascension enemy tables land with M29–M33).
             Outcome::Combat{encounter,..} if !crate::combat::enemies::setup_supports_ascension(*encounter,state.ascension)=>
-                return Err(RunError::Unsupported("event combat enemy setup unavailable at this ascension")),
+                return Err(event_gate(Some(*encounter),state.ascension,"event combat enemy setup unavailable at this ascension")),
             // Secret Portal fights the act's boss (the map icon) under the same gate.
             Outcome::EnterBoss if !state.map.as_ref().and_then(|map|map.boss_icon)
                 .is_some_and(|boss|crate::combat::enemies::setup_supports_ascension(boss,state.ascension))=>
-                return Err(RunError::Unsupported("event boss enemy setup unavailable at this ascension")),
+                return Err(event_gate(state.map.as_ref().and_then(|map|map.boss_icon),state.ascension,"event boss enemy setup unavailable at this ascension")),
             Outcome::Combat{..}|Outcome::Rewards{..}|Outcome::ColourlessRewards(_)|Outcome::NextStage(_)|Outcome::Leave|Outcome::EnterBoss=>if !last{return Err(RunError::InvalidAction)},
             _=>{}
         }
@@ -456,5 +456,15 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
     match obtained{
         Some((relic,result))=>{let choice=event_frame::accepted_choice(run)?;crate::run::rooms::after_obtain(run,choice,relic,result)}
         None=>Ok(empty_transition()),
+    }
+}
+
+/// Typed event-fight rejection: above the encounter's playable ceiling the M32 reason, otherwise the
+/// M29 interim (species values not landed yet).
+fn event_gate(encounter:Option<crate::content::EncounterId>,ascension:u8,interim:&'static str)->RunError{
+    use crate::combat::enemies::ascension::{encounter_admission,ABOVE_CEILING};
+    match encounter.map(|encounter|encounter_admission(encounter,ascension)){
+        Some(Err(ABOVE_CEILING))=>RunError::Unsupported(ABOVE_CEILING),
+        _=>RunError::Unsupported(interim),
     }
 }

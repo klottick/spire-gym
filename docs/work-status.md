@@ -1,6 +1,17 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M28 merged; M29a1 (Ascension run rules) candidate
+## Current snapshot — 2026-11-03, M29a1 merged; M29a2 (combat ascension owner) candidate
+
+- M29a1 merged as PR #84 (`943ec3ac`); fuzz chunk C1 (source end-of-turn order) merged as PR #85
+  (`ce139820`), the M29a2 source base.
+- M29a2 is a source candidate, not accepted: one combat-level ascension that all enemy code reads
+  (the legacy per-actor copies folded in), per-species ascension functions for the A0 values that
+  lived outside the species code, spawned and split children built at the combat ascension, and
+  per-species and per-encounter playable ceilings (typed rejection naming M32 above them). No new
+  species gain A1+ values; the interim list is unchanged. See the
+  [M29 candidate profile](milestones/m29-ascension1-5.md).
+
+## Snapshot — 2026-11-03, M28 merged; M29a1 (Ascension run rules) candidate
 
 - M28f2 merged as PR #83 (`ec8716bb`), closing M28 and the M29a1 source base.
 - M29 (Ascension 1–5) is planned in eight merge chunks, merged in order a1 → a2 → b → c → d → e1 →

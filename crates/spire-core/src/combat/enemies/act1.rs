@@ -189,15 +189,15 @@ pub(super) fn select_fungi(history:&[FullIntentId],memory:&EnemyMemory,stream:&S
     Ok(MoveSelection{intent,memory:memory.clone(),stream:next})
 }
 
-pub(super) fn fungi_move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn fungi_move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());
-    let Some(EnemyMemory::FungiBeast{ascension})=enemy.full_memory.as_ref()else{
+    let Some(EnemyMemory::FungiBeast)=enemy.full_memory.as_ref()else{
         return Err(InputError::Invariant("Fungi Beast memory absent".into()));
     };
     match enemy.intent_id {
         super::super::ActorIntentId::Full(FullIntentId::Bite)=>Ok(vec![damage(actor,FullIntentId::Bite)]),
         super::super::ActorIntentId::Full(FullIntentId::Grow)=>Ok(vec![effect(actor.clone(),actor,
-            EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if *ascension>=17{5}else if *ascension>=2{4}else{3}})]),
+            EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if ascension>=17{5}else if ascension>=2{4}else{3}})]),
         _=>Err(InputError::Invariant("Fungi Beast intent mismatch".into())),
     }
 }

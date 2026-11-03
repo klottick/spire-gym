@@ -486,14 +486,24 @@ impl Combat {
             || setup.card_rng.id().scope()[0] != setup.shuffle_rng.id().scope()[0] {
             return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
         }
+        // One combat-level ascension (M29a2): every formation member's setup echo must agree,
+        // and each species must be admitted there (typed interim / above-ceiling rejection).
+        let ascension=setup.enemies[0].ascension;
+        if setup.enemies.iter().any(|enemy|enemy.ascension!=ascension) {
+            return Err(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("combat enemies disagree on ascension")));
+        }
+        for enemy in &setup.enemies {
+            super::enemies::ascension::species_admission(enemy.enemy_id,ascension)
+                .map_err(|reason|CombatEntryFailure::Rejected(crate::run::RunError::Unsupported(reason)))?;
+        }
         let expected_sampled_slots=setup.enemies.iter().enumerate().filter_map(|(slot,enemy)|match enemy.enemy_id{
             crate::content::EnemyId::LouseRed|crate::content::EnemyId::LouseGreen=>Some((slot as u32,super::FullIntentId::Bite)),
             crate::content::EnemyId::Darkling=>Some((slot as u32,super::FullIntentId::from_name("darkling_nip"))),_=>None,
         }).collect::<BTreeSet<_>>();
         if setup.enemy_damage_bases.keys().copied().collect::<BTreeSet<_>>() != expected_sampled_slots
             || setup.enemy_damage_bases.iter().any(|((slot,_),base)|match setup.enemies[*slot as usize].enemy_id{
-                crate::content::EnemyId::Darkling=>!(7..=11).contains(base)||!matches!(setup.enemies[*slot as usize].initial_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==*base),
-                _=>!(5..=7).contains(base),
+                crate::content::EnemyId::Darkling=>!{let (lo,hi)=super::enemies::ascension::darkling_nip_range(ascension);(lo..=hi).contains(base)}||!matches!(setup.enemies[*slot as usize].initial_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==*base),
+                _=>{let (lo,hi)=super::enemies::ascension::louse_bite_range(ascension);!(lo..=hi).contains(base)},
             }) {
             return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
         }
@@ -503,16 +513,12 @@ impl Combat {
             if !ids.insert(enemy.instance_id.clone()) || enemy.hp <= 0 || enemy.hp > enemy.max_hp
                 || enemy.max_hp <= 0 || enemy.block != 0 || !valid_full_powers(&enemy.powers)
                 || enemy.powers.iter().any(|power|power.id.0=="combust")
-                || enemy.ascension > 20
-                || (enemy.ascension != 0 && !matches!(enemy.enemy_id,
-                    crate::content::EnemyId::Cultist | crate::content::EnemyId::JawWorm
-                        | crate::content::EnemyId::GremlinNob | crate::content::EnemyId::SlaverBlue | crate::content::EnemyId::FungiBeast))
                 || !enemy.profile.valid_for(enemy.enemy_id)
                 || (matches!(enemy.enemy_id,crate::content::EnemyId::GiantHead|crate::content::EnemyId::Nemesis)
                     &&!super::enemies::act3::elites::valid_intent(enemy.enemy_id,enemy.intent.as_str()))
                 || (matches!(enemy.enemy_id,crate::content::EnemyId::Deca|crate::content::EnemyId::Donu)
                     &&!super::enemies::act3::partners::valid_intent(enemy.enemy_id,enemy.intent.as_str()))
-                || enemy.initial_memory.as_ref().is_some_and(|memory|!memory.valid_for(enemy.enemy_id)||memory.ascension()!=enemy.ascension)
+                || enemy.initial_memory.as_ref().is_some_and(|memory|!memory.valid_for(enemy.enemy_id))
                 || matches!(enemy.initial_memory,Some(super::EnemyMemory::WrithingMass{parasite_pending:true,..}))
                 || enemy.ai_rng.id().domain() != Domain::RunCombatEnemyAi
                 || enemy.ai_rng.id().scope().len() != 2
@@ -551,7 +557,7 @@ impl Combat {
         super::enemies::act2::stasis::validate_custody(&combat.state)
             .map_err(|_|CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction))?;
         let prebattle = combat.state.enemies.iter().try_fold(Vec::new(), |mut work, actor| {
-            work.extend(super::enemies::prebattle_work(actor).map_err(|_|
+            work.extend(super::enemies::prebattle_work(actor, combat.state.ascension).map_err(|_|
                 CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("invalid enemy prebattle setup")))?);
             Ok::<_, CombatEntryFailure>(work)
         })?;
@@ -1464,7 +1470,7 @@ impl Combat {
             card_ids_issued: issued,
             rng: scenario.rng.clone(), pending: VecDeque::new(), current: None, in_play: None,
              resolved_effects: 0, public: PublicKnowledge { revealed_order: vec![],known_draw:vec![],known_draw_bottom:vec![] },
-            outcome: None, fault: None, hp_before_healing: None, hp_after_cleanup: None, full_runtime,
+            outcome: None, fault: None, hp_before_healing: None, hp_after_cleanup: None, full_runtime, ascension: 0,
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
@@ -1472,6 +1478,7 @@ impl Combat {
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
+        let ascension = setup.enemies.first().map_or(0, |enemy| enemy.ascension);
         let damage_bases = setup.enemy_damage_bases;
         let facing=if setup.player_powers.iter().any(|p|p.id.0=="surrounded"){Some(super::PlayerFacing::Left)}else{None};
         let enemies:Vec<_> = setup.enemies.into_iter().enumerate().map(|(slot, e)| {
@@ -1498,7 +1505,7 @@ impl Combat {
                 player: setup.player, enemies, piles: OwnedPiles::default(), card_ids_issued: BTreeSet::new(),
                 rng, pending: VecDeque::new(), current: None, in_play: None, resolved_effects: 0,
                  public: PublicKnowledge { revealed_order: vec![],known_draw:vec![],known_draw_bottom:vec![] }, outcome: None, fault: None,
-                hp_before_healing: None, hp_after_cleanup: None, full_runtime: true, pending_selection: None,temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,
+                hp_before_healing: None, hp_after_cleanup: None, full_runtime: true, ascension, pending_selection: None,temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers, item_context: None,
                 character,
@@ -1941,7 +1948,8 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::RevivalHeal(n)=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("revival heal target absent".into()))};let e=state.enemies.iter().find(|e|&e.instance_id==owner).unwrap();
             let dark=e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Darkling)&&e.life==ActorLife::HalfDead&&*n==e.max_hp/2&&e.hp==0&&e.intent_id.as_str()=="darkling_reincarnate";
-            let awake=e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::AwakenedOne)&&e.life==ActorLife::Active&&e.hp==0&&*n==300&&e.max_hp==300&&e.intent_id.as_str()=="awa_rebirth"&&matches!(e.full_memory,Some(super::EnemyMemory::AwakenedOne{phase:super::enemies::AwakenedPhase::Rebirth,..}));
+            let rebirth=super::enemies::ascension::awakened_rebirth_max_hp(state.ascension);
+            let awake=e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::AwakenedOne)&&e.life==ActorLife::Active&&e.hp==0&&*n==rebirth&&e.max_hp==rebirth&&e.intent_id.as_str()=="awa_rebirth"&&matches!(e.full_memory,Some(super::EnemyMemory::AwakenedOne{phase:super::enemies::AwakenedPhase::Rebirth,..}));
             require(state.full_runtime&&effect.source==Source::Actor(Actor::Enemy(owner.clone()))&&(dark||awake),"qualified revival heal stage/owner")?;
         },
         EffectKind::DarklingCollapse|EffectKind::DarklingRevive|EffectKind::DarklingsDefeat=>{
@@ -1952,7 +1960,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         },
         EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth|EffectKind::AwakenedCanLose=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Awakened lifecycle target absent".into()))};let e=state.enemies.iter().find(|e|&e.instance_id==owner).unwrap();
-            let stage=matches!(effect.kind,EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth)&&e.life==ActorLife::HalfDead&&e.hp==0||effect.kind==EffectKind::AwakenedCanLose&&e.life==ActorLife::Active&&e.hp==300;
+            let stage=matches!(effect.kind,EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth)&&e.life==ActorLife::HalfDead&&e.hp==0||effect.kind==EffectKind::AwakenedCanLose&&e.life==ActorLife::Active&&e.hp==super::enemies::ascension::awakened_rebirth_max_hp(state.ascension);
             require(state.full_runtime&&effect.source==Source::Actor(Actor::Enemy(owner.clone()))&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::AwakenedOne)&&matches!(e.full_memory,Some(super::EnemyMemory::AwakenedOne{phase:super::enemies::AwakenedPhase::Rebirth,..}))&&stage,"qualified Awakened lifecycle stage/owner")?;
         },
         EffectKind::TransientFade|EffectKind::TransientRecover|EffectKind::MawNom{..}=>{
@@ -2520,7 +2528,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     });
                     require(shape,"Corrupt Heart typed selection memory/history/intent correspondence")?;
                 }
-                let ascension = e.full_memory.as_ref().map_or(0, super::enemies::EnemyMemory::ascension);
+                let ascension = state.ascension;
                 let bases = supported_full_damage(*enemy_id, ascension);
                 require(e.full_damage_entries.len() == bases.len(), "full damage entry membership")?;
                 for (id, base) in bases {
@@ -2530,8 +2538,8 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                     let divider=if *enemy_id==crate::content::EnemyId::Hexaghost&&id.as_str()=="divider"{match e.full_memory {Some(super::EnemyMemory::Hexaghost{divider_base,..})=>Some(divider_base.unwrap_or(1)),_=>None}}else{None};
                     let darkling_nip=*enemy_id==crate::content::EnemyId::Darkling&&id.as_str()=="darkling_nip";
                     let transient_base=match e.full_memory{Some(super::EnemyMemory::Transient{base,..}) if id.as_str()=="transient_attack"=>Some(base),_=>None};
-                    let head_base=match e.full_memory{Some(super::EnemyMemory::GiantHead{count}) if id.as_str()=="head_time"=>Some(30-5*i32::from(count.min(0))),_=>None};
-                    require((if louse_bite { (5..=7).contains(&entry.base) } else if darkling_nip {matches!(e.full_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==entry.base)} else { entry.base == head_base.or(transient_base).or(divider).unwrap_or(base.base) })
+                    let head_base=match e.full_memory{Some(super::EnemyMemory::GiantHead{count}) if id.as_str()=="head_time"=>Some(super::enemies::ascension::giant_head_time_base(count,ascension)),_=>None};
+                    require((if louse_bite { let (lo,hi)=super::enemies::ascension::louse_bite_range(ascension); (lo..=hi).contains(&entry.base) } else if darkling_nip {matches!(e.full_memory,Some(super::EnemyMemory::Darkling{nip,..}) if nip==entry.base)} else { entry.base == head_base.or(transient_base).or(divider).unwrap_or(base.base) })
                         && (0..=30_012).contains(&entry.output), "full damage bounds")?;
                 }
             }

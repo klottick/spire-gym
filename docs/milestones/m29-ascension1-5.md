@@ -1,6 +1,6 @@
 # M29 Ascension 1–5
 
-Status: **candidate, in progress: chunk M29a1 (run rules) under review; M29a2–M29f to follow.** This
+Status: **candidate, in progress: M29a1 (run rules) merged; M29a2 (combat ascension owner) under review; M29b–M29f to follow.** This
 page states what M29 provides so far and its limits. It is a candidate profile, not a public
 profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28 holds; native exposure is
 M34–M36). Until M29f, A1–A5 standard Runs are **diagnostics-only** (`m29-diagnostics`).
@@ -18,7 +18,10 @@ M29 is delivered in merge chunks, merged in the fixed order M29a1 → a2 → b �
 
 **Compatibility note.** M29a1 renames `RoomScenario::StandardA0` to `RoomScenario::Standard`.
 `StandardA0` in the accepted M28 records (the M28 profile, coverage ledger and reconciliation, and
-the `m28_*` test names they cite) means `Standard` at A0.
+the `m28_*` test names they cite) means `Standard` at A0. The two M28 error strings were renamed
+too: M28's `Unsupported("StandardA0 is A0 only")` is now `Unsupported("Standard is A0 only until
+M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above A5), and
+`"StandardA0 stored note …"` is now `"Standard stored note …"`.
 
 ## M29a1: run rules
 
@@ -46,6 +49,35 @@ the `m28_*` test names they cite) means `Standard` at A0.
   records its ascension, typed interim rejections, `interim_blocked` (every advertised candidate is
   a typed interim rejection: the Run stops, not a fault), per-act elite target and placement, and HP
   around each act transition.
+
+## M29a2: combat ascension owner
+
+- **One owner.** The combat `State` carries one `ascension`, set at entry from the setup; entry
+  rejects a formation whose members disagree (`Unsupported("combat enemies disagree on
+  ascension")`). Move selection, move payloads, pre-battle work, spawned and split children, the
+  Awakened One's rebirth (its new maximum HP, the revival heal and both rebirth checks of the
+  runtime validator) and the runtime validator's damage bounds read it. The per-actor copies in the Cultist, Jaw
+  Worm, Gremlin Nob and Fungi Beast memories are folded into it and `SlaverBlueAscension` is merged
+  into `SlaverBlue`; their values at every threshold are unchanged. The combat state text (and its
+  hash) now prints `ascension` and the folded memories, for every combat including A0.
+- **Per-species owner.** `combat/enemies/ascension.rs` holds the A0 values that used to live outside
+  the species code: the Louse Bite and Curl Up and Darkling Nip roll ranges (the draw bound follows
+  the range size), the Giant Head and Transient bases, the Mad Gremlin's Angry (at setup and when
+  summoned), the Awakened One's rebirth HP (max HP, revival heal and validator) and the pre-battle
+  power table. A0 values and RNG draws
+  are unchanged; chunks b–e2 fill the ladders.
+- **Ceilings and spawn closure.** Each species has a playable ceiling (16, 17, 18 or 20: one below its
+  first behaviour change still pending in M32). An encounter's ceiling is the minimum over every
+  species any draw of it can contain and everything those species spawn or split into (Slime Boss
+  and Gremlin Leader 16, Shield and Spear 17, Donu and Deca 18). Setup and the event executor
+  reject an ascension above the encounter ceiling with `Unsupported("enemy behaviour above this
+  ascension lands in M32")`, setup before any RNG draw. Combat entry applies the same rule to the
+  formation it is given: it rejects any member above the lowest ceiling of that member and
+  everything it spawns or splits into (a hand-built solo Slime Boss or Gremlin Leader is rejected
+  at A17).
+- **Typed failures.** Genuine setup precondition failures (empty deck, opening draw above 10, player
+  HP out of range) now return `Unsupported("combat setup preconditions failed")`, so the typed
+  interim string means only "species values not landed yet".
 
 ## Limits (M29a1)
 

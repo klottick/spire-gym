@@ -489,6 +489,8 @@ pub(super) struct State {
     pub outcome: Option<Outcome>, pub fault: Option<FaultRecord>,
     pub hp_before_healing: Option<i32>, pub hp_after_cleanup: Option<i32>,
     pub full_runtime: bool,
+    /// The one combat-level ascension (M29): every enemy value and selection reads it.
+    pub ascension: u8,
     pub pending_selection: Option<PendingSelection>,
     pub temporary_retain: Option<TemporaryRetain>,
     pub nightmare_templates: Vec<NightmareTemplateOwner>,
@@ -536,7 +538,7 @@ impl std::fmt::Debug for State {
             .field("current",&self.current).field("in_play",&self.in_play).field("resolved_effects",&self.resolved_effects)
             .field("public",&self.public).field("outcome",&self.outcome).field("fault",&self.fault)
             .field("hp_before_healing",&self.hp_before_healing).field("hp_after_cleanup",&self.hp_after_cleanup)
-            .field("full_runtime",&self.full_runtime).field("pending_selection",&self.pending_selection)
+            .field("full_runtime",&self.full_runtime).field("ascension",&self.ascension).field("pending_selection",&self.pending_selection)
             .field("temporary_retain",&self.temporary_retain).field("nightmare_templates",&self.nightmare_templates)
             .field("next_nightmare_installation_id",&self.next_nightmare_installation_id).field("hook_events",&self.hook_events)
             .field("attempted_action",&self.attempted_action).field("fault_selection",&self.fault_selection)

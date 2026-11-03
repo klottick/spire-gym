@@ -16,8 +16,8 @@
 //! (A1–A5 need `--features m29-diagnostics` until M29f). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
-//! ends the Run as `interim_blocked`, which is not a fault. Each Run also records its per-act elite
-//! target/placement and its HP around each act transition. One ascension writes
+//! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by
+//! public room context, its per-act elite target/placement and its HP around each act transition. One ascension writes
 //! `DIR/traversal.json`; a range writes `DIR/a<N>/traversal.json` per level.
 //!
 //! Usage: cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR
@@ -121,7 +121,26 @@ impl Census {
 }
 
 struct Outcome { steps: usize, terminal: Option<String>, fault: Option<String>, act: u8, floor: u32, actions: Vec<GameAction>, last: Option<PublicDecision>,
-    interim_rejections: u64, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value> }
+    interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value> }
+
+/// Attribute a typed interim rejection to public map facts or the named event screen.
+fn interim_context(run: &Run, decision: &PublicDecision, action: &GameAction) -> String {
+    if let Some(RoomViewKind::Event(event)) = decision.room.as_ref().map(|room| room.kind) {
+        return format!("event:{event:?}");
+    }
+    if let GameAction::Move(id) = action {
+        if let Some(map) = run.public_map() {
+            if let Some(node) = map.nodes.iter().find(|node| node.id == *id) {
+                if node.kind == MapNodeKind::Boss {
+                    if let Some(encounter) = map.boss { return format!("act{}/{encounter:?}", map.act); }
+                }
+                return format!("act{}/{:?}", map.act, node.kind);
+            }
+        }
+    }
+    let room = decision.room.as_ref().map(|room| variant(format!("{:?}", room.kind))).unwrap_or_else(|| "unknown".into());
+    format!("act{}/{}", decision.act, room)
+}
 
 /// One-step lookahead value for the reach policy (combat only): survive, then kill.
 fn score(run: &Run) -> i64 {
@@ -153,7 +172,7 @@ fn rollout(mut run: Run) -> i64 {
 
 fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: bool, ascension: u8, census: &mut Census) -> Outcome {
     let mut out = Outcome { steps: 0, terminal: None, fault: None, act: 0, floor: 0, actions: Vec::new(), last: None,
-        interim_rejections: 0, interim_blocked: None, elites: Vec::new(), transitions: Vec::new() };
+        interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new() };
     let mut run = match new_run(character, seed, supplied, ascension) { Ok(run) => run, Err(error) => { out.fault = Some(error); return out } };
     let mut map_act = 0u8;
     let mut policy = u64::from_le_bytes(root(character, seed)[..8].try_into().unwrap()) ^ if reach { 0x5245_4143_48 } else { 0x4D32_3846 };
@@ -196,7 +215,10 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
             let mut clone = run.clone();
             match catch_unwind(AssertUnwindSafe(|| clone.step(&candidate.action))) {
                 Ok(Ok(_)) => { open.push(position); scores.push(if !reach { 0 } else if decision.combat.is_some() { rollout(clone) } else { score(&clone) }) }
-                Ok(Err(RunError::Unsupported(message))) if ascension != 0 && INTERIM.contains(&message) => out.interim_rejections += 1,
+                Ok(Err(RunError::Unsupported(message))) if ascension != 0 && INTERIM.contains(&message) => {
+                    out.interim_rejections += 1;
+                    *out.interim_by_context.entry(interim_context(&run, &decision, &candidate.action)).or_default() += 1;
+                }
                 Ok(Err(error)) => { out.fault = Some(format!("step {}: advertised {:?} rejected on clone: {error:?} (room {:?})", out.steps, candidate.action, decision.room.as_ref().map(|room| &room.kind))); break }
                 Err(_) => { out.fault = Some(format!("step {}: panic on clone for {:?}", out.steps, candidate.action)); break }
             }
@@ -305,14 +327,15 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
                 "replay":if outcome.fault.is_none() {"equal"} else {"not run"}});
             // M29 fields, kept beside the M28 record so the A0 control projection is unchanged (erratum v3 n3).
             let m29 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,
-                "interim_rejections":outcome.interim_rejections,"interim_blocked":outcome.interim_blocked,"elites":outcome.elites,"transitions":outcome.transitions});
+                "interim_rejections":outcome.interim_rejections,"interim_by_context":outcome.interim_by_context,
+                "interim_blocked":outcome.interim_blocked,"elites":outcome.elites,"transitions":outcome.transitions});
             eprintln!("{record} {m29}");
             (record, m29, census)
         })).collect();
         handles.into_iter().map(|handle| handle.join().expect("traversal thread")).collect()
     });
     let (mut runs, mut faults, mut total, mut per_character) = (Vec::new(), Vec::new(), Census::default(), BTreeMap::<String, Census>::new());
-    let (mut m29_runs, mut blocked, mut rejections) = (Vec::new(), 0u64, 0u64);
+    let (mut m29_runs, mut blocked, mut rejections, mut interim_by_context) = (Vec::new(), 0u64, 0u64, BTreeMap::<String, u64>::new());
     let mut elite_census = BTreeMap::<String, [u64; 3]>::new();
     for ((policy, character, _), (record, m29, census)) in jobs.iter().zip(results) {
         if !record["fault"].is_null() { faults.push(record.clone()) }
@@ -321,6 +344,9 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
         runs.push(record);
         blocked += u64::from(!m29["interim_blocked"].is_null());
         rejections += m29["interim_rejections"].as_u64().unwrap_or(0);
+        if let Some(contexts) = m29["interim_by_context"].as_object() {
+            for (context, count) in contexts { *interim_by_context.entry(context.clone()).or_default() += count.as_u64().unwrap_or(0); }
+        }
         for elite in m29["elites"].as_array().into_iter().flatten() {
             let entry = elite_census.entry(format!("act{}", elite["act"])).or_default();
             for (slot, key) in ["requested", "placed", "unplaced"].into_iter().enumerate() { entry[slot] += elite[key].as_u64().unwrap_or(0) }
@@ -331,7 +357,8 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let elite_census: BTreeMap<String, Value> = elite_census.into_iter().map(|(act, [requested, placed, unplaced])| (act, json!({"requested":requested,"placed":placed,"unplaced":unplaced}))).collect();
     let report = json!({"schema":"spire-gym.m28-traversal.v1","seeds_per_character":seeds,"cap":cap,"policies":{"uniform":"seeded uniform random over advertised candidates","supplied":"reach policy on a Standard Run with supplied max HP 400 and, on even seeds, all three keys (m28-diagnostics; grade Supplied, not traversal)","reach":"combat: each candidate valued by a greedy play-out of the turn (survive, then kill); out of combat: one-step current-HP value; greedy on 90% of combat and 50% of other decisions, else uniform"},
         "runs":runs.len(),"fault_free":runs.len() - faults.len(),"faults":faults,"census":total.to_json(),"census_by_character":per_character,"results":runs,
-        "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"elites_by_act":elite_census,"runs":m29_runs}});
+        "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"interim_by_context":interim_by_context,
+            "elites_by_act":elite_census,"runs":m29_runs}});
     fs::write(dir.join("traversal.json"), serde_json::to_vec_pretty(&report).unwrap()).expect("write traversal.json");
     println!("A{ascension}: {} of {} runs fault-free ({blocked} interim-blocked)", runs.len() - faults.len(), runs.len());
     faults.is_empty()

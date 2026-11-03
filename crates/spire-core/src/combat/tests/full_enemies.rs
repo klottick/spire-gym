@@ -20,9 +20,9 @@ fn enemy(id: EnemyId, intent: FullIntentId, hp: i32) -> EnemyState {
         intent_id: ActorIntentId::Full(intent), move_history: vec![], selected_move: ActorIntentId::Full(intent),
         damage_entries: Default::default(), full_damage_entries: Default::default(),
         full_ai_rng: Some(ai_stream("actor-1")), full_memory: Some(match id {
-            EnemyId::Cultist => EnemyMemory::Cultist { ascension: 0 },
-            EnemyId::JawWorm => EnemyMemory::JawWorm { ascension: 0, variant: enemies::JawWormVariant::Act1 },
-            EnemyId::GremlinNob => EnemyMemory::GremlinNob { ascension: 0 },
+            EnemyId::Cultist => EnemyMemory::Cultist,
+            EnemyId::JawWorm => EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 },
+            EnemyId::GremlinNob => EnemyMemory::GremlinNob,
             EnemyId::LouseRed => EnemyMemory::LouseRed { curl_up_used: false },
             EnemyId::LouseGreen => EnemyMemory::LouseGreen { curl_up_used: false },
             EnemyId::AcidSlimeS | EnemyId::AcidSlimeM | EnemyId::AcidSlimeL => EnemyMemory::AcidSlime { split_triggered: false },
@@ -129,8 +129,8 @@ fn cultist_and_jaw_worm_setup_support_all_twenty_one_ascensions_and_reject_twent
             };
             assert_eq!(public.enemies[0].intent_damage, expected_damage,
                 "canonical public damage for {encounter:?} A{ascension}");
-            assert_eq!(combat.snapshot().state.enemies[0].full_memory.as_ref().map(|memory| memory.ascension()),
-                Some(ascension), "snapshot retains native per-actor ascension configuration");
+            assert_eq!(combat.snapshot().state.ascension, ascension,
+                "snapshot retains the combat-level ascension (M29a2 fold)");
             if id == EnemyId::JawWorm {
                 let hp = public.player.hp;
                 combat.step_full(&CombatAction::EndTurn).unwrap();
@@ -162,7 +162,8 @@ fn a20_cultist_incantation_and_later_attack_use_the_live_ritual_amount() {
     assert!(combat.state.enemies[0].full_powers.iter().any(|power|
         power.id == FullPowerId("ritual") && power.state.amount == 5));
     assert_eq!(combat.state.enemies[0].full_memory,
-        Some(EnemyMemory::Cultist { ascension: 20 }));
+        Some(EnemyMemory::Cultist));
+    assert_eq!(combat.state.ascension, 20);
 
     let hp = combat.public_full().unwrap().player.hp;
     combat.step_full(&CombatAction::EndTurn).unwrap();
@@ -186,14 +187,14 @@ fn cultist_and_jaw_worm_live_payloads_change_only_at_the_qualified_thresholds() 
         (7, 4, 4, 6), (16, 4, 4, 6), (17, 5, 5, 9), (20, 5, 5, 9),
     ] {
         let mut cultist = enemy(EnemyId::Cultist, FullIntentId::Incantation, 52);
-        cultist.full_memory = Some(EnemyMemory::Cultist { ascension });
-        assert!(matches!(enemies::move_work(&cultist).unwrap().as_slice(), [Effect {
+        cultist.full_memory = Some(EnemyMemory::Cultist);
+        assert!(matches!(enemies::move_work_at(&cultist, ascension).unwrap().as_slice(), [Effect {
             kind: EffectKind::ApplyFullPower { id: FullPowerId("ritual"), amount }, ..
         }] if *amount == ritual), "Cultist Ritual amount at A{ascension}");
 
         let mut jaw = enemy(EnemyId::JawWorm, FullIntentId::Bellow, 44);
-        jaw.full_memory = Some(EnemyMemory::JawWorm { ascension, variant: enemies::JawWormVariant::Act1 });
-        assert!(matches!(enemies::move_work(&jaw).unwrap().as_slice(), [
+        jaw.full_memory = Some(EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 });
+        assert!(matches!(enemies::move_work_at(&jaw, ascension).unwrap().as_slice(), [
             Effect { kind: EffectKind::ApplyFullPower { id: FullPowerId("strength"), amount }, .. },
             Effect { kind: EffectKind::GainBlock(block), .. },
         ] if *amount == jaw_strength && *block == jaw_block), "Jaw Bellow at A{ascension}");
@@ -441,11 +442,11 @@ fn gremlin_nob_encounter_builds_a_real_solo_act1_elite_before_any_new_species_wi
 #[test]
 fn gremlin_nob_a18_move_sequence_is_history_driven_and_a20_enrage_uses_live_skill_card_type() {
     use crate::content::{CardId, EncounterId};
-    let memory = EnemyMemory::GremlinNob { ascension: 18 };
+    let memory = EnemyMemory::GremlinNob;
     let ai = ai_stream("nob-a18-sequence");
     let mut history = vec![];
     for expected in ["bellow", "skull_bash", "bull_rush", "bull_rush", "skull_bash", "bull_rush"] {
-        let selected = enemies::select_move(EnemyId::GremlinNob, &history, &memory, &ai).unwrap();
+        let selected = enemies::select_move_at(EnemyId::GremlinNob, &history, &memory, &ai, 18).unwrap();
         assert_eq!(selected.intent.as_str(), expected);
         history.push(selected.intent);
     }
@@ -552,7 +553,7 @@ fn gremlin_nob_ascension_boundaries_control_hp_damage_and_enrage_without_a0_fall
         assert_eq!(rng, before);
     }
 
-    let memory = EnemyMemory::GremlinNob { ascension: 0 };
+    let memory = EnemyMemory::GremlinNob;
     let stream = ai_stream("nob-two-rush-forced-bash");
     let forced = enemies::select_move(EnemyId::GremlinNob,
         &[FullIntentId::from_name("bellow"), FullIntentId::from_name("bull_rush"),
@@ -566,7 +567,7 @@ fn gremlin_nob_ascension_boundaries_control_hp_damage_and_enrage_without_a0_fall
 
 #[test]
 fn jaw_horde_opening_profile_preserves_later_conditional_restrictions_and_act1_still_requires_chomp_first() {
-    let hard = EnemyMemory::JawWorm { ascension: 20, variant: enemies::JawWormVariant::HordeHard };
+    let hard = EnemyMemory::JawWorm { variant: enemies::JawWormVariant::HordeHard };
     let after_bellow = enemies::select_move(EnemyId::JawWorm, &[FullIntentId::Bellow], &hard,
         &ai_stream("hard-jaw-bellow-history")).unwrap();
     assert!(matches!(after_bellow.intent, FullIntentId::Chomp | FullIntentId::Thrash),
@@ -578,7 +579,7 @@ fn jaw_horde_opening_profile_preserves_later_conditional_restrictions_and_act1_s
     assert!(matches!(after_two_thrashes.intent, FullIntentId::Chomp | FullIntentId::Bellow),
         "hard Jaw cannot select a third consecutive Thrash");
 
-    let act1 = EnemyMemory::JawWorm { ascension: 20, variant: enemies::JawWormVariant::Act1 };
+    let act1 = EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 };
     assert!(enemies::select_move(EnemyId::JawWorm, &[FullIntentId::Thrash], &act1,
         &ai_stream("act1-jaw-invalid-first-history")).is_err(),
         "Act1 Jaw history retains its forced initial Chomp contract");
@@ -593,7 +594,7 @@ fn cultist_incantation_is_a_real_queued_ritual_effect_then_attack() {
         kind: EffectKind::ApplyFullPower { id: FullPowerId("ritual"), amount: 3 } }]);
 
     let history = vec![FullIntentId::Incantation];
-    let first = enemies::select_move(EnemyId::Cultist, &history, &EnemyMemory::Cultist { ascension: 0 },
+    let first = enemies::select_move(EnemyId::Cultist, &history, &EnemyMemory::Cultist,
         &ai_stream("actor-1")).unwrap();
     assert_eq!(first.intent, FullIntentId::Attack);
     assert_eq!(first.stream.word_index(), 0, "deterministic Cultist continuation draws no AI word");
@@ -616,14 +617,14 @@ fn jaw_worm_has_distinct_chomp_damage_and_actor_owned_conditional_ai_draws() {
     ]);
 
     let history = vec![FullIntentId::Chomp];
-    let first = enemies::select_move(EnemyId::JawWorm, &history, &EnemyMemory::JawWorm { ascension: 0, variant: enemies::JawWormVariant::Act1 },
+    let first = enemies::select_move(EnemyId::JawWorm, &history, &EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 },
         &ai_stream("actor-1")).unwrap();
-    let second = enemies::select_move(EnemyId::JawWorm, &history, &EnemyMemory::JawWorm { ascension: 0, variant: enemies::JawWormVariant::Act1 },
+    let second = enemies::select_move(EnemyId::JawWorm, &history, &EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 },
         &ai_stream("actor-2")).unwrap();
     assert!(matches!(first.intent, FullIntentId::Thrash | FullIntentId::Bellow));
     assert_eq!(first.stream.id().scope()[1], "actor-1");
     assert_eq!(second.stream.id().scope()[1], "actor-2");
-    assert_eq!(first.memory, EnemyMemory::JawWorm { ascension: 0, variant: enemies::JawWormVariant::Act1 });
+    assert_eq!(first.memory, EnemyMemory::JawWorm { variant: enemies::JawWormVariant::Act1 });
 
     let mut combat = jaw_combat();
     let hp = combat.public_full().unwrap().player.hp;
@@ -1478,19 +1479,19 @@ fn closure_fungi_and_slaver_selection_keep_proposals_history_and_owned_rng(){
         let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
         assert_eq!(rng::uniform_below(&stream,100).unwrap().0,ticket);
         for ascension in [0,17] {
-            let memory=EnemyMemory::for_enemy_at_ascension(EnemyId::FungiBeast,ascension).unwrap();
+            let memory=EnemyMemory::for_profile(EnemyId::FungiBeast,ascension,enemies::EnemyProfile::Standard).unwrap();
             for (history,want) in [(vec![],if ticket<60{FullIntentId::Bite}else{FullIntentId::Grow}),
                 (vec![FullIntentId::Bite;2],FullIntentId::Grow),
                 (vec![FullIntentId::Grow],FullIntentId::Bite)] {
-                let selected=enemies::select_move(EnemyId::FungiBeast,&history,&memory,&stream).unwrap();
+                let selected=enemies::select_move_at(EnemyId::FungiBeast,&history,&memory,&stream,ascension).unwrap();
                 assert_eq!(selected.intent,want);assert_eq!(selected.memory,memory);
                 assert_eq!(selected.stream.word_index(),cursor+1);
             }
-            let memory=EnemyMemory::for_enemy_at_ascension(EnemyId::SlaverBlue,ascension).unwrap();
+            let memory=EnemyMemory::for_profile(EnemyId::SlaverBlue,ascension,enemies::EnemyProfile::Standard).unwrap();
             for (history,want) in [(vec!["slaver_rake"],if ascension>=17||ticket>=40{"slaver_stab"}else{"slaver_rake"}),
                 (vec!["slaver_stab";2],"slaver_rake")] {
                 let history=history.into_iter().map(FullIntentId::from_name).collect::<Vec<_>>();
-                let selected=enemies::select_move(EnemyId::SlaverBlue,&history,&memory,&stream).unwrap();
+                let selected=enemies::select_move_at(EnemyId::SlaverBlue,&history,&memory,&stream,ascension).unwrap();
                 assert_eq!(selected.intent.as_str(),want);assert_eq!(selected.memory,memory);
                 assert_eq!(selected.stream.word_index(),cursor+1);
             }

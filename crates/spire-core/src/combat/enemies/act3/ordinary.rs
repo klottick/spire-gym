@@ -52,9 +52,10 @@ pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState)->Result<Vec<E
 }
 
 pub(in crate::combat) fn refresh_selected(state:&mut State,owner:&EnemyHandle){
+    let start=super::super::ascension::transient_start_base(state.ascension);
     let Some(e)=state.enemies.iter_mut().find(|e|&e.instance_id==owner)else{return};
     if let Some(EnemyMemory::Transient{turns,base})=&mut e.full_memory{
-        *base=30+10*i32::from(*turns);if let Some(entry)=e.full_damage_entries.get_mut(&FullIntentId::from_name("transient_attack")){entry.base=*base;}
+        *base=start+10*i32::from(*turns);if let Some(entry)=e.full_damage_entries.get_mut(&FullIntentId::from_name("transient_attack")){entry.base=*base;}
     }
 }
 

@@ -71,18 +71,20 @@ pub(in crate::combat) fn complete(state:&mut State)->Result<(),super::super::sup
     let progress=state.spawn_progress.as_ref().ok_or_else(||InputError::Invariant("summon continuation absent".into()))?;
     validate_request(state,&progress.request)?;
     if progress.request.species==EnemyId::Dagger&&progress.prepared_child.is_some(){return commit_prepared(state)}
-    let (lo,hi)=super::super::hp_range(progress.request.species,0);
+    let ascension=state.ascension;
+    super::super::ascension::species_admission(progress.request.species,ascension).map_err(|reason|InputError::Unsupported(reason.into()))?;
+    let (lo,hi)=super::super::hp_range(progress.request.species,ascension);
     let (ticket,next)=rng::uniform_below(&progress.constructor_rng,(hi-lo+1) as u128)?;
     let hp=lo+ticket as i32;
     let progress=state.spawn_progress.as_mut().unwrap();progress.constructor_rng=next;progress.rolled_hp=Some(hp);
-    let memory=EnemyMemory::for_enemy(progress.request.species)?;
-    let selected=super::super::select_move(progress.request.species,&[],&memory,&progress.latest_child_rng).map_err(|e|match e{super::super::SelectError::Invalid(e)=>super::super::super::EffectError::Invalid(e),super::super::SelectError::Random(e)=>super::super::super::EffectError::Random(e)})?;
+    let memory=EnemyMemory::for_profile(progress.request.species,ascension,super::super::EnemyProfile::Standard)?;
+    let selected=super::super::select_move_at(progress.request.species,&[],&memory,&progress.latest_child_rng,ascension).map_err(|e|match e{super::super::SelectError::Invalid(e)=>super::super::super::EffectError::Invalid(e),super::super::SelectError::Random(e)=>super::super::super::EffectError::Random(e)})?;
     progress.latest_child_rng=selected.stream.clone();
-    let full_damage_entries=super::super::damage_bases(progress.request.species)?.into_iter().map(|(id,base)|(id,DamageEntry{base,output:base})).collect::<BTreeMap<_,_>>();
+    let full_damage_entries=super::super::damage_bases_at_ascension(progress.request.species,ascension)?.into_iter().map(|(id,base)|(id,DamageEntry{base,output:base})).collect::<BTreeMap<_,_>>();
     let intent_damage=full_damage_entries.get(&selected.intent).map(|d|d.output);
     // These qualified producer policies request Minion; neither species nor
     // the generic act of summoning implies this role for an unlisted producer.
-    let mut full_powers=vec![power("minion",1)];if progress.request.species==EnemyId::GremlinMad{full_powers.push(power("angry",1));}
+    let mut full_powers=vec![power("minion",1)];if progress.request.species==EnemyId::GremlinMad{full_powers.push(power("angry",super::super::ascension::gremlin_mad_angry(ascension)));}
     let child=EnemyState{instance_id:EnemyHandle::parse(&format!("{}/spawn/{}",progress.request.summoner.as_str(),progress.ordinal))?,enemy_id:ActorEnemyId::Full(progress.request.species),hp,max_hp:hp,block:0,powers:vec![],full_powers,
         intent_id:ActorIntentId::Full(selected.intent),selected_move:ActorIntentId::Full(selected.intent),move_history:vec![ActorIntentId::Full(selected.intent)],damage_entries:Default::default(),full_damage_entries,
         full_ai_rng:Some(selected.stream),full_memory:Some(selected.memory),intent_damage,life:ActorLife::Active};
