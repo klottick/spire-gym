@@ -119,7 +119,7 @@ pub(super) fn select_spike(id: EnemyId, history: &[FullIntentId], memory: &Enemy
     Ok(MoveSelection { intent, stream: next, memory: memory.clone() })
 }
 
-pub(super) fn move_work(enemy: &EnemyState, id: EnemyId, intent: FullIntentId)
+pub(super) fn move_work(enemy: &EnemyState, id: EnemyId, intent: FullIntentId, ascension: u8)
     -> Result<Vec<Effect>, InputError> {
     let actor = Actor::Enemy(enemy.instance_id.clone());
     let work = match (id, intent) {
@@ -167,7 +167,7 @@ pub(super) fn move_work(enemy: &EnemyState, id: EnemyId, intent: FullIntentId)
         (EnemyId::SpikeSlimeM, FullIntentId::SpikeLick) => vec![
             super::effect(actor, Actor::Player, EffectKind::ApplyFullPower { id: FullPowerId("frail"), amount: 1 })],
         (EnemyId::SpikeSlimeL, FullIntentId::SpikeLick) => vec![
-            super::effect(actor, Actor::Player, EffectKind::ApplyFullPower { id: FullPowerId("frail"), amount: 2 })],
+            super::effect(actor, Actor::Player, EffectKind::ApplyFullPower { id: FullPowerId("frail"), amount: if ascension >= 17 { 3 } else { 2 } })],
         (EnemyId::AcidSlimeL, FullIntentId::AcidSplit) => super::split_work(enemy, EnemyId::AcidSlimeM),
         (EnemyId::SpikeSlimeL, FullIntentId::SpikeSplit) => super::split_work(enemy, EnemyId::SpikeSlimeM),
         _ => return Err(InputError::Unsupported(format!("unhandled slime intent {}", intent.as_str()))),

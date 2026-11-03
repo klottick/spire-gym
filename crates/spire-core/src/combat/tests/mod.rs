@@ -13,6 +13,7 @@ mod differential_decode;
 mod full_runtime;
 mod full_enemies;
 mod m29_a2_owner;
+mod m29_b_act1_normals;
 mod full_cards;
 mod card_faces_live;
 mod selection;

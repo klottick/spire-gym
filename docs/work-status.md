@@ -1,6 +1,15 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M29a1 merged; M29a2 (combat ascension owner) candidate
+## Current snapshot — 2026-11-03, M29a2 merged; M29b (Act 1 normals) candidate
+
+- M29a2 merged as PR #86 (`d563b088`); fuzz chunk C2 (source monster-turn and end-of-round order)
+  merged as PR #87 (`05b1975a`), the M29b source base.
+- M29b is a source candidate, not accepted: the 17 Act 1 normal species carry their full numeric
+  ascension ladder (A0–A20; table-level above each species' playable ceiling). Every Act 1 normal
+  formation except Exordium Thugs and Red Slaver (Slaver Red lands in M29c) leaves the typed interim
+  list. See the [M29 candidate profile](milestones/m29-ascension1-5.md).
+
+## Snapshot — 2026-11-03, M29a1 merged; M29a2 (combat ascension owner) candidate
 
 - M29a1 merged as PR #84 (`943ec3ac`); fuzz chunk C1 (source end-of-turn order) merged as PR #85
   (`ce139820`), the M29a2 source base.

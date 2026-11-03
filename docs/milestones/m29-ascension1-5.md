@@ -1,6 +1,6 @@
 # M29 Ascension 1–5
 
-Status: **candidate, in progress: M29a1 (run rules) merged; M29a2 (combat ascension owner) under review; M29b–M29f to follow.** This
+Status: **candidate, in progress: M29a1 (run rules) and M29a2 (combat ascension owner) merged; M29b (Act 1 normals) under review; M29c–M29f to follow.** This
 page states what M29 provides so far and its limits. It is a candidate profile, not a public
 profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28 holds; native exposure is
 M34–M36). Until M29f, A1–A5 standard Runs are **diagnostics-only** (`m29-diagnostics`).
@@ -79,13 +79,30 @@ M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above
   HP out of range) now return `Unsupported("combat setup preconditions failed")`, so the typed
   interim string means only "species values not landed yet".
 
-## Limits (M29a1)
+## M29b: Act 1 normals
 
-- **Interim.** Combat-level ascension lands in M29a2–M29e2. Until then, under `m29-diagnostics`, every
-  A1–A5 combat except the seven encounters `setup_supports_ascension` already admits (Cultist, Jaw
-  Worm, Three Cultists, Jaw Worm Horde, Gremlin Nob, Blue Slaver, Two Fungi Beasts) is rejected at
-  entry with the typed `Unsupported("enemy setup facts unavailable for this act/ascension")`. Event
-  fights above A0 stay disabled choices.
+- **Values.** The 17 Act 1 normal species (Acid Slime S/M/L, Spike Slime S/M/L, both Louses, Cultist,
+  Jaw Worm, Fungi Beast, Looter and the five small Gremlins) carry their full numeric ladder, A0–A20:
+  HP from A7, damage bases from A2 (Louse Bite roll 6–8), Louse Curl Up 4–8 from A7 and 9–12 from
+  A17, Red Louse Grow 4, Spike Slime L Frail 3, Mad Gremlin Angry 2 and Looter gold 20 from A17,
+  Shield Gremlin Protect Block 8 from A7 and 11 from A17. Cultist, Jaw Worm and Fungi Beast were
+  already implemented and are re-verified. Values come from the reviewed spec sheet (static source
+  check, cross-checked with `data/enemies/enemies.json`: no disagreement).
+- **Owner sites.** The Looter's per-hit gold cap (theft, its validator and the Thievery amount) and
+  the Shield Gremlin's Protect Block now read the per-species owner at the combat ascension.
+- **Ceilings.** Values above a species' playable ceiling (16 for the slimes except Spike Slime S, the
+  Louses, Fat Gremlin and Gremlin Wizard) are checked at table level only; Gremlin Gang's ceiling is
+  16. The behaviour rows behind those ceilings stay in M32: the slime, Louse and Gremlin Wizard A17
+  move selection, and the Fat Gremlin's Smash adding Frail 1 from A17.
+
+## Limits
+
+- **Interim.** Combat-level ascension values land chunk by chunk (M29b–M29e2). Under
+  `m29-diagnostics`, an A1–A5 combat is admitted when every species its encounter can contain has
+  landed: after M29b, every Act 1 normal formation except Exordium Thugs and Red Slaver (Slaver Red,
+  M29c), plus Three Cultists, Three Fungi Beasts and the Act 3 Jaw Worm Horde, and Gremlin Nob. Every
+  other combat is rejected at entry with the typed `Unsupported("enemy setup facts unavailable for
+  this act/ascension")`. Event fights whose encounter has not landed stay disabled choices.
 - A6+ run-level rules are dormant (`Run::new` codes A6/A10/A11/A14; creation caps at A5). Hand-forward
   for M30: `run/engine.rs:17` computes A6 start HP as the integer `(max * 9 + 5) / 10`; the source is
   `MathUtils.round(max * 0.9f)`.
