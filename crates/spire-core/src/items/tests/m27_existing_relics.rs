@@ -69,7 +69,7 @@ fn accepted_phase_work(context: &mut crate::items::CombatItemContext, hook: crat
     crate::items::relic_phase_effects(context, &facts).unwrap()
 }
 
-const M27_ACCEPTED_HOOKS: [crate::combat::Hook; 13] = [
+const M27_ACCEPTED_HOOKS: [crate::combat::Hook; 12] = [
     crate::combat::Hook::CombatStartedPreDraw,
     crate::combat::Hook::CombatStarted,
     crate::combat::Hook::TurnStartedPreDraw,
@@ -80,7 +80,6 @@ const M27_ACCEPTED_HOOKS: [crate::combat::Hook; 13] = [
     crate::combat::Hook::CardManuallyDiscarded,
     crate::combat::Hook::DrawPileShuffled,
     crate::combat::Hook::PlayerPreEndTurnCards,
-    crate::combat::Hook::CloakClaspBeforeCleanup { hand_size: 3 },
     crate::combat::Hook::PlayerEndTurn,
     crate::combat::Hook::CombatSettled,
 ];
@@ -128,28 +127,11 @@ fn m27_existing_relics_equal_accepted() {
                 "complete {relic:?} fires on its one queued pre-draw hook");
         } else {
             assert_eq!(accepted_start, complete_start, "{relic:?} startup delta");
+            // spire-oto.22: every onPlayerEndTurn relic, Orichalcum included, now fires at the one
+            // callEndOfTurnActions checkpoint under every context (source-check-endturn-v1).
             for hook in M27_ACCEPTED_HOOKS {
-                if *relic == RelicId::Orichalcum && matches!(hook,
-                    crate::combat::Hook::PlayerEndTurn|crate::combat::Hook::CloakClaspBeforeCleanup { .. }) {
-                    continue;
-                }
                 assert_eq!(accepted_phase_work(&mut accepted, hook), accepted_phase_work(&mut complete, hook),
                     "{relic:?} {hook:?} delta against its accepted context");
-            }
-            if *relic == RelicId::Orichalcum {
-                let accepted_end = accepted_phase_work(&mut accepted, crate::combat::Hook::PlayerEndTurn);
-                let accepted_cleanup = accepted_phase_work(&mut accepted,
-                    crate::combat::Hook::CloakClaspBeforeCleanup { hand_size: 3 });
-                let complete_end = accepted_phase_work(&mut complete, crate::combat::Hook::PlayerEndTurn);
-                let complete_cleanup = accepted_phase_work(&mut complete,
-                    crate::combat::Hook::CloakClaspBeforeCleanup { hand_size: 3 });
-                assert_eq!(accepted_end.top.iter().chain(&accepted_cleanup.top).cloned().collect::<Vec<_>>(),
-                    complete_end.top.iter().chain(&complete_cleanup.top).cloned().collect::<Vec<_>>(),
-                    "M2 Orichalcum migration keeps one six-Block event across both checkpoints");
-                assert!(complete_end.is_empty(), "complete Orichalcum does not grant Block on PlayerEndTurn");
-                assert_eq!(complete_cleanup.top.iter().filter(|effect|
-                    effect.kind == crate::combat::EffectKind::GainBlock(6)).count(), 1,
-                    "complete Orichalcum keeps one accepted six-Block end-turn event at cleanup");
             }
         }
     }

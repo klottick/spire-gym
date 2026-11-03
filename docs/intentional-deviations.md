@@ -189,3 +189,17 @@ iterates this order, so only physical screen positions remain unmodelled. For th
 (Blue, then Red), the Nobs (Taskmaster, then Gremlin Nob) and Mysterious Sphere's two Orb Walkers, the
 listed order is the project's slot order. Tests: `m28_formation_fights` and
 `m28_event_formations_colosseum_and_bandits`.
+
+## RNG-002 — Unseeded end-of-turn hand-card shuffle modelled with a dedicated seeded stream
+
+**Decision date:** 2026-11-03 (PM ruling on source-check-endturn-v2, spire-oto.22). **Status:** disclosed
+decision where the source is not replayable.
+
+At the end of the player's turn the source's DiscardAtEndOfTurnAction copies the cards still in hand
+and shuffles that copy with an unseeded `Collections.shuffle` (the JDK's default `Random`) before calling
+each card's end-of-player-turn callback, so the order of the Ethereal exhausts is truly random. The
+engine keeps that randomness but makes it reproducible: a Fisher-Yates shuffle whose draws are
+HMAC-SHA256 words keyed by the combat's shuffle-stream key and labelled with the turn and position. It
+reads no stream cursor, so no other stream advances. A fixed hand order is not used, because a policy
+could exploit it. Tests: `fuzzfix_c_end_turn_hand_shuffle_is_keyed_by_combat_and_turn` and
+`fuzzfix_c_ethereal_exhausts_follow_the_keyed_visit_order`.

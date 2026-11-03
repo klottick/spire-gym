@@ -153,6 +153,7 @@ mod m27_enemy_phase_selection;
 mod fuzzfix_a_review;
 mod fuzzfix_b;
 mod fuzzfix_b2;
+mod fuzzfix_c;
 
 /// A suspension record for a selection a test installs directly, naming the
 /// interrupted phase and the in-play card exactly as `begin_selection_range` would.

@@ -95,9 +95,3 @@ pub(in crate::combat) fn after_block(state:&mut State,target:&Actor,notified:i32
     append_before_decision(state,Effect{source:Source::Actor(Actor::Player),target:None,kind:EffectKind::JuggernautRandomDamage(damage)});
     Ok(())
 }
-
-pub(in crate::combat) fn turn_ended(state:&mut State,work:&mut Vec<Effect>){
-    if state.player_full_powers.iter().any(|power|power.id.0=="rage"){
-        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("rage"))});
-    }
-}

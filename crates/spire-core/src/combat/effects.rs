@@ -125,20 +125,32 @@ pub(super) fn queue_relic_work(state:&mut State,work:crate::items::RelicHookWork
     queue_relic_work_with_startup_order(state,work,false)
 }
 
+fn queue_relic_work_ahead(state:&mut State,work:crate::items::RelicHookWork)->Result<(),EffectError>{
+    if work.is_empty(){return Ok(())}
+    for effect in work.top.iter().chain(&work.bottom){super::engine::validate_effect(effect,state)?;}
+    for effect in work.top.into_iter().chain(work.bottom).rev(){state.pending.push_front(effect);}
+    Ok(())
+}
+
 fn queue_relic_work_with_startup_order(state:&mut State,work:crate::items::RelicHookWork,
     preserve_finite_startup_order:bool)->Result<(),EffectError>{
     if work.is_empty(){return Ok(())}
     for effect in work.top.iter().chain(&work.bottom){super::engine::validate_effect(effect,state)?;}
     for effect in work.top.into_iter().rev(){state.pending.push_front(effect);}
+    queue_relic_bottom(state,work.bottom,preserve_finite_startup_order);
+    Ok(())
+}
+
+/// A relic phase's bottom (addToBot) work. The caller has validated it.
+pub(super) fn queue_relic_bottom(state:&mut State,bottom:Vec<Effect>,preserve_finite_startup_order:bool){
     if preserve_finite_startup_order||state.item_context.as_ref().is_some_and(|items|items.complete_items()) {
-        for effect in work.bottom{super::enemies::act2::bottom(state,effect);}
+        for effect in bottom{super::enemies::act2::bottom(state,effect);}
     } else {
         // Bottom work joins the current queue ahead of an already queued player decision
         // (M20/M21/complete-card entry queues the opening Decision before CombatStarted).
         let mut at=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap_or(state.pending.len());
-        for effect in work.bottom{state.pending.insert(at,effect);at+=1;}
+        for effect in bottom{state.pending.insert(at,effect);at+=1;}
     }
-    Ok(())
 }
 
 pub(super) fn phase_card_facts(state:&State,source:&Source)->Option<crate::items::dispatch::PhaseCard>{
@@ -1102,6 +1114,7 @@ fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError
             facts.card=phase_card_facts(state,&effect.source);
         }
         if matches!(callback,Hook::CombatStarted|Hook::CombatStartedPreDraw){fill_combat_entry_facts(&mut facts,state);}
+        if callback==Hook::PlayerPreEndTurnCards{facts.hand_size=state.piles.hand.len();}
         let preserve_finite_startup_order=callback==Hook::CombatStarted
             &&state.item_context.as_ref().is_some_and(|items|items.m20_profile()||items.m21_profile());
         let mut work = if let Some(context) = state.item_context.as_mut() {
@@ -1112,7 +1125,12 @@ fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError
         super::cards::watcher::capture(state,&mut work.top)?;
         super::cards::watcher::capture(state,&mut work.bottom)?;
         if work.direct_strength!=0{super::powers::add_direct_strength(state,work.direct_strength)?;}
-        queue_relic_work_with_startup_order(state,work,preserve_finite_startup_order)?;
+        if callback==Hook::PlayerPreEndTurnCards {
+            // GameActionManager.callEndOfTurnActions runs every onPlayerEndTurn relic before the
+            // player's pre-card powers (source-check-endturn-v1), so the relic work, top then
+            // bottom, resolves ahead of this hook's power work.
+            queue_relic_work_ahead(state,work)?;
+        } else {queue_relic_work_with_startup_order(state,work,preserve_finite_startup_order)?;}
         state.hook_events.push(HookEvent { hook: *hook,
             source: effect.source.clone(), target: effect.target.clone() });
     }

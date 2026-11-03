@@ -152,7 +152,7 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         RelicId::StoneCalendar => match phase {
             ItemPhase::TurnStartPreDraw if facts.target == Some(&Actor::Player) =>
                 context.set_local(id, context.local(id) + 1),
-            ItemPhase::EndTurn if context.local(id) == 7 => damage_all(work, id, facts.live_enemies, 52),
+            ItemPhase::EndTurnBeforeHandCards if context.local(id) == 7 => damage_all(work, id, facts.live_enemies, 52),
             _ => (),
         },
         RelicId::ThreadAndNeedle if phase == ItemPhase::CombatStart => {

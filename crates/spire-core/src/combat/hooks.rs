@@ -9,7 +9,7 @@ pub enum Hook {
     CardPlayed, CardAfterUse, CardDiscarded, CardManuallyDiscarded, CardExhausted, CardDrawn, Damage, Death, CombatSettled,
     CombatStartedPreDraw,
     ChestOpened{boss:bool},ChestOpenedAfter{boss:bool},Rested,HalfDeath,CardAfterPlayed,
-    AttackResolved, DrawPileShuffled, CloakClaspBeforeCleanup{hand_size:usize},
+    AttackResolved, DrawPileShuffled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -41,7 +41,10 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
                 let mut facts=crate::items::dispatch::PhaseFacts::new(Some(Hook::Death),state.player.hp,state.player.max_hp,state.player.block);
                 facts.target=target;facts.dead_enemy=Some((owner,poison,live));
                 let relic=crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::EnemyDied,&facts)?;
-                work.extend(relic.top);work.extend(relic.bottom);
+                // Top work joins this hook's work; bottom work (Gremlin Horn's addToBot) is queued
+                // at the bottom, so at end of turn it follows the hand discard.
+                for effect in &relic.bottom{super::engine::validate_effect(effect,state)?;}
+                work.extend(relic.top);super::effects::queue_relic_bottom(state,relic.bottom,false);
             }
         }
     }
@@ -136,38 +139,16 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
             }
         }
     }
-    if let Some(Actor::Player)=target {
-        match hook {
-            Hook::PlayerPreEndTurnCards=>{
-                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="metallicize"&&power.state.amount>0){
-                    work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
-                }
-                // RetainCardPower.atEndOfTurn retains nothing when Runic Pyramid or Equilibrium
-                // already applies (source-check-turnstart-hooks-v1).
-                let retained=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::RunicPyramid))
-                    ||state.player_full_powers.iter().any(|power|power.id.0=="equilibrium");
-                if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="retain_cards"&&power.state.amount>0).filter(|_|!retained){
-                    work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
-                        kind:EffectKind::OpenRetainSelection{limit:power.state.amount}});
-                }
-            }
-            Hook::PlayerEndTurn=>{
-                let copies=state.combust.as_ref().map_or(0,|power|i32::from(power.copies));
-                if copies>0&&state.enemies.iter().any(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0){
-                    let damage=state.player_full_powers.iter().find(|power|power.id.0=="combust").map_or(0,|power|power.state.amount);
-                    if damage>0 {
-                        work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Damage(super::DamagePayload::HpLoss(copies))});
-                        for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
-                            work.push(Effect{source:Source::None,target:Some(Actor::Enemy(enemy.instance_id.clone())),kind:EffectKind::Damage(super::DamagePayload::Thorns(damage))});
-                        }
-                    }
-                }
-                super::cards::ironclad::reactive::turn_ended(state,&mut work);
-            }
-            _=>(),
-        }
+    // AbstractRoom.applyEndOfTurnPreCardPowers and the player's applyEndOfTurnTriggers each
+    // loop once over the player's power list (source-check-endturn-v1), so each callback runs
+    // in list order whichever engine module owns it (spire-oto.22).
+    if target==Some(&Actor::Player)&&matches!(hook,Hook::PlayerPreEndTurnCards|Hook::PlayerEndTurn){
+        let mut top=vec![];
+        for power in state.player_full_powers.clone(){player_end_power(state,hook,&power,&mut top,&mut work)?;}
+        if hook==Hook::PlayerEndTurn{super::cards::colorless_end_turn_bombs(state,&mut work);}
+        // RegenPower queues its heal at the top, ahead of the pass's bottom work.
+        for effect in top.into_iter().rev(){work.insert(0,effect);}
     }
-    if target==Some(&Actor::Player)&&hook==Hook::PlayerPreEndTurnCards {state.player_full_powers.retain(|p|p.id.0!="amplify");}
     // AbstractCreature.applyStartOfTurnPowers and applyStartOfTurnPostDrawPowers each loop once
     // over the player's power list, so callbacks run in list order whichever engine module owns
     // them (spire-oto.21), Night Terror included. The stance hook precedes them; the orb pass
@@ -187,37 +168,11 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     super::cards::defect::power_hook(state,hook,target,&mut work)?;
     super::cards::watcher::hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
-    super::cards::colorless_power_hook(state,hook,target,&mut work)?;
     // Later turns recharge at the turn draw's construction; turn 1's initial energy action adds
     // the starting energy (set at entry) and dispatches the same onEnergyRecharge callbacks.
     if target==Some(&Actor::Player)&&hook==Hook::TurnStartedPreDraw {
         if state.turn>1 {super::turns::recharge(state,&mut work)?;} else {super::turns::on_energy_recharge(state,&mut work)?;}
     }
-    let m15_player=state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile());
-    // M26 §6.3 L: Plated Armor (Wish) for any holder under the complete capability. Ritual and
-    // Regeneration stay as they are: no card grants them to the player (potions, M27), and the
-    // non-M15 Ritual tick is `round_end_full_work`'s, so adding it here would apply it twice.
-    let m25_watcher=state.item_context.as_ref().is_some_and(|items|items.m25_profile())
-        &&super::cards::watcher::active(state)||super::cards::watcher::complete(state);
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&m15_player {
-        for power in &state.player_full_powers {
-            if power.id.0=="ritual"&&power.state.amount>0 {
-                work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
-                    kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}});
-            }
-            if power.id.0=="regeneration"&&power.state.amount>0&&state.player.hp>0 {
-                work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Heal(power.state.amount)});
-                work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ReduceFullPower{id:power.id,amount:1}});
-            }
-        }
-        stat_loss_work(state,&mut work);
-    }
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&(m15_player||m25_watcher) {
-        if let Some(power)=state.player_full_powers.iter().find(|power|power.id.0=="plated_armor"&&power.state.amount>0) {
-            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});
-        }
-    }
-
     if hook == Hook::TurnEnded {
         // The existing Transient continuation removes its own Shackled earlier.
         // Other accepted applications share this end-round restoration owner.
@@ -228,14 +183,13 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
                 work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::RemoveFullPower(power.id)});
             }
         }
-        if !m15_player { stat_loss_work(state,&mut work); }
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
-        round_end_full_work(&mut state.player_full_powers, Actor::Player, &mut work,m15_player);
+        round_end_full_work(&mut state.player_full_powers, Actor::Player, &mut work);
         for enemy in state.enemies.iter_mut().filter(|enemy|
             enemy.life == super::ActorLife::Active && enemy.hp > 0) {
             let actor = Actor::Enemy(enemy.instance_id.clone());
             round_end_work(&mut enemy.powers, actor.clone(), &mut work);
-            round_end_full_work(&mut enemy.full_powers, actor, &mut work,false);
+            round_end_full_work(&mut enemy.full_powers, actor, &mut work);
         }
 
     }
@@ -299,25 +253,63 @@ fn player_start_power(state:&mut State,hook:Hook,power:&super::FullPowerEntry,wo
     super::cards::colorless_start_power(state,hook,power,work)
 }
 
-fn stat_loss_work(state:&State,work:&mut Vec<Effect>) {
-    for (loss_id,stat) in [("lose_strength","strength"),("lose_dexterity","dexterity")] {
-        if let Some(loss)=state.player_full_powers.iter().find(|power|power.id.0==loss_id) {
-            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::ApplyFullPower{id:super::FullPowerId(stat),amount:-loss.state.amount}});
-            work.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(loss.id)});
+/// One player power's end-of-turn callback: atEndOfTurnPreEndTurnCards at
+/// `PlayerPreEndTurnCards`, atEndOfTurn(isPlayer) at `PlayerEndTurn` (source-check-endturn-v1).
+/// `top` holds addToTop work, which resolves ahead of the pass's addToBot work.
+fn player_end_power(state:&mut State,hook:Hook,power:&super::FullPowerEntry,top:&mut Vec<Effect>,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    let player=|kind:EffectKind|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind};
+    let amount=power.state.amount;
+    let enemies_alive=state.enemies.iter().any(|enemy|enemy.life==super::ActorLife::Active&&enemy.hp>0);
+    match (hook,power.id.0) {
+        (Hook::PlayerPreEndTurnCards,"metallicize"|"plated_armor") if amount>0=>work.push(player(EffectKind::GainBlock(amount))),
+        (Hook::PlayerPreEndTurnCards,"like_water") if state.character.stance==super::Stance::Calm=>work.push(player(EffectKind::GainBlock(amount))),
+        (Hook::PlayerEndTurn,"amplify"|"burst"|"double_tap"|"entangled"|"no_draw"|"rage"|"cannot_change_stance")=>
+            work.push(player(EffectKind::RemoveFullPower(power.id))),
+        (Hook::PlayerEndTurn,"rebound")=>{super::cards::defect::end_turn_rebound(state);}
+        (Hook::PlayerEndTurn,"combust") if enemies_alive=>{
+            let copies=state.combust.as_ref().map_or(0,|power|i32::from(power.copies));
+            if copies>0&&amount>0 {
+                work.push(player(EffectKind::Damage(super::DamagePayload::HpLoss(copies))));
+                for enemy in state.enemies.iter().filter(|enemy|enemy.targetable()){
+                    work.push(Effect{source:Source::None,target:Some(Actor::Enemy(enemy.instance_id.clone())),kind:EffectKind::Damage(super::DamagePayload::Thorns(amount))});
+                }
+            }
         }
+        (Hook::PlayerEndTurn,"constricted") if amount>0=>work.extend(super::enemies::act3::ordinary::player_end_work(state)),
+        (Hook::PlayerEndTurn,"equilibrium")=>super::cards::defect::end_turn_equilibrium(state),
+        (Hook::PlayerEndTurn,"lose_strength"|"lose_dexterity")=>{
+            let stat=if power.id.0=="lose_strength"{"strength"}else{"dexterity"};
+            work.push(player(EffectKind::ApplyFullPower{id:super::FullPowerId(stat),amount:-amount}));
+            work.push(player(EffectKind::RemoveFullPower(power.id)));
+        }
+        (Hook::PlayerEndTurn,"regeneration") if amount>0&&state.player.hp>0=>{
+            top.push(player(EffectKind::Heal(amount)));
+            top.push(player(EffectKind::ReduceFullPower{id:power.id,amount:1}));
+        }
+        // RetainCardPower retains nothing when Runic Pyramid or Equilibrium already applies.
+        (Hook::PlayerEndTurn,"retain_cards") if amount>0&&!state.piles.hand.is_empty()
+            &&!state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::RunicPyramid))
+            &&!state.player_full_powers.iter().any(|power|power.id.0=="equilibrium")=>
+            work.push(player(EffectKind::OpenRetainSelection{limit:amount})),
+        (Hook::PlayerEndTurn,"ritual") if amount>0=>work.push(player(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount})),
+        (Hook::PlayerEndTurn,"wraith_form")=>work.push(player(EffectKind::ApplyFullPower{id:super::FullPowerId("dexterity"),amount})),
+        (Hook::PlayerEndTurn,"establishment")=>work.push(player(EffectKind::Watcher(super::cards::watcher::WatcherEffect::EstablishmentDiscount{amount}))),
+        (Hook::PlayerEndTurn,"study"|"omega")=>super::cards::watcher::end_turn_power(state,power,work)?,
+        _=>(),
     }
+    Ok(())
 }
 
-fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work: &mut Vec<Effect>,m15_player:bool) {
+fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work: &mut Vec<Effect>) {
     for power in powers {
         let kind = match power.id.0 {
-            "ritual" if m15_player => None,
+            // RitualPower.atEndOfRound acts only off the player; the player's is atEndOfTurn.
+            "ritual" if matches!(actor,Actor::Player) => None,
             "ritual" if power.state.skip_first => { power.state.skip_first = false; None }
             "ritual" => Some(EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: power.state.amount }),
             "strength_up" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}),
             "metallicize" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::GainBlock(power.state.amount)),
             "slow"=>{power.state.amount=0;None},
-            "double_tap" if matches!(actor,Actor::Player)=>Some(EffectKind::RemoveFullPower(power.id)),
             "duplication" if matches!(actor,Actor::Player)&&power.state.amount==0=>Some(EffectKind::RemoveFullPower(power.id)),
             "duplication" if matches!(actor,Actor::Player)=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "intangible" if matches!(actor,Actor::Enemy(_))&&power.state.skip_first=>{power.state.skip_first=false;None},

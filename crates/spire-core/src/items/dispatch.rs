@@ -35,7 +35,7 @@ pub(crate) enum ItemPhase {
     CombatStartPreDraw, CombatStart, AfterOpeningDraw, TurnStartPreDraw, AfterDraw,
     CardDrawn, CardUsed, CardPlayed, AfterUse, AttackResolved, ManualDiscard, Exhaust,
     DrawPileShuffled, BlockBroken, HpLost, PowerApplied, EnemyDied, EnemySpawned, HandEmptied,
-    PotionUsed, EndTurnBeforeHandCards, EndTurnBeforeCleanup, EndTurn, CombatEnd,
+    PotionUsed, EndTurnBeforeHandCards, CombatEnd,
 }
 
 /// The card a card phase is about.
@@ -87,8 +87,6 @@ pub(crate) fn hook_phase(hook: Hook) -> Option<ItemPhase> {
         Hook::CardManuallyDiscarded => ItemPhase::ManualDiscard,
         Hook::DrawPileShuffled => ItemPhase::DrawPileShuffled,
         Hook::PlayerPreEndTurnCards => ItemPhase::EndTurnBeforeHandCards,
-        Hook::CloakClaspBeforeCleanup { .. } => ItemPhase::EndTurnBeforeCleanup,
-        Hook::PlayerEndTurn => ItemPhase::EndTurn,
         Hook::CombatSettled => ItemPhase::CombatEnd,
         _ => return None,
     })
@@ -128,7 +126,7 @@ pub(crate) fn phase_consumed(context: &CombatItemContext, phase: ItemPhase) -> b
 fn source_top(id: RelicId) -> bool {
     matches!(id, RelicId::BloodVial | RelicId::Lantern | RelicId::Orichalcum | RelicId::Brimstone | RelicId::RunicCube
         | RelicId::CharonsAshes | RelicId::AncientTeaSet | RelicId::BottledFlame | RelicId::BirdFacedUrn
-        | RelicId::CoffeeDripper | RelicId::CursedKey | RelicId::NlothsHungryFace
+        | RelicId::CoffeeDripper | RelicId::CursedKey | RelicId::NlothsHungryFace | RelicId::CentennialPuzzle
         // atBattleStart addToTop (source-check-turnstart-hooks-v1).
         | RelicId::Akabeko | RelicId::BronzeScales | RelicId::ClockworkSouvenir | RelicId::DataDisk | RelicId::DuVuDoll
         | RelicId::Girya | RelicId::MutagenicStrength | RelicId::OddlySmoothStone | RelicId::Pantograph

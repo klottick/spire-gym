@@ -86,7 +86,8 @@ fn play_card(run: &mut Run, id: CardId, target: Option<TargetId>) {
 
 // atTurnStart relics answer the pre-draw checkpoint (source-check-turnstart-hooks-v1).
 fn turn_start(run: &mut Run) { hook(run, Hook::TurnStartedPreDraw); }
-fn end_turn_hook(run: &mut Run) { hook(run, Hook::PlayerEndTurn); }
+// onPlayerEndTurn relics answer callEndOfTurnActions, PlayerPreEndTurnCards (spire-oto.22).
+fn end_turn_hook(run: &mut Run) { hook(run, Hook::PlayerPreEndTurnCards); }
 
 fn lose_player_hp(run: &mut Run, amount: i32) {
     enqueue_player(run, EffectKind::Damage(DamagePayload::HpLoss(amount)));

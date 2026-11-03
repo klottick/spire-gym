@@ -39,7 +39,8 @@ pub(crate) fn phase(id: RelicId, context: &mut CombatItemContext, phase: ItemPha
         }
         (RelicId::CentennialPuzzle, ItemPhase::HpLost) if facts.hp_lost > 0 && context.local(id) == 0 => {
             context.set_local(id, 1);
-            queue_bottom(id, Actor::Player, EffectKind::Draw(3), work);
+            // CentennialPuzzle.wasHPLost: addToTop(DrawCardAction(3)).
+            work.top.push(effect(id, Some(Actor::Player), EffectKind::Draw(3)));
         }
         (RelicId::Nunchaku, ItemPhase::CardUsed) if facts.card.is_some_and(|card|card.card_type==CardType::Attack) => {
             let next = context.counter(id).rem_euclid(10) + 1;

@@ -127,10 +127,12 @@ fn m25_items_new_relics_through_real_combat() {
     // shared callback order directly while the end-turn/cleanup placement below
     // is exercised through a real M25 combat.
     let mut orichalcum_clasp = CombatItemContext::new(vec![RelicId::Orichalcum, RelicId::CloakClasp], vec![]).with_m25_profile();
+    // spire-oto.22 (source-check-endturn-v1): both are onPlayerEndTurn relics at the
+    // callEndOfTurnActions checkpoint; Orichalcum is addToTop and Cloak Clasp addToBot.
     let ordered = crate::items::relic_hook_effects(&mut orichalcum_clasp,
-        crate::combat::Hook::CloakClaspBeforeCleanup { hand_size: 5 }, 40, 50, 0);
+        crate::combat::Hook::PlayerPreEndTurnCards, 40, 50, 0);
     assert_eq!(ordered.top.iter().map(|effect| effect.kind.clone()).collect::<Vec<_>>(),
-        vec![crate::combat::EffectKind::GainBlock(6), crate::combat::EffectKind::GainBlock(5)],
+        vec![crate::combat::EffectKind::GainBlock(6)],
         "Orichalcum's one event precedes Cloak Clasp's hand-size event");
     let mut clasp = m25_combat(m25_entry(&clasp_deck, 5), vec![RelicId::CloakClasp], vec![None; 3]);
     let ethereal = hand_instance(&clasp, CardId::DevaForm);

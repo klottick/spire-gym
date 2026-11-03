@@ -1,7 +1,8 @@
 //! Held Status checkpoints: these are not card plays and never enter in_play.
 use super::*;
 pub(super) fn end_turn_work(state:&model::State)->Vec<Effect>{
-    let mut work=super::enemies::act3::ordinary::player_end_work(state);
+    // triggerOnEndOfTurnForPlayingCard, in hand order (source-check-endturn-v1).
+    let mut work=vec![];
     for owned in &state.piles.hand{
         let Some(card)=owned.full() else{continue};
         if card.id==crate::content::CardId::Burn{

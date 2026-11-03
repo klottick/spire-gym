@@ -5,6 +5,7 @@ use super::super::model::OwnedCard;
 mod direct;
 mod choices;
 mod powers;
+pub(in crate::combat) use powers::end_turn_bombs;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ColorlessEffect {
@@ -104,9 +105,6 @@ pub(super) fn power_removed(state:&mut State,actor:&Actor,id:FullPowerId){powers
 
 pub(super) fn card_played(state:&mut State,source:&Source)->Result<(),EffectError>{powers::card_played(state,source)}
 
-pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    powers::power_hook(state,hook,target,work)
-}
 pub(super) fn start_power(state:&mut State,hook:Hook,power:&crate::combat::FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
     powers::start_power(state,hook,power,work)
 }

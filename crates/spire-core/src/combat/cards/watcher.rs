@@ -147,7 +147,20 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
         WatcherEffect::ReduceCost{card,delta}=>{
             let mut result=Ok(());super::super::piles::for_each_owned_card_mut(state,|live|{if live.instance.0.to_string()==card.as_str(){result=super::super::card_state::modify_cost_for_combat(live,*delta);}});result?;
         },
-        WatcherEffect::EstablishmentDiscount{amount}=>{for owned in &mut state.piles.hand{if let Some(card)=owned.full_mut().filter(|c|c.local.retain||c.local.self_retain){super::super::card_state::modify_cost_for_combat(card,amount.wrapping_neg())?;}}},
+        WatcherEffect::EstablishmentDiscount{amount}=>{
+            // EstablishmentPowerAction discounts cards marked retain or selfRetain when it runs:
+            // Equilibrium's mark and resolved Well-Laid Plans picks count; Runic Pyramid's hold
+            // marks nothing (source-check-endturn-v1). The engine holds those marks in
+            // temporary_retain, which Pyramid alone also fills.
+            let pyramid_only=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::RunicPyramid))
+                &&!state.player_full_powers.iter().any(|power|power.id.0=="equilibrium");
+            let marked=state.temporary_retain.as_ref().filter(|retain|retain.turn==state.turn&&!pyramid_only)
+                .map(|retain|retain.cards.clone()).unwrap_or_default();
+            for owned in &mut state.piles.hand{
+                let held=marked.contains(&owned.handle());
+                if let Some(card)=owned.full_mut().filter(|c|c.local.retain||c.local.self_retain||held){super::super::card_state::modify_cost_for_combat(card,amount.wrapping_neg())?;}
+            }
+        },
         WatcherEffect::GainMantra{amount}=>{
             state.character.mantra_gained=state.character.mantra_gained.checked_add(*amount).ok_or_else(||InputError::Unsupported("Watcher Mantra history int32 exhausted".into()))?;
             bottom(state,EffectKind::ApplyFullPower{id:FullPowerId("mantra"),amount:*amount});
@@ -437,7 +450,7 @@ pub(in crate::combat) fn discard_hand(state:&mut State,effect:&Effect)->Result<(
         }else{i+=1;}
     }
     state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(WatcherEffect::RetainRestore{cards:retained,next:0})});
-    while let Some(card)=state.piles.hand.last(){let handle=card.handle();super::super::piles::discard_card(state,&handle,true)?;}
+    super::super::piles::end_turn_cleanup(state,&[])?;
     Ok(())
 }
 pub(in crate::combat) fn restore(state:&mut State,effect:&Effect,cards:&[CardHandle],next:usize)->Result<(),EffectError>{
@@ -637,23 +650,18 @@ pub(in crate::combat) fn capture(state:&mut State,effects:&mut [Effect])->Result
         }
     }Ok(())
 }
-pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
+pub(in crate::combat) fn hook(state:&mut State,hook:Hook,_target:Option<&Actor>,_work:&mut Vec<Effect>)->Result<(),EffectError>{
     if hook==Hook::CardAfterUse{
         let source=state.current.as_ref().map_or(Source::None,|effect|effect.source.clone());
         m25_powers::after_card_use(state,&source);
     }
-    // M26 §6.3 split: Divinity exit is S (any character in Divinity), the power callbacks are L
-    // (`cards_active`, each still requiring its power). The recharge, Deva Form's gain included,
-    // is the shared turn-start recharge (`turns::recharge`).
-    let laws=cards_active(state);
-    if !(laws||state.character.stance==Stance::Divinity)||target!=Some(&Actor::Player){return Ok(())}
-    let source=Source::Actor(Actor::Player);
-    if !laws{return Ok(())}
-    if hook==Hook::PlayerPreEndTurnCards&&state.character.stance==Stance::Calm{
-        for power in &state.player_full_powers{if power.id.0=="like_water"{work.push(Effect{source:source.clone(),target:Some(Actor::Player),kind:EffectKind::GainBlock(power.state.amount)});}}
-    }
-    m25_generation::hook(state,hook,target,work)?;
+    // Like Water, Study and Omega are end-of-turn callbacks in the shared player pass
+    // (`hooks::player_end_power`); the turn-start recharge is `turns::recharge`.
     Ok(())
+}
+/// Study and Omega at their place in the player's atEndOfTurn pass.
+pub(in crate::combat) fn end_turn_power(state:&State,power:&FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{
+    m25_generation::end_turn_power(state,power,work)
 }
 
 /// The stance start hook (Divinity's exit) runs ahead of the power callbacks.

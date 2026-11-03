@@ -574,9 +574,14 @@ fn m15_potion_generation_tests_forge_uses_shared_cost_damage_and_exhaust_upgrade
 #[test]
 fn m15_regeneration_heals_before_end_turn_burn_damage() {
     let mut c=enter(entry(&[CardId::Burn],1,1,EnemyId::Cultist,FullIntentId::Incantation,&[],&[]),vec![],vec![Some(PotionId::RegenPotion)]);
-    c.state.player.hp=1;
+    // spire-oto.22 (source-check-endturn-v1): Burn plays before AbstractRoom.endTurn runs
+    // RegenPower.atEndOfTurn, so Burn's 2 lands first and the heal follows.
+    c.state.player.hp=3;
     c.step_full(&CombatAction::UsePotion{slot:0,target:None}).unwrap();
-    c.step_full(&CombatAction::EndTurn).unwrap();
-    assert_eq!(c.state.player.hp,4);
+    let observed=c.step_full_observed(&CombatAction::EndTurn);observed.result.unwrap();
+    let burn=observed.effects.iter().position(|event|event.target==Some(Actor::Player)&&matches!(event.kind,crate::combat::observe::ResolvedEffectKind::Damage{..})).unwrap();
+    let heal=observed.effects.iter().position(|event|matches!(event.kind,crate::combat::observe::ResolvedEffectKind::Heal{..})).unwrap();
+    assert!(burn<heal,"{:?}",observed.effects);
+    assert_eq!(c.state.player.hp,6);
     assert_eq!(c.state.outcome,None);
 }

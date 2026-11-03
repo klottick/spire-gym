@@ -209,7 +209,10 @@ fn m26_cards_end_of_turn_order() {
         "Metallicize work is queued before the curse packets");
     engine::dispatch_one(&mut combat.state);
     assert_eq!(combat.state.player.block, 2, "PlayerPreEndTurnCards power work resolves first");
-    let queued_sources = combat.state.pending.iter().take(6).filter_map(|effect| {
+    // spire-oto.22 (source-check-endturn-v1): the queued orb pass precedes the curse packets.
+    assert_eq!(combat.state.pending.front().map(|effect| &effect.kind),
+        Some(&EffectKind::Character(super::super::characters::CharacterEffect::EndTurn)));
+    let queued_sources = combat.state.pending.iter().take(7).filter_map(|effect| {
         let Source::Card(handle) = &effect.source else { return None };
         combat.state.piles.hand.iter().find(|owned| owned.handle() == *handle)
             .and_then(OwnedCard::full).map(|live| live.id)

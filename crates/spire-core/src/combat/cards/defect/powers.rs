@@ -37,15 +37,18 @@ pub(super) fn after_use(state:&mut State){
     state.player_full_powers[index].state.amount-=1;
     if state.player_full_powers[index].state.amount==0{state.player_full_powers.remove(index);}
 }
+/// ReboundPower.atEndOfTurn: the player's Rebound ends with the turn.
+pub(in crate::combat) fn end_turn_rebound(state:&mut State){
+    state.player_full_powers.retain(|power|power.id.0!="rebound");state.defect.rebound_just_applied=false;
+}
+/// EquilibriumPower.atEndOfTurn marks every non-Ethereal hand card retained, immediately.
+pub(in crate::combat) fn end_turn_equilibrium(state:&mut State){
+    if !state.player_full_powers.iter().any(|power|power.id.0=="equilibrium"&&power.state.amount>0){return}
+    state.temporary_retain=Some(crate::combat::model::TemporaryRetain{turn:state.turn,cards:state.piles.hand.iter()
+        .filter(|card|card.full().is_some_and(|card|!card.local.ethereal)).map(|card|card.handle()).collect()});
+}
 pub(super) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
     if hook==Hook::CardAfterUse{after_use(state);}
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player){
-        state.player_full_powers.retain(|power|power.id.0!="rebound");state.defect.rebound_just_applied=false;
-        if state.player_full_powers.iter().any(|power|power.id.0=="equilibrium"&&power.state.amount>0){
-            state.temporary_retain=Some(crate::combat::model::TemporaryRetain{turn:state.turn,cards:state.piles.hand.iter()
-                .filter(|card|card.full().is_some_and(|card|!card.local.ethereal)).map(|card|card.handle()).collect()});
-        }
-    }
     if hook==Hook::CombatSettled&&state.player.hp>0 {
         let amount=state.player_full_powers.iter().find(|power|power.id.0=="repair").map_or(0,|power|power.state.amount);
         if amount>0{crate::combat::effects::ordinary_heal_now(state,Source::Actor(Actor::Player),amount)?;}

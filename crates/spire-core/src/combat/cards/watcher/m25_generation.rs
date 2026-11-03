@@ -91,12 +91,9 @@ pub(in crate::combat) fn payload(state: &State, card: &LiveCard, target: Option<
     Ok(Some((cost, effects)))
 }
 
-pub(super) fn hook(state: &State, hook: Hook, target: Option<&Actor>, work: &mut Vec<Effect>) -> Result<(), EffectError> {
-    if hook != Hook::PlayerEndTurn || target != Some(&Actor::Player)
-        || !state.item_context.as_ref().is_some_and(|items| items.m25_cards()) {
-        return Ok(());
-    }
-    for power in &state.player_full_powers {
+/// StudyPower and OmegaPower atEndOfTurn, at their place in the player's power list.
+pub(super) fn end_turn_power(state: &State, power: &FullPowerEntry, work: &mut Vec<Effect>) -> Result<(), EffectError> {
+    {
         match power.id.0 {
             "study" if power.state.amount > 0 => {
                 let count = u32::try_from(power.state.amount).map_err(|_| InputError::Invariant("Study stack count negative".into()))?;

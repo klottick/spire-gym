@@ -106,17 +106,11 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
     match id {
         RelicId::Orichalcum=>{
             if hook==Hook::TurnStartedPreDraw {context.orichalcum_trigger=false;}
-            // The cleanup hook is emitted for Cloak Clasp or Orichalcum; Orichalcum then fires there once.
-            if hook==Hook::PlayerEndTurn&&!(context.owns_relic(RelicId::CloakClasp)||context.complete_items())&&(block==0||context.orichalcum_trigger) {
+            // AbstractRoom.applyEndOfTurnRelics runs before the player's pre-card powers
+            // (source-check-endturn-v1), so the Block read here precedes Metallicize.
+            if hook==Hook::PlayerPreEndTurnCards&&(block==0||context.orichalcum_trigger) {
                 context.orichalcum_trigger=false;
                 work.top.push(player(EffectKind::GainBlock(6)));
-            }
-            if let Hook::CloakClaspBeforeCleanup{..}=hook {
-                if (context.owns_relic(RelicId::CloakClasp)||context.complete_items())
-                    &&(block==0||context.orichalcum_trigger) {
-                    context.orichalcum_trigger=false;
-                    work.top.push(player(EffectKind::GainBlock(6)));
-                }
             }
         }
         RelicId::Damaru=>if hook==Hook::TurnStartedPreDraw {
@@ -129,11 +123,10 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
             work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
                 kind:EffectKind::ApplyFullPower{id:crate::combat::FullPowerId("lose_dexterity"),amount:1}});
         },
-        RelicId::CloakClasp=>if let Hook::CloakClaspBeforeCleanup{hand_size}=hook {
-            if hand_size>0 {
-                work.top.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
-                    kind:EffectKind::GainBlock(hand_size as i32)});
-            }
+        // CloakClasp.onPlayerEndTurn: addToBot Block equal to the hand size at the callback.
+        RelicId::CloakClasp=>if hook==Hook::PlayerPreEndTurnCards&&facts.hand_size>0 {
+            work.bottom.push(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
+                kind:EffectKind::GainBlock(facts.hand_size as i32)});
         },
         RelicId::Melange=>if hook==Hook::DrawPileShuffled {
             let amount=3+i32::from(context.owns_relic(RelicId::GoldenEye))*2;

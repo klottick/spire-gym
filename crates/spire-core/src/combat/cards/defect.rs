@@ -3,6 +3,7 @@ use super::*;
 mod direct;
 /// Shared blue random-hit continuation, also driven by the M25 Ragnarok producer.
 pub(in crate::combat) use direct::DirectEffect;
+pub(in crate::combat) use powers::{end_turn_equilibrium, end_turn_rebound};
 mod state;
 mod powers;
 use crate::content::CardId;

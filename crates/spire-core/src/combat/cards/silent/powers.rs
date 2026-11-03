@@ -94,14 +94,9 @@ pub(in crate::combat) fn start_power(state:&State,hook:Hook,power:&crate::combat
 }
 
 pub(in crate::combat) fn hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)->Result<(),EffectError>{
-    let player=target==Some(&Actor::Player);
     let powers=state.player_full_powers.clone();
-    if player&&hook==Hook::PlayerPreEndTurnCards{
-        for power in powers.iter().filter(|p|p.id.0=="wraith_form"){work.push(power_work("dexterity",power.state.amount));}
-    }
     if hook==Hook::TurnEnded{
         state.silent.retain_block_next_start=powers.iter().any(|p|p.id.0=="blur"&&p.state.amount>0);
-        if powers.iter().any(|p|p.id.0=="burst"&&p.state.amount>0){work.push(remove("burst"));}
         for power in powers.iter().filter(|p|matches!(p.id.0,"blur"|"intangible_player"|"double_damage")){
             work.push(player_work(EffectKind::ReduceFullPower{id:power.id,amount:1}));
         }

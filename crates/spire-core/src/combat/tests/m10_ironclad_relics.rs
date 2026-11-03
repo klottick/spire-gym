@@ -58,10 +58,11 @@ fn m10_orichalcum_explicit_trigger_queues_block_even_when_player_already_has_blo
     c.state.item_context.as_mut().unwrap().orichalcum_trigger=true;
     c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::TurnStartedPreDraw)}],None).unwrap();
     assert!(!c.state.item_context.as_ref().unwrap().orichalcum_trigger,"actual atTurnStart (TurnStartedPreDraw) callback clears any prior flag");
-    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)}],None).unwrap();
+    // spire-oto.22: onPlayerEndTurn relics answer PlayerPreEndTurnCards (callEndOfTurnActions).
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerPreEndTurnCards)}],None).unwrap();
     assert_eq!(c.state.player.block,4,"a cleared flag cannot independently retrigger at positive Block");
     c.state.item_context.as_mut().unwrap().orichalcum_trigger=true;
-    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)}],None).unwrap();
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerPreEndTurnCards)}],None).unwrap();
     assert_eq!(c.state.player.block,10,"source-qualified trigger flag independently requests the top-queued six Block");
     assert!(!c.state.item_context.as_ref().unwrap().orichalcum_trigger,"accepted callback consumes the trigger before its Block child");
     assert!(engine::validate_runtime(&c.state).is_ok());
@@ -85,13 +86,15 @@ fn m10_orichalcum_checks_block_after_metallicize_and_ethereal_feel_no_pain(){
         let blocks=observed.effects.iter().filter_map(|event|match event.kind{
             ResolvedEffectKind::Block{before,after}=>Some((before,after)),_=>None,
         }).collect::<Vec<_>>();
-        assert_eq!(&blocks[..2],&[(0,2),(2,6)],"Metallicize is an earlier player pre-end-turn callback, then actual Dazed exhaust invokes Feel No Pain before the later Orichalcum decision ({character:?}); effects={:?}; hooks={:?}; exhaust={:?}",observed.effects,c.state.hook_events,c.state.piles.exhaust);
-        assert_eq!(blocks.len(),3,"the final Block change is the actual enemy attack consuming the six existing Block, not an Orichalcum grant");
+        // spire-oto.22 (source-check-endturn-v1): Orichalcum's relic callback precedes the
+        // pre-card Metallicize, and the Dazed exhaust comes at the discard, after the player's
+        // atEndOfTurn pass.
+        assert_eq!(&blocks[..3],&[(0,6),(6,8),(8,12)],"Orichalcum reads zero Block before Metallicize, then Dazed's exhaust invokes Feel No Pain ({character:?}); effects={:?}; hooks={:?}; exhaust={:?}",observed.effects,c.state.hook_events,c.state.piles.exhaust);
         let hooks=&c.state.hook_events;
         let pre=hooks.iter().position(|event|event.hook==Hook::PlayerPreEndTurnCards).unwrap();
         let exhausted=hooks.iter().position(|event|event.hook==Hook::CardExhausted&&event.source==Source::Card(card_state::handle(CardInstanceId(1)))).unwrap();
         let end=hooks.iter().position(|event|event.hook==Hook::PlayerEndTurn).unwrap();
-        assert!(pre<exhausted&&exhausted<end,"actual callback order remains pre-end-turn, Ethereal/FNP, then PlayerEndTurn ({character:?})");
+        assert!(pre<end&&end<exhausted,"callback order is pre-end-turn, PlayerEndTurn, then the Ethereal exhaust ({character:?})");
         assert!(engine::validate_runtime(&c.state).is_ok(),"valid {character:?} state after EndTurn");
     }
 }
@@ -103,7 +106,8 @@ fn m10_orichalcum_callback_budget_fault_retains_consumed_trigger_and_current_blo
     let mut c=Combat::enter_with_item_context(e,&mut owner).unwrap();
     c.state.player.block=4;
     c.state.item_context.as_mut().unwrap().orichalcum_trigger=true;
-    c.state.resolved_effects=99_994;
+    // spire-oto.22: the grant is now the third dispatch (EndPlayerTurn, PlayerPreEndTurnCards).
+    c.state.resolved_effects=99_997;
     engine::validate_runtime(&c.state).expect("canonical live owner before existing effect budget boundary");
     let end_turn=Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::EndPlayerTurn};
     engine::validate_effect(&end_turn,&c.state).expect("the real accepted EndTurn continuation is valid before queueing");
@@ -116,7 +120,7 @@ fn m10_orichalcum_callback_budget_fault_retains_consumed_trigger_and_current_blo
     assert_eq!(c.state.current.as_ref().map(|effect|&effect.kind),Some(&EffectKind::GainBlock(6)),"the already queued grant remains the retained current owner");
     assert!(c.state.fault.is_some());
     assert_eq!(c.state.fault.as_ref().unwrap().kind,FaultKind::EffectGuard);
-    assert_eq!(c.state.hook_events.iter().filter(|event|event.hook==Hook::PlayerEndTurn).count(),1,"actual end-turn callback committed once before the child fault");
+    assert_eq!(c.state.hook_events.iter().filter(|event|event.hook==Hook::PlayerPreEndTurnCards).count(),1,"actual end-turn callback committed once before the child fault");
     assert!(c.state.pending.iter().any(|effect|effect.kind==EffectKind::MonsterStart),"the remaining accepted turn continuation stays pending behind the retained current child");
     let frozen=c.state.clone();assert_eq!(engine::resolve(&mut c.state).status,TransitionStatus::Fault);assert_eq!(c.state,frozen,"retry cannot grant Block twice or replace first fault");
 }
