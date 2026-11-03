@@ -16,13 +16,14 @@ fn m29_event_fight_above_ceiling_names_m32() {
         run.state.floor = from.floor;
         (run, node)
     }
-    for (ascension, reason) in [(16, "event combat enemy setup unavailable at this ascension"),
-        (17, crate::combat::enemies::ascension::ABOVE_CEILING)] {
+    // M29c: the Colosseum's species landed, so A16 enters the event; A17 stays above the ceiling.
+    for (ascension, reason) in [(16, None), (17, Some(crate::combat::enemies::ascension::ABOVE_CEILING))] {
         let (mut run, target) = row8(Character::Silent, 9);
         run.state.event_pools = Some(rooms::standard::event_pool::EventPools {
             ordinary: vec![crate::content::EventId::Colosseum], shrines: vec![], one_time: vec![], seen: vec![] });
         run.state.ascension = ascension;
         let before = run.clone();
+        let Some(reason) = reason else { assert!(run.step(&GameAction::Move(target)).is_ok(), "A{ascension}"); continue };
         assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(reason)), "A{ascension}");
         assert!(run == before, "A{ascension}: whole Run unchanged");
     }

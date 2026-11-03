@@ -139,7 +139,7 @@ impl EnemyMemory {
             EnemyId::GremlinNob => Ok(Self::GremlinNob),
             EnemyId::Lagavulin=>Ok(Self::Lagavulin{sleep_turns:0,awake:profile==EnemyProfile::LagavulinAwake,attacks:0}),
             EnemyId::Sentry=>Ok(Self::Sentry{initial_beam:profile==EnemyProfile::SentryCenter}),
-            EnemyId::Guardian=>Ok(Self::Guardian{quota:30,loss:0,open:true,latched:false}),
+            EnemyId::Guardian=>Ok(Self::Guardian{quota:ascension::guardian_mode_shift(ascension),loss:0,open:true,latched:false}),
             EnemyId::Hexaghost=>Ok(Self::Hexaghost{divider_base:None,cycle:0,sear_upgraded:false}),
             EnemyId::SphericGuardian=>Ok(Self::SphericGuardian),
             EnemyId::Byrd=>Ok(Self::Byrd{flying:true}),
@@ -400,9 +400,9 @@ pub fn move_work_at(enemy: &EnemyState, ascension: u8) -> Result<Vec<Effect>, In
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::supports(id)){return act3::shapes::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::SphericGuardian|EnemyId::Byrd)){return act2::flight::move_work(enemy);}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Chosen|EnemyId::Snecko)){return act2::chosen_snecko::move_work(enemy);}
-    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Guardian){return guardian::move_work(enemy);}
-    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){return hexaghost::move_work(enemy);}
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin|EnemyId::Sentry)){return elites::move_work(enemy);}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Guardian){return guardian::move_work(enemy,ascension);}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){return hexaghost::move_work(enemy,ascension);}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin|EnemyId::Sentry)){return elites::move_work(enemy,ascension);}
     let ActorEnemyId::Full(id) = &enemy.enemy_id else {
         return Err(InputError::Unsupported("enemy handler requires native full identity".into()));
     };
@@ -696,9 +696,9 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::Cultist => if ascension >= 7 { (50, 56) } else { (48, 54) },
         EnemyId::JawWorm => if ascension >= 7 { (42, 46) } else { (40, 44) },
         EnemyId::GremlinNob => if ascension >= 8 { (85, 90) } else { (82, 86) },
-        EnemyId::Lagavulin=>(109,111),EnemyId::Sentry=>(38,42),
-        EnemyId::Guardian=>(240,240),
-        EnemyId::Hexaghost=>(250,250),
+        EnemyId::Lagavulin=>if ascension>=8{(112,115)}else{(109,111)},EnemyId::Sentry=>if ascension>=8{(39,45)}else{(38,42)},
+        EnemyId::Guardian=>if ascension>=9{(250,250)}else{(240,240)},
+        EnemyId::Hexaghost=>if ascension>=9{(264,264)}else{(250,250)},
         EnemyId::SphericGuardian=>(20,20),EnemyId::Byrd=>(25,31),
         EnemyId::Chosen=>(95,99),EnemyId::Snecko=>(114,120),
         EnemyId::Centurion=>(76,80),EnemyId::Mystic=>(48,56),
@@ -710,7 +710,7 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::SpikeSlimeS => if ascension >= 7 { (11, 15) } else { (10, 14) },
         EnemyId::SpikeSlimeM => if ascension >= 7 { (29, 34) } else { (28, 32) },
         EnemyId::SpikeSlimeL => if ascension >= 7 { (67, 73) } else { (64, 70) },
-        EnemyId::SlimeBoss => (140, 140),
+        EnemyId::SlimeBoss => if ascension >= 9 { (150, 150) } else { (140, 140) },
         EnemyId::Unknown(_) => (0, 0),
         EnemyId::TimeEater=>(456,456),
         EnemyId::Deca|EnemyId::Donu=>(250,250),
@@ -721,7 +721,7 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::SpireGrowth=>(170,170),EnemyId::Transient=>(999,999),EnemyId::Maw=>(300,300),
         EnemyId::Darkling=>(48,56),
         EnemyId::OrbWalker=>(90,96),EnemyId::Repulsor=>(29,35),EnemyId::Exploder=>(30,30),EnemyId::Spiker=>(42,56),
-        EnemyId::GremlinLeader=>(140,148),
+        EnemyId::GremlinLeader=>if ascension>=8{(145,155)}else{(140,148)},
         EnemyId::GremlinMad=>if ascension>=7{(21,25)}else{(20,24)},EnemyId::GremlinSneaky=>if ascension>=7{(11,15)}else{(10,14)},
         EnemyId::GremlinFat=>if ascension>=7{(14,18)}else{(13,17)},EnemyId::GremlinShield=>if ascension>=7{(13,17)}else{(12,15)},
         EnemyId::GremlinWizard=>if ascension>=7{(22,26)}else{(21,25)},
@@ -729,7 +729,7 @@ pub(crate) fn hp_range(id: EnemyId, ascension: u8) -> (i32, i32) {
         EnemyId::BanditPointy=>(30,30),EnemyId::BanditLeader=>(35,39),EnemyId::BanditBear=>(38,42),
         EnemyId::Looter=>if ascension>=7{(46,50)}else{(44,48)},EnemyId::Mugger=>(48,52),
         EnemyId::FungiBeast=>if ascension>=7{(24,28)}else{(22,28)},
-        EnemyId::SlaverBlue=>if ascension>=7{(48,52)}else{(46,50)},EnemyId::SlaverRed=>(46,50),EnemyId::Taskmaster=>(54,60),EnemyId::BookOfStabbing=>(160,164),
+        EnemyId::SlaverBlue=>if ascension>=7{(48,52)}else{(46,50)},EnemyId::SlaverRed=>if ascension>=7{(48,52)}else{(46,50)},EnemyId::Taskmaster=>if ascension>=8{(57,64)}else{(54,60)},EnemyId::BookOfStabbing=>if ascension>=8{(168,172)}else{(160,164)},
         EnemyId::Champ=>(420,420),EnemyId::CorruptHeart=>(750,750),
         EnemyId::Collector=>(282,282),EnemyId::TorchHead=>(38,40),
         EnemyId::BronzeAutomaton=>(300,300),EnemyId::BronzeOrb=>(52,58),
@@ -754,9 +754,9 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
     use FullIntentId::*;
     let entries: &[(FullIntentId, i32)] = match id {
         EnemyId::Cultist => &[(Attack, 6)],
-        EnemyId::Lagavulin=>&[(Attack,18)],EnemyId::Sentry=>&[(FullIntentId::from_name("beam"),9)],
-        EnemyId::Guardian=>&[(FullIntentId::from_name("fierce_bash"),32),(FullIntentId::from_name("whirlwind"),5),(FullIntentId::from_name("roll_attack"),9),(FullIntentId::from_name("twin_slam"),8)],
-        EnemyId::Hexaghost=>&[(FullIntentId::from_name("divider"),1),(FullIntentId::from_name("sear"),6),(FullIntentId::from_name("tackle"),5),(FullIntentId::from_name("inferno"),2)],
+        EnemyId::Lagavulin=>&[(Attack,if ascension>=3{20}else{18})],EnemyId::Sentry=>&[(FullIntentId::from_name("beam"),if ascension>=3{10}else{9})],
+        EnemyId::Guardian=>&[(FullIntentId::from_name("fierce_bash"),if ascension>=4{36}else{32}),(FullIntentId::from_name("whirlwind"),5),(FullIntentId::from_name("roll_attack"),if ascension>=4{10}else{9}),(FullIntentId::from_name("twin_slam"),8)],
+        EnemyId::Hexaghost=>&[(FullIntentId::from_name("divider"),1),(FullIntentId::from_name("sear"),6),(FullIntentId::from_name("tackle"),if ascension>=4{6}else{5}),(FullIntentId::from_name("inferno"),if ascension>=4{3}else{2})],
         EnemyId::SphericGuardian=>&[(FullIntentId::from_name("sphere_debuff"),10),(FullIntentId::from_name("sphere_slam"),10),(FullIntentId::from_name("sphere_harden"),10)],
         EnemyId::Byrd=>&[(FullIntentId::from_name("byrd_peck"),1),(FullIntentId::from_name("byrd_swoop"),12),(FullIntentId::from_name("byrd_headbutt"),3)],
         EnemyId::Chosen=>&[(FullIntentId::from_name("chosen_poke"),5),(FullIntentId::from_name("chosen_debilitate"),10),(FullIntentId::from_name("chosen_zap"),18)],
@@ -777,7 +777,7 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::SpikeSlimeS => if ascension >= 2 { &[(SpikeTackle, 6)] } else { &[(SpikeTackle, 5)] },
         EnemyId::SpikeSlimeM => if ascension >= 2 { &[(SpikeFlameTackle, 10)] } else { &[(SpikeFlameTackle, 8)] },
         EnemyId::SpikeSlimeL => if ascension >= 2 { &[(SpikeFlameTackle, 18)] } else { &[(SpikeFlameTackle, 16)] },
-        EnemyId::SlimeBoss => &[(FullIntentId::from_name("slam"), 35)],
+        EnemyId::SlimeBoss => &[(FullIntentId::from_name("slam"), if ascension >= 4 { 38 } else { 35 })],
         EnemyId::Unknown(name) => return Err(InputError::Unsupported(format!("damage bases missing for {name}"))),
         EnemyId::TimeEater=>&[(FullIntentId::from_name("time_reverb"),7),(FullIntentId::from_name("time_slam"),26)],
         EnemyId::Deca=>&[(FullIntentId::from_name("deca_beam"),10)],
@@ -803,9 +803,9 @@ pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
         EnemyId::Looter=>&[(FullIntentId::from_name("looter_mug"),if ascension>=2{11}else{10}),(FullIntentId::from_name("looter_lunge"),if ascension>=2{14}else{12})],
         EnemyId::Mugger=>&[(FullIntentId::from_name("mugger_mug"),10),(FullIntentId::from_name("mugger_lunge"),16)],
         EnemyId::FungiBeast=>&[(Bite,6)],
-        EnemyId::SlaverBlue=>&[(FullIntentId::from_name("slaver_stab"),if ascension>=2{13}else{12}),(FullIntentId::from_name("slaver_rake"),if ascension>=2{8}else{7})],EnemyId::Taskmaster=>&[(FullIntentId::from_name("taskmaster_whip"),7)],EnemyId::SlaverRed=>&[(FullIntentId::from_name("slaver_stab"),13),(FullIntentId::from_name("slaver_scrape"),8)],
+        EnemyId::SlaverBlue=>&[(FullIntentId::from_name("slaver_stab"),if ascension>=2{13}else{12}),(FullIntentId::from_name("slaver_rake"),if ascension>=2{8}else{7})],EnemyId::Taskmaster=>&[(FullIntentId::from_name("taskmaster_whip"),7)],EnemyId::SlaverRed=>&[(FullIntentId::from_name("slaver_stab"),if ascension>=2{14}else{13}),(FullIntentId::from_name("slaver_scrape"),if ascension>=2{9}else{8})],
         EnemyId::BanditPointy=>&[(FullIntentId::from_name("pointy_special"),5)],EnemyId::BanditLeader=>&[(FullIntentId::from_name("romeo_agonizing_slash"),10),(FullIntentId::from_name("romeo_cross_slash"),15)],EnemyId::BanditBear=>&[(FullIntentId::from_name("bear_lunge"),9),(FullIntentId::from_name("bear_maul"),18)],
-        EnemyId::BookOfStabbing=>&[(FullIntentId::from_name("book_multi"),6),(FullIntentId::from_name("book_big"),21)],
+        EnemyId::BookOfStabbing=>&[(FullIntentId::from_name("book_multi"),if ascension>=3{7}else{6}),(FullIntentId::from_name("book_big"),if ascension>=3{24}else{21})],
         EnemyId::Champ=>&[(FullIntentId::from_name("champ_slash"),16),(FullIntentId::from_name("champ_execute"),10),(FullIntentId::from_name("champ_slap"),12)],
         EnemyId::Collector=>&[(FullIntentId::from_name("collector_rake"),18)],EnemyId::TorchHead=>&[(FullIntentId::from_name("torch_attack"),7)],
         EnemyId::BronzeAutomaton=>&[(FullIntentId::from_name("automaton_flail"),7),(FullIntentId::from_name("automaton_beam"),45)],EnemyId::BronzeOrb=>&[(FullIntentId::from_name("orb_beam"),8)],
@@ -905,9 +905,9 @@ pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::E
     let enemy = state.enemies.iter_mut().find(|enemy| &enemy.instance_id == owner)
         .ok_or_else(|| InputError::Invariant("enemy turn actor missing".into()))?;
     let headbutt=enemy.enemy_id==ActorEnemyId::Full(EnemyId::Byrd)&&enemy.intent_id.as_str()=="byrd_headbutt";
-    let work = if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin)){elites::take_turn(enemy)?}
+    let work = if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin)){elites::take_turn(enemy,ascension)?}
         else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Byrd){act2::flight::take_turn(enemy)?}
-        else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){hexaghost::take_turn(enemy,player_hp)?}else{move_work_at(enemy,ascension)?};
+        else if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){hexaghost::take_turn(enemy,player_hp,ascension)?}else{move_work_at(enemy,ascension)?};
     if headbutt {state.pending.retain(|work|!(work.kind==EffectKind::RollMove&&work.target==Some(Actor::Enemy(owner.clone()))));}
     for effect in work.into_iter().rev() { state.pending.push_front(effect); }
     super::effects::refresh_enemy_values(state)?;

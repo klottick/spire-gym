@@ -123,7 +123,7 @@ pub(super) fn move_work(enemy: &EnemyState, id: EnemyId, intent: FullIntentId, a
     -> Result<Vec<Effect>, InputError> {
     let actor = Actor::Enemy(enemy.instance_id.clone());
     let work = match (id, intent) {
-        (EnemyId::SlimeBoss, intent) if intent.as_str() == BOSS_STICKY => (0..3).map(|_| Effect {
+        (EnemyId::SlimeBoss, intent) if intent.as_str() == BOSS_STICKY => (0..if ascension >= 19 { 5 } else { 3 }).map(|_| Effect {
             source: Source::Actor(actor.clone()), target: Some(Actor::Player), kind: EffectKind::CreateCard {
                 id: crate::content::CardId::Slimed,
                 destination: crate::combat::GeneratedCardDestination::Discard, upgrades: 0,

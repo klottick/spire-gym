@@ -201,12 +201,13 @@ fn m28_event_outcome_replace_relic_in_slot() {
 /// Global (replaces lane N's encounter-named guard): an event combat whose enemy setup is unavailable at the Run's
 /// ascension is the typed `Unsupported`, checked before any mutation, for every event encounter (M28d's Three
 /// Sentries at A15 here), never a fault after acceptance. Supported pairs (Gremlin Nob at A15) still start.
+/// M29c lands the Sentry, so the unavailable witness moves to Masked Bandits (M29d) at A15 (name kept).
 #[test]
 fn m28_event_combat_unsupported_ascension_is_rejected_up_front() {
     let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 94);
     run.state.ascension = 15;
     let before = run.clone();
-    let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::ThreeSentries, rewards: None, next_stage: 0, elite: true }]);
+    let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::MaskedBandits, rewards: None, next_stage: 0, elite: true }]);
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");
     assert!(run == before && run.state.fault.is_none(), "rejected atomically, no fault");
     event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::GremlinNob, rewards: None, next_stage: 0, elite: true }]).unwrap();
@@ -1094,10 +1095,11 @@ fn m28_we_meet_again_rows_show_the_preselected_gifts() {
 
 /// M2: above A0 the Colosseum's first fight has no enemy facts, so the event would open with no legal row; the
 /// Move is rejected up front as the typed interim (the global ascension gate), atomically. Masked Bandits keeps Pay.
+/// M29c lands the Colosseum's species: the witness moves above its first fight's ceiling (A17, the M32 reason).
 #[test]
 fn m28_colosseum_above_a0_is_rejected_at_the_move() {
     let (mut run, node) = colosseum_before(Character::Ironclad, 7);
-    run.state.ascension = 1;
+    run.state.ascension = 17;
     let before = run.clone();
     let result = run.step(&GameAction::Move(node));
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");

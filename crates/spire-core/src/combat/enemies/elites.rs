@@ -1,4 +1,4 @@
-//! A0 elite-local state; all payloads use the authoritative shared resolver.
+//! Elite-local state; all payloads use the authoritative shared resolver.
 use super::*;
 
 pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,SelectError>{
@@ -15,22 +15,22 @@ pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory
     };Ok(MoveSelection{intent:FullIntentId::from_name(intent),stream:stream.clone(),memory:memory.clone()})
 }
 
-pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());
     let work=match (&enemy.enemy_id,enemy.intent_id.as_str()){
-        (ActorEnemyId::Full(EnemyId::Sentry),"bolt")=>(0..2).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Dazed,destination:super::super::CardDestination::Discard,upgrades:0})).collect(),
+        (ActorEnemyId::Full(EnemyId::Sentry),"bolt")=>(0..if ascension>=18{3}else{2}).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Dazed,destination:super::super::CardDestination::Discard,upgrades:0})).collect(),
         (ActorEnemyId::Full(EnemyId::Sentry),"beam")=>vec![damage(actor,FullIntentId::from_name("beam"))],
         (ActorEnemyId::Full(EnemyId::Lagavulin),"sleep"|"stunned")=>vec![],
         (ActorEnemyId::Full(EnemyId::Lagavulin),"attack")=>vec![damage(actor,FullIntentId::Attack)],
-        (ActorEnemyId::Full(EnemyId::Lagavulin),"siphon")=>vec![effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("dexterity"),amount:-1}),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:-1})],
+        (ActorEnemyId::Full(EnemyId::Lagavulin),"siphon")=>{let amount=if ascension>=18{-2}else{-1};vec![effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("dexterity"),amount}),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount})]},
         _=>return Err(InputError::Invariant("invalid elite intent".into())),
     };Ok(work)
 }
 
 fn opening(owner:&EnemyHandle)->Effect {let actor=Actor::Enemy(owner.clone());effect(actor.clone(),actor,EffectKind::ReduceFullPower{id:FullPowerId("metallicize"),amount:8})}
 
-pub(super) fn take_turn(enemy:&mut EnemyState)->Result<Vec<Effect>,InputError>{
-    let mut work=move_work(enemy)?;
+pub(super) fn take_turn(enemy:&mut EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let mut work=move_work(enemy,ascension)?;
     let Some(EnemyMemory::Lagavulin{sleep_turns,awake,attacks})=enemy.full_memory.as_mut() else{return Err(InputError::Invariant("Lagavulin memory missing".into()))};
     match enemy.intent_id.as_str(){
         "sleep"=>{*sleep_turns+=1;if *sleep_turns==3{*awake=true;work.push(opening(&enemy.instance_id));}},

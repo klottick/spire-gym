@@ -1,6 +1,6 @@
 # M29 Ascension 1–5
 
-Status: **candidate, in progress: M29a1 (run rules) and M29a2 (combat ascension owner) merged; M29b (Act 1 normals) under review; M29c–M29f to follow.** This
+Status: **candidate, in progress: M29a1 (run rules), M29a2 (combat ascension owner) and M29b (Act 1 normals) merged; M29c (Act 1 elites and bosses, Slavers, Act 2 elites) under review; M29d–M29f to follow.** This
 page states what M29 provides so far and its limits. It is a candidate profile, not a public
 profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28 holds; native exposure is
 M34–M36). Until M29f, A1–A5 standard Runs are **diagnostics-only** (`m29-diagnostics`).
@@ -95,14 +95,41 @@ M29f")` in a default build (and `Unsupported("Standard supports A0–A5")` above
   16. The behaviour rows behind those ceilings stay in M32: the slime, Louse and Gremlin Wizard A17
   move selection, and the Fat Gremlin's Smash adding Frail 1 from A17.
 
+## M29c: Act 1 elites and bosses, Slavers, Act 2 elites
+
+- **Values.** Eleven species carry their full numeric ladder, A0–A20 (elites change HP at A8 and
+  damage at A3; bosses HP at A9 and damage at A4):
+  - Lagavulin: Attack 20; Siphon Soul −2 Dexterity, then −2 Strength, from A18.
+  - Sentry: Beam 10; Dazed 3 per Bolt from A18.
+  - Hexaghost: Fire Tackle 6 and Inferno 3; Inflame Strength 3 and two Burns per Sear from A19.
+  - Slime Boss: Slam 38; Goop Spray 5 Slimed from A19.
+  - The Guardian: Fierce Bash 36 and Roll 10; Mode Shift 35 from A9 and 40 from A19 (at setup, then
+    +10 per cycle as before); Sharp Hide 4 from A19.
+  - Slaver Red: HP from A7, Stab 14 and Scrape 9 from A2; Scrape Vulnerable 2 from A17.
+  - Book of Stabbing: Multi-Stab 7 and Big Stab 24.
+  - Gremlin Leader: Encourage Strength 4 from A3 and 5 from A18; Encourage Block 10 from A18.
+  - Taskmaster: 2 Wounds per Whip from A3 and 3 from A18.
+  - Gremlin Nob and Slaver Blue were already implemented and are re-verified.
+- **Source.** Values come from the reviewed spec sheet (static source check, cross-checked with
+  `data/enemies/enemies.json`). The source also gives Slime Boss a Tackle damage (9, A4 10) and
+  Taskmaster a second damage (4) that no move uses; the engine has no entry for either.
+- **Admission.** The Act 1 elite and boss formations, Red Slaver, Exordium Thugs, the Act 2 Gremlin
+  Leader, Slavers and Book of Stabbing elites, and the event fights of these species (Dead
+  Adventurer, the Colosseum's two fights, Mind Bloom's Act 1 boss) leave the interim list.
+- **Ceilings.** Encounter ceilings are 16 for Slime Boss (its slime children), Gremlin Leader (Fat
+  Gremlin, Gremlin Wizard), Red Slaver, Exordium Thugs, Slavers and the Colosseum's first fight, and
+  17 for Book of Stabbing and the Colosseum's second fight (Taskmaster). Values above a ceiling are
+  checked at table level only. The behaviour rows behind those ceilings stay in M32: Slaver Red A17
+  move selection, Book of Stabbing's A18 stab counter and Taskmaster's A18 Strength.
+
 ## Limits
 
 - **Interim.** Combat-level ascension values land chunk by chunk (M29b–M29e2). Under
   `m29-diagnostics`, an A1–A5 combat is admitted when every species its encounter can contain has
-  landed: after M29b, every Act 1 normal formation except Exordium Thugs and Red Slaver (Slaver Red,
-  M29c), plus Three Cultists, Three Fungi Beasts and the Act 3 Jaw Worm Horde, and Gremlin Nob. Every
-  other combat is rejected at entry with the typed `Unsupported("enemy setup facts unavailable for
-  this act/ascension")`. Event fights whose encounter has not landed stay disabled choices.
+  landed. After M29c that is every Act 1 formation, plus the Act 2 Gremlin Leader, Slavers and Book
+  of Stabbing elites, Three Cultists, Three Fungi Beasts and the Act 3 Jaw Worm Horde. Every other
+  combat is rejected at entry with the typed `Unsupported("enemy setup facts unavailable for this
+  act/ascension")`. Event fights whose encounter has not landed stay disabled choices.
 - A6+ run-level rules are dormant (`Run::new` codes A6/A10/A11/A14; creation caps at A5). Hand-forward
   for M30: `run/engine.rs:17` computes A6 start HP as the integer `(max * 9 + 5) / 10`; the source is
   `MathUtils.round(max * 0.9f)`.

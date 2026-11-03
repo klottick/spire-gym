@@ -23,14 +23,14 @@ pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&St
     };Ok(MoveSelection{intent:FullIntentId::from_name(intent),memory:memory.clone(),stream:stream.clone()})
 }
 
-pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let intent=match enemy.intent_id{ActorIntentId::Full(i)=>i,_=>return Err(InputError::Invariant("Guardian full intent missing".into()))};
     let work=match intent.as_str(){
         "charging_up"=>vec![effect(actor.clone(),actor,EffectKind::GainBlock(9))],
         "fierce_bash"|"roll_attack"=>vec![damage(actor,intent)],
         "whirlwind"=>(0..4).map(|_|damage(actor.clone(),intent)).collect(),
         "vent_steam"=>vec![effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:2}),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("vulnerable"),amount:2})],
-        "defensive_mode"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("sharp_hide"),amount:3})],
+        "defensive_mode"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("sharp_hide"),amount:if ascension>=19{4}else{3}})],
         "twin_slam"=>vec![change(&enemy.instance_id,GuardianEffect::Offensive),damage(actor.clone(),intent),damage(actor.clone(),intent),effect(actor.clone(),actor,EffectKind::RemoveFullPower(FullPowerId("sharp_hide")))],
         _=>return Err(InputError::Invariant("invalid Guardian intent".into())),
     };Ok(work)

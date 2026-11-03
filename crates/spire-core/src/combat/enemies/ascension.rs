@@ -2,7 +2,8 @@
 //! ascension (`State.ascension`) and asks this module for species values, so no
 //! A0 literal that depends on ascension lives outside a species function.
 //! M29a2 landed the plumbing; each species' chunk (M29b–e2) fills its ladder from
-//! the reviewed spec sheet. M29b: the 17 Act 1 normal species.
+//! the reviewed spec sheet. M29b: the 17 Act 1 normal species. M29c: Act 1 elites and bosses,
+//! the Slavers and the Act 2 elites.
 use super::super::{FullPowerEntry, FullPowerId};
 use crate::content::{EncounterId, EnemyId};
 
@@ -20,7 +21,9 @@ pub fn species_supports_ascension(id: EnemyId, ascension: u8) -> bool {
         Cultist | JawWorm | GremlinNob | SlaverBlue | FungiBeast
         // M29b: Act 1 normals.
         | AcidSlimeS | AcidSlimeM | AcidSlimeL | SpikeSlimeS | SpikeSlimeM | SpikeSlimeL | LouseRed | LouseGreen
-        | Looter | GremlinMad | GremlinSneaky | GremlinFat | GremlinShield | GremlinWizard)
+        | Looter | GremlinMad | GremlinSneaky | GremlinFat | GremlinShield | GremlinWizard
+        // M29c: Act 1 elites/bosses, Slavers, Act 2 elites.
+        | Lagavulin | Sentry | Hexaghost | SlimeBoss | Guardian | SlaverRed | BookOfStabbing | GremlinLeader | Taskmaster)
 }
 
 /// Highest ascension whose behaviour the engine implements for the species
@@ -131,6 +134,10 @@ pub fn thievery_gold(id: EnemyId, ascension: u8) -> u32 {
 pub fn gremlin_shield_protect(ascension: u8) -> i32 {
     if ascension >= 17 { 11 } else if ascension >= 7 { 8 } else { 7 }
 }
+/// The Guardian's Mode Shift threshold at setup (memory quota and power amount).
+pub fn guardian_mode_shift(ascension: u8) -> i32 {
+    if ascension >= 19 { 40 } else if ascension >= 9 { 35 } else { 30 }
+}
 /// Awakened One's maximum HP after rebirth.
 pub fn awakened_rebirth_max_hp(_ascension: u8) -> i32 { 300 }
 
@@ -160,7 +167,7 @@ pub fn setup_powers(encounter: EncounterId, id: EnemyId, ascension: u8) -> Vec<F
     if id == EnemyId::GremlinMad { powers.push(power("angry", gremlin_mad_angry(ascension))); }
     if id == EnemyId::SphericGuardian { for (name, amount) in [("artifact", 3), ("barricade", 1)] { powers.push(power(name, amount)); } }
     if id == EnemyId::Byrd { powers.push(power("flight", 3)); }
-    if id == EnemyId::Guardian { powers.push(power("mode_shift", 30)); }
+    if id == EnemyId::Guardian { powers.push(power("mode_shift", guardian_mode_shift(ascension))); }
     if id == EnemyId::ShelledParasite { powers.push(power("plated_armor", 14)); }
     if id == EnemyId::SnakePlant { powers.push(power("malleable", 3)); }
     if matches!(id, EnemyId::Looter | EnemyId::Mugger) { powers.push(power("thievery", thievery_gold(id, ascension) as i32)); }

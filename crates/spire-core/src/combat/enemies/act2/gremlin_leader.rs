@@ -28,7 +28,8 @@ pub(super) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<Vec<Effect>
     let actor=Actor::Enemy(owner.clone());
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::GremlinLeader){return Ok(match intent.as_str(){
         "leader_stab"=>(0..3).map(|_|damage(actor.clone(),intent)).collect(),
-        "leader_encourage"=>{let mut work=vec![];for a in spawn::ordered_actors(state){let target=Actor::Enemy(a.instance_id.clone());work.push(effect(actor.clone(),target.clone(),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3}));if a.instance_id!=*owner{work.push(effect(actor.clone(),target,EffectKind::GainBlock(6)));}}work},
+        "leader_encourage"=>{let (strength,block)=if state.ascension>=18{(5,10)}else if state.ascension>=3{(4,6)}else{(3,6)};
+            let mut work=vec![];for a in spawn::ordered_actors(state){let target=Actor::Enemy(a.instance_id.clone());work.push(effect(actor.clone(),target.clone(),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:strength}));if a.instance_id!=*owner{work.push(effect(actor.clone(),target,EffectKind::GainBlock(block)));}}work},
         "leader_rally"=>vec![effect(actor.clone(),actor,EffectKind::RallyGremlins{remaining:2})],
         _=>return Err(InputError::Invariant("unhandled Gremlin Leader intent".into()).into()),
     })}
