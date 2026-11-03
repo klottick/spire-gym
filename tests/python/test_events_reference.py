@@ -154,11 +154,11 @@ class EventReferenceTests(unittest.TestCase):
             self.assertIn("leave screen", text)
             self.assertIn("removes nothing", text)
             self.assertIn("events.city.backtobasics", branch.get("note", "").lower())
-            assert_source_lines(branch, {(m28, 119)})
+            assert_source_lines(branch, {(m28, 124)})
 
         for event_id, branch_id, profile_line, deviation_line in (
-            ("purifier", "purify", 120, 132),
-            ("transmogrifier", "transmogrify", 153, 133),
+            ("purifier", "purify", 125, 132),
+            ("transmogrifier", "transmogrify", 158, 133),
         ):
             with self.subTest(event=event_id):
                 branch, item = selection(event_id, branch_id, "empty-grid behavior")
@@ -185,7 +185,7 @@ class EventReferenceTests(unittest.TestCase):
             research = "docs/research/2026-10-19-act1-content-event-neow.md"
             assert_source_lines(
                 branch,
-                {(research, 266), (m28, 153), (deviation, 134)},
+                {(research, 266), (m28, 158), (deviation, 134)},
             )
 
         with self.subTest(event="beggar"):
@@ -199,7 +199,7 @@ class EventReferenceTests(unittest.TestCase):
             assert_source_lines(
                 branch,
                 {
-                    (m28, 215),
+                    (m28, 220),
                     (deviation, 126),
                     (deviation, 127),
                     (deviation, 130),
@@ -222,7 +222,7 @@ class EventReferenceTests(unittest.TestCase):
                 self.assertIn("only proceed", text)
                 for phrase in ("rewards", "potion roll", "proceed", "map"):
                     self.assertIn(phrase, text)
-                assert_source_lines(branch, {(m28, 122)})
+                assert_source_lines(branch, {(m28, 127)})
 
         with self.subTest(event="colosseum_first_fight"):
             branch, item = selection("colosseum", "first_slaver_fight", "Smoke Bomb escape")
@@ -230,13 +230,13 @@ class EventReferenceTests(unittest.TestCase):
             text = " ".join(item["options"]).lower()
             for phrase in ("rewards disabled", "reopens", "post-fight"):
                 self.assertIn(phrase, text)
-            assert_source_lines(branch, {(m28, 123)})
+            assert_source_lines(branch, {(m28, 128)})
 
         with self.subTest(event="mind_bloom_boss"):
             branch, item = selection("mind_bloom", "fight_act_1_boss", "combat")
             text = " ".join(item["options"]).lower()
             self.assertIn("smoke bomb is blocked", text)
-            assert_source_lines(branch, {(m28, 124)})
+            assert_source_lines(branch, {(m28, 129)})
 
     def test_builder_reads_only_repository_paths(self):
         real_open = builtins.open

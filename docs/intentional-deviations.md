@@ -145,3 +145,47 @@ Events that check for a card first are unaffected. The Upgrade Shrine, Living Wa
 Accursed Blacksmith's Forge disable their upgrade option when no card can be upgraded. Living Wall,
 The Cleric, Bonfire Spirits and Wheel of Change open their grids only when a purgeable card exists;
 Drug Dealer disables its Transform with fewer than two.
+
+## EVENT-001 — Forced one-button event pages are collapsed
+
+**Decision date:** 2026-11-02 (PM-accepted M28 D1 checks, M28d–M28f). **Status:** disclosed M28
+deviation.
+
+The original shows some event pages (an intro, a Continue or a goodbye) whose only button has one
+fixed effect. The simulator collapses such a page into the preceding choice only when no other legal
+action taken on that page could lead to a different final state or RNG order. Out-of-combat potion
+use counts here, because the Run offers it on event views. Otherwise the page stays a step. The
+collapsed pages are listed per chunk in the [M28 profile](milestones/m28-events-economy.md) (Forced
+pages, D1) and the [M28 reconciliation](milestones/m28-events-economy-reconciliation.md). Wheel of
+Change's reveal and Cursed Tome's HP-loss pages stay steps.
+
+## EVENT-002 — Match and Keep's starter card per character (E11)
+
+**Decision date:** 2026-11-01 (PM ruling E11). **Status:** disclosed decision, not source-settled.
+
+Match and Keep's board holds one fixed starter card: Bash for the Ironclad, Neutralize for the
+Silent, Zap for the Defect and Eruption for the Watcher. The PM accepted this recollection of each
+character's event start card. The local sources settle only the Ironclad's. Test:
+`m28_match_and_keep_constructs_e11_board`.
+
+## EVENT-003 — An event room with nothing eligible becomes a monster room (E6)
+
+**Decision date:** 2026-11-01 (M28 design §4.1 E6). **Status:** disclosed decision for a case the
+source leaves open.
+
+The event selector follows the source's branch delegation. When the branches end with no eligible
+event and the source shows no result, the room becomes an ordinary monster room for the act, chosen
+by the standard encounter law; no Leave-only event is invented. Tests: `m28_event_selection_law` and
+`m28_event_room_monster_fallback`.
+
+## EVENT-004 — Event formation slot order (E14)
+
+**Decision date:** 2026-11-01 (PM ruling E14). **Status:** disclosed decision where the source does not
+establish positions.
+
+Event fights place their enemies in the encounter's listed order, and enemies act in slot order. For
+Masked Bandits (Pointy, Romeo, Bear) the M28e source check confirmed that the source group keeps and
+iterates this order, so only physical screen positions remain unmodelled. For the Colosseum Slavers
+(Blue, then Red), the Nobs (Taskmaster, then Gremlin Nob) and Mysterious Sphere's two Orb Walkers, the
+listed order is the project's slot order. Tests: `m28_formation_fights` and
+`m28_event_formations_colosseum_and_bandits`.

@@ -52,7 +52,7 @@ pub const RUN_PROFILES: &[RunProfileSpec] = &[
     RunProfileSpec { id: "M25", character: Character::Watcher, constructor: RunSession::new_m25 },
     // SEAM: M27 complete-items profile
     // SEAM: M28 complete events
-    // SEAM: M28 StandardA0 Neow-start full Run — spire_core::run::diagnostics::standard_run(character, full_neow, rng) behind m28-diagnostics (diagnostics-only until M28f); future driver, not built.
+    // SEAM: M28 StandardA0 Neow-start full Run is a public native constructor (M28f2) but has no spire-env session or encoder (PM ruling Q1, deferred to M34–M36); `examples/m28_traversal.rs` in spire-core drives it instead.
 ];
 
 /// Complete-item diagnostics begin at the constructed Act 4 map, without Neow.

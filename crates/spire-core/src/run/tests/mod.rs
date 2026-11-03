@@ -81,6 +81,8 @@ mod m28_events_a15;
 mod m28_events_act2;
 mod m28_events_batch3;
 mod m28_event_enemies;
+mod m28_traversal;
+mod m28_gate_matrix;
 mod m27_capability;
 mod m27_relic_selections;
 mod m27_relics_run;
