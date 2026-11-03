@@ -18,7 +18,10 @@ fn all_84_starts() {
                 Character::Defect=>vec![crate::content::CardId::StrikeBlue;4].into_iter().chain(vec![crate::content::CardId::DefendBlue;4]).chain([crate::content::CardId::Zap,crate::content::CardId::Dualcast]).collect(),
                 Character::Watcher=>vec![crate::content::CardId::StrikePurple;4].into_iter().chain(vec![crate::content::CardId::DefendPurple;4]).chain([crate::content::CardId::Eruption,crate::content::CardId::Vigilance]).collect(),
             };
-            assert_eq!(run.state().deck.iter().take(starters.len()).map(|c|c.id).collect::<Vec<_>>(),starters);
+            // Amended at M30 (plan item 8, E3): from A10 the Bane is the first card and the starters follow.
+            let first_starter=usize::from(ascension>=10);
+            assert_eq!(run.state().deck.iter().skip(first_starter).map(|c|c.id).collect::<Vec<_>>(),starters);
+            if ascension>=10{assert_eq!(run.state().deck[0].id,crate::content::CardId::AscendersBane);}
             let (expected_hp,expected_max)=match (character,ascension) {
                 (Character::Ironclad,0..=5)=>(80,80), (Character::Ironclad,6..=13)=>(72,80), (Character::Ironclad,14..=20)=>(68,75),
                 (Character::Silent,0..=5)=>(70,70), (Character::Silent,6..=13)=>(63,70), (Character::Silent,14..=20)=>(59,66),

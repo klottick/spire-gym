@@ -1,6 +1,6 @@
 use crate::{
     combat::{Actor, Effect, EffectKind, Hook, Source},
-    content::{Catalog, NoteStorage, RelicId},
+    content::RelicId,
     run::{RunError, RunState},
 };
 use super::lifecycle::{EquipWork, SelectionSpec};
@@ -254,8 +254,8 @@ pub(super) fn equip(id:RelicId,state:&mut RunState,work:&mut EquipWork)->Result<
             Ok(true)
         }
         RelicId::EmptyCage=>{
-            let eligible=state.deck.iter().filter(|card|Catalog::standard().card(card.id)
-                .is_some_and(|definition|definition.note_storage==NoteStorage::RemovablePermanent))
+            // `getPurgeableCards`, no bottle filter (EmptyCage.java:49-60; M30 design §6.4).
+            let eligible=state.deck.iter().filter(|card|crate::run::mutations::removable(card.id))
                 .map(|card|card.instance).collect();
             work.select(SelectionSpec{eligible,count:2,cancellable:false});
             Ok(true)

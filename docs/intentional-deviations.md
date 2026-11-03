@@ -116,7 +116,7 @@ body landed in M28f.
 The original getShrine admits Note For Yourself outside Daily runs, below A15, and only when the Run
 is at A0 or below the player's highest unlocked Ascension. The simulator has no unlock profile, so it
 treats the highest unlocked Ascension as 20. Note For Yourself is therefore eligible at A0–A14. The
-standard Run admits A0–A5 from M29d (A6+ lands in M30–M33). No other eligibility or history rule changes.
+standard Run admits A0–A5 from M29d and A0–A10 from M30 (A11+ lands in M31–M33). No other eligibility or history rule changes.
 
 ## SOFTLOCK-001 — An unguarded empty event grid completes without a selection
 
@@ -158,6 +158,26 @@ use counts here, because the Run offers it on event views. Otherwise the page st
 collapsed pages are listed per chunk in the [M28 profile](milestones/m28-events-economy.md) (Forced
 pages, D1) and the [M28 reconciliation](milestones/m28-events-economy-reconciliation.md). Wheel of
 Change's reveal and Cursed Tome's HP-loss pages stay steps.
+
+## EVENT-005 — A shop purge with nothing purgeable is not offered
+
+**Decision date:** 2026-11-03 (PM ruling on M30 plan review I2, under the D1/EVENT-001 rule).
+**Status:** disclosed M30 deviation.
+
+In the original, the shop's card-removal button stays clickable whatever the deck holds.
+`ShopScreen.purchasePurge` (`ShopScreen.java:256,1007–1015`) opens a grid of the unbottled purgeable
+cards. If every card is Ascender's Bane, Curse of the Bell, Necronomicurse or bottled, the grid is
+empty and its only legal action is Cancel. Nothing is charged and no RNG is used.
+
+The simulator marks the purge row `Disabled` while no unbottled purgeable card exists, so it is not
+advertised. The status is derived each time the shop is viewed, so buying a card re-enables the same
+row. Row ids and order do not change. No reachable Run state or RNG order differs from the original,
+because the only reachable outcome of that step is the unchanged shop. Potion use stays available on
+the shop view either way. This follows the existing price rule, where the simulator already disables
+a purge row the original leaves clickable as a no-op when gold is below the price
+(`ShopScreen.java:1008–1011`). Test: `m30_shop_purge_disabled_without_purgeable`, with
+`m30_shop_purge_reenabled_after_buy` and `m30_shop_purge_no_fault`. Before M30, choosing the row
+faulted the Run.
 
 ## EVENT-002 — Match and Keep's starter card per character (E11)
 

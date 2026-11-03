@@ -5,7 +5,12 @@ foundation. The four standard characters have exact fresh, upgrade-0 base decks
 and starter relic identities. `CardId` includes distinct character-color starter
 identities while preserving the legacy red `strike`, `defend`, and `bash` IDs.
 The A10+ Ascender's Bane definition and Iron Wave Note default are also present;
-the run-start ascension rule is owned by the run component.
+the run-start ascension rule is owned by the run component. From A10, `Run::new` puts the Bane at
+master-deck index 0, ahead of the starter cards, with no obtain hooks. The source adds it before
+`initializeStarterDeck`. The starter cards keep instances 1..n and the Bane takes n+1. It cannot
+be removed, transformed, bottled or upgraded by any master-deck path. Dolly's Mirror and the
+Duplicator can copy it, as in the source. See the
+[M30 profile](milestones/m30-ascension6-10.md).
 
 Card definitions separate `CardColor`, `CardRarity`, and `CardType`, and are
 marked `definition_only`; that marker explicitly does not claim executable

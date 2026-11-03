@@ -42,7 +42,8 @@ pub(super) fn enter_treasure(run:&mut Run)->Result<RunTransition,RunError>{
     Ok(RunTransition{reward,terminal:None,committed_events:vec![event]})
 }
 
-pub(super) fn eligible(state:&RunState)->Vec<CardInstance>{state.deck.iter().filter(|card|crate::content::Catalog::standard().card(card.id).is_some_and(|c|c.note_storage==crate::content::NoteStorage::RemovablePermanent)).cloned().collect()}
+/// Empty Cage's candidates: `getPurgeableCards`, no bottle filter (EmptyCage.java:49-60; M30 design §6.4).
+pub(super) fn eligible(state:&RunState)->Vec<CardInstance>{state.deck.iter().filter(|card|mutations::removable(card.id)).cloned().collect()}
 pub(super) fn child(next:&mut u64)->Result<RoomView,RunError>{view(next,RoomViewKind::BossRelicChild,vec![(RoomChoiceKind::Proceed,None)])}
 
 fn warn(run:&mut Run)->Result<RunTransition,RunError>{

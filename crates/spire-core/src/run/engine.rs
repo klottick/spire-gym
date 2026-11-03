@@ -12,12 +12,15 @@ impl Run {
         let starter_relic=catalog.starter_relic(config.character).ok_or(RunError::Registry("starter relic missing"))?;
         let(base_hp,base_gold):(u32,u32)=match config.character{Character::Ironclad=>(80,99),Character::Silent=>(70,99),Character::Defect=>(75,99),Character::Watcher=>(72,99)};
         let max_hp=base_hp.saturating_sub(if config.ascension>=14{if config.character==Character::Ironclad{5}else{4}}else{0});
-        // A6 uses nearest-integer 90% HP (half up for these positive values); A14
-        // max-HP reduction is applied first as established by bounded setup facts.
-        let hp=if config.ascension>=6{(max_hp*9+5)/10}else{max_hp};
+        // A6 (M30 E2): `MathUtils.round((float)maxHealth * 0.9f)` after the A14 max-HP loss, in
+        // `dungeonTransitionSetup` (source check §B; AbstractDungeon.java:2682).
+        let hp=if config.ascension>=6{super::numeric::libgdx_round(max_hp as f32*0.9_f32)}else{max_hp};
         let mut deck=Vec::new();let mut id=1;
         for card in starter{deck.push(CardInstance{ misc:0,id:*card,instance:id,upgrades:0});id+=1;}
-        if config.ascension>=10{deck.push(CardInstance{ misc:0,id:CardId::AscendersBane,instance:id,upgrades:0});}
+        // A10 (M30 E3, design §6.3): the Bane is added directly, with no obtain hooks, before
+        // `initializeStarterDeck`, so it is the first master-deck card (source check §D;
+        // AbstractDungeon.java:2685). The starters keep instances 1..n and the Bane takes n+1.
+        if config.ascension>=10{deck.insert(0,CardInstance{ misc:0,id:CardId::AscendersBane,instance:id,upgrades:0});}
         let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,training_encounter:None,last_combat_checkpoint:None,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
             character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
             potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
@@ -173,7 +176,9 @@ impl Run {
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
         if self.state.combat.is_some() || self.state.room_loop.is_some() { return Err(RunError::InvalidAction); }
-        let at=self.state.deck.iter().position(|c|c.instance==id).ok_or(RunError::InvalidAction)?;Ok(self.state.deck.remove(at))
+        // M30 G3 (design §6.7): the removal owner states the rule (unremovable curses, bottle link,
+        // Parasite, `CardRemoved`); this entry point adds only the guards above.
+        mutations::remove_card(&mut self.state,id)
     }
 
     #[cfg(test)] pub(crate) fn install_pending_selection_for_test(&mut self,parent:Candidate,instances:Vec<u64>,required:usize,empty_rule:EmptySelectionRule){

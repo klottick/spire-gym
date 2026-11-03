@@ -86,6 +86,10 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
         // :190-197), so the row is not advertised.
         if row.price.is_some()&&matches!(row.kind,RoomChoiceKind::Potion(_))&&run.state.item_admission==ItemAdmission::Complete&&run.state.relics.contains(&RelicId::Sozu){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Smith|RoomChoiceKind::ShrineUpgrade)&&!run.state.deck.iter().any(|c|mutations::can_upgrade(&run.state,c)){row.status=RoomChoiceStatus::Disabled;}
+        // M30 G1: Toke needs an unbottled purgeable card (PeacePipe.java:53). M30 G2 (ruling D1, EVENT-001):
+        // the source's purge opens an empty grid whose only action is Cancel, with no charge or RNG
+        // (ShopScreen.java:256,1007-1015), so the row is not advertised, as the price check above does.
+        if matches!(row.kind,RoomChoiceKind::Toke|RoomChoiceKind::Purge)&&!run.state.deck.iter().any(|c|selection::purgeable(&run.state,c)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         // M28 standard event options are offered only while their outcomes pass the executor's
         // preconditions (design §5.4).
@@ -100,7 +104,8 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     if matches!(view.kind,RoomViewKind::Act2Ready|RoomViewKind::Act2PrefixComplete|RoomViewKind::Act3Ready|RoomViewKind::Act3PrefixComplete|RoomViewKind::Act4Ready){return Ok(vec![])}
     if let Some(pending)=&run.state.pending {
         let mut candidates=run.candidates.clone();
-        if matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::Smith,..})
+        // M30 G1: the Toke grid opens with Cancel, which reopens the campfire (CancelButton.java:98-108).
+        if matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::ShopPurge{..}|RoomSelectionOperation::Smith|RoomSelectionOperation::CampfireToke,..})
             ||matches!(pending.parent,ContinuationTarget::Room{operation:RoomSelectionOperation::EventSelect{..},..})&&standard::event_frame::skippable_select(run){
             candidates.push(Candidate{id:ChoiceId(u64::MAX),action:GameAction::Cancel,label:"Cancel selection",neow_offer:None,object:None});
         }return Ok(candidates)

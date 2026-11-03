@@ -1,6 +1,25 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M29c merged; M29d (rest of M29 and its close) candidate
+## Current snapshot — 2026-11-03, M29 merged (A1–A5 public); M30 (Ascension 6–10) candidate
+
+- M29d merged as PR #91 (`417ad9ce`), which closes M29 and is the M30 source base.
+- M30 is a source candidate, not accepted. A default build admits A0–A10 standard Runs for all four characters.
+  - From A6, start HP is `MathUtils.round(max * 0.9f)`.
+  - From A10, Ascender's Bane is the first master-deck card, with no obtain hooks, and it follows the source's
+    rules on every removal, transform, copy, store and combat path.
+  - No enemy work was needed: every A6–A10 monster row was already landed in M29.
+- Five global fixes apply at every ascension:
+  - G1: Peace Pipe's Toke offers only unbottled purgeable cards, is disabled when none exist, and can be
+    cancelled.
+  - G2: a shop purge with nothing purgeable is disabled (EVENT-005).
+  - G3: `Run::remove_card` goes through the removal owner.
+  - G4: a Standard combat shuffles the master deck in its own order. The Watcher previously sorted it, so
+    replays of Standard Watcher Runs get different opening hands.
+  - G5: Red Skull's latch is armed only by damage, so Burning Blood's victory heal can no longer leave a stale
+    counter that rejected the next combat.
+- See the [M30 candidate profile](milestones/m30-ascension6-10.md).
+
+## Snapshot — 2026-11-03, M29c merged; M29d (rest of M29 and its close) candidate
 
 - M29c merged as PR #89 (`93d14a89`); fuzz chunk D merged as PR #90 (`4546d65e`), the M29d source
   base.

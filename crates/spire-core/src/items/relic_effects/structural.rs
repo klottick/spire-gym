@@ -205,7 +205,7 @@ pub(crate) fn selection_done(id: RelicId, state: &mut RunState, chosen: &[u64]) 
         RelicId::BottledFlame | RelicId::BottledLightning | RelicId::BottledTornado => {
             let [instance] = chosen else { return Err(RunError::InvalidAction) };
             let card = owned(state, instance).ok_or(RunError::InvalidAction)?;
-            if !crate::content::complete::is_removable(card.id) || Some(card_type(card.id)?) != bottle_type(id) {
+            if !crate::run::mutations::removable(card.id) || Some(card_type(card.id)?) != bottle_type(id) {
                 return Err(RunError::InvalidAction)
             }
             state.relic_cards.insert(id, *instance);
@@ -255,9 +255,10 @@ fn card_type(id: CardId) -> Result<CardType, RunError> {
     crate::content::Catalog::standard().card(id).map(|card| card.card_type).ok_or(RunError::InvalidAction)
 }
 
-/// Purgeable master-deck instances in deck order, optionally of one type.
+/// `getPurgeableCards` master-deck instances in deck order, optionally of one type. Astrolabe and the
+/// bottles apply no bottle filter (source check §E), so this is `mutations::removable` alone.
 fn purgeable(state: &RunState, card_type: Option<CardType>) -> Vec<u64> {
-    state.deck.iter().filter(|card| crate::content::complete::is_removable(card.id)
+    state.deck.iter().filter(|card| crate::run::mutations::removable(card.id)
         && card_type.is_none_or(|wanted| crate::content::Catalog::standard().card(card.id)
             .is_some_and(|definition| definition.card_type == wanted)))
         .map(|card| card.instance).collect()
