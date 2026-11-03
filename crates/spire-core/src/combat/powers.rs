@@ -28,7 +28,7 @@ pub(super) fn cleanse_debuff(power:&FullPowerEntry)->Option<bool>{Some(match pow
     "weak"|"vulnerable"|"frail"|"hex"|"confused"|"entangled"|"shackled"|"constricted"|"slow"|"draw_reduction"|"poison"
         |"no_draw"|"lose_strength"|"lose_dexterity"|"choked"|"corpse_explosion"|"no_block"|"wraith_form"|"bias"|"lock_on"
         |"mark"|"block_return"|"energy_down"|"cannot_change_stance"=>true,
-    "night_terror"|"artifact"|"ritual"|"curl_up"|"split"|"enrage"|"metallicize"|"mode_shift"|"sharp_hide"|"barricade"|"flight"|"minion"
+    "night_terror"|"bomb_timer"|"artifact"|"ritual"|"curl_up"|"split"|"enrage"|"metallicize"|"mode_shift"|"sharp_hide"|"barricade"|"flight"|"minion"
         |"angry"|"painful_stabs"|"stasis"|"regeneration"|"thorns"|"explosive"|"life_link"|"regrow"|"fading"|"shifting"
         |"reactive"|"malleable"|"intangible"|"regenerate"|"curiosity"|"unawakened"|"time_warp"|"strength_up"|"berserk"
         |"brutality"|"combust"|"corruption"|"dark_embrace"|"demon_form"|"double_tap"|"evolve"|"feel_no_pain"
@@ -114,9 +114,15 @@ pub(super) fn sort_by_priority(list:&mut [FullPowerEntry]){list.sort_by_key(|p|p
 /// views, as before; its k-th entry in list order owns the k-th Nightmare template.
 pub(super) const NIGHT_TERROR:FullPowerId=FullPowerId("night_terror");
 
+/// TheBombPower: each Bomb gets a unique ID, so ApplyPowerAction adds a new priority-5 player
+/// list entry per cast (source-check-endturn-v2 C). The engine keeps one such engine-only entry
+/// per timer; its k-th entry in list order owns the k-th `colorless.bombs` timer, which the
+/// public view already shows as a `the_bomb`/`the_bomb_plus` row.
+pub(super) const BOMB_TIMER:FullPowerId=FullPowerId("bomb_timer");
+
 /// Engine-only power entries that no public channel shows: the player view and the observed
 /// effect stream both filter through this one predicate.
-pub(super) fn publicly_hidden(id:FullPowerId)->bool{id==NIGHT_TERROR}
+pub(super) fn publicly_hidden(id:FullPowerId)->bool{id==NIGHT_TERROR||id==BOMB_TIMER}
 
 fn set(state: &mut State, effect: &Effect, id: FullPowerId, value: i32) {
     let grace = just_applied(state, effect);

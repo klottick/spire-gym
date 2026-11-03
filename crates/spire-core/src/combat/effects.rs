@@ -147,8 +147,9 @@ pub(super) fn queue_relic_bottom(state:&mut State,bottom:Vec<Effect>,preserve_fi
         for effect in bottom{super::enemies::act2::bottom(state,effect);}
     } else {
         // Bottom work joins the current queue ahead of an already queued player decision
-        // (M20/M21/complete-card entry queues the opening Decision before CombatStarted).
-        let mut at=state.pending.iter().position(|e|e.kind==EffectKind::Decision).unwrap_or(state.pending.len());
+        // (M20/M21/complete-card entry queues the opening Decision before CombatStarted),
+        // or of the next monster's move during the monster turn (`act2::bottom`).
+        let mut at=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EnemyMove)).unwrap_or(state.pending.len());
         for effect in bottom{state.pending.insert(at,effect);at+=1;}
     }
 }
@@ -813,7 +814,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         },
         EffectKind::ShapeDamageComplete=>super::enemies::act3::shapes::complete_damage(state,&effect.source),
         EffectKind::RevivalHeal(_)|EffectKind::DarklingCollapse|EffectKind::DarklingRevive|EffectKind::DarklingsDefeat=>super::enemies::act3::darklings::apply(state,effect)?,
-        EffectKind::TransientFade|EffectKind::TransientRecover|EffectKind::MawNom{..}=>super::enemies::act3::ordinary::apply(state,effect)?,
+        EffectKind::TransientFade|EffectKind::MawNom{..}=>super::enemies::act3::ordinary::apply(state,effect)?,
         EffectKind::ObtainParasite=>super::enemies::act3::writhing::obtain(state,&effect.source)?,
         EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth|EffectKind::AwakenedCanLose=>super::enemies::act3::awakened::apply(state,effect)?,
         EffectKind::TimeWarpEndTurn=>super::enemies::act3::time_eater::force_end(state,effect)?,
@@ -872,7 +873,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             }
             state.pending.clear();
             state.nightmare_templates.clear();
-            state.player_full_powers.retain(|p|p.id!=super::powers::NIGHT_TERROR);
+            state.player_full_powers.retain(|p|p.id!=super::powers::NIGHT_TERROR&&p.id!=super::powers::BOMB_TIMER);
             state.colorless=super::model::ColorlessState::default();
             state.pending_time_warp=None;
             // Do not run FinishCard or reset diagnostic piles/block. dispatch_one

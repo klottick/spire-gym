@@ -88,7 +88,6 @@ pub(super) fn effect(e: &Effect) -> Value {
         EffectKind::DarklingRevive=>("darkling_revive",json!({})),
         EffectKind::DarklingsDefeat=>("darklings_defeat",json!({})),
         EffectKind::TransientFade=>("transient_fade",json!({})),
-        EffectKind::TransientRecover=>("transient_recover",json!({})),
         EffectKind::ObtainParasite=>("obtain_parasite",json!({})),
         EffectKind::ReptomancerSuicide=>("reptomancer_suicide",json!({})),
         EffectKind::AwakenedCollapse=>("awakened_collapse",json!({})),

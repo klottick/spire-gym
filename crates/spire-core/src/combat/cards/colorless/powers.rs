@@ -1,6 +1,7 @@
 //! Executable Colorless powers whose continuations share combat owners.
 use super::*;
 use crate::combat::model::{BombTimer, ColorlessState};
+use crate::combat::powers::BOMB_TIMER;
 
 pub(super) fn starting_cost(id:crate::content::CardId,upgrades:u32)->Option<i32>{
     use crate::content::CardId::*;
@@ -121,13 +122,19 @@ pub(super) fn start_power(state:&mut State,hook:Hook,power:&crate::combat::FullP
     Ok(())
 }
 
-/// TheBombPower.atEndOfTurn ticks every Bomb while monsters remain (player atEndOfTurn pass).
-pub(in crate::combat) fn end_turn_bombs(state:&State,work:&mut Vec<Effect>){
+/// TheBombPower.atEndOfTurn ticks the `k`-th Bomb at its list entry while monsters remain
+/// (player atEndOfTurn pass).
+pub(in crate::combat) fn end_turn_bomb(state:&State,k:usize,work:&mut Vec<Effect>){
     if active_targets(state).is_empty(){return}
-    for bomb in &state.colorless.bombs{
+    if let Some(bomb)=state.colorless.bombs.get(k){
         work.push(Effect{source:Source::Card(bomb.owner.clone()),target:Some(Actor::Player),
             kind:EffectKind::Colorless(ColorlessEffect::BombTick{id:bomb.id})});
     }
+}
+
+/// Player list index of the `k`-th Bomb entry (the stable priority sort keeps cast order).
+fn bomb_entry(state:&State,k:usize)->Option<usize>{
+    state.player_full_powers.iter().enumerate().filter(|(_,power)|power.id==BOMB_TIMER).nth(k).map(|(index,_)|index)
 }
 
 fn validate_owned_mayhem(state:&State,source:&Source)->Result<crate::combat::CardHandle,InputError>{
@@ -224,6 +231,10 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Resu
                 .ok_or_else(||InputError::Unsupported("Bomb cast identity exhausted".into()))?;
             state.colorless.bombs.push(BombTimer{id,owner:owner.clone(),remaining:3,damage:*damage});
             state.colorless.next_bomb_id=next;
+            // ApplyPowerAction: a new, never-stacked entry, then the whole-list sort.
+            state.player_full_powers.push(crate::combat::FullPowerEntry{id:BOMB_TIMER,
+                state:crate::combat::PowerState{amount:1,skip_first:false,monster_source_grace:false}});
+            crate::combat::powers::sort_by_priority(&mut state.player_full_powers);
             Ok(())
         }
         ColorlessEffect::BombTick{id}=>{
@@ -233,6 +244,8 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&ColorlessEffect)->Resu
                 state.colorless.bombs[index].remaining-=1;
                 return Ok(())
             }
+            let entry=bomb_entry(state,index).ok_or_else(||InputError::Invariant("Bomb list entry absent".into()))?;
+            state.player_full_powers.remove(entry);
             let bomb=state.colorless.bombs.remove(index);
             for owner in active_targets(state).into_iter().rev(){
                 state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner)),
@@ -271,6 +284,10 @@ pub(super) fn validate_state(state:&State)->Result<(),InputError>{
             .chain(state.queued_autoplay.values()).any(|card|card.handle()==bomb.owner
                 &&card.full().is_some_and(|live|live.id==crate::content::CardId::TheBomb))){
         return Err(InputError::Invariant("Bomb timer identity/owner/payload bounds".into()))
+    }
+    if state.player_full_powers.iter().filter(|power|power.id==BOMB_TIMER).count()!=colorless.bombs.len()
+        ||state.player_full_powers.iter().any(|power|power.id==BOMB_TIMER&&power.state!=crate::combat::PowerState{amount:1,skip_first:false,monster_source_grace:false}){
+        return Err(InputError::Invariant("Bomb list entries do not match Bomb timers".into()))
     }
     Ok(())
 }

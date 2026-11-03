@@ -143,9 +143,14 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     // loop once over the player's power list (source-check-endturn-v1), so each callback runs
     // in list order whichever engine module owns it (spire-oto.22).
     if target==Some(&Actor::Player)&&matches!(hook,Hook::PlayerPreEndTurnCards|Hook::PlayerEndTurn){
-        let mut top=vec![];
-        for power in state.player_full_powers.clone(){player_end_power(state,hook,&power,&mut top,&mut work)?;}
-        if hook==Hook::PlayerEndTurn{super::cards::colorless_end_turn_bombs(state,&mut work);}
+        let (mut top,mut bombs)=(vec![],0);
+        for power in state.player_full_powers.clone(){
+            if power.id==super::powers::BOMB_TIMER{
+                if hook==Hook::PlayerEndTurn{super::cards::colorless_end_turn_bomb(state,bombs,&mut work);}
+                bombs+=1;continue;
+            }
+            player_end_power(state,hook,&power,&mut top,&mut work)?;
+        }
         // RegenPower queues its heal at the top, ahead of the pass's bottom work.
         for effect in top.into_iter().rev(){work.insert(0,effect);}
     }
@@ -165,6 +170,9 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         }
         if hook==Hook::TurnStartedPreDraw{super::cards::defect::orbs_start(state,&mut work)?;}
     }
+    // MonsterGroup.applyEndOfTurnPowers runs the monsters' end-turn powers before every
+    // atEndOfRound callback, the player's included.
+    if hook==Hook::TurnEnded{monster_end_turn(state,&mut work);}
     super::cards::defect::power_hook(state,hook,target,&mut work)?;
     super::cards::watcher::hook(state,hook,target,&mut work)?;
     super::cards::silent_power_hook(state,hook,target,&mut work)?;
@@ -174,15 +182,6 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         if state.turn>1 {super::turns::recharge(state,&mut work)?;} else {super::turns::on_energy_recharge(state,&mut work)?;}
     }
     if hook == Hook::TurnEnded {
-        // The existing Transient continuation removes its own Shackled earlier.
-        // Other accepted applications share this end-round restoration owner.
-        for enemy in state.enemies.iter().filter(|enemy|state.silent.history_enabled&&enemy.life==super::ActorLife::Active&&enemy.hp>0){
-            if let Some(power)=enemy.full_powers.iter().find(|power|power.id.0=="shackled"&&power.state.amount>0){
-                let actor=Actor::Enemy(enemy.instance_id.clone());
-                work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),kind:EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}});
-                work.push(Effect{source:Source::Actor(actor.clone()),target:Some(actor),kind:EffectKind::RemoveFullPower(power.id)});
-            }
-        }
         round_end_work(&mut state.player.powers, Actor::Player, &mut work);
         round_end_full_work(&mut state.player_full_powers, Actor::Player, &mut work);
         for enemy in state.enemies.iter_mut().filter(|enemy|
@@ -210,6 +209,12 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     } else if hook==Hook::TurnStartedPreDraw&&target==Some(&Actor::Player)&&state.turn<=1 {
         // The battle-start block: card, power and orb work follows the battle-start and
         // turn-start relic work already queued (`effects::player_turn_start`).
+        for effect in work { super::enemies::act2::bottom(state,effect); }
+        for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }
+    } else if hook==Hook::EnemyTurnStarted {
+        // MonsterGroup.applyPreTurnLogic calls every monster's start-of-turn powers in one loop;
+        // their addToBot work (Poison captures its amount now) queues in monster order ahead of
+        // the first move (source-check-monsterturn-v3 Q10).
         for effect in work { super::enemies::act2::bottom(state,effect); }
         for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }
     } else {
@@ -300,6 +305,37 @@ fn player_end_power(state:&mut State,hook:Hook,power:&super::FullPowerEntry,top:
     Ok(())
 }
 
+/// MonsterGroup.applyEndOfTurnPowers' first loop, after every monster's move: each live monster
+/// in group order walks its power list, atEndOfTurnPreEndTurnCards then atEndOfTurn(false) per
+/// entry (source-check-endturn-v1 Q2/Q3, source-check-monsterturn-v3). All of it is addToBot
+/// except Intangible's justApplied skip, which clears at once.
+fn monster_end_turn(state:&mut State,work:&mut Vec<Effect>){
+    // Only dying or escaping monsters are skipped (source-check-monsterturn-v3 Q2).
+    for enemy in state.enemies.iter_mut().filter(|enemy|enemy.life==super::ActorLife::HalfDead||enemy.life==super::ActorLife::Active&&enemy.hp>0){
+        let actor=Actor::Enemy(enemy.instance_id.clone());
+        let live=enemy.life==super::ActorLife::Active;
+        let malleable=matches!(enemy.enemy_id,super::ActorEnemyId::Full(crate::content::EnemyId::SnakePlant|crate::content::EnemyId::WrithingMass));
+        for power in &mut enemy.full_powers {
+            let amount=power.state.amount;
+            let kinds=match power.id.0 {
+                "metallicize"|"plated_armor" if amount>0=>vec![EffectKind::GainBlock(amount)],
+                "intangible" if power.state.skip_first=>{power.state.skip_first=false;vec![]},
+                "intangible"=>vec![EffectKind::ReduceFullPower{id:power.id,amount:1}],
+                // Shackled is GainStrengthPower: it restores the Strength, then removes itself.
+                "shackled" if amount>0=>vec![EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount},EffectKind::RemoveFullPower(power.id)],
+                // RegenerateMonsterPower (Awakened One; the burning-elite buff is "regeneration")
+                // skips a half-dead owner.
+                "regenerate"|"regeneration" if amount>0&&live=>vec![EffectKind::Heal(amount)],
+                // MalleablePower resets to its base amount; nothing between here and the queued
+                // reset can hit the monster.
+                "malleable" if malleable=>vec![EffectKind::ResetMalleable],
+                _=>vec![],
+            };
+            work.extend(kinds.into_iter().map(|kind|Effect{source:Source::Actor(actor.clone()),target:Some(actor.clone()),kind}));
+        }
+    }
+}
+
 fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work: &mut Vec<Effect>) {
     for power in powers {
         let kind = match power.id.0 {
@@ -308,18 +344,13 @@ fn round_end_full_work(powers: &mut [super::FullPowerEntry], actor: Actor, work:
             "ritual" if power.state.skip_first => { power.state.skip_first = false; None }
             "ritual" => Some(EffectKind::ApplyFullPower { id: super::FullPowerId("strength"), amount: power.state.amount }),
             "strength_up" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ApplyFullPower{id:super::FullPowerId("strength"),amount:power.state.amount}),
-            "metallicize" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::GainBlock(power.state.amount)),
             "slow"=>{power.state.amount=0;None},
             "duplication" if matches!(actor,Actor::Player)&&power.state.amount==0=>Some(EffectKind::RemoveFullPower(power.id)),
             "duplication" if matches!(actor,Actor::Player)=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
-            "intangible" if matches!(actor,Actor::Enemy(_))&&power.state.skip_first=>{power.state.skip_first=false;None},
-            "intangible" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "draw_reduction" if power.state.skip_first=>{power.state.skip_first=false;None},
             "draw_reduction"=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "no_block" if matches!(actor,Actor::Player)=>Some(EffectKind::ReduceFullPower{id:power.id,amount:1}),
             "wave_of_the_hand" if matches!(actor,Actor::Player)=>Some(EffectKind::RemoveFullPower(power.id)),
-            "regeneration" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
-            "regenerate" if matches!(actor,Actor::Enemy(_))=>Some(EffectKind::Heal(power.state.amount)),
             "vulnerable" | "weak" | "frail" if power.state.monster_source_grace => { power.state.monster_source_grace = false; None }
             "lock_on" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),
             "vulnerable" | "weak" | "frail" => Some(EffectKind::ReduceFullPower { id: power.id, amount: 1 }),

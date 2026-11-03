@@ -43,7 +43,7 @@ pub(in crate::combat) fn release(state:&mut State,owner:&EnemyHandle)->Result<()
     crate::combat::piles::refresh_hand_values(state);Ok(())
 }
 
-fn barrier(state:&State)->usize{state.pending.iter().position(|e|matches!(e.kind,EffectKind::Hook(super::super::super::Hook::CombatSettled)|EffectKind::Terminal(_)|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::Decision)).unwrap_or(state.pending.len())}
+fn barrier(state:&State)->usize{state.pending.iter().position(|e|matches!(e.kind,EffectKind::Hook(super::super::super::Hook::CombatSettled)|EffectKind::Terminal(_)|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::Decision|EffectKind::EnemyMove)).unwrap_or(state.pending.len())}
 pub(in crate::combat) fn on_death(state:&mut State,target:Option<&Actor>){
     if let Some(Actor::Enemy(owner))=target {if state.stasis.contains_key(owner){let work=effect(Actor::Enemy(owner.clone()),Actor::Enemy(owner.clone()),EffectKind::ReleaseStasis{orb:owner.clone()});let index=barrier(state);state.pending.insert(index,work);}}
 }

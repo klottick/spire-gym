@@ -34,7 +34,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
         "growth_constrict"=>vec![effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("constricted"),amount:10})],
         "transient_attack"=>{
             let Some(EnemyMemory::Transient{turns,..})=enemy.full_memory else{return Err(InputError::Invariant("Transient counter absent".into()))};
-            vec![damage(actor.clone(),intent),own(if turns==4{EffectKind::TransientFade}else{EffectKind::ReduceFullPower{id:FullPowerId("fading"),amount:1}}),own(EffectKind::TransientRecover)]
+            vec![damage(actor.clone(),intent),own(if turns==4{EffectKind::TransientFade}else{EffectKind::ReduceFullPower{id:FullPowerId("fading"),amount:1}})]
         },
         "maw_roar"=>["weak","frail"].into_iter().map(|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:3})).collect(),
         "maw_drool"=>vec![own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3})],
@@ -84,10 +84,6 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect)->Result<(),Input
     let actor=Actor::Enemy(owner.clone());
     match effect.kind{
         EffectKind::TransientFade=>act2::suicide(state,owner),
-        EffectKind::TransientRecover=>{
-            let amount=state.enemies.iter().find(|e|&e.instance_id==owner).and_then(|e|e.full_powers.iter().find(|p|p.id.0=="shackled")).map_or(0,|p|p.state.amount);
-            if amount>0{state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(FullPowerId("shackled"))));state.pending.push_front(super::super::effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount}));}
-        },
         EffectKind::MawNom{remaining}=>{
             if remaining>1{state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::MawNom{remaining:remaining-1}));}
             state.pending.push_front(damage(actor,FullIntentId::from_name("maw_nom")));

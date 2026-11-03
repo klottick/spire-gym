@@ -368,7 +368,7 @@ pub enum EffectKind {
     ShapeSuicide,ShapeDamageComplete,
     PoisonTickComplete,
     RevivalHeal(i32),DarklingCollapse,DarklingRevive,DarklingsDefeat,
-    TransientFade,TransientRecover,MawNom{remaining:u32},
+    TransientFade,MawNom{remaining:u32},
     ObtainParasite,ResetMalleable,
     ReptomancerSuicide,
     AwakenedCollapse,AwakenedRebirth,AwakenedCanLose,

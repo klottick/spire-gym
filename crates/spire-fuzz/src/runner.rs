@@ -791,7 +791,10 @@ mod tests {
     fn accepted_m12_and_m17_act2ready_boundaries_are_not_caps() {
         let options = EpisodeOptions { max_steps: 512, all_legal_every: 0, determinism: false, replay: true,
             shrink_budget: Duration::ZERO, scripted_actions: None, continue_first: false };
-        for (profile_id, seed) in [("M12", 12_138_998_340_561_802_975), ("M17", 4_827_708_856_933_560_645)] {
+        // spire-oto.22 C2: the earlier M12 seed (12_138_998_340_561_802_975) now dies at the Guardian.
+        // Poison's Mode Shift resolves before its takeTurn, so it plays Close Up rather than Charge Up.
+        // A First-policy run reaching the boundary is a policy outcome; this seed reaches it on the C2 engine.
+        for (profile_id, seed) in [("M12", 3_997_841_687_880_340_916), ("M17", 4_827_708_856_933_560_645)] {
             let spec = crate::profiles::profile(profile_id).expect("accepted Run profile");
             let driver = FullRun::new(spec).expect("accepted Run constructor");
             let result = run_episode(Box::new(driver), seed, Policy::First, options.clone());

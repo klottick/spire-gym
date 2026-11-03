@@ -158,11 +158,16 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 state.pending.push_back(work(EffectKind::EndRound));
                 let mut scheduled=state.enemies.iter().filter(|e|e.life==super::ActorLife::HalfDead||(e.life==super::ActorLife::Active&&e.hp>0)).collect::<Vec<_>>();
                 scheduled.sort_by_key(|e|state.actor_slots.get(&e.instance_id).copied().unwrap_or(0));
-                let actors=scheduled.into_iter().map(|e|e.instance_id.clone()).collect::<Vec<_>>();
-                for id in actors.into_iter().rev() {
-                    let actor=Actor::Enemy(id);
+                let actors=scheduled.into_iter().map(|e|Actor::Enemy(e.instance_id.clone())).collect::<Vec<_>>();
+                // MonsterStartTurnAction queues every monster's start-of-turn powers (Poison) before
+                // the monster queue is filled, and the action queue drains first, so all of them
+                // resolve before the first takeTurn (source-check-endturn-v2 B). Each EnemyMove is
+                // also the per-monster stop for bottom work (`act2::bottom`).
+                for actor in actors.iter().rev() {
                     state.pending.push_front(Effect { source: Source::None,
                         target: Some(actor.clone()), kind: EffectKind::EnemyMove });
+                }
+                for actor in actors.into_iter().rev() {
                     state.pending.push_front(Effect { source: Source::Actor(actor.clone()),
                         target: Some(actor), kind: EffectKind::Hook(super::Hook::EnemyTurnStarted) });
                 }

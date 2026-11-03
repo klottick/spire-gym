@@ -53,7 +53,8 @@ fn append_before_decision(state:&mut State,effect:Effect){
     // before MonsterStart. Frozen predecessor profiles keep their queue bytes.
     // M26 §6.3 S / disclosed decision F15: every character holding an orb slot uses this position.
     let defect=state.silent.source_character==Some(crate::content::Character::Defect)||!state.character.orb_slots.is_empty();
-    let index=state.pending.iter().position(|pending|pending.kind==EffectKind::Decision
+    // During the monster turn the next monster's move is the stop (`act2::bottom`).
+    let index=state.pending.iter().position(|pending|matches!(pending.kind,EffectKind::Decision|EffectKind::EnemyMove)
         ||defect&&pending.kind==EffectKind::MonsterStart).unwrap_or(state.pending.len());
     state.pending.insert(index,effect);
 }

@@ -116,14 +116,7 @@ pub(in crate::combat) fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, In
         ],
         _ => return Err(InputError::Unsupported("ordinary Act2 closure move unavailable".into())),
     };
-    if id == EnemyId::SnakePlant {
-        let owner = Actor::Enemy(enemy.instance_id.clone());
-        let mut work = work;
-        work.push(effect(owner.clone(), owner, EffectKind::ResetMalleable));
-        Ok(work)
-    } else {
-        Ok(work)
-    }
+    Ok(work)
 }
 
 /// Resolve the actual selected turn where the actor needs a source-specific
@@ -149,16 +142,6 @@ pub(in crate::combat) fn take_turn(
         return Ok(Vec::new());
     }
     move_work(&enemy)
-}
-
-/// Return the enemy-owned Plated Armor callback work for the pre-end-turn-card stage.
-pub(in crate::combat) fn plated_armor_end_turn_work(enemy: &EnemyState) -> Option<Effect> {
-    let amount = enemy.full_powers.iter().find(|power| power.id.0 == PLATED_ARMOR)?.state.amount;
-    if amount <= 0 || enemy.life != super::super::super::ActorLife::Active || enemy.hp <= 0 {
-        return None;
-    }
-    let actor = Actor::Enemy(enemy.instance_id.clone());
-    Some(effect(actor.clone(), actor, EffectKind::GainBlock(amount)))
 }
 
 /// Apply the source-ordered callbacks after each committed shared damage result.
