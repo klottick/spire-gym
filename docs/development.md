@@ -174,7 +174,9 @@ diff-schema/metadata-fixture limitations. Gym correctness has no CUDA gate.
 # Readiness/device tests are separate from Gym correctness
 uv run --locked --no-sync python -B -m pytest tests/python/test_readiness.py -q
 
-# Run the Rust test suite (links without a Python interpreter)
+# Run the Rust test suite (links without a Python interpreter). `[profile.test]`
+# builds tests at opt-level 2 with debug assertions and overflow checks still on;
+# a warm full run takes about 3 minutes (was about 16).
 cargo test --workspace --locked --offline
 
 # Optional historical device-readiness probe (real computation; requires a GPU)
