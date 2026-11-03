@@ -143,7 +143,7 @@ fn m8_repulsor_creates_only_two_temporary_draw_statuses_and_live_ally_keeps_comb
 #[test]
 fn m8_shapes_invalid_setup_is_precommit_and_exhausted_live_roll_retains_damage() {
     let e=entry(EncounterId::OrbWalker);
-    for (act,ascension) in [(2,0),(3,1)] {
+    for (act,ascension) in [(2,0),(3,21)] {
         let mut rng=crate::run::RunRng::new([41;32],rng::Partition::Test,0);let before=rng.clone();
         let result=enemies::setup(EncounterId::OrbWalker,act,ascension,&mut rng,enemies::SetupContext{player:e.setup.player.clone(),player_powers:vec![],character:Character::Ironclad,cards:e.cards.clone(),opening_draw:1,encounter_visit:0});
         assert!(result.is_err());assert_eq!(rng,before);

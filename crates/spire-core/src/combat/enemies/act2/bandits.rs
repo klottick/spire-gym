@@ -31,7 +31,7 @@ pub(in crate::combat::enemies) fn select_move(
     })
 }
 
-pub(super) fn take_turn(enemy: &mut EnemyState) -> Result<Vec<Effect>, InputError> {
+pub(super) fn take_turn(enemy: &mut EnemyState, ascension: u8) -> Result<Vec<Effect>, InputError> {
     let actor = Actor::Enemy(enemy.instance_id.clone());
     let ActorIntentId::Full(intent) = enemy.intent_id else {
         return Err(InputError::Invariant("Bandit full intent absent".into()));
@@ -46,7 +46,7 @@ pub(super) fn take_turn(enemy: &mut EnemyState) -> Result<Vec<Effect>, InputErro
             damage(actor.clone(), intent),
             effect(actor, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("weak"),
-                amount: 2,
+                amount: if ascension >= 17 { 3 } else { 2 },
             }),
         ],
         (ActorEnemyId::Full(EnemyId::BanditLeader), "romeo_cross_slash") => {
@@ -55,7 +55,7 @@ pub(super) fn take_turn(enemy: &mut EnemyState) -> Result<Vec<Effect>, InputErro
         (ActorEnemyId::Full(EnemyId::BanditBear), "bear_hug") => vec![
             effect(actor, Actor::Player, EffectKind::ApplyFullPower {
                 id: FullPowerId("dexterity"),
-                amount: -2,
+                amount: if ascension >= 17 { -4 } else { -2 },
             }),
         ],
         (ActorEnemyId::Full(EnemyId::BanditBear), "bear_lunge") => vec![

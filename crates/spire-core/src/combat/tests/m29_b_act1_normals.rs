@@ -278,14 +278,12 @@ fn m29_act1_normal_formations_leave_interim() {
     for encounter in [EncounterId::Cultist, EncounterId::JawWorm, EncounterId::TwoLouse, EncounterId::ThreeLouse,
         EncounterId::SmallSlimes, EncounterId::LargeSlime, EncounterId::LotsOfSlimes, EncounterId::Looter,
         EncounterId::GremlinGang, EncounterId::ExordiumWildlife, EncounterId::TwoFungiBeasts, EncounterId::ThreeFungiBeasts,
-        EncounterId::BlueSlaver, EncounterId::JawWormHorde, EncounterId::ExordiumThugs, EncounterId::RedSlaver] {
+        EncounterId::BlueSlaver, EncounterId::JawWormHorde, EncounterId::ExordiumThugs, EncounterId::RedSlaver,
+        // M29d: the Mugger landed.
+        EncounterId::TwoThieves] {
         let ceiling = ascension::encounter_ceiling(encounter);
         for a in 0..=ceiling { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
         if ceiling < 20 { assert_eq!(ascension::encounter_admission(encounter, ceiling + 1), Err(ascension::ABOVE_CEILING)); }
-    }
-    // Slaver Red landed in M29c (ExordiumThugs and RedSlaver above); Mugger lands in M29d.
-    for encounter in [EncounterId::TwoThieves] {
-        assert_eq!(ascension::encounter_admission(encounter, 1), Err(ascension::INTERIM), "{encounter:?}");
     }
 }
 

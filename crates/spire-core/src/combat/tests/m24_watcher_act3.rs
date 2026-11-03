@@ -387,17 +387,17 @@ fn m24_w11_thorns_type_not_doubled_by_wrath(){
 
 #[test]
 fn m24_w12_writhing_reactive_malleable_implant(){
-    // findings Task4: Writhing Mass A0 160; Malleable 4 on exactly NORMAL positive damage
+    // findings Task4: Writhing Mass A0 160; Malleable 3 on exactly NORMAL positive damage
     // below current HP queues current amount as Block at bottom and increments; Reactive
     // queues one RollMove per qualifying hit; Parasite obtain is one permanent gain.
     // Implant through the accepted pub(crate) m19 implant_checkpoint. No M21 multi-hit card.
     use CardId::*;
     let mut c=watcher(entry(EncounterId::WrithingMass),&[(Eruption,1),(FlurryOfBlows,0),(StrikePurple,0)],3,1,vec![],vec![None;3]);
-    assert_eq!((c.state.enemies[0].hp,amount(&c,0,"malleable"),c.state.enemies[0].move_history.len()),(160,4,1));
+    assert_eq!((c.state.enemies[0].hp,amount(&c,0,"malleable"),c.state.enemies[0].move_history.len()),(160,3,1));
     let e=|c:&Combat|(c.state.enemies[0].hp,c.state.enemies[0].block,amount(c,0,"malleable"),c.state.enemies[0].move_history.len());
-    play(&mut c,1,Some(1));assert_eq!(e(&c),(151,4,5,2),"Neutral 9");
-    play(&mut c,2,Some(1));assert_eq!(e(&c),(147,5,6,3),"Wrath 8 less Block 4");
-    play(&mut c,3,Some(1));assert_eq!(e(&c),(140,6,7,4),"Wrath 12 less Block 5");
+    play(&mut c,1,Some(1));assert_eq!(e(&c),(151,3,4,2),"Neutral 9");
+    play(&mut c,2,Some(1));assert_eq!(e(&c),(146,4,5,3),"Wrath 8 less Block 3");
+    play(&mut c,3,Some(1));assert_eq!(e(&c),(138,5,6,4),"Wrath 12 less Block 4");
     super::m19_defect_interactions::implant_checkpoint(&mut c);end(&mut c);
     assert_eq!(c.permanent_gains().len(),1);assert_eq!((c.permanent_gains()[0].ordinal,c.permanent_gains()[0].id,c.permanent_gains()[0].upgrades),(1,Parasite,0));
     assert!(piles::owned_full_cards(&c.state).all(|c|c.id!=Parasite));assert!(engine::validate_runtime(&c.state).is_ok());

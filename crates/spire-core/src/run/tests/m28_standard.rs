@@ -37,9 +37,8 @@ fn m28_standard_creation_all_characters() {
             }
         }
         // Amended (M29a1, plan erratum v3 n2): A0 only in a default build until M29f; A6+ never.
-        #[cfg(not(feature = "m29-diagnostics"))]
-        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 1 }, profile(false), rng(1), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard is A0 only until M29f")));
+        // Amended at the M29 close (n2): A1 is public in every build.
+        assert!(Run::new_room_scenario(RunConfig { character, ascension: 1 }, profile(false), rng(1), RoomScenario::Standard).is_ok());
         assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 6 }, profile(false), rng(1), RoomScenario::Standard).err(),
             Some(RunError::Unsupported("Standard supports A0–A5")));
     }

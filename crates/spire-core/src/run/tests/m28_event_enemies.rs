@@ -124,16 +124,18 @@ fn m28_event_formations_colosseum_and_bandits() {
     }
 }
 
+/// M29d: every species landed, so the witness moves above Masked Bandits' encounter ceiling (16,
+/// Romeo's A17 AI is M32): A17 is the typed `Unsupported` (name kept, plan m4).
 #[test]
 fn m28_event_enemies_a0_only() {
     let mut run = at_event(Character::Ironclad, 2, EventId::GoldenShrine, 93);
-    run.state.ascension = 1;
+    run.state.ascension = 17;
     let before = run.clone();
     let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat {
         encounter: EncounterId::MaskedBandits, rewards: None, next_stage: DONE, elite: false,
     }]);
     assert!(matches!(result, Err(RunError::Unsupported(_))), "{result:?}");
-    assert_eq!(run, before, "unsupported A1 setup leaves the event Run unchanged");
+    assert_eq!(run, before, "unsupported A17 setup leaves the event Run unchanged");
 }
 
 #[test]

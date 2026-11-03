@@ -19,18 +19,19 @@ pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&St
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:EnemyMemory::Champ{turns,forges,angered},stream:cursor})
 }
 
-pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let ladder=|base,a4,a9,a19|if ascension>=19{a19}else if ascension>=9{a9}else if ascension>=4{a4}else{base};
     let actor=Actor::Enemy(enemy.instance_id.clone());let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Champ full intent absent".into()))};
     let debuff=|id|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount:2});
     let own=|kind|effect(actor.clone(),actor.clone(),kind);
     Ok(match intent.as_str(){
         "champ_slash"=>vec![damage(actor,intent)],
-        "champ_stance"=>vec![own(EffectKind::GainBlock(15)),own(EffectKind::ApplyFullPower{id:FullPowerId("metallicize"),amount:5})],
+        "champ_stance"=>vec![own(EffectKind::GainBlock(ladder(15,15,18,20))),own(EffectKind::ApplyFullPower{id:FullPowerId("metallicize"),amount:ladder(5,5,6,7)})],
         "champ_execute"=>vec![damage(actor.clone(),intent),damage(actor,intent)],
         "champ_slap"=>vec![damage(actor.clone(),intent),debuff("frail"),debuff("vulnerable")],
-        "champ_gloat"=>vec![own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2})],
+        "champ_gloat"=>vec![own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:ladder(2,3,3,4)})],
         "champ_taunt"=>vec![debuff("weak"),debuff("vulnerable")],
-        "champ_anger"=>vec![own(EffectKind::ChampCleanse),own(EffectKind::RemoveFullPower(FullPowerId("shackled"))),own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:6})],
+        "champ_anger"=>vec![own(EffectKind::ChampCleanse),own(EffectKind::RemoveFullPower(FullPowerId("shackled"))),own(EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:ladder(6,9,9,12)})],
         _=>return Err(InputError::Invariant("Champ intent mismatch".into())),
     })
 }

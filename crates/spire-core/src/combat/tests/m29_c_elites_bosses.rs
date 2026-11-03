@@ -8,13 +8,13 @@ use super::m29_a2_owner::{ai_stream, setup};
 use crate::content::{CardId, EncounterId, EnemyId};
 use std::collections::BTreeMap;
 
-type Ladder<T> = &'static [(u8, T)];
+pub(super) type Ladder<T> = &'static [(u8, T)];
 
-fn at<T: Copy>(a: u8, ladder: Ladder<T>) -> T {
+pub(super) fn at<T: Copy>(a: u8, ladder: Ladder<T>) -> T {
     ladder.iter().rev().find(|(threshold, _)| *threshold <= a).unwrap().1
 }
 
-fn check(id: EnemyId, hp: Ladder<(i32, i32)>, damage: &[(&'static str, Ladder<i32>)]) {
+pub(super) fn check(id: EnemyId, hp: Ladder<(i32, i32)>, damage: &[(&'static str, Ladder<i32>)]) {
     for a in 0..=20u8 {
         assert!(ascension::species_supports_ascension(id, a), "{id:?} A{a} landed");
         assert_eq!(enemies::hp_range(id, a), at(a, hp), "{id:?} A{a} HP");
@@ -26,28 +26,28 @@ fn check(id: EnemyId, hp: Ladder<(i32, i32)>, damage: &[(&'static str, Ladder<i3
 }
 
 /// An A0-built actor of `id` with `intent` selected (table-level move work).
-fn actor(id: EnemyId, intent: &'static str) -> EnemyState {
+pub(super) fn actor(id: EnemyId, intent: &'static str) -> EnemyState {
     let handle = EnemyHandle::parse("m29c/actor/0").unwrap();
     let mut enemy = enemies::prepare_split_child(id, handle, 10, ai_stream("m29c"), 0).ok().unwrap();
     enemy.intent_id = ActorIntentId::Full(FullIntentId::from_name(intent));
     enemy
 }
 
-fn powers(work: &[Effect]) -> Vec<(&'static str, i32)> {
+pub(super) fn powers(work: &[Effect]) -> Vec<(&'static str, i32)> {
     work.iter().filter_map(|effect| match &effect.kind {
         EffectKind::ApplyFullPower { id, amount } => Some((id.0, *amount)), _ => None }).collect()
 }
 
-fn created(work: &[Effect], card: CardId) -> usize {
+pub(super) fn created(work: &[Effect], card: CardId) -> usize {
     work.iter().filter(|effect| matches!(&effect.kind, EffectKind::CreateCard { id, .. } if *id == card)).count()
 }
 
-fn blocks(work: &[Effect]) -> Vec<i32> {
+pub(super) fn blocks(work: &[Effect]) -> Vec<i32> {
     work.iter().filter_map(|effect| match effect.kind { EffectKind::GainBlock(n) => Some(n), _ => None }).collect()
 }
 
 /// Act-2 turn work of `id` with `intent` on a live state at combat ascension `a` (slot 0 replaced).
-fn act2_turn(encounter: EncounterId, id: EnemyId, intent: &'static str, a: u8) -> Vec<Effect> {
+pub(super) fn act2_turn(encounter: EncounterId, id: EnemyId, intent: &'static str, a: u8) -> Vec<Effect> {
     let mut state = Combat::enter(setup(encounter, 0, 1, 0).unwrap()).unwrap().state;
     state.ascension = a;
     let owner = state.enemies[0].instance_id.clone();
@@ -56,12 +56,12 @@ fn act2_turn(encounter: EncounterId, id: EnemyId, intent: &'static str, a: u8) -
     enemies::act2::take_turn(&mut state, &owner).unwrap()
 }
 
-fn cards(state: &super::super::model::State, card: CardId) -> usize {
+pub(super) fn cards(state: &super::super::model::State, card: CardId) -> usize {
     state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
         .filter(|owned| owned.full().is_some_and(|live| live.id == card)).count()
 }
 
-fn power_of(enemy: &EnemyState, id: &str) -> Option<i32> {
+pub(super) fn power_of(enemy: &EnemyState, id: &str) -> Option<i32> {
     enemy.full_powers.iter().find(|p| p.id.0 == id).map(|p| p.state.amount)
 }
 
@@ -134,11 +134,17 @@ fn m29_sentry_ascension_values() {
 #[test]
 fn m29_sentry_in_sentry_and_sphere_species_not_room() {
     // "Species, not room" (m7): the Sentry beside the Spheric Guardian uses the Sentry ladder (A2 9,
-    // A3 10). The Spheric Guardian lands in M29d, so the formation stays interim; table-level here.
-    for (a, beam) in [(2, 9), (3, 10)] {
+    // A3 10). M29d landed the Spheric Guardian, so the formation is entered live (M29c carried item).
+    for (a, beam, sphere) in [(2, 9, 11), (3, 10, 11)] {
         assert_eq!(enemies::damage_bases_at_ascension(EnemyId::Sentry, a).unwrap()[&FullIntentId::from_name("beam")], beam);
-        assert_eq!(ascension::species_admission(EnemyId::Sentry, a), Ok(()));
-        assert_eq!(ascension::encounter_admission(EncounterId::SentryAndSphere, a), Err(ascension::INTERIM));
+        assert_eq!(ascension::encounter_admission(EncounterId::SentryAndSphere, a), Ok(()));
+        let combat = Combat::enter(setup(EncounterId::SentryAndSphere, a, 1, 0).unwrap()).unwrap();
+        assert_eq!(combat.state.ascension, a);
+        let base = |id: EnemyId, intent: &'static str| combat.state.enemies.iter().find(|e| e.enemy_id == ActorEnemyId::Full(id)).unwrap()
+            .full_damage_entries[&FullIntentId::from_name(intent)].base;
+        assert_eq!(base(EnemyId::Sentry, "beam"), beam, "A{a} live Sentry Beam");
+        assert_eq!(base(EnemyId::SphericGuardian, "sphere_slam"), sphere, "A{a} live Spheric");
+        engine::validate_runtime(&combat.state).unwrap();
     }
 }
 
@@ -374,13 +380,11 @@ fn m29_c_formations_leave_interim() {
     use EncounterId::*;
     for (encounter, ceiling) in [(GremlinNob, 20), (Lagavulin, 20), (LagavulinEvent, 20), (ThreeSentries, 20), (SlimeBoss, 16),
         (Guardian, 20), (Hexaghost, 20), (RedSlaver, 16), (ExordiumThugs, 16), (GremlinLeader, 16), (Slavers, 16),
-        (BookOfStabbing, 17), (ColosseumSlavers, 16), (ColosseumNobs, 17)] {
+        (BookOfStabbing, 17), (ColosseumSlavers, 16), (ColosseumNobs, 17),
+        // M29d: the Spheric Guardian and the Mugger landed.
+        (SentryAndSphere, 20), (TwoThieves, 20)] {
         assert_eq!(ascension::encounter_ceiling(encounter), ceiling, "{encounter:?}");
         for a in 0..=ceiling { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
         if ceiling < 20 { assert_eq!(ascension::encounter_admission(encounter, ceiling + 1), Err(ascension::ABOVE_CEILING), "{encounter:?}"); }
-    }
-    // Spheric Guardian and Mugger land in M29d.
-    for encounter in [SentryAndSphere, TwoThieves] {
-        assert_eq!(ascension::encounter_admission(encounter, 1), Err(ascension::INTERIM), "{encounter:?}");
     }
 }

@@ -81,9 +81,9 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
     if let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner){
         match enemy.enemy_id {
             ActorEnemyId::Full(EnemyId::SlaverBlue|EnemyId::Taskmaster|EnemyId::SlaverRed)=>return Ok(slavers::take_turn(enemy,ascension)?),
-            ActorEnemyId::Full(EnemyId::BanditPointy|EnemyId::BanditLeader|EnemyId::BanditBear)=>return Ok(bandits::take_turn(enemy)?),
+            ActorEnemyId::Full(EnemyId::BanditPointy|EnemyId::BanditLeader|EnemyId::BanditBear)=>return Ok(bandits::take_turn(enemy,ascension)?),
             ActorEnemyId::Full(EnemyId::BookOfStabbing)=>return Ok(book::move_work(enemy)?),
-            ActorEnemyId::Full(EnemyId::Champ)=>return Ok(champ::move_work(enemy)?),_=>{},
+            ActorEnemyId::Full(EnemyId::Champ)=>return Ok(champ::move_work(enemy,ascension)?),_=>{},
         }
     }
     if state.enemies.iter().any(|e|&e.instance_id==owner&&matches!(e.enemy_id,ActorEnemyId::Full(EnemyId::Collector|EnemyId::TorchHead))){return collector::take_turn(state,owner)}

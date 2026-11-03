@@ -21,24 +21,24 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
     Ok(super::super::MoveSelection{intent:FullIntentId::from_name(name),memory:memory.clone(),stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let intent=match enemy.intent_id{ActorIntentId::Full(id)=>id,_=>return Err(InputError::Invariant("Act2 actor requires full intent".into()))};
     let work=match intent.as_str(){
-        "sphere_activate"=>vec![effect(actor.clone(),actor,EffectKind::GainBlock(25))],
+        "sphere_activate"=>vec![effect(actor.clone(),actor,EffectKind::GainBlock(if ascension>=17{35}else{25}))],
         "sphere_debuff"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("frail"),amount:5})],
         "sphere_slam"=>vec![damage(actor.clone(),intent),damage(actor,intent)],
         "sphere_harden"=>vec![damage(actor.clone(),intent),effect(actor.clone(),actor,EffectKind::GainBlock(15))],
-        "byrd_peck"=>(0..5).map(|_|damage(actor.clone(),intent)).collect(),
+        "byrd_peck"=>(0..if ascension>=2{6}else{5}).map(|_|damage(actor.clone(),intent)).collect(),
         "byrd_swoop"|"byrd_headbutt"=>vec![damage(actor,intent)],
         "byrd_caw"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:1})],
         "byrd_stunned"=>vec![],
-        "byrd_go_airborne"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("flight"),amount:3})],
+        "byrd_go_airborne"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("flight"),amount:super::super::ascension::byrd_flight(ascension)})],
         _=>return Err(InputError::Invariant("invalid Act2 ordinary intent".into())),
     };Ok(work)
 }
 
-pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState)->Result<Vec<Effect>,InputError>{
-    let work=move_work(enemy)?;
+pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let work=move_work(enemy,ascension)?;
     match enemy.intent_id.as_str(){
         "byrd_headbutt"=>{publish(enemy,"byrd_go_airborne");},
         "byrd_go_airborne"=>{if let Some(EnemyMemory::Byrd{flying})=enemy.full_memory.as_mut(){*flying=true;}},

@@ -259,13 +259,13 @@ fn m25_w18_writhing_new_multi_hits() {
     // (:83), Ragnarok 5 (:150), Expunger's stored X (design §5.1), Bowling Bash one hit
     // per live monster (:74; this encounter has one).
     let mut tantrum = watcher(entry(EncounterId::WrithingMass), &[(Tantrum, 0)], 9);
-    assert_writhing_reactions(&mut tantrum, 1, Some(1), 3, 15, 7);
+    assert_writhing_reactions(&mut tantrum, 1, Some(1), 3, 12, 6);
 
     let mut sleeves = watcher(entry(EncounterId::WrithingMass), &[(FlyingSleeves, 0)], 9);
-    assert_writhing_reactions(&mut sleeves, 1, Some(1), 2, 9, 6);
+    assert_writhing_reactions(&mut sleeves, 1, Some(1), 2, 7, 5);
 
     let mut ragnarok = watcher(entry(EncounterId::WrithingMass), &[(Ragnarok, 0)], 9);
-    assert_writhing_reactions(&mut ragnarok, 1, None, 5, 30, 9);
+    assert_writhing_reactions(&mut ragnarok, 1, None, 5, 25, 8);
 
     let mut conjure = watcher(entry(EncounterId::WrithingMass), &[(ConjureBlade, 0)], 3);
     play(&mut conjure, 1, None);
@@ -273,10 +273,10 @@ fn m25_w18_writhing_new_multi_hits() {
     assert_eq!(piles::owned_full_cards(&conjure.state).find(|card| card.instance.0 == expunger).unwrap().misc, 3);
     place(&mut conjure, expunger, SelectionSourceZone::Hand);
     conjure.state.player.energy = 1;
-    assert_writhing_reactions(&mut conjure, expunger, Some(1), 3, 15, 7);
+    assert_writhing_reactions(&mut conjure, expunger, Some(1), 3, 12, 6);
 
     let mut bowling = watcher(entry(EncounterId::WrithingMass), &[(BowlingBash, 0)], 9);
-    assert_writhing_reactions(&mut bowling, 1, Some(1), 1, 4, 5);
+    assert_writhing_reactions(&mut bowling, 1, Some(1), 1, 3, 4);
 
     // Pressure Points' HP_LOSS is not an Attack callback: Mark changes HP while
     // neither Reactive nor Malleable reacts (M8 findings:156-163; watcher:87,502-507).
@@ -285,7 +285,7 @@ fn m25_w18_writhing_new_multi_hits() {
     let moves = mark.state.enemies[0].move_history.len();
     play(&mut mark, 1, Some(1));
     assert_eq!((before - mark.state.enemies[0].hp, mark.state.enemies[0].block,
-        amount(&mark, 0, "malleable"), mark.state.enemies[0].move_history.len() - moves), (8, 0, 4, 0));
+        amount(&mark, 0, "malleable"), mark.state.enemies[0].move_history.len() - moves), (8, 0, 3, 0));
 }
 
 #[test]

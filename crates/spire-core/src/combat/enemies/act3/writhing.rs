@@ -71,5 +71,5 @@ pub(in crate::combat) fn obtain(state:&mut State,source:&Source)->Result<(),Inpu
 }
 
 pub(in crate::combat) fn reset_malleable(state:&mut State,owner:&EnemyHandle){
-    if let Some(e)=state.enemies.iter_mut().find(|e|&e.instance_id==owner){if let Some(p)=e.full_powers.iter_mut().find(|p|p.id.0=="malleable"){p.state.amount=4;}}
+    if let Some(e)=state.enemies.iter_mut().find(|e|&e.instance_id==owner){if let Some(p)=e.full_powers.iter_mut().find(|p|p.id.0=="malleable"){p.state.amount=3;}}
 }

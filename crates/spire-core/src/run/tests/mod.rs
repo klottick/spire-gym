@@ -86,6 +86,7 @@ mod m28_gate_matrix;
 mod m29_run_rules;
 mod m29_a2_event_gate;
 mod m29_c_event_fights;
+mod m29_d_close;
 mod m27_capability;
 mod m27_relic_selections;
 mod m27_relics_run;

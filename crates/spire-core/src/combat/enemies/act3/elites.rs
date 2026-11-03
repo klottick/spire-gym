@@ -32,7 +32,7 @@ fn select_nemesis(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamStat
     if name=="nemesis_scythe"{cooldown=2;}
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:EnemyMemory::Nemesis{first:false,cooldown},stream:cursor})
 }
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     if !matches!(enemy.enemy_id,ActorEnemyId::Full(id) if valid_intent(id,enemy.intent_id.as_str())){
         return Err(InputError::Unsupported("elite intent/species mismatch".into()))
     }
@@ -40,7 +40,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
     let mut work=match enemy.intent_id.as_str(){
         "nemesis_tri"=>vec![damage(actor.clone(),FullIntentId::from_name("nemesis_tri"));3],
         "nemesis_scythe"=>vec![damage(actor.clone(),FullIntentId::from_name("nemesis_scythe"))],
-        "nemesis_burn"=>(0..3).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Burn,destination:super::super::super::CardDestination::Discard,upgrades:0})).collect(),
+        "nemesis_burn"=>(0..if ascension>=18{5}else{3}).map(|_|effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Burn,destination:super::super::super::CardDestination::Discard,upgrades:0})).collect(),
         "head_count"|"head_time"=>vec![damage(actor.clone(),FullIntentId::from_name(enemy.intent_id.as_str()))],
         "head_glare"=>vec![effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1})],
         _=>return Err(InputError::Unsupported("Act3 elite intent unavailable".into())),

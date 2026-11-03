@@ -1,6 +1,6 @@
-//! M29 diagnostics (plan M29a1 item 10): standard Runs and maps at A0–A5. A1–A5 standard Runs are
-//! diagnostics-only until M29f (plan §1 Exposure); these builders go through the public
-//! constructor, which admits them only under `m29-diagnostics`.
+//! M29 diagnostics (plan M29a1 item 10): standard Runs and maps at A0–A5. A1–A5 standard Runs were
+//! diagnostics-only until M29f (plan §1 Exposure) and are public since the M29 close; these builders
+//! go through the public constructor (the supplied variant stays diagnostics-only).
 use crate::content::Character;
 use crate::run::{CreationProfile, Run, RunConfig, RunError, RunRng, RoomScenario};
 

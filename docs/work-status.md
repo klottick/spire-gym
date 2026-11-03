@@ -1,6 +1,20 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M29b merged; M29c (Act 1 elites and bosses, Slavers, Act 2 elites) candidate
+## Current snapshot — 2026-11-03, M29c merged; M29d (rest of M29 and its close) candidate
+
+- M29c merged as PR #89 (`93d14a89`); fuzz chunk D merged as PR #90 (`4546d65e`), the M29d source
+  base.
+- M29d is a source candidate, not accepted. It merges the planned chunks d, e1, e2 and f: the
+  remaining 37 species (Act 2 normals and bosses, Act 3, Act 4) carry their full numeric ascension
+  ladder (A0–A20; table-level above each encounter's playable ceiling), so no encounter returns the
+  typed interim rejection, and a default build admits A0–A5 standard Runs for all four characters.
+  Two global A0 fixes: Writhing Mass's Malleable is 3 (spire-oto.24) and the Awakened One's
+  pre-battle powers follow the source order. Enemy behaviour rows above the ceilings stay in M32.
+  See the [M29 candidate profile](milestones/m29-ascension1-5.md), its
+  [coverage ledger](milestones/m29-ascension1-5-coverage-ledger.md) and
+  [reconciliation](milestones/m29-ascension1-5-reconciliation.md).
+
+## Snapshot — 2026-11-03, M29b merged; M29c (Act 1 elites and bosses, Slavers, Act 2 elites) candidate
 
 - M29b merged as PR #88 (`5a986e74`), the M29c source base.
 - M29c is a source candidate, not accepted: Lagavulin, Sentry, Hexaghost, Slime Boss, the Guardian,

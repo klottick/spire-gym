@@ -94,7 +94,7 @@ fn m6_byrd_native_ai_uses_exact_bucket_order_fallbacks_and_no_grounded_draw() {
 fn m6_three_byrds_have_independent_native_setup_and_existing_profiles_stay_closed() {
     let e=entry(EncounterId::ThreeByrds);assert_eq!(e.setup.enemies.len(),3);
     for (i,actor) in e.setup.enemies.iter().enumerate(){assert!((25..=31).contains(&actor.hp));assert_eq!(actor.hp,actor.max_hp);assert!(matches!(actor.intent.as_str(),"byrd_peck"|"byrd_caw"));for other in &e.setup.enemies[..i]{assert_ne!(actor.instance_id,other.instance_id);assert_ne!(actor.ai_rng.id(),other.ai_rng.id());}}
-    for (act,ascension) in [(1,0),(2,1)] {
+    for (act,ascension) in [(1,0),(2,21)] {
         let mut rng=crate::run::RunRng::new([41;32],rng::Partition::Test,0);let before=rng.clone();
         let context=enemies::SetupContext{player:e.setup.player.clone(),player_powers:vec![],character:Character::Ironclad,cards:e.cards.clone(),opening_draw:1,encounter_visit:0};
         assert!(enemies::setup(EncounterId::ThreeByrds,act,ascension,&mut rng,context).is_err());assert_eq!(rng,before);

@@ -23,7 +23,7 @@ pub(in crate::combat) fn move_work(state:&State,owner:&EnemyHandle)->Result<Vec<
     Ok(match intent.as_str(){
         "automaton_spawn"=>[0,2].into_iter().map(|slot|Effect{source:Source::Actor(actor.clone()),target:None,kind:EffectKind::SpawnEnemy(SpawnRequest{summoner:owner.clone(),slot,species:EnemyId::BronzeOrb})}).collect(),
         "automaton_flail"=>vec![damage(actor.clone(),intent),damage(actor,intent)],
-        "automaton_boost"=>vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(9)),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3})],
+        "automaton_boost"=>vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(if state.ascension>=9{12}else{9})),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:if state.ascension>=4{4}else{3}})],
         "automaton_beam"|"orb_beam"=>vec![damage(actor,intent)],"automaton_stun"=>vec![],
         "orb_support"=>{let boss=state.enemies.iter().find(|e|e.enemy_id==ActorEnemyId::Full(EnemyId::BronzeAutomaton)&&e.life==ActorLife::Active&&e.hp>0).ok_or_else(||InputError::Unsupported("Orb Support has no live Automaton".into()))?;vec![effect(actor,Actor::Enemy(boss.instance_id.clone()),EffectKind::GainBlock(12))]},
         "orb_stasis"=>vec![effect(actor.clone(),actor,EffectKind::CaptureStasis{orb:owner.clone()})],

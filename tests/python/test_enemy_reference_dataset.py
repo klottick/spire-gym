@@ -229,6 +229,9 @@ class EnemyReferenceTests(unittest.TestCase):
         self.assertEqual(facts["secondary_float_coins"], {"denominator": 16777216, "tenth_true_outcomes": 1677722, "two_fifths_true_outcomes": 6710887})
         self.assertIn("local:m8-writhing", record["citations"])
         self.assertFalse(facts["upstream_build_channel_verified"])
+        # spire-oto.24: the one-argument MalleablePower constructor starts (and resets) at 3.
+        self.assertEqual(record["starting_state"], "Malleable 3 ; Reactive")
+        self.assertIn("Malleable begins3", record["lifecycle"][1])
 
     def test_m8_elites_keep_exact_owned_countdown_redirects_and_intangible_boundaries(self):
         head = self.by_id["GIANT_HEAD"]["static_qualification"]

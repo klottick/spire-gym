@@ -37,8 +37,8 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
     let enemy=state.enemies.iter().find(|e|&e.instance_id==owner).ok_or_else(||InputError::Invariant("Reptomancer turn owner absent".into()))?;
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Reptomancer)&&enemy.intent_id.as_str()=="repto_spawn"{
         let Some(EnemyMemory::Reptomancer{slots,..})=&enemy.full_memory else{return Err(InputError::Invariant("Reptomancer slot owner absent".into()).into())};
-        let free=(0..4).find(|slot|slots.get(slot).is_none_or(|handle|!state.enemies.iter().any(|e|&e.instance_id==handle&&e.hp>0&&e.life==super::super::super::ActorLife::Active)));
-        return Ok(free.map_or_else(Vec::new,|slot|vec![Effect{source:Source::Actor(Actor::Enemy(owner.clone())),target:None,kind:EffectKind::SpawnEnemy(super::super::super::SpawnRequest{summoner:owner.clone(),species:EnemyId::Dagger,slot:physical_slot(slot)})}]))
+        let free=(0..4).filter(|slot|slots.get(slot).is_none_or(|handle|!state.enemies.iter().any(|e|&e.instance_id==handle&&e.hp>0&&e.life==super::super::super::ActorLife::Active)));
+        return Ok(free.take(super::super::ascension::reptomancer_daggers_per_spawn(state.ascension)).map(|slot|Effect{source:Source::Actor(Actor::Enemy(owner.clone())),target:None,kind:EffectKind::SpawnEnemy(super::super::super::SpawnRequest{summoner:owner.clone(),species:EnemyId::Dagger,slot:physical_slot(slot)})}).collect())
     }
     Ok(move_work(enemy)?)
 }

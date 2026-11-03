@@ -301,7 +301,7 @@ enumerated encounters and Run profiles.
 Known limits: `spire-core/fuzz-diagnostics` alone is inert; use `spire-fuzz/diagnostics`, which enables the required M20+ diagnostic features.
 Known limit: CompleteCombat and CompleteItemsRun classify non-`InvalidAction` errors from illegal probes as `probe_rejected`.
 Known limit: diagnostics replay prefixes depend on `max_steps`, so replay/determinism repros may use another prefix and those failure kinds do not shrink.
-Known limit: the native fuzz harness has no standard-Run driver. `RoomScenario::Standard` (named `StandardA0` until M29a1) is a public native constructor at A0 (M28f2; A1–A5 with `m29-diagnostics` until M29f) without a spire-env session or encoder (PM ruling Q1, M34–M36); `cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR [--ascension N | --ascensions A-B]` drives it (seeded uniform, reach and supplied modes; see the [M28 profile](milestones/m28-events-economy.md) and the [M29 profile](milestones/m29-ascension1-5.md)).
+Known limit: the native fuzz harness has no standard-Run driver. `RoomScenario::Standard` (named `StandardA0` until M29a1) is a public native constructor at A0–A5 (A0 since M28f2, A1–A5 since M29d) without a spire-env session or encoder (PM ruling Q1, M34–M36); `cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR [--ascension N | --ascensions A-B]` drives it (seeded uniform, reach and supplied modes; see the [M28 profile](milestones/m28-events-economy.md) and the [M29 profile](milestones/m29-ascension1-5.md)).
 The `native_fuzz run` CLI defaults to `--threads 2`.
 
 ```sh

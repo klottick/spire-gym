@@ -1,5 +1,5 @@
 //! M29a1 run rules (plan M29a1, erratum v3): Standard at A0–A5 (A1–A5 diagnostics-only until
-//! M29f), the A1 elite quota (binary32), the A5 act-transition heal and the A0-only gate audit.
+//! M29f; public in every build since the M29 close), the A1 elite quota (binary32), the A5 act-transition heal and the A0-only gate audit.
 //! Expected values are literals from `m29a1/spec/sheet.md` (an independent binary32 emulation,
 //! SHA256SUMS 9a9b6bcc…), never computed by the code under test.
 use super::super::*;
@@ -13,7 +13,6 @@ fn rng(seed: u8) -> RunRng { RunRng::new([seed; 32], Partition::Test, 0) }
 fn profile(full: bool) -> CreationProfile { CreationProfile { neow_eligible: full, ..CreationProfile::experienced() } }
 fn kind(run: &Run) -> RoomViewKind { rooms::public(run).unwrap().kind }
 
-#[cfg(feature = "m29-diagnostics")]
 #[test]
 fn m29_standard_creation_all_characters_a0_to_a5() {
     // Base max HP (run/engine.rs:13-17); A1–A5 change no creation value (inventory §1).
@@ -32,17 +31,21 @@ fn m29_standard_creation_all_characters_a0_to_a5() {
     }
 }
 
-#[cfg(not(feature = "m29-diagnostics"))]
+/// Retargeted at the M29 close (erratum n2): A1–A5 are public, so a default build admits them and
+/// rejects A6 (the only remaining rejection). Renamed from `m29_standard_default_build_rejects_a1`
+/// (review m3), whose name no longer matched the assertion.
 #[test]
-fn m29_standard_default_build_rejects_a1() {
+fn m29_standard_default_build_admits_a1_to_a5_rejects_a6() {
     for character in CHARACTERS {
-        for ascension in 1..=5 {
+        for ascension in 0..=5 {
             for full in [false, true] {
-                assert_eq!(Run::new_room_scenario(RunConfig { character, ascension }, profile(full), rng(1), RoomScenario::Standard).err(),
-                    Some(RunError::Unsupported("Standard is A0 only until M29f")), "{character:?} A{ascension}");
+                let run = Run::new_room_scenario(RunConfig { character, ascension }, profile(full), rng(1), RoomScenario::Standard)
+                    .unwrap_or_else(|e| panic!("{character:?} A{ascension}: {e:?}"));
+                assert_eq!(run.state.ascension, ascension);
             }
         }
-        assert!(Run::new_room_scenario(RunConfig { character, ascension: 0 }, profile(false), rng(1), RoomScenario::Standard).is_ok());
+        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 6 }, profile(false), rng(1), RoomScenario::Standard).err(),
+            Some(RunError::Unsupported("Standard supports A0–A5")), "{character:?}");
     }
 }
 

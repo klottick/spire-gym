@@ -47,7 +47,7 @@ unchanged.
 
 Since M28 the catalog's event definitions (`Catalog::event`) cover all 52 `EventId`s, 51 events and
 shrines plus Neow, each with its acts and pool and `definition_only: false`. The rows stay static
-metadata; the behaviour lives in the Run: the standard Run (`RoomScenario::Standard`, named `StandardA0` until M29a1; a public native constructor at A0 since M28f2, A1–A5 diagnostics-only until M29f)
+metadata; the behaviour lives in the Run: the standard Run (`RoomScenario::Standard`, named `StandardA0` until M29a1; a public native constructor at A0 since M28f2 and at A0–A5 since M29d)
 selects events through `rooms/standard/event_pool.rs` and executes their bodies through
 `rooms/standard/event_frame.rs` and `events/`. Its reference record is
 [data/events](../data/events/README.md). See the [M28 profile](milestones/m28-events-economy.md).

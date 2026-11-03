@@ -164,8 +164,9 @@ original classes executed. Same owned-byte/unverified-build evidence boundary.
   at owner-end-turn; player branch resets at end-round, not a universal start-turn.
 - This setup inserts Reactive then Malleable. Named add/traversal paths do not
   sort by the available comparator. For actual prequeued TwinStrike: both hits
-  and card cleanup precede appended RollMove/Block4/RollMove/Block5. Do not infer
-  this timing for every dynamically-produced later hit.
+  and card cleanup precede appended RollMove/Block3/RollMove/Block4 (Malleable
+  base 3 from the one-argument constructor; corrected 2026-11-03 from 4,
+  spire-oto.24). Do not infer this timing for every dynamically-produced later hit.
 - Parasite-used latches on execution **before** AddCardToDeckAction, not selection
   or successful later publication. Its ShowCardAndObtainEffect invokes obtain/
   master-deck callbacks and the actual permanent SoulGroup.obtain path; not a
