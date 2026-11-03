@@ -145,7 +145,8 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
         WatcherEffect::CommitSelection{selection,next}=>commit_selection(state,effect,selection,*next)?,
         WatcherEffect::RetainRestore{cards,next}=>restore(state,effect,cards,*next)?,
         WatcherEffect::ReduceCost{card,delta}=>{
-            let mut result=Ok(());super::super::piles::for_each_owned_card_mut(state,|live|{if live.instance.0.to_string()==card.as_str(){result=super::super::card_state::modify_cost_for_combat(live,*delta);}});result?;
+            let base=super::super::piles::owned_full_cards(state).find(|live|live.instance.0.to_string()==card.as_str()).and_then(|live|super::base_cost(state,live));
+            let mut result=Ok(());super::super::piles::for_each_owned_card_mut(state,|live|{if live.instance.0.to_string()==card.as_str(){result=super::super::card_state::modify_cost_for_combat(live,*delta,base);}});result?;
         },
         WatcherEffect::EstablishmentDiscount{amount}=>{
             // EstablishmentPowerAction discounts cards marked retain or selfRetain when it runs:
@@ -156,9 +157,10 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
                 &&!state.player_full_powers.iter().any(|power|power.id.0=="equilibrium");
             let marked=state.temporary_retain.as_ref().filter(|retain|retain.turn==state.turn&&!pyramid_only)
                 .map(|retain|retain.cards.clone()).unwrap_or_default();
-            for owned in &mut state.piles.hand{
+            let bases=state.piles.hand.iter().map(|owned|owned.full().and_then(|card|super::base_cost(state,card))).collect::<Vec<_>>();
+            for (owned,base) in state.piles.hand.iter_mut().zip(bases){
                 let held=marked.contains(&owned.handle());
-                if let Some(card)=owned.full_mut().filter(|c|c.local.retain||c.local.self_retain||held){super::super::card_state::modify_cost_for_combat(card,amount.wrapping_neg())?;}
+                if let Some(card)=owned.full_mut().filter(|c|c.local.retain||c.local.self_retain||held){super::super::card_state::modify_cost_for_combat(card,amount.wrapping_neg(),base)?;}
             }
         },
         WatcherEffect::GainMantra{amount}=>{

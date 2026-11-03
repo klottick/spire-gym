@@ -22,10 +22,10 @@ fn m21_watcher_retain_growth_upgrade_does_not_recompute_past_growth() {
 fn m21_watcher_cost_positive_and_zero_turn_prices_are_distinct() {
     let mut card=permanent_live_card(crate::content::CardId::SandsOfTime,CardInstanceId(19),0);
     card.local.mutable_combat_cost=Some(4);card.local.turn_cost=Some(2);
-    card_state::modify_cost_for_combat(&mut card,-1).unwrap();
+    card_state::modify_cost_for_combat(&mut card,-1,None).unwrap();
     assert_eq!((card.local.mutable_combat_cost,card.local.turn_cost),(Some(1),Some(1)));
     card.local.mutable_combat_cost=Some(4);card.local.turn_cost=Some(0);
-    card_state::modify_cost_for_combat(&mut card,-1).unwrap();
+    card_state::modify_cost_for_combat(&mut card,-1,None).unwrap();
     assert_eq!((card.local.mutable_combat_cost,card.local.turn_cost),(Some(3),Some(0)));
 }
 #[test]

@@ -20,7 +20,10 @@ pub use hexaghost::HexaghostEffect;
 
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum BurningBuff { Strength,MaxHp,Metallicize,Regeneration }
-pub(crate) fn apply_burning_buff(entry:&mut super::CombatEntry,buff:BurningBuff)->Result<(),crate::run::RunError>{
+/// MonsterRoomElite.applyEmeraldEliteBuff (source-check-monsterturn-v3 Q6): Strength act+1,
+/// Metallicize 2·act+2, RegenerateMonsterPower (`regenerate`, as the Awakened One's) 2·act+1.
+pub(crate) fn apply_burning_buff(entry:&mut super::CombatEntry,act:u8,buff:BurningBuff)->Result<(),crate::run::RunError>{
+    let act=i32::from(act);
     let mut actors=entry.setup.enemies.clone();
     for actor in &mut actors {
         if buff==BurningBuff::MaxHp {
@@ -28,7 +31,7 @@ pub(crate) fn apply_burning_buff(entry:&mut super::CombatEntry,buff:BurningBuff)
             actor.max_hp=i32::try_from(i64::from(actor.max_hp)+bonus).map_err(|_|crate::run::RunError::Unsupported("burning maximum HP overflow"))?;
             actor.hp=i32::try_from(i64::from(actor.hp)+bonus).map_err(|_|crate::run::RunError::Unsupported("burning current HP overflow"))?;
         } else {
-            let (id,amount)=match buff {BurningBuff::Strength=>("strength",2),BurningBuff::Metallicize=>("metallicize",4),BurningBuff::Regeneration=>("regeneration",3),BurningBuff::MaxHp=>unreachable!()};
+            let (id,amount)=match buff {BurningBuff::Strength=>("strength",act+1),BurningBuff::Metallicize=>("metallicize",2*act+2),BurningBuff::Regeneration=>("regenerate",2*act+1),BurningBuff::MaxHp=>unreachable!()};
             if let Some(power)=actor.powers.iter_mut().find(|p|p.id.0==id){power.state.amount=power.state.amount.checked_add(amount).ok_or(crate::run::RunError::Unsupported("burning power overflow"))?;}
             else{actor.powers.push(super::FullPowerEntry{id:FullPowerId(id),state:super::PowerState{amount,skip_first:false,monster_source_grace:false}});}
         }
@@ -683,11 +686,9 @@ pub(super) fn on_hit(state: &mut State, target: &EnemyHandle, source: &Source,
     let block = curl.state.amount;
     *latched = true;
     let actor = Actor::Enemy(target.clone());
-    let checkpoint = state.pending.iter().position(|work| matches!(work.kind, EffectKind::Decision))
-        .unwrap_or(state.pending.len());
-    state.pending.insert(checkpoint, Effect { source: Source::Actor(actor.clone()), target: Some(actor.clone()),
+    act2::bottom(state, Effect { source: Source::Actor(actor.clone()), target: Some(actor.clone()),
         kind: EffectKind::GainBlock(block) });
-    state.pending.insert(checkpoint + 1, Effect { source: Source::Actor(actor.clone()), target: Some(actor),
+    act2::bottom(state, Effect { source: Source::Actor(actor.clone()), target: Some(actor),
         kind: EffectKind::RemoveFullPower(FullPowerId("curl_up")) });
 }
 
