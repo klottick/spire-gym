@@ -92,8 +92,8 @@ fn valid_runtime_full_powers(powers: &[FullPowerEntry], state: &State, actor: &A
     let actor_scope_ok=matches!(actor,Actor::Player)||powers.iter().all(|power|power.id.0!="combust");
     let mut seen = BTreeSet::new();
     // Night Terror does not stack: each Nightmare installs its own entry (ApplyPowerAction's
-    // "Night Terror" exception), so only that player entry may repeat.
-    actor_scope_ok&&powers.iter().all(|power| (power.id==super::powers::NIGHT_TERROR&&matches!(actor,Actor::Player)
+    // "Night Terror" exception), and each Bomb has a unique ID, so only those player entries repeat.
+    actor_scope_ok&&powers.iter().all(|power| (matches!(power.id,super::powers::NIGHT_TERROR|super::powers::BOMB_TIMER)&&matches!(actor,Actor::Player)
         || seen.insert(power.id)) &&
         (valid_full_powers(std::slice::from_ref(power))
             || (power.id.0=="poison" && power.state.amount>0
@@ -1963,10 +1963,10 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             let stage=matches!(effect.kind,EffectKind::AwakenedCollapse|EffectKind::AwakenedRebirth)&&e.life==ActorLife::HalfDead&&e.hp==0||effect.kind==EffectKind::AwakenedCanLose&&e.life==ActorLife::Active&&e.hp==super::enemies::ascension::awakened_rebirth_max_hp(state.ascension);
             require(state.full_runtime&&effect.source==Source::Actor(Actor::Enemy(owner.clone()))&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::AwakenedOne)&&matches!(e.full_memory,Some(super::EnemyMemory::AwakenedOne{phase:super::enemies::AwakenedPhase::Rebirth,..}))&&stage,"qualified Awakened lifecycle stage/owner")?;
         },
-        EffectKind::TransientFade|EffectKind::TransientRecover|EffectKind::MawNom{..}=>{
+        EffectKind::TransientFade|EffectKind::MawNom{..}=>{
             let Some(Actor::Enemy(owner))=&effect.target else{return Err(InputError::Invariant("Act3 ordinary continuation owner absent".into()))};let e=state.enemies.iter().find(|e|&e.instance_id==owner).unwrap();
             require(state.full_runtime&&effect.source==Source::Actor(Actor::Enemy(owner.clone()))&&e.life==ActorLife::Active&&e.hp>0,"ordinary continuation live owner")?;
-            require(match (&effect.kind,&e.full_memory){(EffectKind::TransientFade,Some(super::EnemyMemory::Transient{turns:5,..}))=>e.full_powers.iter().any(|p|p.id.0=="fading"&&p.state.amount==1),(EffectKind::TransientRecover,Some(super::EnemyMemory::Transient{..}))=>true,(EffectKind::MawNom{remaining},Some(super::EnemyMemory::Maw{turns,..}))=>*remaining>0&&*remaining<=(*turns+1)/2,_=>false},"ordinary continuation qualified stage/count")?;
+            require(match (&effect.kind,&e.full_memory){(EffectKind::TransientFade,Some(super::EnemyMemory::Transient{turns:5,..}))=>e.full_powers.iter().any(|p|p.id.0=="fading"&&p.state.amount==1),(EffectKind::MawNom{remaining},Some(super::EnemyMemory::Maw{turns,..}))=>*remaining>0&&*remaining<=(*turns+1)/2,_=>false},"ordinary continuation qualified stage/count")?;
         },
         EffectKind::ObtainParasite=>{
             require(state.full_runtime&&effect.target==Some(Actor::Player)&&state.player.hp>0&&matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|e|&e.instance_id==owner&&e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::WrithingMass)&&e.hp>0&&matches!(e.full_memory,Some(super::EnemyMemory::WrithingMass{parasite_used:true,parasite_pending:true,..})))),"accepted Parasite execution owner")?;

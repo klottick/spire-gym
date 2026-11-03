@@ -5,7 +5,7 @@ use super::super::model::OwnedCard;
 mod direct;
 mod choices;
 mod powers;
-pub(in crate::combat) use powers::end_turn_bombs;
+pub(in crate::combat) use powers::end_turn_bomb;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ColorlessEffect {

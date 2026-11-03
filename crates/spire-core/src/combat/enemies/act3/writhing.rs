@@ -33,15 +33,14 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
 
 pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let intent=FullIntentId::from_name(enemy.intent_id.as_str());
-    let mut work=match intent.as_str(){
+    Ok(match intent.as_str(){
         "writhing_multi"=>vec![damage(actor.clone(),intent);3],
         "writhing_big"=>vec![damage(actor.clone(),intent)],
         "writhing_block"=>vec![damage(actor.clone(),intent),effect(actor.clone(),actor.clone(),EffectKind::GainBlock(enemy.full_damage_entries.get(&intent).ok_or_else(||InputError::Invariant("Writhing Block base absent".into()))?.base))],
         "writhing_debuff"=>vec![damage(actor.clone(),intent),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:2}),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("vulnerable"),amount:2})],
         "writhing_parasite"=>vec![effect(actor.clone(),Actor::Player,EffectKind::ObtainParasite)],
         _=>return Err(InputError::Unsupported("Writhing intent unavailable".into())),
-    };
-    work.push(effect(actor.clone(),actor,EffectKind::ResetMalleable));Ok(work)
+    })
 }
 
 pub(in crate::combat::enemies) fn take_turn(enemy:&mut EnemyState)->Result<Vec<Effect>,InputError>{

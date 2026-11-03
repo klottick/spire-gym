@@ -99,12 +99,14 @@ fn m15_colorless_direct_tokens_register_with_exact_static_identity_and_flags() {
 }
 
 #[test]
-fn m15_colorless_direct_history_entitlement_is_feature_gated(){
+fn m15_colorless_direct_shackled_restores_without_the_history_entitlement(){
     let mut fight=super::full_runtime::entered_combat(3,3,|_|{});
     fight.state.enemies[0].full_powers.push(FullPowerEntry{id:FullPowerId("shackled"),state:PowerState{amount:9,skip_first:false,monster_source_grace:false}});
     fight.step_full(&CombatAction::EndTurn).unwrap();
-    assert_eq!(full_power(&fight,0,"strength"),0,"legacy combat without an M15 card does not restore supplied Shackled state");
-    assert_eq!(full_power(&fight,0,"shackled"),9,"legacy combat leaves supplied Shackled state untouched");
+    // spire-oto.22 C2 (source-check-monsterturn-v3 Q1): GainStrengthPower ("Shackled") has no
+    // guard, so supplied Shackled restores its Strength in every profile.
+    assert_eq!(full_power(&fight,0,"strength"),9,"Shackled restores its Strength at the monster end-turn pass");
+    assert_eq!(full_power(&fight,0,"shackled"),0,"Shackled then removes itself");
 }
 
 #[test]

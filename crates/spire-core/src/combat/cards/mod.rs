@@ -689,7 +689,7 @@ pub(super) fn public_values(card:&LiveCard)->Option<CardPublicValues>{
         .map(|mut values|{values.free_play=card.local.free_play||card.local.free_to_play_once;values})
 }
 
-pub(super) fn colorless_end_turn_bombs(state:&State,work:&mut Vec<Effect>){colorless::end_turn_bombs(state,work)}
+pub(super) fn colorless_end_turn_bomb(state:&State,k:usize,work:&mut Vec<Effect>){colorless::end_turn_bomb(state,k,work)}
 pub(super) fn colorless_start_power(state:&mut State,hook:Hook,power:&FullPowerEntry,work:&mut Vec<Effect>)->Result<(),EffectError>{colorless::start_power(state,hook,power,work)}
 pub(super) fn colorless_power_card_played(state:&mut State,source:&Source)->Result<(),EffectError>{colorless::card_played(state,source)}
 pub(super) fn validate_colorless_power_application(state:&State,effect:&Effect,id:FullPowerId,amount:i32)->Result<(),InputError>{colorless::validate_power_application(state,effect,id,amount)}

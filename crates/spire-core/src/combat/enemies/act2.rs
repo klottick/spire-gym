@@ -97,6 +97,8 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
 /// `Hook(PlayerEndTurn)`. AbstractRoom.endTurn queues the discard at the bottom right after
 /// the synchronous pass, so later bottom work follows `DiscardHand` and stops at the
 /// monster turn (`MonsterStart`) or an extra turn (`StartNextPlayer`).
+/// During the monster turn each queued `EnemyMove` is a stop: the action queue drains before
+/// the next monster's takeTurn (source-check-endturn-v1 Q2), e.g. a Thorns kill's Gremlin Horn.
 pub(in crate::combat) fn bottom(state:&mut State,work:Effect){insert_before_checkpoint(state,work,true)}
 
 /// The card queue (GameActionManager.cardQueue) is used only once the action queue is
@@ -105,7 +107,7 @@ pub(in crate::combat) fn queue_card(state:&mut State,work:Effect){insert_before_
 
 fn insert_before_checkpoint(state:&mut State,work:Effect,before_queued_cards:bool){
     let index=state.pending.iter().position(|e|before_queued_cards&&super::super::cards::ironclad::autoplay::is_queued_card_dispatch(&e.kind)||matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::TimeWarpEndTurn)||(super::super::cards::watcher::active(state)&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::EndPlayerTurn))
-        ||state.full_runtime&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::Hook(super::super::Hook::PlayerEndTurn))).unwrap_or(state.pending.len());
+        ||state.full_runtime&&matches!(e.kind,EffectKind::MonsterStart|EffectKind::EnemyMove|EffectKind::Hook(super::super::Hook::PlayerEndTurn))).unwrap_or(state.pending.len());
     state.pending.insert(index,work);
 }
 

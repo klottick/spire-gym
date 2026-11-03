@@ -8,7 +8,7 @@ pub enum GuardianEffect { Defensive,Offensive,Reset,LoseBlock }
 
 /// Queue at the gameplay bottom, ahead of scheduler-only decision/round sentinels.
 fn bottom(state:&mut State,effect:Effect){
-    let i=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer)).unwrap_or(state.pending.len());
+    let i=state.pending.iter().position(|e|matches!(e.kind,EffectKind::Decision|EffectKind::EndRound|EffectKind::StartNextPlayer|EffectKind::EnemyMove)).unwrap_or(state.pending.len());
     state.pending.insert(i,effect);
 }
 fn change(owner:&EnemyHandle,kind:GuardianEffect)->Effect{let actor=Actor::Enemy(owner.clone());effect(actor.clone(),actor,EffectKind::GuardianChange(kind))}

@@ -19,10 +19,13 @@ fn m13_caller_transcripts_unchanged_by_m14_extension() {
     // Poison; a Byrd's Strength before Flight 50). Each transcript is the same multiset of lines.
     // spire-oto.22 re-pin (seed 11 SlimeBoss/Champ only): the three Ethereal Dazed held at the
     // turn-4 EndTurn exhaust in the RNG-002 keyed visit order; only the exhaust pile order differs.
+    // spire-oto.22 C2 re-pin (seed 7 Hexaghost/BronzeAutomaton and SlimeBoss/Collector): at the step-341
+    // EndTurn every monster's Poison ticks before any move, so the Mystic dies before the Centurion
+    // rolls its next move (fury, not protect); the routes diverge from there.
     const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
         "ad0829f7683e82a6129d07e3a62e309e10be09845fb20504d7b22e32da63959e",
-        "7dab1875c23c05dc6e4391aa9b044f3692c6a4af898d78a711e130199e11e4ea",
-        "bebb1b63da1777523adb9728ad5f4a19d92063f05f5308c2c8f63a875a0f41c6",
+        "625924fb8d554c1463be6783384e514d66a156dc0a820a62616afff3812cfaa4",
+        "89e6dc50b0a1ded4a3657ff167cd044ddc9c742ea3c622b743f31a09cce8eda3",
         "e3f25024abcab3233cea97041381fead20e1367eb0d8444e038a5f162c5b5cdf",
         "af7faf3b3a61d5eb2fbd533f67d481da32c23da1f23429146d823f94db312e91",
         "59ccd852aa7d426fdf165355f70e8e82ab7d14fe4fad8b92009e4215f2f05d30",
@@ -136,9 +139,12 @@ fn m13_caller_transcripts_unchanged_by_m14_extension() {
     assert_eq!(outcomes.len(), 6, "all six original fixed cases must be run and reported");
     let missing_species = [EncounterId::Champ, EncounterId::BronzeAutomaton, EncounterId::Collector]
         .into_iter().filter(|boss| !act2_coverage.contains(boss)).collect::<Vec<_>>();
-    eprintln!("M13 amended coverage={act2_coverage:?}; Act3Ready completions={completions}; all six outcomes={outcomes:?}");
-    assert!(missing_species.is_empty() && completions >= 1,
-        "M13 amended delivery gate unmet: missing actual Act2 boss species={missing_species:?}; Act3Ready completions={completions} (at least one required); all six outcomes={outcomes:?}");
+    // Whether the fixed policy reaches each Act2 boss is a policy outcome, reported but never a gate
+    // (2026-10-30 gameplay-not-strategy clarification; PM ruling spire-oto.22 C2). Silent Bronze
+    // Automaton boss gameplay stays covered by m14_frozen_v5_declared_suite_enters_real_generated_bosses.
+    eprintln!("M13 amended coverage={act2_coverage:?}; missing Act2 boss species={missing_species:?}; Act3Ready completions={completions}; all six outcomes={outcomes:?}");
+    assert!(completions >= 1,
+        "M13 amended delivery gate unmet: Act3Ready completions={completions} (at least one required); all six outcomes={outcomes:?}");
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {

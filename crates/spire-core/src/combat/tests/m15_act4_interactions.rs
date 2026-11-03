@@ -19,8 +19,11 @@ fn m15_act4_flask_artifact_specimen_and_poison_survivor_share_facing_owner(){
     for slot in 0..2{assert_eq!(amount(&c,enemy(&c,slot),"artifact"),1);}
     play(&mut c,1,None);for slot in 0..2{assert_eq!(amount(&c,enemy(&c,slot),"artifact"),0);assert_eq!(amount(&c,enemy(&c,slot),"poison"),0);}
     play(&mut c,2,None);assert_eq!((0..2).map(|slot|amount(&c,enemy(&c,slot),"poison")).sum::<i32>(),9);
-    let shield=enemy(&c,0);apply(&mut c,shield,"poison",110);c.step_full(&CombatAction::EndTurn).unwrap();
-    assert_eq!(c.state.enemies[0].hp,0);assert!(c.state.enemies[1].hp>0&&c.state.enemies[1].hp<=50);assert_eq!(amount(&c,Actor::Player,"surrounded"),0);assert_eq!(amount(&c,enemy(&c,1),"back_attack"),0);assert_eq!(c.state.facing,Some(PlayerFacing::Right));assert!(c.validate_runtime_for_test().is_ok());
+    let shield=enemy(&c,0);apply(&mut c,shield,"poison",110);let spear_poison=amount(&c,enemy(&c,1),"poison");c.step_full(&CombatAction::EndTurn).unwrap();
+    // spire-oto.22 C2 (source-check-monsterturn-v3 Q10): every monster's Poison tick captures its
+    // amount before any resolves, so the Spear loses only its own Poison this turn and the
+    // Specimen-transferred Poison waits for the next monster turn.
+    assert_eq!(c.state.enemies[0].hp,0);assert_eq!(c.state.enemies[1].hp,160-spear_poison);assert!(amount(&c,enemy(&c,1),"poison")>100);assert_eq!(amount(&c,Actor::Player,"surrounded"),0);assert_eq!(amount(&c,enemy(&c,1),"back_attack"),0);assert_eq!(c.state.facing,Some(PlayerFacing::Right));assert!(c.validate_runtime_for_test().is_ok());
 }
 #[test]
 fn m15_act4_burst_actual_skill_uses_beat_after_afterimage_and_shared_damage_callbacks(){

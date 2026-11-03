@@ -868,8 +868,7 @@ fn select_jaw(history: &[FullIntentId], memory: &EnemyMemory, stream: &StreamSta
 /// Append native enemy payload to the same queue consumed by the shared resolver.
 pub(super) fn act(state: &mut State, owner: &EnemyHandle) -> Result<(), super::EffectError> {
     if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::ShelledParasite|EnemyId::SnakePlant))){
-        let mut work=act2::ordinary_closure::take_turn(state,owner)?;
-        if let Some(enemy)=state.enemies.iter().find(|enemy|&enemy.instance_id==owner){if let Some(block)=act2::ordinary_closure::plated_armor_end_turn_work(enemy){work.push(block);}}
+        let work=act2::ordinary_closure::take_turn(state,owner)?;
         for effect in work.into_iter().rev(){state.pending.push_front(effect);}super::effects::refresh_enemy_values(state)?;return Ok(())
     }
     if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Looter|EnemyId::Mugger))){
