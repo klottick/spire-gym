@@ -106,6 +106,6 @@ fn m6_selected_initial_memory_is_transferred_and_foreign_memory_rejects_before_i
     let mut e=super::m6_ordinary::entry(EncounterId::ThreeByrds);e.setup.enemies.truncate(1);
     e.setup.enemies[0].initial_memory=Some(EnemyMemory::Byrd{flying:false});e.setup.enemies[0].intent=FullIntentId::from_name("byrd_stunned");e.setup.enemies[0].powers.retain(|p|p.id.0!="flight");
     let mut c=Combat::enter(e).unwrap();c.step_full(&CombatAction::EndTurn).unwrap();assert_eq!(c.state.player.hp,80);assert_eq!(c.state.enemies[0].intent_id.as_str(),"byrd_headbutt","entry must not reconstruct flying=true and randomize instead");
-    let mut e=entry();e.setup.enemies[1].initial_memory=Some(EnemyMemory::Cultist{ascension:0});
+    let mut e=entry();e.setup.enemies[1].initial_memory=Some(EnemyMemory::Cultist);
     let mut items=Some(crate::items::CombatItemContext::new(vec![RelicId::BurningBlood],vec![]));let before=items.clone();assert!(matches!(Combat::enter_with_item_context(e,&mut items),Err(CombatEntryFailure::Rejected(_))));assert_eq!(items,before);
 }

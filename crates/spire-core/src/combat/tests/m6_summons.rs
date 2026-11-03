@@ -114,7 +114,7 @@ fn m6_leader_ai_obeys_live_count_buckets_redirects_and_inclusive_reroll() {
         (3,"leader_stab",0,"leader_encourage",1),(3,"leader_encourage",33,"leader_stab",1)] {
         let mut actors=vec![enemies::act2::ActorSummary{owner:owner.clone(),species:EnemyId::GremlinLeader,hp:140,max_hp:140,slot:3}];
         for slot in 0..count{actors.push(enemies::act2::ActorSummary{owner:EnemyHandle::parse(&format!("add-{slot}")).unwrap(),species:EnemyId::GremlinMad,hp:20,max_hp:20,slot})}
-        let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:2,actors};let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
+        let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:2,actors,ascension:0};let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
         let selected=enemies::act2::select_move(EnemyId::GremlinLeader,&[FullIntentId::from_name(last)],&EnemyMemory::GremlinLeader,&stream,&context).unwrap();assert_eq!(selected.intent.as_str(),want,"count{count}/{last}/cursor{cursor}");assert_eq!(selected.stream.word_index(),cursor+draws);
     }
 }

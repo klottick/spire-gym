@@ -147,6 +147,41 @@ fn m29_a1_elite_placement_on_generated_maps_acts_1_3() {
     assert!(placed[1] > placed[0], "placed A0 {} A1 {} (A1 unplaced {unplaced})", placed[0], placed[1]);
 }
 
+#[cfg(feature = "m29-diagnostics")]
+#[test]
+fn m29_standard_run_maps_use_run_ascension() {
+    let has_a1_excess = |map: &crate::run::map::PublicMap| {
+        let n = map.nodes.iter().filter(|node| node.y <= 14 && node.y != 13).count();
+        let elites = map.nodes.iter().filter(|node| node.kind == MapNodeKind::Elite).count();
+        elites > map::room_quotas(n, 0)[2]
+    };
+
+    let mut act1_uses_a1 = false;
+    for seed in 0..40u8 {
+        let mut run = Run::new_room_scenario(RunConfig { character: Character::Ironclad, ascension: 1 }, profile(false), rng(seed), RoomScenario::Standard).unwrap();
+        let neow = rooms::public(&run).unwrap().choices[1].id;
+        run.step(&GameAction::Choose(neow)).unwrap();
+        let map = run.public_map().expect("Standard A1 Act 1 map");
+        assert_eq!(map.act, 1, "seed {seed}");
+        act1_uses_a1 |= has_a1_excess(&map);
+    }
+    assert!(act1_uses_a1, "no Standard A1 Act 1 Run map exceeded its A0 elite quota");
+
+    let mut act2_uses_a1 = false;
+    for seed in 0..10u8 {
+        let mut run = on_map(Character::Ironclad, seed);
+        at_boss_chest(&mut run, 1);
+        let (hp, max_hp) = (run.state.hp, run.state.max_hp);
+        set(&mut run, 1, hp, max_hp);
+        drive(&mut run, |run| run.state.act == 2);
+        let map = run.public_map().expect("successor Act 2 map");
+        assert_eq!(map.act, 2, "seed {seed}");
+        act2_uses_a1 |= has_a1_excess(&map);
+        if act2_uses_a1 { break; }
+    }
+    assert!(act2_uses_a1, "no successor A1 Act 2 map exceeded its A0 elite quota");
+}
+
 /// A standard A0 Run driven to `act`'s boss chest (A0 combats), then given `ascension`, the HP
 /// state and relics; `run.state.act` is still `act` (cfg(test) builder, plan item 10).
 fn at_boss_chest(run: &mut Run, act: u8) {

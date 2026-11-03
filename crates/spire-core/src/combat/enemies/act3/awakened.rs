@@ -41,7 +41,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect)->Result<(),Input
             let actor=Actor::Enemy(owner.clone());for id in removals.into_iter().rev(){state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::RemoveFullPower(id)));}
         },
         EffectKind::AwakenedRebirth=>{
-            let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();enemy.max_hp=300;enemy.life=ActorLife::Active;let actor=Actor::Enemy(owner.clone());state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::AwakenedCanLose));state.pending.push_front(super::super::effect(actor.clone(),actor,EffectKind::RevivalHeal(300)));
+            let max_hp=super::super::ascension::awakened_rebirth_max_hp(state.ascension);let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();enemy.max_hp=max_hp;enemy.life=ActorLife::Active;let actor=Actor::Enemy(owner.clone());state.pending.push_front(super::super::effect(actor.clone(),actor.clone(),EffectKind::AwakenedCanLose));state.pending.push_front(super::super::effect(actor.clone(),actor,EffectKind::RevivalHeal(max_hp)));
         },
         EffectKind::AwakenedCanLose=>{state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap().full_memory=Some(EnemyMemory::AwakenedOne{phase:AwakenedPhase::Second,first:true});},
         _=>return Err(InputError::Invariant("Awakened lifecycle stage unavailable".into())),

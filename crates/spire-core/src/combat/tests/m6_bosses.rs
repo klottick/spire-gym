@@ -79,7 +79,7 @@ fn m6_champ_unknown_power_category_faults_before_any_cleanse_removal() {
 fn m6_champ_exact_buckets_repeat_limits_and_two_forge_cap() {
     use crate::content::EnemyId;
     let owner=EnemyHandle::parse("champ-fixture").unwrap();let id=rng::StreamId::new(rng::Domain::RunCombatEnemyAi,vec!["fixture".into(),owner.as_str().into()]).unwrap();
-    let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:1,actors:vec![enemies::act2::ActorSummary{owner,species:EnemyId::Champ,hp:420,max_hp:420,slot:0}]};
+    let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:1,actors:vec![enemies::act2::ActorSummary{owner,species:EnemyId::Champ,hp:420,max_hp:420,slot:0}],ascension:0};
     for (history,turns,forges,cursor,want,after) in [
         (vec![],0,0,225,"champ_stance",1),(vec![],0,0,44,"champ_gloat",0),(vec![],0,0,356,"champ_gloat",0),(vec![],0,0,190,"champ_slap",0),(vec![],0,0,90,"champ_slap",0),(vec![],0,0,77,"champ_slash",0),
         (vec!["champ_stance"],1,1,23,"champ_slap",1),(vec!["champ_gloat"],1,0,44,"champ_slap",0),(vec!["champ_slap"],1,0,190,"champ_slash",0),(vec!["champ_slash"],1,0,77,"champ_slap",0),
@@ -176,7 +176,7 @@ fn m6_collector_exact_revive_rake_cutoffs_and_repeat_limits() {
         (false,vec!["collector_spawn","collector_buff","collector_rake","collector_ultimate","collector_buff"],33,"collector_rake")
     ] {
         let actors=vec![enemies::act2::ActorSummary{owner:owner.clone(),species:EnemyId::Collector,hp:282,max_hp:282,slot:2},enemies::act2::ActorSummary{owner:first.clone(),species:EnemyId::TorchHead,hp:if missing{0}else{39},max_hp:39,slot:0},enemies::act2::ActorSummary{owner:second.clone(),species:EnemyId::TorchHead,hp:39,max_hp:39,slot:1}];
-        let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:6,actors};let memory=EnemyMemory::Collector{turns_taken:history.len() as u32,ult_used:true,initial_spawn:false,slots:slots.clone()};let history=history.into_iter().map(FullIntentId::from_name).collect::<Vec<_>>();let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
+        let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:6,actors,ascension:0};let memory=EnemyMemory::Collector{turns_taken:history.len() as u32,ult_used:true,initial_spawn:false,slots:slots.clone()};let history=history.into_iter().map(FullIntentId::from_name).collect::<Vec<_>>();let stream=rng::StreamState::new(id.clone(),[0;32],cursor).unwrap();
         let selected=enemies::act2::select_move(EnemyId::Collector,&history,&memory,&stream,&context).unwrap();assert_eq!(selected.intent.as_str(),want);assert_eq!(selected.memory,memory);assert_eq!(selected.stream.word_index(),cursor+1);
     }
 }

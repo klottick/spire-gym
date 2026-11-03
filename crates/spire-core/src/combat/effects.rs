@@ -84,7 +84,7 @@ pub(super) fn refresh_enemy_values(state: &mut State) -> Result<(), InputError> 
     let vulnerable_factor=player_vulnerable_factor(state);
     let back_attack=state.enemies.iter().map(|enemy|(enemy.instance_id.clone(),back_attack_active(state,enemy))).collect::<std::collections::BTreeMap<_,_>>();
     for enemy in &mut state.enemies {
-        if state.full_runtime{super::enemies::act3::elites::refresh_actor(enemy);}
+        if state.full_runtime{super::enemies::act3::elites::refresh_actor(enemy,state.ascension);}
         let behind=back_attack.get(&enemy.instance_id).copied().unwrap_or(false);
         for entry in enemy.damage_entries.values_mut().chain(enemy.full_damage_entries.values_mut()) {
             // M27 seam: player-vulnerable-factor; the default follows the exact old path.

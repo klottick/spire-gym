@@ -88,7 +88,7 @@ fn m8_time_faults_preserve_current_card_request_and_single_end_turn(){
 
 #[test]
 fn m8_time_exact_history_redirect_tickets_keep_native_stream(){
-    let c=fixture(&[CardId::Defend],&[1],0);let owner=c.state.enemies[0].instance_id.clone();let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:1,actors:vec![enemies::act2::ActorSummary{owner,species:crate::content::EnemyId::TimeEater,hp:456,max_hp:456,slot:0}]};
+    let c=fixture(&[CardId::Defend],&[1],0);let owner=c.state.enemies[0].instance_id.clone();let context=enemies::act2::EnemyRollContext{owner:owner.clone(),turn:1,actors:vec![enemies::act2::ActorSummary{owner,species:crate::content::EnemyId::TimeEater,hp:456,max_hp:456,slot:0}],ascension:0};
     let id=rng::StreamId::new(rng::Domain::RunCombatEnemyAi,vec!["fixture".into(),"time".into()]).unwrap();
     // Fixed literal outcomes for each ordinary branch and both recursive ranges.
     for (history,lo,hi,range,second_lo,second_hi,want) in [
