@@ -7,7 +7,8 @@ pub(super) fn map()->RunMap{
 }
 pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let node=world::preflight_move(&run.state,target)?;
-    let event=CommittedEvent::FloorEntered{act:1,floor:node.floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
+    let floor=world::room_floor(&run.state,node.floor)?;
+    let event=CommittedEvent::FloorEntered{act:1,floor};reward::preflight(&run.state,std::slice::from_ref(&event))?;
     let kind=if node.kind==MapNodeKind::Question{MapNodeKind::Event}else{node.kind};
     let encounter=match target.0 {2=>Some(EncounterId::Cultist),4=>Some(EncounterId::JawWorm),24=>Some(if run.state.map.as_ref().unwrap().encounter_history.first()==Some(&EncounterId::Cultist){EncounterId::JawWorm}else{EncounterId::Cultist}),45=>Some(EncounterId::TwoLouse),_=>None};
     let map=run.state.map.as_mut().unwrap();map.current=Some(target);
@@ -15,8 +16,8 @@ pub(super) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     if n.kind==MapNodeKind::Question {n.hidden_kind=Some(kind)}
     n.encounter=encounter;
     if let Some(e)=encounter {map.encounter_history.push(e);map.regular_encounter_history.push(e)}
-    run.state.floor=node.floor;run.state.room=kind.label();
-    run.state.history.rooms.push(VisitedRoom{act:1,floor:node.floor,label:kind.label()});
+    run.state.floor=floor;run.state.room=kind.label();
+    run.state.history.rooms.push(VisitedRoom{act:1,floor,label:kind.label()});
     let credited=reward::commit(&mut run.state,std::slice::from_ref(&event))?;
     let entered_kind=match kind {
         MapNodeKind::Monster|MapNodeKind::Elite|MapNodeKind::Boss=>RoomViewKind::Combat,

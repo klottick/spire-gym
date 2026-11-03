@@ -1014,6 +1014,8 @@ pub const A0_ENCOUNTER_SETUPS:&[(crate::content::EncounterId,u8,EncounterKind)]=
     (crate::content::EncounterId::ColosseumSlavers,2,EncounterKind::Monster), // RNG scope key 60
     (crate::content::EncounterId::ColosseumNobs,2,EncounterKind::Elite), // RNG scope key 61
     (crate::content::EncounterId::MaskedBandits,2,EncounterKind::Monster), // RNG scope key 62
+    // M28f: Mysterious Sphere (PM check m28f/source-check-events-v1).
+    (crate::content::EncounterId::TwoOrbWalkers,3,EncounterKind::Monster), // RNG scope key 63
 ];
 
 /// Whether `setup` has the enemy facts for `encounter` at `ascension` (A0 for every encounter;
@@ -1064,6 +1066,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         EncounterId::ColosseumSlavers=>vec![EnemyId::SlaverBlue,EnemyId::SlaverRed],
         EncounterId::ColosseumNobs=>vec![EnemyId::Taskmaster,EnemyId::GremlinNob],
         EncounterId::MaskedBandits=>vec![EnemyId::BanditPointy,EnemyId::BanditLeader,EnemyId::BanditBear],
+        EncounterId::TwoOrbWalkers=>vec![EnemyId::OrbWalker,EnemyId::OrbWalker],
         EncounterId::GremlinGang=>{
             let mut pool=act2::gremlin_leader::POOL.to_vec();
             (0..4).map(|slot|{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[1,encounter_key,visit,slot,0],pool.len() as u64);pool.remove(index)}).collect()

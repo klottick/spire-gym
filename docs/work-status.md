@@ -1,6 +1,15 @@
 # Work status
 
-## Current snapshot — 2026-11-02, M28d merged; M28e candidate
+## Current snapshot — 2026-11-03, M28e merged; M28f1 candidate
+
+- M28e merged as PR #80 (`754c0739`), the M28f1 source base.
+- M28f1 (events batch 3) is a source candidate and not accepted. It lands the last nine event bodies:
+  The Moai Head, Mysterious Sphere (new `TwoOrbWalkers` fight), Sensory Stone, Winding Halls, Secret
+  Portal (direct Act 3 boss entry), The Designer, Duplicator, Knowing Skull and N'loth. No event body
+  interim remains. SOFTLOCK-001 now also covers The Designer. M28f2 closes M28 with the traversal,
+  the gate audit and the final documentation. See the [M28 candidate profile](milestones/m28-events-economy.md).
+
+## Snapshot — 2026-11-02, M28d merged; M28e candidate
 
 - M28d merged as PR #79 (`1c4b4beb`), the M28e source base; fuzz fix chunk B2 merged as PR #78.
 - M28e (events batch 2) is a source candidate and not accepted. It lands 13 event bodies: the

@@ -358,6 +358,8 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
             let relic=match *choice{
                 RelicChoice::Specific(id)=>id,
                 RelicChoice::Tier(tier)=>relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?,
+                // The executor takes it at fight start; kept total for a constructed spec.
+                RelicChoice::Screenless(tier)=>relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Event,&key)?,
                 RelicChoice::RandomTier=>{
                     let tier=relic_pools::roll_tier(&mut producer,relic_pools::TierTable::Ordinary,&key);
                     relic_pools::take(&mut producer,tier,relic_pools::Selector::Front,crate::items::lifecycle::RelicSource::Reward,&key)?
@@ -639,6 +641,33 @@ fn prepare_combat_impl(run:&Run,record:&CombatRecord,mut injected_building:Optio
         }
     }
     Ok(Some(PreparedRoomRewards{screen,rng,next,captured,elite_cursor,complete_relic_pools,complete_potion_offset,act:run.state.act,m10:m10||m15||m20,card_rarity_offset:None}))
+}
+/// Sensory Stone's screen (PM check m28f/source-check-events-v1): `count` colorless card offers through
+/// the shared colorless helper, each sized by M27's EventRoom card shape (Question Card, Busted Crown), with
+/// Singing Bowl's alternative; no gold, potion or ordinary card row. Proceed finishes the room.
+pub(in crate::run) fn open_colourless(run:&mut Run,count:u8,key:&[u64])->Result<(),RunError>{
+    let shape=crate::items::run_laws::card_reward_shape(&run.state,crate::items::run_laws::RewardRoom::Event);
+    let choices=usize::try_from(shape.choices.max(1)).map_err(|_|RunError::InvalidAction)?;
+    if count>8||choices>32{return Err(RunError::Unsupported("card reward shape exceeds the native bound"))}
+    let singing_bowl=run.state.relics.contains(&RelicId::SingingBowl);
+    let mut staged=run.state.clone();
+    let mut next=run.next_choice;
+    let mut cards=view(&mut next,RoomViewKind::CardReward,vec![])?;
+    let mut rows=Vec::with_capacity(usize::from(count)+1);
+    let mut children=Vec::with_capacity(usize::from(count));
+    for offer in 0..count{
+        rows.push((RoomChoiceKind::CardReward,None));
+        let offered=super::standard::rewards::colourless_offer(&mut staged,choices,&[key,&[0xCC,u64::from(offer)]].concat())?;
+        children.push(card_child_rows(&mut next,offered,singing_bowl)?);
+    }
+    append_card_children(&mut cards,children)?;
+    rows.push((RoomChoiceKind::Proceed,None));
+    let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
+    run.state=staged;run.next_choice=next;
+    let room=run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
+    room.screen=screen;room.reward_parent=None;room.active_rewards=Some(CapturedRewards::new(cards,RewardReturn::Map));
+    run.candidates.clear();
+    Ok(())
 }
 pub(in crate::run) fn commit_combat(run:&mut Run,prepared:PreparedRoomRewards){
     run.state.rng=prepared.rng;run.next_choice=prepared.next;

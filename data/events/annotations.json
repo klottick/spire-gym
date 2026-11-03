@@ -22,7 +22,7 @@
     },
     {
       "id": "E3",
-      "description": "Use the captured wiki branches for Designer, Duplicator, Knowing Skull and N’loth, retaining what pages leave open."
+      "description": "Use captured wiki branches for Designer, Duplicator, Knowing Skull and N’loth where not contradicted by checked source facts; preserve the W capture and disclose source corrections under E9."
     },
     {
       "id": "E4",
@@ -70,7 +70,7 @@
     },
     {
       "id": "E15",
-      "description": "Apply the source-specific numeric operator; Forgotten Altar captures MathUtils.round(binary32(M × 0.25)) at construction (A15: 0.35), correcting the earlier truncation assumption."
+      "description": "Apply the source-specific numeric operator. Moai Head captures MathUtils.round(binary32(M × 0.125)) at construction (A15: 0.18); Winding Halls captures .125/.25/.05 at construction (A15: .18/.20/.05). Forgotten Altar captures MathUtils.round(binary32(M × 0.25)) or MathUtils.round(binary32(M × 0.35)) at A15, correcting the earlier truncation assumption."
     },
     {
       "id": "F1",
@@ -102,7 +102,7 @@
     },
     {
       "id": "F8",
-      "description": "Truncate Knowing Skull’s 10% maximum-HP formula, by disclosed analogy to Act 1 event percentages."
+      "description": "The M28f source check rejects the prior 10%-of-max-HP assumption: Knowing Skull’s Potion, Gold and Card options cost flat 6 HP plus 1 per earlier use of that same option; Leave always costs 6. Preserve the captured W formula and disclose this source correction under E9."
     }
   ],
   "records": [
@@ -519,12 +519,6 @@
               "type": "repo",
               "path": "docs/research/2026-10-19-act1-content-event-neow.md",
               "line": 76,
-              "grade": "S"
-            },
-            {
-              "type": "repo",
-              "path": "docs/research/2026-10-19-act1-content-event-neow.md",
-              "line": 115,
               "grade": "S"
             }
           ],
@@ -2853,12 +2847,6 @@
             {
               "type": "repo",
               "path": "crates/spire-core/src/run/rooms/standard/events/act2.rs",
-              "line": 7,
-              "grade": "S"
-            },
-            {
-              "type": "repo",
-              "path": "crates/spire-core/src/run/rooms/standard/events/act2.rs",
               "line": 8,
               "grade": "S"
             },
@@ -4730,7 +4718,13 @@
             {
               "type": "repo",
               "path": "crates/spire-core/src/run/tests/m28_event_core.rs",
-              "line": 652,
+              "line": 666,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "crates/spire-core/src/run/tests/m28_event_core.rs",
+              "line": 668,
               "grade": "S"
             },
             {
@@ -4864,7 +4858,7 @@
           "name": "Jump Inside",
           "amounts": {
             "max_hp": {
-              "value": "direct loss of round(0.125 × M), locally clamped",
+              "value": "MathUtils.round(binary32(0.125 × M)), captured at construction; A15–20 uses MathUtils.round(binary32(0.18 × M))",
               "grade": "D",
               "decision": "E15"
             },
@@ -4892,6 +4886,30 @@
               "type": "repo",
               "path": "docs/research/2026-10-19-act1-content-economy-potions.md",
               "line": 45,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 277,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 281,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 240,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
               "grade": "S"
             }
           ],
@@ -4964,7 +4982,7 @@
         "E0",
         "E15"
       ],
-      "source_scope": "Local Acts 2/3 entry-body facts are Ironclad A0 only; full source mechanics, random-history laws and other-character parity remain limited as noted per branch.",
+      "source_scope": "M28f documents the delivered body for this Act 3 event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -5006,28 +5024,34 @@
           "name": "Fight Orb Walkers",
           "amounts": {
             "gold": {
-              "value": "45–55 inclusive",
+              "value": "uniform 45–55 inclusive (11 equally likely values), fixed before combat at Continue",
               "grade": "S"
             },
             "relic": {
-              "value": "screenless rare relic",
+              "value": "one Rare relic row from the screenless selector, fixed before combat at Continue",
               "grade": "S"
             }
           },
           "draws": [
             {
-              "name": "fight gold and relic",
-              "law": "45–55 gold plus a screenless rare relic; exact amount mass and relic selector law are unresolved.",
+              "name": "fight gold",
+              "law": "At Continue before combat, draw a uniform integer from 45 through 55 inclusive (11 equally likely values) on miscRng to build the gold row; Golden Idol’s reward-row bonus applies if owned.",
+              "grade": "S"
+            },
+            {
+              "name": "rare relic selector",
+              "law": "At the same Continue click, add one Rare row from the already-shuffled rareRelicPool. This click makes no new relicRng draw; the screenless selector skips Bottled Flame, Bottled Lightning, Bottled Tornado, Whetstone and entries that cannot spawn. Empty-pool fallback is Circlet.",
               "grade": "U",
-              "decision": "E8",
-              "note": "The local report records the ranges and tier but not the full selectors."
+              "decision": "F1",
+              "note": "Selector path and filters are source-checked; exact initialized/history-conditioned output mass remains unresolved."
             }
           ],
           "selections": [
             {
               "name": "combat",
               "options": [
-                "two Orb Walkers constructed before the fight choice"
+                "Original source constructs both Orb Walkers before the Fight choice.",
+                "M28f keyed simulator draws their used HP at combat entry; keyed streams make the construction-time and entry-time placement equivalent for the modeled encounter."
               ],
               "grade": "S"
             },
@@ -5071,6 +5095,54 @@
               "path": "docs/milestones/m28-events-economy.md",
               "line": 122,
               "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 243,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 244,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 245,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 246,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 279,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 280,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 240,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "U",
@@ -5079,7 +5151,7 @@
             "E8",
             "F1"
           ],
-          "note": "The two-Orb-Walker fight and reward categories are sourced; selector distributions remain U.; PM source check m28c M2 (2026-11-02): reward screen Proceed returns to the map after escape."
+          "note": "M28f static source check corrects the timing and gold-law gaps: gold and the Rare row are fixed at Continue before combat. Exact history-conditioned rare-pool output mass remains U."
         },
         {
           "id": "leave",
@@ -5109,7 +5181,7 @@
         "E1",
         "E8"
       ],
-      "source_scope": "Local Acts 2/3 entry-body facts are Ironclad A0 only; full source mechanics, random-history laws and other-character parity remain limited as noted per branch.",
+      "source_scope": "M28f documents the delivered body for this Act 3 event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -5151,18 +5223,30 @@
           },
           "draws": [
             {
-              "name": "colorless reward support",
-              "law": "Reward count is sourced; full offer support and draw law are unresolved in the local Act 2/3 report.",
-              "grade": "U",
-              "decision": "F1",
-              "note": "No colorless identity distribution is inferred."
+              "name": "colorless reward offers",
+              "law": "Each row uses the shared colorless helper and card_reward_shape(Event).choices for offer size (default three, adjusted by card-count relics and reduced by Binary). Each choice rolls binary32 0.30 for Rare and otherwise Uncommon, selects from colorlessCardPool with cardRng, and rerolls duplicate IDs within that row.",
+              "grade": "S"
+            },
+            {
+              "name": "memory text shuffle",
+              "law": "The original choice draws one miscRng long to seed a local Java shuffle of the four story memories; this only selects text. M28f simulator RNG-001 does not advance an equivalent miscRng cursor.",
+              "grade": "S"
             }
           ],
           "selections": [
             {
               "name": "reward",
               "options": [
-                "one colorless-card reward row"
+                "one colorless-card reward row",
+                "M28f source check: one, two or three colorless rows use EventRoom-shaped offer sizes; no generic card reward row is added."
+              ],
+              "grade": "S"
+            },
+            {
+              "name": "memory text and RNG-001",
+              "options": [
+                "The source memory shuffle selects narrative text only and does not affect the selected reward.",
+                "The simulator omits a simulator-side miscRng draw for this story-only shuffle under RNG-001."
               ],
               "grade": "S"
             }
@@ -5179,39 +5263,99 @@
               "page": "Sensory Stone",
               "revision_id": 68782,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 258,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 259,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 260,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 278,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 279,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 280,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 240,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
-          "grade": "U",
+          "grade": "S",
           "decisions": [
             "E0",
             "E1",
             "F1"
           ],
-          "note": "Reward counts, memory shuffle order and HP requests are sourced; reward support is not."
+          "note": "M28f source check resolves colorless offer support and HP_LOSS ordering; the story shuffle only chooses text."
         },
         {
           "id": "two_card_rewards",
           "name": "Two card rewards",
           "amounts": {
             "hp_loss": {
-              "value": "5 after reward creation",
+              "value": "5 HP_LOSS request with null owner, after rows are built and before the reward screen opens",
               "grade": "S"
             }
           },
           "draws": [
             {
-              "name": "colorless reward support",
-              "law": "Reward count is sourced; full offer support and draw law are unresolved in the local Act 2/3 report.",
-              "grade": "U",
-              "decision": "F1",
-              "note": "No colorless identity distribution is inferred."
+              "name": "colorless reward offers",
+              "law": "Each row uses the shared colorless helper and card_reward_shape(Event).choices for offer size (default three, adjusted by card-count relics and reduced by Binary). Each choice rolls binary32 0.30 for Rare and otherwise Uncommon, selects from colorlessCardPool with cardRng, and rerolls duplicate IDs within that row.",
+              "grade": "S"
+            },
+            {
+              "name": "memory text shuffle",
+              "law": "The original choice draws one miscRng long to seed a local Java shuffle of the four story memories; this only selects text. M28f simulator RNG-001 does not advance an equivalent miscRng cursor.",
+              "grade": "S"
             }
           ],
           "selections": [
             {
               "name": "reward",
               "options": [
-                "two colorless-card reward rows"
+                "two colorless-card reward rows",
+                "M28f source check: one, two or three colorless rows use EventRoom-shaped offer sizes; no generic card reward row is added."
+              ],
+              "grade": "S"
+            },
+            {
+              "name": "memory text and RNG-001",
+              "options": [
+                "The source memory shuffle selects narrative text only and does not affect the selected reward.",
+                "The simulator omits a simulator-side miscRng draw for this story-only shuffle under RNG-001."
               ],
               "grade": "S"
             }
@@ -5228,39 +5372,87 @@
               "page": "Sensory Stone",
               "revision_id": 68782,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 258,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 259,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 260,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 278,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 279,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 280,
+              "grade": "S"
             }
           ],
-          "grade": "U",
+          "grade": "S",
           "decisions": [
             "E0",
             "E1",
             "F1"
           ],
-          "note": "Reward counts, memory shuffle order and HP requests are sourced; reward support is not."
+          "note": "M28f source check resolves colorless offer support and HP_LOSS ordering; the story shuffle only chooses text."
         },
         {
           "id": "three_card_rewards",
           "name": "Three card rewards",
           "amounts": {
             "hp_loss": {
-              "value": "10 after reward creation",
+              "value": "10 HP_LOSS request with null owner, after rows are built and before the reward screen opens",
               "grade": "S"
             }
           },
           "draws": [
             {
-              "name": "colorless reward support",
-              "law": "Reward count is sourced; full offer support and draw law are unresolved in the local Act 2/3 report.",
-              "grade": "U",
-              "decision": "F1",
-              "note": "No colorless identity distribution is inferred."
+              "name": "colorless reward offers",
+              "law": "Each row uses the shared colorless helper and card_reward_shape(Event).choices for offer size (default three, adjusted by card-count relics and reduced by Binary). Each choice rolls binary32 0.30 for Rare and otherwise Uncommon, selects from colorlessCardPool with cardRng, and rerolls duplicate IDs within that row.",
+              "grade": "S"
+            },
+            {
+              "name": "memory text shuffle",
+              "law": "The original choice draws one miscRng long to seed a local Java shuffle of the four story memories; this only selects text. M28f simulator RNG-001 does not advance an equivalent miscRng cursor.",
+              "grade": "S"
             }
           ],
           "selections": [
             {
               "name": "reward",
               "options": [
-                "three colorless-card reward rows"
+                "three colorless-card reward rows",
+                "M28f source check: one, two or three colorless rows use EventRoom-shaped offer sizes; no generic card reward row is added."
+              ],
+              "grade": "S"
+            },
+            {
+              "name": "memory text and RNG-001",
+              "options": [
+                "The source memory shuffle selects narrative text only and does not affect the selected reward.",
+                "The simulator omits a simulator-side miscRng draw for this story-only shuffle under RNG-001."
               ],
               "grade": "S"
             }
@@ -5277,15 +5469,51 @@
               "page": "Sensory Stone",
               "revision_id": 68782,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 258,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 259,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 260,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 278,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 279,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 280,
+              "grade": "S"
             }
           ],
-          "grade": "U",
+          "grade": "S",
           "decisions": [
             "E0",
             "E1",
             "F1"
           ],
-          "note": "Reward counts, memory shuffle order and HP requests are sourced; reward support is not."
+          "note": "M28f source check resolves colorless offer support and HP_LOSS ordering; the story shuffle only chooses text."
         }
       ],
       "decisions": [
@@ -5293,7 +5521,7 @@
         "E1",
         "F1"
       ],
-      "source_scope": "Local Acts 2/3 entry-body facts are Ironclad A0 only; full source mechanics, random-history laws and other-character parity remain limited as noted per branch.",
+      "source_scope": "M28f documents the delivered body for this Act 3 event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -5329,7 +5557,7 @@
           "name": "Embrace Madness",
           "amounts": {
             "damage": {
-              "value": "round(0.125 × M) damage request",
+              "value": "MathUtils.round(binary32(0.125 × M)) damage request, captured at construction; A15–20 uses 0.18 × M",
               "grade": "D",
               "decision": "E15"
             },
@@ -5358,13 +5586,42 @@
               "path": "docs/research/2026-10-19-act1-content-economy-potions.md",
               "line": 45,
               "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 277,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 281,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 282,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 240,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "S",
           "decisions": [
             "E0",
-            "E15",
-            "F1"
+            "E15"
           ]
         },
         {
@@ -5372,7 +5629,7 @@
           "name": "Focus",
           "amounts": {
             "heal": {
-              "value": "round(0.25 × M) heal request",
+              "value": "MathUtils.round(binary32(0.25 × M)) heal request, captured at construction; A15–20 uses 0.20 × M",
               "grade": "D",
               "decision": "E15"
             },
@@ -5401,13 +5658,30 @@
               "path": "docs/research/2026-10-19-act1-content-economy-potions.md",
               "line": 45,
               "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 277,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 281,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 282,
+              "grade": "S"
             }
           ],
           "grade": "S",
           "decisions": [
             "E0",
-            "E15",
-            "F1"
+            "E15"
           ]
         },
         {
@@ -5415,7 +5689,7 @@
           "name": "Retrace",
           "amounts": {
             "max_hp": {
-              "value": "decrease by round(0.05 × M)",
+              "value": "MathUtils.round(binary32(0.05 × M)) max-HP reduction, captured at construction; unchanged at A15–20",
               "grade": "D",
               "decision": "E15"
             }
@@ -5440,6 +5714,24 @@
               "path": "docs/research/2026-10-19-act1-content-economy-potions.md",
               "line": 45,
               "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 277,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 281,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 282,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -5454,7 +5746,7 @@
         "E1",
         "E15"
       ],
-      "source_scope": "Local Acts 2/3 entry-body facts are Ironclad A0 only; full source mechanics, random-history laws and other-character parity remain limited as noted per branch.",
+      "source_scope": "M28f documents the delivered body for this Act 3 event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -7544,6 +7836,15 @@
                 "two random cards"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source-check details",
+              "options": [
+                "A uniform miscRng boolean at construction fixes Adjust-chosen versus Adjust-random-two; Adjust is disabled when gold is below its price or no upgradable card exists.",
+                "The chosen-card grid includes bottled cards; the random variant upgrades up to two eligible cards.",
+                "A15–20 costs 50 gold; A0–14 captured wiki price remains 40."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7558,6 +7859,42 @@
               "page": "Designer In-Spire",
               "revision_id": 68442,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 265,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 266,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 267,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 268,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 241,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "W",
@@ -7592,6 +7929,15 @@
                 "transform two cards"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source check and SOFTLOCK-001",
+              "options": [
+                "A uniform miscRng boolean at construction fixes Clean Up as one-card Remove or two-card Transform; A15–20 costs 75 gold, while the captured A0–14 wiki price remains 60.",
+                "Availability counts all unbottled cards before the purgeable filter; the non-cancellable grid then contains only purgeable, unbottled cards. A short grid strands the original source.",
+                "SOFTLOCK-001 simulator behavior: take the gold, select nothing and complete the event."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7606,6 +7952,66 @@
               "page": "Designer In-Spire",
               "revision_id": 68442,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 265,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 266,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 268,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 269,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 270,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 138,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 139,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 140,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 141,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 142,
+              "grade": "S"
             }
           ],
           "grade": "W",
@@ -7633,6 +8039,15 @@
                 "then upgrade a random card"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source-check correction and SOFTLOCK-001",
+              "options": [
+                "Source correction to the captured wiki row: after a successful one-card purge, upgrade up to two remaining random upgradable cards (zero, one or two as available).",
+                "A15–20 costs 110 gold; the captured A0–14 wiki price remains 90. Full Service is disabled below its price or when the unbottled whole deck is empty.",
+                "If the pre-filter unbottled count passes but the purgeable grid is short, SOFTLOCK-001 takes the gold, selects nothing and completes; the follow-up upgrades do not run."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7647,12 +8062,67 @@
               "page": "Designer In-Spire",
               "revision_id": 68442,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 267,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 268,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 269,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 270,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 138,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 139,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 140,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 141,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 142,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
-            "F1"
+            "F1",
+            "E9"
           ]
         },
         {
@@ -7665,7 +8135,15 @@
             }
           },
           "draws": [],
-          "selections": [],
+          "selections": [
+            {
+              "name": "M28f source-check cost",
+              "options": [
+                "Punch is an HP_LOSS request with null owner: 3 HP at A0–14 and 5 HP at A15–20."
+              ],
+              "grade": "S"
+            }
+          ],
           "citations": [
             {
               "type": "repo",
@@ -7678,6 +8156,18 @@
               "page": "Designer In-Spire",
               "revision_id": 68442,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 267,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 268,
+              "grade": "S"
             }
           ],
           "grade": "W",
@@ -7690,9 +8180,10 @@
         "E1",
         "E3",
         "E12",
-        "F1"
+        "F1",
+        "E9"
       ],
-      "source_scope": "Act 2/3 constructor label is a candidate only (E1); local mechanics, where present, are Ironclad A0 entry-body facts. Other-character parity is not established.",
+      "source_scope": "M28f documents the delivered body for this one-time event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -7750,6 +8241,14 @@
                 "obtain a duplicate"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source-check details",
+              "options": [
+                "The non-cancellable duplicate grid covers the whole master deck, including bottled cards and curses.",
+                "The new copy retains card state but has its bottle flag cleared; the copy receives obtain hooks, so Omamori may block a copied Curse and eligible Egg hooks may upgrade it."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7764,6 +8263,30 @@
               "page": "Duplicator",
               "revision_id": 68468,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 274,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 275,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 241,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "W",
@@ -7806,7 +8329,7 @@
         "E9",
         "F6"
       ],
-      "source_scope": "Act 2/3 constructor label is a candidate only (E1); local mechanics, where present, are Ironclad A0 entry-body facts. Other-character parity is not established.",
+      "source_scope": "M28f documents the delivered body for this one-time event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -7863,6 +8386,14 @@
                 "lose X HP regardless"
               ],
               "grade": "S"
+            },
+            {
+              "name": "M28f source-check correction to F8",
+              "options": [
+                "M28f source-check correction to the captured W formula: Potion costs flat 6 HP plus 1 per earlier Potion-option use; it is not based on maximum HP.",
+                "Sozu suppresses the potion draw; with no free slot the potion is still drawn after payment and then lost."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7877,13 +8408,44 @@
               "page": "Knowing Skull",
               "revision_id": 68597,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 271,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 272,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 273,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 241,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
             "F8",
-            "F1"
+            "F1",
+            "E9"
           ]
         },
         {
@@ -7901,7 +8463,16 @@
             }
           },
           "draws": [],
-          "selections": [],
+          "selections": [
+            {
+              "name": "M28f source-check correction to F8",
+              "options": [
+                "M28f source-check correction to the captured W formula: Gold costs flat 6 HP plus 1 per earlier Gold-option use; its counter is independent. Leave never increments it.",
+                "The 90 gold is granted directly, not as a reward row."
+              ],
+              "grade": "S"
+            }
+          ],
           "citations": [
             {
               "type": "repo",
@@ -7914,12 +8485,31 @@
               "page": "Knowing Skull",
               "revision_id": 68597,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 271,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 272,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 273,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
-            "F8"
+            "F8",
+            "E9"
           ]
         },
         {
@@ -7939,7 +8529,16 @@
               "grade": "W"
             }
           ],
-          "selections": [],
+          "selections": [
+            {
+              "name": "M28f source-check correction to F8",
+              "options": [
+                "M28f source-check correction to the captured W formula: Card costs flat 6 HP plus 1 per earlier Card-option use; its counter is independent. Leave never increments it.",
+                "The card is selected from the Uncommon colorless pool and obtained directly, not through a reward screen."
+              ],
+              "grade": "S"
+            }
+          ],
           "citations": [
             {
               "type": "repo",
@@ -7952,13 +8551,32 @@
               "page": "Knowing Skull",
               "revision_id": 68597,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 271,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 272,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 273,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
             "F8",
-            "F1"
+            "F1",
+            "E9"
           ]
         },
         {
@@ -7972,7 +8590,15 @@
             }
           },
           "draws": [],
-          "selections": [],
+          "selections": [
+            {
+              "name": "M28f source-check correction to F8",
+              "options": [
+                "M28f source-check correction to the captured W formula: Leave always costs exactly 6 HP, regardless of earlier selections; it never escalates."
+              ],
+              "grade": "S"
+            }
+          ],
           "citations": [
             {
               "type": "repo",
@@ -7985,21 +8611,41 @@
               "page": "Knowing Skull",
               "revision_id": 68597,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 271,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 272,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 273,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
-            "F8"
+            "F8",
+            "E9"
           ]
         }
       ],
       "decisions": [
         "E1",
         "E3",
-        "F8"
+        "F8",
+        "E9"
       ],
-      "source_scope": "Act 2/3 constructor label is a candidate only (E1); local mechanics, where present, are Ironclad A0 entry-body facts. Other-character parity is not established.",
+      "source_scope": "M28f documents the delivered body for this one-time event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -8055,6 +8701,14 @@
                 "obtain N’loth’s Gift"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source-check correction",
+              "options": [
+                "At trade time, if N’loth’s Gift is not owned, remove the offered relic and obtain the Gift.",
+                "If N’loth’s Gift is already owned, keep the offered relic and obtain Circlet instead."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -8069,13 +8723,44 @@
               "page": "N'loth",
               "revision_id": 68655,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 261,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 262,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 278,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 241,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
             "E13",
-            "F1"
+            "F1",
+            "E9"
           ]
         },
         {
@@ -8096,6 +8781,14 @@
                 "obtain N’loth’s Gift"
               ],
               "grade": "W"
+            },
+            {
+              "name": "M28f source-check correction",
+              "options": [
+                "At trade time, if N’loth’s Gift is not owned, remove the offered relic and obtain the Gift.",
+                "If N’loth’s Gift is already owned, keep the offered relic and obtain Circlet instead."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -8110,13 +8803,32 @@
               "page": "N'loth",
               "revision_id": 68655,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 261,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 262,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 278,
+              "grade": "S"
             }
           ],
           "grade": "W",
           "decisions": [
             "E3",
             "E13",
-            "F1"
+            "F1",
+            "E9"
           ]
         },
         {
@@ -8149,9 +8861,10 @@
         "E1",
         "E3",
         "E13",
-        "F1"
+        "F1",
+        "E9"
       ],
-      "source_scope": "Act 2/3 constructor label is a candidate only (E1); local mechanics, where present, are Ironclad A0 entry-body facts. Other-character parity is not established.",
+      "source_scope": "M28f documents the delivered body for this one-time event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     },
     {
@@ -8216,7 +8929,7 @@
             {
               "name": "transition",
               "options": [
-                "enter the Act 3 boss combat as a normal boss fight; floor advances by one"
+                "Complete the event and enter the Act 3 boss node through shared map-room entry at the current floor plus one; normal boss settlement and the Act 3 ending/Heart-door key checks then apply."
               ],
               "grade": "S"
             }
@@ -8233,12 +8946,59 @@
               "page": "Secret Portal",
               "revision_id": 68775,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 247,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 248,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 249,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 250,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 251,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 241,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 242,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 110,
+              "grade": "S"
             }
           ],
           "grade": "S",
           "decisions": [
-            "E4",
-            "F1"
+            "E4"
           ]
         },
         {
@@ -8280,7 +9040,7 @@
         "E4",
         "F6"
       ],
-      "source_scope": "Act 2/3 constructor label is a candidate only (E1); local mechanics, where present, are Ironclad A0 entry-body facts. Other-character parity is not established.",
+      "source_scope": "M28f documents the delivered body for this one-time event, with original mechanics grounded in the M28f static source check. Its Act 2/3 candidate constructor ID remains provisional under E1; no original-runtime execution or seeded-RNG parity is claimed.",
       "candidate_source_note": "Candidate label only; the canonical constructor/source ID is not established (E1)."
     }
   ]

@@ -15,8 +15,11 @@ pub(crate) struct Act3EndFrame {
 }
 pub(in crate::run) struct PreparedAct3End {screen:RoomView,next:u64,frame:Act3EndFrame}
 
+/// The Act 3 boss victory at the map's boss node. The Run's floor is not tested: Secret Portal
+/// enters that node from a lower floor (PM check m28f/source-check-events-v1: the ending follows any
+/// cleared Beyond `MonsterRoomBoss`; M28f global fix, every map path still beats it at floor 50).
 fn source(state:&RunState,node:NodeId,record:&CombatRecord)->bool{
-    uses_act3_ending(state)&&state.act==3&&state.floor==50&&state.ascension==0
+    uses_act3_ending(state)&&state.act==3&&state.ascension==0
         &&record.outcome==Outcome::Victory
         &&matches!(record.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         &&state.map.as_ref().is_some_and(|m|m.act==3&&m.current==Some(node)

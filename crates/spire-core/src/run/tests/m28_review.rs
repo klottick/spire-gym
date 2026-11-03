@@ -88,24 +88,35 @@ fn m28_review_eggs_apply_after_the_upgrade_roll() {
 }
 
 /// m3: an Event node and a question room that rolls an event (Tiny Chest counter and ramps
-/// present) whose selected event has no landed body return the typed interim and leave the whole
-/// Run unchanged, choice tokens and event pools included. M28c: the interim names the event's
-/// chunk; a one-event pool makes the selection fixed. M28e lands every M28e body, so the pool uses
-/// M28f's The Designer (gold 100 meets its gate; the empty ordinary list delegates to it).
+/// present) whose selected event is rejected up front return the typed error and leave the whole
+/// Run unchanged, choice tokens and event pools included. M28f lands the last body, so the witness
+/// is the remaining typed rejection: the Colosseum above A0 (no enemy facts; review-v1 M2 of M28e),
+/// fixed by a one-event pool.
 #[test]
 fn m28_review_event_interim_leaves_the_whole_run() {
-    const INTERIM: &str = "M28 event body lands in M28f";
-    let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![], shrines: vec![], one_time: vec![crate::content::EventId::Designer], seen: vec![] });
+    // The diagnostic Run on a row-7 node whose row-8 child is the event room (E10: Colosseum needs y >= 8).
+    fn row8(character: Character, seed: u8) -> (Run, crate::run::NodeId) {
+        let (mut run, _) = super::m28_event_core::before_event(character, 2, crate::content::EventId::Colosseum, seed);
+        let map = run.state.map.as_mut().unwrap();
+        let from = map.nodes.iter().find(|n| n.y == 7 && !n.edges.is_empty()).unwrap().clone();
+        let node = from.edges[0];
+        map.nodes.iter_mut().find(|n| n.id == node).unwrap().kind = MapNodeKind::Event;
+        map.current = Some(from.id);
+        run.state.floor = from.floor;
+        (run, node)
+    }
+    const INTERIM: &str = "event combat enemy setup unavailable at this ascension";
+    let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![crate::content::EventId::Colosseum], shrines: vec![], one_time: vec![], seen: vec![] });
     for character in CHARACTERS {
-        let (mut run, target) = super::m28_event_core::before_event(character, 2, crate::content::EventId::Designer, 9);
+        let (mut run, target) = row8(character, 9);
         run.state.event_pools = pools();
-        run.state.gold = 100;
+        run.state.ascension = 15;
         let before = run.clone();
         assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(INTERIM)));
         assert!(run == before, "{character:?}: whole Run unchanged");
-        let (mut question, target) = super::m28_event_core::before_event(character, 2, crate::content::EventId::Designer, 10);
+        let (mut question, target) = row8(character, 10);
         question.state.event_pools = pools();
-        question.state.gold = 100;
+        question.state.ascension = 15;
         question.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == target).unwrap().kind = MapNodeKind::Question;
         question.state.map.as_mut().unwrap().question_ramps = [0; 3];
         question.state.relics.push(RelicId::TinyChest); question.state.relic_counters.insert(RelicId::TinyChest, 1);

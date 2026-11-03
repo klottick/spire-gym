@@ -908,6 +908,32 @@ fn colosseum_before(character: Character, seed: u8) -> (Run, crate::run::NodeId)
     (run, node)
 }
 
+/// The first Slavers fight keeps the EventRoom potion roll on a Smoke Bomb escape (source-check-event-escape-v1, N3).
+#[test]
+fn m28_event_combat_colosseum_first_fight_smoke_bomb() {
+    use crate::content::EnemyId;
+    let mut run = colosseum(Character::Silent, 104);
+    run.state.potions[0] = Some(PotionId::SmokeBomb);
+    let (gold, potion_offset, rng) = (run.state.gold, run.state.potion_offset, run.state.rng.clone());
+    option_row(&mut run, 0, 0);
+    let enemies: Vec<_> = run.state.combat.as_ref().unwrap().public_full().unwrap().enemies
+        .iter().map(|enemy| enemy.enemy_id).collect();
+    assert_eq!(enemies, vec![EnemyId::SlaverBlue, EnemyId::SlaverRed]);
+
+    run.choose_combat(crate::combat::CombatAction::UsePotion { slot: 0, target: None }).unwrap();
+    assert!(run.state.combat.is_none() && run.state.fault.is_none());
+    assert_eq!(run.state.potions[0], None);
+    assert_eq!((run.state.potion_offset - potion_offset).abs(), 10, "N3's suppressed event potion roll advances its offset");
+    assert_ne!(run.state.rng, rng, "N3 draws on the event potion stream");
+    assert_eq!(run.state.gold, gold, "the first fight pays no rewards");
+    let rows = view(&run);
+    assert_eq!(rows.kind, RoomViewKind::Event(EventId::Colosseum));
+    assert_eq!(rows.choices.iter().map(|choice| choice.kind.clone()).collect::<Vec<_>>(), vec![
+        RoomChoiceKind::EventOption { stage: 1, option: 0 },
+        RoomChoiceKind::EventOption { stage: 1, option: 1 },
+    ]);
+}
+
 /// Colosseum (acts23 research :187; checks m28e B item 12, C item 7, escape N3): fight 1 (Blue, Red Slaver) has no
 /// reward screen and reopens the event at [Escape, Fight Nobs] after the EventRoom potion roll; fight 2 (Taskmaster,
 /// Gremlin Nob, eliteTrigger) takes a Rare then an Uncommon relic row at fight start and pays 100 gold with an ordinary

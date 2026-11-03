@@ -11,10 +11,15 @@ use super::event_frame::{self, EventCombat};
 /// table (50/33/17). Event relics are screenless (`RelicSource::Event`, M27).
 #[allow(dead_code)] // design §5.4's full vocabulary; later chunks' bodies use the rest.
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RelicChoice { Specific(RelicId), Tier(RelicTier), RandomTier }
+pub(crate) enum RelicChoice { Specific(RelicId), Tier(RelicTier), RandomTier,
+    /// A tier through the screenless selector (`returnRandomScreenlessRelic`: no bottles, no Whetstone)
+    /// delivered as a reward row (Mysterious Sphere; PM check m28f/source-check-events-v1).
+    Screenless(RelicTier) }
 #[allow(dead_code)]
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum PotionChoice { Specific(PotionId), Random }
+pub(crate) enum PotionChoice { Specific(PotionId), Random,
+    /// A uniform potion of the character's flat pool (`PotionHelper.getRandomPotion`).
+    Flat }
 
 /// An event combat's reward screen (design §5.7): the standard `RewardRoom::Event` card offer and
 /// potion appearance, plus the event's listed gold and relic rows. `gold_range` (inclusive) is drawn
@@ -47,11 +52,14 @@ pub(crate) enum Outcome {
     ObtainRelic(RelicChoice), LoseRelic(RelicId),
     /// Forgotten Altar's `instantObtain` with the equip flag false (PM check
     /// m28e/source-check-mechanics-c-v1 item 3): `new` takes `old`'s slot; `old` leaves as by
-    /// `LoseRelic` (Golden Idol's `onUnequip` is the base no-op); `new` gets no equip effect.
+    /// `LoseRelic`, through `items::lose_relic` and its `onUnequip`; `new` gets no equip effect.
     ReplaceRelic{old:RelicId,new:RelicId},
     /// Select a relic, pay `gold`, then grant it (The Addict's Pay; PM ruling Q2).
     BuyRelic{choice:RelicChoice,gold:u32},
     ObtainPotion(PotionChoice),
+    /// Knowing Skull's potion (PM check m28f/source-check-events-v1): nothing and no draw with Sozu;
+    /// otherwise drawn, then obtained if a slot is free and lost if not.
+    TryObtainPotion(PotionChoice),
     /// The Library's Read (PM check m28e/source-check-open-a-v1 item 7): `count` distinct card ids
     /// generated at the choice by sequential rejection sampling. Each proposal classifies an
     /// EventRoom rarity on the live offset (read, never advanced), then draws an identity from that
@@ -72,12 +80,13 @@ pub(crate) enum Outcome {
     /// A non-combat reward screen (Lab, Wheel of Change): `potions` flat class potions and the relic
     /// rows, no card offer; Proceed finishes the room.
     Rewards{potions:u8,relics:Vec<RelicChoice>},
+    /// A non-combat reward screen of `n` colorless card offers (Sensory Stone); Proceed finishes the room.
+    ColourlessRewards(u8),
     Key(Key),
-    NextStage(u8), Leave, EnterBoss,
+    NextStage(u8), Leave,
+    /// Secret Portal: the event completes and the act's boss room is entered directly (floor + 1).
+    EnterBoss,
 }
-
-/// The typed interim for Secret Portal's boss entry (chunk plan §3).
-pub(in crate::run) const ENTER_BOSS_INTERIM:&str="M28 Secret Portal boss entry lands in M28f";
 
 /// The candidates of an event selection, one filter per operation (design §5.6): removable,
 /// transformable and chosen (`Choose`: Bonfire, Note) cards are the purgeable cards; upgradeable
@@ -205,8 +214,11 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
             // mutation (ascension enemy tables land with M29–M33).
             Outcome::Combat{encounter,..} if !crate::combat::enemies::setup_supports_ascension(*encounter,state.ascension)=>
                 return Err(RunError::Unsupported("event combat enemy setup unavailable at this ascension")),
-            Outcome::Combat{..}|Outcome::Rewards{..}|Outcome::NextStage(_)|Outcome::Leave=>if !last{return Err(RunError::InvalidAction)},
-            Outcome::EnterBoss=>return Err(RunError::Unsupported(ENTER_BOSS_INTERIM)),
+            // Secret Portal fights the act's boss (the map icon) under the same gate.
+            Outcome::EnterBoss if !state.map.as_ref().and_then(|map|map.boss_icon)
+                .is_some_and(|boss|crate::combat::enemies::setup_supports_ascension(boss,state.ascension))=>
+                return Err(RunError::Unsupported("event boss enemy setup unavailable at this ascension")),
+            Outcome::Combat{..}|Outcome::Rewards{..}|Outcome::ColourlessRewards(_)|Outcome::NextStage(_)|Outcome::Leave|Outcome::EnterBoss=>if !last{return Err(RunError::InvalidAction)},
             _=>{}
         }
     }
@@ -309,7 +321,7 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                 let (choice,price)=match outcome{Outcome::BuyRelic{choice,gold}=>(choice,gold),Outcome::ObtainRelic(choice)=>(choice,0),_=>unreachable!()};
                 let relic=match choice{
                     RelicChoice::Specific(id)=>id,
-                    RelicChoice::Tier(tier)=>relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?,
+                    RelicChoice::Tier(tier)|RelicChoice::Screenless(tier)=>relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?,
                     RelicChoice::RandomTier=>{
                         let tier=relic_pools::roll_tier(state,relic_pools::TierTable::Ordinary,&key);
                         relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?
@@ -344,7 +356,23 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                     PotionChoice::Random=>crate::items::potion_generation::rarity_first(state.character,|bound|{
                         state.rng.bounded_scoped_checked(RunRngScope::M28EventBody,&key,bound)
                     })?,
+                    PotionChoice::Flat=>crate::items::potion_generation::flat(state.character,|bound|{
+                        state.rng.bounded_scoped_checked(RunRngScope::M28EventBody,&key,bound)
+                    })?,
                 };
+                items::obtain_run_potion(state,potion)?;
+            }
+            Outcome::TryObtainPotion(choice)=>if !state.relics.contains(&RelicId::Sozu){
+                let potion=match choice{
+                    PotionChoice::Specific(id)=>id,
+                    PotionChoice::Random=>crate::items::potion_generation::rarity_first(state.character,|bound|{
+                        state.rng.bounded_scoped_checked(RunRngScope::M28EventBody,&key,bound)
+                    })?,
+                    PotionChoice::Flat=>crate::items::potion_generation::flat(state.character,|bound|{
+                        state.rng.bounded_scoped_checked(RunRngScope::M28EventBody,&key,bound)
+                    })?,
+                };
+                // `obtainPotion` fails with every slot full: the potion is lost.
                 items::obtain_run_potion(state,potion)?;
             }
             Outcome::SetValue{slot,value}=>event_frame::set_value(run,slot,value)?,
@@ -368,12 +396,13 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                     // PM check m28e/source-check-open-b-v1 item 12): ordinary reward offers, not screenless.
                     for (slot,choice) in spec.relics.iter_mut().enumerate(){
                         let key=[&key[..],&[0xE0,slot as u64]].concat();
-                        let tier=match *choice{
+                        let (tier,source)=match *choice{
                             RelicChoice::Specific(_)=>continue,
-                            RelicChoice::Tier(tier)=>tier,
-                            RelicChoice::RandomTier=>relic_pools::roll_tier(state,relic_pools::TierTable::Ordinary,&key),
+                            RelicChoice::Tier(tier)=>(tier,RelicSource::Reward),
+                            RelicChoice::RandomTier=>(relic_pools::roll_tier(state,relic_pools::TierTable::Ordinary,&key),RelicSource::Reward),
+                            RelicChoice::Screenless(tier)=>(tier,RelicSource::Event),
                         };
-                        *choice=RelicChoice::Specific(relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Reward,&key)?);
+                        *choice=RelicChoice::Specific(relic_pools::take(state,tier,relic_pools::Selector::Front,source,&key)?);
                     }
                 }
                 event_frame::suspend(run,queue.into(),Some(EventCombat{encounter,rewards,next_stage,elite}),false)?;
@@ -386,7 +415,7 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                     let key=[&key[..],&[0xE0,slot as u64]].concat();
                     let relic=match choice{
                         RelicChoice::Specific(id)=>id,
-                        RelicChoice::Tier(tier)=>relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?,
+                        RelicChoice::Tier(tier)|RelicChoice::Screenless(tier)=>relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?,
                         RelicChoice::RandomTier=>{
                             let tier=relic_pools::roll_tier(state,relic_pools::TierTable::Ordinary,&key);
                             relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Event,&key)?
@@ -413,7 +442,14 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                 if obtained.is_some(){return Err(RunError::Unsupported("event left before its relic's equip screens"))}
                 return event_frame::leave(run)
             }
-            Outcome::EnterBoss=>return Err(RunError::Unsupported(ENTER_BOSS_INTERIM)),
+            Outcome::ColourlessRewards(count)=>{
+                if obtained.is_some(){return Err(RunError::Unsupported("event reward screen before its relic's equip screens"))}
+                return event_frame::open_colourless_rewards(run,count,&key)
+            }
+            Outcome::EnterBoss=>{
+                if obtained.is_some(){return Err(RunError::Unsupported("event left before its relic's equip screens"))}
+                return event_frame::enter_boss(run)
+            }
         }
     }
     event_frame::publish(run)?;

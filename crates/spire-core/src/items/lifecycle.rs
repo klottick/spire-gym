@@ -104,11 +104,27 @@ pub(crate) fn lose_relic(state:&mut RunState,id:RelicId)->Result<(),RunError>{
     if id==RelicId::SacredBark {
         staged.potion_potencies=super::main_relics::reconcile_potion_potencies(&staged.relics,&staged.potions,&staged.potion_potencies);
     }
+    on_unequip(&mut staged,id);
     staged.relics.retain(|owned|*owned!=id);
     staged.relic_counters.remove(&id);
     staged.relic_cards.remove(&id);
     *state=staged;
     Ok(())
+}
+
+/// Source `AbstractPlayer.loseRelic` runs the relic's `onUnequip` first (PM decompile, m28f
+/// review-fixes I1); every loss (N'loth, Golden Idol, Neow's boss swap) comes through `lose_relic`.
+/// The non-empty overrides need no state for energy or hand size: the `energyMaster` −1 relics
+/// (Cursed Key, Mark of Pain, Philosopher's Stone, Runic Dome, Busted Crown, Coffee Dripper,
+/// Ectoplasm, Fusion Hammer, Sozu, Velvet Choker) and `masterHandSize` (Snecko Eye −2, Ring of the
+/// Serpent −1) are derived from the relics owned at each combat entry. The bottles' flag is their
+/// `relic_cards` mapping, dropped by the caller. Every other relic's `onUnequip` is empty.
+fn on_unequip(state:&mut RunState,id:RelicId){
+    // Necronomicon: the first Necronomicurse leaves by a direct `group.remove`, so no removal hook
+    // (its returned copy) runs.
+    if id==RelicId::Necronomicon{
+        if let Some(index)=state.deck.iter().position(|card|card.id==crate::content::CardId::Necronomicurse){state.deck.remove(index);}
+    }
 }
 
 /// Open the shared room-continuation selector for an equip that needs card instances.
