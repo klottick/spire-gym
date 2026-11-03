@@ -37,6 +37,9 @@ const GROWTH:&[EnemyId]=&[EnemyId::SpireGrowth];const TRANSIENT:&[EnemyId]=&[Ene
 const SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker];
 const SPHERE_SHAPES:&[EnemyId]=&[EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Spiker,EnemyId::SphericGuardian];
 const HEART:&[EnemyId]=&[EnemyId::CorruptHeart];
+const COLOSSEUM_SLAVERS:&[EnemyId]=&[EnemyId::SlaverBlue,EnemyId::SlaverRed];
+const COLOSSEUM_NOBS:&[EnemyId]=&[EnemyId::Taskmaster,EnemyId::GremlinNob];
+const MASKED_BANDITS:&[EnemyId]=&[EnemyId::BanditPointy,EnemyId::BanditLeader,EnemyId::BanditBear];
 pub(crate) const ENEMIES: &[EnemyDefinition] = &[
     EnemyDefinition{id:EnemyId::Looter,definition_only:false},
     EnemyDefinition{id:EnemyId::Mugger,definition_only:false},
@@ -95,6 +98,9 @@ pub(crate) const ENEMIES: &[EnemyDefinition] = &[
     EnemyDefinition { id: EnemyId::LouseRed, definition_only: false },
     EnemyDefinition { id: EnemyId::LouseGreen, definition_only: false },
     EnemyDefinition { id: EnemyId::SlimeBoss, definition_only: false },
+    EnemyDefinition { id: EnemyId::BanditPointy, definition_only: false },
+    EnemyDefinition { id: EnemyId::BanditLeader, definition_only: false },
+    EnemyDefinition { id: EnemyId::BanditBear, definition_only: false },
 ];
 pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
     EncounterDefinition{id:EncounterId::RedSlaver,enemies:&[EnemyId::SlaverRed],definition_only:false},
@@ -114,6 +120,9 @@ pub(crate) const ENCOUNTERS: &[EncounterDefinition] = &[
     // M28d event formations: Mushrooms' three Fungi Beasts, Dead Adventurer's awake Lagavulin.
     EncounterDefinition{id:EncounterId::ThreeFungiBeasts,enemies:&[EnemyId::FungiBeast;3],definition_only:false},
     EncounterDefinition{id:EncounterId::LagavulinEvent,enemies:&[EnemyId::Lagavulin],definition_only:false},
+    EncounterDefinition{id:EncounterId::ColosseumSlavers,enemies:COLOSSEUM_SLAVERS,definition_only:false},
+    EncounterDefinition{id:EncounterId::ColosseumNobs,enemies:COLOSSEUM_NOBS,definition_only:false},
+    EncounterDefinition{id:EncounterId::MaskedBandits,enemies:MASKED_BANDITS,definition_only:false},
     // Randomized formations publish their complete species support set here;
     // the shared setup owner chooses ordered actors and multiplicities.
     EncounterDefinition{id:EncounterId::SmallSlimes,enemies:&[EnemyId::AcidSlimeS,EnemyId::AcidSlimeM,EnemyId::SpikeSlimeS,EnemyId::SpikeSlimeM],definition_only:false},

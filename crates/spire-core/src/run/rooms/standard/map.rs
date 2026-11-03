@@ -22,6 +22,8 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
     };
     let room=staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?;
     room.active_rewards=None;room.reward_parent=None;room.standard_event=None;
+    // The previous room's event stops being the current room's: We Meet Again's potion lock ends here.
+    staged.state.we_meet_again=false;
     {
         let mut item_event=crate::items::dispatch::RunItemEvent::RoomEntered{kind:entered_kind};
         // M27 seam: RoomEntered (world::enter_standard already dispatched FloorEntered).

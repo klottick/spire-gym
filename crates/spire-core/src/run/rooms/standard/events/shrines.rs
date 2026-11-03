@@ -95,6 +95,8 @@ pub(in crate::run) const MATCH_AND_KEEP:Body=Body{
         if position>=c.card_ids.len()||position>=12||c.values.len()<3{return None}
         (c.values[2]&(1u32<<position)!=0).then(||c.card_ids[position])
     }),
+    card_stage:Some(|stage|stage<5),
+    shows:None,
     selected:None,
 };
 

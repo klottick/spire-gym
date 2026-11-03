@@ -148,6 +148,65 @@ pub(super) fn body(event:EventId)->Option<&'static Body>{
         EventId::FountainOfCleansing=>Some(&FOUNTAIN_OF_CLEANSING),
         EventId::Lab=>Some(&LAB),
         EventId::NoteForYourself=>Some(&NOTE_FOR_YOURSELF),
+        EventId::WeMeetAgain=>Some(&WE_MEET_AGAIN),
+        EventId::WomanInBlue=>Some(&WOMAN_IN_BLUE),
         _=>None,
     }
 }
+
+/// We Meet Again! (event-neow research :290; PM checks m28e/source-check-open-a-v1, -b-v1 item 11).
+/// Construction, in source order: a uniform held potion slot, the gold amount (none below 50 gold;
+/// else uniform 50..=min(150, G)), a uniform non-Basic non-Curse deck card; an empty list draws
+/// nothing and disables its row. Each gift then obtains a screenless relic of an ordinary tier
+/// roll; Attack leaves. The buttons name the preselected potion, gold amount (the row price) and
+/// card (D2). Potion use and discard are locked from construction until the next room (frame).
+pub(in crate::run) const WE_MEET_AGAIN:Body=Body{
+    construct:|cx|{
+        let held:Vec<u32>=cx.state.potions.iter().enumerate().filter(|(_,p)|p.is_some()).map(|(i,_)|i as u32).collect();
+        let potion=if held.is_empty(){0}else{held[cx.draw(1,held.len())?]+1};
+        let gold=if cx.state.gold<50{0}else{50+cx.draw(2,(cx.state.gold.min(150)-49) as usize)? as u32};
+        let catalog=crate::content::Catalog::standard();
+        let gifts:Vec<u64>=cx.state.deck.iter().filter(|c|catalog.card(c.id).is_some_and(|d|d.rarity!=crate::content::CardRarity::Basic&&d.card_type!=crate::content::CardType::Curse)).map(|c|c.instance).collect();
+        let cards=if gifts.is_empty(){vec![]}else{vec![gifts[cx.draw(3,gifts.len())?]]};
+        Ok(EventCaptures{values:vec![potion,gold],cards,..Default::default()})
+    },
+    rows:|_,c,stage|if stage==0{vec![(0,None),(1,(c.values[1]>0).then_some(c.values[1])),(2,None),(3,None)]}else{vec![]},
+    shows:Some(|state,c,stage,option|match (stage,option){
+        (0,0)=>super::Shows::Potion(c.values[0].checked_sub(1).and_then(|slot|state.potions.get(slot as usize).copied().flatten())),
+        (0,2)=>super::Shows::Card(c.cards.first().copied()),
+        _=>super::Shows::Nothing,
+    }),
+    choose:|_,c,stage,option|{
+        if stage!=0{return Err(RunError::InvalidAction)}
+        // PM check m28e/source-check-mechanics-c-v1: spawnRelicAndObtain is screenless.
+        let gift=match option{
+            0 if c.values[0]>0=>Outcome::LosePotion((c.values[0]-1) as u8),
+            1 if c.values[1]>0=>Outcome::LoseGold(c.values[1]),
+            2 if !c.cards.is_empty()=>Outcome::RemoveSpecific(c.cards[0]),
+            3=>return Ok(vec![Outcome::Leave]),
+            _=>return Err(RunError::InvalidAction),
+        };
+        Ok(vec![gift,Outcome::ObtainRelic(RelicChoice::RandomTier),Outcome::NextStage(DONE)])
+    },
+    ..PLAIN
+};
+
+/// The Woman in Blue: buy one, two, or three flat character-pool potions, or leave. At A15+,
+/// Leave reads the current maximum HP and requests five-percent HP_LOSS.
+pub(in crate::run) const WOMAN_IN_BLUE:Body=Body{
+    rows:|_,_,stage|if stage==0{vec![(0,Some(20)),(1,Some(30)),(2,Some(40)),(3,None)]}else{vec![]},
+    choose:|state,_,stage,option|{
+        if stage!=0{return Err(RunError::InvalidAction)}
+        match option{
+            0..=2=>{
+                let price=[20,30,40][usize::from(option)];
+                // PM check m28e/source-check-mechanics-c-v1: Proceed finishes the room.
+                Ok(vec![Outcome::LoseGold(price),Outcome::Rewards{potions:option+1,relics:vec![]}])
+            }
+            3 if a15(state)=>Ok(vec![Outcome::LoseHp(((state.max_hp as f32)*0.05_f32).ceil() as u32),Outcome::Leave]),
+            3=>Ok(vec![Outcome::Leave]),
+            _=>Err(RunError::InvalidAction),
+        }
+    },
+    ..PLAIN
+};

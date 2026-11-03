@@ -30,8 +30,10 @@ pub const PUBLIC_POWERS: &[&str] = &[
     "cannot_change_stance",
 ];
 
-/// Every intent name the public combat view can publish, in vocabulary order.
-/// `hidden` is the masked intent shown while intents are concealed.
+/// Frozen shared-policy intent vocabulary, in descriptor order.
+/// `hidden` is the masked intent shown while intents are concealed. Event-local
+/// intents visible through CombatPublic are listed separately below so this table
+/// does not change the frozen observation schemas.
 pub const PUBLIC_INTENTS: &[&str] = &[
     "incantation", "attack", "chomp", "thrash", "bellow", "bite", "grow", "spit_web", "skull_bash",
     "bull_rush", "acid_tackle", "acid_spit", "acid_lick", "acid_split", "spike_tackle",
@@ -68,5 +70,12 @@ pub const PUBLIC_INTENTS: &[&str] = &[
     "snake_plant_chomp_chomp", "snake_plant_enfeebling_spores", "hidden",
 ];
 
+/// Finite M28e event intents are visible in CombatPublic but stay outside the
+/// frozen shared policy vocabulary until a profile admits them.
+pub const EVENT_INTENTS: &[&str] = &[
+    "pointy_special", "romeo_mock", "romeo_agonizing_slash", "romeo_cross_slash",
+    "bear_hug", "bear_lunge", "bear_maul",
+];
+
 pub fn is_public_power(name: &str) -> bool { PUBLIC_POWERS.contains(&name) }
-pub fn is_public_intent(name: &str) -> bool { PUBLIC_INTENTS.contains(&name) }
+pub fn is_public_intent(name: &str) -> bool { PUBLIC_INTENTS.contains(&name) || EVENT_INTENTS.contains(&name) }

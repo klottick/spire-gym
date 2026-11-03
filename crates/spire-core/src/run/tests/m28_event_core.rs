@@ -537,7 +537,10 @@ fn m28_event_room_monster_fallback() {
 /// Item 15: an event whose body lands later rejects the move with its chunk's interim, unchanged.
 #[test]
 fn m28_unlanded_event_body_interim() {
-    for (event, act, interim) in [(EventId::CursedTome, 2, "M28 event body lands in M28e"), (EventId::Library, 2, "M28 event body lands in M28e"), (EventId::Nloth, 2, "M28 event body lands in M28f")] {
+    // M28e lands every M28e body; the M28f bodies remain interim.
+    assert_eq!(rooms::standard::events::interim(EventId::Colosseum), "event handler unavailable");
+    assert!(rooms::standard::events::body(EventId::Colosseum).is_some());
+    for (event, act, interim) in [(EventId::Designer, 2, "M28 event body lands in M28f"), (EventId::Nloth, 2, "M28 event body lands in M28f")] {
         let (mut run, node) = before_event(Character::Ironclad, act, event, 31);
         run.state.gold = 100; run.state.relics.push(RelicId::Anchor);
         let before = run.clone();
@@ -810,13 +813,16 @@ fn m28_event_combat_escape_with_rewards() {
     run.state.potions[0] = Some(crate::content::PotionId::SmokeBomb);
     let (offset, gold) = (run.state.potion_offset, run.state.gold);
     let spec = RewardSpec { gold: 20, gold_range: None, relics: vec![rooms::standard::event_exec::RelicChoice::Tier(crate::content::RelicTier::Common)] };
-    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: Some(spec), next_stage: DONE, elite: false }]).unwrap();
+    // M28e (PM check m28e/source-check-open-b-v1 item 12): the hidden relic row leaves the pool at fight entry.
     let pools = run.state.relic_pools.clone();
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::OrbWalker, rewards: Some(spec), next_stage: DONE, elite: false }]).unwrap();
+    assert_ne!(run.state.relic_pools, pools, "the hidden relic row was built");
+    let started = run.state.relic_pools.clone();
     run.choose_combat(CombatAction::UsePotion { slot: 0, target: None }).unwrap();
     let rows = view(&run);
     assert_eq!((rows.kind, rows.choices.iter().map(|c| c.kind.clone()).collect::<Vec<_>>()), (RoomViewKind::Rewards, vec![RoomChoiceKind::Proceed]));
     assert!((run.state.potion_offset - offset).abs() == 10, "the potion roll ran: {offset} -> {}", run.state.potion_offset);
-    assert_ne!(run.state.relic_pools, pools, "the hidden relic row was built");
+    assert_eq!(run.state.relic_pools, started, "the escape takes nothing more");
     let id = row(&run, &RoomChoiceKind::Proceed).id;
     run.step(&GameAction::Choose(id)).unwrap();
     assert_eq!((view(&run).kind, run.state.gold), (RoomViewKind::Map, gold), "nothing hidden is granted");

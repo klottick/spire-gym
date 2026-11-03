@@ -52,6 +52,8 @@ pub(crate) fn remove_card(state:&mut RunState,id:u64)->Result<CardInstance,RunEr
     let parasite=state.deck[at].id==CardId::Parasite;
     if parasite&&(state.combat.is_some()||state.max_hp==0||state.max_hp>999||state.hp>state.max_hp){return Err(RunError::InvalidAction)}
     let card=state.deck.remove(at);
+    // A bottle's mark travels with its card (PM ruling, M28e): a removed card leaves no bottle mapping.
+    state.relic_cards.retain(|_,instance|*instance!=card.instance);
     if parasite{decrease_max_hp(state,3);}
     crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::CardRemoved)?;Ok(card)
 }

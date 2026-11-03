@@ -106,8 +106,9 @@ fn m28_dead_adventurer_search() {
                 let gold_range=if remaining.contains(&0){55..=65}else{25..=35};
                 assert!(gold_range.contains(&rewards.gold), "ambush gold retains only unconsumed GOLD: {rewards:?}");
                 assert_eq!(rewards.gold_range,None,"the 25–35 range is drawn at fight entry");
-                assert_eq!(rewards.relics,if remaining.contains(&2){vec![RelicChoice::RandomTier]}else{vec![]},
-                    "ambush relic row remains only while RELIC is unconsumed");
+                // M28e (PM check m28e/source-check-open-b-v1 item 12): the RELIC row is rolled and taken at fight entry.
+                assert_eq!(rewards.relics.len(),usize::from(remaining.contains(&2)),"ambush relic row remains only while RELIC is unconsumed");
+                assert!(rewards.relics.iter().all(|r|matches!(r,RelicChoice::Specific(_))),"the relic row is taken at fight entry: {rewards:?}");
                 risk[successful_searches as usize][0] = true;
                 break;
             }

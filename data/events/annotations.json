@@ -66,11 +66,11 @@
     },
     {
       "id": "E14",
-      "description": "Use listed enemy slot order for event formations where the source does not settle positions."
+      "description": "For event formations whose positions remain unsettled by source, use the listed slot order; record source-confirmed order directly (Masked Bandits: Pointy, Romeo, Bear)."
     },
     {
       "id": "E15",
-      "description": "Use Java rounding for values called rounded and truncation for the Forgotten Altar amount with no named operator."
+      "description": "Apply the source-specific numeric operator; Forgotten Altar captures MathUtils.round(binary32(M × 0.25)) at construction (A15: 0.35), correcting the earlier truncation assumption."
     },
     {
       "id": "F1",
@@ -2804,7 +2804,7 @@
           {
             "type": "repo",
             "path": "crates/spire-core/src/run/rooms/standard/events/act2.rs",
-            "line": 6,
+            "line": 7,
             "grade": "S"
           }
         ],
@@ -2847,7 +2847,7 @@
             {
               "type": "repo",
               "path": "crates/spire-core/src/run/rooms/standard/events/act2.rs",
-              "line": 6,
+              "line": 7,
               "grade": "S"
             },
             {
@@ -3032,7 +3032,15 @@
             {
               "name": "later purge",
               "options": [
-                "select one purgeable card; empty-group behavior unresolved"
+                "select one purgeable card"
+              ],
+              "grade": "S"
+            },
+            {
+              "name": "empty-grid behavior",
+              "options": [
+                "Original: with no purgeable card, Pay opens an empty removal grid and strands the player after the 75-gold payment.",
+                "SOFTLOCK-001 simulator behavior: Pay still takes 75 gold, removes nothing and completes the event."
               ],
               "grade": "S"
             }
@@ -3049,6 +3057,42 @@
               "page": "Old Beggar",
               "revision_id": 68674,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 215,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 126,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 127,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 130,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 136,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/intentional-deviations.md",
+              "line": 137,
+              "grade": "S"
             }
           ],
           "grade": "U",
@@ -3056,7 +3100,7 @@
             "E10",
             "F1"
           ],
-          "note": "The payment is sourced; empty-group behavior is not settled."
+          "note": "The original empty-group path strands the player; SOFTLOCK-001 makes the simulator take 75 gold, remove nothing and complete the event."
         },
         {
           "id": "leave",
@@ -3148,6 +3192,14 @@
                 "This fight has rewards disabled; Smoke Bomb escape reopens Colosseum at its post-fight continuation."
               ],
               "grade": "S"
+            },
+            {
+              "name": "initial event pages",
+              "options": [
+                "Original: an intro and Continue pages precede the first fight.",
+                "D1 simulator behavior: collapse both forced pages into one stage-0 start row; the potion window remains available there."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -3173,6 +3225,24 @@
               "type": "repo",
               "path": "docs/milestones/m28-events-economy.md",
               "line": 123,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 208,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 209,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 210,
               "grade": "S"
             }
           ],
@@ -3340,7 +3410,8 @@
               "name": "reading",
               "options": [
                 "continue through three reading costs",
-                "then choose take or stop"
+                "then choose take or stop",
+                "the three Continue pages remain separate stages, allowing potion use between HP losses"
               ],
               "grade": "S"
             }
@@ -3357,6 +3428,12 @@
               "page": "Cursed Tome",
               "revision_id": 68412,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 208,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -3378,13 +3455,20 @@
           "draws": [
             {
               "name": "book selection",
-              "law": "Uniform law not stated in the local report.",
-              "grade": "U",
-              "decision": "F1",
-              "note": "The missing-book support is sourced; exact random selection law is not stated."
+              "law": "At Take after the HP loss, select uniformly from the fixed-order missing list [Necronomicon, Enchiridion, Nilry’s Codex]; if none are missing, use Circlet.",
+              "grade": "S"
             }
           ],
-          "selections": [],
+          "selections": [
+            {
+              "name": "book reward and continuation",
+              "options": [
+                "The book is offered on a skippable relic reward screen.",
+                "Original: Proceed opens a Leave-only page; D1 simulator behavior: Proceed returns directly to the map."
+              ],
+              "grade": "S"
+            }
+          ],
           "citations": [
             {
               "type": "repo",
@@ -3397,6 +3481,30 @@
               "page": "Cursed Tome",
               "revision_id": 68412,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 209,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 210,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 211,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 221,
+              "grade": "S"
             }
           ],
           "grade": "U",
@@ -3404,7 +3512,7 @@
             "E1",
             "F1"
           ],
-          "note": "The missing-book support is sourced; exact random selection law is not stated."
+          "note": "The book is selected uniformly at Take after the HP loss from the fixed-order missing-book list; Circlet applies if all are owned."
         },
         {
           "id": "stop",
@@ -3616,7 +3724,7 @@
           "name": "Exchange Golden Idol",
           "amounts": {
             "relic_slot": {
-              "value": "replace the Golden Idol slot with Bloody Idol",
+              "value": "If Bloody Idol is not owned, replace Golden Idol in its slot with Bloody Idol; if it is already owned, keep Golden Idol and obtain Circlet.",
               "grade": "S"
             }
           },
@@ -3634,6 +3742,12 @@
               "page": "Forgotten Altar",
               "revision_id": 68523,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 203,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -3650,7 +3764,7 @@
               "grade": "S"
             },
             "damage": {
-              "value": "trunc(binary32(0.25 × pre-branch M)); +5 max HP occurs first",
+              "value": "MathUtils.round(binary32(0.25 × pre-gain M)); captured at construction before +5 max HP. A15 uses MathUtils.round(binary32(0.35 × pre-gain M)).",
               "grade": "D",
               "decision": "E15"
             }
@@ -3674,6 +3788,24 @@
               "type": "repo",
               "path": "docs/research/2026-10-19-act1-content-economy-potions.md",
               "line": 45,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 219,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 220,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 224,
               "grade": "S"
             }
           ],
@@ -3897,17 +4029,15 @@
           "draws": [
             {
               "name": "fight gold",
-              "law": "Inclusive 25–35 range; exact amount mass and relic pool law are unresolved.",
-              "grade": "U",
-              "decision": "E8",
-              "note": "The local report records the range and Red Mask reward only."
+              "law": "Uniform integer from 25 through 35 inclusive (11 equally likely values), drawn at the Fight choice.",
+              "grade": "S"
             }
           ],
           "selections": [
             {
               "name": "combat",
               "options": [
-                "Pointy, Romeo and Bear in the listed order"
+                "Pointy, Romeo and Bear in source slot order"
               ],
               "grade": "S"
             },
@@ -3943,16 +4073,21 @@
               "path": "docs/milestones/m28-events-economy.md",
               "line": 122,
               "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 193,
+              "grade": "S"
             }
           ],
           "grade": "U",
           "decisions": [
             "E1",
             "E8",
-            "E14",
             "F1"
           ],
-          "note": "Fight group and reward range are sourced; exact gold mass/relic-pool behavior remains U.; PM source check m28c M2 (2026-11-02): reward screen Proceed returns to the map after escape."
+          "note": "Fight group, source slot order, uniform gold draw and fixed Red Mask/Circlet row are sourced; PM source check m28c M2 (2026-11-02): reward-screen Proceed returns to the map after escape."
         }
       ],
       "decisions": [
@@ -4096,12 +4231,12 @@
           "draws": [
             {
               "name": "candidate cards",
-              "law": "20 distinct IDs; rarity is rerolled when a duplicate ID is proposed; preview obtain hooks run.",
+              "law": "At the Read choice, draw 20 distinct IDs; rarity is rerolled when a duplicate ID is proposed, and preview obtain hooks run.",
               "grade": "S"
             },
             {
               "name": "candidate joint law",
-              "law": "20 distinct-ID candidates with rarity re-proposal on duplicate; exact joint measure is unresolved.",
+              "law": "At the Read choice, 20 distinct-ID candidates use rarity re-proposal on duplicate; exact joint measure is unresolved.",
               "grade": "U",
               "decision": "F1",
               "note": "No initialized/history-conditioned candidate law is claimed."
@@ -4128,6 +4263,18 @@
               "page": "The Library",
               "revision_id": 68871,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 204,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 221,
+              "grade": "S"
             }
           ],
           "grade": "U",
@@ -4225,15 +4372,15 @@
           "draws": [
             {
               "name": "curse flag",
-              "law": "One boolean draw controls whether Writhe is offered.",
+              "law": "At A0, one boolean draw controls whether Writhe is offered; at A15 the draw is still consumed but Writhe is forced.",
               "grade": "S"
             },
             {
               "name": "relic selector",
-              "law": "A screenless relic is selected; exact tier/pool law is not restated for this event.",
+              "law": "At the choice, take one ordinary-tier relic from the Event pool screenlessly; exact initialized/history-conditioned output mass remains unresolved.",
               "grade": "U",
               "decision": "F1",
-              "note": "The local Acts 2/3 report does not close this selector."
+              "note": "The tier, source and screenless take are resolved; only exact output mass conditioned on pool state and RNG history remains open."
             }
           ],
           "selections": [
@@ -4258,6 +4405,18 @@
               "page": "The Mausoleum",
               "revision_id": 68872,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 221,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 225,
+              "grade": "S"
             }
           ],
           "grade": "U",
@@ -4265,7 +4424,7 @@
             "E1",
             "F1"
           ],
-          "note": "The boolean and screenless relic outcomes are sourced; the exact relic selector is not."
+          "note": "The source uses a Writhe boolean and an ordinary-tier screenless Event relic take; exact initialized/history-conditioned relic output mass remains unresolved."
         },
         {
           "id": "decline",
@@ -4571,7 +4730,7 @@
             {
               "type": "repo",
               "path": "crates/spire-core/src/run/tests/m28_event_core.rs",
-              "line": 649,
+              "line": 652,
               "grade": "S"
             },
             {
@@ -7128,6 +7287,14 @@
                 "one potion or skip"
               ],
               "grade": "S"
+            },
+            {
+              "name": "after rewards Proceed",
+              "options": [
+                "Original: Proceed after the shared potion Rewards screen opens a Leave-only page.",
+                "D1 simulator behavior: Proceed returns directly to the map."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7142,6 +7309,18 @@
               "page": "The Woman in Blue",
               "revision_id": 68878,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 210,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 211,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -7173,6 +7352,14 @@
                 "each potion or skip"
               ],
               "grade": "S"
+            },
+            {
+              "name": "after rewards Proceed",
+              "options": [
+                "Original: Proceed after the shared potion Rewards screen opens a Leave-only page.",
+                "D1 simulator behavior: Proceed returns directly to the map."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7187,6 +7374,18 @@
               "page": "The Woman in Blue",
               "revision_id": 68878,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 210,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 211,
+              "grade": "S"
             }
           ],
           "grade": "S",
@@ -7218,6 +7417,14 @@
                 "each potion or skip"
               ],
               "grade": "S"
+            },
+            {
+              "name": "after rewards Proceed",
+              "options": [
+                "Original: Proceed after the shared potion Rewards screen opens a Leave-only page.",
+                "D1 simulator behavior: Proceed returns directly to the map."
+              ],
+              "grade": "S"
             }
           ],
           "citations": [
@@ -7232,6 +7439,18 @@
               "page": "The Woman in Blue",
               "revision_id": 68878,
               "grade": "W"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 210,
+              "grade": "S"
+            },
+            {
+              "type": "repo",
+              "path": "docs/milestones/m28-events-economy.md",
+              "line": 211,
+              "grade": "S"
             }
           ],
           "grade": "S",

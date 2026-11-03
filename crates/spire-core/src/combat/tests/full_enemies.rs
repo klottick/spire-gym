@@ -38,6 +38,7 @@ fn enemy(id: EnemyId, intent: FullIntentId, hp: i32) -> EnemyState {
             EnemyId::TimeEater=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::Deca|EnemyId::Donu|EnemyId::SpireShield|EnemyId::SpireSpear|EnemyId::CorruptHeart=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::FungiBeast|EnemyId::Looter|EnemyId::Mugger|EnemyId::ShelledParasite|EnemyId::SnakePlant=>EnemyMemory::for_enemy(id).unwrap(),
+            EnemyId::BanditPointy|EnemyId::BanditLeader|EnemyId::BanditBear=>EnemyMemory::for_enemy(id).unwrap(),
             EnemyId::Unknown(_) => unreachable!(),
         }), intent_damage: None, life: super::super::model::ActorLife::Active,
     };

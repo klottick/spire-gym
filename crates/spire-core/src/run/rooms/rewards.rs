@@ -423,6 +423,20 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
     Ok(Some(PreparedRoomRewards{screen,rng,next,captured:Some(CapturedRewards::new(cards,return_to)),elite_cursor:None,
         complete_relic_pools:pools,complete_potion_offset:potion_offset,act:run.state.act,m10:false,card_rarity_offset:card_offset}))
 }
+/// A rewards-disabled event fight (the Colosseum's first; N3, PM source check
+/// m28e/source-check-event-escape-v1 ‡): the EventRoom still rolls its potion appearance after a
+/// victory or a Smoke Bomb escape (`addPotionToRewards` precedes the `rewardAllowed` check), over a
+/// room whose rewards the event cleared; the event's reopen then clears the result. Returns the RNG
+/// and potion offset to commit, or `None` for any other combat.
+pub(in crate::run) fn suppressed_event_potion_roll(run:&Run,record:&CombatRecord)->Result<Option<(RunRng,i32)>,RunError>{
+    let Some(CombatOrigin::Event{node,..})=run.state.active_combat.as_ref().map(|a|a.origin) else {return Ok(None)};
+    if !is_standard(&run.state)||super::standard::event_frame::combat_rewards(&run.state).is_some()
+        ||!matches!(record.outcome,crate::combat::Outcome::Victory|crate::combat::Outcome::Escaped){return Ok(None)}
+    let mut producer=combat_inventory_state(run);
+    let key=[u64::from(run.state.act),u64::from(run.state.floor),node.0,record.visit,MapNodeKind::Event as u64];
+    crate::items::potion_offers::combat_appearance(&mut producer,crate::items::potion_offers::RewardRoom::Event,0,&key)?;
+    Ok(Some((producer.rng,producer.potion_offset)))
+}
 #[cfg(test)]
 pub(in crate::run) fn prepare_combat_with_building(run:&Run,record:&CombatRecord,building:crate::items::dispatch::RunItemEvent)->Result<Option<PreparedRoomRewards>,RunError>{
     prepare_combat_impl(run,record,Some(building))

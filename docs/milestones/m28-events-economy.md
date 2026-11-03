@@ -1,6 +1,6 @@
 # M28 events and economy rooms
 
-Status: **candidate in progress (chunks M28a–M28c merged, M28d in review; six chunks); M28 is not accepted.** M28 is delivered in
+Status: **candidate in progress (chunks M28a–M28d merged, M28e in review; six chunks); M28 is not accepted.** M28 is delivered in
 merge chunks M28a–M28f, each frozen, independently reviewed and merged alone. This page states
 what the merged chunks provide and the interim limits that remain until M28f. It is a candidate
 profile, not a public profile: M28 adds no spire-env, Gym or Python profile, descriptor or
@@ -180,12 +180,67 @@ feature until M28f completes every room. A build without the feature returns
   World of Goop's loss 35–75. Note For Yourself is not offered at A15+. Transforms stay unupgraded
   at every ascension.
 
+## M28e: events batch 2
+
+- **Bodies.** Eleven Act 2 ordinary events (Beggar, Colosseum, Cursed Tome, Drug Dealer, Forgotten
+  Altar, Ghosts, Masked Bandits, Nest, The Library, The Mausoleum, Vampires) and two shrines (We Meet
+  Again, The Woman in Blue). Source owners are `Beggar`, `DrugDealer` and `Ghosts`; values come from
+  the M28e source checks, and amounts read from max HP and the class pools are tested for each
+  character.
+- **Event fights.** Colosseum fights `ColosseumSlavers` (Slaver Blue, then Slaver Red; no rewards),
+  then offers Escape or Fight Nobs; `ColosseumNobs` is Taskmaster, then Gremlin Nob, with a Rare and
+  an Uncommon relic row, 100 gold and the elite trigger. Masked Bandits fights `MaskedBandits`:
+  Pointy, Romeo and Bear in source slot order, with 25–35 gold drawn at the Fight choice and a fixed
+  Red Mask row (Circlet if owned). Pay gives up all gold. The three bandits are new enemies, at A0 only.
+- **Shared rules.** Event fights whose reward rows draw a relic tier now take those relics from the
+  pools when the fight starts, as the source adds them before entering combat. This applies to
+  every event fight, Mind Bloom and Dead Adventurer included. A rewards-disabled event fight
+  (Colosseum's first) still takes the EventRoom potion roll after victory or escape. An event fight
+  whose encounter has no enemy facts at the Run's ascension is rejected with a typed `Unsupported`
+  before the choice is accepted. Removing or transforming a bottled card clears its bottle.
+- **Executor.** New outcomes lose a held potion (We Meet Again), remove every tagged card in one step
+  (Vampires' Strikes), replace a relic in its slot with no equip effect (Forgotten Altar's Golden
+  Idol to Bloody Idol) and build The Library's 20-card board. The board's cards are distinct, drawn
+  at the Read choice with the EventRoom rarity thresholds from the active character's pools, with or
+  without Prismatic Shard (the source's plain `getCard`, not the reward builder). Cursed
+  Tome's losses, and The Woman in Blue's A15 Leave, are HP loss with no owner; Nest's Stay in Line
+  and Forgotten Altar's Sacrifice are unowned damage. Drug Dealer's transform grid keeps bottled
+  cards; every other remove, transform or choose grid excludes them, and upgrade grids keep them.
+- **Screens.** Cursed Tome's three Continue pages stay steps (a potion between the HP losses can
+  change the result); its book is a skippable relic reward screen. Collapsed under D1: Colosseum's
+  intro and Continue pages into one start row, and the Leave-only page after Cursed Tome's and The
+  Woman in Blue's reward screens, which return to the map. Colosseum's Nobs rewards list the gold
+  first; the source lists Rare, Uncommon, Gold (display order only). The Library's grid has no
+  cancel; the source's cancel path is hidden. Vampires offers Give Vial only while Blood Vial is
+  owned. We Meet Again's rows show what each button gives (D2): the preselected potion, the gold
+  amount as the row price, and the card, whose candidate names its deck instance.
+- **Potion lock.** From the start of We Meet Again until the next room is entered, no potion can be
+  used or discarded, on the map after Leave included. The source tests the current room's event,
+  and the room stays the event room after the map opens.
+- **Empty grids.** Beggar follows SOFTLOCK-001: with no purgeable card, Pay takes the 75 gold and
+  the event completes without a removal. Drug Dealer's Transform is disabled with fewer than two
+  purgeable cards.
+- **Draw timing (D3).** Amounts the source captures at construction are captured when the event is
+  built: Cursed Tome's Take loss, Forgotten Altar's `MathUtils.round` cost (this corrects the
+  truncation E15 assumed), Ghosts' and Vampires' max-HP loss, The Library's Sleep heal, and We Meet
+  Again's potion, gold and card. Masked Bandits' gold, The Library's board, Mausoleum's curse roll and
+  relic, and Cursed Tome's book are drawn at the choice. The Library's story text uses LibGDX's
+  random and draws nothing from the simulator.
+- **Ascension 15 and above.** Cursed Tome's Take 15; Forgotten Altar's cost round(.35M); Ghosts'
+  three Apparitions; Nest's Smash and Grab 50; The Library's Sleep round(.20M); The Mausoleum always
+  adds Writhe (the roll is still drawn); The Woman in Blue's Leave costs ceil(.05M) HP. The bandits,
+  like the Colosseum formations, have A0 facts only, so both M28e fights are the typed `Unsupported`
+  above A0. The Colosseum, whose only opening row is its first fight, is rejected at the Move; Masked
+  Bandits still offers Pay; the bandits' A2, A7 and A17 values are recorded for M29–M33. Each bandit's opening
+  `aiRng.random(99)` is not modelled (their moves are fixed). Their intents are event intents outside
+  the frozen policy vocabulary.
+
 ## Interim limits (shrink with each chunk)
 
-- The other event bodies land in M28e–M28f. When the selected event has no body yet, the move
-  returns `RunError::Unsupported("M28 event body lands in M28e")` (or `M28f`) and leaves
-  the Run unchanged, event lists included. Secret Portal's boss entry is likewise typed as
-  landing in M28f.
+- The last nine event bodies (Moai Head, Mysterious Sphere, Sensory Stone, Winding Halls, Secret
+  Portal, The Designer, Duplicator, Knowing Skull and N'loth) land in M28f. When one is selected,
+  the move returns `RunError::Unsupported("M28 event body lands in M28f")` and leaves the Run
+  unchanged, event lists included. Secret Portal's boss entry is likewise typed as landing in M28f.
 
 - The native fuzz harness drives only the finite profiles; each chunk compares its 120 s campaign
   with its base.
