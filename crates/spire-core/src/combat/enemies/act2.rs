@@ -7,6 +7,7 @@ mod partners;
 pub(in crate::combat) mod spawn;
 pub(in crate::combat) mod gremlin_leader;
 pub(in crate::combat) mod slavers;
+pub(in crate::combat) mod bandits;
 pub(in crate::combat) mod book;
 pub(in crate::combat) mod champ;
 pub(in crate::combat) mod collector;
@@ -79,6 +80,7 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
     if let Some(enemy)=state.enemies.iter_mut().find(|e|&e.instance_id==owner){
         match enemy.enemy_id {
             ActorEnemyId::Full(EnemyId::SlaverBlue|EnemyId::Taskmaster|EnemyId::SlaverRed)=>return Ok(slavers::take_turn(enemy)?),
+            ActorEnemyId::Full(EnemyId::BanditPointy|EnemyId::BanditLeader|EnemyId::BanditBear)=>return Ok(bandits::take_turn(enemy)?),
             ActorEnemyId::Full(EnemyId::BookOfStabbing)=>return Ok(book::move_work(enemy)?),
             ActorEnemyId::Full(EnemyId::Champ)=>return Ok(champ::move_work(enemy)?),_=>{},
         }

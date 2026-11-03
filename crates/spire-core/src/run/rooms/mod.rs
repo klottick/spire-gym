@@ -44,7 +44,9 @@ pub enum RoomChoiceKind { NeowMaxHp{amount:u32},NeowLament,Gold(u32),CardReward,
     EventOption{stage:u8,option:u8},
     /// M28 standard event card-board option (Match and Keep, D2): `card` is the position's
     /// identity once revealed.
-    EventCard{stage:u8,option:u8,card:Option<CardId>} }
+    EventCard{stage:u8,option:u8,card:Option<CardId>},
+    /// M28 standard event potion option (We Meet Again, D2): the held potion the row gives up.
+    EventPotion{stage:u8,option:u8,potion:Option<PotionId>} }
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub enum RoomChoiceStatus { Offered,Claimed,Skipped,Disabled }
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -85,7 +87,7 @@ pub(super) fn public(run:&Run)->Result<RoomView,RunError>{
         if matches!(row.kind,RoomChoiceKind::Recall)&&run.state.keys[0]{row.status=RoomChoiceStatus::Disabled;}
         // M28 standard event options are offered only while their outcomes pass the executor's
         // preconditions (design §5.4).
-        if matches!(row.kind,RoomChoiceKind::EventOption{..}|RoomChoiceKind::EventCard{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
+        if matches!(row.kind,RoomChoiceKind::EventOption{..}|RoomChoiceKind::EventCard{..}|RoomChoiceKind::EventPotion{..})&&!standard::event_frame::enabled(run,&row.kind){row.status=RoomChoiceStatus::Disabled;}
         if uses_captured_act1(&run.state)&&matches!(row.kind,RoomChoiceKind::Relic(id) if run.state.relics.contains(&id)){row.status=RoomChoiceStatus::Disabled;}
         if matches!(row.kind,RoomChoiceKind::Rest{..}){row.kind=RoomChoiceKind::Rest{heal:(run.state.max_hp as f32*0.3_f32) as u32};}
         if run.state.pending.is_some(){row.status=RoomChoiceStatus::Disabled;}
@@ -105,7 +107,7 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     let mut candidates:Vec<_>=if view.kind==RoomViewKind::Map {
         run.state.map.as_ref().unwrap().nodes.iter().filter(|n|world::preflight_move(&run.state,n.id).is_ok()).map(|n|Candidate{
             id:ChoiceId(n.id.0),action:GameAction::Move(n.id),label:"Move",neow_offer:None,object:None}).collect()
-    }else{view.choices.iter().filter(|c|c.status==RoomChoiceStatus::Offered).map(|c|Candidate{id:c.id,action:GameAction::Choose(c.id),label:"Room choice",neow_offer:None,object:None}).collect()};
+    }else{view.choices.iter().filter(|c|c.status==RoomChoiceStatus::Offered).map(|c|Candidate{id:c.id,action:GameAction::Choose(c.id),label:"Room choice",neow_offer:None,object:standard::event_frame::row_object(run,&c.kind)}).collect()};
     let we_meet_again=run.state.item_admission==ItemAdmission::Complete&&run.state.we_meet_again;
     for (slot,potion) in run.state.potions.iter().enumerate(){if potion.is_some(){
         if !we_meet_again{candidates.push(Candidate{id:ChoiceId(u64::MAX-slot as u64),action:GameAction::DiscardPotion{slot:slot as u32},label:"Discard potion",neow_offer:None,object:None});}

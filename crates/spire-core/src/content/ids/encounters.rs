@@ -8,11 +8,14 @@ pub enum EnemyId {
     Champ,Collector,TorchHead,BronzeAutomaton,BronzeOrb,
     OrbWalker,Repulsor,Exploder,Spiker,Darkling,SpireGrowth,Transient,Maw,WrithingMass,GiantHead,Nemesis,Reptomancer,Dagger,AwakenedOne,TimeEater,Deca,Donu,SpireShield,SpireSpear,CorruptHeart,
     FungiBeast, Looter, Mugger, ShelledParasite, SnakePlant,
+    // M28e Masked Bandits event species: Pointy, Romeo, Bear.
+    BanditPointy, BanditLeader, BanditBear,
     Unknown(&'static str),
 }
 impl EnemyId { pub const fn as_str(self) -> &'static str { match self {
     Self::FungiBeast=>"fungi_beast",Self::Looter=>"looter",Self::Mugger=>"mugger",
     Self::ShelledParasite=>"shelled_parasite",Self::SnakePlant=>"snake_plant",
+    Self::BanditPointy=>"bandit_pointy",Self::BanditLeader=>"bandit_leader",Self::BanditBear=>"bandit_bear",
     Self::Deca=>"deca",Self::Donu=>"donu",
     Self::TimeEater=>"time_eater",Self::SpireShield=>"spire_shield",Self::SpireSpear=>"spire_spear",Self::CorruptHeart=>"corrupt_heart",
     Self::AwakenedOne=>"awakened_one",
@@ -52,7 +55,9 @@ pub enum EncounterId {
     SphereAndTwoShapes, JawWormHorde, WrithingMass, GiantHead, Nemesis, Reptomancer,
     AwakenedOne, TimeEater, DonuAndDeca, ShieldAndSpear, CorruptHeart,
     // M28d event formations (design §5.8), appended.
-    ThreeFungiBeasts, LagavulinEvent, Unknown(&'static str)
+    ThreeFungiBeasts, LagavulinEvent,
+    // M28e Act 2 event formations (design §5.8), appended after M28d.
+    ColosseumSlavers, ColosseumNobs, MaskedBandits, Unknown(&'static str)
 }
 impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::Cultist=>"cultist", Self::JawWorm=>"jaw_worm", Self::TwoLouse=>"two_louse", Self::SmallSlimes=>"small_slimes",
@@ -69,5 +74,6 @@ impl EncounterId { pub const fn as_str(self) -> &'static str { match self {
     Self::Maw=>"maw", Self::SphereAndTwoShapes=>"sphere_and_two_shapes", Self::JawWormHorde=>"jaw_worm_horde", Self::WrithingMass=>"writhing_mass",
     Self::GiantHead=>"giant_head", Self::Nemesis=>"nemesis", Self::Reptomancer=>"reptomancer", Self::AwakenedOne=>"awakened_one",
     Self::TimeEater=>"time_eater", Self::DonuAndDeca=>"donu_and_deca",Self::ShieldAndSpear=>"shield_and_spear",Self::CorruptHeart=>"corrupt_heart",
-    Self::ThreeFungiBeasts=>"three_fungi_beasts", Self::LagavulinEvent=>"lagavulin_event", Self::Unknown(s)=>s,
+    Self::ThreeFungiBeasts=>"three_fungi_beasts", Self::LagavulinEvent=>"lagavulin_event",
+    Self::ColosseumSlavers=>"colosseum_slavers",Self::ColosseumNobs=>"colosseum_nobs",Self::MaskedBandits=>"masked_bandits",Self::Unknown(s)=>s,
 } } }

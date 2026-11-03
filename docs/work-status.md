@@ -1,6 +1,18 @@
 # Work status
 
-## Current snapshot — 2026-11-02, M28c merged; M28d candidate
+## Current snapshot — 2026-11-02, M28d merged; M28e candidate
+
+- M28d merged as PR #79 (`1c4b4beb`), the M28e source base; fuzz fix chunk B2 merged as PR #78.
+- M28e (events batch 2) is a source candidate and not accepted. It lands 13 event bodies: the
+  eleven Act 2 ordinary events and the We Meet Again and Woman in Blue shrines. It adds three A0-only
+  bandit enemies and the `ColosseumSlavers`, `ColosseumNobs` and `MaskedBandits` event fights.
+  Shared fixes: event-fight relic rows are taken from the pools when the fight starts (Mind Bloom
+  and Dead Adventurer included), an event fight with no enemy facts at the Run's ascension is
+  rejected up front, a rewards-disabled event fight still rolls the EventRoom potion, and removing a
+  bottled card clears its bottle. SOFTLOCK-001 now also covers Beggar. The last nine events return
+  the typed M28f interim. See the [M28 candidate profile](milestones/m28-events-economy.md).
+
+## Snapshot — 2026-11-02, M28c merged; M28d candidate
 
 - M28c merged as PR #76 (`0fe65dd5`), the M28d source base.
 - M28d (events batch 1) is a source candidate and not accepted. It lands 19 event bodies: the ten

@@ -120,10 +120,10 @@ standard Run is A0 only until M29–M33. No other eligibility or history rule ch
 
 ## SOFTLOCK-001 — An unguarded empty event grid completes without a selection
 
-**Decision date:** 2026-11-02 (PM ruling, M28c review M4; extended in M28d). **Status:** disclosed
+**Decision date:** 2026-11-02 (PM ruling, M28c review M4; extended in M28d, M28e). **Status:** disclosed
 M28 deviation.
 
-In the original, three event options open a card grid with no check that it has a card. With no
+In the original, four event options open a card grid with no check that it has a card. With no
 purgeable card (every card is an unremovable curse or bottled), the grid is empty and strands the
 player. The simulator cannot model that soft-lock. In each case the option stays selectable, selects
 nothing and the event continues, as Ancient Writing's Elegance does with an empty group in the
@@ -133,7 +133,10 @@ original:
 - **Transmogrifier** (M28d; `Transmogrifier`): transforms nothing and the event completes.
 - **Wing Statue** (M28d; `GoldenWing`): Pray still deals its 7 damage, then removes nothing and
   shows the result. The source opens the removal grid after the damage with no local check.
+- **Beggar** (M28e; `Beggar`): Pay still takes the 75 gold, then removes nothing and the event
+  completes. The source opens the removal grid after the payment with no local check.
 
 Events that check for a card first are unaffected. The Upgrade Shrine, Living Wall's Grow and
 Accursed Blacksmith's Forge disable their upgrade option when no card can be upgraded. Living Wall,
-The Cleric, Bonfire Spirits and Wheel of Change open their grids only when a purgeable card exists.
+The Cleric, Bonfire Spirits and Wheel of Change open their grids only when a purgeable card exists;
+Drug Dealer disables its Transform with fewer than two.

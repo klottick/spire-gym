@@ -200,6 +200,118 @@ fn m28_a15_cleric_purify_price() {
 }
 
 #[test]
+fn m28_cursed_tome_take_a15_plus() {
+    // CursedTome constructor and Take: captured HP loss is 10 at A14, 15 at A15; the three
+    // separate page choices still cost 1, 2, and 3 HP.
+    for (ascension, take, total) in [(14_u8, 10_u32, 16_u32), (15, 15, 21)] {
+        let mut run = entered(EventId::CursedTome, 2, ascension, 80 + ascension, |run, _| {
+            run.state.hp = 80;
+            run.state.max_hp = 80;
+            run.state.relics.extend([RelicId::Necronomicon, RelicId::Enchiridion, RelicId::NilrysCodex]);
+        });
+        let old_relics = run.state.relics.len();
+        choose(&mut run, 0, 0);
+        choose(&mut run, 1, 0);
+        choose(&mut run, 2, 0);
+        choose(&mut run, 3, 0);
+        assert_eq!(frame(&run).captured.values[0], take);
+        choose(&mut run, 4, 0);
+        assert_eq!(run.state.hp, 80 - total, "A{ascension}");
+        assert_eq!(run.state.relics.len(), old_relics, "Circlet remains unclaimed on the reward screen");
+        assert_eq!(view(&run).kind, RoomViewKind::Rewards);
+        let circlet = row(&run, &RoomChoiceKind::Relic(RelicId::Circlet)).id;
+        run.step(&GameAction::Choose(circlet)).unwrap();
+        assert!(run.state.relics.contains(&RelicId::Circlet));
+        assert_eq!(run.state.relics.len(), old_relics + 1);
+        let proceed = row(&run, &RoomChoiceKind::Proceed).id;
+        run.step(&GameAction::Choose(proceed)).unwrap();
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_forgotten_altar_sacrifice_a15_plus() {
+    // ForgottenAltar: MathUtils.round(.25 × 80) is 20; MathUtils.round(.35 × 80) is 28.
+    for (ascension, damage) in [(14_u8, 20_u32), (15, 28)] {
+        let mut run = entered(EventId::ForgottenAltar, 2, ascension, 90 + ascension, max_hp(80));
+        choose(&mut run, 0, 1);
+        assert_eq!((run.state.max_hp, run.state.hp), (85, 85 - damage), "A{ascension}");
+        assert_eq!(frame(&run).stage, u8::MAX);
+        leave(&mut run);
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_ghosts_accept_a15_plus() {
+    for (ascension, count) in [(14_u8, 5_usize), (15, 3)] {
+        let mut run = entered(EventId::Ghosts, 2, ascension, 100 + ascension, max_hp(80));
+        choose(&mut run, 0, 0);
+        assert_eq!((run.state.max_hp, run.state.hp), (40, 40), "A{ascension}: captured ceil(.5 × 80)");
+        assert_eq!(count_cards(&run, CardId::Apparition), count);
+        assert_eq!(frame(&run).stage, u8::MAX);
+        leave(&mut run);
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_the_nest_smash_and_grab_a15_plus() {
+    for (ascension, reward) in [(14_u8, 99_u32), (15, 50)] {
+        let mut run = entered(EventId::Nest, 2, ascension, 110 + ascension, |_, _| {});
+        let gold = run.state.gold;
+        choose(&mut run, 0, 0);
+        assert_eq!(run.state.gold, gold + reward, "A{ascension}");
+        assert_eq!(frame(&run).stage, u8::MAX);
+        leave(&mut run);
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_the_library_sleep_a15_plus() {
+    for (ascension, heal) in [(14_u8, 26_u32), (15, 16)] {
+        let mut run = entered(EventId::Library, 2, ascension, 120 + ascension, |run, _| {
+            run.state.max_hp = 80;
+            run.state.hp = 1;
+        });
+        choose(&mut run, 0, 1);
+        assert_eq!((run.state.hp, run.state.max_hp), (1 + heal, 80), "A{ascension}");
+        assert_eq!(frame(&run).stage, u8::MAX);
+        leave(&mut run);
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_the_mausoleum_open_a15_plus() {
+    for seed in 0..8_u8 {
+        let mut run = entered(EventId::Mausoleum, 2, 15, seed, |_, _| {});
+        let old_writhe = count_cards(&run, CardId::Writhe);
+        let old_relics = run.state.relics.len();
+        choose(&mut run, 0, 0);
+        assert_eq!(count_cards(&run, CardId::Writhe), old_writhe + 1, "seed {seed}");
+        assert_eq!(run.state.relics.len(), old_relics + 1, "seed {seed}");
+        assert_eq!(frame(&run).stage, u8::MAX);
+        leave(&mut run);
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+#[test]
+fn m28_woman_in_blue_leave_a15_plus() {
+    for (ascension, hp) in [(14_u8, 80_u32), (15, 76)] {
+        let mut run = entered(EventId::WomanInBlue, 2, ascension, 130 + ascension, max_hp(80));
+        let gold = run.state.gold;
+        choose(&mut run, 0, 3);
+        assert_eq!((run.state.hp, run.state.max_hp, run.state.gold), (hp, 80, gold), "A{ascension}");
+        assert_eq!(view(&run).kind, RoomViewKind::Map);
+    }
+}
+
+fn count_cards(run: &Run, id: CardId) -> usize { run.state.deck.iter().filter(|card| card.id == id).count() }
+
+#[test]
 fn m28_a15_ssssserpent_gold() {
     // Sssserpent constructor: 175 gold, or 150 at A15, with Doubt either way.
     for (ascension, gold_gain) in [(14_u8, 175_u32), (15, 150)] {

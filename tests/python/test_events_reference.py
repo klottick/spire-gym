@@ -188,6 +188,26 @@ class EventReferenceTests(unittest.TestCase):
                 {(research, 266), (m28, 153), (deviation, 134)},
             )
 
+        with self.subTest(event="beggar"):
+            branch, item = selection("beggar", "pay_for_removal", "empty-grid behavior")
+            self.assertEqual(item["grade"], "S")
+            text = " ".join(item["options"]).lower()
+            for phrase in ("original", "empty removal grid", "strands", "75-gold payment"):
+                self.assertIn(phrase, text)
+            for phrase in ("softlock-001", "takes 75 gold", "removes nothing", "completes the event"):
+                self.assertIn(phrase, text)
+            assert_source_lines(
+                branch,
+                {
+                    (m28, 215),
+                    (deviation, 126),
+                    (deviation, 127),
+                    (deviation, 130),
+                    (deviation, 136),
+                    (deviation, 137),
+                },
+            )
+
         for event_id, branch_id in (
             ("dead_adventurer", "ambush_and_fight"),
             ("mushrooms", "fight"),

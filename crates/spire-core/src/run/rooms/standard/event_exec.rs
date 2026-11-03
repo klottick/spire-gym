@@ -41,10 +41,24 @@ pub(crate) enum Outcome {
     /// A nested card selection (design §5.6) returning to this list.
     Select{op:EventSelectOp,count:u8,skippable:bool},
     TransformRandom(u8), UpgradeRandom(u8), UpgradeAll, RemoveSpecific(u64),
+    /// Remove every deck card with the tag, in one step (Vampires: G1's starter Strikes); the list's
+    /// later obtains run before any empty-deck end.
+    RemoveTagged(crate::content::CardTag),
     ObtainRelic(RelicChoice), LoseRelic(RelicId),
+    /// Forgotten Altar's `instantObtain` with the equip flag false (PM check
+    /// m28e/source-check-mechanics-c-v1 item 3): `new` takes `old`'s slot; `old` leaves as by
+    /// `LoseRelic` (Golden Idol's `onUnequip` is the base no-op); `new` gets no equip effect.
+    ReplaceRelic{old:RelicId,new:RelicId},
     /// Select a relic, pay `gold`, then grant it (The Addict's Pay; PM ruling Q2).
     BuyRelic{choice:RelicChoice,gold:u32},
     ObtainPotion(PotionChoice),
+    /// The Library's Read (PM check m28e/source-check-open-a-v1 item 7): `count` distinct card ids
+    /// generated at the choice by sequential rejection sampling. Each proposal classifies an
+    /// EventRoom rarity on the live offset (read, never advanced), then draws an identity from that
+    /// rarity's pool; a duplicate id redraws both. The ids become the frame's card board.
+    CardBoard{count:u8},
+    /// Empty a held potion slot (We Meet Again's preselected potion).
+    LosePotion(u8),
     /// Write `value` to the frame's captured `values[slot]` (per-event progress, e.g. Match and Keep).
     SetValue{slot:u8,value:u32},
     /// A draw `n` in `0..bound` at this point of the list: the first arm with `n < upper` continues
@@ -72,11 +86,20 @@ pub(in crate::run) fn select_candidates(state:&RunState,op:EventSelectOp)->Vec<&
     candidates_in(state,&state.deck,op)
 }
 fn candidates_in<'a>(state:&RunState,deck:&'a [CardInstance],op:EventSelectOp)->Vec<&'a CardInstance>{
+    let bottled_ok=keeps_bottled(state,op);
     deck.iter().filter(|card|match op{
+        EventSelectOp::Remove|EventSelectOp::Transform|EventSelectOp::Choose if bottled_ok=>mutations::removable(card.id),
         EventSelectOp::Remove|EventSelectOp::Transform|EventSelectOp::Choose=>crate::run::rooms::selection::purgeable(state,card),
         EventSelectOp::Upgrade=>mutations::can_upgrade(state,card),
         EventSelectOp::Duplicate=>true,
     }).collect()
+}
+
+/// Drug Dealer's transform grid is `masterDeck.getPurgeableCards()` itself, so bottled cards stay
+/// (PM ruling, m28e); every other remove, transform or choose grid strips them
+/// (`getGroupWithoutBottledCards`). Upgrade grids never strip them.
+fn keeps_bottled(state:&RunState,op:EventSelectOp)->bool{
+    op==EventSelectOp::Transform&&state.room_loop.as_ref().and_then(|r|r.standard_event.as_ref()).is_some_and(|f|f.event==EventId::DrugDealer)
 }
 
 /// The simulation `check` runs: the values earlier outcomes change, in order.
@@ -137,7 +160,11 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
                 if *count==0||available<usize::from(*count){return Err(RunError::InvalidAction)}
                 sim.chosen.push((*op,usize::from(*count),candidates));
             }
-            Outcome::ObtainCard{..}|Outcome::ObtainCurse(_)|Outcome::ObtainStoredNote|Outcome::RemoveSpecific(_)=>{
+            Outcome::LosePotion(slot)=>{
+                if !state.potions.get(usize::from(*slot)).is_some_and(Option::is_some){return Err(RunError::InvalidAction)}
+                sim.free+=1;
+            }
+            Outcome::ObtainCard{..}|Outcome::ObtainCurse(_)|Outcome::ObtainStoredNote|Outcome::RemoveSpecific(_)|Outcome::RemoveTagged(_)=>{
                 if let Outcome::RemoveSpecific(instance)=outcome{
                     let deck=sim.deck.as_ref().map_or(&state.deck,|staged|&staged.deck);
                     if !deck.iter().any(|card|card.instance==*instance){return Err(RunError::InvalidAction)}
@@ -149,6 +176,7 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
                         Outcome::ObtainCurse(id)=>{mutations::obtain_card_or_negated(staged,*id,0)?;}
                         Outcome::ObtainStoredNote=>{let (id,upgrades)=staged.stored_note;mutations::obtain_stored_card(staged,id,upgrades)?;}
                         Outcome::RemoveSpecific(instance)=>{mutations::remove_card(staged,*instance)?;}
+                        Outcome::RemoveTagged(tag)=>remove_tagged(staged,*tag)?,
                         _=>unreachable!("deterministic card outcome"),
                     }
                 }
@@ -161,6 +189,11 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
                 sim.owned.push(*id)
             }
             Outcome::LoseRelic(id)=>{let Some(i)=sim.owned.iter().position(|r|r==id) else {return Err(RunError::InvalidAction)};sim.owned.remove(i);}
+            Outcome::ReplaceRelic{old,new}=>{
+                let Some(i)=sim.owned.iter().position(|r|r==old) else {return Err(RunError::InvalidAction)};
+                if sim.owned.contains(new){return Err(RunError::InvalidAction)}
+                sim.owned[i]=*new;
+            }
             Outcome::ObtainPotion(_)=>if !sozu{if sim.free==0{return Err(RunError::InvalidAction)}sim.free-=1},
             Outcome::SetValue{..}=>{}
             Outcome::StoreNote(instance)=>{let deck=sim.deck.as_ref().map_or(&state.deck,|staged|&staged.deck);if !deck.iter().any(|c|c.instance==*instance){return Err(RunError::InvalidAction)}}
@@ -168,11 +201,43 @@ fn check_from(state:&RunState,mut sim:Sim,outcomes:&[Outcome])->Result<(),RunErr
                 if !last||*bound==0||arms.is_empty()||arms.last().map(|(upper,_)|*upper)!=Some(*bound)||arms.windows(2).any(|w|w[0].0>w[1].0){return Err(RunError::InvalidAction)}
                 for (_,arm) in arms{if arm.is_empty(){return Err(RunError::InvalidAction)}check_from(state,sim.clone(),arm)?;}
             }
+            // An encounter without enemy facts at this ascension is the typed interim, before any
+            // mutation (ascension enemy tables land with M29–M33).
+            Outcome::Combat{encounter,..} if !crate::combat::enemies::setup_supports_ascension(*encounter,state.ascension)=>
+                return Err(RunError::Unsupported("event combat enemy setup unavailable at this ascension")),
             Outcome::Combat{..}|Outcome::Rewards{..}|Outcome::NextStage(_)|Outcome::Leave=>if !last{return Err(RunError::InvalidAction)},
             Outcome::EnterBoss=>return Err(RunError::Unsupported(ENTER_BOSS_INTERIM)),
             _=>{}
         }
     }
+    Ok(())
+}
+
+fn card_board(state:&mut RunState,count:usize,key:&[u64])->Result<Vec<CardId>,RunError>{
+    use super::rewards::{classify,RarityRoom};
+    let offset=state.card_rarity_offset.ok_or(RunError::InvalidAction)?;
+    let rare_factor=crate::items::run_laws::card_reward_shape(state,crate::items::run_laws::RewardRoom::Event).rare_factor;
+    let mut ids=Vec::with_capacity(count);
+    let mut attempt=0_u64;
+    while ids.len()<count{
+        let n=state.rng.bounded_scoped_checked(RunRngScope::M28CardRarity,&[key,&[0x11B,attempt,0]].concat(),100)? as u32;
+        let rarity=classify(RarityRoom::Ordinary,n,offset,rare_factor);
+        // The plain `getCard(rarity)`: the active character's pools. Prismatic Shard's every-colour pools
+        // belong to the card-reward builder only (check A items 6-7; review-v1 I1).
+        let pool=crate::content::pools::CardPool::Ordinary{character:state.character,rarity:Some(rarity),card_type:None};
+        let cards=crate::content::pools::cards(pool).map_err(|_|RunError::Unsupported("card pool is incomplete"))?;
+        if cards.is_empty(){return Err(RunError::Unsupported("card pool is empty"))}
+        let id=cards[state.rng.bounded_scoped_checked(RunRngScope::M28CardRarity,&[key,&[0x11B,attempt,1]].concat(),cards.len() as u64)? as usize];
+        if !ids.contains(&id){ids.push(id)}
+        attempt+=1;
+        if attempt>=4096{return Err(RunError::Unsupported("card board retries exhausted"))}
+    }
+    Ok(ids)
+}
+
+fn remove_tagged(state:&mut RunState,tag:crate::content::CardTag)->Result<(),RunError>{
+    let tagged:Vec<u64>=state.deck.iter().filter(|c|crate::content::card_tags(c.id).contains(&tag)).map(|c|c.instance).collect();
+    for instance in tagged{mutations::remove_card(state,instance)?;}
     Ok(())
 }
 
@@ -260,6 +325,19 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                 }
             }
             Outcome::LoseRelic(id)=>items::lose_relic(state,id)?,
+            Outcome::ReplaceRelic{old,new}=>{
+                let slot=state.relics.iter().position(|r|*r==old).ok_or(RunError::InvalidAction)?;
+                items::lose_relic(state,old)?;
+                state.relics.insert(slot,new);
+            }
+            Outcome::RemoveTagged(tag)=>remove_tagged(state,tag)?,
+            Outcome::LosePotion(slot)=>{
+                let slot=usize::from(slot);
+                if state.potions.get(slot).is_none_or(Option::is_none){return Err(RunError::InvalidAction)}
+                state.potions[slot]=None;
+                if let Some(potency)=state.potion_potencies.get_mut(slot){*potency=None;}
+                if !state.potions.iter().any(Option::is_some){state.potion_potencies.clear();}
+            }
             Outcome::ObtainPotion(choice)=>{
                 let potion=match choice{
                     PotionChoice::Specific(id)=>id,
@@ -270,6 +348,10 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                 items::obtain_run_potion(state,potion)?;
             }
             Outcome::SetValue{slot,value}=>event_frame::set_value(run,slot,value)?,
+            Outcome::CardBoard{count}=>{
+                let ids=card_board(state,usize::from(count),&key)?;
+                event_frame::set_cards(run,ids)?;
+            }
             Outcome::Roll{bound,arms}=>{
                 let n=draw(state,&key,bound as usize)? as u32;
                 let (_,arm)=arms.into_iter().find(|(upper,_)|n<*upper).ok_or(RunError::InvalidAction)?;
@@ -281,6 +363,17 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
                     if let Some((low,high))=spec.gold_range.take(){
                         let span=high.checked_sub(low).and_then(|d|d.checked_add(1)).ok_or(RunError::InvalidAction)?;
                         spec.gold=spec.gold.checked_add(low+draw(state,&key,span as usize)? as u32).ok_or(RunError::InvalidAction)?;
+                    }
+                    // Tier rows leave the pools now, in row order (`addRelicToRewards` before `enterCombat`;
+                    // PM check m28e/source-check-open-b-v1 item 12): ordinary reward offers, not screenless.
+                    for (slot,choice) in spec.relics.iter_mut().enumerate(){
+                        let key=[&key[..],&[0xE0,slot as u64]].concat();
+                        let tier=match *choice{
+                            RelicChoice::Specific(_)=>continue,
+                            RelicChoice::Tier(tier)=>tier,
+                            RelicChoice::RandomTier=>relic_pools::roll_tier(state,relic_pools::TierTable::Ordinary,&key),
+                        };
+                        *choice=RelicChoice::Specific(relic_pools::take(state,tier,relic_pools::Selector::Front,RelicSource::Reward,&key)?);
                     }
                 }
                 event_frame::suspend(run,queue.into(),Some(EventCombat{encounter,rewards,next_stage,elite}),false)?;

@@ -53,9 +53,25 @@ pub(in crate::run) fn construct(run:&mut Run,event:EventId,node:NodeId)->Result<
     let mut rng=run.state.rng.clone();
     let captured=(body.construct)(&mut BodyContext{state:&run.state,rng:&mut rng,key})?;
     run.state.rng=rng;
+    // M27's potion lock (`AbstractPotion.canUse`/`canDiscard` test `getCurrRoom().event instanceof
+    // WeMeetAgain`) holds while that event is the current room's: through the map after Leave, until the
+    // next room entry clears it (`map::enter`; review-v1 M1).
+    run.state.we_meet_again=event==EventId::WeMeetAgain;
     run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.standard_event=Some(StandardEventFrame{node,event,stage:0,captured,accepted:None,
         pending_outcomes:vec![],combat:None,select_skippable:false,applied:0,complete:false});
-    publish(run)
+    publish(run)?;
+    // An opening page that the typed interim (an encounter without enemy facts at this ascension) leaves
+    // without a legal row is rejected at the Move, before any mutation (review-v1 M2: Colosseum above A0).
+    let frame=frame(run)?.clone();
+    let mut interim=None;
+    for (option,_) in (body.rows)(&run.state,&frame.captured,0){
+        match outcomes(run,&frame,0,option).and_then(|list|event_exec::check(&run.state,&list)){
+            Ok(())=>return Ok(()),
+            Err(error@RunError::Unsupported(_))=>{interim.get_or_insert(error);}
+            Err(_)=>{}
+        }
+    }
+    interim.map_or(Ok(()),Err)
 }
 
 /// Publish the frame's current stage: the body's option rows, or the result stage's Leave.
@@ -63,10 +79,14 @@ pub(in crate::run) fn publish(run:&mut Run)->Result<(),RunError>{
     let frame=frame(run)?.clone();
     let rows=if frame.stage==DONE{vec![(RoomChoiceKind::Leave,None)]}else{
         let body=events::body(frame.event).ok_or(RunError::Unsupported(events::interim(frame.event)))?;
-        (body.rows)(&run.state,&frame.captured,frame.stage).into_iter().map(|(option,price)|(match body.card{
-            // A card-board row shows the identity of a revealed position (D2, Match and Keep).
-            Some(card)=>RoomChoiceKind::EventCard{stage:frame.stage,option,card:card(&frame.captured,frame.stage,option)},
-            None=>RoomChoiceKind::EventOption{stage:frame.stage,option},
+        (body.rows)(&run.state,&frame.captured,frame.stage).into_iter().map(|(option,price)|(match (body.card_stage.is_some_and(|is_card_stage|is_card_stage(frame.stage)),body.card,body.shows.map(|shows|shows(&run.state,&frame.captured,frame.stage,option))){
+            // A card-board stage shows the identity of a revealed position (D2, Match and Keep, Library).
+            (true,Some(card),_)=>RoomChoiceKind::EventCard{stage:frame.stage,option,card:card(&frame.captured,frame.stage,option)},
+            // An option row names the gift its button shows (D2, We Meet Again).
+            (_,_,Some(events::Shows::Potion(potion)))=>RoomChoiceKind::EventPotion{stage:frame.stage,option,potion},
+            (_,_,Some(events::Shows::Card(instance)))=>RoomChoiceKind::EventCard{stage:frame.stage,option,
+                card:instance.and_then(|instance|run.state.deck.iter().find(|c|c.instance==instance)).map(|c|c.id)},
+            _=>RoomChoiceKind::EventOption{stage:frame.stage,option},
         },price)).collect()
     };
     let mut next=run.next_choice;
@@ -83,9 +103,17 @@ fn outcomes(run:&Run,frame:&StandardEventFrame,stage:u8,option:u8)->Result<Vec<O
     (body.choose)(&run.state,&frame.captured,stage,option)
 }
 
+/// The deck instance an option row gives up (D2, We Meet Again's card), as its candidate's object.
+pub(in crate::run) fn row_object(run:&Run,kind:&RoomChoiceKind)->Option<PublicObject>{
+    let RoomChoiceKind::EventCard{stage,option,..}=*kind else {return None};
+    let frame=frame(run).ok()?;
+    let events::Shows::Card(Some(instance))=(events::body(frame.event)?.shows?)(&run.state,&frame.captured,stage,option) else {return None};
+    run.state.deck.iter().find(|c|c.instance==instance).map(|c|PublicObject{instance:c.instance,id:c.id,upgrades:c.upgrades,misc:c.misc})
+}
+
 /// Whether an option row is offered now: its outcomes pass every executor precondition.
 pub(in crate::run) fn enabled(run:&Run,kind:&RoomChoiceKind)->bool{
-    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..})=*kind else {return true};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..})=*kind else {return true};
     frame(run).ok().and_then(|frame|outcomes(run,frame,stage,option).ok()).is_some_and(|list|event_exec::check(&run.state,&list).is_ok())
 }
 
@@ -99,7 +127,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
         if row.kind!=RoomChoiceKind::Leave{return Err(RunError::InvalidAction)}
         return leave(run)
     }
-    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..})=row.kind else {return Err(RunError::InvalidAction)};
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..})=row.kind else {return Err(RunError::InvalidAction)};
     let list=outcomes(run,&frame,stage,option)?;
     accept(run,id,row.kind,list)
 }
@@ -127,6 +155,7 @@ fn accept(run:&mut Run,id:ChoiceId,kind:RoomChoiceKind,list:Vec<Outcome>)->Resul
 
 pub(in crate::run) fn accepted_choice(run:&Run)->Result<ChoiceId,RunError>{frame(run)?.accepted.as_ref().map(|(id,_)|*id).ok_or(RunError::InvalidAction)}
 pub(in crate::run) fn set_stage(run:&mut Run,stage:u8)->Result<(),RunError>{frame_mut(run)?.stage=stage;Ok(())}
+pub(in crate::run) fn set_cards(run:&mut Run,ids:Vec<CardId>)->Result<(),RunError>{frame_mut(run)?.captured.card_ids=ids;Ok(())}
 pub(in crate::run) fn set_value(run:&mut Run,slot:u8,value:u32)->Result<(),RunError>{
     let values=&mut frame_mut(run)?.captured.values;
     let slot=usize::from(slot);
@@ -134,8 +163,8 @@ pub(in crate::run) fn set_value(run:&mut Run,slot:u8,value:u32)->Result<(),RunEr
     values[slot]=value;Ok(())
 }
 
-/// Publish an event's non-combat reward screen (Lab, Wheel of Change; X4): the rows are claimed
-/// through the shared reward screen and its Proceed finishes the room. The event is complete.
+/// Publish an event's non-combat reward screen (Lab, Wheel, Cursed Tome, Woman in Blue). Rows use the
+/// shared reward screen and Proceed finishes the room.
 pub(in crate::run) fn open_rewards(run:&mut Run,rows:Vec<(RoomChoiceKind,Option<u32>)>)->Result<RunTransition,RunError>{
     frame_mut(run)?.complete=true;
     let mut next=run.next_choice;

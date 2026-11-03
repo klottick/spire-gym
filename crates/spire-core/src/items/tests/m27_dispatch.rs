@@ -83,6 +83,8 @@ const VISIT_ALLOW_LIST: &[(&str, usize)] = &[
     ("run/combat.rs", 2),
     ("run/rooms/events/act3.rs", 1),
     ("run/training.rs", 1),
+    // O: M28e's in-slot event replacement (`Outcome::ReplaceRelic`, Forgotten Altar) finds the old slot.
+    ("run/rooms/standard/event_exec.rs", 1),
 ];
 
 fn visit_sites(text: &str) -> usize {

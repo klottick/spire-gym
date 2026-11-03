@@ -259,6 +259,11 @@ impl Run {
             Ok(prepared)=>prepared,
             Err(error)=>{let kind=if super::rooms::is_m20(&self.state){match error{RunError::Unsupported(message)=>RunFaultKind::UnsupportedBoundary(message),_=>RunFaultKind::Invariant("combat reward preparation failed")}}else{RunFaultKind::Invariant("combat reward preparation failed")};return Err(self.retain_fault(kind,"run.combat.rewards"))},
         };
+        // N3: a rewards-disabled event fight still takes the EventRoom potion roll before it reopens.
+        let suppressed_roll=match if rewards.is_none(){super::rooms::rewards::suppressed_event_potion_roll(self,&record)}else{Ok(None)}{
+            Ok(roll)=>roll,
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("combat reward preparation failed"),"run.combat.rewards")),
+        };
         let checkpoint=match self.state.combat.as_ref().unwrap().public_full(){
             Ok(view)=>match (view.hp_before_healing,view.hp_after_cleanup){
                 (Some(before),Some(after)) if before>=0&&after>=0=>CombatCheckpoint{record:record.clone(),hp_before_healing:before as u32,hp_after_cleanup:after as u32,
@@ -294,6 +299,7 @@ impl Run {
         // continuation after a victory or an escape.
         let event_continues=rewards.is_none()&&matches!(exit.outcome,Outcome::Victory|Outcome::Escaped)&&matches!(record_origin,Some(CombatOrigin::Event{..}));
         if let Some(prepared)=rewards{super::rooms::rewards::commit_combat(self,prepared);}
+        if let Some((rng,offset))=suppressed_roll{self.state.rng=rng;self.state.potion_offset=offset;}
         if let Some(prepared)=ending{super::rooms::act3_end::commit(self,prepared);}
         if let Some(node)=act4_node{super::rooms::act4::commit_elite_victory(self,node,record.clone());}
         if let Some(prepared)=heart_victory{super::rooms::act4::commit_heart_victory(self,prepared);}
