@@ -282,10 +282,19 @@ fn m15_bomb_detonates_before_the_enemy_can_deliver_lethal_damage() {
     fight.state.colorless.bombs[0].remaining=1;
     fight.state.enemies[0].hp=40;
     fight.state.player.hp=1;
-    add_to_hand(&mut fight,"burn",50,0);
     fight.step_full(&CombatAction::EndTurn).unwrap();
     assert_eq!(fight.state.outcome,Some(Outcome::Victory));
     assert_eq!(fight.state.player.hp,1);
+    // spire-oto.22 (source-check-endturn-v1): TheBombPower.atEndOfTurn follows the hand cards'
+    // end-turn plays, so a held Burn kills the 1-HP player before the Bomb detonates.
+    let mut burned=combat("the_bomb",0);
+    play(&mut burned,3,None);
+    burned.state.colorless.bombs[0].remaining=1;
+    burned.state.enemies[0].hp=40;
+    burned.state.player.hp=1;
+    add_to_hand(&mut burned,"burn",50,0);
+    burned.step_full(&CombatAction::EndTurn).unwrap();
+    assert_eq!(burned.state.outcome,Some(Outcome::Death));
 }
 
 #[test]

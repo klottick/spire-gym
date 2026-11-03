@@ -121,16 +121,13 @@ pub(super) fn start_power(state:&mut State,hook:Hook,power:&crate::combat::FullP
     Ok(())
 }
 
-pub(super) fn power_hook(state:&mut State,hook:Hook,target:Option<&Actor>,work:&mut Vec<Effect>)
-    ->Result<(),EffectError>{
-    if !state.full_runtime{return Ok(())}
-    if hook==Hook::PlayerPreEndTurnCards&&target==Some(&Actor::Player)&&!active_targets(state).is_empty(){
-        for bomb in state.colorless.bombs.clone(){
-            work.push(Effect{source:Source::Card(bomb.owner),target:Some(Actor::Player),
-                kind:EffectKind::Colorless(ColorlessEffect::BombTick{id:bomb.id})});
-        }
+/// TheBombPower.atEndOfTurn ticks every Bomb while monsters remain (player atEndOfTurn pass).
+pub(in crate::combat) fn end_turn_bombs(state:&State,work:&mut Vec<Effect>){
+    if active_targets(state).is_empty(){return}
+    for bomb in &state.colorless.bombs{
+        work.push(Effect{source:Source::Card(bomb.owner.clone()),target:Some(Actor::Player),
+            kind:EffectKind::Colorless(ColorlessEffect::BombTick{id:bomb.id})});
     }
-    Ok(())
 }
 
 fn validate_owned_mayhem(state:&State,source:&Source)->Result<crate::combat::CardHandle,InputError>{

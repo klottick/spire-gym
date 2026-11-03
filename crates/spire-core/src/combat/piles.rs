@@ -112,11 +112,8 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                     return Err(InputError::Invariant("temporary retain owner is not in the current end-turn hand".into()).into());
                 }
             }
-            while let Some(card) = state.piles.hand.iter().rev().find(|card|!state.temporary_retain.as_ref()
-                .is_some_and(|retain|retain.cards.contains(&card.handle()))) {
-                let id = card.handle();
-                discard_card(state, &id, true)?;
-            }
+            let held=state.temporary_retain.as_ref().map(|retain|retain.cards.iter().cloned().collect::<Vec<_>>()).unwrap_or_default();
+            end_turn_cleanup(state,&held)?;
             state.temporary_retain=None;
         }
         EffectKind::DrawOne=>{
@@ -589,6 +586,58 @@ fn discard_with_origin(state:&mut State,card:OwnedCard,manual_hand_discard:bool,
         }
     }
     Ok(())
+}
+
+/// DiscardAtEndOfTurnAction after retention (source-check-endturn-v2): the cards still in hand
+/// other than `held` leave it. triggerOnEndOfPlayerTurn visits a shuffled copy of them, and each
+/// Ethereal card's exhaust is queued at the top, so the exhausts resolve before the discards.
+/// The Ethereal exhausts go first, in the reverse of the shuffled visit order (each was queued at
+/// the top); the ordinary cards then leave rightmost first. Ghostly Armor and Entrench queue only
+/// ExhaustAllEtherealAction (no super call), which queues the Ethereal cards then in hand, in
+/// hand order, each at the top: those exhaust in reverse hand order. The exhausts' work is queued
+/// ahead of the discards' work, and both ahead of the work already queued (the retained-card restore).
+pub(super) fn end_turn_cleanup(state:&mut State,held:&[CardHandle])->Result<(),InputError>{
+    let remaining=state.piles.hand.iter().map(OwnedCard::handle).filter(|handle|!held.contains(handle)).collect::<Vec<_>>();
+    let live=|handle:&CardHandle|state.piles.hand.iter().find(|card|card.handle()==*handle).and_then(OwnedCard::full);
+    let ethereal_card=|handle:&CardHandle|live(handle).is_some_and(|live|live.local.ethereal);
+    // The top-queued actions, in queueing order: None is an ExhaustAllEtherealAction.
+    let mut stack=end_turn_visit_order(state,&remaining).into_iter().filter_map(|handle|
+        if live(&handle).is_some_and(|live|matches!(live.id,crate::content::CardId::GhostlyArmor|crate::content::CardId::Entrench)){Some(None)}
+        else if ethereal_card(&handle){Some(Some(handle))}else{None}).collect::<Vec<_>>();
+    let mut ethereal=Vec::new();
+    while let Some(top)=stack.pop(){
+        match top{
+            Some(handle)=>if !ethereal.contains(&handle){ethereal.push(handle)},
+            None=>stack.extend(remaining.iter().filter(|handle|ethereal_card(handle)&&!ethereal.contains(*handle)).cloned().map(Some)),
+        }
+    }
+    let queued=std::mem::take(&mut state.pending);
+    let result=(||{
+        for id in &ethereal{discard_card(state,id,true)?;}
+        let exhausts=std::mem::take(&mut state.pending);
+        while let Some(card)=state.piles.hand.iter().rev().find(|card|!held.contains(&card.handle())){
+            let id=card.handle();
+            discard_card(state,&id,true)?;
+        }
+        for effect in exhausts.into_iter().rev(){state.pending.push_front(effect);}
+        Ok(())
+    })();
+    state.pending.extend(queued);
+    result
+}
+
+/// The source shuffles that copy with an unseeded `Collections.shuffle`, which no seed replays.
+/// It is modelled as a Fisher-Yates shuffle keyed by this combat's shuffle-stream key and the
+/// turn; it reads no stream cursor, so no other stream advances (docs/intentional-deviations.md).
+pub(super) fn end_turn_visit_order(state:&State,cards:&[CardHandle])->Vec<CardHandle>{
+    let mut order=cards.to_vec();
+    for index in (1..order.len()).rev(){
+        let message=format!("spire-lab.end-turn-hand-shuffle.v1|{}|{}",state.turn,index);
+        let word=super::rng::hmac_sha256(state.rng.shuffle.key(),message.as_bytes());
+        let draw=u64::from_le_bytes(word[..8].try_into().expect("eight bytes"));
+        order.swap(index,(draw%(index as u64+1)) as usize);
+    }
+    order
 }
 
 pub(super) fn discard_card(state: &mut State, card: &CardHandle, end_turn: bool) -> Result<(), InputError> {

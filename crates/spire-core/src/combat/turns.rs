@@ -134,30 +134,17 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
                 state.extra_turn_pending=false;
                 state.pending.push_front(work(EffectKind::StartNextPlayer));
             }else{state.pending.push_front(work(EffectKind::MonsterStart));}
-            if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerEndTurn)});}
-            if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="no_draw"){
-                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("no_draw"))});
-            }
-            if state.full_runtime&&state.player_full_powers.iter().any(|p|p.id.0=="entangled"){
-                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::RemoveFullPower(FullPowerId("entangled"))});
-            }
-            if state.full_runtime {
-                state.pending.push_front(Effect { source: Source::Actor(Actor::Player),
-                    target: Some(Actor::Player),
-                    kind: EffectKind::Character(super::characters::CharacterEffect::EndTurn) });
-            }
+            // Source end of turn (source-check-endturn-v1): callEndOfTurnActions (relics, then
+            // pre-card powers), the queued orb pass, the hand cards' end-turn plays, then
+            // AbstractRoom.endTurn's player atEndOfTurn powers, before the discard.
             state.pending.push_front(work(EffectKind::DiscardHand));
-            if state.full_runtime&&state.item_context.as_ref().is_some_and(|items|
-                items.owns_relic(crate::content::RelicId::CloakClasp)
-                    ||items.complete_items()&&items.owns_relic(crate::content::RelicId::Orichalcum)) {
-                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),
-                    kind:EffectKind::Hook(Hook::CloakClaspBeforeCleanup{hand_size:state.piles.hand.len()})});
+            if state.full_runtime {
+                let player=|kind|Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind};
+                state.pending.push_front(player(EffectKind::Hook(Hook::PlayerEndTurn)));
+                for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}
+                state.pending.push_front(player(EffectKind::Character(super::characters::CharacterEffect::EndTurn)));
+                state.pending.push_front(player(EffectKind::Hook(Hook::PlayerPreEndTurnCards)));
             }
-            if super::cards::watcher::cards_active(state){if let Some(power)=state.player_full_powers.iter().find(|p|p.id.0=="establishment"){
-                state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Watcher(super::cards::watcher::WatcherEffect::EstablishmentDiscount{amount:power.state.amount})});
-            }}
-            if state.full_runtime {for effect in super::status::end_turn_work(state).into_iter().rev(){state.pending.push_front(effect);}}
-            if state.full_runtime {state.pending.push_front(Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Player),kind:EffectKind::Hook(Hook::PlayerPreEndTurnCards)});}
         }
         EffectKind::MonsterStart => {
             state.phase = Phase::EnemyTurn;

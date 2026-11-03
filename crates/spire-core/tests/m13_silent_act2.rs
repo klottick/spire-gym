@@ -17,13 +17,15 @@ fn m13_caller_transcripts_unchanged_by_m14_extension() {
     // Debug fields changed (docs/observation-vocabulary.md); stripped text hashes to the prior pins.
     // spire-oto.21 re-pin: monster power lists take their source priority order (Weak 99 after
     // Poison; a Byrd's Strength before Flight 50). Each transcript is the same multiset of lines.
+    // spire-oto.22 re-pin (seed 11 SlimeBoss/Champ only): the three Ethereal Dazed held at the
+    // turn-4 EndTurn exhaust in the RNG-002 keyed visit order; only the exhaust pile order differs.
     const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
         "ad0829f7683e82a6129d07e3a62e309e10be09845fb20504d7b22e32da63959e",
         "7dab1875c23c05dc6e4391aa9b044f3692c6a4af898d78a711e130199e11e4ea",
         "bebb1b63da1777523adb9728ad5f4a19d92063f05f5308c2c8f63a875a0f41c6",
         "e3f25024abcab3233cea97041381fead20e1367eb0d8444e038a5f162c5b5cdf",
         "af7faf3b3a61d5eb2fbd533f67d481da32c23da1f23429146d823f94db312e91",
-        "89d04ce8f07fb87b985f48d98ccb0cdfb627fff1b51847e81e51521788962ceb",
+        "59ccd852aa7d426fdf165355f70e8e82ab7d14fe4fad8b92009e4215f2f05d30",
     ];
     let mut completions = 0;
     // The separately approved coverage amendment aggregates real final-act
