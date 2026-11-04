@@ -88,6 +88,10 @@ pub(in crate::run) fn enter(run:&mut Run)->Result<RunTransition,RunError>{
     let sale_key = shop_key(destination, SHOP_PRICE_SOURCE_TAG, 13, 0);
     let sale_slot = staged.state.rng.bounded_scoped_checked(RunRngScope::M28ShopPrice, &sale_key, 5)?;
     rows[sale_slot].1 = Some(rows[sale_slot].1.ok_or(RunError::InvalidAction)? / 2);
+    // A16 (M32 design §6.6; source `applyDiscount(1.1f, false)`): once per stocked card, relic and potion
+    // row, after the sale and before the `ShopPrice` passes (Courier, Membership) in `finish_screen`.
+    // Purge is not marked up, and Courier restocks never pass through here.
+    for row in &mut rows { row.1 = row.1.map(|price| ascension_markup(staged.state.ascension, price)); }
     rows.push((RoomChoiceKind::Purge, Some(staged.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.purge_cost)));
     rows.push((RoomChoiceKind::Leave, None));
 
@@ -96,6 +100,11 @@ pub(in crate::run) fn enter(run:&mut Run)->Result<RunTransition,RunError>{
     staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen = screen;
     *run = staged;
     Ok(crate::run::rooms::empty_transition())
+}
+
+/// The A16+ shop markup on one stocked goods price: `MathUtils.round(price × 1.1f)` (lane A §2).
+fn ascension_markup(ascension: u8, price: u32) -> u32 {
+    if ascension >= 16 { crate::run::rooms::shop::libgdx_round(price as f32 * 1.1_f32) } else { price }
 }
 
 fn shop_key(destination:(u8,u32,NodeId),source_tag:u64,slot:u64,attempt:u64)->[u64;7]{

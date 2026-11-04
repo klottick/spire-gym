@@ -487,7 +487,7 @@ impl Combat {
             return Err(CombatEntryFailure::Rejected(crate::run::RunError::InvalidAction));
         }
         // One combat-level ascension (M29a2): every formation member's setup echo must agree,
-        // and each species must be admitted there (typed interim / above-ceiling rejection).
+        // and each species must be admitted there (typed interim / out-of-range rejection).
         let ascension=setup.enemies[0].ascension;
         if setup.enemies.iter().any(|enemy|enemy.ascension!=ascension) {
             return Err(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("combat enemies disagree on ascension")));

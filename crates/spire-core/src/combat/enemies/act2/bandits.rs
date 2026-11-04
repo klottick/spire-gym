@@ -5,6 +5,7 @@ pub(in crate::combat::enemies) fn select_move(
     history: &[FullIntentId],
     memory: &EnemyMemory,
     stream: &StreamState,
+    ascension: u8,
 ) -> Result<MoveSelection, super::super::SelectError> {
     if !memory.valid_for(match memory {
         EnemyMemory::BanditPointy => EnemyId::BanditPointy,
@@ -14,9 +15,15 @@ pub(in crate::combat::enemies) fn select_move(
     }) {
         return Err(InputError::Invariant("Bandit memory mismatch".into()).into());
     }
+    let cross_slash = FullIntentId::from_name("romeo_cross_slash");
     let name = match memory {
         EnemyMemory::BanditPointy => "pointy_special",
         EnemyMemory::BanditLeader if history.is_empty() => "romeo_mock",
+        EnemyMemory::BanditLeader if ascension >= 17
+            && history.last().is_some_and(|move_id| move_id.as_str() == "romeo_agonizing_slash") => "romeo_cross_slash",
+        EnemyMemory::BanditLeader if ascension >= 17 && history.last() == Some(&cross_slash) => {
+            if history.ends_with(&[cross_slash; 2]) { "romeo_agonizing_slash" } else { "romeo_cross_slash" }
+        }
         EnemyMemory::BanditLeader if history.len() % 2 == 1 => "romeo_agonizing_slash",
         EnemyMemory::BanditLeader => "romeo_cross_slash",
         EnemyMemory::BanditBear if history.is_empty() => "bear_hug",

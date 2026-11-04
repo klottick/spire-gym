@@ -22,10 +22,11 @@ fn m13_caller_transcripts_unchanged_by_m14_extension() {
     // spire-oto.22 C2 re-pin (seed 7 Hexaghost/BronzeAutomaton and SlimeBoss/Collector): at the step-341
     // EndTurn every monster's Poison ticks before any move, so the Mystic dies before the Centurion
     // rolls its next move (fury, not protect); the routes diverge from there.
+    // G1 (M32): re-pinned after the ordinary Louse opening entered the transcript.
     const ACCEPTED_FULL_DEBUG_SHA256: [&str; 6] = [
-        "ad0829f7683e82a6129d07e3a62e309e10be09845fb20504d7b22e32da63959e",
-        "625924fb8d554c1463be6783384e514d66a156dc0a820a62616afff3812cfaa4",
-        "89e6dc50b0a1ded4a3657ff167cd044ddc9c742ea3c622b743f31a09cce8eda3",
+        "9fcd115a6a61758017d4d245acc14b80eab0feb6a87579eef98829d82e549a72",
+        "3dfd6025e93fe9b0347ad8ee30a72a430cc9c6dc1dbfce0b6ea9555e1f374dcf",
+        "c0cf546673b57289c2502aa5ef2ea0fde774b8cb132378814a6311c51a510e37",
         "e3f25024abcab3233cea97041381fead20e1367eb0d8444e038a5f162c5b5cdf",
         "af7faf3b3a61d5eb2fbd533f67d481da32c23da1f23429146d823f94db312e91",
         "59ccd852aa7d426fdf165355f70e8e82ab7d14fe4fad8b92009e4215f2f05d30",

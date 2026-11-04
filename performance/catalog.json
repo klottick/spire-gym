@@ -18,7 +18,7 @@
       "profile": "M5Act1Captured", "character": "ironclad", "ascension": 0, "seed": 7,
       "expected_contract_version": 1,
       "creation": {"fixture": "m5-guardian", "policy": "m5-public-v1", "action_limit": 4096},
-      "expected": {"outcome": "Act2Ready", "act": 2, "floor": 17, "reward": 17, "accepted_actions": 212, "hp": 95, "terminal": null, "candidates": 0},
+      "expected": {"outcome": "Act2Ready", "act": 2, "floor": 17, "reward": 17, "accepted_actions": 214, "hp": 95, "terminal": null, "candidates": 0},
       "requires": ["M5"]
     },
     {
@@ -26,7 +26,7 @@
       "profile": "M6Act2Prefix", "character": "ironclad", "ascension": 0, "seed": 7,
       "expected_contract_version": 2,
       "creation": {"fixture": "m6-champ-icon", "policy": "m6-public-v1", "action_limit": 4096},
-      "expected": {"outcome": "Act2PrefixComplete", "act": 2, "floor": 26, "reward": 26, "accepted_actions": 397, "hp": 91, "terminal": null, "candidates": 0},
+      "expected": {"outcome": "Act2PrefixComplete", "act": 2, "floor": 26, "reward": 26, "accepted_actions": 399, "hp": 91, "terminal": null, "candidates": 0},
       "requires": ["M6"]
     }
   ],

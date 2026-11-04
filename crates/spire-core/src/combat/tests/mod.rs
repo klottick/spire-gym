@@ -162,6 +162,10 @@ mod fuzzfix_c2;
 mod fuzzfix_d;
 mod fuzzfix_d_burning;
 mod m30_bane_combat;
+mod m32_act1;
+mod m32_sweep;
+mod m32_act2;
+mod m32_act3_act4;
 
 /// A suspension record for a selection a test installs directly, naming the
 /// interrupted phase and the in-play card exactly as `begin_selection_range` would.

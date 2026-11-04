@@ -13,7 +13,7 @@
 //! supplied max HP and keys so it plays through every act (design §14 grade Supplied).
 //!
 //! M29 (plan M29a1 item 9, erratum v3 n4): `--ascension N` or `--ascensions A-B` runs each level
-//! (A1–A5 are public since the M29 close, A6–A10 since M30 and A11–A15 since M31; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
+//! (A1–A5 are public since the M29 close, A6–A10 since M30, A11–A15 since M31 and A16–A19 since M32; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
 //! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by
@@ -136,7 +136,7 @@ impl Census {
 
 struct Outcome { steps: usize, terminal: Option<String>, fault: Option<String>, act: u8, floor: u32, actions: Vec<GameAction>, last: Option<PublicDecision>,
     interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value>,
-    m30: M30Facts, m31: M31Facts, digests: String }
+    m30: M30Facts, m31: M31Facts, m32: M32Facts, digests: String }
 
 /// M31 (plan item 8) per-Run facts. Marker steps index the decision at which the class starts:
 /// the step whose action gains a G1 relic or rests with Dream Catcher, the first Shop decision (G3),
@@ -155,6 +155,275 @@ impl M31Facts {
             "kept_slot_potion_step":self.kept_slot_potion_step,"potion_slots_creation":self.slots_creation,"potion_slots_end":self.slots_end,
             "belt_gained":self.belt_gained,"belt_lost":self.belt_lost,"card_rows":rows,"boss_gold":self.boss_gold,
             "event_options":self.event_options,"mind_bloom_fights":self.mind_bloom_fights,"note_for_yourself_seen":self.note_for_yourself_seen})
+    }
+}
+
+#[derive(Clone, Copy)]
+enum PatternToken { Any, Intent(&'static str) }
+#[derive(Clone, Copy)]
+enum IntentPattern {
+    OpeningIs(&'static str),
+    OpeningNot(&'static str),
+    Sequence(&'static [PatternToken]),
+}
+#[derive(Clone, Copy)]
+struct IntentRule {
+    id: &'static str,
+    species: &'static str,
+    threshold: u8,
+    pattern: IntentPattern,
+    lane_locator: &'static str,
+    source_rule: &'static str,
+}
+
+const FORBIDDEN_INTENT_RULES: &[IntentRule] = &[
+    IntentRule { id:"acid_slime_s_opening_tackle", species:"AcidSlimeS", threshold:17,
+        pattern:IntentPattern::OpeningIs("acid_tackle"),
+        lane_locator:"m32-source-exordium-v1.md:24,27; S/exordium/AcidSlime_S.java:57-58,82-111",
+        source_rule:"At A17+, the first move is Lick; the A0 opening may be Tackle." },
+    IntentRule { id:"acid_slime_m_lick_lick", species:"AcidSlimeM", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("acid_lick"),PatternToken::Intent("acid_lick")]),
+        lane_locator:"m32-source-exordium-v1.md:37,40; S/exordium/AcidSlime_M.java:76,87-103",
+        source_rule:"At A17+, the high-band guard bars Lick after one Lick; A0 checks two." },
+    IntentRule { id:"acid_slime_l_lick_lick", species:"AcidSlimeL", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("acid_lick"),PatternToken::Intent("acid_lick")]),
+        lane_locator:"m32-source-exordium-v1.md:50,53; S/exordium/AcidSlime_L.java:115-135,137-185",
+        source_rule:"At A17+, the high-band guard bars Lick after one Lick; A0 checks two." },
+    IntentRule { id:"spike_slime_m_lick_lick", species:"SpikeSlimeM", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("spike_lick"),PatternToken::Intent("spike_lick")]),
+        lane_locator:"m32-source-exordium-v1.md:63,66; S/exordium/SpikeSlime_M.java:68-69,80-93",
+        source_rule:"At A17+, the high-band guard bars Lick after one Lick; A0 checks two." },
+    IntentRule { id:"spike_slime_l_lick_lick", species:"SpikeSlimeL", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("spike_lick"),PatternToken::Intent("spike_lick")]),
+        lane_locator:"m32-source-exordium-v1.md:76,79; S/exordium/SpikeSlime_L.java:96-125,127-171",
+        source_rule:"At A17+, the high-band guard bars Lick after one Lick; A0 checks two." },
+    IntentRule { id:"red_louse_grow_grow", species:"LouseRed", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("grow"),PatternToken::Intent("grow")]),
+        lane_locator:"m32-source-exordium-v1.md:91,94; S/exordium/LouseNormal.java:67-90,92-121",
+        source_rule:"At A17+, the low-band guard bars Grow after one Grow; A0 checks two." },
+    IntentRule { id:"green_louse_spit_web_spit_web", species:"LouseGreen", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("spit_web"),PatternToken::Intent("spit_web")]),
+        lane_locator:"m32-source-exordium-v1.md:104,107; S/exordium/LouseDefensive.java:76-99,101-130",
+        source_rule:"At A17+, the low-band guard bars Spit Web after one Spit Web; A0 checks two." },
+    IntentRule { id:"gremlin_wizard_blast_charge", species:"GremlinWizard", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("gremlin_blast"),PatternToken::Intent("gremlin_charge")]),
+        lane_locator:"m32-source-exordium-v1.md:119,122; S/exordium/GremlinWizard.java:55-79,81-130",
+        source_rule:"At A17+, Blast directly sets the next intent to Blast instead of Charge." },
+    IntentRule { id:"slaver_red_scrape_scrape", species:"SlaverRed", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("slaver_scrape"),PatternToken::Intent("slaver_scrape")]),
+        lane_locator:"m32-source-exordium-v1.md:145,148; S/exordium/SlaverRed.java:102-158,161-188",
+        source_rule:"At A17+, the final guard bars Scrape after one Scrape; A0 checks two." },
+    IntentRule { id:"romeo_agonizing_cross_agonizing", species:"BanditLeader", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("romeo_agonizing_slash"),PatternToken::Intent("romeo_cross_slash"),PatternToken::Intent("romeo_agonizing_slash")]),
+        lane_locator:"m32-source-city-v1.md:22,28; BanditLeader.java:59-89,106-140,167-169",
+        source_rule:"At A17+, Cross repeats unless the prior two moves are both Cross; A0 returns to Agonizing." },
+    IntentRule { id:"chosen_opening_poke", species:"Chosen", threshold:17,
+        pattern:IntentPattern::OpeningIs("chosen_poke"),
+        lane_locator:"m32-source-city-v1.md:36,42; Chosen.java:73-92,98-118",
+        source_rule:"At A17+, Chosen opens with Hex instead of Poke." },
+    IntentRule { id:"mystic_attack_attack", species:"Mystic", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("mystic_attack"),PatternToken::Intent("mystic_attack")]),
+        lane_locator:"m32-source-city-v1.md:50,56; Healer.java:65-96,105-144",
+        source_rule:"At A17+, Attack requires the immediately prior move not to be Attack; A0 checks two." },
+    IntentRule { id:"shelled_parasite_opening_not_fell", species:"ShelledParasite", threshold:17,
+        pattern:IntentPattern::OpeningNot("shelled_parasite_fell"),
+        lane_locator:"m32-source-city-v1.md:64,70; ShelledParasite.java:81-124,132-168",
+        source_rule:"At A17+, the first move is always Fell; A0 chooses Double Strike or Life Suck." },
+    IntentRule { id:"snake_plant_spores_x_spores", species:"SnakePlant", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("snake_plant_enfeebling_spores"),PatternToken::Any,PatternToken::Intent("snake_plant_enfeebling_spores")]),
+        lane_locator:"m32-source-city-v1.md:78,84; SnakePlant.java:70-95,118-165",
+        source_rule:"At A17+, Spores is barred when it was either of the previous two moves." },
+    IntentRule { id:"automaton_beam_stunned", species:"BronzeAutomaton", threshold:19,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("automaton_beam"),PatternToken::Intent("automaton_stun")]),
+        lane_locator:"m32-source-city-v1.md:148,154; BronzeAutomaton.java:75-96,98-124",
+        source_rule:"At A19+, Hyper Beam is followed by Boost instead of Stunned." },
+];
+
+const ALLOWED_ONLY_INTENT_RULES: &[IntentRule] = &[
+    IntentRule { id:"gremlin_wizard_blast_blast", species:"GremlinWizard", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("gremlin_blast"),PatternToken::Intent("gremlin_blast")]),
+        lane_locator:"m32-source-exordium-v1.md:119,122; S/exordium/GremlinWizard.java:55-79,81-130",
+        source_rule:"At A17+, Blast directly sets another Blast; A0 sets Charge." },
+    IntentRule { id:"romeo_cross_cross", species:"BanditLeader", threshold:17,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("romeo_cross_slash"),PatternToken::Intent("romeo_cross_slash")]),
+        lane_locator:"m32-source-city-v1.md:22,28; BanditLeader.java:59-89,106-140,167-169",
+        source_rule:"At A17+, a Cross Slash can be followed by another Cross Slash." },
+    IntentRule { id:"automaton_beam_boost", species:"BronzeAutomaton", threshold:19,
+        pattern:IntentPattern::Sequence(&[PatternToken::Intent("automaton_beam"),PatternToken::Intent("automaton_boost")]),
+        lane_locator:"m32-source-city-v1.md:148,154; BronzeAutomaton.java:75-96,98-124",
+        source_rule:"At A19+, Hyper Beam is followed by Boost instead of Stunned." },
+];
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TranscriptEnemy {
+    instance_id: String,
+    species: String,
+    intent: String,
+    hp: i32,
+    half_dead: bool,
+    escaped: bool,
+    replaced: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TranscriptTurn { combat_id: u32, turn: u32, enemies: Vec<TranscriptEnemy> }
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct SyntheticTranscript { turns: Vec<TranscriptTurn> }
+
+#[derive(Default)]
+struct M32IntentFacts {
+    enemy_intents: BTreeMap<String, BTreeMap<String, u64>>,
+    opening_intents: BTreeMap<String, BTreeMap<String, u64>>,
+    intent_transitions: BTreeMap<String, BTreeMap<String, u64>>,
+    forbidden_sequences: BTreeMap<String, u64>,
+    allowed_only_sequences: BTreeMap<String, u64>,
+}
+
+fn detect_m32_intents(transcript: &SyntheticTranscript) -> M32IntentFacts {
+    let mut facts = M32IntentFacts::default();
+    for rule in FORBIDDEN_INTENT_RULES { facts.forbidden_sequences.insert(rule.id.into(), 0); }
+    for rule in ALLOWED_ONLY_INTENT_RULES { facts.allowed_only_sequences.insert(rule.id.into(), 0); }
+    let (mut combat_id, mut seen, mut sampled_turn, mut chains) =
+        (None, BTreeSet::<String>::new(), BTreeMap::<String, u32>::new(), BTreeMap::<String, Vec<String>>::new());
+    for sample in &transcript.turns {
+        if combat_id != Some(sample.combat_id) {
+            combat_id = Some(sample.combat_id);
+            seen.clear();
+            sampled_turn.clear();
+            chains.clear();
+        }
+        let present: BTreeSet<&str> = sample.enemies.iter().map(|enemy| enemy.instance_id.as_str()).collect();
+        let missing: Vec<String> = chains.keys().filter(|id| !present.contains(id.as_str())).cloned().collect();
+        for id in missing { chains.remove(&id); }
+        for enemy in &sample.enemies {
+            let id = enemy.instance_id.clone();
+            if enemy.replaced || enemy.escaped || enemy.half_dead || enemy.hp <= 0 || enemy.intent == "hidden" {
+                chains.remove(&id);
+                seen.insert(id.clone());
+                sampled_turn.insert(id, sample.turn);
+                continue;
+            }
+            if sampled_turn.get(&id) == Some(&sample.turn) { continue; }
+            sampled_turn.insert(id.clone(), sample.turn);
+            *facts.enemy_intents.entry(enemy.species.clone()).or_default().entry(enemy.intent.clone()).or_default() += 1;
+            let opening = seen.insert(id.clone());
+            if opening {
+                *facts.opening_intents.entry(enemy.species.clone()).or_default().entry(enemy.intent.clone()).or_default() += 1;
+            }
+            let prior = chains.get(&id).and_then(|moves| moves.last()).cloned();
+            if let Some(previous) = prior {
+                *facts.intent_transitions.entry(enemy.species.clone()).or_default()
+                    .entry(format!("{previous} -> {}", enemy.intent)).or_default() += 1;
+            }
+            let history = chains.entry(id).or_default();
+            history.push(enemy.intent.clone());
+            if history.len() > 3 { history.remove(0); }
+            for rule in FORBIDDEN_INTENT_RULES.iter().chain(ALLOWED_ONLY_INTENT_RULES) {
+                if rule.species != enemy.species { continue; }
+                let matched = match rule.pattern {
+                    IntentPattern::OpeningIs(want) => opening && enemy.intent == want,
+                    IntentPattern::OpeningNot(want) => opening && enemy.intent != want,
+                    IntentPattern::Sequence(tokens) => {
+                        history.len() >= tokens.len() &&
+                            history[history.len() - tokens.len()..].iter().zip(tokens).all(|(actual, token)| match token {
+                                PatternToken::Any => true,
+                                PatternToken::Intent(want) => actual == want,
+                            })
+                    }
+                };
+                if matched {
+                    if FORBIDDEN_INTENT_RULES.iter().any(|candidate| candidate.id == rule.id) {
+                        *facts.forbidden_sequences.entry(rule.id.into()).or_default() += 1;
+                    } else {
+                        *facts.allowed_only_sequences.entry(rule.id.into()).or_default() += 1;
+                    }
+                }
+            }
+        }
+    }
+    facts
+}
+
+fn pattern_json(pattern: IntentPattern) -> Value {
+    match pattern {
+        IntentPattern::OpeningIs(intent) => json!({"opening_is":intent}),
+        IntentPattern::OpeningNot(intent) => json!({"opening_is_not":intent}),
+        IntentPattern::Sequence(tokens) => json!(tokens.iter().map(|token| match token {
+            PatternToken::Any => "*".to_string(),
+            PatternToken::Intent(intent) => (*intent).to_string(),
+        }).collect::<Vec<_>>()),
+    }
+}
+
+fn intent_rules_json(rules: &[IntentRule]) -> Vec<Value> {
+    rules.iter().map(|rule| json!({"id":rule.id,"species":rule.species,"threshold":rule.threshold,
+        "pattern":pattern_json(rule.pattern),"lane_locator":rule.lane_locator,"source_rule":rule.source_rule})).collect()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ShopRowFact { step: usize, kind: String, price: Option<u32>, status: String,
+    courier_held: bool, membership_held: bool, smiling_mask_held: bool }
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ShopRowKey { kind: String, price: Option<u32>, status: String,
+    courier_held: bool, membership_held: bool, smiling_mask_held: bool }
+impl From<&ShopRowFact> for ShopRowKey {
+    fn from(row: &ShopRowFact) -> Self { Self { kind:row.kind.clone(), price:row.price, status:row.status.clone(),
+        courier_held:row.courier_held, membership_held:row.membership_held, smiling_mask_held:row.smiling_mask_held } }
+}
+
+#[derive(Default)]
+struct M32Facts {
+    first_louse_step: Option<usize>,
+    intents: M32IntentFacts,
+    shop_rows: Vec<ShopRowFact>,
+}
+impl M32Facts {
+    fn to_json(&self) -> Value {
+        let shop_rows: Vec<Value> = self.shop_rows.iter().map(|row| json!({"step":row.step,"kind":row.kind,"price":row.price,
+            "status":row.status,"courier_held":row.courier_held,"membership_held":row.membership_held,
+            "smiling_mask_held":row.smiling_mask_held})).collect();
+        json!({"first_louse_step":self.first_louse_step,"enemy_intents":self.intents.enemy_intents,
+            "opening_intents":self.intents.opening_intents,"intent_transitions":self.intents.intent_transitions,
+            "forbidden_sequences":self.intents.forbidden_sequences,"allowed_only_sequences":self.intents.allowed_only_sequences,
+            "shop_rows":shop_rows})
+    }
+}
+
+#[derive(Default)]
+struct M32Totals {
+    runs_with_first_louse: u64,
+    first_louse_steps: BTreeMap<String, u64>,
+    enemy_intents: BTreeMap<String, BTreeMap<String, u64>>,
+    opening_intents: BTreeMap<String, BTreeMap<String, u64>>,
+    intent_transitions: BTreeMap<String, BTreeMap<String, u64>>,
+    forbidden_sequences: BTreeMap<String, u64>,
+    allowed_only_sequences: BTreeMap<String, u64>,
+    shop_rows: BTreeMap<ShopRowKey, u64>,
+}
+impl M32Totals {
+    fn add_run(&mut self, facts: &M32Facts) {
+        if let Some(step) = facts.first_louse_step {
+            self.runs_with_first_louse += 1;
+            *self.first_louse_steps.entry(step.to_string()).or_default() += 1;
+        }
+        let add_nested = |into: &mut BTreeMap<String, BTreeMap<String, u64>>, from: &BTreeMap<String, BTreeMap<String, u64>>| {
+            for (species, counts) in from { for (name, count) in counts {
+                *into.entry(species.clone()).or_default().entry(name.clone()).or_default() += count;
+            }}
+        };
+        add_nested(&mut self.enemy_intents, &facts.intents.enemy_intents);
+        add_nested(&mut self.opening_intents, &facts.intents.opening_intents);
+        add_nested(&mut self.intent_transitions, &facts.intents.intent_transitions);
+        for (rule, count) in &facts.intents.forbidden_sequences { *self.forbidden_sequences.entry(rule.clone()).or_default() += count; }
+        for (rule, count) in &facts.intents.allowed_only_sequences { *self.allowed_only_sequences.entry(rule.clone()).or_default() += count; }
+        for row in &facts.shop_rows { *self.shop_rows.entry(ShopRowKey::from(row)).or_default() += 1; }
+    }
+    fn to_json(&self) -> Value {
+        let shop_rows: Vec<Value> = self.shop_rows.iter().map(|(row, count)| json!({"kind":row.kind,"price":row.price,
+            "status":row.status,"courier_held":row.courier_held,"membership_held":row.membership_held,
+            "smiling_mask_held":row.smiling_mask_held,"count":count})).collect();
+        json!({"runs_with_first_louse":self.runs_with_first_louse,"first_louse_steps":self.first_louse_steps,
+            "enemy_intents":self.enemy_intents,"opening_intents":self.opening_intents,"intent_transitions":self.intent_transitions,
+            "forbidden_sequences":self.forbidden_sequences,"allowed_only_sequences":self.allowed_only_sequences,"shop_rows":shop_rows})
     }
 }
 
@@ -230,7 +499,7 @@ fn rollout(mut run: Run) -> i64 {
 fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: bool, ascension: u8, census: &mut Census) -> Outcome {
     let mut out = Outcome { steps: 0, terminal: None, fault: None, act: 0, floor: 0, actions: Vec::new(), last: None,
         interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new(), m30: M30Facts::default(),
-        m31: M31Facts::default(), digests: String::new() };
+        m31: M31Facts::default(), m32: M32Facts::default(), digests: String::new() };
     let mut run = match new_run(character, seed, supplied, ascension) { Ok(run) => run, Err(error) => { out.fault = Some(error); return out } };
     let mut map_act = 0u8;
     let mut policy = u64::from_le_bytes(root(character, seed)[..8].try_into().unwrap()) ^ if reach { 0x5245_4143_48 } else { 0x4D32_3846 };
@@ -238,9 +507,36 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
     let mut last_choice: Option<RoomChoiceKind> = None;
     let base_slots = if ascension >= 11 { 2 } else { 3 };
     let mut equip_open = false;
+    let mut transcript = SyntheticTranscript::default();
+    let (mut active_combat, mut combat_id) = (false, 0u32);
     loop {
         let decision = match run.decision() { Ok(decision) => decision, Err(error) => { out.fault = Some(format!("decision at step {}: {error:?}", out.steps)); break } };
         census.observe(&decision);
+        if let Some(combat) = &decision.combat {
+            if !active_combat { combat_id += 1; active_combat = true; }
+            if out.m32.first_louse_step.is_none() && combat.enemies.iter().any(|enemy|
+                matches!(enemy.enemy_id, spire_core::content::EnemyId::LouseRed | spire_core::content::EnemyId::LouseGreen)) {
+                out.m32.first_louse_step = Some(out.steps);
+            }
+            transcript.turns.push(TranscriptTurn { combat_id, turn:combat.turn, enemies:combat.enemies.iter().map(|enemy| TranscriptEnemy {
+                instance_id:enemy.instance_id.as_str().to_owned(), species:format!("{:?}", enemy.enemy_id),
+                intent:enemy.intent.as_str().to_owned(), hp:enemy.hp, half_dead:enemy.half_dead, escaped:enemy.escaped,
+                replaced:enemy.replaced,
+            }).collect() });
+        } else { active_combat = false; }
+        if decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Shop) {
+            let (courier_held, membership_held, smiling_mask_held) = (
+                decision.player.relics.contains(&RelicId::TheCourier),
+                decision.player.relics.contains(&RelicId::MembershipCard),
+                decision.player.relics.contains(&RelicId::SmilingMask),
+            );
+            if let Some(room) = &decision.room {
+                for row in &room.choices { out.m32.shop_rows.push(ShopRowFact {
+                    step:out.steps, kind:format!("{:?}", row.kind), price:row.price, status:format!("{:?}", row.status),
+                    courier_held, membership_held, smiling_mask_held,
+                }); }
+            }
+        }
         // M31 facts read at every decision.
         out.m31.slots_creation.get_or_insert(decision.player.potions.len());
         out.m31.slots_end = decision.player.potions.len();
@@ -383,6 +679,7 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
         out.actions.push(action);
         out.steps += 1;
     }
+    out.m32.intents = detect_m32_intents(&transcript);
     if let Some(terminal) = &out.terminal { *census.terminals.entry(terminal.clone()).or_default() += 1; }
     *census.acts.entry(out.act.to_string()).or_default() += 1;
     out
@@ -443,7 +740,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let jobs: Vec<(&str, Character, u64)> = policies.iter().flat_map(|p| CHARACTERS.into_iter().flat_map(move |c| (1..=seeds).map(move |seed| (*p, c, seed))))
         .filter(|(_, c, seed)| only.is_none_or(|only| only == format!("{c:?}/{seed}"))).collect();
     // Runs are independent and deterministic; each is its own thread, results kept in job order.
-    let results: Vec<(Value, Value, Value, Value, String, Census)> = std::thread::scope(|scope| {
+    let results: Vec<(Value, Value, Value, Value, String, Census, M32Facts)> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs.iter().map(|&(policy, character, seed)| scope.spawn(move || {
             let mut census = Census::default();
             let supplied = policy == "supplied";
@@ -462,7 +759,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
             let m31 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m31.to_json()});
             let digests = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"digests":outcome.digests}).to_string();
             eprintln!("{record} {m29} {m30} {m31}");
-            (record, m29, m30, m31, digests, census)
+            (record, m29, m30, m31, digests, census, outcome.m32)
         })).collect();
         handles.into_iter().map(|handle| handle.join().expect("traversal thread")).collect()
     });
@@ -471,7 +768,10 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let mut elite_census = BTreeMap::<String, [u64; 3]>::new();
     let (mut m30_runs, mut m30_totals) = (Vec::new(), BTreeMap::<String, u64>::new());
     let (mut m31_runs, mut m31_totals, mut digest_lines) = (Vec::new(), BTreeMap::<String, u64>::new(), Vec::new());
-    for ((policy, character, _), (record, m29, m30, m31, digests, census)) in jobs.iter().zip(results) {
+    let (mut m32_runs, mut m32_totals_by_mode) = (Vec::new(), BTreeMap::<String, M32Totals>::new());
+    for ((policy, character, seed), (record, m29, m30, m31, digests, census, m32)) in jobs.iter().zip(results) {
+        m32_totals_by_mode.entry((*policy).to_string()).or_default().add_run(&m32);
+        m32_runs.push(json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":m32.to_json()}));
         let facts = &m31["facts"];
         for key in ["belt_gained", "belt_lost", "mind_bloom_fights", "note_for_yourself_seen"] {
             *m31_totals.entry(key.to_string()).or_default() += facts[key].as_u64().unwrap_or(0);
@@ -505,14 +805,116 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     }
     let per_character: BTreeMap<String, Value> = per_character.iter().map(|(key, census)| (key.clone(), census.to_json())).collect();
     let elite_census: BTreeMap<String, Value> = elite_census.into_iter().map(|(act, [requested, placed, unplaced])| (act, json!({"requested":requested,"placed":placed,"unplaced":unplaced}))).collect();
+    let m32_totals_by_mode: BTreeMap<String, Value> = m32_totals_by_mode.iter().map(|(mode, totals)| (mode.clone(), totals.to_json())).collect();
     let report = json!({"schema":"spire-gym.m28-traversal.v1","seeds_per_character":seeds,"cap":cap,"policies":{"uniform":"seeded uniform random over advertised candidates","supplied":"reach policy on a Standard Run with supplied max HP 400 and, on even seeds, all three keys (m28-diagnostics; grade Supplied, not traversal)","reach":"combat: each candidate valued by a greedy play-out of the turn (survive, then kill); out of combat: one-step current-HP value; greedy on 90% of combat and 50% of other decisions, else uniform"},
         "runs":runs.len(),"fault_free":runs.len() - faults.len(),"faults":faults,"census":total.to_json(),"census_by_character":per_character,"results":runs,
         "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"interim_by_context":interim_by_context,
             "elites_by_act":elite_census,"runs":m29_runs},
         "m30":{"ascension":ascension,"totals":m30_totals,"runs":m30_runs},
-        "m31":{"ascension":ascension,"totals":m31_totals,"runs":m31_runs}});
+        "m31":{"ascension":ascension,"totals":m31_totals,"runs":m31_runs},
+        "m32":{"schema":"spire-gym.m32-traversal.v1","ascension":ascension,"forbidden_rules":intent_rules_json(FORBIDDEN_INTENT_RULES),
+            "allowed_only_at_a_ge_t":intent_rules_json(ALLOWED_ONLY_INTENT_RULES),"totals_by_mode":m32_totals_by_mode,"runs":m32_runs}});
     fs::write(dir.join("digests.jsonl"), digest_lines.join("\n") + "\n").expect("write digests.jsonl");
     fs::write(dir.join("traversal.json"), serde_json::to_vec_pretty(&report).unwrap()).expect("write traversal.json");
     println!("A{ascension}: {} of {} runs fault-free ({blocked} interim-blocked)", runs.len() - faults.len(), runs.len());
     faults.is_empty()
+}
+
+#[cfg(test)]
+mod m32_detector_tests {
+    use super::*;
+
+    fn enemy(instance_id: &str, species: &str, intent: &str) -> TranscriptEnemy {
+        TranscriptEnemy { instance_id:instance_id.into(), species:species.into(), intent:intent.into(),
+            hp:20, half_dead:false, escaped:false, replaced:false }
+    }
+    fn turn(combat_id: u32, turn: u32, enemies: Vec<TranscriptEnemy>) -> TranscriptTurn {
+        TranscriptTurn { combat_id, turn, enemies }
+    }
+    fn count(map: &BTreeMap<String, BTreeMap<String, u64>>, species: &str, key: &str) -> u64 {
+        map.get(species).and_then(|counts| counts.get(key)).copied().unwrap_or(0)
+    }
+
+    #[test]
+    fn m32_detector_counts_equal_samples_on_consecutive_turns() {
+        let lick = enemy("slime-m", "AcidSlimeM", "acid_lick");
+        let transcript = SyntheticTranscript { turns:vec![
+            turn(1, 1, vec![lick.clone()]),
+            turn(1, 1, vec![lick.clone()]),
+            turn(1, 2, vec![lick]),
+        ]};
+        let facts = detect_m32_intents(&transcript);
+        assert_eq!(count(&facts.enemy_intents, "AcidSlimeM", "acid_lick"), 2);
+        assert_eq!(count(&facts.intent_transitions, "AcidSlimeM", "acid_lick -> acid_lick"), 1);
+        assert_eq!(facts.forbidden_sequences["acid_slime_m_lick_lick"], 1);
+    }
+
+    #[test]
+    fn m32_detector_does_not_cross_link_two_instances_of_one_species() {
+        let transcript = SyntheticTranscript { turns:vec![
+            turn(1, 1, vec![enemy("left", "AcidSlimeM", "acid_lick"), enemy("right", "AcidSlimeM", "acid_spit")]),
+            turn(1, 2, vec![enemy("left", "AcidSlimeM", "acid_spit"), enemy("right", "AcidSlimeM", "acid_lick")]),
+        ]};
+        let facts = detect_m32_intents(&transcript);
+        assert_eq!(facts.forbidden_sequences["acid_slime_m_lick_lick"], 0);
+        assert_eq!(count(&facts.intent_transitions, "AcidSlimeM", "acid_lick -> acid_lick"), 0);
+    }
+
+    #[test]
+    fn m32_detector_hidden_intent_breaks_the_chain() {
+        let transcript = SyntheticTranscript { turns:vec![
+            turn(1, 1, vec![enemy("red", "LouseRed", "grow")]),
+            turn(1, 2, vec![enemy("red", "LouseRed", "hidden")]),
+            turn(1, 3, vec![enemy("red", "LouseRed", "grow")]),
+        ]};
+        let facts = detect_m32_intents(&transcript);
+        assert_eq!(facts.forbidden_sequences["red_louse_grow_grow"], 0);
+        assert_eq!(count(&facts.intent_transitions, "LouseRed", "grow -> grow"), 0);
+        assert_eq!(count(&facts.enemy_intents, "LouseRed", "grow"), 2);
+        assert_eq!(count(&facts.opening_intents, "LouseRed", "grow"), 1);
+    }
+
+    #[test]
+    fn m32_detector_spawned_split_child_gets_its_own_opening() {
+        let transcript = SyntheticTranscript { turns:vec![
+            turn(1, 1, vec![enemy("large", "AcidSlimeL", "acid_tackle")]),
+            turn(1, 2, vec![enemy("large", "AcidSlimeL", "acid_lick"), enemy("split-child", "AcidSlimeM", "acid_lick")]),
+        ]};
+        let facts = detect_m32_intents(&transcript);
+        assert_eq!(count(&facts.opening_intents, "AcidSlimeM", "acid_lick"), 1);
+        assert_eq!(count(&facts.intent_transitions, "AcidSlimeM", "acid_lick -> acid_lick"), 0);
+    }
+
+    #[test]
+    fn m32_detector_matches_snake_plant_and_romeo_three_step_patterns() {
+        let transcript = SyntheticTranscript { turns:vec![
+            turn(1, 1, vec![enemy("plant", "SnakePlant", "snake_plant_enfeebling_spores"),
+                enemy("romeo", "BanditLeader", "romeo_agonizing_slash")]),
+            turn(1, 2, vec![enemy("plant", "SnakePlant", "snake_plant_chomp_chomp"),
+                enemy("romeo", "BanditLeader", "romeo_cross_slash")]),
+            turn(1, 3, vec![enemy("plant", "SnakePlant", "snake_plant_enfeebling_spores"),
+                enemy("romeo", "BanditLeader", "romeo_agonizing_slash")]),
+        ]};
+        let facts = detect_m32_intents(&transcript);
+        assert_eq!(facts.forbidden_sequences["snake_plant_spores_x_spores"], 1);
+        assert_eq!(facts.forbidden_sequences["romeo_agonizing_cross_agonizing"], 1);
+    }
+
+    #[test]
+    fn m32_detector_synthetic_literals_cover_every_forbidden_rule() {
+        for rule in FORBIDDEN_INTENT_RULES {
+            let intents: Vec<String> = match rule.pattern {
+                IntentPattern::OpeningIs(intent) => vec![intent.into()],
+                IntentPattern::OpeningNot(intent) => vec![format!("not-{intent}")],
+                IntentPattern::Sequence(tokens) => tokens.iter().map(|token| match token {
+                    PatternToken::Any => "synthetic_x".into(),
+                    PatternToken::Intent(intent) => (*intent).into(),
+                }).collect(),
+            };
+            let transcript = SyntheticTranscript { turns:intents.iter().enumerate().map(|(i, intent)|
+                turn(1, i as u32 + 1, vec![enemy("one", rule.species, intent)])).collect() };
+            let facts = detect_m32_intents(&transcript);
+            assert_eq!(facts.forbidden_sequences[rule.id], 1, "{}", rule.id);
+        }
+    }
 }

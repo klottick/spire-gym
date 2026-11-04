@@ -681,7 +681,18 @@ fn two_louse_setup_builds_independent_red_and_green_actors_and_publishes_real_mo
         let (min, max) = if louse.enemy_id == EnemyId::LouseRed { (10, 15) } else { (11, 17) };
         assert!((min..=max).contains(&louse.hp));
         assert_eq!(louse.max_hp, louse.hp);
-        assert_eq!(louse.intent, FullIntentId::Bite);
+        let ai_rng_before_selection = crate::run::RunRng::new([31; 32], rng::Partition::Test, 11)
+            .derive_combat_stream(Domain::RunCombatEnemyAi, 1,
+                crate::content::EncounterId::TwoLouse.as_str(), 8, Some(slot as u32),
+                louse.instance_id.as_str()).unwrap();
+        let (roll, _) = rng::uniform_below(&ai_rng_before_selection, 4).unwrap();
+        let nonattack = if louse.enemy_id == EnemyId::LouseRed {
+            FullIntentId::Grow
+        } else {
+            FullIntentId::SpitWeb
+        };
+        // G1 (M32): rolled opening; the base assertion pinned Bite.
+        assert_eq!(louse.intent, if roll == 0 { nonattack } else { FullIntentId::Bite });
         assert!(louse.ai_rng.id().scope()[1].starts_with(&format!("slot-{slot}-")));
         assert!(louse.powers.iter().any(|power|
             power.id == FullPowerId("curl_up") && (3..=7).contains(&power.state.amount)));

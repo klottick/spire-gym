@@ -22,7 +22,16 @@ pub(in crate::combat::enemies) fn move_work(state:&mut State,owner:&EnemyHandle)
             let mut work=vec![damage(actor.clone(),FullIntentId::from_name(name));2];
             if name=="deca_beam"{for _ in 0..2{work.push(effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Dazed,destination:super::super::super::CardDestination::Discard,upgrades:0}));}}work
         },
-        "deca_square"|"donu_circle"=>state.enemies.iter().map(|e|effect(actor.clone(),Actor::Enemy(e.instance_id.clone()),if name=="deca_square"{EffectKind::GainBlock(16)}else{EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3}})).collect(),
+        "deca_square"=>{
+            let mut work=Vec::new();
+            for member in &state.enemies {
+                let target=Actor::Enemy(member.instance_id.clone());
+                work.push(effect(actor.clone(),target.clone(),EffectKind::GainBlock(16)));
+                if state.ascension>=19 {work.push(effect(actor.clone(),target,EffectKind::ApplyFullPower{id:FullPowerId("plated_armor"),amount:3}));}
+            }
+            work
+        },
+        "donu_circle"=>state.enemies.iter().map(|e|effect(actor.clone(),Actor::Enemy(e.instance_id.clone()),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3})).collect(),
         _=>unreachable!(),
     };
     let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();match enemy.full_memory.as_mut(){

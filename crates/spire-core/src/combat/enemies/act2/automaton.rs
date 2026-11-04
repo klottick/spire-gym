@@ -2,11 +2,11 @@
 use super::*;
 use super::super::super::{EffectError,SpawnRequest,ActorLife};
 
-pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,super::super::SelectError>{
+pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let mut cursor=stream.clone();let (name,memory)=match memory {
         EnemyMemory::BronzeAutomaton{turns}=>{
             let mut next=*turns;let last=history.last().map(|m|m.as_str());
-            let name=if history.is_empty(){"automaton_spawn"}else if next==4{next=0;"automaton_beam"}else if last==Some("automaton_beam"){"automaton_stun"}else{next+=1;if matches!(last,Some("automaton_spawn"|"automaton_stun"|"automaton_boost")){"automaton_flail"}else{"automaton_boost"}};
+            let name=if history.is_empty(){"automaton_spawn"}else if next==4{next=0;"automaton_beam"}else if last==Some("automaton_beam")&&ascension>=19{"automaton_boost"}else if last==Some("automaton_beam"){"automaton_stun"}else{next+=1;if matches!(last,Some("automaton_spawn"|"automaton_stun"|"automaton_boost")){"automaton_flail"}else{"automaton_boost"}};
             (name,EnemyMemory::BronzeAutomaton{turns:next})
         },
         EnemyMemory::BronzeOrb{used_stasis}=>{

@@ -2,7 +2,8 @@
 use super::*;
 use super::super::super::{ActorLife,ActorIntentId};
 
-pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,half_dead:bool)->Result<MoveSelection,SelectError>{
+pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,half_dead:bool,ascension:u8)->Result<MoveSelection,SelectError>{
+    let _ = ascension; // Harden keeps the same selection at every ascension; M32 changes only its payload.
     let EnemyMemory::Darkling{center,nip,first}=memory else{return Err(InputError::Invariant("Darkling memory missing".into()).into())};
     if half_dead{return Ok(MoveSelection{intent:FullIntentId::from_name("darkling_reincarnate"),memory:memory.clone(),stream:stream.clone()})}
     let mut cursor=stream.clone();let (mut n,next)=rng::uniform_below(&cursor,100)?;cursor=next;
@@ -18,11 +19,12 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:EnemyMemory::Darkling{center:*center,nip:*nip,first:false},stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());
     Ok(match enemy.intent_id.as_str(){
         "darkling_nip"=>vec![damage(actor,FullIntentId::from_name("darkling_nip"))],
         "darkling_chomp"=>vec![damage(actor.clone(),FullIntentId::from_name("darkling_chomp")),damage(actor,FullIntentId::from_name("darkling_chomp"))],
+        "darkling_harden" if ascension>=17=>vec![effect(actor.clone(),actor.clone(),EffectKind::GainBlock(12)),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2})],
         "darkling_harden"=>vec![effect(actor.clone(),actor,EffectKind::GainBlock(12))],
         "darkling_regrowing"=>vec![],
         "darkling_reincarnate"=>vec![effect(actor.clone(),actor.clone(),EffectKind::RevivalHeal(enemy.max_hp/2)),effect(actor.clone(),actor.clone(),EffectKind::DarklingRevive),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("life_link"),amount:1})],

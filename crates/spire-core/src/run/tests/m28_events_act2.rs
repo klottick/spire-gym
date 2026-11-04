@@ -202,18 +202,22 @@ fn m28_event_outcome_replace_relic_in_slot() {
 /// ascension is the typed `Unsupported`, checked before any mutation, for every event encounter (M28d's Three
 /// Sentries at A15 here), never a fault after acceptance. Supported pairs (Gremlin Nob at A15) still start.
 /// M29c lands the Sentry, so the unavailable witness moves to Masked Bandits (M29d) at A15 (name kept).
-/// M29d lands Masked Bandits: the witness is A17, above its encounter ceiling (16).
+/// M29d lands Masked Bandits: the witness is A17, above its encounter ceiling (16). M32 removes the
+/// ceilings (plan item 3): the witness is A21, a hand-edited state above the game's range.
 #[test]
 fn m28_event_combat_unsupported_ascension_is_rejected_up_front() {
     let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 94);
-    run.state.ascension = 17;
+    run.state.ascension = 21;
     // Amended at M31 (plan item 2): the A0 fixture takes the edited ascension's potion base (2 from A11).
-    run.state.potions = vec![None; crate::run::potion_base_slots(17)];
+    run.state.potions = vec![None; crate::run::potion_base_slots(21)];
     let before = run.clone();
     let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::MaskedBandits, rewards: None, next_stage: 0, elite: true }]);
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");
     assert!(run == before && run.state.fault.is_none(), "rejected atomically, no fault");
-    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::GremlinNob, rewards: None, next_stage: 0, elite: true }]).unwrap();
+    // M32: the supported pair is the formerly gated Masked Bandits at A17.
+    run.state.ascension = 17;
+    run.state.potions = vec![None; crate::run::potion_base_slots(17)];
+    event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::MaskedBandits, rewards: None, next_stage: 0, elite: true }]).unwrap();
     assert!(run.state.combat.is_some());
 }
 
@@ -1099,21 +1103,27 @@ fn m28_we_meet_again_rows_show_the_preselected_gifts() {
 /// M2: above A0 the Colosseum's first fight has no enemy facts, so the event would open with no legal row; the
 /// Move is rejected up front as the typed interim (the global ascension gate), atomically. Masked Bandits keeps Pay.
 /// M29c lands the Colosseum's species: the witness moves above its first fight's ceiling (A17, the M32 reason).
+/// Formerly `m28_colosseum_above_a0_is_rejected_at_the_move` (M32 plan item 3, design §6.2): no ceiling
+/// remains, so both event fights are admitted at A17; the atomic rejection witness moves above A20
+/// (a hand-edited state; no constructor admits it).
 #[test]
-fn m28_colosseum_above_a0_is_rejected_at_the_move() {
+fn m28_colosseum_and_masked_bandits_fights_enter_at_a17() {
     let (mut run, node) = colosseum_before(Character::Ironclad, 7);
     run.state.ascension = 17;
+    assert!(run.step(&GameAction::Move(node)).is_ok(), "the A17 Colosseum opens");
+    let (mut run, node) = colosseum_before(Character::Ironclad, 7);
+    run.state.ascension = 21;
     let before = run.clone();
     let result = run.step(&GameAction::Move(node));
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");
     assert!(run == before && run.state.fault.is_none(), "rejected atomically, no fault");
 
-    // M29d lands Masked Bandits (ceiling 16): the fight is gated above the ceiling.
+    // M29d lands Masked Bandits (ceiling 16); M32: the A17 fight is offered.
     let (mut run, node) = before_event(Character::Ironclad, 2, EventId::MaskedBandits, 7);
     run.state.ascension = 17;
     run.step(&GameAction::Move(node)).unwrap();
     assert_eq!(event_row(&run, 0, 0).status, RoomChoiceStatus::Offered, "Pay stays legal");
-    assert_eq!(event_row(&run, 0, 1).status, RoomChoiceStatus::Disabled, "the fight is gated");
+    assert_eq!(event_row(&run, 0, 1).status, RoomChoiceStatus::Offered, "the A17 fight is offered");
 }
 
 /// M4: amounts captured at construction ignore a max-HP change on the page (Fruit Juice, the D1 window).

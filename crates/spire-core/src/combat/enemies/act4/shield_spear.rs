@@ -62,8 +62,14 @@ pub(in crate::combat::enemies) fn move_work(state:&mut State,owner:&EnemyHandle)
             }
         },
         (EnemyId::SpireShield,"shield_fortify")=>state.enemies.iter().map(|e|effect(actor.clone(),Some(Actor::Enemy(e.instance_id.clone())),EffectKind::GainBlock(30))).collect(),
-        (EnemyId::SpireShield,"shield_smash")=>vec![damage(owner,name),effect(actor.clone(),Some(actor),EffectKind::GainBlock(enemy.full_damage_entries[&FullIntentId::from_name(name)].output))],
-        (EnemyId::SpireSpear,"spear_burn_strike")=>vec![damage(owner,name),damage(owner,name),effect(actor.clone(),Some(Actor::Player),EffectKind::CreateCard{id:crate::content::CardId::Burn,destination:super::super::super::CardDestination::Discard,upgrades:0}),effect(actor.clone(),Some(Actor::Player),EffectKind::CreateCard{id:crate::content::CardId::Burn,destination:super::super::super::CardDestination::Discard,upgrades:0})],
+        (EnemyId::SpireShield,"shield_smash")=>{
+            let block=if state.ascension>=18{99}else{enemy.full_damage_entries[&FullIntentId::from_name(name)].output};
+            vec![damage(owner,name),effect(actor.clone(),Some(actor),EffectKind::GainBlock(block))]
+        },
+        (EnemyId::SpireSpear,"spear_burn_strike")=>{
+            let destination=if state.ascension>=18{super::super::super::CardDestination::Draw}else{super::super::super::CardDestination::Discard};
+            vec![damage(owner,name),damage(owner,name),effect(actor.clone(),Some(Actor::Player),EffectKind::CreateCard{id:crate::content::CardId::Burn,destination,upgrades:0}),effect(actor.clone(),Some(Actor::Player),EffectKind::CreateCard{id:crate::content::CardId::Burn,destination,upgrades:0})]
+        },
         (EnemyId::SpireSpear,"spear_skewer")=>vec![damage(owner,name);super::super::ascension::spear_skewer_hits(state.ascension)],
         (EnemyId::SpireSpear,"spear_strength")=>state.enemies.iter().map(|e|effect(actor.clone(),Some(Actor::Enemy(e.instance_id.clone())),EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:2})).collect(),
         _=>return Err(InputError::Unsupported("Shield/Spear intent mismatch".into()).into()),

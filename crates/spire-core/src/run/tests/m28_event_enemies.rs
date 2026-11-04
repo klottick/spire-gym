@@ -124,18 +124,28 @@ fn m28_event_formations_colosseum_and_bandits() {
     }
 }
 
-/// M29d: every species landed, so the witness moves above Masked Bandits' encounter ceiling (16,
-/// Romeo's A17 AI is M32): A17 is the typed `Unsupported` (name kept, plan m4).
+/// Formerly `m28_event_enemies_a0_only` (M32 plan item 3, design §6.2). M29d: every species landed, so
+/// the witness moved above Masked Bandits' encounter ceiling (16). M32 removes the ceilings: the A17
+/// event fight enters; only an ascension above A20 (a hand-edited state) stays the typed `Unsupported`.
 #[test]
-fn m28_event_enemies_a0_only() {
+fn m28_event_enemies_admit_a17_combat() {
     let mut run = at_event(Character::Ironclad, 2, EventId::GoldenShrine, 93);
     run.state.ascension = 17;
+    // The A0 fixture takes the edited ascension's potion base (2 from A11; M31 plan item 2).
+    run.state.potions = vec![None; crate::run::potion_base_slots(17)];
+    let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat {
+        encounter: EncounterId::MaskedBandits, rewards: None, next_stage: DONE, elite: false,
+    }]);
+    assert!(result.is_ok(), "{result:?}");
+    assert_eq!(combat(&run).enemies.len(), 3, "the A17 Masked Bandits fight entered");
+    let mut run = at_event(Character::Ironclad, 2, EventId::GoldenShrine, 93);
+    run.state.ascension = 21;
     let before = run.clone();
     let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat {
         encounter: EncounterId::MaskedBandits, rewards: None, next_stage: DONE, elite: false,
     }]);
     assert!(matches!(result, Err(RunError::Unsupported(_))), "{result:?}");
-    assert_eq!(run, before, "unsupported A17 setup leaves the event Run unchanged");
+    assert_eq!(run, before, "unsupported A21 setup leaves the event Run unchanged");
 }
 
 #[test]

@@ -291,7 +291,7 @@ def test_m10_from_start_matches_native_binding_gym_and_replay(native_cases, case
     assert case["profile_id"] == "M10IroncladHeart"
     assert case["completion"] == "death"
     assert case["session_run_observed_through"] == "death"
-    expected_prefix = {7: (177, 11, 10), 11: (110, 7, 6)}
+    expected_prefix = {7: (175, 11, 10), 11: (108, 7, 6)}
     expected_steps, expected_floor, expected_reward = expected_prefix[case["seed"]]
     assert len(case["record"]["steps"]) == expected_steps
     assert case["boundaries"][-1]["decision"]["floor"] == expected_floor

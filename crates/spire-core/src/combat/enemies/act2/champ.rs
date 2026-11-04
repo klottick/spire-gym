@@ -1,17 +1,18 @@
 //! Champ's phase latch and counters belong to the actual move-selection checkpoint.
 use super::*;
 
-pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,context:&EnemyRollContext)->Result<MoveSelection,super::super::SelectError>{
+pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,context:&EnemyRollContext,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let EnemyMemory::Champ{turns,forges,angered}=memory else{return Err(InputError::Invariant("Champ memory absent".into()).into())};
     let owner=context.actors.iter().find(|a|a.owner==context.owner).ok_or_else(||InputError::Invariant("Champ live owner absent".into()))?;
     let mut turns=turns.checked_add(1).filter(|n|*n<=i32::MAX as u32).ok_or_else(||InputError::Unsupported("Champ turn counter exhausted".into()))?;
     let mut forges=*forges;let mut angered=*angered;let mut cursor=stream.clone();let last=history.last().map(|m|m.as_str());
+    let stance_cutoff=if ascension>=19{30}else{15};
     let name=if !angered&&owner.hp<owner.max_hp/2{angered=true;"champ_anger"}
         else if angered&&!history.iter().rev().take(2).any(|m|m.as_str()=="champ_execute"){"champ_execute"}
         else if !angered&&turns==4{turns=0;"champ_taunt"}
         else {
             let (ticket,next)=rng::uniform_below(&cursor,100)?;cursor=next;
-            if ticket<=15&&last!=Some("champ_stance")&&forges<2{forges+=1;"champ_stance"}
+            if ticket<=stance_cutoff&&last!=Some("champ_stance")&&forges<2{forges+=1;"champ_stance"}
             else if ticket<=30&&!matches!(last,Some("champ_stance"|"champ_gloat")){"champ_gloat"}
             else if ticket<=55&&last!=Some("champ_slap"){"champ_slap"}
             else if last==Some("champ_slash"){"champ_slap"}else{"champ_slash"}

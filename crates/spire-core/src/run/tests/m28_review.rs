@@ -92,7 +92,9 @@ fn m28_review_eggs_apply_after_the_upgrade_roll() {
 /// Run unchanged, choice tokens and event pools included. M28f lands the last body, so the witness
 /// is the remaining typed rejection: the Colosseum above A0 (no enemy facts; review-v1 M2 of M28e),
 /// fixed by a one-event pool. M29c lands the Colosseum's species, so the witness moves above its first
-/// fight's ceiling (A17; Slaver Red 16), rejected with the M32 reason (plan m4; name kept).
+/// fight's ceiling (A17; Slaver Red 16), rejected with the M32 reason (plan m4; name kept). M32 removes the
+/// ceilings (plan item 3): A17 now continues to the event, and the remaining typed rejection is an
+/// ascension above A20 (a hand-edited state; no constructor admits it), which the witness moves to.
 #[test]
 fn m28_review_event_interim_leaves_the_whole_run() {
     // The diagnostic Run on a row-7 node whose row-8 child is the event room (E10: Colosseum needs y >= 8).
@@ -106,18 +108,22 @@ fn m28_review_event_interim_leaves_the_whole_run() {
         run.state.floor = from.floor;
         (run, node)
     }
-    const INTERIM: &str = crate::combat::enemies::ascension::ABOVE_CEILING;
+    const INTERIM: &str = "event combat enemy setup unavailable at this ascension";
     let pools = || Some(rooms::standard::event_pool::EventPools { ordinary: vec![crate::content::EventId::Colosseum], shrines: vec![], one_time: vec![], seen: vec![] });
     for character in CHARACTERS {
+        let (mut admitted, target) = row8(character, 9);
+        admitted.state.event_pools = pools();
+        admitted.state.ascension = 17;
+        assert!(admitted.step(&GameAction::Move(target)).is_ok(), "{character:?}: A17 continues to the event");
         let (mut run, target) = row8(character, 9);
         run.state.event_pools = pools();
-        run.state.ascension = 17;
+        run.state.ascension = 21;
         let before = run.clone();
         assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(INTERIM)));
         assert!(run == before, "{character:?}: whole Run unchanged");
         let (mut question, target) = row8(character, 10);
         question.state.event_pools = pools();
-        question.state.ascension = 17;
+        question.state.ascension = 21;
         question.state.map.as_mut().unwrap().nodes.iter_mut().find(|n| n.id == target).unwrap().kind = MapNodeKind::Question;
         question.state.map.as_mut().unwrap().question_ramps = [0; 3];
         question.state.relics.push(RelicId::TinyChest); question.state.relic_counters.insert(RelicId::TinyChest, 1);

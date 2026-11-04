@@ -27,15 +27,17 @@ fn m31_standard_creation_a0_to_a15_all_characters() {
     }
 }
 
+/// Formerly `m31_standard_rejects_a16_and_above` (M32 plan item 1): the cap is A19 since M32, so A15–A17
+/// are admitted and the rejected levels are 20 and 21, with the A0–A19 message.
 #[test]
-fn m31_standard_rejects_a16_and_above() {
+fn m31_standard_rejects_above_cap() {
     for character in CHARACTERS {
-        assert!(standard(character, 15, false).is_ok(), "{character:?} A15 (t-1)");
-        for ascension in [16, 17, 20, 21] {
+        for ascension in [15, 16, 17] { assert!(standard(character, ascension, false).is_ok(), "{character:?} A{ascension}"); }
+        for ascension in [20, 21] {
             assert_eq!(standard(character, ascension, false).err(),
-                Some(RunError::Unsupported("Standard supports A0–A15")), "{character:?} A{ascension}");
+                Some(RunError::Unsupported("Standard supports A0–A19")), "{character:?} A{ascension}");
             assert_eq!(rooms::standard::build(RunConfig { character, ascension }, profile(false), rng(1)).err(),
-                Some(RunError::Unsupported("Standard supports A0–A15")), "{character:?} A{ascension}");
+                Some(RunError::Unsupported("Standard supports A0–A19")), "{character:?} A{ascension}");
         }
     }
 }

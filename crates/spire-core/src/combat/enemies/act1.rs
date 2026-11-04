@@ -30,7 +30,7 @@ pub(super) fn select_slime_boss(history: &[FullIntentId], memory: &EnemyMemory,
 }
 
 pub(super) fn select_acid(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
-    stream: &StreamState) -> Result<MoveSelection, SelectError> {
+    stream: &StreamState, ascension: u8) -> Result<MoveSelection, SelectError> {
     use FullIntentId::{AcidLick, AcidSpit, AcidTackle};
     if stream.id().domain() != rng::Domain::RunCombatEnemyAi {
         return Err(InputError::Unsupported("Acid Slime requires actor-owned AI stream".into()).into());
@@ -45,53 +45,67 @@ pub(super) fn select_acid(id: EnemyId, history: &[FullIntentId], memory: &EnemyM
         return Err(InputError::Unsupported("Acid Slime history/identity mismatch".into()).into());
     }
     let (intent, next) = if id == EnemyId::AcidSlimeS {
-        match history.last() {
-            Some(AcidTackle) => (AcidLick, stream.clone()),
-            Some(AcidLick) => (AcidTackle, stream.clone()),
-            None => {
-                let (roll, next) = rng::uniform_below(stream, 2)?;
-                (if roll == 0 { AcidTackle } else { AcidLick }, next)
+        if ascension >= 17 && history.is_empty() {
+            (AcidLick, stream.clone())
+        } else {
+            match history.last() {
+                Some(AcidTackle) => (AcidLick, stream.clone()),
+                Some(AcidLick) => (AcidTackle, stream.clone()),
+                None => {
+                    let (roll, next) = rng::uniform_below(stream, 2)?;
+                    (if roll == 0 { AcidTackle } else { AcidLick }, next)
+                }
+                _ => return Err(InputError::Unsupported("Acid Slime S history mismatch".into()).into()),
             }
-            _ => return Err(InputError::Unsupported("Acid Slime S history mismatch".into()).into()),
         }
     } else {
-        select_acid_medium(history, stream)?
+        select_acid_medium(id, history, stream, ascension)?
     };
     Ok(MoveSelection { intent, stream: next, memory: memory.clone() })
 }
 
-fn select_acid_medium(history: &[FullIntentId], stream: &StreamState)
+fn select_acid_medium(id: EnemyId, history: &[FullIntentId], stream: &StreamState, ascension: u8)
     -> Result<(FullIntentId, StreamState), SelectError> {
     use FullIntentId::{AcidLick, AcidSpit, AcidTackle};
+    let a17 = ascension >= 17;
+    let large = id == EnemyId::AcidSlimeL;
+    let first_cutoff = if a17 { 40 } else { 30 };
+    let second_cutoff = if large { 70 } else if a17 { 80 } else { 70 };
     let (roll, mut cursor) = rng::uniform_below(stream, 100)?;
-    let conditional = match roll {
-        0..=29 if history.ends_with(&[AcidSpit, AcidSpit]) => Some((1, 2)),
-        30..=69 if history.last() == Some(&AcidTackle) => Some((6_710_887, 16_777_216)),
-        70..=99 if history.ends_with(&[AcidLick, AcidLick]) => Some((6_710_887, 16_777_216)),
-        _ => None,
+    let redirect_probability = if large && a17 { (10_066_330, 16_777_216) }
+        else if a17 { (1, 2) }
+        else { (6_710_887, 16_777_216) };
+    let conditional = if roll < first_cutoff
+        && history.ends_with(&[AcidSpit, AcidSpit]) {
+        Some(if a17 && large { redirect_probability } else { (1, 2) })
+    } else if roll < second_cutoff && roll >= first_cutoff
+        && if a17 { history.ends_with(&[AcidTackle, AcidTackle]) }
+            else { history.last() == Some(&AcidTackle) } {
+        Some(redirect_probability)
+    } else if roll >= second_cutoff
+        && if a17 { history.last() == Some(&AcidLick) }
+            else { history.ends_with(&[AcidLick, AcidLick]) } {
+        Some((6_710_887, 16_777_216))
+    } else {
+        None
     };
     let redirect = if let Some((numerator, denominator)) = conditional {
         let (ticket, next) = rng::uniform_below(&cursor, denominator)?;
         cursor = next;
         Some(ticket < numerator)
     } else { None };
-    let intent = match (roll, redirect) {
-        (0..=29, Some(true)) => AcidTackle,
-        (0..=29, Some(false)) => AcidLick,
-        (0..=29, None) => AcidSpit,
-        (30..=69, Some(true)) => AcidSpit,
-        (30..=69, Some(false)) => AcidLick,
-        (30..=69, None) => AcidTackle,
-        (70..=99, Some(true)) => AcidSpit,
-        (70..=99, Some(false)) => AcidTackle,
-        (70..=99, None) => AcidLick,
-        _ => unreachable!("bounded Acid Slime roll"),
+    let intent = if roll < first_cutoff {
+        match redirect { Some(true) => AcidTackle, Some(false) => AcidLick, None => AcidSpit }
+    } else if roll < second_cutoff {
+        match redirect { Some(true) => AcidSpit, Some(false) => AcidLick, None => AcidTackle }
+    } else {
+        match redirect { Some(true) => AcidSpit, Some(false) => AcidTackle, None => AcidLick }
     };
     Ok((intent, cursor))
 }
 
 pub(super) fn select_spike(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
-    stream: &StreamState) -> Result<MoveSelection, SelectError> {
+    stream: &StreamState, ascension: u8) -> Result<MoveSelection, SelectError> {
     use FullIntentId::{SpikeFlameTackle, SpikeLick, SpikeTackle};
     if stream.id().domain() != rng::Domain::RunCombatEnemyAi {
         return Err(InputError::Unsupported("Spike Slime requires actor-owned AI stream".into()).into());
@@ -108,6 +122,9 @@ pub(super) fn select_spike(id: EnemyId, history: &[FullIntentId], memory: &Enemy
         EnemyId::SpikeSlimeS => (SpikeTackle, stream.clone()),
         EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL if history.ends_with(&[SpikeFlameTackle, SpikeFlameTackle]) =>
             (SpikeLick, stream.clone()),
+        EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL
+            if ascension >= 17 && history.last() == Some(&SpikeLick) =>
+            (SpikeFlameTackle, stream.clone()),
         EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL if history.ends_with(&[SpikeLick, SpikeLick]) =>
             (SpikeFlameTackle, stream.clone()),
         EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL => {

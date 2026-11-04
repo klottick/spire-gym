@@ -1,11 +1,13 @@
-//! M29a2: an event fight above its encounter's playable ceiling is rejected up front with the
-//! M32 reason (not the M29 interim), leaving the whole Run unchanged. Witness: the Colosseum,
-//! whose first fight (Colosseum Slavers: Slaver Red) has ceiling 16 (inventory §3a).
+//! M29a2: an event fight above its encounter's playable ceiling was rejected up front with the
+//! M32 reason, leaving the whole Run unchanged. Witness: the Colosseum, whose first fight (Colosseum
+//! Slavers: Slaver Red) had ceiling 16 (inventory §3a). M32 removes every ceiling (plan item 3).
 use super::super::*;
 use crate::content::Character;
 
+/// Formerly `m29_event_fight_above_ceiling_names_m32` (M32 plan item 3, design §6.2): no ceiling
+/// remains, so the Colosseum event enters at A16 and A17 alike.
 #[test]
-fn m29_event_fight_above_ceiling_names_m32() {
+fn m29_event_fight_admits_a17() {
     fn row8(character: Character, seed: u8) -> (Run, crate::run::NodeId) {
         let (mut run, _) = super::m28_event_core::before_event(character, 2, crate::content::EventId::Colosseum, seed);
         let map = run.state.map.as_mut().unwrap();
@@ -16,15 +18,12 @@ fn m29_event_fight_above_ceiling_names_m32() {
         run.state.floor = from.floor;
         (run, node)
     }
-    // M29c: the Colosseum's species landed, so A16 enters the event; A17 stays above the ceiling.
-    for (ascension, reason) in [(16, None), (17, Some(crate::combat::enemies::ascension::ABOVE_CEILING))] {
+    // M29c: the Colosseum's species landed, so A16 enters the event. M32: A17 enters too.
+    for ascension in [16, 17] {
         let (mut run, target) = row8(Character::Silent, 9);
         run.state.event_pools = Some(rooms::standard::event_pool::EventPools {
             ordinary: vec![crate::content::EventId::Colosseum], shrines: vec![], one_time: vec![], seen: vec![] });
         run.state.ascension = ascension;
-        let before = run.clone();
-        let Some(reason) = reason else { assert!(run.step(&GameAction::Move(target)).is_ok(), "A{ascension}"); continue };
-        assert_eq!(run.step(&GameAction::Move(target)), Err(RunError::Unsupported(reason)), "A{ascension}");
-        assert!(run == before, "A{ascension}: whole Run unchanged");
+        assert!(run.step(&GameAction::Move(target)).is_ok(), "A{ascension}");
     }
 }
