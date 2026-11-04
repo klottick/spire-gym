@@ -385,8 +385,9 @@ pub(in crate::run) fn courier_card(run:&mut Run,purchased:crate::content::CardId
             .map_err(|_|RunError::Unsupported("complete Courier colourless family is incomplete"))?)
     }else{
         let rarity_roll=run.state.rng.bounded_scoped_checked(law.card,key,100)?;
-        // The shared card-rarity owner (M28a item 9); a shop is an ordinary room (R 3, U 37).
-        let mut rarity=super::standard::rewards::classify(super::standard::rewards::RarityRoom::Ordinary,rarity_roll as u32,law.offset,1);
+        // The shared card-rarity owner (M28a item 9). G3 (M31): the restock's `rollRarity()` runs in the
+        // ShopRoom, 9/37 without the relic hooks (ShopScreen.java:649–651; ShopRoom.java:46–47, :62–64).
+        let mut rarity=super::standard::rewards::classify(super::standard::rewards::RarityRoom::Shop,rarity_roll as u32,law.offset,1);
         let mut candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
             character,rarity:Some(rarity),card_type:Some(definition.card_type),
         }).map_err(|_|RunError::Unsupported("complete Courier card family is incomplete"))?;

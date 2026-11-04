@@ -1,6 +1,23 @@
 # Work status
 
-## Current snapshot — 2026-11-03, M29 merged (A1–A5 public); M30 (Ascension 6–10) candidate
+## Current snapshot — 2026-11-04, M30 merged (A6–A10 public); M31 (Ascension 11–15) candidate
+
+- M30 merged as PR #92 (`5e2a10b4`), the M31 source base.
+- M31 is a source candidate, not accepted. A default build admits A0–A15 standard Runs for all four characters.
+  - From A11, a Run has two potion slots; Potion Belt adds two (four). The shape holds at equip, combat entry and
+    settlement, slot use, generated potions, Entropic Brew, Disabled rows, Sozu and after the Belt is lost.
+  - From A12, the automatic card-upgrade chance is 0.125 in Act 2 and 0.25 in Acts 3–4.
+  - From A13, boss reward gold is `MathUtils.round(gold * 0.75f)` before Golden Idol, and Mind Bloom pays 25.
+  - A14 max HP and the A15 events were already in the engine; M31 pins them through the public route.
+  - No enemy work: no monster rule lies in 11–15.
+- Three global fixes apply at every ascension:
+  - G1: on the Standard Run, Orrery, Tiny House and Dream Catcher card rows follow the ordinary reward law on the
+    current room's thresholds, and Cauldron and Calling Bell generate and discard their hidden card row.
+  - G2: a potion in a slot kept after losing Potion Belt stays usable.
+  - G3: the shop's coloured card stock and Courier restocks use the ShopRoom 9/37 thresholds.
+- See the [M31 candidate profile](milestones/m31-ascension11-15.md).
+
+## Snapshot — 2026-11-03, M29 merged (A1–A5 public); M30 (Ascension 6–10) candidate
 
 - M29d merged as PR #91 (`417ad9ce`), which closes M29 and is the M30 source base.
 - M30 is a source candidate, not accepted. A default build admits A0–A10 standard Runs for all four characters.

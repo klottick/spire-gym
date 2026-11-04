@@ -153,7 +153,8 @@ pub(crate) fn equip(id: RelicId, state: &mut RunState, work: &mut EquipWork) -> 
         // Master-deck one-card selection.
         RelicId::DollysMirror => work.select(SelectionSpec {
             eligible: state.deck.iter().map(|card| card.instance).collect(), count: 1, cancellable: false }),
-        // Curse of the Bell first, then one screenless Common, Uncommon and Rare relic offer.
+        // Curse of the Bell first, then one screenless Common, Uncommon and Rare relic offer. The
+        // screen's own card row is generated and cleared (CallingBell.java:43–51; M31 G1(b)).
         RelicId::CallingBell => {
             crate::run::mutations::obtain_card_or_negated(state, CardId::CurseOfTheBell, 0)?;
             work.offer(RewardSpec { relic_tiers: vec![RelicTier::Common, RelicTier::Uncommon, RelicTier::Rare],
@@ -183,7 +184,8 @@ pub(crate) fn equip(id: RelicId, state: &mut RunState, work: &mut EquipWork) -> 
             let potions = flat_potions(state, id, 1)?;
             work.offer(RewardSpec { card_rewards: 1, potions, gold: TINY_HOUSE_GOLD, ..RewardSpec::default() });
         }
-        // Five flat-pool potion offers; the automatically generated card row is removed.
+        // Five flat-pool potion offers; the automatically generated card row is removed
+        // (Cauldron.java:24–39; M31 G1(b): its draws still move the Standard offset).
         RelicId::Cauldron => {
             let potions = flat_potions(state, id, CAULDRON_POTIONS)?;
             work.offer(RewardSpec { potions, ..RewardSpec::default() });

@@ -53,6 +53,9 @@ pub(in crate::run) enum Shows{
 /// m28d/source-check-act-dependence-v1): the A15 amounts below are read from it.
 pub(in crate::run) fn a15(state:&RunState)->bool{state.ascension>=15}
 
+/// The source's `AbstractDungeon.ascensionLevel >= 13` event band (M31 source check §D): Mind Bloom.
+pub(in crate::run) fn a13(state:&RunState)->bool{state.ascension>=13}
+
 /// The defaults of the optional hooks, for `Body{.., ..PLAIN}`.
 pub(in crate::run) const PLAIN:Body=Body{construct:|_|Ok(EventCaptures::default()),rows:|_,_,_|vec![],choose:|_,_,_,_|Err(RunError::InvalidAction),selected:None,card:None,card_stage:None,shows:None};
 

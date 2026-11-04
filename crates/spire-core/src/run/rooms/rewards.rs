@@ -212,6 +212,9 @@ fn open_equip_offer_group(run:&mut Run,choice:ChoiceId,relic:RelicId,spec:Reward
     previous:Option<Box<CapturedRewards>>,queued:Vec<RewardSpec>,finish_parent:bool)->Result<RunTransition,RunError>{
     if run.state.item_admission!=ItemAdmission::Complete{return Err(RunError::InvalidAction)}
     let RewardSpec{card_rewards,relic_tiers,potions,gold}=spec;
+    // M31 G1(b): Cauldron and Calling Bell open a reward screen whose own card row is generated and
+    // removed (Cauldron.java:24–39, CallingBell.java:43–51; review v1 Q3 census).
+    let hidden_card_row=matches!(relic,RelicId::Cauldron|RelicId::CallingBell);
     // G4: a Neow relic's offers open over the Map before the first move (PRE_MAP_NODE).
     let node=selection_node(&run.state)?;
     let mut staged=run.clone();
@@ -231,26 +234,67 @@ fn open_equip_offer_group(run:&mut Run,choice:ChoiceId,relic:RelicId,spec:Reward
     rows.push((RoomChoiceKind::Proceed,None));
     let screen=view(&mut next,RoomViewKind::Rewards,rows)?;
 
-    let mut rng=staged.state.rng.clone();
-    let rarities=[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Uncommon];
-    let slots=rarities.iter().map(|rarity|super::m15_content::ordinary_family(staged.state.character,*rarity)).collect::<Vec<_>>();
-    let shard=staged.state.relics.contains(&RelicId::PrismaticShard);
-    let mut children=Vec::with_capacity(card_rewards);
-    for index in 0..card_rewards{
-        let semantic=[u64::from(staged.state.act),u64::from(staged.state.floor),node.0,choice.0,index as u64,0xA25];
-        let cards=if shard{sample_shard_card_row(&mut rng,&semantic,&rarities)?}else{
-            super::m15_content::sample_capture_row_for(&mut rng,&semantic,&slots,crate::run::RunRngScope::M26CardOffer,
-                "equip card offer has an incomplete character rarity family","equip card offer has no remaining character card")?
-        };
-        children.push(card_child(&mut next,cards,false)?);
-    }
+    let children=if staged.state.card_rarity_offset.is_some(){
+        standard_equip_card_rows(&mut staged.state,&mut next,parent.kind,node,choice,card_rewards,hidden_card_row)?
+    }else{
+        // Non-Standard Complete Runs (no live offset; M31 review I1): the M26 fixed C/U/U row.
+        let mut rng=staged.state.rng.clone();
+        let rarities=[crate::content::CardRarity::Common,crate::content::CardRarity::Uncommon,crate::content::CardRarity::Uncommon];
+        let slots=rarities.iter().map(|rarity|super::m15_content::ordinary_family(staged.state.character,*rarity)).collect::<Vec<_>>();
+        let shard=staged.state.relics.contains(&RelicId::PrismaticShard);
+        let mut children=Vec::with_capacity(card_rewards);
+        for index in 0..card_rewards{
+            let semantic=[u64::from(staged.state.act),u64::from(staged.state.floor),node.0,choice.0,index as u64,0xA25];
+            let cards=if shard{sample_shard_card_row(&mut rng,&semantic,&rarities)?}else{
+                super::m15_content::sample_capture_row_for(&mut rng,&semantic,&slots,crate::run::RunRngScope::M26CardOffer,
+                    "equip card offer has an incomplete character rarity family","equip card offer has no remaining character card")?
+            };
+            children.push(card_child(&mut next,cards,false)?);
+        }
+        staged.state.rng=rng;
+        children
+    };
     let mut captured_cards=view(&mut next,RoomViewKind::CardReward,vec![])?;
     append_card_children(&mut captured_cards,children)?;
     staged.next_choice=next;
-    staged.state.rng=rng;
     install_offer_frame(&mut staged,choice,Some(relic),screen,captured_cards,parent,previous,queued,finish_parent);
     *run=staged;
     Ok(empty_transition())
+}
+
+/// M31 G1 (design §6.4; equip-offers research §1–§4): on the Standard Run each equip card row is a
+/// source `getRewardCards` row, built by the ordinary offer on the thresholds of the room the offer
+/// opens over: a shop is ShopRoom 9/37 and a campfire RestRoom 3/37, both without the relic rarity
+/// hooks (`getCardRarity(roll,false)`); anything else (the boss chest, Neow) is AbstractRoom 3/37
+/// with them (N'loth's Gift). The choice count is the card-shape seam's (Question Card, Busted Crown;
+/// a non-ordinary room, so no Prayer Wheel row); Singing Bowl joins Skip. A `hidden` row (Cauldron,
+/// Calling Bell) is generated first and discarded: only its offset writes remain.
+fn standard_equip_card_rows(state:&mut RunState,next:&mut u64,room:RoomViewKind,node:NodeId,choice:ChoiceId,
+    rows:usize,hidden:bool)->Result<Vec<RoomView>,RunError>{
+    use super::standard::rewards::{ordinary_offer,RarityRoom};
+    let (rarity_room,hooks)=match room{
+        RoomViewKind::Shop=>(RarityRoom::Shop,false),
+        RoomViewKind::Campfire=>(RarityRoom::Ordinary,false),
+        _=>(RarityRoom::Ordinary,true),
+    };
+    let shape=crate::items::run_laws::card_reward_shape(state,crate::items::run_laws::RewardRoom::Event);
+    let choices=usize::try_from(shape.choices.max(1)).map_err(|_|RunError::InvalidAction)?;
+    if rows>8||choices>32{return Err(RunError::Unsupported("card reward shape exceeds the native bound"))}
+    let rare_factor=if hooks{shape.rare_factor}else{1};
+    let singing_bowl=state.relics.contains(&RelicId::SingingBowl);
+    let (act,floor)=(u64::from(state.act),u64::from(state.floor));
+    let semantic=|row:u64,tag:u64|[act,floor,node.0,choice.0,row,tag];
+    if hidden{
+        let key=semantic(0,0xA26);
+        let _discarded=ordinary_offer(state,rarity_room,choices,rare_factor,&key)?;
+    }
+    let mut children=Vec::with_capacity(rows);
+    for row in 0..rows{
+        let key=semantic(row as u64,0xA25);
+        let offered=ordinary_offer(state,rarity_room,choices,rare_factor,&key)?;
+        children.push(card_child_rows(next,offered,singing_bowl)?);
+    }
+    Ok(children)
 }
 
 fn install_offer_frame(run:&mut Run,choice:ChoiceId,source_relic:Option<RelicId>,screen:RoomView,cards:RoomView,
@@ -369,7 +413,11 @@ fn prepare_standard(run:&Run,record:&CombatRecord)->Result<Option<PreparedRoomRe
         }
     }
     if let Some(minimum)=minimum{
-        let gold=minimum+producer.rng.bounded_scoped_checked(RunRngScope::CombatGoldReward,&key,11)? as u32;
+        let mut gold=minimum+producer.rng.bounded_scoped_checked(RunRngScope::CombatGoldReward,&key,11)? as u32;
+        // A13 (M31 source check §D): the boss row is `MathUtils.round(binary32(tmp × .75f))` before
+        // Golden Idol. A Standard Act 3 boss and the Heart have no reward screen, so this reaches the
+        // Act 1 and Act 2 bosses (design §6.6, review m4).
+        if kind==MapNodeKind::Boss&&run.state.ascension>=13{gold=crate::run::numeric::libgdx_round(gold as f32*0.75_f32);}
         rows.push((RoomChoiceKind::Gold(gold),None));
         apply_gold_bonus(&mut rows,gold_percent)?;
     }

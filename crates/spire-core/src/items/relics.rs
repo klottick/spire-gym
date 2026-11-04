@@ -244,8 +244,9 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
 /// Obtain-time equipment owned by the accepted relic handler.
 pub(super) fn equip(id:RelicId,state:&mut RunState,work:&mut EquipWork)->Result<bool,RunError>{
     match id {
+        // M31 (design §6.3): two slots appended to the Run's base (3, or 2 from A11).
         RelicId::PotionBelt=>{
-            if state.potions.len()!=3{return Err(RunError::InvalidAction)}
+            if state.potions.len()!=crate::run::potion_base_slots(state.ascension){return Err(RunError::InvalidAction)}
             state.potions.extend([None,None]);
             Ok(true)
         }

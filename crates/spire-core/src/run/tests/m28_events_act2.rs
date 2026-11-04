@@ -207,6 +207,8 @@ fn m28_event_outcome_replace_relic_in_slot() {
 fn m28_event_combat_unsupported_ascension_is_rejected_up_front() {
     let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 94);
     run.state.ascension = 17;
+    // Amended at M31 (plan item 2): the A0 fixture takes the edited ascension's potion base (2 from A11).
+    run.state.potions = vec![None; crate::run::potion_base_slots(17)];
     let before = run.clone();
     let result = event_frame::choose_constructed(&mut run, vec![Outcome::Combat { encounter: EncounterId::MaskedBandits, rewards: None, next_stage: 0, elite: true }]);
     assert!(matches!(result, Err(crate::run::RunError::Unsupported(_))), "{result:?}");

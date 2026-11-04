@@ -77,6 +77,9 @@ pub struct CombatItemContext {
     damage_card: Option<dispatch::PhaseCard>,
     lantern_armed: bool,
     heal_room: NativeHealRoom,
+    /// M31 (design §6.2): the owning Run's ascension, read only for its potion base
+    /// (`run::potion_base_slots`). `new` and `Default` give 0 (base 3, the finite profiles).
+    ascension: u8,
 }
 
 #[derive(Clone,Copy,Default,PartialEq,Eq)]
@@ -106,6 +109,7 @@ impl std::fmt::Debug for CombatItemContext{
         if self.complete_cards{value.field("complete_cards",&true);}
         if self.master_order{value.field("master_order",&true);}
         if self.complete_items{value.field("complete_items",&true);}
+        if self.ascension!=0{value.field("ascension",&self.ascension);}
         if !self.local.is_empty(){value.field("local",&self.local);}
         if !self.relic_cards.is_empty(){value.field("relic_cards",&self.relic_cards);}
         if self.m21_profile(){value.field("startup_profile",&self.startup_profile);}
@@ -145,7 +149,7 @@ impl CombatItemContext {
         if relics.contains(&RelicId::NeowsLament){counters.insert(RelicId::NeowsLament,3);}
         if relics.contains(&RelicId::Inserter){counters.insert(RelicId::Inserter,0);}
         Self { potion_potencies:vec![],last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,master_order:false,complete_items:false,local:Default::default(),relic_cards:Default::default(),counters, relics, potions, runic_capacitor_armed:false,orichalcum_trigger:false, kite_triggered:false,wrist_blade_bonus:0,damage_card:None,
-            lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false }
+            lantern_armed: false, heal_room: NativeHealRoom::default(),battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,ascension:0 }
     }
 
     /// Move permanent inventory into the single active combat owner.
@@ -161,7 +165,7 @@ impl CombatItemContext {
         }else{Vec::new()};
         Self { potion_potencies,last_potion_use:None,startup_profile:CombatStartupProfile::Legacy,watcher_progression:false,watcher_act3:false,watcher_heart:false,complete_cards:false,master_order:false,complete_items:false,local:Default::default(),relic_cards:std::mem::take(&mut state.relic_cards),runic_capacitor_armed:false,battle:NativeBattleContext::default(),collar_activated:false,emotion_chip_armed:false,counters:std::mem::take(&mut state.relic_counters),relics,
             potions, orichalcum_trigger:false,kite_triggered:false,wrist_blade_bonus:0,damage_card:None,lantern_armed: false,
-            heal_room: NativeHealRoom::from_run(state) }
+            heal_room: NativeHealRoom::from_run(state),ascension:state.ascension }
     }
 
     /// Return active ownership once without replacing another live inventory.
@@ -254,11 +258,13 @@ impl CombatItemContext {
     pub(crate) fn m22_profile(&self)->bool{self.watcher_progression}
     pub(crate) fn m21_profile(&self)->bool{self.startup_profile==CombatStartupProfile::M21Watcher}
     pub(crate) fn owns_relic(&self, id: RelicId) -> bool { self.relics.contains(&id) }
+    /// The owning Run's base potion slots (M31 design §6.2): 3, or 2 from A11.
+    pub(crate) fn potion_base(&self) -> usize { crate::run::potion_base_slots(self.ascension) }
     pub(crate) fn valid_potion_capacity(&self) -> bool {
-        valid_potion_capacity(&self.relics, &self.potions, self.complete_items())
+        valid_potion_capacity(&self.relics, &self.potions, self.potion_base(), self.complete_items())
     }
     pub(crate) fn validate_potion_obtain_input(&self, id: PotionId) -> Result<(), InputError> {
-        validate_potion_obtain_input(&self.relics,&self.potions,self.complete_items(),id)
+        validate_potion_obtain_input(&self.relics,&self.potions,self.potion_base(),self.complete_items(),id)
     }
     /// Ordinary first-empty-slot obtain. Sozu is checked by the accepted
     /// effect/run consumer at dispatch, never by this inventory owner.
@@ -319,18 +325,19 @@ impl CombatItemContext {
             last_potion_use:if self.potion_potency_enabled(){self.potions.iter().zip(&potions).enumerate().find_map(|(slot,(old,new))|if new.is_none(){old.map(|id|(slot,id,self.potion_potency(slot).unwrap_or_else(||self.initial_potency(id))))}else{None}).or(self.last_potion_use)}else{None},
             startup_profile:self.startup_profile,watcher_progression:self.watcher_progression,watcher_act3:self.watcher_act3,watcher_heart:self.watcher_heart,complete_cards:self.complete_cards,master_order:self.master_order,complete_items:self.complete_items,local:self.local.clone(),relic_cards:self.relic_cards.clone(),runic_capacitor_armed:self.runic_capacitor_armed,battle:self.battle,collar_activated:self.collar_activated,emotion_chip_armed:self.emotion_chip_armed,counters:self.counters.clone(),relics: self.relics.clone(), potions,
             orichalcum_trigger:self.orichalcum_trigger,kite_triggered:self.kite_triggered,wrist_blade_bonus:self.wrist_blade_bonus,damage_card:None,lantern_armed: self.lantern_armed,
-            heal_room: self.heal_room }
+            heal_room: self.heal_room,ascension:self.ascension }
     }
 }
 
-/// F6: under complete admission a lost Potion Belt keeps its two slots, so five slots stay valid
-/// without the belt.
-fn valid_potion_capacity(relics: &[RelicId], potions: &[Option<PotionId>], complete: bool) -> bool {
-    if relics.contains(&RelicId::PotionBelt) { potions.len() == 5 } else { potions.len() == 3 || complete && potions.len() == 5 }
+/// The live potion count against the Run's base (M31 design §6.3): `base` (3, or 2 from A11), or
+/// `base + 2` with Potion Belt. F6: under complete admission a lost Potion Belt keeps its two slots,
+/// so `base + 2` stays valid without the belt.
+fn valid_potion_capacity(relics: &[RelicId], potions: &[Option<PotionId>], base: usize, complete: bool) -> bool {
+    if relics.contains(&RelicId::PotionBelt) { potions.len() == base + 2 } else { potions.len() == base || complete && potions.len() == base + 2 }
 }
 
-fn validate_potion_obtain_input(relics:&[RelicId],potions:&[Option<PotionId>],complete:bool,id:PotionId)->Result<(),InputError>{
-    if !valid_potion_capacity(relics,potions,complete)||potions.iter().flatten().any(|id|crate::content::Catalog::standard().potion(*id).is_none())
+fn validate_potion_obtain_input(relics:&[RelicId],potions:&[Option<PotionId>],base:usize,complete:bool,id:PotionId)->Result<(),InputError>{
+    if !valid_potion_capacity(relics,potions,base,complete)||potions.iter().flatten().any(|id|crate::content::Catalog::standard().potion(*id).is_none())
         ||crate::content::Catalog::standard().potion(id).is_none(){
         return Err(InputError::Invariant("generated potion obtain input invalid".into()))
     }
@@ -704,7 +711,7 @@ pub(crate) fn use_run_potion(state: &mut RunState, slot: usize,
 /// Outside-combat first-empty-slot obtain. This inventory helper deliberately
 /// has no Sozu branch; accepted generated obtains check Sozu at execution.
 pub(crate) fn obtain_run_potion(state: &mut RunState, id: PotionId) -> Result<bool, RunError> {
-    validate_potion_obtain_input(&state.relics,&state.potions,state.item_admission==crate::run::ItemAdmission::Complete,id)
+    validate_potion_obtain_input(&state.relics,&state.potions,crate::run::potion_base_slots(state.ascension),state.item_admission==crate::run::ItemAdmission::Complete,id)
         .map_err(|_|RunError::Unsupported("generated potion obtain input invalid"))?;
     if let Some(slot) = state.potions.iter().position(Option::is_none) {
         state.potions[slot] = Some(id);
@@ -721,7 +728,7 @@ pub(crate) fn obtain_run_potion(state: &mut RunState, id: PotionId) -> Result<bo
 /// Any invalid proposal retains the first Run fault and the successful prefix.
 pub(crate) fn apply_accepted_run_potion_obtain(state: &mut RunState, id: PotionId) -> Result<bool, RunError> {
     if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
-    let prepared=validate_potion_obtain_input(&state.relics,&state.potions,state.item_admission==crate::run::ItemAdmission::Complete,id)
+    let prepared=validate_potion_obtain_input(&state.relics,&state.potions,crate::run::potion_base_slots(state.ascension),state.item_admission==crate::run::ItemAdmission::Complete,id)
         .map_err(|_|RunError::Unsupported("generated potion obtain input invalid"))
         .and_then(|_|if state.relics.contains(&RelicId::Sozu){Ok(false)}else{obtain_run_potion(state,id)});
     match prepared {
@@ -794,7 +801,7 @@ fn validate_m15_entropic_brew_outside(state:&RunState,slot:usize,we_meet_again:b
         || state.character == Character::Defect && crate::run::rooms::is_m20(state)) || we_meet_again
         || state.max_hp == 0 || state.max_hp > 999 || state.hp > state.max_hp
         || state.potions.get(slot).copied().flatten() != Some(PotionId::EntropicBrew)
-        || !valid_potion_capacity(&state.relics, &state.potions, complete)
+        || !valid_potion_capacity(&state.relics, &state.potions, crate::run::potion_base_slots(state.ascension), complete)
         || !state.potions.iter().flatten().all(|owned| crate::content::Catalog::standard().potion(*owned).is_some()) {
         return Err(RunError::InvalidAction);
     }
@@ -856,6 +863,7 @@ fn prepare_run_potion_inner(state:&RunState,slot:usize,turn_ended:bool,we_meet_a
 
 fn run_potion_context(state:&RunState)->CombatItemContext{
     let mut owned=CombatItemContext::new(state.relics.clone(),state.potions.clone());
+    owned.ascension=state.ascension;
     if state.item_admission==crate::run::ItemAdmission::Complete {
         let potencies=main_relics::reconcile_potion_potencies(&state.relics,&state.potions,&state.potion_potencies);
         owned.potion_potencies=if potencies.is_empty(){vec![None;state.potions.len()]}

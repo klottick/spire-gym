@@ -7,14 +7,16 @@ pub(in crate::run) const OFFSET_START:i32=5;
 
 /// The room kinds whose card thresholds differ (economy research :103-106).
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(in crate::run) enum RarityRoom { Ordinary, Elite, Boss }
+pub(in crate::run) enum RarityRoom { Ordinary, Elite, Boss, Shop }
 
 /// Classify one 0..100 draw `n` with the live offset `b`: rare if `n + b < R × rare_factor`,
-/// uncommon if `n + b < R × rare_factor + U`, else common. Ordinary (monster, event, shop, rest)
-/// R 3, U 37; elite R 10, U 40; a boss slot is always rare. `rare_factor` is M27's N'loth's Gift
-/// multiplier on the rare chance (`CardRewardShape::rare_factor`, offset unchanged, no clamp).
+/// uncommon if `n + b < R × rare_factor + U`, else common. Ordinary (monster, event, rest)
+/// R 3, U 37; shop R 9, U 37 (ShopRoom.java:46–47; M31 design §6.4); elite R 10, U 40; a boss slot
+/// is always rare. `rare_factor` is M27's N'loth's Gift multiplier on the rare chance
+/// (`CardRewardShape::rare_factor`, offset unchanged, no clamp); rooms that skip the relic hooks
+/// (shop, rest) pass 1.
 pub(in crate::run) fn classify(room:RarityRoom,n:u32,offset:i32,rare_factor:u32)->CardRarity{
-    let (rare,uncommon)=match room{RarityRoom::Ordinary=>(3,37),RarityRoom::Elite=>(10,40),RarityRoom::Boss=>return CardRarity::Rare};
+    let (rare,uncommon)=match room{RarityRoom::Ordinary=>(3,37),RarityRoom::Shop=>(9,37),RarityRoom::Elite=>(10,40),RarityRoom::Boss=>return CardRarity::Rare};
     let roll=n as i64+i64::from(offset);
     let rare=rare*i64::from(rare_factor);
     if roll<rare{CardRarity::Rare}else if roll<rare+uncommon{CardRarity::Uncommon}else{CardRarity::Common}
@@ -25,13 +27,15 @@ use crate::content::CardId;
 use crate::run::{RunError, RunState};
 
 /// The automatic card-upgrade chance by act (F3): Act 1 0, Act 2 0.25, Act 3 0.5 (binary32 A0
-/// constructor parameters, acts23 research :51); Act 4 0.5 below A12 (PM source check
-/// m28b/source-check-act4-upgrade-v1.md, F3).
-pub(in crate::run) fn upgrade_chance(act:u8)->f32{
+/// constructor parameters, acts23 research :51); Act 4 0.5 (PM source check
+/// m28b/source-check-act4-upgrade-v1.md, F3). A12 (M31 source check §C): Acts 2–4 halve to 0.125,
+/// 0.25 and 0.25.
+pub(in crate::run) fn upgrade_chance(act:u8,ascension:u8)->f32{
+    let a12=ascension>=12;
     match act {
         1 => 0.0_f32,
-        2 => 0.25_f32,
-        3 | 4 => 0.5_f32,
+        2 => if a12 { 0.125_f32 } else { 0.25_f32 },
+        3 | 4 => if a12 { 0.25_f32 } else { 0.5_f32 },
         _ => 0.0_f32,
     }
 }
@@ -61,7 +65,7 @@ pub(in crate::run) fn ordinary_offer(state:&mut RunState,room:RarityRoom,choices
     let mut offset = staged.card_rarity_offset.ok_or(RunError::InvalidAction)?;
     let mut offered = Vec::with_capacity(choices);
     let has_shard = staged.relics.contains(&crate::content::RelicId::PrismaticShard);
-    let chance = upgrade_chance(staged.act);
+    let chance = upgrade_chance(staged.act, staged.ascension);
 
     for slot in 0..choices {
         let slot = u64::try_from(slot).map_err(|_| RunError::Unsupported("reward slot exhausted"))?;

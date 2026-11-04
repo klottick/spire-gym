@@ -1,11 +1,11 @@
-//! M29 diagnostics (plan M29a1 item 10): standard Runs and maps at any admitted ascension (A0–A10 since
-//! M30). A1–A5 standard Runs were diagnostics-only until M29f (plan §1 Exposure) and are public since
-//! the M29 close; A6–A10 are public since M30. These builders
+//! M29 diagnostics (plan M29a1 item 10): standard Runs and maps at any admitted ascension (A0–A15 since
+//! M31). A1–A5 standard Runs were diagnostics-only until M29f (plan §1 Exposure) and are public since
+//! the M29 close; A6–A10 are public since M30 and A11–A15 since M31. These builders
 //! go through the public constructor (the supplied variant stays diagnostics-only).
 use crate::content::Character;
 use crate::run::{CreationProfile, Run, RunConfig, RunError, RunRng, RoomScenario};
 
-/// A standard Run at `ascension` (A0–A10) at Neow, full Neow when `full_neow`.
+/// A standard Run at `ascension` (A0–A15) at Neow, full Neow when `full_neow`.
 pub fn standard_run_at(character: Character, ascension: u8, full_neow: bool, rng: RunRng) -> Result<Run, RunError> {
     let profile = CreationProfile { neow_eligible: full_neow, ..CreationProfile::experienced() };
     Run::new_room_scenario(RunConfig { character, ascension }, profile, rng, RoomScenario::Standard)
