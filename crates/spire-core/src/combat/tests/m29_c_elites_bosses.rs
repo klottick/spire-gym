@@ -358,11 +358,19 @@ fn m29_gremlin_leader_live_summons_read_combat_ascension() {
 #[test]
 fn m29_taskmaster_ascension_values() {
     check(EnemyId::Taskmaster, &[(0, (54, 60)), (8, (57, 64))], &[("taskmaster_whip", &[(0, 7)])]);
-    // Whip Wounds 1, A3 2, A18 3 (A18 table-level: Taskmaster's ceiling is 17; its A18 Strength is M32).
-    for (a, wounds) in [(0, 1), (2, 1), (3, 2), (17, 2), (18, 3), (20, 3)] {
+    // Amended at M32 (plan item 5/6): A18+ Whip adds Strength 1 after all Wounds.
+    // Wounds remain 1 below A3, 2 at A3–17, then 3 at A18+.
+    for (a, wounds, strength) in [(0, 1, 0), (2, 1, 0), (3, 2, 0), (17, 2, 0), (18, 3, 1), (20, 3, 1)] {
         let work = act2_turn(EncounterId::Slavers, EnemyId::Taskmaster, "taskmaster_whip", a);
         assert_eq!(created(&work, CardId::Wound), wounds, "A{a}");
-        assert!(powers(&work).is_empty(), "A{a}: no Strength below M32");
+        assert_eq!(powers(&work), if strength == 1 { vec![("strength", 1)] } else { vec![] }, "A{a} Whip Strength");
+        if strength == 1 {
+            let strength_position = work.iter().position(|effect|
+                matches!(&effect.kind, EffectKind::ApplyFullPower { id, amount: 1 } if id.0 == "strength")).unwrap();
+            let last_wound = work.iter().rposition(|effect|
+                matches!(&effect.kind, EffectKind::CreateCard { id, .. } if *id == CardId::Wound)).unwrap();
+            assert!(strength_position > last_wound, "A{a} Strength is queued after every Wound");
+        }
     }
     // Live in the Slavers formation (ceiling 16) at A2/A3: the opening Whip adds 1/2 Wounds.
     for (a, wounds) in [(2, 1), (3, 2)] {
@@ -383,8 +391,9 @@ fn m29_c_formations_leave_interim() {
         (BookOfStabbing, 17), (ColosseumSlavers, 16), (ColosseumNobs, 17),
         // M29d: the Spheric Guardian and the Mugger landed.
         (SentryAndSphere, 20), (TwoThieves, 20)] {
-        assert_eq!(ascension::encounter_ceiling(encounter), ceiling, "{encounter:?}");
-        for a in 0..=ceiling { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
-        if ceiling < 20 { assert_eq!(ascension::encounter_admission(encounter, ceiling + 1), Err(ascension::ABOVE_CEILING), "{encounter:?}"); }
+        // Amended at M32 (plan item 3, design §6.2): the former ceilings (second column, kept as the
+        // record) are gone; every level A0–A20 is admitted.
+        let _former_ceiling: u8 = ceiling;
+        for a in 0..=20 { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
     }
 }

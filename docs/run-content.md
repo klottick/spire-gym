@@ -18,6 +18,10 @@ their potions usable (M31 G2). From A12 the automatic card-upgrade chance is 0.1
 0.25 in Acts 3–4. From A13 a boss reward's gold is `MathUtils.round(gold * 0.75f)` before Golden
 Idol, and Mind Bloom's "I am War" pays 25. See the [M31 profile](milestones/m31-ascension11-15.md).
 
+At A16+, the Standard shop multiplies each stocked card, relic and potion price by 1.1 with binary32 arithmetic and
+libGDX rounding. This pass follows the sale halving and precedes The Courier and Membership Card discounts. It does not
+change purge prices or Courier replacement stock. See the [M32 profile](milestones/m32-ascension16-19.md).
+
 Card definitions separate `CardColor`, `CardRarity`, and `CardType`, and are
 marked `definition_only`; that marker explicitly does not claim executable
 full-run mechanics. Named producer eligibility is queried with

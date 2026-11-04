@@ -2,14 +2,14 @@
 use super::*;
 
 pub(in crate::combat::enemies) fn supports(id:EnemyId)->bool{matches!(id,EnemyId::SpireGrowth|EnemyId::Transient|EnemyId::Maw)}
-pub(in crate::combat::enemies) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,constricted:Option<bool>)->Result<MoveSelection,SelectError>{
+pub(in crate::combat::enemies) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,constricted:Option<bool>,ascension:u8)->Result<MoveSelection,SelectError>{
     let mut cursor=stream.clone();let last=history.last().map(|m|m.as_str());let mut memory=memory.clone();
     let name=match &mut memory {
         EnemyMemory::SpireGrowth=>{
             let constricted=constricted.ok_or_else(||InputError::Unsupported("Growth selection needs actual player power context".into()))?;
             let (n,next)=rng::uniform_below(&cursor,100)?;cursor=next;
             let twice=|name|history.len()>=2&&history[history.len()-2..].iter().all(|m|m.as_str()==name);
-            if n<50&&!twice("growth_quick"){"growth_quick"}else if !constricted&&last!=Some("growth_constrict"){"growth_constrict"}else if !twice("growth_smash"){"growth_smash"}else{"growth_quick"}
+            if ascension>=17&&!constricted&&last!=Some("growth_constrict"){"growth_constrict"}else if n<50&&!twice("growth_quick"){"growth_quick"}else if !constricted&&last!=Some("growth_constrict"){"growth_constrict"}else if !twice("growth_smash"){"growth_smash"}else{"growth_quick"}
         },
         EnemyMemory::Transient{..}=>"transient_attack",
         EnemyMemory::Maw{turns,roared}=>{

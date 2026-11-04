@@ -7,8 +7,6 @@
 use super::super::{FullPowerEntry, FullPowerId};
 use crate::content::{EncounterId, EnemyId};
 
-/// Typed rejection above an encounter's playable ceiling (behaviour rows pending in M32).
-pub const ABOVE_CEILING: &str = "enemy behaviour above this ascension lands in M32";
 /// Typed interim rejection for a species whose ascension values have not landed. Since M29d every
 /// species has landed; it remains for an encounter with no species set and ascensions above 20.
 pub const INTERIM: &str = "enemy setup facts unavailable for this act/ascension";
@@ -32,20 +30,6 @@ pub fn species_supports_ascension(id: EnemyId, ascension: u8) -> bool {
         // M29d: Act 2 normals and bosses.
         | BanditPointy | BanditLeader | BanditBear | Byrd | Centurion | Mystic | Chosen | Mugger | ShelledParasite
         | SnakePlant | Snecko | SphericGuardian | BronzeAutomaton | BronzeOrb | Champ | Collector | TorchHead)
-}
-
-/// Highest ascension whose behaviour the engine implements for the species
-/// (inventory §3a: one below the lowest behaviour threshold pending in M32).
-pub fn playable_ceiling(id: EnemyId) -> u8 {
-    use EnemyId::*;
-    match id {
-        AcidSlimeS | AcidSlimeM | AcidSlimeL | SpikeSlimeM | SpikeSlimeL | LouseRed | LouseGreen
-        | GremlinWizard | GremlinFat | SlaverRed | BanditLeader | Chosen | Mystic | ShelledParasite
-        | SnakePlant | Snecko | Darkling | SpireGrowth => 16,
-        BookOfStabbing | Taskmaster | SpireShield | SpireSpear => 17,
-        Champ | BronzeAutomaton | Deca | TimeEater => 18,
-        _ => 20,
-    }
 }
 
 /// Species a combatant can create in combat (spawn or split), transitively.
@@ -91,30 +75,24 @@ pub fn encounter_species(encounter: EncounterId) -> Vec<EnemyId> {
     set
 }
 
-/// Minimum playable ceiling over the encounter's species set (n6).
-pub fn encounter_ceiling(encounter: EncounterId) -> u8 {
-    encounter_species(encounter).into_iter().map(playable_ceiling).min().unwrap_or(0)
-}
-
-/// Typed admission of `encounter` at `ascension`: `Err(ABOVE_CEILING)` above the
-/// encounter ceiling, `Err(INTERIM)` while a species' values have not landed.
+/// Typed admission of `encounter` at `ascension`: `Err(OUT_OF_RANGE)` above A20, `Err(INTERIM)`
+/// while a species' values have not landed. Since M32 no playable ceiling remains: every landed
+/// species plays its A0–A20 behaviour.
 pub fn encounter_admission(encounter: EncounterId, ascension: u8) -> Result<(), &'static str> {
     if ascension == 0 { return Ok(()); }
     let species = encounter_species(encounter);
     if ascension > 20 { return Err(OUT_OF_RANGE); }
     if species.is_empty() { return Err(INTERIM); }
-    if ascension > encounter_ceiling(encounter) { return Err(ABOVE_CEILING); }
     if species.iter().all(|id| species_supports_ascension(*id, ascension)) { Ok(()) } else { Err(INTERIM) }
 }
 
 /// Typed admission of one combatant and its spawn closure (entry admission and spawn/split
-/// constructors): `ABOVE_CEILING` above the closure's lowest ceiling, else `INTERIM` until landed.
+/// constructors): `OUT_OF_RANGE` above A20, else `INTERIM` until the whole closure has landed.
 pub fn species_admission(id: EnemyId, ascension: u8) -> Result<(), &'static str> {
     if ascension == 0 { return Ok(()); }
     if ascension > 20 { return Err(OUT_OF_RANGE); }
     let closure = || std::iter::once(&id).chain(spawn_closure(id));
-    // The ceiling is over the closure too (plan I3): a solo Slime Boss is bounded by its children.
-    if closure().map(|id| playable_ceiling(*id)).any(|ceiling| ascension > ceiling) { return Err(ABOVE_CEILING); }
+    // The closure is admitted as a whole (plan I3): a solo Slime Boss needs its children's values.
     if closure().all(|id| species_supports_ascension(*id, ascension)) { Ok(()) }
     else { Err(INTERIM) }
 }

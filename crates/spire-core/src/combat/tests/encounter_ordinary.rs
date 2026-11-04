@@ -249,7 +249,7 @@ fn shelled_stun_turn_records_fell_before_roll_move_and_rejects_fell_again() {
     let after_primary = assert_fixture_ticket(&stream, 100, 0);
     let after_reroll = assert_fixture_ticket(&after_primary, 80, 39);
     let selected = enemies::act2::ordinary_closure::select_move(
-        EnemyId::ShelledParasite, &history, &EnemyMemory::ShelledParasite { first: false }, &stream,
+        EnemyId::ShelledParasite, &history, &EnemyMemory::ShelledParasite { first: false }, &stream, 0,
     ).unwrap();
     assert_eq!(selected.intent.as_str(), "shelled_parasite_double_strike",
         "the next 0..19 proposal is rejected because Fell was just recorded");

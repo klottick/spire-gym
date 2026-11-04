@@ -2,14 +2,15 @@
 use super::*;
 use super::super::super::model::DamageResult;
 
-pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,super::super::SelectError>{
+pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let EnemyMemory::BookOfStabbing{stab_count}=memory else{return Err(InputError::Invariant("Book memory absent".into()).into())};
     let (ticket,next)=rng::uniform_below(stream,100)?;let multi=if ticket<15{history.last().is_some_and(|m|m.as_str()=="book_big")}else{!history.ends_with(&[FullIntentId::from_name("book_multi");2])};
-    let count=if multi{stab_count.checked_add(1).filter(|n|*n<=i32::MAX as u32).ok_or_else(||InputError::Unsupported("Book stab counter exhausted".into()))?}else{*stab_count};
+    let count=if multi||ascension>=18{stab_count.checked_add(1).filter(|n|*n<=i32::MAX as u32).ok_or_else(||InputError::Unsupported("Book stab counter exhausted".into()))?}else{*stab_count};
     Ok(MoveSelection{intent:FullIntentId::from_name(if multi{"book_multi"}else{"book_big"}),memory:EnemyMemory::BookOfStabbing{stab_count:count},stream:next})
 }
 
-pub(super) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(super) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
+    let _ = ascension; // Book of Stabbing's A18 change is its stab counter at selection (M32); the payload reads only memory.
     let actor=Actor::Enemy(enemy.instance_id.clone());let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Book full intent absent".into()))};
     Ok(match intent.as_str(){
         "book_multi"=>{let Some(EnemyMemory::BookOfStabbing{stab_count})=enemy.full_memory else{return Err(InputError::Invariant("Book stab count absent".into()))};vec![effect(actor.clone(),actor,EffectKind::BookStab{remaining:stab_count})]},

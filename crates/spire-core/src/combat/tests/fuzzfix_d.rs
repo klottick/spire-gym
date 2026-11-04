@@ -85,6 +85,25 @@ fn fuzzfix_d_poisoned_sleeping_lagavulin_wakes_without_end_turn_block() {
 fn fuzzfix_d_power_callback_of_the_last_move_precedes_the_monster_pass() {
     for character in ALL {
         let mut combat = two_louse_with(character, vec![RelicId::GremlinHorn], &[(Defend, 0), (Burn, 0)]);
+        // G1 (M32): retargeted seed 0x42→0x02 for enemy AI so both empty-history Lice open on Bite.
+        let source = crate::run::RunRng::new([0x02; 32], super::super::rng::Partition::Test, 0);
+        let retargeted = combat.state.enemies.iter().map(|enemy| {
+            let slot = combat.state.actor_slots[&enemy.instance_id] as u32;
+            let id = match enemy.enemy_id { ActorEnemyId::Full(id) => id, _ => unreachable!() };
+            let before = source.derive_combat_stream(super::super::rng::Domain::RunCombatEnemyAi, 1,
+                EncounterId::TwoLouse.as_str(), 0, Some(slot), enemy.instance_id.as_str()).unwrap();
+            let selection = enemies::select_move(id, &[], enemy.full_memory.as_ref().unwrap(), &before).unwrap();
+            assert_eq!(selection.intent, FullIntentId::Bite, "{character:?}: retargeted opening");
+            (enemy.instance_id.clone(), selection.intent, selection.memory, selection.stream)
+        }).collect::<Vec<_>>();
+        for (owner, intent, memory, stream) in retargeted {
+            let enemy = combat.state.enemies.iter_mut().find(|enemy| enemy.instance_id == owner).unwrap();
+            enemy.intent_id = ActorIntentId::Full(intent);
+            enemy.selected_move = ActorIntentId::Full(intent);
+            enemy.move_history = vec![ActorIntentId::Full(intent)];
+            enemy.full_memory = Some(memory);
+            enemy.full_ai_rng = Some(stream);
+        }
         (combat.state.enemies[0].hp, combat.state.enemies[0].max_hp) = (40, 40);
         combat.state.enemies[0].full_powers.push(power("metallicize", 6));
         combat.state.enemies[1].hp = 1;
@@ -103,6 +122,25 @@ fn fuzzfix_d_power_callback_of_the_last_move_precedes_the_monster_pass() {
 fn fuzzfix_d_monster_pass_and_round_end_follow_slot_order() {
     for character in ALL {
         let mut combat = two_louse_with(character, vec![], &[(Defend, 0); 6]);
+        // G1 (M32): retargeted seed 0x42→0x02 for enemy AI so both empty-history Lice open on Bite.
+        let source = crate::run::RunRng::new([0x02; 32], super::super::rng::Partition::Test, 0);
+        let retargeted = combat.state.enemies.iter().map(|enemy| {
+            let slot = combat.state.actor_slots[&enemy.instance_id] as u32;
+            let id = match enemy.enemy_id { ActorEnemyId::Full(id) => id, _ => unreachable!() };
+            let before = source.derive_combat_stream(super::super::rng::Domain::RunCombatEnemyAi, 1,
+                EncounterId::TwoLouse.as_str(), 0, Some(slot), enemy.instance_id.as_str()).unwrap();
+            let selection = enemies::select_move(id, &[], enemy.full_memory.as_ref().unwrap(), &before).unwrap();
+            assert_eq!(selection.intent, FullIntentId::Bite, "{character:?}: retargeted opening");
+            (enemy.instance_id.clone(), selection.intent, selection.memory, selection.stream)
+        }).collect::<Vec<_>>();
+        for (owner, intent, memory, stream) in retargeted {
+            let enemy = combat.state.enemies.iter_mut().find(|enemy| enemy.instance_id == owner).unwrap();
+            enemy.intent_id = ActorIntentId::Full(intent);
+            enemy.selected_move = ActorIntentId::Full(intent);
+            enemy.move_history = vec![ActorIntentId::Full(intent)];
+            enemy.full_memory = Some(memory);
+            enemy.full_ai_rng = Some(stream);
+        }
         combat.state.enemies.swap(0, 1);
         let (slot0, slot1) = (enemy(&combat, 1), enemy(&combat, 0));
         assert!(combat.state.actor_slots[&combat.state.enemies[1].instance_id] < combat.state.actor_slots[&combat.state.enemies[0].instance_id]);

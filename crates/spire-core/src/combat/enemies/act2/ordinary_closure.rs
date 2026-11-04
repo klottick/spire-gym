@@ -27,14 +27,19 @@ pub(in crate::combat) fn select_move(
     history: &[FullIntentId],
     memory: &EnemyMemory,
     stream: &StreamState,
+    ascension: u8,
 ) -> Result<MoveSelection, SelectError> {
     let mut cursor = stream.clone();
     let (name, memory) = match (id, memory) {
         (EnemyId::ShelledParasite, EnemyMemory::ShelledParasite { first }) => {
             if *first {
-                let (ticket, next) = rng::uniform_below(&cursor, 2)?;
-                cursor = next;
-                let name = if ticket == 0 { SHELLED_DOUBLE_STRIKE } else { SHELLED_LIFE_SUCK };
+                let name = if ascension >= 17 {
+                    SHELLED_FELL
+                } else {
+                    let (ticket, next) = rng::uniform_below(&cursor, 2)?;
+                    cursor = next;
+                    if ticket == 0 { SHELLED_DOUBLE_STRIKE } else { SHELLED_LIFE_SUCK }
+                };
                 (name, EnemyMemory::ShelledParasite { first: false })
             } else {
                 let (ticket, next) = rng::uniform_below(&cursor, 100)?;
@@ -58,9 +63,11 @@ pub(in crate::combat) fn select_move(
             cursor = next;
             let repeats_chomp = history.ends_with(&[FullIntentId::from_name(SNAKE_CHOMP_CHOMP); 2]);
             let last_was_spores = history.last().is_some_and(|move_id| move_id.as_str() == SNAKE_ENFEEBLING_SPORES);
+            let spores_in_last_two = last_was_spores || (ascension >= 17
+                && history.iter().rev().nth(1).is_some_and(|move_id| move_id.as_str() == SNAKE_ENFEEBLING_SPORES));
             let name = if ticket < 65 {
                 if repeats_chomp { SNAKE_ENFEEBLING_SPORES } else { SNAKE_CHOMP_CHOMP }
-            } else if last_was_spores {
+            } else if spores_in_last_two {
                 SNAKE_CHOMP_CHOMP
             } else {
                 SNAKE_ENFEEBLING_SPORES
@@ -84,7 +91,8 @@ fn choose_shelled_without_fell(history: &[FullIntentId], ticket: u64) -> &'stati
     }
 }
 
-pub(in crate::combat) fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> {
+pub(in crate::combat) fn move_work(enemy: &EnemyState, ascension: u8) -> Result<Vec<Effect>, InputError> {
+    let _ = ascension; // Shelled Parasite and Snake Plant change only their selection at A17 (M32); payloads are ascension-free here.
     let ActorEnemyId::Full(id) = enemy.enemy_id else {
         return Err(InputError::Unsupported("ordinary Act2 closure requires a full actor".into()));
     };
@@ -125,6 +133,7 @@ pub(in crate::combat) fn take_turn(
     state: &mut State,
     owner: &EnemyHandle,
 ) -> Result<Vec<Effect>, InputError> {
+    let ascension = state.ascension;
     let enemy = state.enemies.iter().find(|enemy| &enemy.instance_id == owner)
         .ok_or_else(|| InputError::Invariant("ordinary Act2 closure turn owner absent".into()))?
         .clone();
@@ -141,7 +150,7 @@ pub(in crate::combat) fn take_turn(
         super::gremlin_leader::set_move(state, owner, FullIntentId::from_name(SHELLED_FELL))?;
         return Ok(Vec::new());
     }
-    move_work(&enemy)
+    move_work(&enemy, ascension)
 }
 
 /// Apply the source-ordered callbacks after each committed shared damage result.

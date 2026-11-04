@@ -116,7 +116,7 @@ body landed in M28f.
 The original getShrine admits Note For Yourself outside Daily runs, below A15, and only when the Run
 is at A0 or below the player's highest unlocked Ascension. The simulator has no unlock profile, so it
 treats the highest unlocked Ascension as 20. Note For Yourself is therefore eligible at A0–A14. The
-standard Run admits A0–A5 from M29d, A0–A10 from M30 and A0–A15 from M31 (A16+ lands in M32–M33), so an A15 Run never meets Note For Yourself. No other eligibility or history rule changes.
+standard Run admits A0–A5 from M29d, A0–A10 from M30, A0–A15 from M31 and A0–A19 from M32 (A20 in M33), so an A15–A19 Run never meets Note For Yourself. No other eligibility or history rule changes.
 
 ## SOFTLOCK-001 — An unguarded empty event grid completes without a selection
 

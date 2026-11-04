@@ -40,9 +40,10 @@ fn m28_standard_creation_all_characters() {
         // Amended at the M29 close (n2): A1 is public in every build.
         // Amended at M30 (plan item 1(b), review n1): the cap is A10, so A11 is the rejected level.
         // Amended at M31 (plan item 1(a)): the cap is A15, so A16 is the rejected level.
+        // Amended at M32 (plan item 1): the cap is A19, so A20 is the rejected level.
         assert!(Run::new_room_scenario(RunConfig { character, ascension: 1 }, profile(false), rng(1), RoomScenario::Standard).is_ok());
-        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 16 }, profile(false), rng(1), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard supports A0–A15")));
+        assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 20 }, profile(false), rng(1), RoomScenario::Standard).err(),
+            Some(RunError::Unsupported("Standard supports A0–A19")));
     }
 }
 

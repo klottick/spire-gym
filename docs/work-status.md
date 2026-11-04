@@ -1,6 +1,6 @@
 # Work status
 
-## Current snapshot — 2026-11-04, M30 merged (A6–A10 public); M31 (Ascension 11–15) candidate
+## Current snapshot — 2026-11-04, M30 merged (A6–A10 public); M31 and M32 candidates
 
 - M30 merged as PR #92 (`5e2a10b4`), the M31 source base.
 - M31 is a source candidate, not accepted. A default build admits A0–A15 standard Runs for all four characters.
@@ -16,6 +16,16 @@
   - G2: a potion in a slot kept after losing Potion Belt stays usable.
   - G3: the shop's coloured card stock and Courier restocks use the ShopRoom 9/37 thresholds.
 - See the [M31 candidate profile](milestones/m31-ascension11-15.md).
+- M32 is a source candidate, not accepted. A default build admits Standard A0–A19; A20 remains unsupported. The profile
+  has no spire-env, Gym or Python delivery (exposure M34–M36).
+  - At A16, Standard shop card, relic and potion stock is marked up ×1.1 after the sale and before Courier or
+    Membership Card; Courier restocks and purge are unchanged.
+  - M32 records 26 monster behavior rows at A17–A19 and removes combat admission ceilings through A20.
+  - Global fix G1 corrects Red and Green Louse opening rolls at every ascension, including existing profiles; the
+    trajectory changes are disclosed in the [M32 candidate profile](milestones/m32-ascension16-19.md).
+- See the [M32 candidate profile](milestones/m32-ascension16-19.md) for the source rows, coverage ledger, reconciliation
+  and completed C1/C2 runner evidence. A16–A19 traversal samples ended in Act 1; later-act coverage comes from the
+  combat-grade rows, every-encounter sweep and constructed Runs documented in the profile.
 
 ## Snapshot — 2026-11-03, M29 merged (A1–A5 public); M30 (Ascension 6–10) candidate
 

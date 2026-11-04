@@ -138,19 +138,9 @@ fn m29_spawned_and_split_children_read_combat_ascension() {
 
 #[test]
 fn m29_spawn_closure_gates_encounter() {
-    for (encounter, ceiling) in [
-        (EncounterId::SlimeBoss, 16), (EncounterId::GremlinLeader, 16), (EncounterId::GremlinGang, 16),
-        (EncounterId::DonuAndDeca, 18), (EncounterId::ShieldAndSpear, 17), (EncounterId::Slavers, 16),
-        (EncounterId::ColosseumSlavers, 16), (EncounterId::ColosseumNobs, 17), (EncounterId::ExordiumThugs, 16),
-        (EncounterId::ExordiumWildlife, 16), (EncounterId::BronzeAutomaton, 18), (EncounterId::Collector, 20),
-        (EncounterId::Reptomancer, 20), (EncounterId::AwakenedOne, 20), (EncounterId::CorruptHeart, 20),
-        (EncounterId::Cultist, 20), (EncounterId::BlueSlaver, 20), (EncounterId::TimeEater, 18),
-    ] {
-        assert_eq!(ascension::encounter_ceiling(encounter), ceiling, "{encounter:?}");
-    }
-    assert_eq!(ascension::playable_ceiling(EnemyId::SlimeBoss), 20);
-    assert_eq!(ascension::encounter_admission(EncounterId::SlimeBoss, 17), Err(ascension::ABOVE_CEILING),
-        "the children's ceiling bounds the Slime Boss encounter");
+    // Amended at M32 (plan item 3, design §6.2): the playable ceilings are gone, so the ceiling-value
+    // pins are deleted; the closure still feeds admission, and the Slime Boss encounter is admitted at A17.
+    assert_eq!(ascension::encounter_admission(EncounterId::SlimeBoss, 17), Ok(()));
     for id in [EnemyId::AcidSlimeL, EnemyId::SpikeSlimeL, EnemyId::AcidSlimeM, EnemyId::SpikeSlimeM] {
         assert!(ascension::encounter_species(EncounterId::SlimeBoss).contains(&id));
     }
@@ -171,44 +161,37 @@ fn m29_spawn_closure_gates_encounter() {
     }
 }
 
+/// Formerly `m29_playable_ceiling_rejects_above` (M32 plan item 3, design §6.2): no playable ceiling
+/// remains, so the A17 denials became admissions; A21 stays `OUT_OF_RANGE`.
 #[test]
-fn m29_playable_ceiling_rejects_above() {
-    assert_eq!(setup(EncounterId::TwoLouse, 17, 1, 0).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
-    assert!(ascension::ABOVE_CEILING.contains("M32"));
+fn m29_combat_admission_accepts_through_a20() {
+    assert!(setup(EncounterId::TwoLouse, 17, 1, 0).is_ok());
     // M29b: Louse landed, so A16 is admitted. M29c: Slaver Red landed too; M29d: the Mugger.
     assert!(setup(EncounterId::TwoLouse, 16, 1, 0).is_ok());
     assert!(setup(EncounterId::RedSlaver, 16, 1, 0).is_ok());
     assert!(setup(EncounterId::TwoThieves, 16, 1, 0).is_ok());
     assert_eq!(setup(EncounterId::Cultist, 21, 1, 0).err(), Some(RunError::Unsupported(ascension::OUT_OF_RANGE)));
     assert!(setup(EncounterId::Cultist, 20, 1, 0).is_ok());
-    assert!(!enemies::setup_supports_ascension(EncounterId::TwoLouse, 17));
-    // A rejected setup consumes no setup RNG.
+    assert!(enemies::setup_supports_ascension(EncounterId::TwoLouse, 17));
+    // A setup rejected above A20 consumes no setup RNG.
     let mut rng = crate::run::RunRng::new([9; 32], rng::Partition::Test, 0);
     let before = rng.clone();
-    assert!(enemies::setup(EncounterId::TwoLouse, 1, 17, &mut rng, context(0)).is_err());
+    assert!(enemies::setup(EncounterId::TwoLouse, 1, 21, &mut rng, context(0)).is_err());
     assert_eq!(rng, before);
     // Entry admission applies the same predicate to a hand-built setup.
     let mut entry = setup(EncounterId::TwoLouse, 0, 1, 0).unwrap();
     for enemy in &mut entry.setup.enemies { enemy.ascension = 17; }
-    assert_eq!(Combat::enter(entry).err(), Some(RunError::Unsupported(ascension::ABOVE_CEILING)));
-    // Entry bounds a summoner or splitter by its spawn closure's ceiling (review v1 m1): a solo Slime
-    // Boss (children 16) or Gremlin Leader (Wizard, Fat 16) is rejected up front at A17, although
-    // each species' own ceiling is 20. M29c: both landed, so A16 is admitted.
+    assert_eq!(Combat::enter(entry).map(|combat| combat.state.ascension).ok(), Some(17));
+    // Entry admits a solo summoner or splitter with its spawn closure (review v1 m1) at A16 and A17.
     for (encounter, owner) in [(EncounterId::SlimeBoss, EnemyId::SlimeBoss), (EncounterId::GremlinLeader, EnemyId::GremlinLeader)] {
-        assert_eq!(ascension::playable_ceiling(owner), 20);
-        for (a, reason) in [(17, Some(ascension::ABOVE_CEILING)), (16, None)] {
+        for a in [16, 17] {
             let mut entry = setup(encounter, 0, 1, 0).unwrap();
             entry.setup.enemies.retain(|enemy| enemy.enemy_id == owner);
             for enemy in &mut entry.setup.enemies { enemy.ascension = a; }
-            let Some(reason) = reason else {
-                assert_eq!(ascension::species_admission(owner, a), Ok(()), "{owner:?} A{a}");
-                // M29c review m2: the solo owner-only entry is admitted, not only predicted.
-                let combat = Combat::enter(entry).unwrap_or_else(|e| panic!("{owner:?} A{a}: {e:?}"));
-                assert_eq!(combat.state.ascension, a);
-                continue;
-            };
-            assert_eq!(Combat::enter(entry).err(), Some(RunError::Unsupported(reason)), "{owner:?} A{a}");
-            assert_eq!(ascension::species_admission(owner, a), Err(reason), "{owner:?} A{a}");
+            assert_eq!(ascension::species_admission(owner, a), Ok(()), "{owner:?} A{a}");
+            // M29c review m2: the solo owner-only entry is admitted, not only predicted.
+            let combat = Combat::enter(entry).unwrap_or_else(|e| panic!("{owner:?} A{a}: {e:?}"));
+            assert_eq!(combat.state.ascension, a);
         }
     }
     // Genuine precondition failures are not the typed interim (M29a1 review m2).
@@ -229,12 +212,12 @@ fn m29_live_validator_reads_combat_ascension() {
 
 #[test]
 fn m29_every_encounter_every_ascension() {
+    // Amended at M32 (plan item 3, design §6.2): no ceiling remains, so every (setup, A) is admitted and
+    // the former rejection arm is gone.
     for (encounter, _, _) in enemies::A0_ENCOUNTER_SETUPS {
-        let ceiling = ascension::encounter_ceiling(*encounter);
         for a in 0..=20u8 {
             match ascension::encounter_admission(*encounter, a) {
                 Ok(()) => {
-                    assert!(a <= ceiling);
                     let mut combat = Combat::enter(setup(*encounter, a, a + 1, u64::from(a)).unwrap())
                         .unwrap_or_else(|e| panic!("{encounter:?} A{a}: {e:?}"));
                     assert_eq!(combat.state.ascension, a);
@@ -249,12 +232,7 @@ fn m29_every_encounter_every_ascension() {
                         engine::validate_runtime(&combat.state).unwrap_or_else(|e| panic!("{encounter:?} A{a} step {step}: {e:?}"));
                     }
                 },
-                Err(reason) => {
-                    // M29d (close): every species landed, so nothing is interim at or below the ceiling.
-                    assert!(a > ceiling, "{encounter:?} A{a} rejected at or below its ceiling {ceiling}: {reason}");
-                    assert_eq!(reason, ascension::ABOVE_CEILING, "{encounter:?} A{a}");
-                    assert_eq!(setup(*encounter, a, 1, 0).err(), Some(RunError::Unsupported(reason)), "{encounter:?} A{a}");
-                },
+                Err(reason) => panic!("{encounter:?} A{a} rejected: {reason}"),
             }
         }
     }

@@ -17,13 +17,25 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:memory.clone(),stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let own=|kind|effect(actor.clone(),actor.clone(),kind);
     Ok(match enemy.intent_id.as_str(){
         "time_reverb"=>vec![damage(actor.clone(),FullIntentId::from_name("time_reverb"));3],
-        "time_slam"=>vec![damage(actor.clone(),FullIntentId::from_name("time_slam")),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("draw_reduction"),amount:1})],
-        "time_ripple"=>vec![own(EffectKind::GainBlock(20)),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("vulnerable"),amount:1}),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1})],
-        "time_haste"=>vec![own(EffectKind::TimeEaterCleanse),own(EffectKind::RemoveFullPower(FullPowerId("shackled"))),own(EffectKind::Heal((enemy.max_hp/2-enemy.hp).max(0)))],
+        "time_slam"=>{
+            let mut work=vec![damage(actor.clone(),FullIntentId::from_name("time_slam")),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("draw_reduction"),amount:1})];
+            if ascension>=19{for _ in 0..2{work.push(effect(actor.clone(),Actor::Player,EffectKind::CreateCard{id:crate::content::CardId::Slimed,destination:super::super::super::CardDestination::Discard,upgrades:0}));}}
+            work
+        },
+        "time_ripple"=>{
+            let mut work=vec![own(EffectKind::GainBlock(20)),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("vulnerable"),amount:1}),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1})];
+            if ascension>=19{work.push(effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("frail"),amount:1}));}
+            work
+        },
+        "time_haste"=>{
+            let mut work=vec![own(EffectKind::TimeEaterCleanse),own(EffectKind::RemoveFullPower(FullPowerId("shackled"))),own(EffectKind::Heal((enemy.max_hp/2-enemy.hp).max(0)))];
+            if ascension>=19{work.push(own(EffectKind::GainBlock(32)));}
+            work
+        },
         _=>return Err(InputError::Unsupported("Time Eater intent unavailable".into())),
     })
 }

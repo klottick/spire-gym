@@ -390,20 +390,20 @@ pub fn move_work(enemy: &EnemyState) -> Result<Vec<Effect>, InputError> { move_w
 
 /// Construct ordinary shared-resolver effects for the actor's selected intent.
 pub fn move_work_at(enemy: &EnemyState, ascension: u8) -> Result<Vec<Effect>, InputError> {
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::ShelledParasite|EnemyId::SnakePlant)){return act2::ordinary_closure::move_work(enemy)}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::ShelledParasite|EnemyId::SnakePlant)){return act2::ordinary_closure::move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::FungiBeast){return act1::fungi_move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::CorruptHeart){return act4::heart::move_work(enemy,ascension)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Deca|EnemyId::Donu)){return Err(InputError::Unsupported("Deca/Donu payload requires live group context".into()))}
-    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater){return act3::time_eater::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::TimeEater){return act3::time_eater::move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::AwakenedOne){return act3::awakened::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::reptomancer::supports(id)){return act3::reptomancer::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::elites::supports(id)){return act3::elites::move_work(enemy,ascension)}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::WrithingMass){return act3::writhing::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::ordinary::supports(id)){return act3::ordinary::move_work(enemy,ascension)}
-    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Darkling){return act3::darklings::move_work(enemy)}
+    if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Darkling){return act3::darklings::move_work(enemy,ascension)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(id) if act3::supports(id)){return act3::shapes::move_work(enemy)}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::SphericGuardian|EnemyId::Byrd)){return act2::flight::move_work(enemy,ascension);}
-    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Chosen|EnemyId::Snecko)){return act2::chosen_snecko::move_work(enemy);}
+    if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Chosen|EnemyId::Snecko)){return act2::chosen_snecko::move_work(enemy,ascension);}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Guardian){return guardian::move_work(enemy,ascension);}
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::Hexaghost){return hexaghost::move_work(enemy,ascension);}
     if matches!(enemy.enemy_id,ActorEnemyId::Full(EnemyId::Lagavulin|EnemyId::Sentry)){return elites::move_work(enemy,ascension);}
@@ -507,18 +507,18 @@ pub fn select_move_at(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemor
         (id,_) if act3::reptomancer::supports(id)=>act3::reptomancer::select_move(id,history,memory,stream,None),
         (id,_) if act3::elites::supports(id)=>act3::elites::select_move(history,memory,stream),
         (EnemyId::WrithingMass,_)=>act3::writhing::select_move(history,memory,stream),
-        (id,_) if act3::ordinary::supports(id)=>act3::ordinary::select_move(id,history,memory,stream,None),
-        (EnemyId::Darkling,_)=>act3::darklings::select_move(history,memory,stream,false),
+        (id,_) if act3::ordinary::supports(id)=>act3::ordinary::select_move(id,history,memory,stream,None,ascension),
+        (EnemyId::Darkling,_)=>act3::darklings::select_move(history,memory,stream,false,ascension),
         (id,_) if act3::supports(id)=>act3::shapes::select_move(id,history,memory,stream),
         (EnemyId::Guardian,EnemyMemory::Guardian{..})=>guardian::select_move(history,memory,stream),
         (EnemyId::SphericGuardian,EnemyMemory::SphericGuardian)|(EnemyId::Byrd,EnemyMemory::Byrd{..})=>act2::flight::select_move(history,memory,stream),
-        (EnemyId::Chosen,EnemyMemory::Chosen)|(EnemyId::Snecko,EnemyMemory::Snecko)=>act2::chosen_snecko::select_move(history,memory,stream),
-        (EnemyId::GremlinMad,EnemyMemory::GremlinMad)|(EnemyId::GremlinSneaky,EnemyMemory::GremlinSneaky)|(EnemyId::GremlinFat,EnemyMemory::GremlinFat)|(EnemyId::GremlinShield,EnemyMemory::GremlinShield)|(EnemyId::GremlinWizard,EnemyMemory::GremlinWizard{..})=>act2::gremlin_leader::select_small(history,memory,stream),
+        (EnemyId::Chosen,EnemyMemory::Chosen)|(EnemyId::Snecko,EnemyMemory::Snecko)=>act2::chosen_snecko::select_move(history,memory,stream,ascension),
+        (EnemyId::GremlinMad,EnemyMemory::GremlinMad)|(EnemyId::GremlinSneaky,EnemyMemory::GremlinSneaky)|(EnemyId::GremlinFat,EnemyMemory::GremlinFat)|(EnemyId::GremlinShield,EnemyMemory::GremlinShield)|(EnemyId::GremlinWizard,EnemyMemory::GremlinWizard{..})=>act2::gremlin_leader::select_small(history,memory,stream,ascension),
         (EnemyId::SlaverBlue,EnemyMemory::SlaverBlue)|(EnemyId::Taskmaster,EnemyMemory::Taskmaster)|(EnemyId::SlaverRed,EnemyMemory::SlaverRed{..})=>act2::slavers::select_move(history,memory,stream,ascension),
-        (EnemyId::BanditPointy,EnemyMemory::BanditPointy)|(EnemyId::BanditLeader,EnemyMemory::BanditLeader)|(EnemyId::BanditBear,EnemyMemory::BanditBear)=>act2::bandits::select_move(history,memory,stream),
-        (EnemyId::BookOfStabbing,EnemyMemory::BookOfStabbing{..})=>act2::book::select_move(history,memory,stream),
+        (EnemyId::BanditPointy,EnemyMemory::BanditPointy)|(EnemyId::BanditLeader,EnemyMemory::BanditLeader)|(EnemyId::BanditBear,EnemyMemory::BanditBear)=>act2::bandits::select_move(history,memory,stream,ascension),
+        (EnemyId::BookOfStabbing,EnemyMemory::BookOfStabbing{..})=>act2::book::select_move(history,memory,stream,ascension),
         (EnemyId::TorchHead,EnemyMemory::TorchHead)=>Ok(MoveSelection{intent:FullIntentId::from_name("torch_attack"),memory:memory.clone(),stream:stream.clone()}),
-        (EnemyId::BronzeAutomaton,EnemyMemory::BronzeAutomaton{..})|(EnemyId::BronzeOrb,EnemyMemory::BronzeOrb{..})=>act2::automaton::select_move(history,memory,stream),
+        (EnemyId::BronzeAutomaton,EnemyMemory::BronzeAutomaton{..})|(EnemyId::BronzeOrb,EnemyMemory::BronzeOrb{..})=>act2::automaton::select_move(history,memory,stream,ascension),
         (EnemyId::Hexaghost,EnemyMemory::Hexaghost{..})=>hexaghost::select_move(history,memory,stream),
         (EnemyId::Lagavulin,EnemyMemory::Lagavulin{..})|(EnemyId::Sentry,EnemyMemory::Sentry{..})=>elites::select_move(id,history,memory,stream),
         (EnemyId::Cultist, EnemyMemory::Cultist) => {
@@ -527,17 +527,17 @@ pub fn select_move_at(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemor
         }
         (EnemyId::GremlinNob, memory @ EnemyMemory::GremlinNob) =>
             select_gremlin_nob(history, memory, stream, ascension),
-        (id @ (EnemyId::ShelledParasite|EnemyId::SnakePlant),_)=>act2::ordinary_closure::select_move(id,history,memory,stream),
+        (id @ (EnemyId::ShelledParasite|EnemyId::SnakePlant),_)=>act2::ordinary_closure::select_move(id,history,memory,stream,ascension),
         (id @ (EnemyId::Looter|EnemyId::Mugger),EnemyMemory::Thief(_))=>act1::thieves::select_move(id,history,memory,stream),
         (EnemyId::FungiBeast, EnemyMemory::FungiBeast) => act1::select_fungi(history, memory, stream),
         (EnemyId::SlimeBoss, EnemyMemory::SlimeBoss { .. }) => act1::select_slime_boss(history, memory, stream),
         (EnemyId::JawWorm, EnemyMemory::JawWorm { .. }) => select_jaw(history, memory, stream),
         (EnemyId::LouseRed, EnemyMemory::LouseRed { .. }) |
-        (EnemyId::LouseGreen, EnemyMemory::LouseGreen { .. }) => select_louse(id, history, memory, stream),
+        (EnemyId::LouseGreen, EnemyMemory::LouseGreen { .. }) => select_louse(id, history, memory, stream, ascension),
         (EnemyId::AcidSlimeS | EnemyId::AcidSlimeM | EnemyId::AcidSlimeL,
-            EnemyMemory::AcidSlime { .. }) => act1::select_acid(id, history, memory, stream),
+            EnemyMemory::AcidSlime { .. }) => act1::select_acid(id, history, memory, stream, ascension),
         (EnemyId::SpikeSlimeS | EnemyId::SpikeSlimeM | EnemyId::SpikeSlimeL,
-            EnemyMemory::SpikeSlime { .. }) => act1::select_spike(id, history, memory, stream),
+            EnemyMemory::SpikeSlime { .. }) => act1::select_spike(id, history, memory, stream, ascension),
         (EnemyId::Unknown(name), _) => Err(InputError::Unsupported(format!("enemy selector missing for {name}")).into()),
         _ => Err(InputError::Invariant("enemy memory/identity mismatch".into()).into()),
     }
@@ -611,11 +611,10 @@ pub(super) fn gremlin_nob_card_played_work(state: &State, source: &Source)
 }
 
 fn select_louse(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
-    stream: &StreamState) -> Result<MoveSelection, SelectError> {
+    stream: &StreamState, ascension: u8) -> Result<MoveSelection, SelectError> {
     use FullIntentId::{Bite, Grow, SpitWeb};
     let nonattack = if id == EnemyId::LouseRed { Grow } else { SpitWeb };
     if history.iter().any(|intent| !matches!(intent, Bite | Grow | SpitWeb))
-        || (!history.is_empty() && history[0] != Bite)
         || history.iter().any(|intent| *intent == Grow && id != EnemyId::LouseRed)
         || history.iter().any(|intent| *intent == SpitWeb && id != EnemyId::LouseGreen) {
         return Err(InputError::Unsupported("Louse history/identity mismatch".into()).into());
@@ -626,11 +625,12 @@ fn select_louse(id: EnemyId, history: &[FullIntentId], memory: &EnemyMemory,
     if history.ends_with(&[Bite, Bite]) {
         return Ok(MoveSelection { intent: nonattack, stream: stream.clone(), memory: memory.clone() });
     }
-    if history.is_empty() {
-        return Ok(MoveSelection { intent: Bite, stream: stream.clone(), memory: memory.clone() });
-    }
+    // G1 (M32 design §6.8): the opening is the ordinary roll (source getMove: num < 25 → the
+    // non-attack move), not a forced Bite; an empty history meets no repeat guard.
     let (roll, next) = rng::uniform_below(stream, 4)?;
-    let intent = if roll == 0 { nonattack } else { Bite };
+    let intent = if roll == 0 && !(ascension >= 17 && history.last() == Some(&nonattack)) {
+        nonattack
+    } else { Bite };
     Ok(MoveSelection { intent, stream: next, memory: memory.clone() })
 }
 
@@ -1023,7 +1023,7 @@ pub const A0_ENCOUNTER_SETUPS:&[(crate::content::EncounterId,u8,EncounterKind)]=
 
 /// Whether `setup` has the enemy facts for `encounter` at `ascension`: every species the
 /// encounter can contain (and its spawn closure) has landed values and `ascension` is at most
-/// the encounter's playable ceiling. The event executor checks it up front.
+/// A20 (no playable ceiling since M32). The event executor checks it up front.
 pub fn setup_supports_ascension(encounter: crate::content::EncounterId, ascension: u8) -> bool {
     ascension::encounter_admission(encounter, ascension).is_ok()
 }
@@ -1203,7 +1203,7 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
         if actor.enemy_id==EnemyId::CorruptHeart {
             actor.intent=FullIntentId::HeartDebilitate;
         }else{
-            let selected=if actor.enemy_id==EnemyId::SpireGrowth{act3::ordinary::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,Some(player_constricted))}else{act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context)}.map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
+            let selected=if actor.enemy_id==EnemyId::SpireGrowth{act3::ordinary::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,Some(player_constricted),ascension)}else{act2::select_move(actor.enemy_id,&[],actor.initial_memory.as_ref().unwrap(),&actor.ai_rng,&context)}.map_err(|_|crate::run::RunError::Unsupported("initial enemy move selection failed"))?;
             actor.intent=selected.intent;actor.ai_rng=selected.stream;actor.initial_memory=Some(selected.memory);
         }
     }

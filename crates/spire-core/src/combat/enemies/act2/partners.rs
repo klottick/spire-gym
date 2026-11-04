@@ -1,13 +1,13 @@
 //! Centurion/Mystic decisions consume live roster facts, not stored partner copies.
 use super::*;
 
-pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,context:&EnemyRollContext)->Result<MoveSelection,super::super::SelectError>{
+pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,context:&EnemyRollContext,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let pair=match id {
         EnemyId::Centurion=>{let partner=context.actors.iter().any(|a|a.species==EnemyId::Mystic&&a.hp>0);("centurion_slash",if partner{"centurion_protect"}else{"centurion_fury"},65)},
         EnemyId::Mystic=>{
             // The live context excludes inactive/escaped actors; dead actors add no deficit.
             let hurt=context.actors.iter().filter(|a|a.hp>0)
-                .map(|a|i64::from(a.max_hp)-i64::from(a.hp)).sum::<i64>()>=16;
+                .map(|a|i64::from(a.max_hp)-i64::from(a.hp)).sum::<i64>()>=if ascension>=17{21}else{16};
             if hurt&&!history.ends_with(&[FullIntentId::from_name("mystic_heal");2]){return Ok(MoveSelection{intent:FullIntentId::from_name("mystic_heal"),memory:memory.clone(),stream:stream.clone()})}
             ("mystic_attack","mystic_buff",60)
         },
@@ -15,7 +15,8 @@ pub(super) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory
     };
     let (ticket,next)=rng::uniform_below(stream,100)?;
     let primary=FullIntentId::from_name(pair.0);let other=FullIntentId::from_name(pair.1);
-    let mut intent=if ticket<pair.2{primary}else{other};
+    let a17_attack_repeated=id==EnemyId::Mystic&&ascension>=17&&history.last()==Some(&primary);
+    let mut intent=if ticket<pair.2&&!a17_attack_repeated{primary}else{other};
     if history.ends_with(&[intent;2]){intent=if intent==primary{other}else{primary};}
     Ok(MoveSelection{intent,memory:memory.clone(),stream:next})
 }

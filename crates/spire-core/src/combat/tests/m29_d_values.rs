@@ -625,8 +625,10 @@ fn m29_all_species_landed() {
     }
 }
 
+/// Formerly `m29_d_formations_ceilings` (M32 plan item 3, design §6.2): the former ceilings (second
+/// column, kept as the record) are gone, so every formation is admitted at A0–A20.
 #[test]
-fn m29_d_formations_ceilings() {
+fn m29_d_formations_admit_through_a20() {
     use EncounterId::*;
     for (encounter, ceiling) in [(MaskedBandits, 16), (ThreeByrds, 20), (CenturionAndHealer, 16), (CultistAndChosen, 16),
         (TwoThieves, 20), (ShelledParasite, 16), (ShelledParasiteAndFungi, 16), (SnakePlant, 16), (Snecko, 16), (SphericGuardian, 20),
@@ -634,9 +636,8 @@ fn m29_d_formations_ceilings() {
         (FourShapes, 20), (SphereAndTwoShapes, 20), (Maw, 20), (OrbWalker, 20), (SpireGrowth, 16), (Transient, 20),
         (WrithingMass, 20), (GiantHead, 20), (Nemesis, 20), (Reptomancer, 20), (AwakenedOne, 20), (TimeEater, 18),
         (DonuAndDeca, 18), (ShieldAndSpear, 17), (CorruptHeart, 20)] {
-        assert_eq!(ascension::encounter_ceiling(encounter), ceiling, "{encounter:?}");
-        for a in 0..=ceiling { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
-        if ceiling < 20 { assert_eq!(ascension::encounter_admission(encounter, ceiling + 1), Err(ascension::ABOVE_CEILING), "{encounter:?}"); }
+        let _former_ceiling: u8 = ceiling;
+        for a in 0..=20 { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
     }
 }
 

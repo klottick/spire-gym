@@ -17,14 +17,19 @@ pub(super) fn select_leader(history:&[FullIntentId],memory:&EnemyMemory,stream:&
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:memory.clone(),stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn select_small(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,super::super::SelectError>{
-    let name=match memory{EnemyMemory::GremlinMad=>"gremlin_scratch",EnemyMemory::GremlinSneaky=>"gremlin_puncture",EnemyMemory::GremlinFat=>"gremlin_smash",EnemyMemory::GremlinShield=>if history.last().is_some_and(|id|id.as_str()=="gremlin_bash"){"gremlin_bash"}else{"gremlin_protect"},EnemyMemory::GremlinWizard{charge}=>if *charge==3{"gremlin_blast"}else{"gremlin_charge"},_=>return Err(InputError::Invariant("small Gremlin memory mismatch".into()).into())};
+fn wizard_next_intent(repeated_blast:bool,charge:u8,ascension:u8)->&'static str{
+    if ascension>=17&&repeated_blast||charge==3{"gremlin_blast"}else{"gremlin_charge"}
+}
+
+pub(in crate::combat::enemies) fn select_small(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
+    let name=match memory{EnemyMemory::GremlinMad=>"gremlin_scratch",EnemyMemory::GremlinSneaky=>"gremlin_puncture",EnemyMemory::GremlinFat=>"gremlin_smash",EnemyMemory::GremlinShield=>if history.last().is_some_and(|id|id.as_str()=="gremlin_bash"){"gremlin_bash"}else{"gremlin_protect"},EnemyMemory::GremlinWizard{charge}=>wizard_next_intent(history.last().is_some_and(|id|id.as_str()=="gremlin_blast"),*charge,ascension),_=>return Err(InputError::Invariant("small Gremlin memory mismatch".into()).into())};
     Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:memory.clone(),stream:stream.clone()})
 }
 
 pub(super) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<Vec<Effect>,EffectError>{
     let enemy=state.enemies.iter().find(|e|&e.instance_id==owner).ok_or_else(||InputError::Invariant("Gremlin turn owner absent".into()))?;
     let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Gremlin full intent absent".into()).into())};
+    let repeat_blast=state.ascension>=17&&enemy.move_history.last().is_some_and(|move_id|move_id.as_str()=="gremlin_blast");
     let actor=Actor::Enemy(owner.clone());
     if enemy.enemy_id==ActorEnemyId::Full(EnemyId::GremlinLeader){return Ok(match intent.as_str(){
         "leader_stab"=>(0..3).map(|_|damage(actor.clone(),intent)).collect(),
@@ -34,14 +39,18 @@ pub(super) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<Vec<Effect>
         _=>return Err(InputError::Invariant("unhandled Gremlin Leader intent".into()).into()),
     })}
     if !matches!(enemy.enemy_id,ActorEnemyId::Full(id) if is_small(id)){return Err(InputError::Invariant("small Gremlin turn species".into()).into())}
-    if intent.as_str()=="gremlin_smash"{return Ok(vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1})])}
+    if intent.as_str()=="gremlin_smash"{
+        let mut work=vec![damage(actor.clone(),intent),effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("weak"),amount:1})];
+        if state.ascension>=17{work.push(effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("frail"),amount:1}));}
+        return Ok(work)
+    }
     let mut work=vec![];
     let next=match intent.as_str(){
         "gremlin_scratch"|"gremlin_puncture"|"gremlin_bash"=>{work.push(damage(actor.clone(),intent));intent},
         "gremlin_charge"|"gremlin_blast"=>{
             let enemy=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();let Some(EnemyMemory::GremlinWizard{charge})=enemy.full_memory.as_mut()else{return Err(InputError::Invariant("Wizard charge owner absent".into()).into())};
             if intent.as_str()=="gremlin_blast"{*charge=0;work.push(damage(actor.clone(),intent));}else{*charge+=1;}
-            FullIntentId::from_name(if *charge==3{"gremlin_blast"}else{"gremlin_charge"})
+            FullIntentId::from_name(wizard_next_intent(repeat_blast,*charge,state.ascension))
         },
         "gremlin_protect"=>{work.push(effect(actor.clone(),actor.clone(),EffectKind::ProtectGremlin));FullIntentId::from_name(if spawn::ordered_actors(state).len()>1{"gremlin_protect"}else{"gremlin_bash"})},
         _=>return Err(InputError::Invariant("unhandled small Gremlin intent".into()).into()),

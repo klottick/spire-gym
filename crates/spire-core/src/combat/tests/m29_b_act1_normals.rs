@@ -207,6 +207,20 @@ fn m29_gremlin_fat_ascension_values() {
         assert_eq!(power_amount(&work, "weak"), 1, "A{a}");
         assert!(!work.iter().any(|e| matches!(&e.kind, EffectKind::ApplyFullPower { id, .. } if id.0 == "frail")), "A{a}");
     }
+    // Amended at M32 (plan item 5): at A17+, Smash queues Frail 1 after Weak 1.
+    for (a, want) in [(16, vec![("weak", 1)]), (17, vec![("weak", 1), ("frail", 1)]),
+        (20, vec![("weak", 1), ("frail", 1)])] {
+        let mut state = Combat::enter(setup(EncounterId::GremlinGang, 0, 1, 0).unwrap()).unwrap().state;
+        state.ascension = a;
+        let owner = state.enemies[0].instance_id.clone();
+        state.enemies[0] = actor(EnemyId::GremlinFat, "gremlin_smash");
+        state.enemies[0].instance_id = owner.clone();
+        let work = enemies::act2::take_turn(&mut state, &owner).unwrap();
+        let queued = work.iter().filter_map(|effect| match &effect.kind {
+            EffectKind::ApplyFullPower { id, amount } => Some((id.0, *amount)), _ => None,
+        }).collect::<Vec<_>>();
+        assert_eq!(queued, want, "A{a} Smash queue order");
+    }
 }
 
 #[test]
@@ -281,9 +295,8 @@ fn m29_act1_normal_formations_leave_interim() {
         EncounterId::BlueSlaver, EncounterId::JawWormHorde, EncounterId::ExordiumThugs, EncounterId::RedSlaver,
         // M29d: the Mugger landed.
         EncounterId::TwoThieves] {
-        let ceiling = ascension::encounter_ceiling(encounter);
-        for a in 0..=ceiling { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
-        if ceiling < 20 { assert_eq!(ascension::encounter_admission(encounter, ceiling + 1), Err(ascension::ABOVE_CEILING)); }
+        // Amended at M32 (plan item 3, design §6.2): no playable ceiling remains, so every level A0–A20 is admitted.
+        for a in 0..=20 { assert_eq!(ascension::encounter_admission(encounter, a), Ok(()), "{encounter:?} A{a}"); }
     }
 }
 

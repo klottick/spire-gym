@@ -53,7 +53,7 @@ pub(crate) fn select_move(id:EnemyId,history:&[FullIntentId],memory:&EnemyMemory
     if stream.id().domain()!=rng::Domain::RunCombatEnemyAi||context.turn==0||!memory.valid_for(id)||!context.actors.iter().any(|a|a.owner==context.owner&&a.species==id){return Err(InputError::Invariant("live enemy selection context mismatch".into()).into())}
     let mut slots=std::collections::BTreeSet::new();
     for actor in context.actors.iter().filter(|a|a.hp>0){if actor.hp>actor.max_hp||!slots.insert(actor.slot){return Err(InputError::Invariant("live selection formation mismatch".into()).into())}}
-    if super::act4::supports(id){super::act4::select_move(id,history,memory,stream)}else if super::act3::supports(id){super::act3::select_move(id,history,memory,stream,context)}else if id==EnemyId::Collector{collector::select_move(history,memory,stream,context)}else if id==EnemyId::Champ{champ::select_move(history,memory,stream,context)}else if id==EnemyId::GremlinLeader{gremlin_leader::select_leader(history,memory,stream,context)}else if matches!(id,EnemyId::Centurion|EnemyId::Mystic){partners::select_move(id,history,memory,stream,context)}else{super::select_move_at(id,history,memory,stream,context.ascension)}
+    if super::act4::supports(id){super::act4::select_move(id,history,memory,stream)}else if super::act3::supports(id){super::act3::select_move(id,history,memory,stream,context)}else if id==EnemyId::Collector{collector::select_move(history,memory,stream,context)}else if id==EnemyId::Champ{champ::select_move(history,memory,stream,context,context.ascension)}else if id==EnemyId::GremlinLeader{gremlin_leader::select_leader(history,memory,stream,context)}else if matches!(id,EnemyId::Centurion|EnemyId::Mystic){partners::select_move(id,history,memory,stream,context,context.ascension)}else{super::select_move_at(id,history,memory,stream,context.ascension)}
 }
 
 pub(in crate::combat) fn roll_move(state:&mut State,owner:&EnemyHandle)->Result<(),super::super::EffectError>{
@@ -66,7 +66,7 @@ pub(in crate::combat) fn roll_move(state:&mut State,owner:&EnemyHandle)->Result<
     let context=EnemyRollContext{owner:owner.clone(),turn:state.turn,actors,ascension:state.ascension};
     let memory=enemy.full_memory.as_ref().ok_or_else(||InputError::Invariant("live roll memory absent".into()))?;
     let stream=enemy.full_ai_rng.as_ref().ok_or_else(||InputError::Invariant("live roll stream absent".into()))?;
-    let selected=if id==EnemyId::SpireGrowth{super::act3::ordinary::select_move(id,&history,memory,stream,Some(state.player_full_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0)))}
+    let selected=if id==EnemyId::SpireGrowth{super::act3::ordinary::select_move(id,&history,memory,stream,Some(state.player_full_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0)),context.ascension)}
         else if id==EnemyId::CorruptHeart{super::select_move_at(id,&history,memory,stream,state.ascension)}
         else{select_move(id,&history,memory,stream,&context)}.map_err(|e|match e{super::SelectError::Invalid(e)=>super::super::EffectError::Invalid(e),super::SelectError::Random(e)=>super::super::EffectError::Random(e)})?;
     let actor=state.enemies.iter_mut().find(|e|&e.instance_id==owner).unwrap();
@@ -82,7 +82,7 @@ pub(in crate::combat) fn take_turn(state:&mut State,owner:&EnemyHandle)->Result<
         match enemy.enemy_id {
             ActorEnemyId::Full(EnemyId::SlaverBlue|EnemyId::Taskmaster|EnemyId::SlaverRed)=>return Ok(slavers::take_turn(enemy,ascension)?),
             ActorEnemyId::Full(EnemyId::BanditPointy|EnemyId::BanditLeader|EnemyId::BanditBear)=>return Ok(bandits::take_turn(enemy,ascension)?),
-            ActorEnemyId::Full(EnemyId::BookOfStabbing)=>return Ok(book::move_work(enemy)?),
+            ActorEnemyId::Full(EnemyId::BookOfStabbing)=>return Ok(book::move_work(enemy,ascension)?),
             ActorEnemyId::Full(EnemyId::Champ)=>return Ok(champ::move_work(enemy,ascension)?),_=>{},
         }
     }

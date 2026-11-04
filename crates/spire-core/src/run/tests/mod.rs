@@ -97,6 +97,8 @@ mod m31_events;
 mod m31_potion_matrix;
 mod m31_rewards_matrix;
 mod m31_events_matrix;
+mod m32_run_rules;
+mod m32_shop;
 mod m27_capability;
 mod m27_relic_selections;
 mod m27_relics_run;

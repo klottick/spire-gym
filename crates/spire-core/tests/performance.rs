@@ -16,13 +16,15 @@ fn three_real_workloads_have_expected_endpoints() {
                 assert_eq!(endpoint["candidates"], 0);
             }
             CaseId::Act1 => {
-                assert_eq!(endpoint["accepted_actions"], 212);
+                // G1 (M32): re-pinned to the rolled-Louse Act1 trajectory.
+                assert_eq!(endpoint["accepted_actions"], 214);
                 assert_eq!(endpoint["outcome"], "Act2Ready");
                 assert_eq!(endpoint["reward"], 17);
                 assert_eq!(endpoint["hp"], 95);
             }
             CaseId::Act2Prefix => {
-                assert_eq!(endpoint["accepted_actions"], 397);
+                // G1 (M32): re-pinned to the rolled-Louse Act2 trajectory.
+                assert_eq!(endpoint["accepted_actions"], 399);
                 assert_eq!(endpoint["outcome"], "Act2PrefixComplete");
                 assert_eq!(endpoint["hp"], 91);
                 assert_eq!(endpoint["floor"], 26);
@@ -35,6 +37,7 @@ fn three_real_workloads_have_expected_endpoints() {
 }
 
 #[test]
+// G1 (M32): the prepared Act2 endpoint now pins 399 actions after the rolled Louse opening.
 fn fresh_replays_match_prepared_public_boundaries_and_rewards() {
     let case = prepare(CaseId::Act2Prefix).unwrap();
     let mut a = fresh(&case).unwrap();
@@ -47,6 +50,7 @@ fn fresh_replays_match_prepared_public_boundaries_and_rewards() {
 }
 
 #[test]
+// G1 (M32): the prepared Act1 endpoint now pins 214 actions after the rolled Louse opening.
 fn altered_or_truncated_script_is_not_completion() {
     let mut case = prepare(CaseId::Act1).unwrap();
     case.actions.pop();
@@ -107,7 +111,8 @@ fn native_and_public_modes_have_same_work_and_outcome() {
     for key in ["input_sha256","actions_sha256","accepted_per_episode","endpoint"] {
         assert_eq!(a[key],b[key]);
     }
-    assert_eq!(a["samples"][0]["accepted_actions"],212);
+    // G1 (M32): re-pinned to the rolled-Louse Act1 trajectory.
+    assert_eq!(a["samples"][0]["accepted_actions"],214);
 }
 
 #[test]

@@ -1,10 +1,10 @@
 //! Actual Chosen/Snecko turns and Hex's source-bottom generated-card work.
 use super::*;
 
-pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,super::super::SelectError>{
+pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let mut cursor=stream.clone();let name=match memory {
         EnemyMemory::Chosen=>match history.last().map(|id|id.as_str()){
-            None=>"chosen_poke",Some("chosen_poke") if history.len()==1=>"chosen_hex",
+            None if ascension>=17=>"chosen_hex",None=>"chosen_poke",Some("chosen_poke") if history.len()==1=>"chosen_hex",
             Some("chosen_hex"|"chosen_poke"|"chosen_zap")=>{let (ticket,next)=rng::uniform_below(&cursor,2)?;cursor=next;if ticket==0{"chosen_debilitate"}else{"chosen_drain"}},
             Some("chosen_debilitate"|"chosen_drain")=>{let (ticket,next)=rng::uniform_below(&cursor,5)?;cursor=next;if ticket<3{"chosen_poke"}else{"chosen_zap"}},
             _=>return Err(InputError::Invariant("invalid Chosen history".into()).into()),
@@ -17,7 +17,7 @@ pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&En
     };Ok(MoveSelection{intent:FullIntentId::from_name(name),memory:memory.clone(),stream:cursor})
 }
 
-pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effect>,InputError>{
+pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Result<Vec<Effect>,InputError>{
     let actor=Actor::Enemy(enemy.instance_id.clone());let ActorIntentId::Full(intent)=enemy.intent_id else{return Err(InputError::Invariant("Chosen/Snecko full intent missing".into()))};
     let power=|id,amount|effect(actor.clone(),Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId(id),amount});
     Ok(match intent.as_str(){
@@ -27,7 +27,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState)->Result<Vec<Effec
         "chosen_drain"=>vec![power("weak",3),effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:3})],
         "chosen_zap"|"snecko_bite"=>vec![damage(actor,intent)],
         "snecko_glare"=>vec![power("confused",1)],
-        "snecko_tail_whip"=>vec![damage(actor.clone(),intent),power("vulnerable",2)],
+        "snecko_tail_whip"=>{let mut work=vec![damage(actor.clone(),intent)];if ascension>=17{work.push(power("weak",2));}work.push(power("vulnerable",2));work},
         _=>return Err(InputError::Invariant("invalid Chosen/Snecko move".into())),
     })
 }
