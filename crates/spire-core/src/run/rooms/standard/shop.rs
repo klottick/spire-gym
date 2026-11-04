@@ -108,7 +108,9 @@ fn colored_card(run:&mut Run,destination:(u8,u32,NodeId),slot:u64,offset:i32,car
     loop {
         let key=shop_key(destination,SHOP_STOCK_SOURCE_TAG,slot,attempt);
         let roll=run.state.rng.bounded_scoped_checked(RunRngScope::M28ShopStock,&key,100)? as u32;
-        let mut rarity=super::rewards::classify(super::rewards::RarityRoom::Ordinary,roll,offset,1);
+        // G3 (M31, PM ruling pm-ruling-g3-v1): `rollRarity()` in the ShopRoom, 9/37 without the relic
+        // hooks (ShopRoom.java:46–47, :62–64).
+        let mut rarity=super::rewards::classify(super::rewards::RarityRoom::Shop,roll,offset,1);
         let mut candidates=crate::content::pools::cards(crate::content::pools::CardPool::Ordinary{
             character:run.state.character,rarity:Some(rarity),card_type:Some(card_type),
         }).map_err(|_|RunError::Unsupported("complete shop typed card family is incomplete"))?;

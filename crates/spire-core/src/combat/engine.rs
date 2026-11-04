@@ -1580,9 +1580,15 @@ fn distilled_chaos_use_slot(state:&State,slot:usize)->bool{
         })
 }
 
+/// A potion slot exists iff it is inside the live inventory (M31 design §6.3; source TopPanel and
+/// PotionPopUp read the live slots). G2: Potion Belt ownership is not consulted, so a slot kept after
+/// the Belt is lost stays usable. Profiles that are neither shared-generated nor Complete keep their
+/// three-slot ceiling.
 pub(super) fn valid_potion_slot(state:&State,slot:usize)->bool{
-    slot<3||state.item_context.as_ref().is_some_and(|items|(items.shared_generated_profile()||items.complete_items())
-        &&items.owns_relic(crate::content::RelicId::PotionBelt)&&items.potions().len()==5&&slot<5)
+    match state.item_context.as_ref() {
+        Some(items)=>slot<items.potions().len()&&(slot<3||items.shared_generated_profile()||items.complete_items()),
+        None=>slot<3,
+    }
 }
 
 fn validate_powers(powers: &[PowerEntry], enemy: Option<EnemyKind>, state: &State, actor: &Actor) -> Result<(), InputError> {

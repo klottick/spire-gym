@@ -86,11 +86,12 @@ fn m28_card_reward_rarity_offset() {
 
 #[test]
 fn m28_card_reward_upgrade_chance_by_act() {
-    assert_eq!(rewards::upgrade_chance(1).to_bits(), 0.0_f32.to_bits());
-    assert_eq!(rewards::upgrade_chance(2).to_bits(), 0.25_f32.to_bits());
-    assert_eq!(rewards::upgrade_chance(3).to_bits(), 0.5_f32.to_bits());
-    assert_eq!(rewards::upgrade_chance(4).to_bits(), 0.5_f32.to_bits());
-    assert_eq!(rewards::upgrade_chance(5).to_bits(), 0.0_f32.to_bits());
+    // Amended at M31 (plan item 4): `upgrade_chance` takes the ascension; these are the A0 values.
+    assert_eq!(rewards::upgrade_chance(1, 0).to_bits(), 0.0_f32.to_bits());
+    assert_eq!(rewards::upgrade_chance(2, 0).to_bits(), 0.25_f32.to_bits());
+    assert_eq!(rewards::upgrade_chance(3, 0).to_bits(), 0.5_f32.to_bits());
+    assert_eq!(rewards::upgrade_chance(4, 0).to_bits(), 0.5_f32.to_bits());
+    assert_eq!(rewards::upgrade_chance(5, 0).to_bits(), 0.0_f32.to_bits());
 
     let mut act1 = standard(4);
     act1.state.act = 1;

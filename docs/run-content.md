@@ -12,6 +12,12 @@ be removed, transformed, bottled or upgraded by any master-deck path. Dolly's Mi
 Duplicator can copy it, as in the source. See the
 [M30 profile](milestones/m30-ascension6-10.md).
 
+The Run's base potion slots are owned by `run::potion_base_slots`: 3, or 2 from A11, made before
+Neow. Potion Belt appends two slots to that base (A11: four), and losing it keeps the slots and
+their potions usable (M31 G2). From A12 the automatic card-upgrade chance is 0.125 in Act 2 and
+0.25 in Acts 3–4. From A13 a boss reward's gold is `MathUtils.round(gold * 0.75f)` before Golden
+Idol, and Mind Bloom's "I am War" pays 25. See the [M31 profile](milestones/m31-ascension11-15.md).
+
 Card definitions separate `CardColor`, `CardRarity`, and `CardType`, and are
 marked `definition_only`; that marker explicitly does not claim executable
 full-run mechanics. Named producer eligibility is queried with

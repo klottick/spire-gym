@@ -2,6 +2,10 @@ use std::collections::BTreeMap;
 use crate::content::{Catalog, Character, CardId};
 use super::*;
 
+/// The Run's base potion slots (M31 design §6.2; source check §B): 3, or 2 from A11, made at player
+/// construction before Neow. Potion Belt adds two to it.
+pub(crate) fn potion_base_slots(ascension:u8)->usize{if ascension>=11{2}else{3}}
+
 #[derive(Clone, PartialEq, Eq)] pub struct Run { pub(super) state:RunState, pub(super) candidates:Vec<Candidate>, pub(super) next_choice:u64 }
 impl Run {
     pub fn new(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Self,RunError>{
@@ -23,7 +27,7 @@ impl Run {
         if config.ascension>=10{deck.insert(0,CardInstance{ misc:0,id:CardId::AscendersBane,instance:id,upgrades:0});}
         let state=RunState{room_loop:None,reward_ledger:Default::default(),authored_combat:false,training_encounter:None,last_combat_checkpoint:None,combat_progress:CombatProgress::default(),active_combat:None,last_combat:None,
             character:config.character,ascension:config.ascension,hp,max_hp,gold:base_gold,deck,relics:vec![starter_relic],
-            potions:vec![None;if config.ascension>=11{2}else{3}],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
+            potions:vec![None;potion_base_slots(config.ascension)],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
             neow_eligible:profile.neow_eligible,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),relic_counters:BTreeMap::new(),combat:None,selected_neow:None,fault:None,last_selection:None,
             last_resumed_parent:None,rng,pending:None,next_instance:id+1,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false};

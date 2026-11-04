@@ -13,7 +13,7 @@
 //! supplied max HP and keys so it plays through every act (design §14 grade Supplied).
 //!
 //! M29 (plan M29a1 item 9, erratum v3 n4): `--ascension N` or `--ascensions A-B` runs each level
-//! (A1–A5 are public since the M29 close and A6–A10 since M30; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
+//! (A1–A5 are public since the M29 close, A6–A10 since M30 and A11–A15 since M31; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
 //! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by
@@ -25,13 +25,22 @@
 //! affordable shop purge rows disabled for want of a purgeable card (G2) and Bane copies, under the separate `m30` key (outside the A0 control
 //! projection, as the `m29` key is).
 //!
+//! M31 (plan item 8, review n1): each Run also records, under the separate `m31` key, its A0-control
+//! attribution markers (the first step of a G1 equip/hidden card row, of a G3 shop, of a Potion Belt
+//! loss and of a potion held in a kept Belt slot), its potion slots at creation and at the end, its
+//! Belt gains and losses, its offered card rows by act (combat or equip, with and without upgrades),
+//! its boss gold rows, its event option hits and Note For Yourself sightings. Per-step decision
+//! digests (sha256 of step, public decision and chosen action, 48 bits) go to `digests.jsonl` beside
+//! `traversal.json`, using only the public API, so the same example built on a base tree gives the
+//! first differing step of each Run.
+//!
 //! Usage: cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR
 //!        [--seeds 25] [--cap 20000] [--policy uniform|reach|supplied] [--ascension N | --ascensions A-B]
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use spire_core::{
     combat::rng::Partition,
-    content::{CardId, Character},
+    content::{CardId, Character, EventId, RelicId},
     run::{map::room_quotas, CommittedEvent, CreationProfile, GameAction, MapNodeKind, PublicDecision, RoomChoiceKind, RoomChoiceStatus, RoomScenario, RoomViewKind, Run, RunConfig, RunError, RunRng},
 };
 use std::{
@@ -127,7 +136,30 @@ impl Census {
 
 struct Outcome { steps: usize, terminal: Option<String>, fault: Option<String>, act: u8, floor: u32, actions: Vec<GameAction>, last: Option<PublicDecision>,
     interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value>,
-    m30: M30Facts }
+    m30: M30Facts, m31: M31Facts, digests: String }
+
+/// M31 (plan item 8) per-Run facts. Marker steps index the decision at which the class starts:
+/// the step whose action gains a G1 relic or rests with Dream Catcher, the first Shop decision (G3),
+/// the step whose action loses Potion Belt, and the first decision after that loss holding a potion
+/// in a slot at or above the base.
+#[derive(Default)]
+struct M31Facts { first_g1_step: Option<usize>, first_shop_step: Option<usize>, belt_lost_step: Option<usize>,
+    kept_slot_potion_step: Option<usize>, slots_creation: Option<usize>, slots_end: usize, belt_gained: u64, belt_lost: u64,
+    card_rows: BTreeMap<String, [u64; 3]>, boss_gold: Vec<Value>, event_options: BTreeMap<String, u64>, mind_bloom_fights: u64,
+    note_for_yourself_seen: u64 }
+
+impl M31Facts {
+    fn to_json(&self) -> Value {
+        let rows: BTreeMap<&String, Value> = self.card_rows.iter().map(|(k, [rows, cards, upgraded])| (k, json!({"rows":rows,"cards":cards,"upgraded":upgraded}))).collect();
+        json!({"first_g1_step":self.first_g1_step,"first_shop_step":self.first_shop_step,"belt_lost_step":self.belt_lost_step,
+            "kept_slot_potion_step":self.kept_slot_potion_step,"potion_slots_creation":self.slots_creation,"potion_slots_end":self.slots_end,
+            "belt_gained":self.belt_gained,"belt_lost":self.belt_lost,"card_rows":rows,"boss_gold":self.boss_gold,
+            "event_options":self.event_options,"mind_bloom_fights":self.mind_bloom_fights,"note_for_yourself_seen":self.note_for_yourself_seen})
+    }
+}
+
+/// G1 sites (M31 design §6.4): the equip card offers and the hidden-row relics.
+const G1_RELICS: [RelicId; 4] = [RelicId::Orrery, RelicId::TinyHouse, RelicId::Cauldron, RelicId::CallingBell];
 
 /// M30 (plan item 10) per-Run facts.
 #[derive(Default)]
@@ -197,15 +229,24 @@ fn rollout(mut run: Run) -> i64 {
 
 fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: bool, ascension: u8, census: &mut Census) -> Outcome {
     let mut out = Outcome { steps: 0, terminal: None, fault: None, act: 0, floor: 0, actions: Vec::new(), last: None,
-        interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new(), m30: M30Facts::default() };
+        interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new(), m30: M30Facts::default(),
+        m31: M31Facts::default(), digests: String::new() };
     let mut run = match new_run(character, seed, supplied, ascension) { Ok(run) => run, Err(error) => { out.fault = Some(error); return out } };
     let mut map_act = 0u8;
     let mut policy = u64::from_le_bytes(root(character, seed)[..8].try_into().unwrap()) ^ if reach { 0x5245_4143_48 } else { 0x4D32_3846 };
     let mut room_kind = String::new();
     let mut last_choice: Option<RoomChoiceKind> = None;
+    let base_slots = if ascension >= 11 { 2 } else { 3 };
+    let mut equip_open = false;
     loop {
         let decision = match run.decision() { Ok(decision) => decision, Err(error) => { out.fault = Some(format!("decision at step {}: {error:?}", out.steps)); break } };
         census.observe(&decision);
+        // M31 facts read at every decision.
+        out.m31.slots_creation.get_or_insert(decision.player.potions.len());
+        out.m31.slots_end = decision.player.potions.len();
+        if out.m31.belt_lost_step.is_some() && out.m31.kept_slot_potion_step.is_none()
+            && decision.player.potions.iter().skip(base_slots).any(Option::is_some) { out.m31.kept_slot_potion_step = Some(out.steps); }
+        if out.m31.first_shop_step.is_none() && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Shop) { out.m31.first_shop_step = Some(out.steps); }
         // M30 facts: creation values from the first decision; the Bane at every decision (the last one is the end).
         if out.m30.start.is_none() { out.m30.start = Some((decision.player.hp, decision.player.max_hp)); out.m30.bane_creation = Some(bane(&decision)); }
         out.m30.bane_end = bane(&decision);
@@ -229,6 +270,21 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
             let kind = variant(format!("{:?}", room.kind));
             if kind != room_kind {
                 *census.rooms.entry(kind.clone()).or_default() += 1;
+                // M31: offered card rows by act and source; boss gold rows; Note For Yourself.
+                if !matches!(room.kind, RoomViewKind::Rewards | RoomViewKind::CardReward) { equip_open = false; }
+                if room.kind == RoomViewKind::CardReward {
+                    let cards: Vec<u32> = room.choices.iter().filter_map(|row| match row.kind { RoomChoiceKind::Card { upgrades, .. } => Some(upgrades), _ => None }).collect();
+                    let entry = out.m31.card_rows.entry(format!("act{}/{}", decision.act, if equip_open { "equip" } else { "combat_or_event" })).or_default();
+                    entry[0] += 1; entry[1] += cards.len() as u64; entry[2] += cards.iter().filter(|u| **u > 0).count() as u64;
+                }
+                if room.kind == RoomViewKind::Rewards {
+                    let boss = run.public_map().is_some_and(|map| map.current.and_then(|c| map.nodes.iter().find(|n| n.id == c)).is_some_and(|n| n.kind == MapNodeKind::Boss));
+                    let gold: Vec<u32> = room.choices.iter().filter_map(|row| match row.kind { RoomChoiceKind::Gold(g) => Some(g), _ => None }).collect();
+                    if boss && !gold.is_empty() && !equip_open {
+                        out.m31.boss_gold.push(json!({"act":decision.act,"gold":gold,"golden_idol":decision.player.relics.contains(&RelicId::GoldenIdol)}));
+                    }
+                }
+                if room.kind == RoomViewKind::Event(EventId::NoteForYourself) { out.m31.note_for_yourself_seen += 1; }
                 // M30: Toke and purge row status at room entry (G1, G2).
                 for row in &room.choices {
                     match (&row.kind, row.status) {
@@ -243,7 +299,10 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
                 room_kind = kind;
             }
         }
-        if let Some(terminal) = decision.terminal { out.terminal = Some(format!("{terminal:?}")); out.last = Some(decision); break }
+        if let Some(terminal) = decision.terminal {
+            out.digests.push_str(&digest(out.steps, &decision, None));
+            out.terminal = Some(format!("{terminal:?}")); out.last = Some(decision); break
+        }
         if decision.candidates.is_empty() && env::var("M28_TRACE").is_ok() { eprintln!("DUMP {decision:#?}"); }
         if decision.candidates.is_empty() { out.fault = Some(format!("step {}: non-terminal decision with no candidates: {:?}", out.steps, decision.room)); break }
         if out.steps >= cap { out.fault = Some(format!("action cap {cap} reached at act {} floor {}", decision.act, decision.floor)); break }
@@ -287,9 +346,28 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
         if action == GameAction::Cancel && last_choice == Some(RoomChoiceKind::Toke) { out.m30.toke_cancelled += 1; }
         if let GameAction::Choose(id) = &action {
             last_choice = decision.room.as_ref().and_then(|room| room.choices.iter().find(|row| row.id == *id)).map(|row| row.kind.clone());
+            if let (Some(RoomViewKind::Event(event)), Some(RoomChoiceKind::EventOption { stage, option })) = (decision.room.as_ref().map(|r| r.kind), &last_choice) {
+                *out.m31.event_options.entry(format!("{event:?}/{stage}/{option}")).or_default() += 1;
+                if event == EventId::MindBloom && *stage == 0 && *option == 0 { out.m31.mind_bloom_fights += 1; }
+            }
+            if matches!(last_choice, Some(RoomChoiceKind::Rest { .. })) && decision.player.relics.contains(&RelicId::DreamCatcher) {
+                out.m31.first_g1_step.get_or_insert(out.steps);
+                equip_open = true;
+            }
         }
+        out.digests.push_str(&digest(out.steps, &decision, Some(&action)));
+        let relics_before = decision.player.relics.clone();
         match catch_unwind(AssertUnwindSafe(|| run.step(&action))) {
             Ok(Ok(transition)) => {
+                if let Ok(after) = run.decision() {
+                    let gained: Vec<RelicId> = after.player.relics.iter().filter(|r| !relics_before.contains(r)).copied().collect();
+                    if gained.iter().any(|r| G1_RELICS.contains(r)) { out.m31.first_g1_step.get_or_insert(out.steps); equip_open = true; }
+                    if gained.contains(&RelicId::PotionBelt) { out.m31.belt_gained += 1; }
+                    if relics_before.contains(&RelicId::PotionBelt) && !after.player.relics.contains(&RelicId::PotionBelt) {
+                        out.m31.belt_lost += 1;
+                        out.m31.belt_lost_step.get_or_insert(out.steps);
+                    }
+                }
                 for event in &transition.committed_events {
                     if let CommittedEvent::CombatEntered { encounter, .. } = event { *census.encounters.entry(format!("{encounter:?}")).or_default() += 1; }
                     if let CommittedEvent::ActAdvanced { from, to } = event {
@@ -308,6 +386,13 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
     if let Some(terminal) = &out.terminal { *census.terminals.entry(terminal.clone()).or_default() += 1; }
     *census.acts.entry(out.act.to_string()).or_default() += 1;
     out
+}
+
+/// One step's decision digest (review n1): the first 48 bits of sha256 over the step, the public
+/// decision and the chosen action (none at a terminal), as 12 hex digits.
+fn digest(step: usize, decision: &PublicDecision, action: Option<&GameAction>) -> String {
+    let hash = Sha256::digest(format!("{step}|{decision:?}|{action:?}").as_bytes());
+    hash[..6].iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// Replays the recorded actions on a fresh Run; the final decision must equal the live one.
@@ -358,7 +443,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let jobs: Vec<(&str, Character, u64)> = policies.iter().flat_map(|p| CHARACTERS.into_iter().flat_map(move |c| (1..=seeds).map(move |seed| (*p, c, seed))))
         .filter(|(_, c, seed)| only.is_none_or(|only| only == format!("{c:?}/{seed}"))).collect();
     // Runs are independent and deterministic; each is its own thread, results kept in job order.
-    let results: Vec<(Value, Value, Value, Census)> = std::thread::scope(|scope| {
+    let results: Vec<(Value, Value, Value, Value, String, Census)> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs.iter().map(|&(policy, character, seed)| scope.spawn(move || {
             let mut census = Census::default();
             let supplied = policy == "supplied";
@@ -374,8 +459,10 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
                 "interim_rejections":outcome.interim_rejections,"interim_by_context":outcome.interim_by_context,
                 "interim_blocked":outcome.interim_blocked,"elites":outcome.elites,"transitions":outcome.transitions});
             let m30 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m30.to_json()});
-            eprintln!("{record} {m29} {m30}");
-            (record, m29, m30, census)
+            let m31 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m31.to_json()});
+            let digests = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"digests":outcome.digests}).to_string();
+            eprintln!("{record} {m29} {m30} {m31}");
+            (record, m29, m30, m31, digests, census)
         })).collect();
         handles.into_iter().map(|handle| handle.join().expect("traversal thread")).collect()
     });
@@ -383,7 +470,20 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let (mut m29_runs, mut blocked, mut rejections, mut interim_by_context) = (Vec::new(), 0u64, 0u64, BTreeMap::<String, u64>::new());
     let mut elite_census = BTreeMap::<String, [u64; 3]>::new();
     let (mut m30_runs, mut m30_totals) = (Vec::new(), BTreeMap::<String, u64>::new());
-    for ((policy, character, _), (record, m29, m30, census)) in jobs.iter().zip(results) {
+    let (mut m31_runs, mut m31_totals, mut digest_lines) = (Vec::new(), BTreeMap::<String, u64>::new(), Vec::new());
+    for ((policy, character, _), (record, m29, m30, m31, digests, census)) in jobs.iter().zip(results) {
+        let facts = &m31["facts"];
+        for key in ["belt_gained", "belt_lost", "mind_bloom_fights", "note_for_yourself_seen"] {
+            *m31_totals.entry(key.to_string()).or_default() += facts[key].as_u64().unwrap_or(0);
+        }
+        for key in ["first_g1_step", "first_shop_step", "belt_lost_step", "kept_slot_potion_step"] {
+            *m31_totals.entry(format!("runs_with_{key}")).or_default() += u64::from(!facts[key].is_null());
+        }
+        if let Some(slots) = facts["potion_slots_creation"].as_u64() { *m31_totals.entry(format!("runs_created_with_{slots}_slots")).or_default() += 1; }
+        *m31_totals.entry(format!("runs_ended_with_{}_slots", facts["potion_slots_end"])).or_default() += 1;
+        *m31_totals.entry("boss_gold_rows".to_string()).or_default() += facts["boss_gold"].as_array().map_or(0, |rows| rows.len() as u64);
+        m31_runs.push(m31);
+        digest_lines.push(digests);
         for key in ["toke_offered", "toke_disabled", "toke_cancelled", "shop_purge_disabled", "bane_copies"] {
             *m30_totals.entry(key.to_string()).or_default() += m30["facts"][key].as_u64().unwrap_or(0);
         }
@@ -409,7 +509,9 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
         "runs":runs.len(),"fault_free":runs.len() - faults.len(),"faults":faults,"census":total.to_json(),"census_by_character":per_character,"results":runs,
         "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"interim_by_context":interim_by_context,
             "elites_by_act":elite_census,"runs":m29_runs},
-        "m30":{"ascension":ascension,"totals":m30_totals,"runs":m30_runs}});
+        "m30":{"ascension":ascension,"totals":m30_totals,"runs":m30_runs},
+        "m31":{"ascension":ascension,"totals":m31_totals,"runs":m31_runs}});
+    fs::write(dir.join("digests.jsonl"), digest_lines.join("\n") + "\n").expect("write digests.jsonl");
     fs::write(dir.join("traversal.json"), serde_json::to_vec_pretty(&report).unwrap()).expect("write traversal.json");
     println!("A{ascension}: {} of {} runs fault-free ({blocked} interim-blocked)", runs.len() - faults.len(), runs.len());
     faults.is_empty()

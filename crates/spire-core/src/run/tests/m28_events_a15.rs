@@ -508,7 +508,9 @@ fn m28_a15_m28f_designer_costs_and_rows() {
 #[test]
 fn m28_a15_m28f_mysterious_sphere_unsupported_and_leave() {
     for ascension in [1_u8, 15] {
-        let mut run = entered(EventId::MysteriousSphere, 3, ascension, 144, |_, _| {});
+        // Amended at M31 (plan item 2): the fixture edits the ascension of an A0 Run, so it also takes
+        // that ascension's potion base (2 from A11), which combat entry now checks.
+        let mut run = entered(EventId::MysteriousSphere, 3, ascension, 144, |run, _| run.state.potions = vec![None; crate::run::potion_base_slots(ascension)]);
         let fight = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
         assert_eq!(fight.status, RoomChoiceStatus::Offered, "A{ascension}: Fight is offered");
         let mut fought = run.clone();
@@ -528,7 +530,8 @@ fn m28_a15_m28f_mysterious_sphere_unsupported_and_leave() {
 #[test]
 fn m28_a15_m28f_secret_portal_enter_unsupported_and_leave() {
     for ascension in [1_u8, 15] {
-        let mut run = entered(EventId::SecretPortal, 3, ascension, 22, |_, _| {});
+        // Amended at M31 (plan item 2): the A0 fixture takes the edited ascension's potion base.
+        let mut run = entered(EventId::SecretPortal, 3, ascension, 22, |run, _| run.state.potions = vec![None; crate::run::potion_base_slots(ascension)]);
         let enter = row(&run, &RoomChoiceKind::EventOption { stage: 0, option: 0 });
         assert_eq!(enter.status, RoomChoiceStatus::Offered, "A{ascension}: Enter is offered");
         let mut entered_boss = run.clone();

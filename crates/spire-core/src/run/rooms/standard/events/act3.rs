@@ -18,8 +18,8 @@ pub(in crate::run) const MIND_BLOOM:Body=Body{
         Ok(EventCaptures{values:vec![u32::from(cx.state.floor%50<=40),cx.state.max_hp],encounter:Some(boss),..Default::default()})
     },
     rows:|_,_,_|vec![(0,None),(1,None),(2,None)],
-    choose:|_,c,_,option|Ok(match option{
-        0=>vec![Outcome::Combat{encounter:c.encounter.ok_or(RunError::InvalidAction)?,rewards:Some(RewardSpec{gold:50,gold_range:None,relics:vec![RelicChoice::Tier(RelicTier::Rare)]}),next_stage:DONE,elite:false}],
+    choose:|state,c,_,option|Ok(match option{
+        0=>vec![Outcome::Combat{encounter:c.encounter.ok_or(RunError::InvalidAction)?,rewards:Some(RewardSpec{gold:if a13(state){25}else{50},gold_range:None,relics:vec![RelicChoice::Tier(RelicTier::Rare)]}),next_stage:DONE,elite:false}],
         1=>vec![Outcome::UpgradeAll,Outcome::ObtainRelic(RelicChoice::Specific(RelicId::MarkOfBloom)),Outcome::NextStage(DONE)],
         2 if c.values[0]==1=>vec![Outcome::GainGold(999),Outcome::ObtainCurse(CardId::Normality),Outcome::ObtainCurse(CardId::Normality),Outcome::NextStage(DONE)],
         2=>vec![Outcome::Heal(c.values[1]),Outcome::ObtainCurse(CardId::Doubt),Outcome::NextStage(DONE)],
