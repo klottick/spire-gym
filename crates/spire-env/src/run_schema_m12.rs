@@ -125,7 +125,7 @@ pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if matches!(choice, RoomChoiceKind::Act3Continue { .. }) {
         return Err(RunSessionError::Input("unsupported M12 RoomChoiceKind"));
     }
-    Ok(v1::choice(choice))
+    v1::choice(choice)
 }
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> { m10::zone(name) }
 pub(crate) fn operation(selection: &spire_core::combat::SelectionView) -> Result<i64, RunSessionError> {

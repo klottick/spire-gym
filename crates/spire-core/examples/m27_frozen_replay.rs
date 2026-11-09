@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 use spire_core::{
     combat::{Combat, CombatAction, Stance, TargetId},
     content::EncounterId,
-    run::{diagnostics::*, ChoiceId, GameAction, NodeId, Run, SelectionId},
+    run::{diagnostics::*, pre_m34a_debug, ChoiceId, GameAction, NodeId, Run, SelectionId},
 };
 use std::{
     env,
@@ -422,12 +422,12 @@ fn expected_attempt_pre(step: &Value) -> Option<&str> {
 
 fn actual_decision(run: &Run, pretty: bool) -> Result<String, String> {
     let decision = run.decision().map_err(|error| format!("{error:?}"))?;
-    Ok(if pretty { format!("{decision:#?}") } else { format!("{decision:?}") })
+    Ok(pre_m34a_debug(&if pretty { format!("{decision:#?}") } else { format!("{decision:?}") }))
 }
 
 fn actual_decision_result(run: &Run, pretty: bool) -> Result<String, String> {
     match run.decision() {
-        Ok(decision) => Ok(if pretty { format!("{decision:#?}") } else { format!("{decision:?}") }),
+        Ok(decision) => Ok(pre_m34a_debug(&if pretty { format!("{decision:#?}") } else { format!("{decision:?}") })),
         Err(error) => Err(format!("{error:?}")),
     }
 }
@@ -475,7 +475,7 @@ fn write_pair_step(
 ) -> Result<(), String> {
     let state = combat.m27_state_debug();
     let public = combat.public_full().map_err(|error| format!("public_full failed at {index}: {error:?}"))?;
-    let public_text = format!("{public:?}");
+    let public_text = pre_m34a_debug(&format!("{public:?}"));
     let state_hash = sha256(&state);
     let public_hash = sha256(&public_text);
     let line = json!({"step":index,"action":action,"state_sha":state_hash,"public_full_sha":public_hash,"run_state_sha":Value::Null});
@@ -602,7 +602,9 @@ fn write_run_snapshot(
 ) -> Result<(), String> {
     let capture = m27_capture_run(run).map_err(|error| format!("run capture failed: {error:?}"))?;
     let state_sha = capture.combat_state_debug.as_deref().map(sha256);
-    let public_full_sha = capture.public_full_debug.as_deref().map(sha256);
+    // M34a: the frozen inputs predate the M34a view fields; record and hash the pre-M34a projection.
+    let public_full_debug = capture.public_full_debug.as_deref().map(pre_m34a_debug);
+    let public_full_sha = public_full_debug.as_deref().map(sha256);
     let run_state_sha = sha256(&capture.run_state_debug);
     let line = json!({
         "step":step_index,"kind":kind,"action":action,
@@ -613,7 +615,7 @@ fn write_run_snapshot(
     jsonl.write_all(b"\n").map_err(|error| error.to_string())?;
     texts.write(&json!({
         "step":step_index,"kind":kind,"action":action,
-        "state_debug":capture.combat_state_debug,"public_full_debug":capture.public_full_debug,
+        "state_debug":capture.combat_state_debug,"public_full_debug":public_full_debug,
         "run_state_debug":capture.run_state_debug,
     }))?;
     let has_funnel = capture.relics.contains(&spire_core::content::RelicId::TwistedFunnel);

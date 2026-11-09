@@ -136,9 +136,9 @@ pub fn action_receipt(seed:u64,scenario:Scenario,caller:&Caller,result:&Result<C
         "result":format!("{result:?}"),"actions":caller.trace.iter().map(|s|s.decision.candidates.iter().position(|c|c.action==s.action).expect("accepted public candidate")).collect::<Vec<_>>(),
         "rewards":caller.trace.iter().map(|s|s.transition.reward).collect::<Vec<_>>(),
         "transitions":caller.trace.iter().map(|s|format!("{:?}",s.transition)).collect::<Vec<_>>(),
-        "decisions":caller.trace.iter().map(|s|format!("{:?}",s.decision)).collect::<Vec<_>>(),
+        "decisions":caller.trace.iter().map(|s|spire_core::run::pre_m34a_debug(&format!("{:?}",s.decision))).collect::<Vec<_>>(),
         "maps":caller.trace.iter().map(|s|format!("{:?}",s.map)).collect::<Vec<_>>(),
-        "final_decision":format!("{:?}",caller.final_decision),"final_map":format!("{:?}",caller.final_map)})
+        "final_decision":spire_core::run::pre_m34a_debug(&format!("{:?}",caller.final_decision)),"final_map":format!("{:?}",caller.final_map)})
 }
 /// Reconstruct the recorded public trace from candidate indices, never another policy.
 pub fn replay_receipt(value:&serde_json::Value)->Result<(Run,Caller),String>{
@@ -148,13 +148,13 @@ pub fn replay_receipt(value:&serde_json::Value)->Result<(Run,Caller),String>{
     let actions=value["actions"].as_array().ok_or("receipt actions")?;
     for (i,row) in actions.iter().enumerate(){
         let d=run.decision().map_err(|e|format!("{e:?}"))?;let map=run.public_map();
-        if value["decisions"][i]!=format!("{d:?}")||value["maps"][i]!=format!("{map:?}"){return Err(format!("receipt public mismatch {i}"))}
+        if value["decisions"][i]!=spire_core::run::pre_m34a_debug(&format!("{d:?}"))||value["maps"][i]!=format!("{map:?}"){return Err(format!("receipt public mismatch {i}"))}
         let action=d.candidates.get(row.as_u64().ok_or("receipt action")? as usize).ok_or("receipt illegal index")?.action.clone();
         let transition=run.step(&action).map_err(|e|format!("{e:?}"))?;
         if value["transitions"][i]!=format!("{transition:?}"){return Err(format!("receipt transition mismatch {i}"))}
         caller.trace.push(TraceStep{decision:d,map,action,transition});
     }
     caller.final_decision=Some(run.decision().map_err(|e|format!("{e:?}"))?);caller.final_map=run.public_map();
-    if value["final_decision"]!=format!("{:?}",caller.final_decision)||value["final_map"]!=format!("{:?}",caller.final_map){return Err("receipt ending mismatch".into())}
+    if value["final_decision"]!=spire_core::run::pre_m34a_debug(&format!("{:?}",caller.final_decision))||value["final_map"]!=format!("{:?}",caller.final_map){return Err("receipt ending mismatch".into())}
     Ok((run,caller))
 }

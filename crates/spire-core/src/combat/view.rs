@@ -128,6 +128,10 @@ pub struct FullEnemyView {
     pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub hp: i32, pub max_hp: i32,
     pub block: i32, pub powers: Vec<FullPowerView>, pub intent: super::FullIntentId,
     pub intent_damage: Option<i32>, pub replaced: bool, pub escaped:bool, pub half_dead:bool, pub logical_slot:u8,
+    /// M34a: source intent category and planned damage applications; both `None` while intents are hidden.
+    pub intent_category: Option<super::intents::IntentCategory>, pub intent_hits: Option<u32>,
+    /// M34a: the live Invincible cap (Corrupt Heart only).
+    pub invincible_cap: Option<i32>,
 }
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct EncounterActorView {pub instance_id:EnemyHandle,pub side:super::EncounterSide,pub back_attack:bool}
@@ -264,6 +268,9 @@ pub(super) fn full_enemies(state: &State,hide_intents:bool) -> Vec<FullEnemyView
         },
         intent_damage: if hide_intents{None}else{e.intent_damage}, replaced: e.life == super::ActorLife::Replaced,
         escaped:e.life==super::ActorLife::Escaped,half_dead:e.life==super::ActorLife::HalfDead,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
+        intent_category: if hide_intents{None}else{super::intents::category(super::intents::enemy_id(e),e.intent_id.as_str(),state.ascension)},
+        intent_hits: if hide_intents{None}else{super::intents::planned_hits(e,state.ascension)},
+        invincible_cap: super::intents::invincible_cap(e,state.ascension),
     }).collect();
     for enemy in &enemies { debug_assert_registered(&enemy.powers, Some(enemy.intent)); }
     enemies

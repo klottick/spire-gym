@@ -371,13 +371,13 @@ fn m14_death_budget_invalid_and_cutoff_are_distinct() {
 
 #[test]
 fn m14_completion_classification_distinguishes_terminal_and_supplied_cutoff() {
-    let decision = |room_kind, terminal| PublicDecision {
+    let decision = |room_kind, terminal| PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M14SilentAct3),
         room: Some(RoomView { kind: room_kind, choices: Vec::new() }),
         reward_total: 0,
         act: 3,
         floor: 50,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: Vec::new(),
             character: Character::Silent,
             hp: 70,

@@ -43,6 +43,7 @@ pub(in crate::run) const GHOSTS:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::Ghosts,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -66,6 +67,7 @@ pub(in crate::run) const VAMPIRES:Body=Body{
         list.push(Outcome::NextStage(DONE));
         Ok(list)
     },
+    params:Some(|s,c,stage,option|super::params(EventId::Vampires,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -86,6 +88,7 @@ pub(in crate::run) const MAUSOLEUM:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::Mausoleum,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -102,6 +105,7 @@ pub(in crate::run) const NEST:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::Nest,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -158,6 +162,7 @@ pub(in crate::run) const CURSED_TOME:Body=Body{
             _=>Err(RunError::InvalidAction),
         }
     },
+    params:Some(|s,c,stage,option|super::params(EventId::CursedTome,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -173,6 +178,7 @@ pub(in crate::run) const DRUG_DEALER:Body=Body{
             _=>Err(RunError::InvalidAction),
         }
     },
+    params:Some(|s,c,stage,option|super::params(EventId::DrugDealer,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -200,6 +206,7 @@ pub(in crate::run) const FORGOTTEN_ALTAR:Body=Body{
             _=>Err(RunError::InvalidAction),
         }
     },
+    params:Some(|s,c,stage,option|super::params(EventId::ForgottenAltar,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -223,6 +230,7 @@ pub(in crate::run) const LIBRARY:Body=Body{
     },
     card:Some(|c,stage,option|if stage==1{c.card_ids.get(usize::from(option)).copied()}else{None}),
     card_stage:Some(|stage|stage==1),
+    params:Some(|s,c,stage,option|super::params(EventId::Library,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -241,6 +249,7 @@ pub(in crate::run) const COLOSSEUM:Body=Body{
             next_stage:DONE,elite:true}],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::Colosseum,s,c,stage,option)),
     ..PLAIN
 };
 

@@ -16,6 +16,8 @@ mod rng;
 pub mod map;
 pub mod world;
 pub mod public;
+mod debug_projection;
+pub use debug_projection::pre_m34a_debug;
 pub use model::*;
 pub use profile::*;
 pub use decision::*;

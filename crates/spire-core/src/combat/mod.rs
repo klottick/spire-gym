@@ -29,6 +29,7 @@ mod selection;
 mod hooks;
 mod view;
 pub mod public_ids;
+pub mod intents;
 pub(crate) mod observe;
 pub use observe::{Observed, ResolvedEffect, ResolvedEffectKind, DamageCategory, PublicLife, PublicZone,
     PublicCombatSnapshot, CombatBoundary, CombatBoundaryKind};

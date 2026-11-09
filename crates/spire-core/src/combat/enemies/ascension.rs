@@ -146,6 +146,8 @@ pub fn heart_invincible(ascension: u8) -> i32 { if ascension >= 19 { 200 } else 
 pub fn heart_blood_shots_hits(ascension: u8) -> usize { if ascension >= 4 { 15 } else { 12 } }
 /// Spire Spear Skewer hit count.
 pub fn spear_skewer_hits(ascension: u8) -> usize { if ascension >= 3 { 4 } else { 3 } }
+/// Byrd Peck hit count.
+pub fn byrd_peck_hits(ascension: u8) -> usize { if ascension >= 2 { 6 } else { 5 } }
 
 fn power(id: &'static str, amount: i32) -> FullPowerEntry {
     FullPowerEntry { id: FullPowerId(id), state: super::super::PowerState { amount, skip_first: false, monster_source_grace: false } }

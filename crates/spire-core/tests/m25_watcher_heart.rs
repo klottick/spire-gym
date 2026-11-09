@@ -31,13 +31,13 @@ fn candidate(id: u64, action: GameAction) -> Candidate {
 }
 
 fn decision(actions: Vec<GameAction>) -> PublicDecision {
-    PublicDecision {
+    PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M25WatcherHeart),
         room: None,
         reward_total: 0,
         act: 1,
         floor: 0,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: vec![],
             character: Character::Watcher,
             hp: 72,

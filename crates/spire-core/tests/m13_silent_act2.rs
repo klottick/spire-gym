@@ -56,7 +56,8 @@ fn m13_caller_transcripts_unchanged_by_m14_extension() {
         let mut caller = Caller::new(4096).unwrap();
         let outcome = m13_support::rollout(&mut run, &mut caller, scenario).unwrap();
         let full_debug = format!("seed={seed} scenario={scenario:?} outcome={outcome:?}\n{caller:#?}\n");
-        assert_eq!(sha256_hex(full_debug.as_bytes()), ACCEPTED_FULL_DEBUG_SHA256[case_index],
+        // M34a: the accepted hashes cover the pre-M34a public projection (new view fields removed).
+        assert_eq!(sha256_hex(spire_core::run::pre_m34a_debug(&full_debug).as_bytes()), ACCEPTED_FULL_DEBUG_SHA256[case_index],
             "accepted M13 full public transcript remains byte-identical for seed={seed} scenario={scenario:?}");
         if let Some(directory) = std::env::var_os("SPIRE_M13_TRACE_DIR") {
             use std::io::Write;

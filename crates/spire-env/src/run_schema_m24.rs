@@ -64,7 +64,7 @@ pub(crate) fn room(id:RoomViewKind)->Result<i64,RunSessionError>{
 }
 pub(crate) fn zone(name:&str)->Result<i64,RunSessionError>{named("zone",name)}
 pub(crate) fn profile(p:RoomScenario)->Result<i64,RunSessionError>{if p==RoomScenario::M24WatcherAct3{Ok(1)}else{Err(RunSessionError::Input("wrong M24 profile"))}}
-pub(crate) fn choice(c:&RoomChoiceKind)->Result<i64,RunSessionError>{if let RoomChoiceKind::Card{id,upgrades}=c{permanent(*id,*upgrades)?;}Ok(v1::choice(c))}
+pub(crate) fn choice(c:&RoomChoiceKind)->Result<i64,RunSessionError>{if let RoomChoiceKind::Card{id,upgrades}=c{permanent(*id,*upgrades)?;}v1::choice(c)}
 pub(crate) fn operation(s:&SelectionView)->Result<i64,RunSessionError>{let n=watcher::operation(s)?;let d=watcher::vocabulary();named("selection_operation",d["selection_operation"][n as usize].as_str().unwrap())}
 pub(crate) fn select_permanent_operation()->i64{named("selection_operation","select_permanent").expect("shared operation")}
 fn permanent(id:CardId,upgrades:u32)->Result<(),RunSessionError>{if !M24_WATCHER_ACT3_CARDS.contains(&id)||upgrades>u32::from(id!=CardId::Parasite){return Err(RunSessionError::Input("unsupported M24 permanent card"))}Ok(())}

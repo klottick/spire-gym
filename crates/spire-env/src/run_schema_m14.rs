@@ -251,7 +251,7 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
 
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if matches!(choice, RoomChoiceKind::Act3Continue { .. }) {
-        return Ok(v1::choice(choice));
+        return v1::choice(choice);
     }
     m13::choice(choice)
 }

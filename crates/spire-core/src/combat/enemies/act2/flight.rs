@@ -28,7 +28,7 @@ pub(in crate::combat::enemies) fn move_work(enemy:&EnemyState,ascension:u8)->Res
         "sphere_debuff"=>vec![damage(actor.clone(),intent),effect(actor,Actor::Player,EffectKind::ApplyFullPower{id:FullPowerId("frail"),amount:5})],
         "sphere_slam"=>vec![damage(actor.clone(),intent),damage(actor,intent)],
         "sphere_harden"=>vec![damage(actor.clone(),intent),effect(actor.clone(),actor,EffectKind::GainBlock(15))],
-        "byrd_peck"=>(0..if ascension>=2{6}else{5}).map(|_|damage(actor.clone(),intent)).collect(),
+        "byrd_peck"=>(0..super::super::ascension::byrd_peck_hits(ascension)).map(|_|damage(actor.clone(),intent)).collect(),
         "byrd_swoop"|"byrd_headbutt"=>vec![damage(actor,intent)],
         "byrd_caw"=>vec![effect(actor.clone(),actor,EffectKind::ApplyFullPower{id:FullPowerId("strength"),amount:1})],
         "byrd_stunned"=>vec![],

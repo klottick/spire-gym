@@ -62,13 +62,13 @@ mod tests {
     }
 
     fn decision(candidate_ids: &[u64], hp: u32, max_hp: u32, gold: u32) -> PublicDecision {
-        PublicDecision {
+        PublicDecision {room_params:None,
             content_profile: Some(RoomScenario::M13SilentAct2),
             room: Some(RoomView { kind: RoomViewKind::Map, choices: Vec::new() }),
             reward_total: 0,
             act: 2,
             floor: 1,
-            player: PublicPlayer {
+            player: PublicPlayer {bottled_cards:vec![],
                 relic_counters: Vec::new(),
                 character: Character::Silent,
                 hp,

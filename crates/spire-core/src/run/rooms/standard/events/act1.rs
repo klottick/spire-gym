@@ -16,6 +16,7 @@ pub(in crate::run) const BIG_FISH:Body=Body{
         2=>vec![Outcome::ObtainRelic(RelicChoice::RandomTier),Outcome::ObtainCurse(CardId::Regret),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::BigFish,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -71,6 +72,7 @@ pub(in crate::run) const DEAD_ADVENTURER:Body=Body{
         1=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::DeadAdventurer,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -98,6 +100,7 @@ pub(in crate::run) const GOLDEN_IDOL:Body=Body{
         (1,2)=>vec![Outcome::LoseMaxHp(c.values[1]),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::GoldenIdol,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -119,6 +122,7 @@ pub(in crate::run) const MUSHROOMS:Body=Body{
         1=>vec![Outcome::Heal(((state.max_hp as f32)*0.25_f32) as u32),Outcome::ObtainCurse(CardId::Parasite),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::Mushrooms,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -169,6 +173,7 @@ pub(in crate::run) const SCRAP_OOZE:Body=Body{
         1=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::ScrapOoze,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -186,6 +191,7 @@ pub(in crate::run) const SHINING_LIGHT:Body=Body{
         1=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::ShiningLight,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -208,6 +214,7 @@ pub(in crate::run) const CLERIC:Body=Body{
         2=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::Cleric,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -223,6 +230,7 @@ pub(in crate::run) const SSSSSERPENT:Body=Body{
         1=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::Ssssserpent,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -262,6 +270,7 @@ pub(in crate::run) const WING_STATUE:Body=Body{
         2=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::WingStatue,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -279,6 +288,7 @@ pub(in crate::run) const WORLD_OF_GOOP:Body=Body{
         1=>vec![Outcome::LoseGold(c.values[0]),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::WorldOfGoop,s,c,stage,option)),
     ..PLAIN
 };
 

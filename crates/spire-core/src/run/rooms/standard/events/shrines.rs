@@ -15,6 +15,7 @@ pub(in crate::run) const GOLDEN_SHRINE:Body=Body{
         2=>vec![Outcome::Leave],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::GoldenShrine,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -97,6 +98,7 @@ pub(in crate::run) const MATCH_AND_KEEP:Body=Body{
     }),
     card_stage:Some(|stage|stage<5),
     shows:None,
+    params:None,
     selected:None,
 };
 
@@ -160,6 +162,7 @@ pub(in crate::run) const WHEEL_OF_CHANGE:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::WheelOfChange,s,c,stage,option)),
     ..PLAIN
 };
 

@@ -35,6 +35,9 @@ pub(in crate::run) fn chest_gold(nominal:u32,k:u32)->u32{
 }
 /// Open an ordinary chest: rows in source order (economy research :275-291). Atomic on error.
 pub(in crate::run) fn open_rows(state:&mut RunState,key:&[u64])->Result<Vec<RoomChoiceKind>,RunError>{
+    open_rows_sized(state,key).map(|(rows,_)|rows)
+}
+fn open_rows_sized(state:&mut RunState,key:&[u64])->Result<(Vec<RoomChoiceKind>,ChestSize),RunError>{
     let mut staged = state.clone();
     let rules = crate::items::run_laws::chest_contents(&mut staged, false)?;
 
@@ -45,10 +48,7 @@ pub(in crate::run) fn open_rows(state:&mut RunState,key:&[u64])->Result<Vec<Room
         crate::run::mutations::obtain_card_or_negated(&mut staged, curse, 0)?;
     }
 
-    let mut size_key = key.to_vec();
-    size_key.push(0x51);
-    let size_roll = staged.rng.bounded_scoped_checked(crate::run::RunRngScope::M28Chest, &size_key, 100)? as u32;
-    let size = chest_size(size_roll);
+    let size = size_draw(&mut staged.rng, key)?;
     let mut tier_key = key.to_vec();
     tier_key.push(0x71);
     let tier_roll = staged.rng.bounded_scoped_checked(crate::run::RunRngScope::M28Chest, &tier_key, 100)? as u32;
@@ -73,7 +73,26 @@ pub(in crate::run) fn open_rows(state:&mut RunState,key:&[u64])->Result<Vec<Room
 
     crate::items::run_laws::apply_chest_rules(&rules, &mut rows);
     *state = staged;
-    Ok(rows)
+    Ok((rows, size))
+}
+/// The size draw: the first draw of the chest's own semantic key, so it is the same value whether
+/// read on entry (the game shows the chest) or when the chest opens.
+fn size_draw(rng:&mut crate::run::RunRng,key:&[u64])->Result<ChestSize,RunError>{
+    let mut size_key = key.to_vec();
+    size_key.push(0x51);
+    Ok(chest_size(rng.bounded_scoped_checked(crate::run::RunRngScope::M28Chest, &size_key, 100)? as u32))
+}
+/// Public size code of the unopened chest (M34a a4): 1 small, 2 medium, 3 large. Reads a clone of
+/// the Run RNG, so no randomness is consumed.
+pub(in crate::run) fn preview_size(state:&RunState,key:&[u64])->Result<i32,RunError>{
+    size_draw(&mut state.rng.clone(), key).map(size_code)
+}
+fn size_code(size:ChestSize)->i32{ match size { ChestSize::Small => 1, ChestSize::Medium => 2, ChestSize::Large => 3 } }
+/// The size the open path itself draws for the current room (test oracle for the preview).
+#[cfg(test)]
+pub(in crate::run) fn opened_size_for_test(run:&crate::run::Run)->Option<i32>{
+    let key = super::map::chest_key(run).ok()?;
+    open_rows_sized(&mut run.state.clone(), &key).ok().map(|(_, size)| size_code(size))
 }
 /// Open the boss chest: three sequential Boss-tier offers (economy research :293-298). Atomic on error.
 pub(in crate::run) fn boss_offers(state:&mut RunState,key:&[u64])->Result<Vec<RelicId>,RunError>{

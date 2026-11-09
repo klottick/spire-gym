@@ -198,7 +198,7 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
         _ => v1::room(kind),
     }
 }
-pub(crate) fn choice(choice: &RoomChoiceKind) -> i64 { v1::choice(choice) }
+pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> { v1::choice(choice) }
 
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> {
     let zones = ["padding", "hand", "discard", "exhaust", "played_power", "stasis", "selection_only"];
