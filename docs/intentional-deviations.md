@@ -116,7 +116,7 @@ body landed in M28f.
 The original getShrine admits Note For Yourself outside Daily runs, below A15, and only when the Run
 is at A0 or below the player's highest unlocked Ascension. The simulator has no unlock profile, so it
 treats the highest unlocked Ascension as 20. Note For Yourself is therefore eligible at A0–A14. The
-standard Run admits A0–A5 from M29d, A0–A10 from M30, A0–A15 from M31 and A0–A19 from M32 (A20 in M33), so an A15–A19 Run never meets Note For Yourself. No other eligibility or history rule changes.
+standard Run admits A0–A5 from M29d, A0–A10 from M30, A0–A15 from M31, A0–A19 from M32 and A0–A20 from M33, so an A15–A20 Run never meets Note For Yourself. No other eligibility or history rule changes.
 
 ## SOFTLOCK-001 — An unguarded empty event grid completes without a selection
 
@@ -223,3 +223,9 @@ HMAC-SHA256 words keyed by the combat's shuffle-stream key and labelled with the
 reads no stream cursor, so no other stream advances. A fixed hand order is not used, because a policy
 could exploit it. Tests: `fuzzfix_c_end_turn_hand_shuffle_is_keyed_by_combat_and_turn` and
 `fuzzfix_c_ethereal_exhausts_follow_the_keyed_visit_order`.
+
+## M33-A20-001 — Native all-seen boss draw and second-boss floor ruling
+
+**Decision date:** 2026-11-09. **Status:** disclosed M33 policy under RNG-001 and PM ruling m28f Q2.
+
+The all-seen A20 Act 3 boss order uses the simulator's scoped native RNG, including the second draw key `[3, Boss, 0xB055, 1]`; source shuffle trace parity is not claimed. The source also constructs a hidden boss-gold row between the two fights, but its RNG draw is not claimed as a source-stream match. After the first boss, the second boss is an ordinary room entry and advances the engine floor by one. The candidate maps that room to floor 51 and shifts the accepted M10 collapsed Act 4 mapping by one, through TrueVictory floor 56. This follows the PM floor ruling over the addendum's literal `INTENT_TIP`-guarded `floorNum` interpretation; these are engine contract floors, not absolute source-game floor claims. Act 4 floor-keyed native RNG inputs consequently move for an A20 double-boss Run.

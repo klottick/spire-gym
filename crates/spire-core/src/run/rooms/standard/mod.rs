@@ -12,21 +12,21 @@ pub(in crate::run) mod event_exec;
 pub(in crate::run) mod events;
 
 
-/// The highest ascension the standard Run admits (M29–M32 design §6.1); M33 raises it to A20.
-pub(crate) const STANDARD_MAX_ASCENSION:u8=19;
+/// The highest ascension the standard Run admits (M29–M33 design §6.1): the game's A20.
+pub(crate) const STANDARD_MAX_ASCENSION:u8=20;
 
-/// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A19, full or short
+/// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A20, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
 /// Public in the core crate since M28f2 (design §13, PM ruling Q1); no spire-env profile.
 /// A1–A5 are public in every build since M29 close (M29f, folded into M29d); A6–A10 since M30;
-/// A11–A15 since M31; A16–A19 since M32; A20 awaits M33.
+/// A11–A15 since M31; A16–A19 since M32; A20 (the Act 3 double boss) since M33.
 pub(in crate::run) fn create(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
     build(config,profile,rng)
 }
 
 /// The standard Run at any admitted ascension: `create`, in-crate tests and the M29 diagnostics builders.
 pub(in crate::run) fn build(config:RunConfig,profile:CreationProfile,rng:RunRng)->Result<Run,RunError>{
-    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A19"))}
+    if config.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::Unsupported("Standard supports A0–A20"))}
     let mut run=Run::new(config,profile,rng)?;
     let admission=RunAdmission::new(CardAdmission::Complete,ItemAdmission::Complete)?;
     run.state.card_admission=admission.cards;
@@ -50,8 +50,12 @@ pub(in crate::run) fn start_act(run:&mut Run)->Result<(),RunError>{
     let mut rng=run.state.rng.clone();
     let mut map=crate::run::map::generate(run.state.act,&mut rng,crate::run::map::MapEligibility::from_run(&run.state))?;
     run.state.rng=rng;
-    map.boss_icon=Some(crate::run::world::act_boss(&mut run.state)?);
+    let order=crate::run::world::act_boss_order(&mut run.state)?;
+    map.boss_icon=Some(order[0]);
     run.state.map=Some(map);
+    // A diagnostic Act 3 start stores only a two-boss order (A20, all seen; M33 review M5): a one-boss
+    // order stays implied by the icon, as before M33.
+    if order.len()==2{run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.act3_boss_order=Some(order);}
     Ok(())
 }
 

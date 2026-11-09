@@ -84,17 +84,50 @@ pub(super) fn act_boss(state: &mut RunState) -> Result<EncounterId, RunError> {
     let choices = domain(state.act, MapNodeKind::Boss, 0).ok_or(RunError::Registry("no boss domain for act"))?;
     boss_selection(state, choices)
 }
-fn boss_selection(state: &mut RunState, choices: &[Weighted]) -> Result<EncounterId, RunError> {
-    if choices.is_empty() { return Err(RunError::Registry("empty boss encounter domain")); }
-    let seen = state.seen_bosses.get((state.act.saturating_sub(1)) as usize)
-        .ok_or(RunError::Registry("act boss history unavailable"))?;
-    let source_name = |id: EncounterId| match id {
+
+/// The Act 3 second boss's synthetic node (M33 design §6.3; source `goToDoubleBoss`'s
+/// `MapRoomNode(-1, 15)` outside the map): appended after the map's boss node is won.
+pub(in crate::run) const SECOND_BOSS_NODE: NodeId = NodeId(0xA300_0051);
+
+/// The act's boss order, built once at act start from the act-start `seen_bosses` (M33 design §6.2;
+/// source `TheBeyond.initializeBoss`, lane A §1). The first is `act_boss`. A standard A20 Act 3 with
+/// every boss seen (the source's shuffled three-boss list) adds a second, drawn from the other two in
+/// domain order under its own key; any unseen boss makes the source list one boss, duplicated.
+pub(super) fn act_boss_order(state: &mut RunState) -> Result<Vec<EncounterId>, RunError> {
+    let first = act_boss(state)?;
+    if !(super::rooms::is_standard(state) && state.act == 3 && state.ascension >= 20) { return Ok(vec![first]) }
+    let seen = state.seen_bosses.get(2).ok_or(RunError::Registry("act boss history unavailable"))?;
+    if !ACT3_BOSS.iter().all(|boss| seen.contains(&source_boss_name(boss.id))) { return Ok(vec![first]) }
+    let rest = ACT3_BOSS.iter().filter(|boss| boss.id != first).collect::<Vec<_>>();
+    // Native draw, like the first (no source shuffle parity; RNG-001 class).
+    let i = state.rng.bounded_scoped(RunRngScope::MapEncounter, &[3, MapNodeKind::Boss as u64, 0xB055, 1], rest.len() as u64);
+    Ok(vec![first, rest[i].id])
+}
+
+fn source_boss_name(id: EncounterId) -> &'static str {
+    match id {
         EncounterId::Guardian=>"Guardian", EncounterId::Hexaghost=>"Hexaghost", EncounterId::SlimeBoss=>"SlimeBoss",
         EncounterId::Champ=>"Champ", EncounterId::BronzeAutomaton=>"Automaton", EncounterId::Collector=>"Collector",
         EncounterId::AwakenedOne=>"AwakenedOne", EncounterId::DonuAndDeca=>"DonuAndDeca", EncounterId::TimeEater=>"TimeEater",
         _=>"",
-    };
-    let unseen = choices.iter().filter(|choice| !seen.iter().any(|name| *name == source_name(choice.id))).collect::<Vec<_>>();
+    }
+}
+
+/// G1 (M33 design §6.6, lane B §6): the source's unseen priority. Acts 1–2 equal their domain order;
+/// Act 3's (`TheBeyond.initializeBoss`: CROW, DONUT, WIZARD) does not.
+fn unseen_priority(act: u8, id: EncounterId) -> usize {
+    match (act, id) {
+        (3, EncounterId::AwakenedOne) => 0, (3, EncounterId::DonuAndDeca) => 1, (3, EncounterId::TimeEater) => 2,
+        _ => 0,
+    }
+}
+
+fn boss_selection(state: &mut RunState, choices: &[Weighted]) -> Result<EncounterId, RunError> {
+    if choices.is_empty() { return Err(RunError::Registry("empty boss encounter domain")); }
+    let seen = state.seen_bosses.get((state.act.saturating_sub(1)) as usize)
+        .ok_or(RunError::Registry("act boss history unavailable"))?;
+    let mut unseen = choices.iter().filter(|choice| !seen.iter().any(|name| *name == source_boss_name(choice.id))).collect::<Vec<_>>();
+    unseen.sort_by_key(|choice| unseen_priority(state.act, choice.id));
     if let Some(first) = unseen.first() { return Ok(first.id); }
     // The all-seen initialized shuffle is not reproduced; native independent
     // semantic selection keeps the complete eligible domain without claiming
@@ -259,17 +292,40 @@ pub(super) fn enter_portal_boss(state: &mut RunState) -> Result<(NodeId, MapNode
     let map = state.map.as_ref().ok_or(RunError::InvalidAction)?;
     if map.act != state.act { return Err(RunError::Registry("run/map act mismatch")); }
     let boss = map.nodes.iter().find(|n| n.kind == MapNodeKind::Boss && !n.visited).cloned().ok_or(RunError::InvalidAction)?;
-    let (kind, encounter, event, credit) = commit_node(state, boss.clone(), true, true)?;
+    let (kind, encounter, event, credit) = commit_node(state, boss.clone(), true, true, None)?;
     Ok((boss.id, kind, encounter, event, credit))
+}
+
+/// The A20 Act 3 second boss room (M33 design §6.3; source `ProceedButton.goToDoubleBoss`): the
+/// order's head was fought, so it is consumed and the next boss is entered as an ordinary room
+/// (`nextRoomTransition`: floor + 1, floor and room hooks). The synthetic node copies the boss node's
+/// `x`/`y` and has no edges; it is committed like Secret Portal's entry (no Winged Boots charge). The
+/// map's boss icon is not changed (`goToDoubleBoss` sets `bossKey` without `setBoss`).
+pub(super) fn enter_second_boss(state: &mut RunState) -> Result<(NodeId, MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
+    if let Some(fault) = &state.fault { return Err(RunError::Faulted(fault.clone())); }
+    if state.terminal.is_some() { return Err(RunError::Terminal); }
+    let map = state.map.as_ref().ok_or(RunError::InvalidAction)?;
+    if map.act != state.act || state.act != 3 || map.nodes.iter().any(|n| n.id == SECOND_BOSS_NODE) { return Err(RunError::InvalidAction); }
+    let boss = map.nodes.iter().find(|n| Some(n.id) == map.current && n.kind == MapNodeKind::Boss && n.visited).cloned().ok_or(RunError::InvalidAction)?;
+    let order = state.room_loop.as_mut().and_then(|room| room.act3_boss_order.as_mut()).filter(|order| order.len() == 2).ok_or(RunError::InvalidAction)?;
+    if boss.encounter != Some(order[0]) { return Err(RunError::InvalidAction); }
+    order.remove(0);
+    let second = order[0];
+    let node = super::MapNode { id: SECOND_BOSS_NODE, floor: boss.floor.checked_add(1).ok_or(RunError::InvalidAction)?, label: boss.label,
+        edges: vec![], x: boss.x, y: boss.y, kind: MapNodeKind::Boss, hidden_kind: None, visited: false, revealed: true, encounter: None, burning: false };
+    state.map.as_mut().expect("map checked").nodes.push(node.clone());
+    let (kind, encounter, event, credit) = commit_node(state, node, true, true, Some(second))?;
+    Ok((SECOND_BOSS_NODE, kind, encounter, event, credit))
 }
 
 fn commit_move(state: &mut RunState, target: NodeId, standard: bool) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
     let target_node=preflight_move(state,target)?;
-    commit_node(state, target_node, standard, false)
+    commit_node(state, target_node, standard, false, None)
 }
 
-/// The shared move commit; `portal` is Secret Portal's entry (no edge, no Winged Boots charge).
-fn commit_node(state: &mut RunState, target_node: super::MapNode, standard: bool, portal: bool) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
+/// The shared move commit; `portal` is Secret Portal's entry (no edge, no Winged Boots charge);
+/// `fixed` is an encounter already chosen (the A20 second boss) instead of the scheduler's.
+fn commit_node(state: &mut RunState, target_node: super::MapNode, standard: bool, portal: bool, fixed: Option<EncounterId>) -> Result<(MapNodeKind, Option<EncounterId>, CommittedEvent, i32), RunError> {
     let target = target_node.id;
     let entered_floor = room_floor(state, target_node.floor)?;
     super::reward::preflight(state,&[CommittedEvent::FloorEntered{act:state.act,floor:entered_floor}])?;
@@ -279,7 +335,7 @@ fn commit_node(state: &mut RunState, target_node: super::MapNode, standard: bool
         let leaving_shop = state.room == "Shop";
         kind = resolve_question(state, leaving_shop, standard)?;
     }
-    let encounter = if matches!(kind, MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss) {
+    let encounter = if fixed.is_some() { fixed } else if matches!(kind, MapNodeKind::Monster | MapNodeKind::Elite | MapNodeKind::Boss) {
         Some(choose_encounter(state, kind)?)
     } else { None };
 

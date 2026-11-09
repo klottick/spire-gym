@@ -43,9 +43,15 @@ pub(in crate::run) fn fault_label(state:&RunState,site:Act4FaultSite)->&'static 
 
 fn route_ids()->[NodeId;4]{[NodeId(0xA400_0051),NodeId(0xA400_0052),NodeId(0xA400_0053),NodeId(0xA400_0054)]}
 
-fn fixed_map()->RunMap{
+/// The floor before the route (M33 design §6.5): the final Act 3 boss's floor. 50 for M10's collapsed
+/// Act3-ending mapping; 51 after the A20 second boss (one more room entry). Derived from the source
+/// node, so the captured M10/M15/M20/M25 profiles keep 50.
+pub(in crate::run) fn floor_base(source_node:NodeId)->u32{if source_node==world::SECOND_BOSS_NODE{51}else{50}}
+fn progress_base(run:&Run)->Option<u32>{run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).map(|progress|floor_base(progress.source_node))}
+
+fn fixed_map(base:u32)->RunMap{
     let route=route_ids();
-    let floors=[51,52,53,54];
+    let floors=[base+1,base+2,base+3,base+4];
     let kinds=[MapNodeKind::Rest,MapNodeKind::Shop,MapNodeKind::Elite,MapNodeKind::Boss];
     let labels=["Rest","Shop","Elite","Boss"];
     let nodes=(0..4).map(|i|MapNode{
@@ -63,15 +69,11 @@ fn source_is_current(run:&Run,frame:&act3_end::Act3EndFrame)->bool{
     let state=&run.state;
     frame.phase==act3_end::Act3EndPhase::Dialog(4)
         &&frame.accepted.is_none()
-        &&frame.record.outcome==Outcome::Victory
-        &&matches!(frame.record.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         &&state.last_combat.as_ref()==Some(&frame.record)
         &&state.active_combat.is_none()&&state.combat.is_none()&&state.pending.is_none()
         &&state.terminal.is_none()&&state.fault.is_none()&&state.hp>0&&state.hp<=state.max_hp
         &&!state.deck.is_empty()&&state.act==3&&state.act4_enabled&&state.keys==[true;3]
-        &&state.map.as_ref().is_some_and(|map|map.act==3&&map.current==Some(frame.node)
-            &&map.boss_icon==Some(frame.record.encounter)
-            &&map.nodes.iter().any(|node|node.id==frame.node&&node.floor==50&&node.kind==MapNodeKind::Boss&&node.visited&&node.encounter==Some(frame.record.encounter)))
+        &&act3_end::final_boss_source(state,frame.node,&frame.record)
 }
 
 /// Prepare every fallible transition input while the accepted Act3 stage remains untouched.
@@ -92,7 +94,7 @@ pub(in crate::run) fn prepare_transition(run:&Run)->Result<PreparedAct4,RunError
     let progress=Act4Progress{route,source_node:frame.node,source_record:frame.record.clone(),
         accepted_choice:room.screen.choices.iter().find(|row|row.kind==RoomChoiceKind::Act3Continue{stage:4}).unwrap().id,
         phase:Act4TransitionPhase::ChoiceAccepted,combat_visits:0,elite_record:None,elite_rewards_closed:false,heart_record:None,heart_proceed:None,heart_proceed_phase:None};
-    Ok(PreparedAct4{map:fixed_map(),progress,event,nominal_heal})
+    Ok(PreparedAct4{map:fixed_map(floor_base(frame.node)),progress,event,nominal_heal})
 }
 
 /// Commit the already accepted door exactly once. Any impossible post-accept
@@ -133,14 +135,15 @@ pub(in crate::run) fn enter(run:&mut Run,target:NodeId)->Result<RunTransition,Ru
 
 fn enter_room(run:&mut Run,target:NodeId)->Result<RunTransition,RunError>{
     let node=world::preflight_move(&run.state,target)?;
-    // Floor 52 under `Standard` is the standard shop (design §6.7), built after the move commits.
+    // The route's shop under `Standard` is the standard shop (design §6.7), built after the move commits.
     let standard_shop=is_standard(&run.state)&&node.kind==MapNodeKind::Shop;
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
+    let step=node.floor.checked_sub(floor_base(progress.source_node)).unwrap_or(0);
     if progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||run.state.act!=4
         ||run.state.floor>=node.floor||run.state.map.as_ref().is_none_or(|map|map.act!=4||map.boss_icon!=Some(EncounterId::CorruptHeart))
-        ||!matches!((node.floor,node.kind),(51,MapNodeKind::Rest)|(52,MapNodeKind::Shop)|(53,MapNodeKind::Elite)|(54,MapNodeKind::Boss))
-        ||progress.route[(node.floor-51) as usize]!=target{return Err(RunError::InvalidAction)}
-    if node.floor==54&&(!progress.elite_rewards_closed||progress.combat_visits==0
+        ||!matches!((step,node.kind),(1,MapNodeKind::Rest)|(2,MapNodeKind::Shop)|(3,MapNodeKind::Elite)|(4,MapNodeKind::Boss))
+        ||progress.route[(step-1) as usize]!=target{return Err(RunError::InvalidAction)}
+    if step==4&&(!progress.elite_rewards_closed||progress.combat_visits==0
         ||progress.elite_record.as_ref().is_none_or(|record|record.encounter!=EncounterId::ShieldAndSpear||record.outcome!=Outcome::Victory
             ||!run.state.history.events.contains(&CommittedEvent::CombatFinished(record.clone())))){return Err(RunError::InvalidAction)}
     let encounter=match node.kind{MapNodeKind::Elite=>Some(EncounterId::ShieldAndSpear),MapNodeKind::Boss=>Some(EncounterId::CorruptHeart),_=>None};
@@ -193,9 +196,10 @@ pub(in crate::run) fn validate_combat_source(run:&Run,record:&CombatRecord)->Res
     let CombatOrigin::MapRoom{node,kind}=active.origin else{return Err(RunError::InvalidAction)};
     let progress=run.state.room_loop.as_ref().and_then(|room|room.act4.as_ref()).ok_or(RunError::InvalidAction)?;
     let map=run.state.map.as_ref().ok_or(RunError::InvalidAction)?;
+    let base=floor_base(progress.source_node);
     let expected=match (kind,record.encounter){
-        (MapNodeKind::Elite,EncounterId::ShieldAndSpear)=>53,
-        (MapNodeKind::Boss,EncounterId::CorruptHeart)=>54,
+        (MapNodeKind::Elite,EncounterId::ShieldAndSpear)=>base+3,
+        (MapNodeKind::Boss,EncounterId::CorruptHeart)=>base+4,
         _=>return Err(RunError::InvalidAction),
     };
     let source=progress.source_record.clone();
@@ -208,10 +212,10 @@ pub(in crate::run) fn validate_combat_source(run:&Run,record:&CombatRecord)->Res
         ||!matches!(record.outcome,Outcome::Victory|Outcome::Death)||run.state.floor>expected
         ||map.act!=4||map.current!=Some(node)
         ||!map.nodes.iter().any(|entry|entry.id==node&&entry.floor==expected&&entry.visited&&entry.encounter==Some(record.encounter)
-            &&entry.kind==kind&&(expected!=53||!entry.burning))
+            &&entry.kind==kind&&(expected!=base+3||!entry.burning))
         ||run.state.pending.is_some()||run.state.terminal.is_some()||run.state.fault.is_some()
     {return Err(RunError::InvalidAction)}
-    if expected==53 {
+    if expected==base+3 {
         let items=run.state.combat.as_ref().and_then(|combat|combat.item_context()).ok_or(RunError::InvalidAction)?;
         if !items.battle.elite_trigger||items.battle.boss||items.battle.burning.is_some()
             ||progress.elite_record.is_some()||progress.elite_rewards_closed{return Err(RunError::InvalidAction)}
@@ -255,10 +259,11 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
     let map=run.state.map.as_ref().ok_or(RunError::InvalidAction)?;
     let elite=progress.elite_record.as_ref().ok_or(RunError::InvalidAction)?;
     let source=&progress.source_record;
+    let base=floor_base(progress.source_node);
     if room.screen.kind!=RoomViewKind::HeartVictory||room.screen.choices.len()!=1
         ||!room.screen.choices.iter().any(|row|row.id==id&&row.kind==RoomChoiceKind::Proceed&&row.status==RoomChoiceStatus::Offered)
         ||progress.heart_proceed!=Some(id)||progress.heart_proceed_phase!=Some(HeartProceedPhase::AwaitingProceed)
-        ||!uses_act4_route(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor>54
+        ||!uses_act4_route(&run.state)||!run.state.act4_enabled||run.state.act!=4||run.state.floor>base+4
         ||progress.phase!=Act4TransitionPhase::Published||progress.route!=route_ids()||progress.combat_visits<2
         ||source.outcome!=Outcome::Victory||!matches!(source.encounter,EncounterId::AwakenedOne|EncounterId::TimeEater|EncounterId::DonuAndDeca)
         ||!run.state.history.events.contains(&CommittedEvent::CombatFinished(source.clone()))
@@ -269,10 +274,10 @@ pub(super) fn choose_heart_proceed(run:&mut Run,id:ChoiceId)->Result<RunTransiti
         ||record.visit.checked_add(1)!=Some(run.state.combat_progress.settled)
         ||!run.state.history.events.contains(&CommittedEvent::CombatFinished(record.clone()))
         ||map.act!=4||map.boss_icon!=Some(EncounterId::CorruptHeart)||map.current!=Some(progress.route[3])
-        ||!map.nodes.iter().any(|node|node.id==progress.route[3]&&node.floor==54&&node.visited&&node.kind==MapNodeKind::Boss&&node.encounter==Some(EncounterId::CorruptHeart))
+        ||!map.nodes.iter().any(|node|node.id==progress.route[3]&&node.floor==base+4&&node.visited&&node.kind==MapNodeKind::Boss&&node.encounter==Some(EncounterId::CorruptHeart))
         ||run.state.last_combat.as_ref()!=Some(record)||run.state.combat.is_some()||run.state.active_combat.is_some()
         ||run.state.pending.is_some()||run.state.terminal.is_some()||run.state.fault.is_some(){return Err(RunError::InvalidAction)}
-    let floor=world::room_floor(&run.state,55)?;
+    let floor=world::room_floor(&run.state,base+5)?;
     let events=[CommittedEvent::FloorEntered{act:4,floor},CommittedEvent::Ended(RunTerminal::HeartVictory)];
     reward::preflight(&run.state,&events)?;
     run.state.room_loop.as_mut().unwrap().act4.as_mut().unwrap().heart_proceed_phase=Some(HeartProceedPhase::Accepted);
@@ -290,8 +295,9 @@ pub(in crate::run) fn finish_room(run:&mut Run)->Result<RunTransition,RunError>{
     let map=run.state.map.as_ref().ok_or(RunError::InvalidAction)?;
     let current=map.current.ok_or(RunError::InvalidAction)?;
     let node=map.nodes.iter().find(|node|node.id==current&&node.visited).ok_or(RunError::InvalidAction)?;
-    let simple=matches!((node.floor,node.kind,room.screen.kind),(51,MapNodeKind::Rest,RoomViewKind::Campfire)|(52,MapNodeKind::Shop,RoomViewKind::Shop));
-    let elite= node.floor==53&&node.kind==MapNodeKind::Elite&&room.screen.kind==RoomViewKind::Rewards
+    let step=progress_base(run).and_then(|base|node.floor.checked_sub(base)).unwrap_or(0);
+    let simple=matches!((step,node.kind,room.screen.kind),(1,MapNodeKind::Rest,RoomViewKind::Campfire)|(2,MapNodeKind::Shop,RoomViewKind::Shop));
+    let elite= step==3&&node.kind==MapNodeKind::Elite&&room.screen.kind==RoomViewKind::Rewards
         &&room.reward_parent.is_none()&&room.active_rewards.is_none()
         &&run.state.last_combat.as_ref().is_some_and(|record|record.encounter==EncounterId::ShieldAndSpear&&record.outcome==Outcome::Victory)
         &&run.state.room_loop.as_ref().and_then(|owner|owner.act4.as_ref()).is_some_and(|progress|

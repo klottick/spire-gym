@@ -17,13 +17,14 @@ fn m28_standard_a0_is_public_in_a_default_build() {
         // M29 close (erratum n2): A1 is public in a default build. Amended at M30 (plan item 1(b), review
         // n1): the cap is A10, so A11 is the rejected level. Amended at M31 (plan item 1(a)): the cap is A15,
         // so A16 is the rejected level. Amended at M32 (plan item 1): the cap is A19, so A20 is the rejected level.
+        // Amended at M33 (plan item 1): the cap is A20, so A21 is the rejected level.
         assert!(
             Run::new_room_scenario(RunConfig { character, ascension: 1 }, CreationProfile::experienced(), rng(), RoomScenario::Standard).is_ok(),
             "{character:?}",
         );
         assert_eq!(
-            Run::new_room_scenario(RunConfig { character, ascension: 20 }, CreationProfile::experienced(), rng(), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard supports A0–A19")),
+            Run::new_room_scenario(RunConfig { character, ascension: 21 }, CreationProfile::experienced(), rng(), RoomScenario::Standard).err(),
+            Some(RunError::Unsupported("Standard supports A0–A20")),
             "{character:?}",
         );
     }
