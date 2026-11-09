@@ -1,5 +1,14 @@
 # Work status
 
+## Current snapshot — 2026-11-09, M33 Ascension 20 candidate
+
+- M30, M31 and M32 are merged (main `0ba3038a`, PR #94 for M32). M33 is a source candidate on that base, not accepted. A default build exposes Standard A0–A20 for all four characters; A21 is rejected. No spire-env or Python delivery is claimed.
+- At A20, a Standard Act 3 Run fights a second, distinct boss only when all three Act 3 bosses were seen at act start. The second entry follows ordinary room/floor hooks; Secret Portal receives the same route, while Mind Bloom event bosses do not.
+- Global G1 aligns Act 3 unseen-boss priority with the source at every ascension. Only the `{Awakened One}`-seen Act 3 profile changes; Acts 1–2 are unchanged.
+- After a double boss, the second boss is floor 51 and Act 4 rooms are 52–55 with TrueVictory at 56, relative to the accepted M10 collapsed mapping. A19 and captured Act 4 bases remain unchanged.
+- No A20 traversal Run reached an Act 3 boss (the A20 supplied mode reached Act 3, floor 40 at most). Double-boss and Heart coverage relies on constructed/supplied public-route tests from Neow. Realistic A20 profiles are all-seen; M34 should default to an `experienced()`-like profile.
+- See the [M33 source-candidate profile](milestones/m33-ascension20.md) for the coverage ledger, reconciliation, census bound, floor ruling and the runner evidence (workspace, traversal, fuzz, replay and examples; A0–A19 equal to base). The independent final review returned READY; its six minor findings are fixed.
+
 ## Current snapshot — 2026-11-04, M30 merged (A6–A10 public); M31 and M32 candidates
 
 - M30 merged as PR #92 (`5e2a10b4`), the M31 source base.

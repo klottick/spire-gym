@@ -13,7 +13,7 @@
 //! supplied max HP and keys so it plays through every act (design §14 grade Supplied).
 //!
 //! M29 (plan M29a1 item 9, erratum v3 n4): `--ascension N` or `--ascensions A-B` runs each level
-//! (A1–A5 are public since the M29 close, A6–A10 since M30, A11–A15 since M31 and A16–A19 since M32; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
+//! (A1–A5 are public since the M29 close, A6–A10 since M30, A11–A15 since M31, A16–A19 since M32 and A20 since M33; the supplied mode above A0 needs `--features m29-diagnostics`). An advertised candidate rejected with a
 //! typed interim (an encounter whose enemy facts have not landed at this ascension) is counted and
 //! left out of the policy's choice set; a decision whose every candidate is an interim rejection
 //! ends the Run as `interim_blocked`, which is not a fault. Each Run also records interim counts by
@@ -34,13 +34,16 @@
 //! `traversal.json`, using only the public API, so the same example built on a base tree gives the
 //! first differing step of each Run.
 //!
+//! M33: the separate `m33` key records the public Act 3 boss sequence and Act 4/Heart reach; it
+//! does not alter the A0 control projection, existing `results` rows, or `digests.jsonl`.
+//!
 //! Usage: cargo run --release -p spire-core --example m28_traversal [--features m28-diagnostics|m29-diagnostics] -- --out DIR
 //!        [--seeds 25] [--cap 20000] [--policy uniform|reach|supplied] [--ascension N | --ascensions A-B]
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use spire_core::{
     combat::rng::Partition,
-    content::{CardId, Character, EventId, RelicId},
+    content::{CardId, Character, EncounterId, EventId, RelicId},
     run::{map::room_quotas, CommittedEvent, CreationProfile, GameAction, MapNodeKind, PublicDecision, RoomChoiceKind, RoomChoiceStatus, RoomScenario, RoomViewKind, Run, RunConfig, RunError, RunRng},
 };
 use std::{
@@ -136,7 +139,57 @@ impl Census {
 
 struct Outcome { steps: usize, terminal: Option<String>, fault: Option<String>, act: u8, floor: u32, actions: Vec<GameAction>, last: Option<PublicDecision>,
     interim_rejections: u64, interim_by_context: BTreeMap<String, u64>, interim_blocked: Option<String>, elites: Vec<Value>, transitions: Vec<Value>,
-    m30: M30Facts, m31: M31Facts, m32: M32Facts, digests: String }
+    m30: M30Facts, m31: M31Facts, m32: M32Facts, m33: M33Facts, digests: String }
+
+#[derive(Default)]
+struct M33BossFight { floor: u32, encounter: Option<String>, won: Option<bool> }
+
+#[derive(Default)]
+struct M33Facts { act3_boss_fights: Vec<M33BossFight>, second_act3_boss_entered: bool,
+    act4_rest_floor: Option<u32>, heart_entered: bool, heart_won: bool }
+
+impl M33Facts {
+    fn to_json(&self) -> Value {
+        json!({"act3_boss_fights":self.act3_boss_fights.iter().map(|fight| json!({
+            "floor":fight.floor,"encounter":fight.encounter,"won":fight.won
+        })).collect::<Vec<_>>(),"second_act3_boss_entered":self.second_act3_boss_entered,
+        "act4_rest_floor":self.act4_rest_floor,"heart_entered":self.heart_entered,"heart_won":self.heart_won})
+    }
+}
+
+#[derive(Default)]
+struct M33Totals { runs_with_0_act3_boss_fights:u64, runs_with_1_act3_boss_fight:u64,
+    runs_with_2_act3_boss_fights:u64, runs_with_other_act3_boss_fight_count:u64,
+    distinct_pair_violations:u64, runs_reaching_act4:u64, runs_reaching_heart:u64,
+    runs_entering_second_act3_boss:u64 }
+
+impl M33Totals {
+    fn add_run(&mut self, facts:&M33Facts) {
+        match facts.act3_boss_fights.len() {
+            0 => self.runs_with_0_act3_boss_fights += 1,
+            1 => self.runs_with_1_act3_boss_fight += 1,
+            2 => self.runs_with_2_act3_boss_fights += 1,
+            _ => self.runs_with_other_act3_boss_fight_count += 1,
+        }
+        let mut seen = BTreeSet::new();
+        if facts.act3_boss_fights.iter().filter_map(|fight| fight.encounter.as_ref()).any(|id| !seen.insert(id)) {
+            self.distinct_pair_violations += 1;
+        }
+        self.runs_reaching_act4 += u64::from(facts.act4_rest_floor.is_some());
+        self.runs_reaching_heart += u64::from(facts.heart_entered);
+        self.runs_entering_second_act3_boss += u64::from(facts.second_act3_boss_entered);
+    }
+
+    fn to_json(&self) -> Value {
+        json!({"runs_with_0_act3_boss_fights":self.runs_with_0_act3_boss_fights,
+            "runs_with_1_act3_boss_fight":self.runs_with_1_act3_boss_fight,
+            "runs_with_2_act3_boss_fights":self.runs_with_2_act3_boss_fights,
+            "runs_with_other_act3_boss_fight_count":self.runs_with_other_act3_boss_fight_count,
+            "distinct_pair_violations":self.distinct_pair_violations,
+            "runs_reaching_act4":self.runs_reaching_act4,"runs_reaching_heart":self.runs_reaching_heart,
+            "runs_entering_second_act3_boss":self.runs_entering_second_act3_boss})
+    }
+}
 
 /// M31 (plan item 8) per-Run facts. Marker steps index the decision at which the class starts:
 /// the step whose action gains a G1 relic or rests with Dream Catcher, the first Shop decision (G3),
@@ -499,7 +552,7 @@ fn rollout(mut run: Run) -> i64 {
 fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: bool, ascension: u8, census: &mut Census) -> Outcome {
     let mut out = Outcome { steps: 0, terminal: None, fault: None, act: 0, floor: 0, actions: Vec::new(), last: None,
         interim_rejections: 0, interim_by_context: BTreeMap::new(), interim_blocked: None, elites: Vec::new(), transitions: Vec::new(), m30: M30Facts::default(),
-        m31: M31Facts::default(), m32: M32Facts::default(), digests: String::new() };
+        m31: M31Facts::default(), m32: M32Facts::default(), m33: M33Facts::default(), digests: String::new() };
     let mut run = match new_run(character, seed, supplied, ascension) { Ok(run) => run, Err(error) => { out.fault = Some(error); return out } };
     let mut map_act = 0u8;
     let mut policy = u64::from_le_bytes(root(character, seed)[..8].try_into().unwrap()) ^ if reach { 0x5245_4143_48 } else { 0x4D32_3846 };
@@ -509,8 +562,50 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
     let mut equip_open = false;
     let mut transcript = SyntheticTranscript::default();
     let (mut active_combat, mut combat_id) = (false, 0u32);
+    let mut m33_act3_visit: Option<u64> = None;
+    let mut m33_heart_visit: Option<u64> = None;
+    let mut m33_act3_ending_seen = false;
     loop {
         let decision = match run.decision() { Ok(decision) => decision, Err(error) => { out.fault = Some(format!("decision at step {}: {error:?}", out.steps)); break } };
+        if decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Act3Ending) { m33_act3_ending_seen = true; }
+        if let Some(map) = run.public_map() {
+            if map.act == 4 {
+                out.m33.act4_rest_floor = map.nodes.iter().find(|node| node.kind == MapNodeKind::Rest).map(|node| node.floor);
+            }
+        }
+        if decision.act == 4 && decision.room.as_ref().is_some_and(|room| room.kind == RoomViewKind::Combat)
+            && run.public_map().is_some_and(|map| map.act == 4 && map.current.and_then(|id| map.nodes.iter().find(|node| node.id == id)).is_some_and(|node| node.kind == MapNodeKind::Boss)) {
+            out.m33.heart_entered = true;
+        }
+        if decision.combat.is_some() {
+            let visit = decision.combat_progress.entered.saturating_sub(1);
+            let current_is_boss = run.public_map().is_some_and(|map| map.act == decision.act
+                && map.current.and_then(|id| map.nodes.iter().find(|node| node.id == id)).is_some_and(|node| node.kind == MapNodeKind::Boss));
+            if decision.act == 3 && current_is_boss && m33_act3_visit != Some(visit) {
+                if !m33_act3_ending_seen && out.m33.act3_boss_fights.iter().any(|fight| fight.won == Some(true)) {
+                    out.m33.second_act3_boss_entered = true;
+                }
+                out.m33.act3_boss_fights.push(M33BossFight { floor:decision.floor, encounter:None, won:None });
+                m33_act3_visit = Some(visit);
+            }
+            if decision.act == 4 && current_is_boss && m33_heart_visit != Some(visit) { m33_heart_visit = Some(visit); }
+        } else {
+            if let Some(visit) = m33_act3_visit.take() {
+                if let Some(record) = decision.last_combat.as_ref().filter(|record| record.visit == visit) {
+                    if let Some(fight) = out.m33.act3_boss_fights.last_mut() {
+                        fight.encounter = Some(format!("{:?}", record.encounter));
+                        fight.won = Some(record.outcome == spire_core::combat::Outcome::Victory);
+                    }
+                }
+            }
+            if let Some(visit) = m33_heart_visit.take() {
+                if decision.last_combat.as_ref().is_some_and(|record| record.visit == visit
+                    && record.encounter == EncounterId::CorruptHeart && record.outcome == spire_core::combat::Outcome::Victory) {
+                    out.m33.heart_won = true;
+                }
+            }
+        }
+        if decision.terminal == Some(spire_core::run::RunTerminal::HeartVictory) { out.m33.heart_won = true; }
         census.observe(&decision);
         if let Some(combat) = &decision.combat {
             if !active_combat { combat_id += 1; active_combat = true; }
@@ -740,7 +835,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let jobs: Vec<(&str, Character, u64)> = policies.iter().flat_map(|p| CHARACTERS.into_iter().flat_map(move |c| (1..=seeds).map(move |seed| (*p, c, seed))))
         .filter(|(_, c, seed)| only.is_none_or(|only| only == format!("{c:?}/{seed}"))).collect();
     // Runs are independent and deterministic; each is its own thread, results kept in job order.
-    let results: Vec<(Value, Value, Value, Value, String, Census, M32Facts)> = std::thread::scope(|scope| {
+    let results: Vec<(Value, Value, Value, Value, String, Census, M32Facts, M33Facts, Value)> = std::thread::scope(|scope| {
         let handles: Vec<_> = jobs.iter().map(|&(policy, character, seed)| scope.spawn(move || {
             let mut census = Census::default();
             let supplied = policy == "supplied";
@@ -758,8 +853,9 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
             let m30 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m30.to_json()});
             let m31 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m31.to_json()});
             let digests = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"digests":outcome.digests}).to_string();
-            eprintln!("{record} {m29} {m30} {m31}");
-            (record, m29, m30, m31, digests, census, outcome.m32)
+            let m33 = json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":outcome.m33.to_json()});
+            eprintln!("{record} {m29} {m30} {m31} {m33}");
+            (record, m29, m30, m31, digests, census, outcome.m32, outcome.m33, m33)
         })).collect();
         handles.into_iter().map(|handle| handle.join().expect("traversal thread")).collect()
     });
@@ -769,9 +865,12 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let (mut m30_runs, mut m30_totals) = (Vec::new(), BTreeMap::<String, u64>::new());
     let (mut m31_runs, mut m31_totals, mut digest_lines) = (Vec::new(), BTreeMap::<String, u64>::new(), Vec::new());
     let (mut m32_runs, mut m32_totals_by_mode) = (Vec::new(), BTreeMap::<String, M32Totals>::new());
-    for ((policy, character, seed), (record, m29, m30, m31, digests, census, m32)) in jobs.iter().zip(results) {
+    let (mut m33_runs, mut m33_totals_by_mode) = (Vec::new(), BTreeMap::<String, M33Totals>::new());
+    for ((policy, character, seed), (record, m29, m30, m31, digests, census, m32, m33, m33_run)) in jobs.iter().zip(results) {
         m32_totals_by_mode.entry((*policy).to_string()).or_default().add_run(&m32);
         m32_runs.push(json!({"policy":policy,"character":format!("{character:?}"),"seed":seed,"ascension":ascension,"facts":m32.to_json()}));
+        m33_totals_by_mode.entry((*policy).to_string()).or_default().add_run(&m33);
+        m33_runs.push(m33_run);
         let facts = &m31["facts"];
         for key in ["belt_gained", "belt_lost", "mind_bloom_fights", "note_for_yourself_seen"] {
             *m31_totals.entry(key.to_string()).or_default() += facts[key].as_u64().unwrap_or(0);
@@ -806,6 +905,7 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
     let per_character: BTreeMap<String, Value> = per_character.iter().map(|(key, census)| (key.clone(), census.to_json())).collect();
     let elite_census: BTreeMap<String, Value> = elite_census.into_iter().map(|(act, [requested, placed, unplaced])| (act, json!({"requested":requested,"placed":placed,"unplaced":unplaced}))).collect();
     let m32_totals_by_mode: BTreeMap<String, Value> = m32_totals_by_mode.iter().map(|(mode, totals)| (mode.clone(), totals.to_json())).collect();
+    let m33_totals_by_mode: BTreeMap<String, Value> = m33_totals_by_mode.iter().map(|(mode, totals)| (mode.clone(), totals.to_json())).collect();
     let report = json!({"schema":"spire-gym.m28-traversal.v1","seeds_per_character":seeds,"cap":cap,"policies":{"uniform":"seeded uniform random over advertised candidates","supplied":"reach policy on a Standard Run with supplied max HP 400 and, on even seeds, all three keys (m28-diagnostics; grade Supplied, not traversal)","reach":"combat: each candidate valued by a greedy play-out of the turn (survive, then kill); out of combat: one-step current-HP value; greedy on 90% of combat and 50% of other decisions, else uniform"},
         "runs":runs.len(),"fault_free":runs.len() - faults.len(),"faults":faults,"census":total.to_json(),"census_by_character":per_character,"results":runs,
         "m29":{"ascension":ascension,"interim_blocked_runs":blocked,"interim_rejections":rejections,"interim_by_context":interim_by_context,
@@ -813,7 +913,8 @@ fn run_level(dir: &std::path::Path, ascension: u8, seeds: u64, cap: usize, polic
         "m30":{"ascension":ascension,"totals":m30_totals,"runs":m30_runs},
         "m31":{"ascension":ascension,"totals":m31_totals,"runs":m31_runs},
         "m32":{"schema":"spire-gym.m32-traversal.v1","ascension":ascension,"forbidden_rules":intent_rules_json(FORBIDDEN_INTENT_RULES),
-            "allowed_only_at_a_ge_t":intent_rules_json(ALLOWED_ONLY_INTENT_RULES),"totals_by_mode":m32_totals_by_mode,"runs":m32_runs}});
+            "allowed_only_at_a_ge_t":intent_rules_json(ALLOWED_ONLY_INTENT_RULES),"totals_by_mode":m32_totals_by_mode,"runs":m32_runs},
+        "m33":{"schema":"spire-gym.m33-traversal.v1","ascension":ascension,"totals_by_mode":m33_totals_by_mode,"runs":m33_runs}});
     fs::write(dir.join("digests.jsonl"), digest_lines.join("\n") + "\n").expect("write digests.jsonl");
     fs::write(dir.join("traversal.json"), serde_json::to_vec_pretty(&report).unwrap()).expect("write traversal.json");
     println!("A{ascension}: {} of {} runs fault-free ({blocked} interim-blocked)", runs.len() - faults.len(), runs.len());

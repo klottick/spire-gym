@@ -52,17 +52,14 @@ fn m29_standard_default_build_admits_a1_to_a5() {
 /// since M30, so the rejected levels are 11, 15, 20 and 21, with the A0–A10 message. Amended at M31
 /// (plan item 1(b)): the cap is A15, so the rejected levels are 16, 20 and 21, with the A0–A15 message.
 /// Amended at M32 (plan item 1): the cap is A19, so the rejected levels are 20 and 21, with the A0–A19 message.
+/// Amended at M33 (plan item 1): the cap is A20, so the rejected level is 21, with the A0–A20 message.
 #[test]
 fn m29_standard_rejects_above_cap() {
     for character in CHARACTERS {
-        for ascension in [20] {
-            assert_eq!(Run::new_room_scenario(RunConfig { character, ascension }, profile(false), rng(1), RoomScenario::Standard).err(),
-                Some(RunError::Unsupported("Standard supports A0–A19")), "{character:?} A{ascension}");
-            assert_eq!(rooms::standard::build(RunConfig { character, ascension }, profile(false), rng(1)).err(),
-                Some(RunError::Unsupported("Standard supports A0–A19")));
-        }
+        assert_eq!(rooms::standard::build(RunConfig { character, ascension: 21 }, profile(false), rng(1)).err(),
+            Some(RunError::Unsupported("Standard supports A0–A20")));
         assert_eq!(Run::new_room_scenario(RunConfig { character, ascension: 21 }, profile(false), rng(1), RoomScenario::Standard).err(),
-            Some(RunError::Unsupported("Standard supports A0–A19")));
+            Some(RunError::Unsupported("Standard supports A0–A20")));
     }
 }
 
@@ -306,7 +303,10 @@ fn m29_act3_events_standard_a1() {
 }
 
 /// Erratum n8: an A0 Standard Run fights its Act 3 boss; the Run's ascension is set before the
-/// settlement, which must reach the ending (`act3_end.rs:22` was A0-only). A20 is M33's interim.
+/// settlement, which must reach the ending (`act3_end.rs:22` was A0-only). A20 was M33's interim.
+/// Amended at M33 (plan item 5, review M1): the A20 arm's Run started Act 3 at A0, so its boss order
+/// was built with one boss; the order is never re-derived, so it reaches the ordinary single-boss
+/// ending (`Act3NoKeys`). The A20 double boss is `m33_double_boss`'s.
 #[test]
 fn m29_act3_boss_ending_standard_a1() {
     let at_boss = |character: Character, seed: u8| {
@@ -334,6 +334,10 @@ fn m29_act3_boss_ending_standard_a1() {
         run.step(&GameAction::Combat(crate::combat::CombatAction::EndTurn)).unwrap();
     }
     assert_eq!(full(&run).outcome, Some(crate::combat::Outcome::Victory));
-    let error = run.settle_combat().err();
-    assert!(matches!(error, Some(RunError::Faulted(ref fault)) if fault.kind == RunFaultKind::UnsupportedBoundary("A20 double boss lands in M33")), "{error:?}");
+    assert_eq!(run.state.room_loop.as_ref().unwrap().act3_boss_order.as_ref().map(Vec::len), Some(1));
+    run.settle_combat().unwrap();
+    assert_eq!(kind(&run), RoomViewKind::Act3BossComplete);
+    drive(&mut run, |_| false);
+    assert_eq!(run.state.terminal, Some(RunTerminal::Act3NoKeys));
+    assert!(run.state.fault.is_none() && run.state.map.as_ref().unwrap().nodes.iter().all(|n| n.id != NodeId(0xA300_0051)));
 }

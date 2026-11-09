@@ -25,6 +25,17 @@ pub(in crate::run) fn enter_portal_boss(run:&mut Run)->Result<RunTransition,RunE
     enter_room(run,staged,target,kind,encounter,event,credit)
 }
 
+/// The A20 Act 3 second boss (M33 design §6.3; source `ProceedButton.goToDoubleBoss`): Proceed from the
+/// first boss's room enters the order's next boss through the same producer as a map move, at the
+/// current floor + 1 (PM ruling m28f Q2). The first boss's ending frame ends here.
+pub(in crate::run) fn enter_second_boss(run:&mut Run)->Result<RunTransition,RunError>{
+    if !is_standard(&run.state)||run.state.act!=3{return Err(RunError::InvalidAction)}
+    let mut staged=run.clone();
+    staged.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.act3_end=None;
+    let (target,kind,encounter,event,credit)=crate::run::world::enter_second_boss(&mut staged.state)?;
+    enter_room(run,staged,target,kind,encounter,event,credit)
+}
+
 /// The room producer after a committed entry, on the staged Run.
 fn enter_room(run:&mut Run,mut staged:Run,target:NodeId,kind:MapNodeKind,encounter:Option<crate::content::EncounterId>,event:CommittedEvent,credit:i32)->Result<RunTransition,RunError>{
     let entered_kind=match kind{

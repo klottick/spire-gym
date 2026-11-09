@@ -35,14 +35,15 @@ pub(super) fn begin(run:&mut Run)->Result<RunTransition,RunError>{
 
 fn successor(run:&Run,frame:&ActTransition)->Result<(RunMap,RunRng,Vec<EncounterId>),RunError>{
     if is_standard(&run.state){
-        // Standard (design §7): the next generated map; the boss from live `seen_bosses` through
-        // `world`'s standard selector. The new map carries fresh question-room ramps.
+        // Standard (design §7): the next generated map; the boss order from live `seen_bosses` through
+        // `world`'s standard selector (two Act 3 bosses at A20 when all are seen, M33 design §6.2).
+        // The new map carries fresh question-room ramps.
         let mut probe=run.state.clone();
         let mut map=super::super::map::generate(frame.to,&mut probe.rng,super::super::map::MapEligibility::from_run(&run.state))?;
         for node in &mut map.nodes{node.floor=node.floor.checked_add(frame.floor).ok_or(RunError::Unsupported("successor global floor overflow"))?;}
-        let boss=super::super::world::act_boss(&mut probe)?;
-        map.boss_icon=Some(boss);
-        return Ok((map,probe.rng,vec![boss]))
+        let order=super::super::world::act_boss_order(&mut probe)?;
+        map.boss_icon=Some(order[0]);
+        return Ok((map,probe.rng,order))
     }
     let mut rng=run.state.rng.clone();
     let (mut order,priority,scope)=match frame.to {
