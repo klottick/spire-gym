@@ -540,3 +540,14 @@ fn m27_gambling_chip_two_combat_counter() {
     m27_support::next_complete_combat(&mut run, EncounterId::Cultist).unwrap();
     assert!(view(&run).selection.is_some(), "combat 2 rearms and allows one selection");
 }
+
+/// M34a (plan a1/b6): Runic Dome hides the intent category and planned hits with the intent itself.
+#[test]
+fn runic_dome_hides_category_and_hits() {
+    let dome = simple(&[RelicId::RunicDome], &[CardId::Defend; 12]);
+    let plain = simple(&[], &[CardId::Defend; 12]);
+    for enemy in view(&dome).enemies {
+        assert_eq!((enemy.intent_category, enemy.intent_hits), (None, None));
+    }
+    assert!(view(&plain).enemies.iter().all(|enemy| enemy.intent_category.is_some()), "unhidden intents publish a category");
+}

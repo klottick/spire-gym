@@ -34,6 +34,9 @@
 //! `traversal.json`, using only the public API, so the same example built on a base tree gives the
 //! first differing step of each Run.
 //!
+//! M34a: `M28_DIGEST_PROJECTION=pre-m34a` digests the decision text without the M34a public-view
+//! fields, so the A0 control compares an M34a tree with a pre-M34a tree on the same projection.
+//!
 //! M33: the separate `m33` key records the public Act 3 boss sequence and Act 4/Heart reach; it
 //! does not alter the A0 control projection, existing `results` rows, or `digests.jsonl`.
 //!
@@ -783,8 +786,40 @@ fn traverse(character: Character, seed: u64, cap: usize, reach: bool, supplied: 
 /// One step's decision digest (review n1): the first 48 bits of sha256 over the step, the public
 /// decision and the chosen action (none at a terminal), as 12 hex digits.
 fn digest(step: usize, decision: &PublicDecision, action: Option<&GameAction>) -> String {
-    let hash = Sha256::digest(format!("{step}|{decision:?}|{action:?}").as_bytes());
+    let mut text = format!("{decision:?}");
+    if env::var("M28_DIGEST_PROJECTION").as_deref() == Ok("pre-m34a") { text = pre_m34a(&text); }
+    let hash = Sha256::digest(format!("{step}|{text}|{action:?}").as_bytes());
     hash[..6].iter().map(|b| format!("{b:02x}")).collect()
+}
+
+/// M34a: the decision text without the M34a public-view fields (enemy intent category, planned hits
+/// and Invincible cap; bottled-card links; room params), so a base tree and an M34a tree running this
+/// same example digest the same projection (`M28_DIGEST_PROJECTION=pre-m34a`). Text-only, so it
+/// also builds on a pre-M34a tree, where it changes nothing.
+fn pre_m34a(text: &str) -> String {
+    let mut out = text.to_owned();
+    for (key, trailing) in [(", intent_category: ", false), (", intent_hits: ", false), (", invincible_cap: ", false),
+        ("bottled_cards: ", true), (", room_params: ", false)] {
+        while let Some(start) = out.find(key) {
+            let bytes = out.as_bytes();
+            let (mut end, mut depth) = (start + key.len(), 0i32);
+            while end < bytes.len() {
+                match bytes[end] {
+                    b'(' | b'[' | b'{' => depth += 1,
+                    b')' | b']' | b'}' if depth == 0 => break,
+                    b')' | b']' | b'}' => depth -= 1,
+                    b',' if depth == 0 => break,
+                    _ => {}
+                }
+                end += 1;
+            }
+            // A last field's value ends before the closing ` }`; keep that space.
+            while end > start + key.len() && bytes[end - 1] == b' ' { end -= 1; }
+            if trailing && out[end..].starts_with(", ") { end += 2; }
+            out.replace_range(start..end, "");
+        }
+    }
+    out
 }
 
 /// Replays the recorded actions on a fresh Run; the final decision must equal the live one.
@@ -1016,6 +1051,31 @@ mod m32_detector_tests {
                 turn(1, i as u32 + 1, vec![enemy("one", rule.species, intent)])).collect() };
             let facts = detect_m32_intents(&transcript);
             assert_eq!(facts.forbidden_sequences[rule.id], 1, "{}", rule.id);
+        }
+    }
+}
+
+#[cfg(test)]
+mod m34a_projection_tests {
+    use super::pre_m34a;
+
+    /// The traversal's local projection must equal pre-M34a Debug text byte for byte, including the
+    /// ` }` after a removed last field (literals only, so the example still builds on a base tree).
+    #[test]
+    fn pre_m34a_removes_first_middle_and_last_fields_exactly() {
+        for (m34a, base) in [
+            ("D { a: 1, room_params: None }", "D { a: 1 }"),
+            ("D { a: 1, room_params: Some(RoomParams { stage: [Some(2), None, None, None], rows: [(ChoiceId(1), [Some(-3), None, None])] }) }",
+             "D { a: 1 }"),
+            ("P { bottled_cards: [(BottledFlame, 10)], relic_counters: [] }", "P { relic_counters: [] }"),
+            ("[E { logical_slot: 0, intent_category: Some(Attack), intent_hits: Some(2), invincible_cap: Some(300) }, \
+              E { logical_slot: 1, intent_category: None, intent_hits: None, invincible_cap: None }]",
+             "[E { logical_slot: 0 }, E { logical_slot: 1 }]"),
+            ("X { player: P { bottled_cards: [], hp: 80 }, combat: None, room_params: None }",
+             "X { player: P { hp: 80 }, combat: None }"),
+        ] {
+            assert_eq!(pre_m34a(m34a), base, "{m34a}");
+            assert_eq!(pre_m34a(base), base, "a pre-M34a text is unchanged");
         }
     }
 }

@@ -25,6 +25,7 @@ pub(in crate::run) const MIND_BLOOM:Body=Body{
         2=>vec![Outcome::Heal(c.values[1]),Outcome::ObtainCurse(CardId::Doubt),Outcome::NextStage(DONE)],
         _=>return Err(RunError::InvalidAction),
     }),
+    params:Some(|s,c,stage,option|super::params(EventId::MindBloom,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -46,6 +47,7 @@ pub(in crate::run) const MOAI_HEAD:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::MoaiHead,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -80,6 +82,7 @@ pub(in crate::run) const SENSORY_STONE:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::SensoryStone,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -101,6 +104,7 @@ pub(in crate::run) const WINDING_HALLS:Body=Body{
             _=>return Err(RunError::InvalidAction),
         })
     },
+    params:Some(|s,c,stage,option|super::params(EventId::WindingHalls,s,c,stage,option)),
     ..PLAIN
 };
 

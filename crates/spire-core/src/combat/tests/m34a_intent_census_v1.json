@@ -1,0 +1,2918 @@
+{
+ "schema": "m34a-intent-census-fixture-v1",
+ "rows": [
+  {
+   "enemy": "acid_slime_l",
+   "intent": "acid_lick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "acid_slime_l",
+   "intent": "acid_spit",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "acid_slime_l",
+   "intent": "acid_split",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "acid_slime_l",
+   "intent": "acid_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "acid_slime_m",
+   "intent": "acid_lick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "acid_slime_m",
+   "intent": "acid_spit",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "acid_slime_m",
+   "intent": "acid_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "acid_slime_s",
+   "intent": "acid_lick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "acid_slime_s",
+   "intent": "acid_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_echo",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_rebirth",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_slash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_sludge",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_soul",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 4
+   }
+  },
+  {
+   "enemy": "awakened_one",
+   "intent": "awa_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "bandit_bear",
+   "intent": "bear_hug",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bandit_bear",
+   "intent": "bear_lunge",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_defend"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bandit_bear",
+   "intent": "bear_maul",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bandit_leader",
+   "intent": "romeo_agonizing_slash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bandit_leader",
+   "intent": "romeo_cross_slash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bandit_leader",
+   "intent": "romeo_mock",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bandit_pointy",
+   "intent": "pointy_special",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "book_of_stabbing",
+   "intent": "book_big",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "book_of_stabbing",
+   "intent": "book_multi",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "memory"
+   }
+  },
+  {
+   "enemy": "bronze_automaton",
+   "intent": "automaton_beam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bronze_automaton",
+   "intent": "automaton_boost",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bronze_automaton",
+   "intent": "automaton_flail",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "bronze_automaton",
+   "intent": "automaton_spawn",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bronze_automaton",
+   "intent": "automaton_stun",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "stun"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bronze_orb",
+   "intent": "orb_beam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "bronze_orb",
+   "intent": "orb_stasis",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "bronze_orb",
+   "intent": "orb_support",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_caw",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_go_airborne",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_headbutt",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_peck",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "ascension",
+    "bands": [
+     {
+      "from": 0,
+      "to": 1,
+      "n": 5
+     },
+     {
+      "from": 2,
+      "to": 20,
+      "n": 6
+     }
+    ]
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_stunned",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "stun"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "byrd",
+   "intent": "byrd_swoop",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "centurion",
+   "intent": "centurion_fury",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "centurion",
+   "intent": "centurion_protect",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "centurion",
+   "intent": "centurion_slash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_anger",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_execute",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_gloat",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_slap",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_slash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_stance",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "champ",
+   "intent": "champ_taunt",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "chosen",
+   "intent": "chosen_debilitate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "chosen",
+   "intent": "chosen_drain",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "chosen",
+   "intent": "chosen_hex",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "chosen",
+   "intent": "chosen_poke",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "chosen",
+   "intent": "chosen_zap",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "collector",
+   "intent": "collector_buff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "collector",
+   "intent": "collector_rake",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "collector",
+   "intent": "collector_revive",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "collector",
+   "intent": "collector_spawn",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "collector",
+   "intent": "collector_ultimate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "corrupt_heart",
+   "intent": "heart_blood_shots",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "ascension",
+    "bands": [
+     {
+      "from": 0,
+      "to": 3,
+      "n": 12
+     },
+     {
+      "from": 4,
+      "to": 20,
+      "n": 15
+     }
+    ]
+   }
+  },
+  {
+   "enemy": "corrupt_heart",
+   "intent": "heart_buff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "corrupt_heart",
+   "intent": "heart_debilitate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "corrupt_heart",
+   "intent": "heart_echo",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "cultist",
+   "intent": "attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "cultist",
+   "intent": "incantation",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "dagger",
+   "intent": "dagger_explode",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "dagger",
+   "intent": "dagger_wound",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "darkling",
+   "intent": "darkling_chomp",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "darkling",
+   "intent": "darkling_harden",
+   "category": [
+    {
+     "from": 0,
+     "to": 16,
+     "intent": "defend"
+    },
+    {
+     "from": 17,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "darkling",
+   "intent": "darkling_nip",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "darkling",
+   "intent": "darkling_regrowing",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "darkling",
+   "intent": "darkling_reincarnate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "deca",
+   "intent": "deca_beam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "deca",
+   "intent": "deca_square",
+   "category": [
+    {
+     "from": 0,
+     "to": 18,
+     "intent": "defend"
+    },
+    {
+     "from": 19,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "donu",
+   "intent": "donu_beam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "donu",
+   "intent": "donu_circle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "exploder",
+   "intent": "exploder_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "exploder",
+   "intent": "exploder_explode",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "fungi_beast",
+   "intent": "bite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "fungi_beast",
+   "intent": "grow",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "fuzzy_louse_defensive",
+   "intent": "bite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "fuzzy_louse_defensive",
+   "intent": "spit_web",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "fuzzy_louse_normal",
+   "intent": "bite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "fuzzy_louse_normal",
+   "intent": "grow",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "giant_head",
+   "intent": "head_count",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "giant_head",
+   "intent": "head_glare",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "giant_head",
+   "intent": "head_time",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_fat",
+   "intent": "gremlin_smash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_leader",
+   "intent": "leader_encourage",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "gremlin_leader",
+   "intent": "leader_rally",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "gremlin_leader",
+   "intent": "leader_stab",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "gremlin_mad",
+   "intent": "gremlin_scratch",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_nob",
+   "intent": "bellow",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "gremlin_nob",
+   "intent": "bull_rush",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_nob",
+   "intent": "skull_bash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_shield",
+   "intent": "gremlin_bash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_shield",
+   "intent": "gremlin_protect",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "gremlin_sneaky",
+   "intent": "gremlin_puncture",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_wizard",
+   "intent": "gremlin_blast",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "gremlin_wizard",
+   "intent": "gremlin_charge",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "charging_up",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "defensive_mode",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "fierce_bash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "roll_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "twin_slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_buff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "vent_steam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "guardian",
+   "intent": "whirlwind",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 4
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "activate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "divider",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 6
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "inferno",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 6
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "inflame",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "sear",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "hexaghost",
+   "intent": "tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "jaw_worm",
+   "intent": "bellow",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "jaw_worm",
+   "intent": "chomp",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "jaw_worm",
+   "intent": "thrash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_defend"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "lagavulin",
+   "intent": "attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "lagavulin",
+   "intent": "siphon",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "lagavulin",
+   "intent": "sleep",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "sleep"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "lagavulin",
+   "intent": "stunned",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "stun"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "looter",
+   "intent": "looter_escape",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "escape"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "looter",
+   "intent": "looter_lunge",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "looter",
+   "intent": "looter_mug",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "looter",
+   "intent": "looter_smoke_bomb",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "maw",
+   "intent": "maw_drool",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "maw",
+   "intent": "maw_nom",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "memory"
+   }
+  },
+  {
+   "enemy": "maw",
+   "intent": "maw_roar",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "maw",
+   "intent": "maw_slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "mugger",
+   "intent": "mugger_escape",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "escape"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "mugger",
+   "intent": "mugger_lunge",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "mugger",
+   "intent": "mugger_mug",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "mugger",
+   "intent": "mugger_smoke_bomb",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "mystic",
+   "intent": "mystic_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "mystic",
+   "intent": "mystic_buff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "mystic",
+   "intent": "mystic_heal",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "nemesis",
+   "intent": "nemesis_burn",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "nemesis",
+   "intent": "nemesis_scythe",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "nemesis",
+   "intent": "nemesis_tri",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "orb_walker",
+   "intent": "orb_claw",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "orb_walker",
+   "intent": "orb_laser",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "reptomancer",
+   "intent": "repto_bite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "reptomancer",
+   "intent": "repto_snake",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "reptomancer",
+   "intent": "repto_spawn",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "repulsor",
+   "intent": "repulsor_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "repulsor",
+   "intent": "repulsor_daze",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "sentry",
+   "intent": "beam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "sentry",
+   "intent": "bolt",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "shelled_parasite",
+   "intent": "shelled_parasite_double_strike",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "shelled_parasite",
+   "intent": "shelled_parasite_fell",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "shelled_parasite",
+   "intent": "shelled_parasite_life_suck",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_buff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "shelled_parasite",
+   "intent": "shelled_parasite_stunned",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "stun"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "slaver_blue",
+   "intent": "slaver_rake",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "slaver_blue",
+   "intent": "slaver_stab",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "slaver_red",
+   "intent": "slaver_entangle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "slaver_red",
+   "intent": "slaver_scrape",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "slaver_red",
+   "intent": "slaver_stab",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "slime_boss",
+   "intent": "prep_slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "slime_boss",
+   "intent": "slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "slime_boss",
+   "intent": "split",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "slime_boss",
+   "intent": "sticky",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "snake_plant",
+   "intent": "snake_plant_chomp_chomp",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "snake_plant",
+   "intent": "snake_plant_enfeebling_spores",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "snecko",
+   "intent": "snecko_bite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "snecko",
+   "intent": "snecko_glare",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "snecko",
+   "intent": "snecko_tail_whip",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spheric_guardian",
+   "intent": "sphere_activate",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spheric_guardian",
+   "intent": "sphere_debuff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spheric_guardian",
+   "intent": "sphere_harden",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_defend"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spheric_guardian",
+   "intent": "sphere_slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "spike_slime_l",
+   "intent": "spike_flame_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spike_slime_l",
+   "intent": "spike_lick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spike_slime_l",
+   "intent": "spike_split",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "unknown"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spike_slime_m",
+   "intent": "spike_flame_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spike_slime_m",
+   "intent": "spike_lick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spike_slime_s",
+   "intent": "spike_tackle",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spiker",
+   "intent": "spiker_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spiker",
+   "intent": "spiker_buff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spire_growth",
+   "intent": "growth_constrict",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spire_growth",
+   "intent": "growth_quick",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spire_growth",
+   "intent": "growth_smash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spire_shield",
+   "intent": "shield_bash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spire_shield",
+   "intent": "shield_fortify",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "spire_shield",
+   "intent": "shield_smash",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_defend"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "spire_spear",
+   "intent": "spear_burn_strike",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 2
+   }
+  },
+  {
+   "enemy": "spire_spear",
+   "intent": "spear_skewer",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "ascension",
+    "bands": [
+     {
+      "from": 0,
+      "to": 2,
+      "n": 3
+     },
+     {
+      "from": 3,
+      "to": 20,
+      "n": 4
+     }
+    ]
+   }
+  },
+  {
+   "enemy": "spire_spear",
+   "intent": "spear_strength",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "taskmaster",
+   "intent": "taskmaster_whip",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "time_eater",
+   "intent": "time_haste",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "buff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "time_eater",
+   "intent": "time_reverb",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "time_eater",
+   "intent": "time_ripple",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "defend_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  },
+  {
+   "enemy": "time_eater",
+   "intent": "time_slam",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "torch_head",
+   "intent": "torch_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "transient",
+   "intent": "transient_attack",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "writhing_mass",
+   "intent": "writhing_big",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "writhing_mass",
+   "intent": "writhing_block",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_defend"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "writhing_mass",
+   "intent": "writhing_debuff",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 1
+   }
+  },
+  {
+   "enemy": "writhing_mass",
+   "intent": "writhing_multi",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "attack"
+    }
+   ],
+   "hits": {
+    "kind": "fixed",
+    "n": 3
+   }
+  },
+  {
+   "enemy": "writhing_mass",
+   "intent": "writhing_parasite",
+   "category": [
+    {
+     "from": 0,
+     "to": 20,
+     "intent": "strong_debuff"
+    }
+   ],
+   "hits": {
+    "kind": "none"
+   }
+  }
+ ]
+}

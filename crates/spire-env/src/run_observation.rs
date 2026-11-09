@@ -43,7 +43,7 @@ fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSes
     if matches!(kind,RoomChoiceKind::Lift|RoomChoiceKind::Toke|RoomChoiceKind::Dig|RoomChoiceKind::SingingBowl){
         return Err(RunSessionError::Input("M27 room choice is unsupported by frozen Run schemas"));
     }
-    match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::choice(kind),RunEncodingProfile::M25WatcherHeart=>schema_m25::choice(kind),RunEncodingProfile::M23WatcherAct2=>schema_m23::choice(kind),RunEncodingProfile::M22WatcherAct1=>schema_m22::choice(kind),RunEncodingProfile::M21Watcher=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M17Defect=>schema_m17::choice(kind),RunEncodingProfile::M18Defect=>schema_m18::choice(kind),RunEncodingProfile::M19Defect=>schema_m19::choice(kind),RunEncodingProfile::M20Defect=>schema_m20::choice(kind),RunEncodingProfile::M9=>Ok(schema::choice(kind)),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>Ok(schema_m10::choice(kind)),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind),RunEncodingProfile::M15=>schema_m15::choice(kind),RunEncodingProfile::M16Defect=>Ok(schema_m10::choice(kind))}
+    match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::choice(kind),RunEncodingProfile::M25WatcherHeart=>schema_m25::choice(kind),RunEncodingProfile::M23WatcherAct2=>schema_m23::choice(kind),RunEncodingProfile::M22WatcherAct1=>schema_m22::choice(kind),RunEncodingProfile::M21Watcher=>schema_m10::choice(kind),RunEncodingProfile::M17Defect=>schema_m17::choice(kind),RunEncodingProfile::M18Defect=>schema_m18::choice(kind),RunEncodingProfile::M19Defect=>schema_m19::choice(kind),RunEncodingProfile::M20Defect=>schema_m20::choice(kind),RunEncodingProfile::M9=>schema::choice(kind),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::choice(kind),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind),RunEncodingProfile::M15=>schema_m15::choice(kind),RunEncodingProfile::M16Defect=>schema_m10::choice(kind)}
 }
 fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::zone(name),RunEncodingProfile::M25WatcherHeart=>schema_m25::zone(name),RunEncodingProfile::M23WatcherAct2=>schema_m23::zone(name),RunEncodingProfile::M22WatcherAct1=>schema_m22::zone(name),RunEncodingProfile::M21Watcher=>schema_m10::zone(name),RunEncodingProfile::M17Defect=>schema_m17::zone(name),RunEncodingProfile::M18Defect=>schema_m18::zone(name),RunEncodingProfile::M19Defect=>schema_m19::zone(name),RunEncodingProfile::M20Defect=>schema_m20::zone(name),RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name),RunEncodingProfile::M15=>schema_m15::zone(name),RunEncodingProfile::M16Defect=>schema_m10::zone(name)}}
 fn cost_kind(kind:CardCostKind)->i64{match kind{CardCostKind::Fixed=>1,CardCostKind::X=>2,CardCostKind::Unplayable=>3}}
@@ -519,7 +519,7 @@ mod m10_v1_boundary_tests{
         decision.combat=Some(view);
         decision.room=None;
         decision.objects.clear();decision.candidates.clear();decision.offers.clear();decision.selection=None;
-        decision.player=PublicPlayer{relic_counters:vec![],character:Character::Ironclad,hp:80,max_hp:80,gold:0,relics:vec![],potions:vec![None;3],keys:[false;3]};
+        decision.player=PublicPlayer{bottled_cards:vec![],relic_counters:vec![],character:Character::Ironclad,hp:80,max_hp:80,gold:0,relics:vec![],potions:vec![None;3],keys:[false;3]};
         decision.act=4;decision.floor=51;decision.combat_progress=CombatProgress::default();
         assert!(matches!(encode_run(&decision,None,&RunCapacities::m9_default()),Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode the Shield-and-Spear encounter"))));
     }
@@ -972,4 +972,57 @@ mod m25_tests {
             .iter().filter(|value| **value == 1).count(), 3);
     }
 
+}
+
+#[cfg(test)]
+mod m34a_v1_choice_tests {
+    use super::*;
+
+    /// M34a a5: the frozen v1 choice vocabulary has no row for these kinds; every encoder that
+    /// reaches the v1 mapper must reject them with `Input` instead of encoding padding 0.
+    #[test]
+    fn v1_choice_mapper_rejects_unknown_kinds() {
+        let unknown = [
+            RoomChoiceKind::NeowBlessing { category: 0, reward: NeowReward::ThreeCards, drawback: None },
+            RoomChoiceKind::EventOption { stage: 0, option: 0 },
+            RoomChoiceKind::EventCard { stage: 0, option: 0, card: None },
+            RoomChoiceKind::EventPotion { stage: 0, option: 0, potion: None },
+            RoomChoiceKind::EventRelic { stage: 0, option: 0, relic: None },
+            RoomChoiceKind::Lift, RoomChoiceKind::Toke, RoomChoiceKind::Dig, RoomChoiceKind::SingingBowl,
+        ];
+        let profiles = [
+            RunEncodingProfile::M9, RunEncodingProfile::M10, RunEncodingProfile::M12, RunEncodingProfile::M13,
+            RunEncodingProfile::M14, RunEncodingProfile::M15, RunEncodingProfile::M16Defect, RunEncodingProfile::M17Defect,
+            RunEncodingProfile::M18Defect, RunEncodingProfile::M19Defect, RunEncodingProfile::M20Defect,
+            RunEncodingProfile::M21Watcher, RunEncodingProfile::M22WatcherAct1, RunEncodingProfile::M23WatcherAct2,
+            RunEncodingProfile::M24WatcherAct3, RunEncodingProfile::M25WatcherHeart, RunEncodingProfile::CombatV2,
+        ];
+        for profile in profiles {
+            for kind in &unknown {
+                assert!(matches!(choice_id(profile, kind), Err(RunSessionError::Input(_))),
+                    "{profile:?} must reject {kind:?}, got {:?}", choice_id(profile, kind));
+            }
+            // Known kinds keep their frozen nonzero rows.
+            assert_eq!(choice_id(profile, &RoomChoiceKind::Proceed), Ok(27), "{profile:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod m34a_captured_hits_tests {
+    use super::*;
+    use spire_core::{combat::{enemies::ascension::heart_invincible, intents::hits_for}, content::EnemyId};
+
+    /// M34a a2 (review I2): the frozen captured table and the 300 literal stay untouched and equal the
+    /// engine's planned hits and Heart cap at A0, the only ascension captured profiles admit.
+    #[test]
+    fn captured_hits_table_matches_engine_at_a0() {
+        for (enemy, name) in [(EnemyId::SpireShield, "shield_bash"), (EnemyId::SpireShield, "shield_smash"),
+            (EnemyId::CorruptHeart, "heart_echo"), (EnemyId::SpireSpear, "spear_burn_strike"),
+            (EnemyId::SpireSpear, "spear_skewer"), (EnemyId::CorruptHeart, "heart_blood_shots")] {
+            assert_eq!(intent_hits(name), hits_for(enemy, name, 0, None).map(i64::from), "{name}");
+        }
+        assert_eq!(intent_hits("heart_debilitate"), None);
+        assert_eq!(heart_invincible(0), 300, "captured Heart cap literal");
+    }
 }

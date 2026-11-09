@@ -117,3 +117,5 @@ mod m27_act4_producers;
 mod m27_potion_shop;
 #[cfg(feature="m27-diagnostics")]
 mod m27_potion_rewards;
+mod m34a_public_view;
+mod m34a_event_params;

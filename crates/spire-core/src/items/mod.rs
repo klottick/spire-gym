@@ -252,6 +252,8 @@ impl CombatItemContext {
     pub(crate) fn set_local(&mut self,id:RelicId,value:i32){if value==0{self.local.remove(&id);}else{self.local.insert(id,value);}}
     /// The permanent card instance a bottle relic is linked to.
     pub(crate) fn relic_card(&self,id:RelicId)->Option<u64>{self.relic_cards.get(&id).copied()}
+    /// Bottled relic links in relic order (M34a a4 public marker).
+    pub(crate) fn bottled_cards(&self)->Vec<(RelicId,u64)>{self.relic_cards.iter().map(|(relic,instance)|(*relic,*instance)).collect()}
     /// M26 §6.3 class L: an M25 Watcher card law is reachable under the M25 profile or the
     /// complete card capability (seam map §3; one helper, no per-site character list).
     pub(crate) fn m25_cards(&self)->bool{self.watcher_heart||self.complete_cards}

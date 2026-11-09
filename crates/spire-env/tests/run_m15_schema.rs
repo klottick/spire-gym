@@ -122,13 +122,13 @@ fn tensor<'a>(descriptor: &'a Value, key: &str) -> &'a Value {
 }
 
 fn fixture_decision() -> PublicDecision {
-    PublicDecision {
+    PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M15SilentHeart),
         room: None,
         reward_total: 0,
         act: 4,
         floor: 54,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: vec![],
             character: Character::Silent,
             hp: 70,
@@ -219,6 +219,9 @@ fn enemy(id: EnemyId, instance: usize, intent: &'static str) -> FullEnemyView {
         escaped: false,
         half_dead: false,
         logical_slot: instance as u8,
+        intent_category: None,
+        intent_hits: None,
+        invincible_cap: None,
     }
 }
 

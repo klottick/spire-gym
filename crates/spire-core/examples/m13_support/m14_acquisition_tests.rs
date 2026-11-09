@@ -41,13 +41,13 @@ fn decision(
             object: None,
         })
         .collect();
-    PublicDecision {
+    PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M14SilentAct3),
         room: Some(RoomView { kind: room_kind, choices: room_choices }),
         reward_total: 0,
         act: 3,
         floor: 40,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: Vec::new(),
             character: Character::Silent,
             hp: 50,

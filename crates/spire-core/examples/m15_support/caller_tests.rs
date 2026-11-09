@@ -21,13 +21,13 @@ fn move_candidate(id: u64) -> Candidate {
 }
 
 fn decision(kind: RoomViewKind, choices: Vec<RoomChoiceView>, keys: [bool; 3]) -> PublicDecision {
-    PublicDecision {
+    PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M15SilentHeart),
         room: Some(RoomView { kind, choices }),
         reward_total: 0,
         act: 1,
         floor: 1,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: vec![], character: Character::Silent, hp: 50, max_hp: 70, gold: 99,
             relics: vec![], potions: vec![None; 3], keys,
         },
@@ -407,13 +407,13 @@ mod m15_receipt_journal_tests {
     };
 
     fn decision(actions: &[u64], floor: u32) -> PublicDecision {
-        PublicDecision {
+        PublicDecision {room_params:None,
             content_profile: Some(RoomScenario::M15SilentHeart),
             room: Some(RoomView { kind: RoomViewKind::Map, choices: vec![] }),
             reward_total: 0,
             act: 1,
             floor,
-            player: PublicPlayer {
+            player: PublicPlayer {bottled_cards:vec![],
                 relic_counters: vec![], character: Character::Silent, hp: 50, max_hp: 70, gold: 99,
                 relics: vec![], potions: vec![None; 3], keys: [false; 3],
             },

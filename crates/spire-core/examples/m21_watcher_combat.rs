@@ -50,18 +50,18 @@ fn execute(o:&Options,s:Scenario)->Result<(),String>{
     emit(json!({"kind":"configuration","scenario":s.name(),"seed":o.seed,"budget":o.budget,"encounter":s.encounter().as_str(),"input_rng":format!("{rng:?}"),"resources":resources(&before),"source_manifest":std::env::var("M21_SOURCE_MANIFEST_SHA256").ok(),"grade":if s==Scenario::Starter{"canonical authored combat"}else{"supplied diagnostic resources"}}));
     if let Err(error)=run.enter_training_combat(s.encounter()){emit(json!({"kind":"result","scenario":s.name(),"seed":o.seed,"status":"startup_fault","error":format!("{error:?}"),"steps":[]}));return Err("startup failed; owner retained in raw error".into())}
     let initial=run.decision().map_err(|e|format!("initial decision: {e:?}"))?;
-    emit(json!({"kind":"initial","scenario":s.name(),"seed":o.seed,"public_debug":format!("{initial:?}"),"public_sha256":sha(&format!("{initial:?}"))}));
+    emit(json!({"kind":"initial","scenario":s.name(),"seed":o.seed,"public_debug":spire_core::run::pre_m34a_debug(&format!("{initial:?}")),"public_sha256":sha(&spire_core::run::pre_m34a_debug(&format!("{initial:?}")))}));
     if o.prepare_only{return Ok(())}
     let mut steps=Vec::new();let mut witness=Witness::default();
     for n in 0..=o.budget{
         let decision=run.decision().map_err(|e|format!("public boundary: {e:?}"))?;witness.inspect(&decision);
         let settled=decision.last_combat.as_ref().map(|r|r.outcome);
         if decision.combat.is_none()||n==o.budget{
-            emit(json!({"kind":"result","scenario":s.name(),"seed":o.seed,"status":if settled.is_some(){"settled"}else{"budget"},"accepted_steps":steps.len(),"outcome":outcome(settled),"steps":steps,"resources":resources(&decision),"settlement":format!("{:?}",decision.last_combat),"public_sha256":sha(&format!("{decision:?}")),"witness":witness.value(s,settled)}));
+            emit(json!({"kind":"result","scenario":s.name(),"seed":o.seed,"status":if settled.is_some(){"settled"}else{"budget"},"accepted_steps":steps.len(),"outcome":outcome(settled),"steps":steps,"resources":resources(&decision),"settlement":format!("{:?}",decision.last_combat),"public_sha256":sha(&spire_core::run::pre_m34a_debug(&format!("{decision:?}"))),"witness":witness.value(s,settled)}));
             return if settled.is_some(){Ok(())}else{Err("budget unfinished; no fabricated outcome".into())}
         }
         let action=pick(&decision,s)?;witness.action(&decision,&action);let value=action_value(&action);
-        emit(json!({"kind":"action","scenario":s.name(),"seed":o.seed,"ordinal":n,"public_debug":format!("{decision:?}"),"public_sha256":sha(&format!("{decision:?}")),"action":value}));
+        emit(json!({"kind":"action","scenario":s.name(),"seed":o.seed,"ordinal":n,"public_debug":spire_core::run::pre_m34a_debug(&format!("{decision:?}")),"public_sha256":sha(&spire_core::run::pre_m34a_debug(&format!("{decision:?}"))),"action":value}));
         match run.choose_combat(action){Ok(t)=>{
             let next=run.decision().map_err(|e|format!("post-step public boundary: {e:?}"))?;
             let end=next.last_combat.as_ref().map(|r|r.outcome);

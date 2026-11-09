@@ -12,6 +12,20 @@ pub(in crate::run) mod event_exec;
 pub(in crate::run) mod events;
 
 
+/// The numbers a Standard room displays (M34a a3/a4); `None` outside `RoomScenario::Standard`.
+pub(in crate::run) fn room_params(run:&Run,room:Option<&RoomView>)->Option<RoomParams>{
+    if run.state.room_loop.as_ref().map(|r|r.scenario)!=Some(RoomScenario::Standard){return None}
+    let mut params=RoomParams::default();
+    let Some(room)=room else {return Some(params)};
+    if room.kind==RoomViewKind::Treasure&&room.choices.iter().any(|c|c.kind==RoomChoiceKind::OpenChest&&c.status==RoomChoiceStatus::Offered){
+        params.stage[0]=map::chest_key(run).ok().and_then(|key|treasure::preview_size(&run.state,&key).ok());
+    }
+    if matches!(room.kind,RoomViewKind::Event(_)){
+        params.rows=room.choices.iter().filter_map(|c|event_frame::row_params(run,&c.kind).map(|values|(c.id,values))).collect();
+    }
+    Some(params)
+}
+
 /// The highest ascension the standard Run admits (M29–M33 design §6.1): the game's A20.
 pub(crate) const STANDARD_MAX_ASCENSION:u8=20;
 

@@ -124,12 +124,17 @@ fn enter_event(run:&mut Run,event:EventId,node:NodeId)->Result<(),RunError>{
     Ok(())
 }
 
+/// The ordinary chest's RNG key: act, floor and the current node.
+pub(in crate::run) fn chest_key(run:&Run)->Result<[u64;4],RunError>{
+    let node=run.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
+    Ok([u64::from(run.state.act),u64::from(run.state.floor),node.0,0x7C])
+}
+
 /// Open the ordinary chest of a standard Treasure room (design §6.4): M27's `onChestOpen` pass,
 /// gold and base relic with the linked Sapphire, then the separate after-open pass.
 pub(in crate::run) fn open_chest(run:&mut Run)->Result<RunTransition,RunError>{
     let mut staged=run.clone();
-    let node=staged.state.map.as_ref().and_then(|map|map.current).ok_or(RunError::InvalidAction)?;
-    let key=[u64::from(staged.state.act),u64::from(staged.state.floor),node.0,0x7C];
+    let key=chest_key(&staged)?;
     let rows=super::treasure::open_rows(&mut staged.state,&key)?;
     let mut rows=rows.into_iter().map(|kind|(kind,None)).collect::<Vec<_>>();
     rows.push((RoomChoiceKind::Proceed,None));

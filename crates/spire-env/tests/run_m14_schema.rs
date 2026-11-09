@@ -264,7 +264,7 @@ fn m14_every_finite_row_maps_to_its_descriptor_name_and_foreign_rows_reject() {
     let descriptor_enemy = vocab["enemy"].as_array().unwrap();
     for encounter in ACT3_ENCOUNTERS {
         let public = act3_combat(encounter, &decision);
-        let encoded = encode_run_m14(&spire_core::run::PublicDecision { combat: Some(public.clone()), ..decision.clone() }, None, &caps)
+        let encoded = encode_run_m14(&spire_core::run::PublicDecision {room_params:None, combat: Some(public.clone()), ..decision.clone() }, None, &caps)
             .unwrap_or_else(|error| panic!("actual Act3 setup {encounter:?} must encode: {error:?}"));
         let enemies = group(&encoded, "enemies");
         let columns = *enemies.shape.last().unwrap();

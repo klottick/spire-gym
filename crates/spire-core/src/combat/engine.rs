@@ -1344,6 +1344,11 @@ impl Combat {
     #[cfg(feature = "m27-diagnostics")]
     pub fn m27_state_debug(&self) -> String { format!("{:?}", self.state) }
 
+    /// Bottled relic links carried by the combat's item context (M34a a4 public marker).
+    pub(crate) fn bottled_cards(&self) -> Vec<(crate::content::RelicId, u64)> {
+        self.state.item_context.as_ref().map_or_else(Vec::new, |items| items.bottled_cards())
+    }
+
     pub fn public_full(&self) -> Result<CombatPublic, crate::run::RunError> {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         if !self.state.full_runtime { return Err(crate::run::RunError::InvalidAction); }

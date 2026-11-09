@@ -35,7 +35,7 @@ fn replay(template:&[u8],transcript:&str)->Result<Value,String>{
  let record=CombatEpisodeRecord::from_json(&bytes).map_err(|e|format!("shared record import: {e:?}"))?;
  let report=replay_m21_combat(&record,combat_policy_capacities()).map_err(|e|format!("same-choice semantic replay: {e:?}"))?;
  let decision=report.final_decision.as_ref().ok_or("no readable replay decision")?;
- let actual=sha(&format!("{decision:?}"));let expected=result["public_sha256"].as_str();let full=matches!(result["status"].as_str(),Some("settled"|"budget"));
+ let actual=sha(&spire_core::run::pre_m34a_debug(&format!("{decision:?}")));let expected=result["public_sha256"].as_str();let full=matches!(result["status"].as_str(),Some("settled"|"budget"));
  if full&&(Some(actual.as_str())!=expected||report.accepted_count!=record.steps.len()||format!("{:?}",report.outcome)!=format!("{:?}",record.outcome)){return Err("same-choice final public/count/outcome mismatch".into())}
  Ok(json!({"kind":"same_choice_replay","scenario":config["scenario"],"seed":config["seed"],"status":if full{"matched"}else{"accepted_prefix_only_core_fault_requires_disposition"},"accepted_steps":report.accepted_count,"rewards":report.rewards,"outcome":result["outcome"],"public_sha256":actual,"core_public_sha256":result["public_sha256"],"full_public_match":full,"fault":result["fault"],"record":serde_json::from_slice::<Value>(&record.to_json().map_err(|e|format!("record export: {e:?}"))?).map_err(|e|e.to_string())?}))
 }

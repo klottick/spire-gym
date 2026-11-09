@@ -35,7 +35,7 @@ fn case(base:&Path,row:&Value,freeze:&str)->Result<Case>{
 fn action(template:&RunEpisodeRecord,value:&Value)->Result<GameAction>{let mut v:Value=serde_json::from_slice(&native(template.to_json())?).map_err(|e|e.to_string())?;v["steps"]=json!([{"action":value,"reward":0,"terminal":null}]);v["terminal"]=Value::Null;v["fault"]=Value::Null;v["closed"]=json!(false);let r=native(RunEpisodeRecord::from_json(&serde_json::to_vec(&v).map_err(|e|e.to_string())?))?;Ok(r.steps[0].action.clone())}
 fn public(rep:&RunReproduction)->Result<&PublicDecision>{rep.latest_decision.as_ref().ok_or("missing Run")?.as_ref().map_err(|e|format!("{e:?}"))}
 fn snapshot(rep:&RunReproduction,row:&Value)->Result<()>{
- match public(rep){Ok(d)=>check(row["decision_debug"].as_str()==Some(format!("{d:?}").as_str()),"public decision/resources/records/candidates differ")?,Err(error)=>check(row["decision_error"].as_str()==Some(error.as_str()),"public core fault differs")?,}
+ match public(rep){Ok(d)=>check(row["decision_debug"].as_str()==Some(spire_core::run::pre_m34a_debug(&format!("{d:?}")).as_str()),"public decision/resources/records/candidates differ")?,Err(error)=>check(row["decision_error"].as_str()==Some(error.as_str()),"public core fault differs")?,}
  check(row["map_debug"].as_str()==Some(format!("{:?}",rep.latest_map).as_str()),"public map differs")
 }
 fn index(d:&PublicDecision,a:&GameAction,crosscheck:&Value)->Result<RunActionIndex>{let i=d.candidates.iter().position(|c|&c.action==a).ok_or("recorded semantic action is not currently offered")?;if !crosscheck.is_null(){check(crosscheck.as_u64()==Some(i as u64),"recorded candidate order mismatch")?;}Ok(RunActionIndex(i as i64))}

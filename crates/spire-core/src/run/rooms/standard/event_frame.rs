@@ -113,6 +113,14 @@ pub(in crate::run) fn row_object(run:&Run,kind:&RoomChoiceKind)->Option<PublicOb
     run.state.deck.iter().find(|c|c.instance==instance).map(|c|PublicObject{instance:c.instance,id:c.id,upgrades:c.upgrades,misc:c.misc})
 }
 
+/// The numbers an event option row displays (M34a a3); `None` when the row shows none.
+pub(in crate::run) fn row_params(run:&Run,kind:&RoomChoiceKind)->Option<[Option<i32>;3]>{
+    let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..}|RoomChoiceKind::EventRelic{stage,option,..})=*kind else {return None};
+    let frame=frame(run).ok()?;
+    let values=(events::body(frame.event)?.params?)(&run.state,&frame.captured,stage,option);
+    values.iter().any(Option::is_some).then_some(values)
+}
+
 /// Whether an option row is offered now: its outcomes pass every executor precondition.
 pub(in crate::run) fn enabled(run:&Run,kind:&RoomChoiceKind)->bool{
     let (RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..}|RoomChoiceKind::EventRelic{stage,option,..})=*kind else {return true};

@@ -34,13 +34,13 @@ fn choose_candidate(id: u64) -> Candidate {
 }
 
 fn decision(kind: RoomViewKind, choices: Vec<RoomChoiceView>) -> PublicDecision {
-    PublicDecision {
+    PublicDecision {room_params:None,
         content_profile: Some(RoomScenario::M20DefectHeart),
         room: Some(RoomView { kind, choices }),
         reward_total: 0,
         act: 1,
         floor: 1,
-        player: PublicPlayer {
+        player: PublicPlayer {bottled_cards:vec![],
             relic_counters: vec![], character: Character::Defect, hp: 40, max_hp: 70, gold: 99,
             relics: vec![], potions: vec![None; 3], keys: [false; 3],
         },
@@ -81,6 +81,7 @@ fn enemy(hp: i32, instance: &str) -> FullEnemyView {
         instance_id: EnemyHandle::parse(instance).unwrap(), enemy_id: EnemyId::Cultist,
         hp, max_hp: 40, block: 0, powers: vec![], intent: FullIntentId::Attack,
         intent_damage: None, replaced: false, escaped: false, half_dead: false, logical_slot: 0,
+        intent_category: None, intent_hits: None, invincible_cap: None,
     }
 }
 
@@ -229,6 +230,7 @@ fn m20_caller_combat_policy_prefers_the_public_survival_order_only_under_publish
         instance_id: EnemyHandle::parse("enemy-1").unwrap(), enemy_id: EnemyId::Cultist,
         hp: 30, max_hp: 30, block: 0, powers: vec![], intent: FullIntentId::Attack,
         intent_damage: Some(5), replaced: false, escaped: false, half_dead: false, logical_slot: 0,
+        intent_category: None, intent_hits: None, invincible_cap: None,
     });
     combat.targets.push((TargetId(1), true));
     combat.hand = vec![live_card(CardId::ColdSnap, 20), live_card(CardId::DefendBlue, 21)];

@@ -80,6 +80,7 @@ pub(in crate::run) const FACE_TRADER:Body=Body{
             _=>Err(RunError::InvalidAction),
         }
     },
+    params:Some(|s,c,stage,option|super::params(EventId::FaceTrader,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -195,6 +196,7 @@ pub(in crate::run) const WE_MEET_AGAIN:Body=Body{
         };
         Ok(vec![gift,Outcome::ObtainRelic(RelicChoice::RandomTier),Outcome::NextStage(DONE)])
     },
+    params:Some(|s,c,stage,option|super::params(EventId::WeMeetAgain,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -215,6 +217,7 @@ pub(in crate::run) const WOMAN_IN_BLUE:Body=Body{
             _=>Err(RunError::InvalidAction),
         }
     },
+    params:Some(|s,c,stage,option|super::params(EventId::WomanInBlue,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -276,6 +279,7 @@ pub(in crate::run) const DESIGNER:Body=Body{
         list.push(Outcome::NextStage(DONE));
         Ok(list)
     },
+    params:Some(|s,c,stage,option|super::params(EventId::Designer,s,c,stage,option)),
     ..PLAIN
 };
 
@@ -316,6 +320,7 @@ pub(in crate::run) const KNOWING_SKULL:Body=Body{
         }
         Ok(list)
     },
+    params:Some(|s,c,stage,option|super::params(EventId::KnowingSkull,s,c,stage,option)),
     ..PLAIN
 };
 

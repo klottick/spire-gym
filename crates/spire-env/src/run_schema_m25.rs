@@ -298,7 +298,7 @@ pub(crate) fn profile(profile: RoomScenario) -> Result<i64, RunSessionError> {
 }
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
     if let RoomChoiceKind::Card { id, upgrades } = choice { permanent(*id, *upgrades)?; }
-    Ok(v1::choice(choice))
+    v1::choice(choice)
 }
 pub(crate) fn operation(selection: &SelectionView) -> Result<i64, RunSessionError> {
     let name = match selection.operation {

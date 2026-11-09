@@ -299,7 +299,7 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> {
 }
 
 pub(crate) fn choice(choice: &RoomChoiceKind) -> Result<i64, RunSessionError> {
-    Ok(v1::choice(choice))
+    v1::choice(choice)
 }
 
 pub(crate) fn zone(name: &str) -> Result<i64, RunSessionError> {
