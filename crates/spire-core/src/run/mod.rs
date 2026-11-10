@@ -8,6 +8,10 @@ mod training;
 pub use training::*;
 mod observe;
 mod reward;
+pub use reward::{RewardItem,RewardItemKind,RewardLedgerSnapshot,itemise_rewards};
+/// M34b: Standard's admitted ascension ceiling and the descriptor's event params semantics (M34a).
+pub use rooms::standard::STANDARD_MAX_ASCENSION;
+pub use rooms::standard::events::{ParamMeaning,PARAM_SEMANTICS};
 pub(crate) mod mutations;
 pub(crate) mod numeric;
 pub(crate) mod rooms;
@@ -42,7 +46,7 @@ pub use rooms::m18_content::{M18_DEFECT_ACT2_CARDS,M18_DEFECT_ACT2_RELICS,M18_DE
 
 pub use rooms::m19_content::{M19_DEFECT_ACT3_CARDS,M19_DEFECT_ACT3_RELICS,M19_DEFECT_ACT3_POTIONS};
 
-#[cfg(any(test,feature="m20-diagnostics",feature="m22-diagnostics"))]
+#[cfg(any(test,feature="m20-diagnostics",feature="m22-diagnostics",feature="m34-diagnostics"))]
 pub mod diagnostics;
 pub use rooms::m20_content::{M20_DEFECT_HEART_CARDS,M20_DEFECT_HEART_RELICS,M20_DEFECT_HEART_POTIONS};
 

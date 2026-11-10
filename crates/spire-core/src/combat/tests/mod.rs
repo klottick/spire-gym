@@ -237,3 +237,4 @@ pub(crate) mod m27_state {
     }
 }
 mod m34a_public_view;
+mod m34b_stasis;

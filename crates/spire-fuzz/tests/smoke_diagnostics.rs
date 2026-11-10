@@ -44,7 +44,7 @@ fn all_diagnostic_drivers_policies_characters_acts_and_profiles_are_deterministi
     assert_diagnostics_coverage(&second);
     assert_smoke_failures_are_engine_repros(&first, "first");
     assert_smoke_failures_are_engine_repros(&second, "second");
-    assert_eq!(first.episodes, 37);
+    assert_eq!(first.episodes, 22 + RUN_PROFILES.len() as u64);
     assert_eq!(first.driver_descriptions["items"]["starts_at"], "Act4 map");
     assert_eq!(first.driver_descriptions["items"]["neow"], false);
     assert_eq!(first.driver_descriptions["items"]["encode"], "n/a");

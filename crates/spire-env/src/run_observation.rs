@@ -18,6 +18,7 @@ use crate::run_schema_m16 as schema_m16;
 use crate::run_schema_m17 as schema_m17;
 use crate::run_schema_m18 as schema_m18;
 use crate::run_schema_m19 as schema_m19;
+use crate::run_schema_standard as schema_standard;
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RunFeatureGroup{pub key:&'static str,pub shape:Vec<usize>,pub values:Vec<i64>,pub known:Vec<i8>,pub occupied:Option<Vec<i8>>}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -27,25 +28,29 @@ fn number<T:TryInto<i64>>(v:T)->Result<i64,RunSessionError>{v.try_into().map_err
 fn reserved<T:Clone>(len:usize,value:T)->Result<Vec<T>,RunSessionError>{let mut v=Vec::new();v.try_reserve_exact(len).map_err(|_|RunSessionError::DeliveryFault("Run encoding allocation failed"))?;v.resize(len,value);Ok(v)}
 fn capacity(group:&'static str,required:usize,cap:usize)->Result<(),RunSessionError>{if required>cap{Err(RunSessionError::Capacity{group,required,capacity:cap})}else{Ok(())}}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunEncodingProfile{M9,M10,M12,M13,M14,M15,M16Defect,M17Defect,M18Defect,M19Defect,M20Defect,M21Watcher,M22WatcherAct1,M23WatcherAct2,M24WatcherAct3,M25WatcherHeart,CombatV2}
+pub(crate) enum RunEncodingProfile{M9,M10,M12,M13,M14,M15,M16Defect,M17Defect,M18Defect,M19Defect,M20Defect,M21Watcher,M22WatcherAct1,M23WatcherAct2,M24WatcherAct3,M25WatcherHeart,CombatV2,Standard}
 impl RunEncodingProfile{fn extended(self)->bool{self!=Self::M9}}
-fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::card(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::card(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::card(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::card(id),RunEncodingProfile::M21Watcher=>schema_m21::card(id),RunEncodingProfile::M17Defect=>schema_m17::card(id),RunEncodingProfile::M18Defect=>schema_m18::card(id),RunEncodingProfile::M19Defect=>schema_m19::card(id),RunEncodingProfile::M20Defect=>schema_m20::card(id),RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id),RunEncodingProfile::M13=>schema_m13::card(id),RunEncodingProfile::M14=>schema_m14::card(id),RunEncodingProfile::M15=>schema_m15::card(id),RunEncodingProfile::M16Defect=>schema_m16::card(id)}}
-fn enemy_id(profile:RunEncodingProfile,id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::enemy(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::enemy(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::enemy(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::enemy(id),RunEncodingProfile::M21Watcher=>crate::combat_policy::closure_enemy(id),RunEncodingProfile::M17Defect=>schema_m17::enemy(id),RunEncodingProfile::M18Defect=>schema_m18::enemy(id),RunEncodingProfile::M19Defect=>schema_m19::enemy(id),RunEncodingProfile::M20Defect=>schema_m20::enemy(id),
+/// M34b: Standard-only inputs the public decision does not carry (both are player knowledge).
+#[derive(Clone,Copy,Debug,PartialEq,Eq)]
+pub(crate) struct StandardContext{pub ascension:u8,pub run_selection:Option<spire_core::run::RoomSelectionOperation>}
+fn card_id(profile:RunEncodingProfile,id:spire_core::content::CardId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::card(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::card(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::card(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::card(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::card(id),RunEncodingProfile::M21Watcher=>schema_m21::card(id),RunEncodingProfile::M17Defect=>schema_m17::card(id),RunEncodingProfile::M18Defect=>schema_m18::card(id),RunEncodingProfile::M19Defect=>schema_m19::card(id),RunEncodingProfile::M20Defect=>schema_m20::card(id),RunEncodingProfile::M9=>schema::card(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::card(id),RunEncodingProfile::M12=>schema_m12::card(id),RunEncodingProfile::M13=>schema_m13::card(id),RunEncodingProfile::M14=>schema_m14::card(id),RunEncodingProfile::M15=>schema_m15::card(id),RunEncodingProfile::M16Defect=>schema_m16::card(id)}}
+fn enemy_id(profile:RunEncodingProfile,id:spire_core::content::EnemyId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::enemy(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::enemy(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::enemy(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::enemy(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::enemy(id),RunEncodingProfile::M21Watcher=>crate::combat_policy::closure_enemy(id),RunEncodingProfile::M17Defect=>schema_m17::enemy(id),RunEncodingProfile::M18Defect=>schema_m18::enemy(id),RunEncodingProfile::M19Defect=>schema_m19::enemy(id),RunEncodingProfile::M20Defect=>schema_m20::enemy(id),
     RunEncodingProfile::M9=>schema::enemy(id),RunEncodingProfile::M10=>schema_m10::enemy(id),
     RunEncodingProfile::CombatV2=>crate::combat_policy::closure_enemy(id),RunEncodingProfile::M12=>schema_m12::enemy(id),RunEncodingProfile::M13=>schema_m13::enemy(id),RunEncodingProfile::M14=>schema_m14::enemy(id),RunEncodingProfile::M15=>schema_m15::enemy(id),RunEncodingProfile::M16Defect=>schema_m16::enemy(id)}}
-fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::encounter(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::encounter(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::encounter(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::encounter(id),RunEncodingProfile::M21Watcher=>schema_m10::encounter(id),RunEncodingProfile::M17Defect=>schema_m17::encounter(id),RunEncodingProfile::M18Defect=>schema_m18::encounter(id),RunEncodingProfile::M19Defect=>schema_m19::encounter(id),RunEncodingProfile::M20Defect=>schema_m20::encounter(id),RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id),RunEncodingProfile::M13=>schema_m13::encounter(id),RunEncodingProfile::M14=>schema_m14::encounter(id),RunEncodingProfile::M15=>schema_m15::encounter(id),RunEncodingProfile::M16Defect=>schema_m16::encounter(id)}}
-fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::relic(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::relic(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::relic(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::relic(id),RunEncodingProfile::M21Watcher=>schema_m21::relic(id),RunEncodingProfile::M17Defect=>schema_m17::relic(id),RunEncodingProfile::M18Defect=>schema_m18::relic(id),RunEncodingProfile::M19Defect=>schema_m19::relic(id),RunEncodingProfile::M20Defect=>schema_m20::relic(id),RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id),RunEncodingProfile::M13=>schema_m13::relic(id),RunEncodingProfile::M14=>schema_m14::relic(id),RunEncodingProfile::M15=>schema_m15::relic(id),RunEncodingProfile::M16Defect=>schema_m16::relic(id)}}
-fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::potion(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::potion(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::potion(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::potion(id),RunEncodingProfile::M21Watcher=>schema_m21::potion(id),RunEncodingProfile::M17Defect=>schema_m17::potion(id),RunEncodingProfile::M18Defect=>schema_m18::potion(id),RunEncodingProfile::M19Defect=>schema_m19::potion(id),RunEncodingProfile::M20Defect=>schema_m20::potion(id),RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id),RunEncodingProfile::M13=>schema_m13::potion(id),RunEncodingProfile::M14=>schema_m14::potion(id),RunEncodingProfile::M15=>schema_m15::potion(id),RunEncodingProfile::M16Defect=>schema_m16::potion(id)}}
-fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::event(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::event(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::event(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::event(id),RunEncodingProfile::M21Watcher=>schema_m10::event(id),RunEncodingProfile::M17Defect=>schema_m17::event(id),RunEncodingProfile::M18Defect=>schema_m18::event(id),RunEncodingProfile::M19Defect=>schema_m19::event(id),RunEncodingProfile::M20Defect=>schema_m20::event(id),RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id),RunEncodingProfile::M14=>schema_m14::event(id),RunEncodingProfile::M15=>schema_m15::event(id),RunEncodingProfile::M16Defect=>schema_m10::event(id)}}
-fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::room(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::room(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::room(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::room(id),RunEncodingProfile::M21Watcher=>schema_m10::room(id),RunEncodingProfile::M17Defect=>schema_m17::room(id),RunEncodingProfile::M18Defect=>schema_m18::room(id),RunEncodingProfile::M19Defect=>schema_m19::room(id),RunEncodingProfile::M20Defect=>schema_m20::room(id),RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id),RunEncodingProfile::M14=>schema_m14::room(id),RunEncodingProfile::M15=>schema_m15::room(id),RunEncodingProfile::M16Defect=>schema_m10::room(id)}}
-fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::profile(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::profile(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::profile(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::profile(id),RunEncodingProfile::M21Watcher=>Err(RunSessionError::Input("M21 has no normal Run profile")),RunEncodingProfile::M17Defect=>schema_m17::profile(id),RunEncodingProfile::M18Defect=>schema_m18::profile(id),RunEncodingProfile::M19Defect=>schema_m19::profile(id),RunEncodingProfile::M20Defect=>schema_m20::profile(id),RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id),RunEncodingProfile::M14=>schema_m14::profile(id),RunEncodingProfile::M15=>schema_m15::profile(id),RunEncodingProfile::M16Defect=>Err(RunSessionError::Input("M16 has no normal Run profile"))}}
+fn encounter_id(profile:RunEncodingProfile,id:spire_core::content::EncounterId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::encounter(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::encounter(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::encounter(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::encounter(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::encounter(id),RunEncodingProfile::M21Watcher=>schema_m10::encounter(id),RunEncodingProfile::M17Defect=>schema_m17::encounter(id),RunEncodingProfile::M18Defect=>schema_m18::encounter(id),RunEncodingProfile::M19Defect=>schema_m19::encounter(id),RunEncodingProfile::M20Defect=>schema_m20::encounter(id),RunEncodingProfile::M9=>schema::encounter(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::encounter(id),RunEncodingProfile::M12=>schema_m12::encounter(id),RunEncodingProfile::M13=>schema_m13::encounter(id),RunEncodingProfile::M14=>schema_m14::encounter(id),RunEncodingProfile::M15=>schema_m15::encounter(id),RunEncodingProfile::M16Defect=>schema_m16::encounter(id)}}
+fn relic_id(profile:RunEncodingProfile,id:spire_core::content::RelicId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::relic(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::relic(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::relic(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::relic(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::relic(id),RunEncodingProfile::M21Watcher=>schema_m21::relic(id),RunEncodingProfile::M17Defect=>schema_m17::relic(id),RunEncodingProfile::M18Defect=>schema_m18::relic(id),RunEncodingProfile::M19Defect=>schema_m19::relic(id),RunEncodingProfile::M20Defect=>schema_m20::relic(id),RunEncodingProfile::M9=>schema::relic(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::relic(id),RunEncodingProfile::M12=>schema_m12::relic(id),RunEncodingProfile::M13=>schema_m13::relic(id),RunEncodingProfile::M14=>schema_m14::relic(id),RunEncodingProfile::M15=>schema_m15::relic(id),RunEncodingProfile::M16Defect=>schema_m16::relic(id)}}
+fn potion_id(profile:RunEncodingProfile,id:spire_core::content::PotionId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::potion(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::potion(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::potion(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::potion(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::potion(id),RunEncodingProfile::M21Watcher=>schema_m21::potion(id),RunEncodingProfile::M17Defect=>schema_m17::potion(id),RunEncodingProfile::M18Defect=>schema_m18::potion(id),RunEncodingProfile::M19Defect=>schema_m19::potion(id),RunEncodingProfile::M20Defect=>schema_m20::potion(id),RunEncodingProfile::M9=>schema::potion(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::potion(id),RunEncodingProfile::M12=>schema_m12::potion(id),RunEncodingProfile::M13=>schema_m13::potion(id),RunEncodingProfile::M14=>schema_m14::potion(id),RunEncodingProfile::M15=>schema_m15::potion(id),RunEncodingProfile::M16Defect=>schema_m16::potion(id)}}
+fn event_id(profile:RunEncodingProfile,id:spire_core::content::EventId)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::event(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::event(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::event(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::event(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::event(id),RunEncodingProfile::M21Watcher=>schema_m10::event(id),RunEncodingProfile::M17Defect=>schema_m17::event(id),RunEncodingProfile::M18Defect=>schema_m18::event(id),RunEncodingProfile::M19Defect=>schema_m19::event(id),RunEncodingProfile::M20Defect=>schema_m20::event(id),RunEncodingProfile::M9=>schema::event(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::event(id),RunEncodingProfile::M12=>schema_m12::event(id),RunEncodingProfile::M13=>schema_m13::event(id),RunEncodingProfile::M14=>schema_m14::event(id),RunEncodingProfile::M15=>schema_m15::event(id),RunEncodingProfile::M16Defect=>schema_m10::event(id)}}
+fn room_id(profile:RunEncodingProfile,id:RoomViewKind)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::room(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::room(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::room(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::room(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::room(id),RunEncodingProfile::M21Watcher=>schema_m10::room(id),RunEncodingProfile::M17Defect=>schema_m17::room(id),RunEncodingProfile::M18Defect=>schema_m18::room(id),RunEncodingProfile::M19Defect=>schema_m19::room(id),RunEncodingProfile::M20Defect=>schema_m20::room(id),RunEncodingProfile::M9=>schema::room(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::room(id),RunEncodingProfile::M12=>schema_m12::room(id),RunEncodingProfile::M13=>schema_m13::room(id),RunEncodingProfile::M14=>schema_m14::room(id),RunEncodingProfile::M15=>schema_m15::room(id),RunEncodingProfile::M16Defect=>schema_m10::room(id)}}
+fn profile_id(profile:RunEncodingProfile,id:RoomScenario)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::profile(id),RunEncodingProfile::M24WatcherAct3=>schema_m24::profile(id),RunEncodingProfile::M25WatcherHeart=>schema_m25::profile(id),RunEncodingProfile::M23WatcherAct2=>schema_m23::profile(id),RunEncodingProfile::M22WatcherAct1=>schema_m22::profile(id),RunEncodingProfile::M21Watcher=>Err(RunSessionError::Input("M21 has no normal Run profile")),RunEncodingProfile::M17Defect=>schema_m17::profile(id),RunEncodingProfile::M18Defect=>schema_m18::profile(id),RunEncodingProfile::M19Defect=>schema_m19::profile(id),RunEncodingProfile::M20Defect=>schema_m20::profile(id),RunEncodingProfile::M9=>schema::profile(id),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::profile(id),RunEncodingProfile::M12=>schema_m12::profile(id),RunEncodingProfile::M13=>schema_m13::profile(id),RunEncodingProfile::M14=>schema_m14::profile(id),RunEncodingProfile::M15=>schema_m15::profile(id),RunEncodingProfile::M16Defect=>Err(RunSessionError::Input("M16 has no normal Run profile"))}}
 fn choice_id(profile:RunEncodingProfile,kind:&RoomChoiceKind)->Result<i64,RunSessionError>{
+    if profile==RunEncodingProfile::Standard{return schema_standard::choice(kind)}
     if matches!(kind,RoomChoiceKind::Lift|RoomChoiceKind::Toke|RoomChoiceKind::Dig|RoomChoiceKind::SingingBowl){
         return Err(RunSessionError::Input("M27 room choice is unsupported by frozen Run schemas"));
     }
-    match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::choice(kind),RunEncodingProfile::M25WatcherHeart=>schema_m25::choice(kind),RunEncodingProfile::M23WatcherAct2=>schema_m23::choice(kind),RunEncodingProfile::M22WatcherAct1=>schema_m22::choice(kind),RunEncodingProfile::M21Watcher=>schema_m10::choice(kind),RunEncodingProfile::M17Defect=>schema_m17::choice(kind),RunEncodingProfile::M18Defect=>schema_m18::choice(kind),RunEncodingProfile::M19Defect=>schema_m19::choice(kind),RunEncodingProfile::M20Defect=>schema_m20::choice(kind),RunEncodingProfile::M9=>schema::choice(kind),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::choice(kind),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind),RunEncodingProfile::M15=>schema_m15::choice(kind),RunEncodingProfile::M16Defect=>schema_m10::choice(kind)}
+    match profile{RunEncodingProfile::Standard=>unreachable!("Standard returned above"),RunEncodingProfile::M24WatcherAct3=>schema_m24::choice(kind),RunEncodingProfile::M25WatcherHeart=>schema_m25::choice(kind),RunEncodingProfile::M23WatcherAct2=>schema_m23::choice(kind),RunEncodingProfile::M22WatcherAct1=>schema_m22::choice(kind),RunEncodingProfile::M21Watcher=>schema_m10::choice(kind),RunEncodingProfile::M17Defect=>schema_m17::choice(kind),RunEncodingProfile::M18Defect=>schema_m18::choice(kind),RunEncodingProfile::M19Defect=>schema_m19::choice(kind),RunEncodingProfile::M20Defect=>schema_m20::choice(kind),RunEncodingProfile::M9=>schema::choice(kind),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::choice(kind),RunEncodingProfile::M12=>schema_m12::choice(kind),RunEncodingProfile::M13=>schema_m13::choice(kind),RunEncodingProfile::M14=>schema_m14::choice(kind),RunEncodingProfile::M15=>schema_m15::choice(kind),RunEncodingProfile::M16Defect=>schema_m10::choice(kind)}
 }
-fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::zone(name),RunEncodingProfile::M25WatcherHeart=>schema_m25::zone(name),RunEncodingProfile::M23WatcherAct2=>schema_m23::zone(name),RunEncodingProfile::M22WatcherAct1=>schema_m22::zone(name),RunEncodingProfile::M21Watcher=>schema_m10::zone(name),RunEncodingProfile::M17Defect=>schema_m17::zone(name),RunEncodingProfile::M18Defect=>schema_m18::zone(name),RunEncodingProfile::M19Defect=>schema_m19::zone(name),RunEncodingProfile::M20Defect=>schema_m20::zone(name),RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name),RunEncodingProfile::M15=>schema_m15::zone(name),RunEncodingProfile::M16Defect=>schema_m10::zone(name)}}
+fn zone_id(profile:RunEncodingProfile,name:&str)->Result<i64,RunSessionError>{match profile{RunEncodingProfile::Standard=>schema_standard::zone(name),RunEncodingProfile::M24WatcherAct3=>schema_m24::zone(name),RunEncodingProfile::M25WatcherHeart=>schema_m25::zone(name),RunEncodingProfile::M23WatcherAct2=>schema_m23::zone(name),RunEncodingProfile::M22WatcherAct1=>schema_m22::zone(name),RunEncodingProfile::M21Watcher=>schema_m10::zone(name),RunEncodingProfile::M17Defect=>schema_m17::zone(name),RunEncodingProfile::M18Defect=>schema_m18::zone(name),RunEncodingProfile::M19Defect=>schema_m19::zone(name),RunEncodingProfile::M20Defect=>schema_m20::zone(name),RunEncodingProfile::M9=>Err(RunSessionError::Input("unsupported public card zone")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::zone(name),RunEncodingProfile::M12=>schema_m12::zone(name),RunEncodingProfile::M13=>schema_m13::zone(name),RunEncodingProfile::M14=>schema_m14::zone(name),RunEncodingProfile::M15=>schema_m15::zone(name),RunEncodingProfile::M16Defect=>schema_m10::zone(name)}}
 fn cost_kind(kind:CardCostKind)->i64{match kind{CardCostKind::Fixed=>1,CardCostKind::X=>2,CardCostKind::Unplayable=>3}}
 fn combat_phase(phase:Phase)->i64{schema_m21::phase(phase)}
 fn intent_hits(name:&str)->Option<i64>{match name{
@@ -132,24 +137,25 @@ pub(crate) fn encode_run_versioned(d:&PublicDecision,map:Option<&PublicMap>,caps
     encode_run_with_schema(d,map,caps,if m10{RunEncodingProfile::M10}else{RunEncodingProfile::M9})
 }
 pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile)->Result<RunObservation,RunSessionError>{
-    encode_run_with_card_encoder(d,map,caps,profile,card_id)
+    encode_run_with_card_encoder(d,map,caps,profile,card_id,None)
 }
-fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>)->Result<RunObservation,RunSessionError>{
+fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>)->Result<RunObservation,RunSessionError>{
+    if (profile==RunEncodingProfile::Standard)!=standard.is_some(){return Err(RunSessionError::Input("Standard context mismatch"))}
     let extended=profile.extended();
-    if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) && d.combat.as_ref().is_some_and(|c|c.stance_choice.is_some()||c.selection.as_ref().is_some_and(|s|matches!(s.operation,spire_core::combat::SelectionOperation::Scry|spire_core::combat::SelectionOperation::MeditateReturn))){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
+    if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) && d.combat.as_ref().is_some_and(|c|c.stance_choice.is_some()||c.selection.as_ref().is_some_and(|s|matches!(s.operation,spire_core::combat::SelectionOperation::Scry|spire_core::combat::SelectionOperation::MeditateReturn))){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
 
-    if profile!=RunEncodingProfile::M20Defect && d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|matches!(s.operation,
+    if !matches!(profile,RunEncodingProfile::M20Defect|RunEncodingProfile::Standard) && d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|matches!(s.operation,
         spire_core::combat::SelectionOperation::HologramRetrieve|spire_core::combat::SelectionOperation::SeekRetrieve|spire_core::combat::SelectionOperation::Recycle)){
         return Err(RunSessionError::UnsupportedBoundary("M20 selection requires M20 native profile"))
     }
 
-    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) && (d.combat.as_ref().is_some_and(|combat|combat.outcome==Some(Outcome::Escaped))||d.last_combat.as_ref().is_some_and(|record|record.outcome==Outcome::Escaped)){return Err(RunSessionError::UnsupportedBoundary("M15 escape requires M15 native profile"))}
-    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart) && d.combat.as_ref().is_some_and(|combat|combat.card_offer.is_some()
+    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) && (d.combat.as_ref().is_some_and(|combat|combat.outcome==Some(Outcome::Escaped))||d.last_combat.as_ref().is_some_and(|record|record.outcome==Outcome::Escaped)){return Err(RunSessionError::UnsupportedBoundary("M15 escape requires M15 native profile"))}
+    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) && d.combat.as_ref().is_some_and(|combat|combat.card_offer.is_some()
         ||combat.selection.as_ref().is_some_and(|selection|matches!(selection.operation,
             spire_core::combat::SelectionOperation::Setup|spire_core::combat::SelectionOperation::Bottomdeck|spire_core::combat::SelectionOperation::RetrieveMemories))) {
         return Err(RunSessionError::UnsupportedBoundary("M15 generated choices require M15 native profile"));
     }
-    match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::validate(caps)?,RunEncodingProfile::M25WatcherHeart=>schema_m25::validate(caps)?,RunEncodingProfile::M23WatcherAct2=>schema_m23::validate(caps)?,RunEncodingProfile::M22WatcherAct1=>schema_m22::validate(caps)?,RunEncodingProfile::M21Watcher=>schema_m21::validate(caps)?,RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?,RunEncodingProfile::M13=>schema_m13::validate(caps)?,RunEncodingProfile::M14=>schema_m14::validate(caps)?,RunEncodingProfile::M15=>schema_m15::validate(caps)?,RunEncodingProfile::M16Defect=>schema_m16::validate(caps)?,RunEncodingProfile::M17Defect=>schema_m17::validate(caps)?,RunEncodingProfile::M18Defect=>schema_m18::validate(caps)?,RunEncodingProfile::M19Defect=>schema_m19::validate(caps)?,RunEncodingProfile::M20Defect=>schema_m20::validate(caps)?}
+    match profile{RunEncodingProfile::Standard=>schema_standard::validate(caps)?,RunEncodingProfile::M24WatcherAct3=>schema_m24::validate(caps)?,RunEncodingProfile::M25WatcherHeart=>schema_m25::validate(caps)?,RunEncodingProfile::M23WatcherAct2=>schema_m23::validate(caps)?,RunEncodingProfile::M22WatcherAct1=>schema_m22::validate(caps)?,RunEncodingProfile::M21Watcher=>schema_m21::validate(caps)?,RunEncodingProfile::M9=>schema::validate(caps)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::validate(caps)?,RunEncodingProfile::M12=>schema_m12::validate(caps)?,RunEncodingProfile::M13=>schema_m13::validate(caps)?,RunEncodingProfile::M14=>schema_m14::validate(caps)?,RunEncodingProfile::M15=>schema_m15::validate(caps)?,RunEncodingProfile::M16Defect=>schema_m16::validate(caps)?,RunEncodingProfile::M17Defect=>schema_m17::validate(caps)?,RunEncodingProfile::M18Defect=>schema_m18::validate(caps)?,RunEncodingProfile::M19Defect=>schema_m19::validate(caps)?,RunEncodingProfile::M20Defect=>schema_m20::validate(caps)?}
     if !extended&&d.combat.as_ref().and_then(|c|c.selection.as_ref()).is_some_and(|s|
         matches!(s.parent,spire_core::combat::SelectionParent::Potion{..})
             || !matches!(s.operation,spire_core::combat::SelectionOperation::Move(
@@ -180,7 +186,7 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     }
     let mut cards:Vec<(&LiveCardView,i64,usize,Option<usize>)>=vec![];
     if let Some(c)=&d.combat{
-        if matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect) {
+        if matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::Standard) {
             if let Some(offer)=&c.card_offer {
                 capacity("combat_card_offers",offer.cards.len(),caps.offers)?;
                 if offer.cards.is_empty(){return Err(RunSessionError::Input("empty public card offer"))}
@@ -198,8 +204,14 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         }
         for (pos,stasis) in c.stasis.iter().enumerate(){
             if cards.iter().any(|(v,_,_,_)|v.instance==stasis.card.instance){return Err(RunSessionError::Input("duplicate Stasis card"))}
-            let owner=c.enemies.iter().position(|e|e.instance_id==stasis.orb).ok_or(RunSessionError::Input("public Stasis owner missing"))?;
-            cards.push((&stasis.card,5,pos,Some(owner)));
+            // Standard publishes present actors only: a Stasis card whose holder has just died (the engine releases it at the
+            // next barrier, e.g. after Headbutt's selection) stays in the Stasis zone with its owner unknown (M34b review I1).
+            let owner=match c.enemies.iter().position(|e|e.instance_id==stasis.orb){
+                Some(owner)=>Some(owner),
+                None if profile==RunEncodingProfile::Standard=>None,
+                None=>return Err(RunSessionError::Input("public Stasis owner missing")),
+            };
+            cards.push((&stasis.card,5,pos,owner));
         }
         if extended {
             let mut known_positions=std::collections::BTreeSet::new();
@@ -269,7 +281,7 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     let selection_count=if let Some(s)=&d.selection{s.eligible.len()}else{d.combat.as_ref().and_then(|c|c.selection.as_ref()).map_or(0,|s|s.candidates.len())};
     capacity("selection",selection_count,caps.selection)?;
     let mut o=RunObservation{groups:vec![],action_mask:reserved(caps.actions,0)?};
-    for spec in match profile{RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)}{
+    for spec in match profile{RunEncodingProfile::Standard=>schema_standard::groups(caps),RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)}{
         let cols=spec.fields.split(',').count();let rows=spec.rows.unwrap_or(1);let mut values=reserved(rows*cols,0)?;
         // Unavailable references in real rows are -1/known0; all padding remains0.
         let occupied_count=match spec.key{"combat_cards"=>cards.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
@@ -288,13 +300,14 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     // fix A0; never infer it for an unknown/unrelated public profile.
     if matches!(d.content_profile,Some(RoomScenario::M22WatcherAct1|RoomScenario::M23WatcherAct2|RoomScenario::M24WatcherAct3|RoomScenario::M25WatcherHeart)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
     if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart|RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3)){let context=o.group_mut("context");context.values[1]=0;context.known[1]=1;}
+    if let Some(standard)=standard{let context=o.group_mut("context");context.values[1]=i64::from(standard.ascension);context.known[1]=1;}
     let mut player_values=vec![Some(i64::from(d.player.hp)),Some(i64::from(d.player.max_hp)),Some(i64::from(d.player.gold)),None,None,None,None,None,None,None,None,None];
-    if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){player_values.push(None);}
+    if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){player_values.push(None);}
     o.group_mut("player").row(0,&player_values)?;
     for (row,card) in d.objects.iter().enumerate(){
         if d.objects[..row].iter().any(|c|c.instance==card.instance){return Err(RunSessionError::Input("duplicate public permanent identity"))}
         let mut values=vec![Some(card_id(profile,card.id)?),Some(i64::from(card.upgrades))];
-        if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){values.push(Some(i64::from(card.misc)));}
+        if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){values.push(Some(i64::from(card.misc)));}
         o.group_mut("permanent_cards").row(row,&values)?;
     }
     if let Some(map)=map{
@@ -317,31 +330,35 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
                     Some(cost_kind(public.cost_kind)),Some(i64::from(public.free_play)),Some(i64::from(public.exhaust_on_finish)),Some(i64::from(public.ethereal)),Some(i64::from(public.innate)),Some(i64::from(public.temporary_cost))]);
             }else{values.extend([None;10]);}
         }
-        if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){values.push(Some(i64::from(card.misc)));}
-        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){if let Some(w)=&card.watcher{values.extend([w.combat_cost.map(i64::from),w.turn_cost.map(i64::from),Some(i64::from(w.self_retain)),Some(i64::from(w.retain))]);}else{values.extend([None;4]);}}
+        if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){values.push(Some(i64::from(card.misc)));}
+        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){if let Some(w)=&card.watcher{values.extend([w.combat_cost.map(i64::from),w.turn_cost.map(i64::from),Some(i64::from(w.self_retain)),Some(i64::from(w.retain))]);}else{values.extend([None;4]);}}
         o.group_mut("combat_cards").row(row,&values)?;
     }
     if let Some(c)=&d.combat{
         let mut player_values=vec![Some(i64::from(c.player.hp)),Some(i64::from(c.player.max_hp)),None,Some(i64::from(c.player.block)),Some(i64::from(c.player.energy)),Some(i64::from(c.player.max_energy)),Some(i64::from(c.turn)),Some(number(c.draw_count)?),
-            (d.player.character==Character::Watcher).then(||if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){Ok(match c.character.stance{Stance::Neutral=>0,Stance::Wrath=>1,Stance::Calm=>2,Stance::Divinity=>3})}else{match c.character.stance{Stance::Neutral=>Ok(1),Stance::Wrath=>Ok(2),Stance::Calm=>Ok(3),Stance::Divinity=>Err(RunSessionError::UnsupportedBoundary("Divinity requires M21 observation schema"))}}).transpose()?,
-            (d.player.character==Character::Defect || profile==RunEncodingProfile::M25WatcherHeart).then_some(i64::from(c.character.focus)),c.hp_before_healing.map(i64::from),c.hp_after_cleanup.map(i64::from)];
-        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){player_values.push(c.mantra_gained.map(i64::from));}
+            (d.player.character==Character::Watcher||profile==RunEncodingProfile::Standard).then(||if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){Ok(match c.character.stance{Stance::Neutral=>0,Stance::Wrath=>1,Stance::Calm=>2,Stance::Divinity=>3})}else{match c.character.stance{Stance::Neutral=>Ok(1),Stance::Wrath=>Ok(2),Stance::Calm=>Ok(3),Stance::Divinity=>Err(RunSessionError::UnsupportedBoundary("Divinity requires M21 observation schema"))}}).transpose()?,
+            (d.player.character==Character::Defect || matches!(profile,RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard)).then_some(i64::from(c.character.focus)),c.hp_before_healing.map(i64::from),c.hp_after_cleanup.map(i64::from)];
+        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){player_values.push(c.mantra_gained.map(i64::from));}
         o.group_mut("player").row(0,&player_values)?;
         let mut power_row=0;
         for (owner,row,powers) in std::iter::once((1,0,&c.player.powers)).chain(c.enemies.iter().enumerate().map(|(i,e)|(5,i,&e.powers))){
             for entry in powers{o.group_mut("powers").row(power_row,&[Some(owner),Some(number(row)?),Some(crate::public_vocab::power(entry.id.0)?),Some(i64::from(entry.amount))])?;power_row+=1;}
         }
         for (row,e) in c.enemies.iter().enumerate(){
-            let mut values=vec![Some(enemy_id(profile,e.enemy_id)?),Some(i64::from(e.hp)),Some(i64::from(e.max_hp)),Some(i64::from(e.block)),Some(crate::public_vocab::intent(e.intent.as_str())?),e.intent_damage.map(i64::from),Some(i64::from(e.replaced)),Some(i64::from(e.escaped)),Some(i64::from(e.half_dead)),Some(i64::from(e.logical_slot))];
+            let mut values=vec![Some(enemy_id(profile,e.enemy_id)?),Some(i64::from(e.hp)),Some(i64::from(e.max_hp)),Some(i64::from(e.block)),Some(if profile==RunEncodingProfile::Standard{schema_standard::intent(e.intent.as_str())?}else{crate::public_vocab::intent(e.intent.as_str())?}),e.intent_damage.map(i64::from),Some(i64::from(e.replaced)),Some(i64::from(e.escaped)),Some(i64::from(e.half_dead)),Some(i64::from(e.logical_slot))];
             if extended {
                 let side=c.encounter_facing.as_ref().and_then(|facing|facing.enemies.iter().find(|actor|actor.instance_id==e.instance_id)).map(|actor|match actor.side{spire_core::combat::EncounterSide::Left=>1,spire_core::combat::EncounterSide::Right=>2});
                 values.push(side);
-                values.push(intent_hits(e.intent.as_str()));
+                if profile==RunEncodingProfile::Standard{
+                    // Live engine values (M34a): planned hits and source category; unknown while intents are hidden.
+                    values.push(e.intent_hits.map(i64::from));
+                    values.push(e.intent_category.map(schema_standard::intent_category).transpose()?);
+                }else{values.push(intent_hits(e.intent.as_str()));}
             }
             o.group_mut("enemies").row(row,&values)?;
         }
-        if d.player.character==Character::Defect {
-            let m16=matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect);
+        if d.player.character==Character::Defect || profile==RunEncodingProfile::Standard {
+            let m16=profile==RunEncodingProfile::Standard||matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect);
             if m16&&c.character.orb_dark_damage.len()!=c.character.orbs.len(){return Err(RunSessionError::Input("M16 orb payload length mismatch"))}
             for (row,orb) in c.character.orbs.iter().enumerate(){
                 if !m16&&matches!(orb,Some(OrbKind::Dark|OrbKind::Plasma)){return Err(RunSessionError::UnsupportedBoundary("four orbs require M16 schema"))}
@@ -355,18 +372,18 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
                 if orb.is_none(){o.group_mut("orbs").occupied.as_mut().unwrap()[row]=0;}
             }
         }
-        if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M15|RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) {
+        if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M15|RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) {
             let facing=c.encounter_facing.as_ref();
             let heart=c.enemies.iter().find(|enemy|enemy.enemy_id==spire_core::content::EnemyId::CorruptHeart);
             let remaining=heart.and_then(|enemy|enemy.powers.iter().find(|power|power.id.0=="invincible").map(|power|i64::from(power.amount)));
             let mut state = vec![
                 facing.map(|value|match value.player_facing{spire_core::combat::PlayerFacing::Left=>1,spire_core::combat::PlayerFacing::Right=>2}),
-                facing.map(|value|i64::from(value.surrounded)),remaining,heart.map(|_|300),
+                facing.map(|value|i64::from(value.surrounded)),remaining,if profile==RunEncodingProfile::Standard{heart.and_then(|enemy|enemy.invincible_cap).map(i64::from)}else{heart.map(|_|300)},
             ];
-            if profile == RunEncodingProfile::M25WatcherHeart {
+            if matches!(profile,RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) {
                 state.push(Some(c.previous_card_type.map(card_type).unwrap_or(0)));
             }
-            if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart) {
+            if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) {
                 state.push(Some(combat_phase(c.phase)));
                 state.push(Some(c.selection_resume_phase.map_or(0,combat_phase)));
             }
@@ -385,15 +402,15 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
                 if matches!(profile,RunEncodingProfile::M10|RunEncodingProfile::CombatV2)&&matches!(s.operation,spire_core::combat::SelectionOperation::NightmareCapture) {
                     return Err(RunSessionError::UnsupportedBoundary("M10 v2 cannot encode M11 Nightmare selections"));
                 }
-                let operation=match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::operation(s)?,RunEncodingProfile::M25WatcherHeart=>schema_m25::operation(s)?,RunEncodingProfile::M23WatcherAct2=>schema_m23::operation(s)?,RunEncodingProfile::M22WatcherAct1=>schema_m22::operation(s)?,RunEncodingProfile::M21Watcher=>schema_m21::operation(s)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M16Defect=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M13=>schema_m13::operation(s)?,RunEncodingProfile::M14=>schema_m14::operation(s)?,RunEncodingProfile::M15=>schema_m15::operation(s)?,RunEncodingProfile::M17Defect=>schema_m17::operation(s)?,RunEncodingProfile::M18Defect=>schema_m18::operation(s)?,RunEncodingProfile::M19Defect=>schema_m19::operation(s)?,RunEncodingProfile::M20Defect=>schema_m20::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
+                let operation=match profile{RunEncodingProfile::Standard=>schema_standard::operation(s)?,RunEncodingProfile::M24WatcherAct3=>schema_m24::operation(s)?,RunEncodingProfile::M25WatcherHeart=>schema_m25::operation(s)?,RunEncodingProfile::M23WatcherAct2=>schema_m23::operation(s)?,RunEncodingProfile::M22WatcherAct1=>schema_m22::operation(s)?,RunEncodingProfile::M21Watcher=>schema_m21::operation(s)?,RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M16Defect=>schema_m10::operation(s),RunEncodingProfile::M12=>schema_m12::operation(s)?,RunEncodingProfile::M13=>schema_m13::operation(s)?,RunEncodingProfile::M14=>schema_m14::operation(s)?,RunEncodingProfile::M15=>schema_m15::operation(s)?,RunEncodingProfile::M17Defect=>schema_m17::operation(s)?,RunEncodingProfile::M18Defect=>schema_m18::operation(s)?,RunEncodingProfile::M19Defect=>schema_m19::operation(s)?,RunEncodingProfile::M20Defect=>schema_m20::operation(s)?,RunEncodingProfile::M9=>unreachable!("M9 selection was rejected above")};
                 counts.extend([Some(number(s.minimum)?),Some(number(s.maximum)?),Some(i64::from(confirm)),Some(operation)]);
             }
             o.group_mut("selection_counts").row(0,&counts)?;
             for (row,card) in s.candidates.iter().enumerate(){let mut values=vec![Some(4),Some(number(card_row(card.instance.0)?)?),Some(1),Some(i64::from(s.selected.contains(&card.instance)))];
-                if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){values.extend([matches!(s.operation,spire_core::combat::SelectionOperation::Scry).then_some(number(row)?),Some(s.selected.iter().position(|id|*id==card.instance).map_or(0,|i|i as i64+1))]);}
+                if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){values.extend([matches!(s.operation,spire_core::combat::SelectionOperation::Scry).then_some(number(row)?),Some(s.selected.iter().position(|id|*id==card.instance).map_or(0,|i|i as i64+1))]);}
                 o.group_mut("selection").row(row,&values)?;}
         }
-        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){if let Some(choice)=&c.stance_choice{for (row,stance) in choice.options.iter().enumerate(){let n=match stance{Stance::Wrath=>1,Stance::Calm=>2,_=>return Err(RunSessionError::Input("unsupported stance choice"))};o.group_mut("stance_choices").row(row,&[Some(n)])?;}}
+        if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){if let Some(choice)=&c.stance_choice{for (row,stance) in choice.options.iter().enumerate(){let n=match stance{Stance::Wrath=>1,Stance::Calm=>2,_=>return Err(RunSessionError::Input("unsupported stance choice"))};o.group_mut("stance_choices").row(row,&[Some(n)])?;}}
         }
     }
     for (row,relic) in relics.iter().enumerate(){o.group_mut("relics").row(row,&[Some(relic_id(profile,*relic)?),counters.iter().find(|v|v.relic==*relic).map(|v|i64::from(v.value))])?;}
@@ -402,14 +419,14 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         let mut counts=vec![Some(number(s.required)?),Some(number(s.selected_count)?)];
         if extended {
             let confirm=d.candidates.iter().any(|candidate|matches!(candidate.action,GameAction::Confirm));
-            let operation=match profile{RunEncodingProfile::M24WatcherAct3=>schema_m24::select_permanent_operation(),RunEncodingProfile::M25WatcherHeart=>schema_m25::select_permanent_operation(),RunEncodingProfile::M23WatcherAct2=>schema_m23::select_permanent_operation(),RunEncodingProfile::M22WatcherAct1=>schema_m22::select_permanent_operation(),RunEncodingProfile::M21Watcher=>return Err(RunSessionError::Input("M21 has no Run selection")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M16Defect=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M13=>schema_m13::select_permanent_operation(),RunEncodingProfile::M14=>schema_m14::select_permanent_operation(),RunEncodingProfile::M15=>schema_m15::select_permanent_operation(),RunEncodingProfile::M17Defect=>schema_m17::select_permanent_operation(),RunEncodingProfile::M18Defect=>schema_m18::select_permanent_operation(),RunEncodingProfile::M19Defect=>schema_m19::select_permanent_operation(),RunEncodingProfile::M20Defect=>schema_m20::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
+            let operation=match profile{RunEncodingProfile::Standard=>schema_standard::run_operation(standard.and_then(|s|s.run_selection))?,RunEncodingProfile::M24WatcherAct3=>schema_m24::select_permanent_operation(),RunEncodingProfile::M25WatcherHeart=>schema_m25::select_permanent_operation(),RunEncodingProfile::M23WatcherAct2=>schema_m23::select_permanent_operation(),RunEncodingProfile::M22WatcherAct1=>schema_m22::select_permanent_operation(),RunEncodingProfile::M21Watcher=>return Err(RunSessionError::Input("M21 has no Run selection")),RunEncodingProfile::M10|RunEncodingProfile::CombatV2|RunEncodingProfile::M16Defect=>schema_m10::select_permanent_operation(),RunEncodingProfile::M12=>schema_m12::select_permanent_operation(),RunEncodingProfile::M13=>schema_m13::select_permanent_operation(),RunEncodingProfile::M14=>schema_m14::select_permanent_operation(),RunEncodingProfile::M15=>schema_m15::select_permanent_operation(),RunEncodingProfile::M17Defect=>schema_m17::select_permanent_operation(),RunEncodingProfile::M18Defect=>schema_m18::select_permanent_operation(),RunEncodingProfile::M19Defect=>schema_m19::select_permanent_operation(),RunEncodingProfile::M20Defect=>schema_m20::select_permanent_operation(),RunEncodingProfile::M9=>unreachable!("M9 selection rejected above")};
             counts.extend([Some(number(s.required)?),Some(number(s.required)?),Some(i64::from(confirm)),Some(operation)]);
         }
         o.group_mut("selection_counts").row(0,&counts)?;
-        for (row,card) in s.eligible.iter().enumerate(){let mut values=vec![Some(3),Some(number(permanent(d,card.instance)?)?),Some(1),None];if matches!(profile,RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){values.extend([None;2]);}o.group_mut("selection").row(row,&values)?;}
+        for (row,card) in s.eligible.iter().enumerate(){let mut values=vec![Some(3),Some(number(permanent(d,card.instance)?)?),Some(1),None];if matches!(profile,RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){values.extend([None;2]);}o.group_mut("selection").row(row,&values)?;}
     }
     for (row,offer) in offers.iter().enumerate(){
-        let mut values=[None;16];values[0]=Some(choice_id(profile,&offer.kind)?);values[1]=Some(match offer.status{RoomChoiceStatus::Offered=>1,RoomChoiceStatus::Claimed=>2,RoomChoiceStatus::Skipped=>3,RoomChoiceStatus::Disabled=>4});values[2]=offer.price.map(i64::from);
+        let mut values=vec![None;if profile==RunEncodingProfile::Standard{21}else{16}];values[0]=Some(choice_id(profile,&offer.kind)?);values[1]=Some(match offer.status{RoomChoiceStatus::Offered=>1,RoomChoiceStatus::Claimed=>2,RoomChoiceStatus::Skipped=>3,RoomChoiceStatus::Disabled=>4});values[2]=offer.price.map(i64::from);
         match offer.kind{
             RoomChoiceKind::NeowMaxHp{amount}|RoomChoiceKind::Gold(amount)=>values[3]=Some(i64::from(amount)),
             RoomChoiceKind::Rest{heal}=>values[3]=Some(i64::from(heal)),RoomChoiceKind::Act3Continue{stage}=>values[3]=Some(i64::from(stage)),
@@ -417,7 +434,19 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
             RoomChoiceKind::Card{id,upgrades}=>{values[4]=Some(card_id(profile,id)?);values[5]=Some(i64::from(upgrades));},
             RoomChoiceKind::Relic(id)=>values[6]=Some(relic_id(profile,id)?),RoomChoiceKind::Potion(id)=>values[7]=Some(potion_id(profile,id)?),
             RoomChoiceKind::FallingLose{card_type:t,instance}=>{values[8]=Some(card_type(t));values[9]=instance.map(|id|permanent(d,id).and_then(number)).transpose()?;},
-            RoomChoiceKind::JoustResult{owner_wins}=>values[10]=Some(i64::from(owner_wins)),_=>{},
+            RoomChoiceKind::JoustResult{owner_wins}=>values[10]=Some(i64::from(owner_wins)),
+            RoomChoiceKind::NeowBlessing{category,reward,drawback} if profile==RunEncodingProfile::Standard=>{values[11]=Some(i64::from(category));values[12]=Some(schema_standard::neow_reward(reward));values[13]=Some(schema_standard::neow_drawback(drawback));},
+            RoomChoiceKind::EventOption{stage,option}|RoomChoiceKind::EventCard{stage,option,..}|RoomChoiceKind::EventPotion{stage,option,..}|RoomChoiceKind::EventRelic{stage,option,..} if profile==RunEncodingProfile::Standard=>{
+                values[schema_standard::OFFER_EVENT_STAGE]=Some(i64::from(stage));values[schema_standard::OFFER_EVENT_STAGE+1]=Some(i64::from(option));
+                match offer.kind{RoomChoiceKind::EventCard{card:Some(id),..}=>values[4]=Some(card_id(profile,id)?),RoomChoiceKind::EventPotion{potion:Some(id),..}=>values[7]=Some(potion_id(profile,id)?),
+                    RoomChoiceKind::EventRelic{relic:Some(id),..}=>values[6]=Some(relic_id(profile,id)?),_=>{}}
+            },
+            _=>{},
+        }
+        if profile==RunEncodingProfile::Standard{
+            if let Some((_,params))=d.room_params.as_ref().and_then(|p|p.rows.iter().find(|(id,_)|*id==offer.id)){
+                for (i,v) in params.iter().enumerate(){values[schema_standard::OFFER_PARAMS+i]=v.map(i64::from);}
+            }
         }
         if let Some(neow)=d.candidates.iter().find(|c|c.id==offer.id).and_then(|c|c.neow_offer.as_ref()){
             values[11]=Some(i64::from(neow.category));values[12]=Some(schema::reward(neow.reward));values[13]=Some(neow.drawback.map(schema::drawback).unwrap_or(0));
@@ -425,10 +454,12 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         if let Some(s)=&d.selection{values[14]=Some(number(s.required)?);values[15]=Some(number(s.selected_count)?);}
         o.group_mut("offers").row(row,&values)?;
     }
-    if matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart) {
+    if matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) {
         if let Some(offer)=d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()) {
             for (index,id) in offer.cards.iter().enumerate(){
-                let card = if profile == RunEncodingProfile::M25WatcherHeart {
+                let card = if profile == RunEncodingProfile::Standard {
+                    card_id(profile,*id)?
+                } else if profile == RunEncodingProfile::M25WatcherHeart {
                     schema_m25::offer_card(*id)?
                 } else {
                     card_id(profile,*id)?
@@ -437,8 +468,11 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
             }
         }
     }
+    if profile==RunEncodingProfile::Standard{
+        if let Some(params)=&d.room_params{o.group_mut("room_params").row(0,&params.stage.map(|v|v.map(i64::from)))?;}
+    }
     for (row,candidate) in d.candidates.iter().enumerate(){
-        let mut values=vec![None;if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){9}else{8}];
+        let mut values=vec![None;if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){9}else{8}];
         let source=match &candidate.action{
             GameAction::Move(id)=>{values[0]=Some(1);let map=map.ok_or(RunSessionError::Input("map action without public map"))?;Some((2,map.nodes.iter().position(|n|n.id==*id).ok_or(RunSessionError::Input("move target missing"))?))},
             GameAction::Choose(id)=>{values[0]=Some(2);let index=offers.iter().position(|c|c.id==*id).ok_or(RunSessionError::Input("offer reference missing"))?;values[5]=Some(choice_id(profile,&offers[index].kind)?);Some((7,index))},
@@ -448,26 +482,27 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
             GameAction::DiscardPotion{slot}=>{values[0]=Some(7);values[6]=Some(i64::from(*slot));Some((6,*slot as usize))},
             GameAction::Combat(action)=>match action{
                 CombatAction::ChooseStance{stance}=>{
-                    if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
+                    if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
                     let choice=d.combat.as_ref().and_then(|c|c.stance_choice.as_ref()).ok_or(RunSessionError::Input("stance action without public choice"))?;
                     values[0]=Some(schema_m21::verb("choose_stance")?);values[8]=Some(number(position(&choice.options,stance)?)?);None
                 },
-                CombatAction::DeselectCard{instance}=>{if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}values[0]=Some(schema_m21::verb("combat_deselect_card")?);Some((4,card_row(*instance)?))},
+                CombatAction::DeselectCard{instance}=>{if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}values[0]=Some(schema_m21::verb("combat_deselect_card")?);Some((4,card_row(*instance)?))},
                 CombatAction::PlayCard{instance,target}=>{values[0]=Some(8);encode_target(d,*target,(&mut values[..8]).try_into().expect("eight shared action columns"))?;Some((4,card_row(*instance)?))},
                 CombatAction::SelectCard{instance}=>{values[0]=Some(9);Some((4,card_row(*instance)?))},
                 CombatAction::UsePotion{slot,target}=>{values[0]=Some(6);values[6]=Some(number(*slot)?);encode_target(d,*target,(&mut values[..8]).try_into().expect("eight shared action columns"))?;Some((6,*slot))},
+                CombatAction::DiscardPotion{slot} if profile==RunEncodingProfile::Standard=>{values[0]=Some(schema_standard::verb("discard_potion")?);values[6]=Some(number(*slot)?);Some((6,*slot))},
                 CombatAction::DiscardPotion{..}=>return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat DiscardPotion")),
                 CombatAction::ChooseCardOffer{index}=>{
-                    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart){return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
+                    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
                     let offer=d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()).ok_or(RunSessionError::Input("card offer action without public offer"))?;
                     let index=usize::try_from(*index).map_err(|_|RunSessionError::Input("card offer index exceeds usize"))?;
                     if index>=offer.cards.len(){return Err(RunSessionError::Input("card offer index is not publicly offered"))}
-                    values[0]=Some(12);Some((11,index))
+                    values[0]=Some(if profile==RunEncodingProfile::Standard{schema_standard::verb("choose_card_offer")?}else{12});Some((11,index))
                 },
                 CombatAction::SkipCardOffer=>{
-                    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart){return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
+                    if !matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){return Err(RunSessionError::UnsupportedBoundary("generated card offer requires M15 native profile"))}
                     if !d.combat.as_ref().and_then(|combat|combat.card_offer.as_ref()).is_some_and(|offer|offer.optional){return Err(RunSessionError::Input("card offer skip is not publicly optional"))}
-                    values[0]=Some(13);None
+                    values[0]=Some(if profile==RunEncodingProfile::Standard{schema_standard::verb("skip_card_offer")?}else{13});None
                 },
                 CombatAction::EndTurn=>{values[0]=Some(10);None},
                 CombatAction::ConfirmSelection=>{if extended{values[0]=Some(11);None}else{return Err(RunSessionError::UnsupportedBoundary("Run observation v1 cannot encode combat selection"))}},
@@ -594,11 +629,34 @@ pub fn encode_run_m20(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapaciti
 pub(crate) fn encode_run_m20_diagnostic(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
     schema_m20::validate_diagnostic_decision(d)?;
     encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::M20Defect,
-        |_,id|schema_m20::diagnostic_card(id))
+        |_,id|schema_m20::diagnostic_card(id),None)
 }
 
 pub fn encode_run_m22(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m22::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M22WatcherAct1)}
 pub fn encode_run_m24(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m24::validate_public_decision(d)?;if map.is_some_and(|map|map.act>3){return Err(RunSessionError::UnsupportedBoundary("M24 cannot encode Act4 gameplay"))}encode_run_with_schema(d,map,caps,RunEncodingProfile::M24WatcherAct3)}
+/// M34b Standard encoder (design §4.3). Only present actors are published (Task 0 D-b2): replaced, escaped and
+/// defeated actors are removed together with their target rows, so every row index refers to the filtered list.
+/// M34b public Standard encoder for callers holding a public decision (fuzz, replay reports): `ascension` is the
+/// Run's configuration and `run_selection` is `Run::room_selection_operation` (or `RunReplayReport::final_room_selection`).
+pub fn encode_run_standard_decision(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,ascension:u8,run_selection:Option<spire_core::run::RoomSelectionOperation>)->Result<RunObservation,RunSessionError>{
+    encode_run_standard(d,map,caps,StandardContext{ascension,run_selection})
+}
+pub(crate) fn encode_run_standard(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext)->Result<RunObservation,RunSessionError>{
+    if d.content_profile!=Some(RoomScenario::Standard){return Err(RunSessionError::Input("Standard encoder requires the Standard profile"))}
+    let present=|e:&spire_core::combat::FullEnemyView|e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0);
+    if d.combat.as_ref().is_some_and(|c|c.enemies.iter().all(present)){
+        return encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context));
+    }
+    let mut public=d.clone();
+    if let Some(c)=public.combat.as_mut(){
+        if c.targets.len()!=c.enemies.len(){return Err(RunSessionError::Input("public targets do not match enemy rows"))}
+        let keep=c.enemies.iter().map(present).collect::<Vec<_>>();
+        let mut flags=keep.iter();c.enemies.retain(|_|*flags.next().unwrap());
+        let mut flags=keep.iter();c.targets.retain(|_|*flags.next().unwrap());
+    }
+    encode_run_with_card_encoder(&public,map,caps,RunEncodingProfile::Standard,card_id,Some(context))
+}
+
 pub fn encode_run_m25(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m25::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M25WatcherHeart)}
 pub fn encode_run_m23(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m23::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M23WatcherAct2)}
 

@@ -1,8 +1,8 @@
 //! Thin Run transport; native ownership spans attached array/tuple packaging.
-use std::sync::{Mutex,atomic::{AtomicBool,Ordering}};
-use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes}};
+use std::sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}};
+use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
-use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10};
+use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10};
 use crate::numeric;
 
 create_exception!(_native,RunInputError,PyValueError);
@@ -20,38 +20,65 @@ pub(crate) fn error(e:RunSessionError)->PyErr{match e{
     RunSessionError::UnsupportedBoundary(s)=>RunUnsupportedBoundaryError::new_err(s),RunSessionError::DeliveryFault(s)=>RunFaultError::new_err(s),RunSessionError::Capacity{group,required,capacity}=>RunFaultError::new_err(format!("Run capacity {group}: {required} > {capacity}")),RunSessionError::IncompatibleReplay(s)=>RunInputError::new_err(s),RunSessionError::Core(_)=>RunFaultError::new_err("native Run fault; inspect privileged reproduction"),
 }}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart,M10IroncladPolicy}
+pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart,M10IroncladPolicy,Standard}
 impl RunProfile{
     fn parse(value:&str)->PyResult<Self>{match value{
         "m9-ironclad-act3"=>Ok(Self::M9IroncladAct3),
         "m10-ironclad-heart"=>Ok(Self::M10IroncladHeart),
         "m10-ironclad-policy"=>Ok(Self::M10IroncladPolicy),
+        "standard"=>Ok(Self::Standard),
         _=>Err(RunInputError::new_err("unsupported Run profile")),
     }}
     fn schema_id(self)->&'static str{match self{
         Self::M9IroncladAct3=>RUN_OBSERVATION_SCHEMA_ID,
-        Self::M10IroncladHeart=>RUN_OBSERVATION_M10_SCHEMA_ID,Self::M10IroncladPolicy=>spire_env::RUN_OBSERVATION_POLICY_SCHEMA_ID,
+        Self::M10IroncladHeart=>RUN_OBSERVATION_M10_SCHEMA_ID,Self::M10IroncladPolicy=>spire_env::RUN_OBSERVATION_POLICY_SCHEMA_ID,Self::Standard=>spire_env::RUN_OBSERVATION_STANDARD_SCHEMA_ID,
     }}
     fn new_session(self,config:RunSessionConfig)->Result<RunSession,RunSessionError>{match self{
         Self::M9IroncladAct3=>RunSession::new(config),
         Self::M10IroncladHeart=>RunSession::new_m10(config),Self::M10IroncladPolicy=>RunSession::new_m10_policy(config),
+        Self::Standard=>{let M9BossHistory::Standard(creation)=config.boss_history else{return Err(RunSessionError::Input("Standard requires creation and rejects boss_history"))};RunSession::new_standard(StandardRunConfig{character:config.character,ascension:config.ascension,partition:config.partition,creation,capacities:config.capacities,record_replay:config.record_replay})},
     }}
     fn from_record(record:&RunEpisodeRecord)->Result<Self,RunSessionError>{match (record.schema_id.as_str(),record.profile_id.as_str()){
         (RUN_RECORD_SCHEMA_ID,"M9IroncladAct3")=>Ok(Self::M9IroncladAct3),
         (RUN_RECORD_SCHEMA_ID_M10,"M10IroncladHeart")=>Ok(Self::M10IroncladHeart),
         (spire_env::RUN_RECORD_SCHEMA_ID_POLICY,"M10IroncladPolicy")=>Ok(Self::M10IroncladPolicy),
+        (spire_env::RUN_RECORD_SCHEMA_ID_STANDARD,"Standard")=>Ok(Self::Standard),
         _=>Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
     }}
-    fn encode(self,decision:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{match self{
+    fn encode(self,decision:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,ascension:u8,selection:Option<spire_core::run::RoomSelectionOperation>)->Result<RunObservation,RunSessionError>{match self{
         Self::M9IroncladAct3=>spire_env::encode_run(decision,map,caps),
-        Self::M10IroncladHeart=>spire_env::encode_run_m10(decision,map,caps),Self::M10IroncladPolicy=>spire_env::encode_run_policy(decision,map,caps),
+        Self::M10IroncladHeart=>spire_env::encode_run_m10(decision,map,caps),Self::M10IroncladPolicy=>spire_env::encode_run_policy(decision,map,caps),Self::Standard=>spire_env::encode_run_standard_decision(decision,map,caps,ascension,selection),
     }}
 }
 pub(crate) fn capacities(v:Option<&Bound<'_,PyAny>>,profile:RunProfile)->PyResult<RunCapacities>{
-    let mut c=match profile{RunProfile::M9IroncladAct3=>RunCapacities::m9_default(),RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RunCapacities::m10_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
+    let mut c=match profile{RunProfile::M9IroncladAct3=>RunCapacities::m9_default(),RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RunCapacities::m10_default(),RunProfile::Standard=>RunCapacities::standard_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
     let d=v.cast::<PyDict>().map_err(|_|RunInputError::new_err("capacities must be a dictionary"))?;
     for (key,value) in d.iter(){let target=match label(&key)?.as_str(){"map_nodes"=>&mut c.map_nodes,"map_edges"=>&mut c.map_edges,"permanent_cards"=>&mut c.permanent_cards,"combat_cards"=>&mut c.combat_cards,"enemies"=>&mut c.enemies,"powers"=>&mut c.powers,"relics"=>&mut c.relics,"potions"=>&mut c.potions,"offers"=>&mut c.offers,"selection"=>&mut c.selection,"orbs"=>&mut c.orbs,"actions"=>&mut c.actions,_=>return Err(RunInputError::new_err("unknown capacity"))};*target=integer(&value)?;}
     Ok(c)
+}
+fn creation(py:Python<'_>,value:Option<&Bound<'_,PyAny>>)->PyResult<StandardCreation>{
+    let Some(value)=value.filter(|v|!v.is_none()) else{return Ok(StandardCreation::experienced())};
+    let dict=value.cast::<PyDict>().map_err(|_|RunInputError::new_err("creation must be a dictionary"))?;
+    for (key,_) in dict.iter(){if !matches!(label(&key)?.as_str(),"neow"|"seen_bosses"|"note"){return Err(RunInputError::new_err("unknown Standard creation key"))}}
+    let json_module=py.import("json")?;
+    let normalized=json_module.call_method1("loads",(StandardCreation::experienced().to_json_string(),))?;
+    let normalized=normalized.cast::<PyDict>()?;
+    if let Some(v)=dict.get_item("neow")?{let neow=label(&v)?;if neow!="full"&&neow!="short"{return Err(RunInputError::new_err("invalid Standard Neow choice"))}normalized.set_item("neow",neow)?;}
+    if let Some(v)=dict.get_item("seen_bosses")?{
+        let acts=v.cast::<PyList>().map_err(|_|RunInputError::new_err("seen_bosses must be a list of three boss lists"))?;
+        if acts.len()!=3{return Err(RunInputError::new_err("seen_bosses must contain three acts"))}
+        for act in acts.iter(){let bosses=act.cast::<PyList>().map_err(|_|RunInputError::new_err("each seen_bosses act must be a list"))?;for boss in bosses.iter(){label(&boss)?;}}
+        normalized.set_item("seen_bosses",v)?;
+    }
+    if let Some(v)=dict.get_item("note")?{
+        let note=v.cast::<PyDict>().map_err(|_|RunInputError::new_err("note must be a dictionary"))?;
+        for (key,_) in note.iter(){if !matches!(label(&key)?.as_str(),"card"|"upgrades"){return Err(RunInputError::new_err("unknown Standard note key"))}}
+        let card=note.get_item("card")?.ok_or_else(||RunInputError::new_err("note requires card and upgrades"))?;
+        let upgrades=note.get_item("upgrades")?.ok_or_else(||RunInputError::new_err("note requires card and upgrades"))?;
+        let stored=PyDict::new(py);stored.set_item("card",label(&card)?)?;stored.set_item("upgrades",integer::<u32>(&upgrades)?)?;normalized.set_item("stored_note",stored)?;
+    }
+    let text:String=json_module.call_method1("dumps",(normalized,))?.extract()?;
+    StandardCreation::from_json_str(&text).map_err(error)
 }
 fn terminal(t:Option<RunTerminal>)->Option<&'static str>{t.map(|t|match t{RunTerminal::Death=>"death",RunTerminal::EmptyDeck=>"empty_deck",RunTerminal::Act3NoKeys=>"act3_no_keys",RunTerminal::HeartVictory=>"heart_victory"})}
 pub(crate) fn observation<'py>(py:Python<'py>,o:RunObservation)->PyResult<Bound<'py,PyDict>>{
@@ -76,12 +103,18 @@ fn boundary<'py>(py:Python<'py>,b:RunBoundary,profile:RunProfile)->PyResult<Boun
     let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation)?)?;let token:[u64;2]=b.token.into();d.set_item("token",(token[0],token[1]))?;
     let info=PyDict::new(py);info.set_item("schema_id",profile.schema_id())?;info.set_item("terminal_reason",terminal(b.terminal))?;d.set_item("info",info)?;Ok(d)
 }
+fn reward_events<'py>(py:Python<'py>,items:&[spire_core::run::RewardItem])->PyResult<Bound<'py,PyList>>{
+    use spire_core::run::RewardItemKind as K;
+    let list=PyList::empty(py);
+    for item in items{let row=PyDict::new(py);let kind=match item.kind{K::NewFloor{act,floor}=>{row.set_item("act",act)?;row.set_item("floor",floor)?;"new_floor"},K::NewAct4Floor{floor}=>{row.set_item("floor",floor)?;"new_act4_floor"},K::FirstKey(key)=>{row.set_item("key",match key{spire_core::run::Key::Ruby=>"ruby",spire_core::run::Key::Sapphire=>"sapphire",spire_core::run::Key::Emerald=>"emerald"})?;"first_key"},K::HeartVictory=>"heart_victory",K::Death=>"death",K::EmptyDeck=>"empty_deck"};row.set_item("kind",kind)?;row.set_item("amount",item.amount)?;list.append(row)?;}
+    Ok(list)
+}
 pub(crate) fn token(v:&Bound<'_,PyAny>)->PyResult<RunDecisionToken>{
     let t=v.cast::<PyTuple>().map_err(|_|RunInputError::new_err("token must be a two-integer tuple"))?;
     if t.len()!=2{return Err(RunInputError::new_err("token must have length two"))}Ok([integer(&t.get_item(0)?)?,integer(&t.get_item(1)?)?].into())
 }
 #[pyclass(frozen,module="spire_lab._native")]
-pub(crate) struct NativeRunSession{session:Mutex<RunSession>,profile:RunProfile,busy:AtomicBool}
+pub(crate) struct NativeRunSession{session:Mutex<RunSession>,profile:RunProfile,busy:AtomicBool,episode_return:AtomicI64}
 struct Lease<'a>(&'a NativeRunSession);
 impl Drop for Lease<'_>{fn drop(&mut self){self.0.busy.store(false,Ordering::Release);}}
 impl NativeRunSession{
@@ -89,26 +122,42 @@ impl NativeRunSession{
     fn deliver<T>(&self,result:PyResult<T>)->PyResult<T>{if result.is_err(){let _=self.session.lock().unwrap_or_else(|p|p.into_inner()).fail_delivery("Run transport packaging failed");}result}
     fn reset_transport<'py,T>(&self,py:Python<'py>,seed:Option<&Bound<'py,PyAny>>,package:impl FnOnce(Bound<'py,PyDict>)->PyResult<T>)->PyResult<T>{
         let _lease=self.begin()?;let seed=seed.filter(|v|!v.is_none()).map(integer::<u64>).transpose()?;
-        let (b,effective)=py.detach(||{let mut s=self.session.lock().unwrap_or_else(|p|p.into_inner());let b=s.reset(seed)?;Ok::<_,RunSessionError>((b,s.effective_seed().expect("successful reset owns seed")))}).map_err(error)?;
-        let result=(||{let raw=boundary(py,b,self.profile)?;raw.set_item("effective_seed",effective)?;package(raw)})();self.deliver(result)
+        let (b,effective,creation)=py.detach(||{let mut s=self.session.lock().unwrap_or_else(|p|p.into_inner());let b=s.reset(seed)?;Ok::<_,RunSessionError>((b,s.effective_seed().expect("successful reset owns seed"),s.standard_creation()))}).map_err(error)?;
+        self.episode_return.store(0,Ordering::Release);
+        let result=(||{let raw=boundary(py,b,self.profile)?;raw.set_item("effective_seed",effective)?;if let Some(c)=creation{raw.get_item("info")?.unwrap().set_item("creation",numeric::descriptor(py,c.to_json().to_string())?)?;}package(raw)})();self.deliver(result)
     }
     fn step_transport<'py,T>(&self,py:Python<'py>,index:&Bound<'py,PyAny>,t:&Bound<'py,PyAny>,package:impl FnOnce(Bound<'py,PyDict>)->PyResult<T>)->PyResult<T>{
         let _lease=self.begin()?;let index=RunActionIndex(integer(index)?);let t=token(t)?;
         let step=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).step(t,index)).map_err(error)?;
-        let result=(||{let raw=boundary(py,step.boundary,self.profile)?;raw.set_item("reward",step.reward)?;raw.set_item("terminated",step.terminated)?;raw.set_item("truncated",step.truncated)?;package(raw)})();self.deliver(result)
+        let running=self.episode_return.fetch_add(i64::from(step.reward),Ordering::AcqRel)+i64::from(step.reward);
+        let heart_victory=step.boundary.terminal==Some(RunTerminal::HeartVictory);
+        let result=(||{let raw=boundary(py,step.boundary,self.profile)?;raw.set_item("reward",step.reward)?;raw.set_item("terminated",step.terminated)?;raw.set_item("truncated",step.truncated)?;if self.profile==RunProfile::Standard{let info=raw.get_item("info")?.unwrap();info.set_item("reward_events",reward_events(py,&step.reward_events)?)?;info.set_item("episode_return",running)?;info.set_item("heart_victory",heart_victory)?;}package(raw)})();self.deliver(result)
     }
 }
 #[pymethods]
 impl NativeRunSession{
     #[new]
-    #[pyo3(signature=(character,ascension,*,profile="m9-ironclad-act3".to_owned(),partition="train".to_owned(),boss_history="awakened-unseen".to_owned(),capacities=None,record_replay=false))]
-    fn new(py:Python<'_>,character:&Bound<'_,PyAny>,ascension:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]profile:String,#[pyo3(from_py_with=label)]partition:String,#[pyo3(from_py_with=label)]boss_history:String,capacities:Option<&Bound<'_,PyAny>>,#[pyo3(from_py_with=boolean)]record_replay:bool)->PyResult<Self>{
+    #[pyo3(signature=(character,ascension,*,profile="m9-ironclad-act3".to_owned(),partition="train".to_owned(),boss_history=None,creation=None,capacities=None,record_replay=false))]
+    fn new(py:Python<'_>,character:&Bound<'_,PyAny>,ascension:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]profile:String,#[pyo3(from_py_with=label)]partition:String,boss_history:Option<&Bound<'_,PyAny>>,creation:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>,#[pyo3(from_py_with=boolean)]record_replay:bool)->PyResult<Self>{
         let profile=RunProfile::parse(&profile)?;
-        let character=match label(character)?.as_str(){"ironclad"=>Character::Ironclad,_=>return Err(RunInputError::new_err(match profile{RunProfile::M9IroncladAct3=>"M9 supports ironclad only",RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>"M10 supports ironclad only"}))};
+        let character=match (profile,label(character)?.as_str()){
+            (RunProfile::Standard,"ironclad")=>Character::Ironclad,(RunProfile::Standard,"silent")=>Character::Silent,(RunProfile::Standard,"defect")=>Character::Defect,(RunProfile::Standard,"watcher")=>Character::Watcher,
+            (RunProfile::M9IroncladAct3|RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy,"ironclad")=>Character::Ironclad,
+            (RunProfile::Standard,_)=>return Err(RunInputError::new_err("Standard character must be ironclad, silent, defect, or watcher")),
+            (RunProfile::M9IroncladAct3,_)=>return Err(RunInputError::new_err("M9 supports ironclad only")),
+            (RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy,_)=>return Err(RunInputError::new_err("M10 supports ironclad only")),
+        };
         let partition=match partition.as_str(){"train"=>Partition::Train,"selection"=>Partition::Selection,"final"=>Partition::Final,"test"=>Partition::Test,_=>return Err(RunInputError::new_err("unknown partition"))};
-        let boss_history=match boss_history.as_str(){"awakened-unseen"=>M9BossHistory::AwakenedUnseen,"time-eater-unseen"=>M9BossHistory::TimeEaterUnseen,"donu-deca-unseen"=>M9BossHistory::DonuDecaUnseen,_=>return Err(RunInputError::new_err("unknown boss history"))};
+        let creation=if profile==RunProfile::Standard{self::creation(py,creation)?}else{if creation.is_some_and(|v|!v.is_none()){return Err(RunInputError::new_err("captured profiles do not accept creation"))}StandardCreation::experienced()};
+        let boss_history=if profile==RunProfile::Standard{
+            if boss_history.is_some_and(|v|!v.is_none()){return Err(RunInputError::new_err("Standard does not accept boss_history"))}
+            M9BossHistory::Standard(creation)
+        }else{
+            let value=match boss_history.filter(|v|!v.is_none()){Some(v)=>label(v)?,None=>"awakened-unseen".to_owned()};
+            match value.as_str(){"awakened-unseen"=>M9BossHistory::AwakenedUnseen,"time-eater-unseen"=>M9BossHistory::TimeEaterUnseen,"donu-deca-unseen"=>M9BossHistory::DonuDecaUnseen,_=>return Err(RunInputError::new_err("unknown boss history"))}
+        };
         let capacities=crate::run_env::capacities(capacities,profile)?;let cfg=RunSessionConfig{character,ascension:integer(ascension)?,partition,boss_history,capacities,record_replay};
-        let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false)})
+        let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false),episode_return:AtomicI64::new(0)})
     }
     pub(crate) fn observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).observation_spec().map_err(error)?)
@@ -147,9 +196,9 @@ impl NativeRunSession{
     #[staticmethod]
     #[pyo3(signature=(record,capacities=None))]
     fn replay<'py>(py:Python<'py>,record:&Bound<'py,PyBytes>,capacities:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{
-        let bytes=record.as_bytes().to_vec();let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;
+        let bytes=record.as_bytes().to_vec();let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;let ascension=parsed.config.ascension;
         let caps=crate::run_env::capacities(capacities,profile)?;let export_caps=caps.clone();let report=py.detach(move||spire_env::replay_run(&parsed,caps)).map_err(error)?;
-        let d=PyDict::new(py);let o=profile.encode(&report.final_decision,report.final_map.as_ref(),&export_caps).map_err(error)?;d.set_item("obs",observation(py,o)?)?;d.set_item("terminal_reason",terminal(report.final_decision.terminal))?;d.set_item("rewards",report.rewards)?;d.set_item("terminals",report.terminals.into_iter().map(terminal).collect::<Vec<_>>())?;d.set_item("accepted_count",report.accepted_count)?;
+        let d=PyDict::new(py);let o=profile.encode(&report.final_decision,report.final_map.as_ref(),&export_caps,ascension,report.final_room_selection).map_err(error)?;d.set_item("obs",observation(py,o)?)?;d.set_item("terminal_reason",terminal(report.final_decision.terminal))?;d.set_item("rewards",report.rewards)?;d.set_item("terminals",report.terminals.into_iter().map(terminal).collect::<Vec<_>>())?;d.set_item("accepted_count",report.accepted_count)?;
         if let Some(f)=report.reported_fault{d.set_item("reported_fault",numeric::descriptor(py,f.error.diagnostic_json().map_err(error)?)?)?;}else{d.set_item("reported_fault",py.None())?;}
         d.set_item("final_decision_error",report.final_decision_error.map(|_|"native core fault; final obs is the last readable boundary"))?;Ok(d)
     }

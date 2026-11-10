@@ -27,7 +27,7 @@ pub(in crate::run) fn room_params(run:&Run,room:Option<&RoomView>)->Option<RoomP
 }
 
 /// The highest ascension the standard Run admits (M29–M33 design §6.1): the game's A20.
-pub(crate) const STANDARD_MAX_ASCENSION:u8=20;
+pub const STANDARD_MAX_ASCENSION:u8=20;
 
 /// `Run::new_room_scenario(.., RoomScenario::Standard)`: any character at A0–A20, full or short
 /// Neow by `CreationProfile::neow_eligible`, complete card and item admission (design §7).
