@@ -74,7 +74,7 @@ fn move_forced(state:&mut State,id:&crate::combat::CardHandle,zone:SelectionSour
     let card=pile.remove(index);
     match disposition{
         SelectionDisposition::Hand=>state.piles.hand.push(card),
-        SelectionDisposition::DrawTop=>{let empty=state.piles.draw.is_empty();state.piles.draw.push(card);state.public.known_draw.insert(0,id.clone());if empty{state.public.known_draw_bottom=vec![id.clone()];}},
+        SelectionDisposition::DrawTop=>{let empty=state.piles.draw.is_empty();state.piles.draw.push(card);crate::combat::knowledge::note(state,crate::combat::knowledge::PileOp::TopDecked);state.public.known_draw.insert(0,id.clone());if empty{state.public.known_draw_bottom=vec![id.clone()];}},
         SelectionDisposition::Discard=>state.piles.discard.push(card),
         SelectionDisposition::Exhaust=>state.piles.exhaust.push(card),
     }

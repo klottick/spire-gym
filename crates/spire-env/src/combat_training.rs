@@ -13,13 +13,13 @@ pub const COMBAT_TRAINING_CONTENT_V2_ID:&str="spire-gym-ironclad-combat-content-
 pub const COMBAT_TRAINING_REWARD_ID:&str="spire-gym-combat-outcome-reward-v1";
 fn default_combat_training_profile_id()->String{COMBAT_TRAINING_PROFILE_ID.to_owned()}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
-enum CombatTrainingProfile{V1,V2,M21}
+enum CombatTrainingProfile{V1,V2,M21,Standard}
 impl CombatTrainingProfile{
-    fn id(self)->&'static str{match self{Self::V1=>COMBAT_TRAINING_PROFILE_ID,Self::M21=>M21_WATCHER_COMBAT_PROFILE_ID,Self::V2=>COMBAT_TRAINING_PROFILE_V2_ID}}
-    fn content_id(self)->&'static str{match self{Self::V1=>COMBAT_TRAINING_CONTENT_ID,Self::M21=>M21_WATCHER_COMBAT_CONTENT_ID,Self::V2=>COMBAT_TRAINING_CONTENT_V2_ID}}
-    fn view_id(self)->&'static str{match self{Self::V1=>crate::COMBAT_POLICY_VIEW_ID,Self::M21=>crate::M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID,Self::V2=>crate::COMBAT_POLICY_VIEW_V2_ID}}
+    fn id(self)->&'static str{match self{Self::V1=>COMBAT_TRAINING_PROFILE_ID,Self::M21=>M21_WATCHER_COMBAT_PROFILE_ID,Self::V2=>COMBAT_TRAINING_PROFILE_V2_ID,Self::Standard=>crate::STANDARD_COMBAT_PROFILE_ID}}
+    fn content_id(self)->&'static str{match self{Self::V1=>COMBAT_TRAINING_CONTENT_ID,Self::M21=>M21_WATCHER_COMBAT_CONTENT_ID,Self::V2=>COMBAT_TRAINING_CONTENT_V2_ID,Self::Standard=>crate::RUN_CONTENT_ID_STANDARD}}
+    fn view_id(self)->&'static str{match self{Self::V1=>crate::COMBAT_POLICY_VIEW_ID,Self::M21=>crate::M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID,Self::V2=>crate::COMBAT_POLICY_VIEW_V2_ID,Self::Standard=>crate::STANDARD_COMBAT_VIEW_ID}}
     fn encounters(self)->&'static [(EncounterId,u8,spire_core::combat::enemies::EncounterKind)]{
-        match self{Self::V1=>TRAINING_ENCOUNTERS,Self::V2|Self::M21=>TRAINING_ENCOUNTERS_V2}
+        match self{Self::V1=>TRAINING_ENCOUNTERS,Self::V2|Self::M21=>TRAINING_ENCOUNTERS_V2,Self::Standard=>spire_core::combat::enemies::A0_ENCOUNTER_SETUPS}
     }
 }
 #[derive(Deserialize)]
@@ -38,6 +38,8 @@ fn lookup<T:Copy>(s:&str,ids:&[T],name:impl Fn(T)->&'static str)->Result<T,Error
 impl CombatTrainingCatalog{
     pub fn from_json(bytes:&[u8])->Result<Self,Error>{
         if bytes.len()>1_048_576{return Err(Error::Input("combat catalog exceeds 1 MiB"))}
+        // M34s-a (review M2): a Standard catalog is never read as an Ironclad Gym66 catalog.
+        if serde_json::from_slice::<Value>(bytes).ok().is_some_and(|v|v["profile_id"]==crate::STANDARD_COMBAT_PROFILE_ID){return Err(STANDARD_ON_GYM66)}
         let raw:RawCatalog=serde_json::from_slice(bytes).map_err(|_|Error::Input("invalid combat catalog fields or types"))?;
         let profile=match raw.profile_id.as_str(){
             COMBAT_TRAINING_PROFILE_ID=>CombatTrainingProfile::V1,
@@ -60,7 +62,7 @@ impl CombatTrainingCatalog{
             let mut entry=CombatTrainingEntry{encounter,hp:r.hp,max_hp:r.max_hp,deck,relics,potions,neows_lament_remaining:r.relic_counters.get("neows_lament").copied()};
             match profile{
                 CombatTrainingProfile::V1=>entry.validate(),
-                CombatTrainingProfile::V2=>entry.validate_v2(),CombatTrainingProfile::M21=>unreachable!("typed-only profile"),
+                CombatTrainingProfile::V2=>entry.validate_v2(),CombatTrainingProfile::M21|CombatTrainingProfile::Standard=>unreachable!("typed-only profile"),
             }.map_err(|_|Error::Input("invalid combat entry resources"))?;
             entry.deck.sort_by_key(|(id,u)|(id.as_str(),*u));entry.relics.sort_by_key(|id|id.as_str());
             let counters=if entry.relics.contains(&RelicId::NeowsLament){json!({"neows_lament":entry.neows_lament_remaining.unwrap_or(3)})}else{json!({})};
@@ -72,11 +74,16 @@ impl CombatTrainingCatalog{
         }
         let (descriptor,domain)=match profile{
             CombatTrainingProfile::V1=>(json!({"catalog_schema_id":"spire-gym-combat-entry-catalog-v1","entries":normalized}),b"spire-gym/combat-entry-catalog/v1\0".as_slice()),
-            CombatTrainingProfile::M21=>unreachable!("typed-only profile"),
+            CombatTrainingProfile::M21|CombatTrainingProfile::Standard=>unreachable!("typed-only profile"),
             CombatTrainingProfile::V2=>(json!({"catalog_schema_id":"spire-gym-combat-entry-catalog-v2","profile_id":COMBAT_TRAINING_PROFILE_V2_ID,"entries":normalized}),b"spire-gym/combat-entry-catalog/v2\0".as_slice()),
         };
         let mut h=Sha256::new();h.update(domain);h.update(crate::canonical_json(&descriptor).map_err(|_|Error::Input("invalid catalog"))?);
         Ok(Self{profile,entries,descriptor,fingerprint:h.finalize().into()})
+    }
+    /// M34s-a `standard-combat-v1` catalog (`spire-gym-standard-combat-catalog-v1`, design §4.4).
+    pub fn standard_from_json(bytes:&[u8])->Result<Self,Error>{
+        let (entries,descriptor,fingerprint)=crate::standard_combat::parse(bytes)?;
+        Ok(Self{profile:CombatTrainingProfile::Standard,entries:entries.into_iter().map(|(id,start)|(id,TrainingEntry::Standard(start))).collect(),descriptor,fingerprint})
     }
     pub fn descriptor(&self)->Value{self.descriptor.clone()}
     pub fn fingerprint(&self)->[u8;32]{self.fingerprint}
@@ -85,6 +92,8 @@ impl CombatTrainingCatalog{
 /// Actual finite input support, separate from broad registry metadata.
 pub fn combat_training_support()->Value{combat_training_support_for(CombatTrainingProfile::V1)}
 pub fn combat_training_support_v2()->Value{combat_training_support_for(CombatTrainingProfile::V2)}
+/// The typed error of an Ironclad Gym66 surface given a `standard-combat-v1` catalog (and the converse).
+const STANDARD_ON_GYM66:Error=Error::UnsupportedBoundary("standard-combat-v1 catalogs require the Standard combat session");
 fn combat_training_support_for(profile:CombatTrainingProfile)->Value{
 let encounters:&[(EncounterId,u8,spire_core::combat::enemies::EncounterKind)]=profile.encounters();
 let mut support=json!({
@@ -107,19 +116,27 @@ impl CombatTrainingSession{
     #[cfg(feature="fuzz-diagnostics")]
     pub fn fuzz_run(&self)->Option<&Run>{self.run.as_ref()}
     pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
+        if catalog.profile==CombatTrainingProfile::Standard{return Err(STANDARD_ON_GYM66)}
         let id=crate::run_session::allocate_run_session_id()?;
         Ok(Self{catalog,caps:crate::combat_policy_capacities(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false})
     }
+    /// M34s-a `standard-combat-v1` session: Standard capacities and the Standard combat view.
+    pub fn new_standard(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
+        if catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("the Standard combat session requires a standard-combat-v1 catalog"))}
+        let id=crate::run_session::allocate_run_session_id()?;
+        Ok(Self{catalog,caps:crate::RunCapacities::standard_default(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false})
+    }
     pub fn observation_spec(&self)->Result<RunObservationSpec,Error>{match self.catalog.profile{
+        CombatTrainingProfile::Standard=>crate::standard_combat_observation_spec(&self.caps),
         CombatTrainingProfile::V1=>crate::combat_policy_observation_spec(),
         CombatTrainingProfile::V2=>crate::combat_policy_observation_spec_v2(),CombatTrainingProfile::M21=>crate::watcher_combat_observation_spec(&self.caps),
     }}
     pub fn catalog_descriptor(&self)->Value{self.catalog.descriptor()}
     pub fn environment_spec(&self)->Result<Value,Error>{
         let spec=self.observation_spec()?;
-        let support=match self.catalog.profile{CombatTrainingProfile::V1=>combat_training_support(),CombatTrainingProfile::V2=>combat_training_support_v2(),CombatTrainingProfile::M21=>m21_support()};
+        let support=match self.catalog.profile{CombatTrainingProfile::V1=>combat_training_support(),CombatTrainingProfile::V2=>combat_training_support_v2(),CombatTrainingProfile::M21=>m21_support(),CombatTrainingProfile::Standard=>crate::standard_combat::standard_combat_support()};
         Ok(json!({"profile_id":self.catalog.profile.id(),"schema_id":self.catalog.profile.view_id(),"observation_fingerprint":hex(&spec.fingerprint()),
-            "content_id":self.catalog.profile.content_id(),"rules_id":if self.catalog.profile==CombatTrainingProfile::M21{M21_WATCHER_COMBAT_RULES_ID}else{crate::RUN_RULES_ID_M10},"reward_id":COMBAT_TRAINING_REWARD_ID,
+            "content_id":self.catalog.profile.content_id(),"rules_id":match self.catalog.profile{CombatTrainingProfile::M21=>M21_WATCHER_COMBAT_RULES_ID,CombatTrainingProfile::Standard=>crate::RUN_RULES_ID_STANDARD,_=>crate::RUN_RULES_ID_M10},"reward_id":COMBAT_TRAINING_REWARD_ID,
             "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"seed_adapter_id":crate::RUN_SEED_ADAPTER_ID,"combat_view_id":self.catalog.profile.view_id(),
             "mode":"standalone_combat","partition":self.partition.as_str(),"entry_catalog_fingerprint":hex(&self.catalog.fingerprint()),"autoreset":"disabled","seed_domain":"u64; explicit seed resets episode ordinal to zero; implicit reset advances ordinal",
             "support":support}))
@@ -148,6 +165,7 @@ impl CombatTrainingSession{
         self.usable()?;
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;
         let (id,entry)=self.catalog.entry(entry_id)?.clone();
+        if let TrainingEntry::Standard(start)=entry{return self.initialize_standard(effective,ordinal,id,start)}
         #[cfg(test)]
         INITIALIZER_CALLS.with(|calls|calls.set(calls.get()+1));
         self.record=if self.catalog.profile==CombatTrainingProfile::M21{Some(crate::combat_replay::new_record(&self.catalog,&self.caps,self.partition,effective,ordinal,&id)?)}else{None};
@@ -157,12 +175,43 @@ impl CombatTrainingSession{
         let run=match entry{
             TrainingEntry::Legacy{entry,gold}=>if self.catalog.profile==CombatTrainingProfile::V2{Run::prepare_combat_training_v2_with_gold(entry,gold,rng)}else{Run::prepare_combat_training(entry,rng)},
             TrainingEntry::M21{start,..}=>Run::prepare_m21_watcher_combat(start,encounter,rng),
+            TrainingEntry::Standard(_)=>unreachable!("initialize_standard"),
         }.map_err(Error::Core)?;
         self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();
         if let Err(e)=self.run.as_mut().unwrap().enter_training_combat(encounter){return Err(self.freeze(Error::Core(e)))}
         let result=self.publish();result.map_err(|e|self.freeze(e))
     }
+    /// M34s-a: the Standard arm's reset: own the resources, enter through `enter_owned`, stop at the combat's terminal.
+    fn initialize_standard(&mut self,effective:u64,ordinal:u64,id:String,start:StandardCombatStart)->Result<CombatPolicyBoundary,Error>{
+        let mut root=[0;32];root[..8].copy_from_slice(&effective.to_le_bytes());
+        let run=Run::prepare_standard_combat(start,RunRng::new(root,self.partition,ordinal)).map_err(Error::Core)?;
+        self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;
+        if let Err(e)=self.run.as_mut().unwrap().enter_standard_combat(){return Err(self.freeze(Error::Core(e)))}
+        let result=self.publish();result.map_err(|e|self.freeze(e))
+    }
+    /// Standard boundary: the Standard combat view; info carries the entry, start kind and terminal facts, never a seed.
+    fn publish_standard(&mut self)->Result<CombatPolicyBoundary,Error>{
+        let run=self.run.as_ref().unwrap();
+        let d=run.decision().map_err(Error::Core)?;
+        let observation=crate::combat_policy::encode_standard_combat(&d,&self.caps,run.ascension(),run.room_selection_operation(),run.combat_identity())?;
+        let terminal=run.combat_scope_terminal();
+        let mut info=crate::combat_policy::standard_lifecycle(&d,None);
+        info["profile_id"]=json!(self.catalog.profile.id());info["entry_id"]=json!(self.entry_id);info["episode_ordinal"]=json!(self.ordinal);
+        info["start_kind"]=json!("fresh_start");
+        info["terminal_reason"]=terminal.map(|t|json!(outcome_label(t.outcome))).unwrap_or(Value::Null);
+        info["all_enemies_escaped"]=json!(terminal.is_some_and(|t|t.all_enemies_escaped));
+        info["hp_before_healing"]=terminal.map(|t|json!(t.hp_before_healing)).unwrap_or(Value::Null);
+        info["hp_after_cleanup"]=terminal.map(|t|json!(t.hp_after_cleanup)).unwrap_or(Value::Null);
+        let boundary=CombatPolicyBoundary{observation,token:[self.id,self.serial].into(),info};
+        self.actions=if terminal.is_some(){vec![]}else{d.candidates.into_iter().map(|c|c.action).collect()};
+        self.published=Some(boundary);self.decision()
+    }
+    fn terminal_outcome(&self)->Option<Outcome>{
+        let run=self.run.as_ref().unwrap();
+        if self.catalog.profile==CombatTrainingProfile::Standard{run.combat_scope_terminal().map(|t|t.outcome)}else{run.combat_checkpoint().map(|c|c.record.outcome)}
+    }
     fn publish(&mut self)->Result<CombatPolicyBoundary,Error>{
+        if self.catalog.profile==CombatTrainingProfile::Standard{return self.publish_standard()}
         let d=match self.run.as_ref().unwrap().decision(){Ok(d)=>d,Err(e)=>return Err(Error::Core(e))};
         if self.catalog.profile==CombatTrainingProfile::M21{self.latest_public=Some(d.clone());}
         let cp=self.run.as_ref().unwrap().combat_checkpoint();
@@ -182,7 +231,7 @@ impl CombatTrainingSession{
     pub fn preflight_step(&self,token:RunDecisionToken,index:RunActionIndex)->Result<(),Error>{
         self.usable()?;let b=self.published.as_ref().ok_or(Error::NotReset)?;
         if token!=b.token{return Err(Error::StaleToken)}
-        if self.run.as_ref().unwrap().combat_checkpoint().is_some(){return Err(Error::Terminal)}
+        if self.terminal_outcome().is_some(){return Err(Error::Terminal)}
         if usize::try_from(index.0).ok().is_none_or(|i|i>=self.actions.len()){return Err(Error::Input("combat action index is not legal"))}
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;self.accepted_steps.checked_add(1).ok_or(Error::Input("combat step count exhausted"))?;Ok(())
     }
@@ -197,8 +246,9 @@ impl CombatTrainingSession{
         }
         self.last_step_committed=true;
         self.accepted_steps+=1;self.serial+=1;
-        let cp=self.run.as_ref().unwrap().combat_checkpoint();let terminated=cp.is_some();
-        let reward=cp.map_or(0,|c|if c.record.outcome==Outcome::Victory{1}else{-1});
+        let outcome=self.terminal_outcome();let terminated=outcome.is_some();
+        // `spire-gym-combat-outcome-reward-v1`: victory +1, death -1, escaped 0 (M34s-a aligns Gym66 to the documented law).
+        let reward=outcome.map_or(0,outcome_reward);
         if let Some(record)=&mut self.record{record.steps.push(crate::RunRecordedStep{action:action.clone(),reward,terminal:self.run.as_ref().unwrap().decision().ok().and_then(|d|d.terminal)});record.outcome=self.run.as_ref().unwrap().combat_checkpoint().map(|c|c.record.outcome);}
         let boundary=self.publish().map_err(|e|self.freeze_action(e,Some(action),true,true))?;Ok(CombatTrainingStep{boundary,reward,terminated,truncated:false})
     }
@@ -209,6 +259,9 @@ impl CombatTrainingSession{
     }),"accepted_steps":self.accepted_steps,"last_step_committed":self.last_step_committed,"closed":self.closed,"entry_id":self.entry_id,"effective_seed":self.seed,"episode_ordinal":self.ordinal})}
     pub fn close(&mut self)->Result<(),Error>{self.closed=true;if let Some(record)=&mut self.record{record.closed=true;}Ok(())}
 }
+
+pub(crate) fn outcome_reward(outcome:Outcome)->i32{match outcome{Outcome::Victory=>1,Outcome::Death=>-1,Outcome::Escaped=>0}}
+fn outcome_label(outcome:Outcome)->&'static str{match outcome{Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"}}
 
 /// Typed-only finite Watcher entry; no hidden combat state or pile order.
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -257,8 +310,8 @@ pub const M21_WATCHER_COMBAT_CONTENT_ID:&str="spire-gym-m21-watcher-combat-conte
 pub const M21_WATCHER_COMBAT_RULES_ID:&str="spire-gym-native-m21-watcher-combat-rules-v1";
 pub const M21_WATCHER_COMBAT_CATALOG_SCHEMA_ID:&str="spire-gym-m21-watcher-combat-catalog-v1";
 #[derive(Clone,Debug)]
-enum TrainingEntry{Legacy{entry:CombatTrainingEntry,gold:u32},M21{encounter:EncounterId,start:M21WatcherCombatStart}}
-impl TrainingEntry{fn encounter(&self)->EncounterId{match self{Self::Legacy{entry,..}=>entry.encounter,Self::M21{encounter,..}=>*encounter}}}
+enum TrainingEntry{Legacy{entry:CombatTrainingEntry,gold:u32},M21{encounter:EncounterId,start:M21WatcherCombatStart},Standard(StandardCombatStart)}
+impl TrainingEntry{fn encounter(&self)->EncounterId{match self{Self::Legacy{entry,..}=>entry.encounter,Self::M21{encounter,..}=>*encounter,Self::Standard(start)=>start.encounter}}}
 fn m21_start_descriptor(s:&M21WatcherCombatStart)->Value{match s{
  M21WatcherCombatStart::Canonical=>json!({"kind":"canonical"}),
  M21WatcherCombatStart::Supplied(r)=>json!({"kind":"supplied","resources":{"hp":r.hp,"max_hp":r.max_hp,"gold":r.gold,

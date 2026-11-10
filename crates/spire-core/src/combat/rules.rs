@@ -78,6 +78,16 @@ pub(super) fn full_signed_card_damage(base:i32,strength:i32,weak:bool,wrath:bool
     full_normal_damage_pipeline(base,strength,weak,0.75_f32,if wrath{2.0}else{1.0},double,receive,true,false)
 }
 fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,stance_multiplier:f32,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool,check_width:bool)->Result<i32,InputError>{
+    let value=full_normal_damage_value(base,strength,weak,weak_multiplier,stance_multiplier,double,receive,signed,check_width)?;
+    if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
+    Ok(value.max(0.0).floor() as i32)
+}
+/// M34s-a R-a3: the attacker's damage after give, receive and stance modifiers, before the final floor
+/// (`AbstractMonster.calculateDamage` up to its Back Attack step).
+pub(super) fn full_intent_damage_unfloored(base:i32,strength:i32,weak:bool,weak_multiplier:f32,wrath:bool,vulnerable_factor:Option<f32>)->Result<f32,InputError>{
+    full_normal_damage_value(base,strength,weak,weak_multiplier,if wrath{2.0}else{1.0},false,vulnerable_factor,false,false)
+}
+fn full_normal_damage_value(base:i32,strength:i32,weak:bool,weak_multiplier:f32,stance_multiplier:f32,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool,check_width:bool)->Result<f32,InputError>{
     if !signed{bounded(base, 10_004, "full base damage")?;}
     if !(-999..=999).contains(&strength) {
         return Err(InputError::Unsupported("full Strength outside supported numeric surface".into()));
@@ -90,8 +100,7 @@ fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f
     value *= stance_multiplier;
     for multiplier in receive {value*=multiplier;}
     if check_width{watcher_final_width(value)?;}
-    if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
-    Ok(value.max(0.0).floor() as i32)
+    Ok(value)
 }
 
 fn normal_damage_modifiers_bounded(base: i32, maximum_base: i32, strength: i32,

@@ -793,13 +793,13 @@ fn digest(step: usize, decision: &PublicDecision, action: Option<&GameAction>) -
 }
 
 /// M34a: the decision text without the M34a public-view fields (enemy intent category, planned hits
-/// and Invincible cap; bottled-card links; room params), so a base tree and an M34a tree running this
+/// and Invincible cap; bottled-card links; room params) and M34s-a's draw multiset (`draw_unknown`), so a base tree and an M34a tree running this
 /// same example digest the same projection (`M28_DIGEST_PROJECTION=pre-m34a`). Text-only, so it
 /// also builds on a pre-M34a tree, where it changes nothing.
 fn pre_m34a(text: &str) -> String {
     let mut out = text.to_owned();
     for (key, trailing) in [(", intent_category: ", false), (", intent_hits: ", false), (", invincible_cap: ", false),
-        ("bottled_cards: ", true), (", room_params: ", false)] {
+        ("bottled_cards: ", true), (", room_params: ", false), (", draw_unknown: ", false)] {
         while let Some(start) = out.find(key) {
             let bytes = out.as_bytes();
             let (mut end, mut depth) = (start + key.len(), 0i32);

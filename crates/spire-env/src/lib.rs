@@ -28,6 +28,8 @@ mod run_replay;
 mod run_batch;
 mod combat_policy;
 mod combat_training;
+mod standard_combat;
+pub use standard_combat::{standard_combat_support,STANDARD_COMBAT_PROFILE_ID,STANDARD_COMBAT_CATALOG_SCHEMA_ID};
 mod card_metadata;
 pub use card_metadata::{card_metadata_descriptor,CARD_METADATA_SCHEMA_ID};
 pub use combat_policy::{defect_combat_observation_spec,encode_defect_combat,RUN_OBSERVATION_POLICY_SCHEMA_ID,policy_run_observation_spec,encode_run_policy,COMBAT_POLICY_VIEW_ID,COMBAT_POLICY_VIEW_V2_ID,CombatPolicyBoundary,combat_policy_capacities,combat_policy_observation_spec,combat_policy_observation_spec_v2};
@@ -85,6 +87,7 @@ pub use run_observation::encode_run_m20;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M20,RUN_RULES_ID_M20,RUN_CONTENT_ID_M20};
 
 pub use combat_policy::{watcher_combat_observation_spec,encode_watcher_combat};
+pub use combat_policy::{standard_combat_observation_spec,STANDARD_COMBAT_VIEW_ID};
 
 mod run_schema_m21;
 pub use run_schema_m21::M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID;

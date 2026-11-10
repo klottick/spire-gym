@@ -1079,7 +1079,8 @@
    "selection_only",
    "known_draw_top",
    "known_draw_bottom",
-   "playing"
+   "playing",
+   "draw"
   ]
  },
  "manifest_id": "standard-vocab-v1",

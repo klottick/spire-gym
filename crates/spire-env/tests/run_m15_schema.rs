@@ -150,7 +150,7 @@ fn fixture_decision() -> PublicDecision {
 }
 
 fn combat() -> CombatPublic {
-    CombatPublic {
+    CombatPublic {draw_unknown:vec![],
         mantra_gained:None,previous_card_type:None, stance_choice:None,
         played_powers: vec![],
         playing_cards: vec![],
@@ -194,7 +194,7 @@ fn combat() -> CombatPublic {
 }
 
 fn live_card(id: CardId, instance: u64, values: Option<CardPublicValues>) -> LiveCardView {
-    LiveCardView { watcher:None, misc:0,
+    LiveCardView {lifecycle:Default::default(), watcher:None, misc:0,
         instance: CardInstanceId(instance),
         id,
         origin: CombatCardRef::CombatLocal(instance),

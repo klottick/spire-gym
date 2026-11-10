@@ -68,6 +68,66 @@ pub(super) fn refreshed_damage_with_vulnerable_factor(base:i32,enemy_powers:&[Po
     }else{Ok(modified)}
 }
 
+/// M34s-a R-a3: the one displayed intent damage (the view and the a2 pre-roll consistent sets). It follows the
+/// original `AbstractMonster.calculateDamage`: give, receive and stance modifiers, then Back Attack `(int)(tmp*1.5f)` on
+/// the un-floored value, then the player's final-receive Intangible cap (1), then floor and clamp. Gameplay is unchanged:
+/// the dealt damage floors before Back Attack (`DamageInfo.applyPowers`, the stored `output`) and Intangible caps at
+/// application (`apply` below). Without Back Attack or player Intangible this returns `output` unchanged.
+pub(super) fn displayed_intent_damage(state:&State,enemy:&super::EnemyState,output:i32)->i32{
+    let base=match &enemy.intent_id{
+        ActorIntentId::Legacy(id)=>enemy.damage_entries.get(id).map(|d|d.base),
+        ActorIntentId::Full(id)=>enemy.full_damage_entries.get(id).map(|d|d.base),
+    };
+    displayed_damage(state,enemy,output,base)
+}
+
+/// M34s-a a2 (design §4.5.2): the displayed intent value a candidate pre-rolled `base` would show under the modifiers
+/// now in force — the refresh law of `refresh_enemy_values`, then the one display above.
+pub(super) fn displayed_damage_of_base(state:&State,enemy:&super::EnemyState,base:i32)->Result<i32,InputError>{
+    let inputs=IntentInputs::of(state);
+    let output=refreshed_damage_with_vulnerable_factor(base,&enemy.powers,&enemy.full_powers,&state.player.powers,
+        &state.player_full_powers,inputs.wrath,state.full_runtime,back_attack_active(state,enemy),inputs.paper_krane,inputs.vulnerable_factor)?;
+    Ok(displayed_damage(state,enemy,output,Some(base)))
+}
+
+fn displayed_damage(state:&State,enemy:&super::EnemyState,output:i32,base:Option<i32>)->i32{
+    if !state.full_runtime{return output}
+    let mut shown=output;
+    if back_attack_active(state,enemy){
+        if let Some(value)=base.and_then(|base|intent_damage_unfloored(state,enemy,base)){shown=(value*1.5_f32) as i32;}
+    }
+    if player_intangible(state){shown=shown.min(1);}
+    shown.max(0)
+}
+
+/// The refresh inputs shared by every enemy: stance, Paper Krane and the player's Vulnerable factor.
+struct IntentInputs{wrath:bool,paper_krane:bool,vulnerable_factor:f32}
+impl IntentInputs{
+    fn of(state:&State)->Self{Self{wrath:state.character.stance==super::characters::Stance::Wrath,
+        paper_krane:state.item_context.as_ref().is_some_and(|items|
+            (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::PaperKrane)),
+        vulnerable_factor:player_vulnerable_factor(state)}}
+}
+
+/// A move's damage from `base` before the final floor, from the same inputs as `refresh_enemy_values`. `None` only if
+/// the value leaves the supported numeric surface (which the refresh has already rejected).
+fn intent_damage_unfloored(state:&State,enemy:&super::EnemyState,base:i32)->Option<f32>{
+    let strength=amount(&enemy.powers,PowerId::Strength)
+        +enemy.full_powers.iter().find(|p|p.id.0=="strength").map_or(0,|p|p.state.amount);
+    let vulnerable=amount(&state.player.powers,PowerId::Vulnerable)>0
+        ||state.player_full_powers.iter().any(|p|p.id.0=="vulnerable"&&p.state.amount>0);
+    let weak=enemy.full_powers.iter().any(|p|p.id.0=="weak"&&p.state.amount>0);
+    let paper_krane=state.item_context.as_ref().is_some_and(|items|
+        (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::PaperKrane));
+    let wrath=state.character.stance==super::characters::Stance::Wrath;
+    rules::full_intent_damage_unfloored(base,strength,weak,if paper_krane{0.6}else{0.75},wrath,
+        vulnerable.then(||player_vulnerable_factor(state))).ok()
+}
+
+fn player_intangible(state:&State)->bool{
+    state.player_full_powers.iter().any(|p|p.id.0=="intangible_player"&&p.state.amount>0)
+}
+
 pub(super) fn player_vulnerable_factor(state:&State)->f32{
     state.item_context.as_ref().map_or(1.5_f32,|context|{
         // M27 seam: player-vulnerable-factor
@@ -76,12 +136,9 @@ pub(super) fn player_vulnerable_factor(state:&State)->f32{
 }
 
 pub(super) fn refresh_enemy_values(state: &mut State) -> Result<(), InputError> {
-    let wrath = state.character.stance == super::characters::Stance::Wrath;
+    let IntentInputs{wrath,paper_krane,vulnerable_factor}=IntentInputs::of(state);
     let player_powers = &state.player.powers;
     let player_full_powers = &state.player_full_powers;
-    let paper_krane=state.item_context.as_ref().is_some_and(|items|
-        (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::PaperKrane));
-    let vulnerable_factor=player_vulnerable_factor(state);
     let back_attack=state.enemies.iter().map(|enemy|(enemy.instance_id.clone(),back_attack_active(state,enemy))).collect::<std::collections::BTreeMap<_,_>>();
     for enemy in &mut state.enemies {
         if state.full_runtime{super::enemies::act3::elites::refresh_actor(enemy,state.ascension);}
@@ -237,6 +294,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             // The validated target is needed while calculating typed payloads as
             // well as for the shared Block/HP commit below.
             let target = effect.target.as_ref().unwrap();
+            // M34s-a a2: a pre-rolled move's execution narrows its consistent set under the modifiers then in force.
+            if let (DamagePayload::FullEnemyMove(_),Source::Actor(Actor::Enemy(source)))=(payload,&effect.source){
+                super::knowledge::observe_prerolls(state,Some(source));
+            }
             let damage = match payload {
                 DamagePayload::Fixed(n) | DamagePayload::Thorns(n)
                 | DamagePayload::HpLoss(n) => *n,
@@ -256,7 +317,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             };
             let full_runtime = state.full_runtime;
             let mut damage=if full_runtime{super::enemies::act2::modify_incoming_damage(state,target,payload,damage)?}else{damage};
-            if full_runtime&&*target==Actor::Player&&state.player_full_powers.iter().any(|p|p.id.0=="intangible_player"&&p.state.amount>0){damage=damage.min(1);}
+            if full_runtime&&*target==Actor::Player&&player_intangible(state){damage=damage.min(1);}
             // Invincible caps committed HP loss after Block, while preserving the
             // actual damage-type path and charging only HP damage that occurred.
             let invincible=if full_runtime {if let Actor::Enemy(owner)=target {
@@ -854,7 +915,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if state.full_runtime{super::enemies::act3::elites::after_card(state)?;}
             if state.full_runtime{super::enemies::act3::time_eater::after_card(state)?;}
             if state.in_play.as_ref().map(OwnedCard::handle).as_ref()!=Some(card){return Err(InputError::Invariant("FinishCard in-play owner missing".into()).into())}
-            if let Some(live)=state.in_play.as_mut().and_then(OwnedCard::full_mut){live.local.free_to_play_once=false;}
+            // A completed use ends both waivers, autoplay included (the original clears freeToPlayOnce and isInAutoplay
+            // in UseCardAction.update).
+            if let Some(live)=state.in_play.as_mut().and_then(OwnedCard::full_mut){live.local.free_to_play_once=false;live.local.free_play=false;}
             if state.full_runtime&&super::cards::ironclad::autoplay::defer_parent_finish(state,card)?{return Ok(())}
             let disposition=state.play_context.as_ref().filter(|context|context.card==*card)
                 .map_or(super::model::FinishDisposition::Natural,|context|context.disposition);

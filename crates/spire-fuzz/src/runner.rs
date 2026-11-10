@@ -5,6 +5,8 @@ use sha2::{Digest, Sha256};
 use spire_env::RunObservation;
 use crate::{CatalogCombat, Decision, Driver, DriverError, FuzzFailure, FullRun, IllegalProbe, Policy, ReproCase, TraceHasher,
     profiles::profile, shrink_actions};
+#[cfg(feature = "diagnostics")]
+use crate::mix64;
 use crate::failure::{failure_key, failure_key_for_config};
 
 #[cfg(feature = "diagnostics")]
@@ -43,6 +45,7 @@ pub struct EpisodeResult {
     pub policy: Policy,
     pub seed: u64,
     pub trace_hash: String,
+    pub gameplay_hash: String,
     pub steps: u64,
     pub wins: u64,
     pub deaths: u64,
@@ -54,6 +57,39 @@ pub struct EpisodeResult {
     pub profile_cutoff: Option<String>,
     pub unsupported: u64,
     pub failure: Option<FuzzFailure>,
+    #[cfg(feature = "diagnostics")]
+    pub draw_knowledge_stats: DrawKnowledgeStats,
+}
+
+#[cfg(feature = "diagnostics")]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DrawKnowledgeStats {
+    pub checks: u64,
+    pub unrepresentable: u64,
+    pub max_components: usize,
+    /// Bounded buckets: 1, 2–4, 5–8, 9–16, 17–32, and 33+ components.
+    pub component_histogram: BTreeMap<String, u64>,
+}
+
+#[cfg(feature = "diagnostics")]
+impl DrawKnowledgeStats {
+    fn record(&mut self, components: Option<usize>) {
+        self.checks += 1;
+        match components {
+            None => self.unrepresentable += 1,
+            Some(count) => {
+                self.max_components = self.max_components.max(count);
+                let bucket = match count { 0 => "0", 1 => "1", 2..=4 => "2-4", 5..=8 => "5-8", 9..=16 => "9-16", 17..=32 => "17-32", _ => "33+" };
+                *self.component_histogram.entry(bucket.into()).or_default() += 1;
+            }
+        }
+    }
+    fn merge(&mut self, other: &Self) {
+        self.checks += other.checks;
+        self.unrepresentable += other.unrepresentable;
+        self.max_components = self.max_components.max(other.max_components);
+        for (bucket, count) in &other.component_histogram { *self.component_histogram.entry(bucket.clone()).or_default() += count; }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -136,6 +172,9 @@ pub struct RunSummary {
     pub unsupported_encounters: BTreeMap<String, u64>,
     pub failures: Vec<FuzzFailure>,
     pub trace_hashes: Vec<String>,
+    pub gameplay_hashes: Vec<String>,
+    #[cfg(feature = "diagnostics")]
+    pub draw_knowledge_by_spec: BTreeMap<String, DrawKnowledgeStats>,
 }
 
 impl RunSummary {
@@ -196,6 +235,13 @@ impl RunSummary {
             if let Some(encounter) = result.labels.get("encounter") { bump(&mut self.unsupported_encounters, encounter); }
         }
         if !result.trace_hash.is_empty() { self.trace_hashes.push(result.trace_hash); }
+        if !result.gameplay_hash.is_empty() { self.gameplay_hashes.push(result.gameplay_hash); }
+        #[cfg(feature = "diagnostics")]
+        if result.draw_knowledge_stats.checks > 0 {
+            let spec = result.labels.get("spec").or_else(|| result.labels.get("profile"))
+                .map(String::as_str).unwrap_or("unprofiled").to_owned();
+            self.draw_knowledge_by_spec.entry(spec).or_default().merge(&result.draw_knowledge_stats);
+        }
         if let Some(mut failure) = result.failure {
             if failure.occurrences == 0 { failure.occurrences = 1; }
             if failure.example_seeds.is_empty() { failure.example_seeds.push(failure.seed); }
@@ -249,10 +295,16 @@ pub fn run_episode(driver: Box<dyn Driver>, seed: u64, policy: Policy, options: 
 
 fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, options: EpisodeOptions, allow_shrink: bool) -> EpisodeResult {
     let driver_class = driver.class().to_owned();
-    let mut result = EpisodeResult { driver: driver_class.clone(), labels: BTreeMap::new(), policy, seed, trace_hash: String::new(),
+    let initial_labels = driver.labels();
+    let profile = initial_labels.get("profile").map(String::as_str).unwrap_or("unprofiled");
+    let mut gameplay = GameplayHasher::new(&driver_class, profile, seed);
+    let mut result = EpisodeResult { driver: driver_class.clone(), labels: BTreeMap::new(), policy, seed, trace_hash: String::new(), gameplay_hash: String::new(),
         steps: 0, wins: 0, deaths: 0, escapes: 0, reached_combat: false, all_legal_checks_after_step_zero: 0,
         capped: 0, capped_reason: None, profile_cutoff: None,
-        unsupported: 0, failure: None };
+        unsupported: 0, failure: None,
+        #[cfg(feature = "diagnostics")]
+        draw_knowledge_stats: DrawKnowledgeStats::default(),
+    };
     let mut actions = Vec::<usize>::new();
     let mut prefix_hashes = Vec::<String>::new();
     #[cfg(feature = "diagnostics")]
@@ -265,11 +317,18 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
     let mut failure: Option<DriverError> = None;
     let mut failure_step = 0usize;
     let mut decision: Decision;
+    #[cfg(feature = "diagnostics")]
+    let mut knowledge_boundary = 0u64;
 
     match driver.reset(seed) {
         Ok(boundary) => {
             result.labels = driver.labels();
             trace = Some(TraceHasher::new(&trace_identity(driver.as_ref()), seed, &boundary.observation));
+            if let Some(outcome) = boundary.terminal.as_deref() { gameplay.terminal(outcome); }
+            #[cfg(feature = "diagnostics")]
+            if let Err(error) = sample_draw_knowledge(driver.as_ref(), seed, knowledge_boundary, &mut result.draw_knowledge_stats) {
+                failure = Some(error);
+            }
             prefix_hashes.push(trace.as_ref().unwrap().snapshot());
             decision = boundary;
             #[cfg(feature = "diagnostics")]
@@ -279,7 +338,7 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
             }
         }
         Err(error) if error.kind == "unsupported" => {
-            result.labels = driver.labels(); result.unsupported = 1; return result;
+            result.labels = driver.labels(); result.unsupported = 1; result.gameplay_hash = gameplay.finish(); return result;
         }
         Err(error) => {
             result.labels = driver.labels(); failure = Some(error); failure_step = 0; decision = empty_decision();
@@ -362,10 +421,24 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
             Ok(output) => {
                 result.steps += 1;
                 if let Some(trace) = trace.as_mut() { trace.step(index, output.reward, &output.decision.observation); }
+                gameplay.accepted_step(index, output.reward);
                 prefix_hashes.push(trace.as_ref().unwrap().snapshot());
-                if let Some(terminal) = &output.terminal { count_terminal(terminal, &mut result); }
-                let terminal = output.terminal.is_some() || output.decision.terminal.is_some();
+                let terminal_outcome = output.terminal.as_deref().or(output.decision.terminal.as_deref()).map(str::to_owned);
+                if let Some(terminal) = &terminal_outcome {
+                    count_terminal(terminal, &mut result);
+                    gameplay.terminal(terminal);
+                }
+                let terminal = terminal_outcome.is_some();
                 decision = output.decision;
+                #[cfg(feature = "diagnostics")]
+                {
+                    knowledge_boundary = knowledge_boundary.wrapping_add(1);
+                    if let Err(error) = sample_draw_knowledge(driver.as_ref(), seed, knowledge_boundary, &mut result.draw_knowledge_stats) {
+                        failure = Some(error);
+                        failure_step = result.steps.saturating_sub(1) as usize;
+                        break;
+                    }
+                }
                 #[cfg(feature = "diagnostics")]
                 {
                     last_run = driver.inner_run();
@@ -425,7 +498,62 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
     }
     result.reached_combat = driver.reached_combat();
     result.labels = driver.labels();
+    result.gameplay_hash = gameplay.finish();
     result
+}
+
+struct GameplayHasher(Sha256);
+impl GameplayHasher {
+    fn new(driver: &str, profile: &str, seed: u64) -> Self {
+        let mut hash = Sha256::new();
+        Self::update(&mut hash, &json!({"driver":driver,"profile":profile,"seed":seed}));
+        Self(hash)
+    }
+    fn accepted_step(&mut self, action: usize, reward: i32) {
+        Self::update(&mut self.0, &json!({"action":action,"reward":reward}));
+    }
+    fn terminal(&mut self, outcome: &str) {
+        Self::update(&mut self.0, &json!({"terminal":outcome}));
+    }
+    fn update(hash: &mut Sha256, value: &Value) {
+        if let Ok(bytes) = serde_json::to_vec(value) {
+            hash.update((bytes.len() as u64).to_le_bytes());
+            hash.update(bytes);
+        }
+    }
+    fn finish(self) -> String { crate::observation::hex(&self.0.finalize()) }
+}
+
+#[cfg(feature = "diagnostics")]
+pub(crate) fn inspect_draw_knowledge(combat: &spire_core::combat::Combat) -> Result<Option<usize>, DriverError> {
+    match combat.draw_knowledge() {
+        Err(_) => Ok(None),
+        Ok(knowledge) => {
+            if knowledge.supports(&combat.true_draw_classes()) {
+                Ok(Some(knowledge.components().len()))
+            } else {
+                Err(DriverError::new("knowledge", "draw knowledge does not support true draw classes"))
+            }
+        }
+    }
+}
+
+#[cfg(feature = "diagnostics")]
+fn sample_draw_knowledge(driver: &dyn Driver, seed: u64, boundary: u64, stats: &mut DrawKnowledgeStats) -> Result<(), DriverError> {
+    if !draw_knowledge_sampled(seed, boundary) { return Ok(()) }
+    if let Some(check) = driver.draw_knowledge_check() {
+        match check {
+            Ok(components) => stats.record(components),
+            Err(error) => { stats.checks += 1; return Err(error); }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "diagnostics")]
+fn draw_knowledge_sampled(seed: u64, boundary: u64) -> bool {
+    const SAMPLE_DOMAIN: u64 = 0xD1B5_4A32_D192_ED03;
+    mix64(seed ^ boundary.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ SAMPLE_DOMAIN) % 4 == 0
 }
 
 fn shrink_failure(driver: &dyn Driver, seed: u64, policy: Policy, options: &EpisodeOptions, failure: &mut FuzzFailure) {
@@ -621,6 +749,20 @@ pub(crate) fn driver_from_config(class: &str, config: &Value) -> Result<Box<dyn 
             if let Some(id) = config["entry_id"].as_str() { driver.select_entry_id(id).map_err(|error| error.message)?; }
             Ok(Box::new(driver))
         }
+        "standard-combat-ironclad-a0" | "standard-combat-ironclad-a20"
+        | "standard-combat-silent-a0" | "standard-combat-silent-a20"
+        | "standard-combat-defect-a0" | "standard-combat-defect-a20"
+        | "standard-combat-watcher-a0" | "standard-combat-watcher-a20" => {
+            let spec = class.strip_prefix("standard-combat-").unwrap();
+            let (character_name, ascension) = spec.split_once("-a").ok_or_else(|| "invalid Standard combat spec".to_owned())?;
+            let character = spire_core::content::Character::ALL.into_iter().find(|character| character.as_str() == character_name)
+                .ok_or_else(|| format!("unknown Standard combat character {character_name}"))?;
+            let ascension = ascension.parse::<u8>().map_err(|_| "invalid Standard combat ascension")?;
+            let bytes = serde_json::to_vec(&config["catalog"]).map_err(|error| error.to_string())?;
+            let mut driver = CatalogCombat::standard_from_json(&bytes, character, ascension).map_err(|error| error.message)?;
+            if let Some(id) = config["entry_id"].as_str() { driver.select_entry_id(id).map_err(|error| error.message)?; }
+            Ok(Box::new(driver))
+        }
         "run" => {
             let id = config["profile"].as_str().ok_or_else(|| "Run repro config lacks profile".to_owned())?;
             let spec = profile(id).ok_or_else(|| format!("unknown Run profile {id}"))?;
@@ -766,6 +908,22 @@ mod tests {
     }
 
     #[test]
+    fn standard_combat_repro_configs_rebuild_the_eight_named_drivers() {
+        use spire_core::content::Character;
+        for character in Character::ALL {
+            for ascension in [0, 20] {
+                let mut original = CatalogCombat::generated_standard(23, character, ascension).unwrap();
+                original.reset(23).unwrap();
+                let class = original.class().to_owned();
+                let config = original.describe();
+                let rebuilt = driver_from_config(&class, &config).unwrap();
+                assert_eq!(rebuilt.class(), class);
+                assert_eq!(rebuilt.describe(), config, "{class}");
+            }
+        }
+    }
+
+    #[test]
     fn accepted_zero_action_profile_cutoff_is_an_ending_not_a_cap() {
         let result = run_episode(Box::new(EmptyBoundaryDriver::new(Some("Act2Ready"))), 1, Policy::First, no_step_options());
         assert_eq!(result.profile_cutoff.as_deref(), Some("Act2Ready"));
@@ -808,9 +966,11 @@ mod tests {
         let message = format!("complete combat startup: Faulted(RunFault {{ kind: Combat(CombatFault {{ record: FaultRecord {{ kind: Invariant, message: \"decision before quiescence\", resolved_effects: {resolved_effects} }}, current: Some(Effect {{ source: None, target: None, kind: Decision }}), pending: [Effect {{ source: None, target: Some(Player), kind: GainBlock(10) }}] }} }})");
         EpisodeResult {
             driver: "complete".into(), labels: BTreeMap::new(), policy: Policy::First, seed,
-            trace_hash: String::new(), steps: 0, wins: 0, deaths: 0, escapes: 0, reached_combat: false,
+            trace_hash: String::new(), gameplay_hash: String::new(), steps: 0, wins: 0, deaths: 0, escapes: 0, reached_combat: false,
             all_legal_checks_after_step_zero: 0, capped: 0, capped_reason: None,
             profile_cutoff: None, unsupported: 0,
+            #[cfg(feature = "diagnostics")]
+            draw_knowledge_stats: DrawKnowledgeStats::default(),
             failure: Some(FuzzFailure {
                 driver: "complete".into(), driver_config: json!({"encounter":format!("cultist-{seed}")}),
                 feature_set: "diagnostics".into(), seed, policy: Policy::First, actions: vec![], step: 0,
@@ -836,9 +996,12 @@ mod tests {
         let mut labels = BTreeMap::new();
         labels.insert("profile".into(), "M15SilentHeart".into());
         summary.add(EpisodeResult { driver: "run".into(), labels, policy: Policy::ChooseNone, seed: 1,
-            trace_hash: String::new(), steps: 12, wins: 0, deaths: 0, escapes: 0, reached_combat: true,
+            trace_hash: String::new(), gameplay_hash: String::new(), steps: 12, wins: 0, deaths: 0, escapes: 0, reached_combat: true,
             all_legal_checks_after_step_zero: 2, capped: 1,
-            capped_reason: Some("max_steps".into()), profile_cutoff: None, unsupported: 0, failure: None });
+            capped_reason: Some("max_steps".into()), profile_cutoff: None, unsupported: 0,
+            #[cfg(feature = "diagnostics")]
+            draw_knowledge_stats: DrawKnowledgeStats::default(),
+            failure: None });
         assert_eq!(summary.capped_by_driver.get("run"), Some(&1));
         assert_eq!(summary.capped_by_policy.get("choose_none"), Some(&1));
         assert_eq!(summary.capped_by_profile.get("M15SilentHeart"), Some(&1));
@@ -849,5 +1012,63 @@ mod tests {
         assert_eq!(summary.outcomes_by_driver.get("run").unwrap().capped, 1);
         assert_eq!(summary.outcomes_by_profile.get("M15SilentHeart").unwrap().episodes, 1);
         assert_eq!(summary.outcomes_by_policy.get("choose_none").unwrap().episodes, 1);
+    }
+
+    #[test]
+    fn gameplay_hashes_are_serialized_but_do_not_change_stable_hash() {
+        let mut summary = RunSummary::new("test-revision".into());
+        summary.trace_hashes.push("trace-a".into());
+        let original = summary.stable_hash();
+        summary.gameplay_hashes.push("game-a".into());
+        assert_eq!(summary.stable_hash(), original);
+        let serialized = serde_json::to_value(&summary).unwrap();
+        assert_eq!(serialized["gameplay_hashes"], json!(["game-a"]));
+        assert_eq!(serialized["trace_hashes"], json!(["trace-a"]));
+    }
+
+    #[test]
+    #[cfg(feature = "diagnostics")]
+    fn draw_knowledge_sampling_and_summary_bins_are_deterministic() {
+        let first = (0..128).filter(|boundary| draw_knowledge_sampled(77, *boundary)).collect::<Vec<_>>();
+        let second = (0..128).filter(|boundary| draw_knowledge_sampled(77, *boundary)).collect::<Vec<_>>();
+        assert_eq!(first, second);
+        assert!((20..=44).contains(&first.len()), "unexpected sample count {}", first.len());
+
+        let mut stats = DrawKnowledgeStats::default();
+        stats.record(Some(1));
+        stats.record(Some(5));
+        stats.record(None);
+        assert_eq!(stats.checks, 3);
+        assert_eq!(stats.unrepresentable, 1);
+        assert_eq!(stats.max_components, 5);
+        assert_eq!(stats.component_histogram.get("1"), Some(&1));
+        assert_eq!(stats.component_histogram.get("5-8"), Some(&1));
+
+        let mut summary = RunSummary::new("test-revision".into());
+        let stable = summary.stable_hash();
+        summary.draw_knowledge_by_spec.insert("standard-ironclad-a0".into(), stats);
+        assert_eq!(summary.stable_hash(), stable, "the new diagnostic summary key is outside stable_hash inputs");
+        let serialized = serde_json::to_value(&summary).unwrap();
+        assert_eq!(serialized["draw_knowledge_by_spec"]["standard-ironclad-a0"]["checks"], 3);
+    }
+
+    #[test]
+    #[cfg(feature = "diagnostics")]
+    fn sampled_standard_combat_boundary_records_knowledge_stats_by_spec() {
+        use spire_core::content::Character;
+
+        let seed = (0u64..128).find(|seed| draw_knowledge_sampled(*seed, 0)).unwrap();
+        let driver = CatalogCombat::generated_standard(seed, Character::Ironclad, 0).unwrap();
+        let options = EpisodeOptions { max_steps: 1, all_legal_every: 0, determinism: false, replay: false,
+            shrink_budget: Duration::ZERO, scripted_actions: None, continue_first: false };
+        let result = run_episode(Box::new(driver), seed, Policy::First, options);
+        assert!(result.failure.is_none(), "{:?}", result.failure);
+        assert!(result.draw_knowledge_stats.checks >= 1);
+
+        let mut summary = RunSummary::new("test-revision".into());
+        summary.add(result);
+        let stats = summary.draw_knowledge_by_spec.get("standard-combat-ironclad-a0").unwrap();
+        assert!(stats.checks >= 1);
+        assert_eq!(summary.failures.iter().map(|failure| failure.kind.as_str()).collect::<Vec<_>>(), Vec::<&str>::new());
     }
 }

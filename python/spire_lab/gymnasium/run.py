@@ -77,12 +77,14 @@ class RunEnv(gym.Env[Observation, int]):
             return self._session.environment_spec()
 
     def combat_observation_spec(self) -> dict[str, Any]:
-        """Reusable native combat-policy view; old Run schema stays unchanged."""
+        """Reusable native combat-policy view, including Standard combat; Run schema stays unchanged."""
         with self._guard:
             return self._session.combat_observation_spec()
 
     def combat_view(self) -> CombatPolicyPayload:
         """Owned current combat features and visit/routing/exit metadata.
+
+        Standard Run profiles expose the same combat view as StandardCombatEnv.
 
         Dispatch uses the original Run action index. Outside combat the view's
         action mask is empty. Snapshot resources on a settled-count change;

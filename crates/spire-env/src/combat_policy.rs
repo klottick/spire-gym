@@ -132,3 +132,62 @@ pub fn encode_watcher_combat(d:&PublicDecision,caps:&RunCapacities)->Result<RunO
     let mut o=crate::run_observation::encode_run_with_schema(&d,None,caps,crate::run_observation::RunEncodingProfile::M21Watcher)?;
     o.groups.retain(|g|crate::run_schema_m21::GROUPS.contains(&g.key));Ok(o)
 }
+
+/// M34s-a Standard combat view (design §4.2): a projection of the Standard Run observation. Every group, column,
+/// vocabulary, domain and capacity is Standard's; `combat_context` replaces `context` with its combat-relevant columns plus
+/// the live encounter and burning-elite flag (`Run::combat_identity`).
+pub const STANDARD_COMBAT_VIEW_ID:&str="spire-gym-standard-combat-view-v1";
+const STANDARD_COMBAT_DOMAIN:&[u8]=b"spire-gym/combat-view/standard/v1\0";
+const STANDARD_GROUPS:&[&str]=&["player","permanent_cards","combat_cards","enemies","powers","relics","potions","orbs","selection","selection_counts","actions","combat_state","known_draw","stance_choices","combat_card_offers"];
+/// `context` columns kept by `combat_context`, in this order, followed by `encounter` and `burning`.
+pub(crate) const STANDARD_CONTEXT_FIELDS:&[&str]=&["character","ascension","act","room_kind"];
+fn standard_group(key:&str)->bool{key=="action_mask"||STANDARD_GROUPS.iter().any(|g|key==*g||key==format!("{g}_known")||key==format!("{g}_occupied"))}
+fn context_index(field:&str)->usize{
+    static FIELDS:std::sync::OnceLock<Vec<&'static str>>=std::sync::OnceLock::new();
+    FIELDS.get_or_init(||crate::run_schema_standard::groups(&RunCapacities::standard_default()).into_iter().find(|g|g.key=="context").expect("Standard context group").fields.split(',').collect())
+        .iter().position(|f|*f==field).expect("Standard context column")
+}
+pub fn standard_combat_observation_spec(caps:&RunCapacities)->Result<RunObservationSpec,RunSessionError>{
+    let mut d=crate::standard_run_observation_spec(caps)?.descriptor();
+    d["schema_id"]=json!(STANDARD_COMBAT_VIEW_ID);d["profile_id"]=json!("StandardCombat");
+    let tensors=d["tensors"].as_array().unwrap();
+    let find=|key:&str|tensors.iter().find(|t|t["key"]==key).unwrap();
+    let (context,map_nodes)=(find("context"),find("map_nodes"));
+    let mut columns=STANDARD_CONTEXT_FIELDS.iter().map(|f|context["columns"][context_index(f)].clone()).collect::<Vec<_>>();
+    let mut encounter=context["columns"][context_index("last_encounter")].clone();encounter["field"]=json!("encounter");columns.push(encounter);
+    let burning=map_nodes["fields"].as_array().unwrap().iter().position(|f|f=="burning").unwrap();columns.push(map_nodes["columns"][burning].clone());
+    let combat_context=json!({"key":"combat_context","dtype":"int64","shape":[columns.len()],
+        "low":columns.iter().map(|c|c["low"].clone()).collect::<Vec<_>>(),"high":columns.iter().map(|c|c["high"].clone()).collect::<Vec<_>>(),
+        "space":"Box","fields":columns.iter().map(|c|c["field"].clone()).collect::<Vec<_>>(),"units":columns.iter().map(|c|c["unit"].clone()).collect::<Vec<_>>(),
+        "columns":columns,"padding":0,"known":"combat_context_known","reference_columns":[]});
+    let known=json!({"key":"combat_context_known","dtype":"int8","shape":combat_context["shape"].clone(),"low":0,"high":1,"space":"MultiBinary","padding":0});
+    let mut kept=vec![combat_context,known];
+    kept.extend(tensors.iter().filter(|t|standard_group(t["key"].as_str().unwrap())).cloned());
+    d["tensors"]=json!(kept);
+    let semantics=d["semantics"].as_object_mut().unwrap();
+    for key in ["offers","room_params","param_semantics","event_constants","creation","terminal"]{semantics.remove(key);}
+    semantics.insert("combat_context".into(),json!("character, ascension, act and room_kind as the Standard context row; encounter = the live combat's encounter (Standard encounter vocabulary) and burning = 1 when it is a burning elite; both unknown (0/known0) outside a live combat"));
+    semantics.insert("dispatch_index".into(),json!("actions row is the Standard Run's native decision index; never filter/reorder legal rows; dispatch with the Run token"));
+    semantics.insert("lifecycle".into(),json!("routing, visit, token, outcome, current combat phase and selection resume phase are sidecar info, not features; outside combat the mask is empty and routing is noncombat; last_exit is sticky"));
+    let mut h=Sha256::new();h.update(STANDARD_COMBAT_DOMAIN);h.update(crate::canonical_json(&d).map_err(|_|RunSessionError::Input("invalid Standard combat view descriptor"))?);
+    Ok(RunObservationSpec{descriptor:d,fingerprint:h.finalize().into()})
+}
+/// Encodes the Standard combat view of `d`: room offers and Run-only content are cleared, outside combat the actions,
+/// selection and mask are empty, and the kept groups are exactly the Standard observation's.
+pub(crate) fn encode_standard_combat(d:&PublicDecision,caps:&RunCapacities,ascension:u8,run_selection:Option<spire_core::run::RoomSelectionOperation>,identity:Option<CombatIdentity>)->Result<RunObservation,RunSessionError>{
+    let mut d=d.clone();d.offers.clear();if let Some(room)=d.room.as_mut(){room.choices.clear();}
+    let run_selection=if d.combat.is_none(){d.candidates.clear();d.selection=None;None}else{run_selection};
+    let mut obs=crate::run_observation::encode_run_standard(&d,None,caps,crate::run_observation::StandardContext{ascension,run_selection})?;
+    let context=obs.group("context").unwrap();
+    let mut values=STANDARD_CONTEXT_FIELDS.iter().map(|f|context.values[context_index(f)]).collect::<Vec<_>>();
+    let mut known=STANDARD_CONTEXT_FIELDS.iter().map(|f|context.known[context_index(f)]).collect::<Vec<_>>();
+    let identity=identity.filter(|_|d.combat.is_some());
+    match identity{
+        Some(id)=>{values.push(crate::run_schema_standard::encounter(id.encounter)?);values.push(i64::from(id.burning));known.extend([1,1]);}
+        None=>{values.extend([0,0]);known.extend([0,0]);}
+    }
+    obs.groups.retain(|g|standard_group(g.key));
+    obs.groups.insert(0,crate::RunFeatureGroup{key:"combat_context",shape:vec![values.len()],values,known,occupied:None});
+    Ok(obs)
+}
+pub(crate) fn standard_lifecycle(d:&PublicDecision,checkpoint:Option<&CombatCheckpoint>)->Value{lifecycle_for_view(d,checkpoint,STANDARD_COMBAT_VIEW_ID)}

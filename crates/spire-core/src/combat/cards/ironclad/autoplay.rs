@@ -25,6 +25,7 @@ pub(in crate::combat) fn take_top_card(state:&mut State,retry:&Effect)->Result<O
         return Ok(None)
     }
     let child=state.piles.draw.pop().unwrap();let handle=child.handle();
+    crate::combat::piles::drawn_knowledge(state,&child);
     if state.public.known_draw.first()==Some(&handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
     state.public.known_draw_bottom.retain(|known|known!=&handle);state.public.revealed_order.push(handle.clone());
     if state.queued_autoplay.insert(handle.clone(),child).is_some(){

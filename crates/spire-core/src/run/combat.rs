@@ -159,6 +159,12 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
             battle.burning=Some(buff);
         }
     }
+    // M34s-a combat scope: the catalog names the burning elite's buff (no map, no roll).
+    if let Some(buff)=state.combat_scope.and_then(|scope|scope.burning){
+        if !battle.elite_trigger{return Err(RunError::InvalidAction)}
+        enemies::apply_burning_buff(&mut entry,state.act,buff.engine())?;
+        battle.burning=Some(buff.engine());
+    }
     Ok((entry,rng,battle))
 }
 
@@ -203,7 +209,8 @@ impl Run {
         }).collect();
         let player=PublicPlayer {bottled_cards:owner.bottled_cards(),relic_counters:inventory.relic_counters.clone(),character:self.state.character,hp:combat.player.hp as u32,max_hp:combat.player.max_hp as u32,
             gold:self.state.gold,relics:inventory.relics.clone(),potions:inventory.potions.clone(),keys:self.state.keys};
-        Ok(PublicDecision {room_params:super::rooms::standard::room_params(self,None),content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room:self.state.room_loop.as_ref().map(|_|RoomView{kind:RoomViewKind::Combat,choices:vec![]}),reward_total:self.state.reward_ledger.total,act:self.state.act,floor:self.state.floor,player,objects:self.state.deck.iter().map(|c|
+        Ok(PublicDecision {room_params:super::rooms::standard::room_params(self,None),content_profile:self.state.room_loop.as_ref().map(|r|r.scenario).or(self.state.combat_scope.map(|_|RoomScenario::Standard)),
+            room:(self.state.room_loop.is_some()||self.state.combat_scope.is_some()).then(||RoomView{kind:RoomViewKind::Combat,choices:vec![]}),reward_total:self.state.reward_ledger.total,act:self.state.act,floor:self.state.floor,player,objects:self.state.deck.iter().map(|c|
             PublicObject { misc:c.misc,instance:c.instance,id:c.id,upgrades:c.upgrades}).collect(),candidates,offers:vec![],selection:None,
             terminal:self.state.terminal,combat:Some(combat),combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone()})
     }
@@ -221,7 +228,7 @@ impl Run {
         }
         if result.is_ok() {crate::combat::observe::boundary(combat);}
         self.sync_permanent_gains()?;result?;
-        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some() { return self.settle_combat(); }
+        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some() { if self.state.combat_scope.is_some(){return Ok(RunTransition {reward:0,terminal:None,committed_events:vec![]})} return self.settle_combat(); }
         Ok(RunTransition {reward:0,terminal:None,committed_events:vec![]})
     }
 
@@ -370,7 +377,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,combat_scope:None,
         },candidates:vec![],next_choice:0}
     }
 
@@ -397,7 +404,9 @@ impl Run {
         let context=if self.state.item_admission==super::ItemAdmission::Complete{context.with_complete_items()}else{context};
         let mut items=Some(context);
         let _observation_entry=crate::combat::observe::permit_entry(std::ptr::from_ref(self) as usize);
-        let (mut combat,fault)=match Combat::enter_with_item_context(entry,&mut items) {
+        // Public knowledge is maintained only where the profile publishes it (final review M7; PM ruling).
+        let public_knowledge=super::rooms::is_standard(&self.state)||self.state.combat_scope.is_some();
+        let (mut combat,fault)=match Combat::enter_with_public_knowledge(entry,&mut items,public_knowledge) {
             Ok(combat)=>(combat,None),
             Err(CombatEntryFailure::Rejected(error))=> {
                 items.expect("rejected entry retained owner").return_to_run(&mut self.state)?;
@@ -423,7 +432,7 @@ impl Run {
         let mut transition=RunTransition {reward,terminal:None,committed_events:vec![event]};
         // M28f2 G14: a combat already decided during entry (start-of-combat effects killed every
         // enemy) settles now, as after any action; the source ends the battle once the monsters die.
-        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some() {
+        if self.state.combat.as_ref().unwrap().public_full()?.outcome.is_some()&&self.state.combat_scope.is_none() {
             let settled=self.settle_combat()?;
             transition.reward+=settled.reward;transition.terminal=settled.terminal;transition.committed_events.extend(settled.committed_events);
         }

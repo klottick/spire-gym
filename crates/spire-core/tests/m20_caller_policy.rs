@@ -65,14 +65,14 @@ fn empty_combat() -> CombatPublic {
         hand: vec![], draw_count: 0, discard: vec![], exhaust: vec![], outcome: None,
         phase: spire_core::combat::Phase::Decision, selection_resume_phase: None,
         hp_before_healing: None, hp_after_cleanup: None, targets: vec![], selection: None,
-        known_draw: vec![], encounter_facing: None, inventory: None, card_offer: None,
+        known_draw: vec![], draw_unknown: vec![], encounter_facing: None, inventory: None, card_offer: None,
     }
 }
 
 fn live_card(id: CardId, instance: u64) -> LiveCardView {
     LiveCardView { watcher:None,
         instance: CardInstanceId(instance), id, origin: CombatCardRef::Permanent(CardInstanceId(instance)),
-        upgrades: 0, misc: 0, effective_cost: Some(1), values: None,
+        upgrades: 0, misc: 0, effective_cost: Some(1), values: None, lifecycle: Default::default(),
     }
 }
 

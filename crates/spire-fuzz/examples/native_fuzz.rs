@@ -1,9 +1,11 @@
 use std::{collections::BTreeMap, env, fs, path::PathBuf, process::Command, thread, time::{Duration, Instant}};
+use serde_json::json;
+use spire_core::content::Character;
 use spire_fuzz::{CatalogCombat, EpisodeOptions, FullRun, Policy, RunSummary, RUN_PROFILES,
-    failure_key, generated_catalog_json, mix64, read_repro, run_episode, run_repro, shrink_failure_case, write_failure};
+    failure_key, generated_catalog_json, generated_standard_catalog_json, mix64, read_repro, run_episode, run_repro, shrink_failure_case, write_failure};
 
 #[cfg(feature = "diagnostics")]
-use spire_core::{combat::enemies::A0_ENCOUNTER_SETUPS, content::Character};
+use spire_core::combat::enemies::A0_ENCOUNTER_SETUPS;
 #[cfg(feature = "diagnostics")]
 use spire_fuzz::{CompleteCombat, CompleteItemsRun, COMPLETE_ITEMS_RUN_PROFILES};
 
@@ -28,11 +30,11 @@ struct Options {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct DriverWeights { catalog: u32, complete: u32, run: u32, items: u32 }
-impl Default for DriverWeights { fn default() -> Self { Self { catalog: 1, complete: 1, run: 1, items: 1 } } }
+struct DriverWeights { catalog: u32, complete: u32, run: u32, items: u32, standard_combat: u32 }
+impl Default for DriverWeights { fn default() -> Self { Self { catalog: 1, complete: 1, run: 1, items: 1, standard_combat: 1 } } }
 impl DriverWeights {
     fn get(self, driver: &str) -> u32 {
-        match driver { "combat" => self.catalog, "complete" => self.complete, "run" => self.run, "items" => self.items, _ => 0 }
+        match driver { "combat" => self.catalog, "complete" => self.complete, "run" => self.run, "items" => self.items, "standard-combat" => self.standard_combat, _ => 0 }
     }
 }
 
@@ -58,7 +60,7 @@ fn run() -> Result<(), String> {
 fn parse_options(args: Vec<String>) -> Result<Options, String> {
     let mut options = Options { seed_start: 0, seed_end: 0, threads: 2, budget: Duration::ZERO,
         out: PathBuf::from("native-fuzz-out"),
-        drivers: if cfg!(feature = "diagnostics") { vec!["combat".into(), "complete".into(), "run".into(), "items".into()] } else { vec!["combat".into(), "run".into()] },
+        drivers: if cfg!(feature = "diagnostics") { vec!["combat".into(), "complete".into(), "run".into(), "items".into(), "standard-combat".into()] } else { vec!["combat".into(), "run".into(), "standard-combat".into()] },
         weights: DriverWeights::default(), policy: None, catalogs: Vec::new(), combat_max_steps: 2_000,
         run_max_steps: 20_000, all_legal_every: 0, determinism_every: 1, replay_every: 1, min_combat: 0, min_runs: 0 };
     let mut max_steps_override = None;
@@ -92,7 +94,7 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
     }
     if options.threads == 0 { return Err("--threads must be positive".into()); }
     if options.seed_start > options.seed_end { return Err("--seed-start must be <= --seed-end".into()); }
-    if options.drivers.iter().any(|driver| !["combat", "complete", "run", "items"].contains(&driver.as_str())) { return Err("--drivers accepts combat,complete,run,items".into()); }
+    if options.drivers.iter().any(|driver| !["combat", "complete", "run", "items", "standard-combat"].contains(&driver.as_str())) { return Err("--drivers accepts combat,complete,run,items,standard-combat".into()); }
     if options.drivers.iter().collect::<std::collections::BTreeSet<_>>().len() != options.drivers.len() {
         return Err("--drivers cannot contain duplicates".into());
     }
@@ -123,6 +125,7 @@ fn parse_weights(value: &str) -> Result<DriverWeights, String> {
             "complete" => weights.complete = weight,
             "run" => weights.run = weight,
             "items" => weights.items = weight,
+            "standard-combat" => weights.standard_combat = weight,
             _ => return Err(format!("unknown driver weight {name}")),
         }
     }
@@ -175,6 +178,10 @@ fn run_batch(options: Options) -> Result<(), String> {
         ("run".into(), options.weights.run),
         ("items".into(), options.weights.items),
     ]);
+    if options.drivers.iter().any(|driver| driver == "standard-combat") {
+        summary.weights.insert("standard-combat".into(), options.weights.standard_combat);
+        summary.driver_descriptions.insert("standard-combat".into(), json!({"driver":"CatalogCombat","source":"generated standard-combat-v1 catalogs","specs":"four characters at A0 and A20"}));
+    }
     summary.combat_max_steps = options.combat_max_steps;
     summary.run_max_steps = options.run_max_steps;
     summary.all_legal_every = options.all_legal_every;
@@ -190,7 +197,9 @@ fn run_batch(options: Options) -> Result<(), String> {
     summary.elapsed_secs = started.elapsed().as_secs_f64();
     let bytes = serde_json::to_vec_pretty(&summary).map_err(|error| error.to_string())?;
     fs::write(options.out.join("summary.json"), bytes).map_err(|error| format!("write summary: {error}"))?;
-    let combat = summary.episodes_by_driver.get("catalog").copied().unwrap_or(0) + summary.episodes_by_driver.get("complete").copied().unwrap_or(0);
+    let combat = summary.episodes_by_driver.get("catalog").copied().unwrap_or(0)
+        + summary.episodes_by_driver.get("complete").copied().unwrap_or(0)
+        + summary.episodes_by_driver.iter().filter(|(driver, _)| driver.starts_with("standard-combat-")).map(|(_, episodes)| *episodes).sum::<u64>();
     let runs = summary.episodes_by_driver.get("run").copied().unwrap_or(0) + summary.episodes_by_driver.get("items").copied().unwrap_or(0);
     let items = summary.episodes_by_driver.get("items").copied().unwrap_or(0);
     println!("summary={} episodes={} steps={} combat={} runs={} items={} failures={} elapsed={:.3}s hash={}", options.out.join("summary.json").display(), summary.episodes, summary.steps, combat, runs, items, summary.failures.len(), summary.elapsed_secs, summary.stable_hash());
@@ -203,7 +212,10 @@ fn run_batch(options: Options) -> Result<(), String> {
 struct CatalogSource { bytes: Vec<u8>, entries: usize }
 
 fn worker_run(worker: usize, workers: usize, options: Options, started: Instant) -> Result<Vec<spire_fuzz::EpisodeResult>, String> {
-    let catalog_bytes = if options.catalogs.is_empty() {
+    let use_catalog = options.drivers.iter().any(|driver| driver == "combat");
+    let catalog_bytes = if !use_catalog {
+        Vec::new()
+    } else if options.catalogs.is_empty() {
         vec![generated_catalog_json(options.seed_start.wrapping_add(worker as u64))]
     } else {
         options.catalogs.iter().map(|path| fs::read(path).map_err(|error| format!("read catalog {}: {error}", path.display())))
@@ -226,6 +238,7 @@ fn worker_run(worker: usize, workers: usize, options: Options, started: Instant)
     #[cfg(feature = "diagnostics")]
     let mut items_cursor = 0usize;
     let mut run_cursor = 0usize;
+    let mut standard_cursor = 0usize;
     let mut episode_ordinal = 0u64;
     let budgeted = !options.budget.is_zero();
     'seeds: while seed <= options.seed_end {
@@ -256,6 +269,15 @@ fn worker_run(worker: usize, workers: usize, options: Options, started: Instant)
                     let spec = RUN_PROFILES[run_cursor % RUN_PROFILES.len()];
                     run_cursor += 1;
                     let driver = FullRun::new(spec).map_err(|error| error.message)?;
+                    results.push(run_one(Box::new(driver), episode_seed, episode_ordinal, &options));
+                }
+                "standard-combat" => {
+                    let character = Character::ALL[standard_cursor % Character::ALL.len()];
+                    let ascension = if standard_cursor / Character::ALL.len() % 2 == 0 { 0 } else { 20 };
+                    standard_cursor += 1;
+                    let bytes = generated_standard_catalog_json(episode_seed, character, ascension);
+                    let mut driver = CatalogCombat::standard_from_json(&bytes, character, ascension).map_err(|error| error.message)?;
+                    driver.set_entry_cursor(episode_seed as usize);
                     results.push(run_one(Box::new(driver), episode_seed, episode_ordinal, &options));
                 }
                 "items" => {
@@ -301,7 +323,7 @@ fn git_revision() -> String {
 }
 
 fn usage() -> String {
-        "usage: native_fuzz run --seed-start A --seed-end B --threads 2 --budget-secs S --out DIR [--drivers combat,complete,run,items] [--weights catalog=W,complete=W,run=W,items=W] [--policy P] [--catalog PATH]... [--max-steps N] [--all-legal-every N] [--min-combat N --min-runs N]\n       native_fuzz repro PATH".into()
+        "usage: native_fuzz run --seed-start A --seed-end B --threads 2 --budget-secs S --out DIR [--drivers combat,complete,run,items,standard-combat] [--weights catalog=W,complete=W,run=W,items=W,standard-combat=W] [--policy P] [--catalog PATH]... [--max-steps N] [--all-legal-every N] [--min-combat N --min-runs N]\n       native_fuzz repro PATH".into()
 }
 
 #[cfg(test)]

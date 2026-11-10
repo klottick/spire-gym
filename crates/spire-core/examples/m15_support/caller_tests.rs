@@ -71,7 +71,7 @@ fn empty_combat() -> spire_core::combat::CombatPublic {
         hand: vec![], draw_count: 0, discard: vec![], exhaust: vec![], outcome: None,
         phase: Phase::Decision, selection_resume_phase: None,
         hp_before_healing: None, hp_after_cleanup: None, targets: vec![], selection: None,
-        known_draw: vec![], encounter_facing: None, inventory: None, card_offer: None,
+        known_draw: vec![], draw_unknown: vec![], encounter_facing: None, inventory: None, card_offer: None,
     }
 }
 

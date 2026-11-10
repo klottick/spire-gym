@@ -55,7 +55,8 @@ pub const RUN_RULES_ID_M15: &str = "spire-gym-native-m15-rules-v1";
 pub const RUN_CONTENT_ID_M15: &str = "spire-gym-m15-silent-a0-heart-captured-v1";
 pub(crate) const RUN_REWARD_ID: &str = "spire-gym-floor-key-terminal-reward-v1";
 pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v1";
+/// v2 since M34s-a: G-a4 (autoplay free-play lifecycle) and R-a1 (Secret Technique/Weapon candidate order) change Standard gameplay.
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v2";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
@@ -963,7 +964,7 @@ impl RunSession{
             descriptor["ending"] = serde_json::json!("HeartVictory after the actual Act4 Proceed action");
         }
         if self.profile==RunProfile::Standard{
-            descriptor["combat_view_id"]=serde_json::Value::Null;
+            descriptor["combat_view_id"]=serde_json::json!(crate::STANDARD_COMBAT_VIEW_ID);
             descriptor["character"]=serde_json::json!(self.config.character.as_str());
             descriptor["ascension"]=serde_json::json!(self.config.ascension);
             // Standard creation is caller configuration and player knowledge (design §4.2), unlike captured profiles' fixed Note.
@@ -975,7 +976,7 @@ impl RunSession{
         Ok(descriptor)
     }
     pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
-        if self.profile==RunProfile::Standard{return Err(RunSessionError::UnsupportedBoundary("Standard has no combat sidecar in M34; it is planned for M34s (spire-dxo.71)"))}
+        if self.profile==RunProfile::Standard{return crate::standard_combat_observation_spec(&self.config.capacities)}
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}
@@ -994,7 +995,15 @@ impl RunSession{
     /// Resources are current; snapshot on the settled-count transition. The
     /// visit-keyed last_exit remains sticky across later noncombat decisions.
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
-        if self.profile==RunProfile::Standard{return Err(RunSessionError::UnsupportedBoundary("Standard has no combat sidecar in M34; it is planned for M34s (spire-dxo.71)"))}
+        if self.profile==RunProfile::Standard{
+            // M34s-a design §4.2: the Standard combat view of the current decision, dispatched with the Run's token.
+            self.usable()?;let token=self.published.as_ref().ok_or(RunSessionError::NotReset)?.token;
+            let run=self.run.as_ref().unwrap();let d=run.decision().map_err(RunSessionError::Core)?;let cp=run.combat_checkpoint();
+            let observation=match crate::combat_policy::encode_standard_combat(&d,&self.config.capacities,run.ascension(),run.room_selection_operation(),run.combat_identity()){
+                Ok(o)=>o,Err(e)=>return Err(self.freeze(e.clone(),e,None,false,false)),
+            };
+            return Ok(crate::CombatPolicyBoundary{observation,token,info:crate::combat_policy::standard_lifecycle(&d,cp.as_ref())})
+        }
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}

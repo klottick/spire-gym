@@ -212,6 +212,13 @@ impl Driver for FullRun {
     }
     #[cfg(feature = "diagnostics")]
     fn inner_run(&self) -> Option<Run> { self.session.fuzz_run().cloned() }
+    #[cfg(feature = "diagnostics")]
+    fn draw_knowledge_check(&self) -> Option<Result<Option<usize>, DriverError>> {
+        if self.spec.creation.is_none() { return None; }
+        let run = self.session.fuzz_run()?;
+        let combat = run.fuzz_combat()?;
+        Some(crate::runner::inspect_draw_knowledge(combat))
+    }
 }
 
 impl FullRun {
@@ -267,5 +274,30 @@ fn encode_public_decision(spec: RunProfileSpec, decision: &spire_core::run::Publ
         "M25" => encode_run_m25(decision, map, caps),
         id if id.starts_with("standard-") => encode_run_standard_decision(decision, map, caps, spec.ascension, run_selection),
         _ => Err(RunSessionError::Input("unknown native fuzz Run profile")),
+    }
+}
+
+#[cfg(all(test, feature = "diagnostics"))]
+mod draw_knowledge_tests {
+    use super::*;
+
+    #[test]
+    fn standard_run_draw_knowledge_checks_a_visited_combat_boundary() {
+        let spec = crate::profiles::profile("standard-ironclad-a0").unwrap();
+        let mut driver = FullRun::new(spec).unwrap();
+        let mut decision = driver.reset(31).unwrap();
+        for _ in 0..400 {
+            if let Some(check) = driver.draw_knowledge_check() {
+                if let Some(components) = check.unwrap() { assert!(components > 0); }
+                return;
+            }
+            let Some(action) = decision.observation.action_mask.iter().position(|mask| *mask != 0) else {
+                panic!("Standard Run reached a non-combat empty boundary before combat");
+            };
+            let output = driver.step(action).unwrap();
+            if output.terminal.is_some() { panic!("Standard Run terminated before the sampled combat boundary"); }
+            decision = output.decision;
+        }
+        panic!("Standard Run did not reach combat in 400 actions");
     }
 }

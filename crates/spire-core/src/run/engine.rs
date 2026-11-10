@@ -30,7 +30,7 @@ impl Run {
             potions:vec![None;potion_base_slots(config.ascension)],keys:[false;3],act:1,floor:0,room:"Neow",act4_enabled:profile.act4_enabled,
             neow_eligible:profile.neow_eligible,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),relic_counters:BTreeMap::new(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance:id+1,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false};
+            last_resumed_parent:None,rng,pending:None,next_instance:id+1,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,combat_scope:None};
         let mut run=Self{state,candidates:Vec::new(),next_choice:0};run.make_initial_neow()?;Ok(run)
     }
     fn next_choice(&mut self)->ChoiceId{let id=ChoiceId(self.next_choice);self.next_choice+=1;id}

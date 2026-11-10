@@ -4,9 +4,11 @@
 //! `PublicPlayer.bottled_cards` and `PublicDecision.room_params`. Frozen transcript receipts recorded
 //! before M34a compare this projection, which removes exactly those fields (compact `{:?}` and pretty
 //! `{:#?}` renderings) and nothing else, so every pre-existing byte stays checked.
+//! M34s-a adds one more public-view field, `CombatPublic.draw_unknown` (the draw multiset, design §4.3), removed the same way.
+//! (`LiveCardView.lifecycle` is not part of `Debug`.)
 
 const ENEMY_KEYS: [&str; 3] = ["intent_category: ", "intent_hits: ", "invincible_cap: "];
-const OTHER_KEYS: [&str; 2] = ["bottled_cards: ", "room_params: "];
+const OTHER_KEYS: [&str; 3] = ["bottled_cards: ", "room_params: ", "draw_unknown: "];
 
 /// `text` without the M34a public-view fields.
 pub fn pre_m34a_debug(text: &str) -> String {

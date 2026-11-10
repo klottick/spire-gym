@@ -132,7 +132,7 @@ fn combat_decision(actions: Vec<CombatAction>) -> PublicDecision {
         hp_after_cleanup: None,
         targets: vec![],
         selection: None,
-        known_draw: vec![],
+        known_draw: vec![], draw_unknown: vec![],
         encounter_facing: None,
         inventory: None,
         card_offer: None,

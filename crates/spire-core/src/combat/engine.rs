@@ -463,6 +463,14 @@ impl Combat {
     pub fn enter_with_item_context(entry: CombatEntry,
         item_context: &mut Option<crate::items::CombatItemContext>)
         -> Result<Self, CombatEntryFailure> {
+        Self::enter_with_public_knowledge(entry, item_context, false)
+    }
+
+    /// `enter_with_item_context`, maintaining public knowledge (`combat::knowledge`) when `public_knowledge` is set: the
+    /// Run sets it for the profiles that publish it (Standard, `standard-combat-v1`); every other entry leaves it off.
+    pub fn enter_with_public_knowledge(entry: CombatEntry,
+        item_context: &mut Option<crate::items::CombatItemContext>, public_knowledge: bool)
+        -> Result<Self, CombatEntryFailure> {
         if let Some(items) = item_context.as_ref() {
             crate::items::validate_combat_inventory(items,entry.setup.character).map_err(CombatEntryFailure::Rejected)?;
         }
@@ -538,6 +546,7 @@ impl Combat {
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let source_character=setup.character;
         let mut combat = Self::build_full(setup, rng);
+        combat.state.knowledge.maintained = public_knowledge;
         if source_character!=crate::content::Character::Defect&&combat.state.character.orb_slots.is_empty()&&item_context.as_ref().is_some_and(|items|items.complete_items()&&items.owns_relic(crate::content::RelicId::PrismaticShard)){combat.state.character.orb_slots.resize(1,None);}
         if source_character==crate::content::Character::Defect||entry.cards.iter().any(|card|super::generation::needs_character(card.id))||item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.m21_profile()||items.complete_cards()){combat.state.silent.source_character=Some(source_character);}
         // M26 overlay trackers (design §5.2): the union of the Heart contexts' history trackers.
@@ -589,6 +598,7 @@ impl Combat {
             .map_err(|_| CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("full combat shuffle failed")))?;
         combat.state.rng.shuffle = next;
         combat.state.piles.draw = shuffled;
+        super::knowledge::note(&mut combat.state,super::knowledge::PileOp::Shuffled);
         // Master energy is prepared once before transfer. Slaver's Collar keeps its
         // accepted temporary/cleanup lifecycle; every relic bonus comes from the shared G1 law.
         let serpent=item_context.as_ref().is_some_and(|items|
@@ -635,7 +645,7 @@ impl Combat {
             combat.state.pending.extend(startup_work);
         }else if !startup_work.is_empty(){
             combat.state.pending.extend(startup_work);
-            let startup=resolve(&mut combat.state);
+            let startup=settle(&mut combat.state,super::model::ResolveMarks::default());
             if startup.status==TransitionStatus::Fault{
                 let crate::run::RunError::Faulted(fault)=retained_fault(&combat.state) else {
                     unreachable!("retained pre-draw item fault has typed RunFault")
@@ -1175,7 +1185,7 @@ impl Combat {
                 super::piles::retrieve_ordinary_from_discard(&mut self.state,selected).map_err(|_|crate::run::RunError::InvalidAction)?;continue
             }
             if selection.operation==SelectionOperation::SeekRetrieve {
-                super::piles::move_draw_card(&mut self.state,selected,CardDestination::Hand).map_err(|_|crate::run::RunError::InvalidAction)?;continue
+                super::piles::move_draw_card(&mut self.state,selected,CardDestination::Hand,super::knowledge::Removal::Grid).map_err(|_|crate::run::RunError::InvalidAction)?;continue
             }
             if selection.operation==SelectionOperation::Recycle {
                 if let Err(error)=super::piles::recycle_hand_card(&mut self.state,&parent_source,selected){
@@ -1197,6 +1207,7 @@ impl Combat {
                 return Err(retained_fault(&self.state))
             };
             if source_zone == 1 {
+                super::piles::removed_knowledge(&mut self.state,&card,super::knowledge::Removal::Grid);
                 self.state.public.revealed_order.push(selected.clone());
                 self.state.public.known_draw.retain(|id|id!=selected);
                 self.state.public.known_draw_bottom.retain(|id|id!=selected);
@@ -1359,21 +1370,17 @@ impl Combat {
         }
         let public_rules=super::view::public_rules(&self.state);
         let cards = |pile: &[OwnedCard]| -> Result<Vec<LiveCardView>, crate::run::RunError> {
-            pile.iter().map(|card| card.full().map(|live| LiveCardView { misc:live.misc, instance: live.instance,
-                id: live.id, origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live) })
+            pile.iter().map(|card| card.full().map(|live| super::view::live_card_view(&self.state,live))
                 .ok_or(crate::run::RunError::InvalidAction)).collect()
         };
         let card_view=|id:&CardHandle|->Result<LiveCardView,crate::run::RunError>{
             self.state.piles.all(self.state.in_play.as_ref()).find(|owned|owned.handle()==*id)
-                .and_then(OwnedCard::full).map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),
-                    upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),
-                    values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction)
+                .and_then(OwnedCard::full).map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction)
         };
         let selection = if let Some(pending) = &self.state.pending_selection {
             let candidates = pending.candidates.iter().map(|id| self.state.piles.all(self.state.in_play.as_ref())
                 .find(|card| card.handle() == *id).and_then(OwnedCard::full)
-                .map(|live| LiveCardView { misc:live.misc, instance: live.instance, id: live.id,
-                    origin: live.origin.clone(), upgrades: live.upgrades, effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live) }).ok_or(crate::run::RunError::InvalidAction))
+                .map(|live| super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction))
                 .collect::<Result<Vec<_>, _>>()?;
             let selected = pending.selected.iter().map(|id| id.as_str().parse::<u64>()
                 .map(CardInstanceId).map_err(|_| crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>, _>>()?;
@@ -1391,10 +1398,16 @@ impl Combat {
                 known_draw.push(super::view::KnownDrawCardView{card:card_view(id)?,from_top:false,offset});
             }
         }
-        let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,
-            origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction))
-            .chain(self.state.in_play.iter().map(|card|card.full().map(|live|LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
-                effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction)))
+        let known_instances=known_draw.iter().map(|known|known.card.instance).collect::<std::collections::BTreeSet<_>>();
+        // Published (Standard draw rows) only where the profile maintains public knowledge (final review M7).
+        let draw_unknown=if self.state.knowledge.maintained{
+            let mut draw_unknown=cards(&self.state.piles.draw)?.into_iter().filter(|card|!known_instances.contains(&card.instance)).collect::<Vec<_>>();
+            if draw_unknown.len()+known_instances.len()!=self.state.piles.draw.len(){return Err(crate::run::RunError::InvalidAction)}
+            draw_unknown.sort_by(super::view::canonical_card_order);
+            draw_unknown
+        }else{vec![]};
+        let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction))
+            .chain(self.state.in_play.iter().map(|card|card.full().map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction)))
             .collect::<Result<Vec<_>,_>>()?;
         let selection_resume_phase=if self.state.phase==Phase::Selection {
             self.state.pending_selection.as_ref().map(|selection|selection.resume.phase)
@@ -1406,7 +1419,7 @@ impl Combat {
             previous_card_type:(super::cards::watcher::active(&self.state)&&self.state.item_context.as_ref().is_some_and(|items|items.m25_profile())).then(||self.state.played_card_types.last().copied()).flatten(),stance_choice:self.state.watcher.stance_choice.as_ref().map(|c|super::view::StanceChoiceView{options:c.options.clone()}),card_offer:self.state.silent.card_offer.as_ref().map(|offer|super::view::CombatCardOfferView{cards:offer.cards.clone(),optional:offer.optional}),content_id: self.state.content_id.clone(), turn: self.state.turn,
             played_powers:cards(&self.state.played_powers)?,
             playing_cards,
-            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:LiveCardView{ misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,effective_cost:super::cards::visible_cost(&self.state,live),values:super::cards::public_values(live),watcher:super::cards::watcher::card_values(&self.state,live)}}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
+            stasis:self.state.stasis.iter().map(|(orb,card)|card.full().map(|live|super::view::StasisCardView{orb:orb.clone(),card:super::view::live_card_view(&self.state,live)}).ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             player: super::view::full_player(&self.state)?, enemies: super::view::full_enemies(&self.state,public_rules.hide_intents),
             inventory: self.state.item_context.as_ref().map(|items| super::view::CombatInventoryView {
                 relic_counters:crate::items::visible_counters(items.counters()),relics: items.relics().to_vec(), potions: items.potions().to_vec() }),
@@ -1419,7 +1432,7 @@ impl Combat {
             hp_after_cleanup: self.state.hp_after_cleanup,
             targets: self.state.enemies.iter().enumerate().map(|(i, e)|
              (TargetId((i + 1) as u64), e.life==ActorLife::Active&&e.hp > 0)).collect(), selection,
-             known_draw,encounter_facing:super::view::encounter_facing(&self.state).map_err(|_|crate::run::RunError::InvalidAction)? })
+             known_draw,draw_unknown,encounter_facing:super::view::encounter_facing(&self.state).map_err(|_|crate::run::RunError::InvalidAction)? })
     }
 
     /// Read-only resource bridge for the owning Run, including a retained
@@ -1491,7 +1504,7 @@ impl Combat {
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
+                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default() } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
@@ -1526,7 +1539,7 @@ impl Combat {
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers, item_context: None,
                 character,
-                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default() } }
+                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default() } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {
@@ -2921,10 +2934,19 @@ fn power_selection_owner(state:&State,selection:&PendingSelection,id:&FullPowerI
 
 pub(super) fn resolve(state: &mut State) -> Transition { resolve_from(state, super::model::ResolveMarks::default()) }
 
+/// Every caller of `resolve_from` returns its decision or selection to the combat's caller (a published boundary), except
+/// the entry's pre-draw startup resolution, which uses `settle` directly. M34s-a a2 (main's ruling): the pre-roll
+/// consistent sets narrow only at these published boundaries and at a move's execution.
+pub(super) fn resolve_from(state: &mut State, marks: super::model::ResolveMarks) -> Transition {
+    let transition=settle(state,marks);
+    if matches!(transition.status,TransitionStatus::Decision|TransitionStatus::Selection){super::knowledge::observe_prerolls(state,None);}
+    transition
+}
+
 /// Resolve the queue. A selection commit resumes with the once-per-resolution
 /// marks its suspended resolution had already spent; a selection opened here
 /// records the current marks in its suspension record.
-pub(super) fn resolve_from(state: &mut State, mut marks: super::model::ResolveMarks) -> Transition {
+fn settle(state: &mut State, mut marks: super::model::ResolveMarks) -> Transition {
     let suspended_on_entry=state.pending_selection.is_some();
     loop {
         if state.fault.is_some() { return Transition { status: TransitionStatus::Fault }; }

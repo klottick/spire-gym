@@ -14,7 +14,7 @@ mod complete;
 #[cfg(feature = "diagnostics")]
 mod items_run;
 
-pub use catalog::{generated_catalog_json, CatalogCombat};
+pub use catalog::{generated_catalog_json, generated_standard_catalog_json, CatalogCombat};
 pub use driver::{Decision, Driver, DriverError, IllegalProbe, StepOut};
 pub use failure::{FuzzFailure, ReproCase, failure_key, failure_key_parts, read_repro, shrink_actions, write_failure};
 pub use observation::{observation_json, observation_hash, TraceHasher};
@@ -24,6 +24,8 @@ pub use profiles::{RunProfileSpec, RUN_PROFILES};
 pub use profiles::{CompleteItemsRunProfile, COMPLETE_ITEMS_RUN_PROFILES, complete_items_profile};
 pub use run_driver::FullRun;
 pub use runner::{EpisodeOptions, EpisodeResult, OutcomeTotals, RunSummary, run_episode, run_repro, shrink_failure_case};
+#[cfg(feature = "diagnostics")]
+pub use runner::DrawKnowledgeStats;
 
 #[cfg(feature = "diagnostics")]
 pub use complete::{complete_cases_for_smoke, CompleteCombat};
