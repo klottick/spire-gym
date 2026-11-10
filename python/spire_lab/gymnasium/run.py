@@ -42,19 +42,24 @@ class RunEnv(gym.Env[Observation, int]):
         capacities: dict[str, int] | None = None,
         record_replay: bool = False,
     ) -> None:
+        self._attach(
+            _native.NativeRunSession(
+                character,
+                ascension,
+                profile=profile,
+                partition=partition,
+                boss_history=boss_history,
+                creation=creation,
+                capacities=capacities,
+                record_replay=record_replay,
+            )
+        )
+
+    def _attach(self, session: _native.NativeRunSession) -> None:
         self.metadata = {"render_modes": []}
         self.render_mode = None
         self._guard = OperationGuard()
-        self._session = _native.NativeRunSession(
-            character,
-            ascension,
-            profile=profile,
-            partition=partition,
-            boss_history=boss_history,
-            creation=creation,
-            capacities=capacities,
-            record_replay=record_replay,
-        )
+        self._session = session
         observations, actions = spaces_from_spec(self.observation_spec())
         # Gym's composite-space generics do not express its numeric Dict values.
         # Native descriptor/contains tests enforce these concrete boundary types.
@@ -140,6 +145,55 @@ class RunEnv(gym.Env[Observation, int]):
         """Privileged retained fault/record metadata, including after close."""
         with self._guard:
             return self._session.reproduction()
+
+    def decision(self) -> tuple[Observation, dict[str, Any]]:
+        """Owned current boundary; a forked or replayed env starts here."""
+        with self._guard:
+            raw = self._session.decision()
+            self._token = raw["token"]
+            return raw["obs"], dict(raw["info"])
+
+    # Privileged exact-world tools (M34c). Not part of the Gymnasium API: reach
+    # them through ``env.unwrapped``. A checkpoint replays the same hidden future,
+    # so "step, look, restore" reveals it: an oracle, never planning input.
+
+    def exact_checkpoint(self) -> _native.ExactCheckpoint:
+        """Opaque in-memory exact copy of the current episode (oracle)."""
+        with self._guard:
+            return self._session.exact_checkpoint()
+
+    def exact_restore(
+        self, checkpoint: _native.ExactCheckpoint
+    ) -> tuple[Observation, dict[str, Any]]:
+        """Abandon this episode and continue at ``checkpoint``; old actions' tokens go stale."""
+        with self._guard:
+            raw = self._session.exact_restore(checkpoint)
+            self._token = raw["token"]
+            return raw["obs"], dict(raw["info"])
+
+    def exact_fork(self, checkpoint: _native.ExactCheckpoint) -> RunEnv:
+        """A new independent env at ``checkpoint``; read its boundary with ``decision()``."""
+        return RunEnv._from_session(_native.NativeRunSession.exact_fork(checkpoint))
+
+    @classmethod
+    def from_record(
+        cls,
+        record: bytes,
+        steps: int,
+        *,
+        capacities: dict[str, int] | None = None,
+    ) -> RunEnv:
+        """A live env after the first ``steps`` actions of ``record`` (checked as replay)."""
+        return cls._from_session(
+            _native.NativeRunSession.from_record(record, steps, capacities)
+        )
+
+    @classmethod
+    def _from_session(cls, session: _native.NativeRunSession) -> RunEnv:
+        env = cls.__new__(cls)
+        env._attach(session)
+        env._token = session.decision()["token"]
+        return env
 
     def close(self) -> None:
         with self._guard:

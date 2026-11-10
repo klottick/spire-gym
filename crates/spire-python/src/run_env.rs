@@ -1,6 +1,6 @@
 //! Thin Run transport; native ownership spans attached array/tuple packaging.
 use std::sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}};
-use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
+use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError,PyTypeError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
 use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10};
 use crate::numeric;
@@ -113,11 +113,27 @@ pub(crate) fn token(v:&Bound<'_,PyAny>)->PyResult<RunDecisionToken>{
     let t=v.cast::<PyTuple>().map_err(|_|RunInputError::new_err("token must be a two-integer tuple"))?;
     if t.len()!=2{return Err(RunInputError::new_err("token must have length two"))}Ok([integer(&t.get_item(0)?)?,integer(&t.get_item(1)?)?].into())
 }
+/// M34c privileged exact checkpoint: opaque, in-memory only (pickling/copying raise), redacted repr, identity equality.
+#[pyclass(frozen,module="spire_lab._native",name="ExactCheckpoint")]
+pub(crate) struct PyExactCheckpoint{inner:spire_env::ExactCheckpoint,profile:RunProfile,episode_return:i64}
+#[pymethods]
+impl PyExactCheckpoint{
+    fn __repr__(&self)->&'static str{"<ExactCheckpoint privileged exact state (redacted)>"}
+    fn __reduce__(&self)->PyResult<()>{Err(PyTypeError::new_err("ExactCheckpoint is in-memory only and cannot be pickled or copied; record() is the portable form"))}
+}
 #[pyclass(frozen,module="spire_lab._native")]
 pub(crate) struct NativeRunSession{session:Mutex<RunSession>,profile:RunProfile,busy:AtomicBool,episode_return:AtomicI64}
 struct Lease<'a>(&'a NativeRunSession);
 impl Drop for Lease<'_>{fn drop(&mut self){self.0.busy.store(false,Ordering::Release);}}
 impl NativeRunSession{
+    fn wrap(session:RunSession,profile:RunProfile,episode_return:i64)->Self{Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false),episode_return:AtomicI64::new(episode_return)}}
+    /// Current boundary payload (reset-shaped: effective seed and, on Standard, the creation profile).
+    fn current<'py>(&self,py:Python<'py>,b:RunBoundary,effective:Option<u64>,creation:Option<StandardCreation>)->PyResult<Bound<'py,PyDict>>{
+        let raw=boundary(py,b,self.profile)?;raw.set_item("effective_seed",effective)?;
+        if let Some(c)=creation{raw.get_item("info")?.unwrap().set_item("creation",numeric::descriptor(py,c.to_json().to_string())?)?;}
+        if self.profile==RunProfile::Standard{raw.get_item("info")?.unwrap().set_item("episode_return",self.episode_return.load(Ordering::Acquire))?;}
+        Ok(raw)
+    }
     fn begin(&self)->PyResult<Lease<'_>>{self.busy.compare_exchange(false,true,Ordering::Acquire,Ordering::Relaxed).map_err(|_|RunStateError::new_err("Run operation is busy"))?;Ok(Lease(self))}
     fn deliver<T>(&self,result:PyResult<T>)->PyResult<T>{if result.is_err(){let _=self.session.lock().unwrap_or_else(|p|p.into_inner()).fail_delivery("Run transport packaging failed");}result}
     fn reset_transport<'py,T>(&self,py:Python<'py>,seed:Option<&Bound<'py,PyAny>>,package:impl FnOnce(Bound<'py,PyDict>)->PyResult<T>)->PyResult<T>{
@@ -157,7 +173,43 @@ impl NativeRunSession{
             match value.as_str(){"awakened-unseen"=>M9BossHistory::AwakenedUnseen,"time-eater-unseen"=>M9BossHistory::TimeEaterUnseen,"donu-deca-unseen"=>M9BossHistory::DonuDecaUnseen,_=>return Err(RunInputError::new_err("unknown boss history"))}
         };
         let capacities=crate::run_env::capacities(capacities,profile)?;let cfg=RunSessionConfig{character,ascension:integer(ascension)?,partition,boss_history,capacities,record_replay};
-        let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false),episode_return:AtomicI64::new(0)})
+        let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self::wrap(session,profile,0))
+    }
+    /// Owned current boundary (after fork or from_record the caller reads its first token here).
+    fn decision<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyDict>>{
+        let _lease=self.begin()?;
+        let (b,effective,creation)=py.detach(||{let s=self.session.lock().unwrap_or_else(|p|p.into_inner());Ok::<_,RunSessionError>((s.decision()?,s.effective_seed(),s.standard_creation()))}).map_err(error)?;
+        self.deliver(self.current(py,b,effective,creation))
+    }
+    /// M34c privileged exact checkpoint (oracle: restoring replays the same hidden future).
+    fn exact_checkpoint(&self,py:Python<'_>)->PyResult<PyExactCheckpoint>{
+        let _lease=self.begin()?;let inner=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).exact_checkpoint()).map_err(error)?;
+        Ok(PyExactCheckpoint{inner,profile:self.profile,episode_return:self.episode_return.load(Ordering::Acquire)})
+    }
+    /// Abandon the current episode and continue from `checkpoint` (same profile and configuration); earlier tokens are stale.
+    fn exact_restore<'py>(&self,py:Python<'py>,checkpoint:&Bound<'py,PyExactCheckpoint>)->PyResult<Bound<'py,PyDict>>{
+        let _lease=self.begin()?;let cp=checkpoint.get();
+        if cp.profile!=self.profile{return Err(RunInputError::new_err("exact checkpoint belongs to another session configuration"))}
+        let (b,effective,creation)=py.detach(||{let mut s=self.session.lock().unwrap_or_else(|p|p.into_inner());let b=s.exact_restore(&cp.inner)?;Ok::<_,RunSessionError>((b,s.effective_seed(),s.standard_creation()))}).map_err(error)?;
+        self.episode_return.store(cp.episode_return,Ordering::Release);
+        self.deliver(self.current(py,b,effective,creation))
+    }
+    /// A new independent session at `checkpoint` (allowed after the source froze or closed; never inherits its fault).
+    #[staticmethod]
+    fn exact_fork(py:Python<'_>,checkpoint:&Bound<'_,PyExactCheckpoint>)->PyResult<Self>{
+        let cp=checkpoint.get();let session=py.detach(||RunSession::exact_fork(&cp.inner)).map_err(error)?;
+        Ok(Self::wrap(session,cp.profile,cp.episode_return))
+    }
+    /// Replay to a decision: a live session after the first `steps` accepted actions of `record` (checked as replay()).
+    #[staticmethod]
+    #[pyo3(signature=(record,steps,capacities=None))]
+    fn from_record(py:Python<'_>,record:&Bound<'_,PyBytes>,steps:&Bound<'_,PyAny>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<Self>{
+        let steps:usize=integer(steps)?;let bytes=record.as_bytes().to_vec();
+        let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;
+        let caps=crate::run_env::capacities(capacities,profile)?;
+        let episode_return=parsed.steps.iter().take(steps).map(|s|i64::from(s.reward)).sum();
+        let session=py.detach(move||RunSession::from_record(&parsed,steps,caps)).map_err(error)?;
+        Ok(Self::wrap(session,profile,episode_return))
     }
     pub(crate) fn observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).observation_spec().map_err(error)?)

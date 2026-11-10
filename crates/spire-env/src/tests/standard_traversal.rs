@@ -10,7 +10,7 @@ use spire_core::{
     run::{diagnostics::{standard_supplied_run_with, supplied_wound_enemies}, GameAction, Key, RewardItem, RewardItemKind, Run, RunError, RunRng, RunTerminal},
 };
 
-const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
+pub(super) const CHARACTERS: [Character; 4] = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
 
 fn vocab_name(family: &str, index: i64) -> Option<String> {
     let index = usize::try_from(index).ok()?;
@@ -33,7 +33,7 @@ fn legal_indices(obs: &RunObservation) -> Vec<usize> {
 }
 
 /// The requested deliberately simple policy. Every index comes from the published legal mask.
-fn simple_action(obs: &RunObservation) -> usize {
+pub(super) fn simple_action(obs: &RunObservation) -> usize {
     let legal = legal_indices(obs);
     assert!(!legal.is_empty(), "nonterminal Standard boundary had no legal candidate");
     let room = vocab_name("room", field(obs, "context", 0, 4)).unwrap_or_else(|| "unknown".to_owned());
@@ -116,11 +116,11 @@ fn simple_action(obs: &RunObservation) -> usize {
     legal[0]
 }
 
-fn context(obs: &RunObservation) -> (i64, i64, String) {
+pub(super) fn context(obs: &RunObservation) -> (i64, i64, String) {
     (field(obs, "context", 0, 2), field(obs, "context", 0, 3), vocab_name("room", field(obs, "context", 0, 4)).unwrap())
 }
 
-fn current_node_is_boss(obs: &RunObservation) -> bool {
+pub(super) fn current_node_is_boss(obs: &RunObservation) -> bool {
     usize::try_from(field(obs, "current_node", 0, 0)).ok()
         .and_then(|row| vocab_name("map_kind", field(obs, "map_nodes", row, 3)))
         .as_deref() == Some("boss")
@@ -174,7 +174,7 @@ fn needs_supplied_wound(obs: &RunObservation) -> bool {
     end_turn_is_legal && present_enemy_over_one_hp
 }
 
-fn short_creation() -> StandardCreation {
+pub(super) fn short_creation() -> StandardCreation {
     StandardCreation { neow: StandardNeow::Short, ..StandardCreation::experienced() }
 }
 
@@ -186,7 +186,7 @@ fn supplied(character: Character, ascension: u8, seed: u8, creation: StandardCre
     (run, original)
 }
 
-fn standard_session(character: Character, ascension: u8, seed: u8, creation: StandardCreation) -> (RunSession, Run) {
+pub(super) fn standard_session(character: Character, ascension: u8, seed: u8, creation: StandardCreation) -> (RunSession, Run) {
     let (run, replay_start) = supplied(character, ascension, seed, creation);
     let mut config = StandardRunConfig::new(character, ascension, Partition::Test);
     config.creation = creation;
@@ -195,9 +195,9 @@ fn standard_session(character: Character, ascension: u8, seed: u8, creation: Sta
 }
 
 #[derive(Clone, Debug)]
-struct DriveProgress { steps: usize, boss_fights: usize, last_combat_turn: Option<i64>, wound_counts: Vec<usize>, reward_steps: Vec<(i32, Vec<RewardItem>, [i64; 6])> }
+pub(super) struct DriveProgress { steps: usize, boss_fights: usize, last_combat_turn: Option<i64>, wound_counts: Vec<usize>, reward_steps: Vec<(i32, Vec<RewardItem>, [i64; 6])> }
 #[derive(Debug)]
-struct DriveFailure { progress: DriveProgress, action_row: Option<usize>, checkpoint: String, action: String, candidates: String, error: String }
+pub(super) struct DriveFailure { progress: DriveProgress, action_row: Option<usize>, checkpoint: String, action: String, candidates: String, error: String }
 
 fn candidate_list(session: &RunSession) -> String {
     session.reproduction().ok().and_then(|reproduction| reproduction.latest_decision)
@@ -236,7 +236,7 @@ fn assert_in_domains(obs: &RunObservation) {
     }
 }
 
-fn drive(session: &mut RunSession, limit: usize, mut stop: impl FnMut(&RunObservation) -> bool, mut policy: impl FnMut(&RunObservation) -> usize) -> Result<DriveProgress, DriveFailure> {
+pub(super) fn drive(session: &mut RunSession, limit: usize, mut stop: impl FnMut(&RunObservation) -> bool, mut policy: impl FnMut(&RunObservation) -> usize) -> Result<DriveProgress, DriveFailure> {
     let mut boundary = session.decision().unwrap();
     let mut steps = 0;
     let mut act3_boss_fights = 0;

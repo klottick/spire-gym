@@ -145,6 +145,13 @@ relics/public supported counters, and permanent deck IDs/upgrades/occupancy.
 describe CURRENT resources. Do not combine stale exit metadata with later arrays
 as a historical checkpoint. Reward collection can change inventory afterward.
 
+The Standard Run profile (M34) has no combat sidecar yet: `combat_view()` and `combat_observation_spec()` return
+`UnsupportedBoundary` naming M34s. Standard's own observation carries the combat groups, including live intent category,
+intent hits and the Heart cap (see the [Standard Run API](standard-run-api.md)). For repeated or paired tactical starts on
+Standard, use `RunEnv.from_record(record, steps)` (a checked legal prefix) or the privileged `exact_fork`. Both are
+exact-world reproduction tools, not public-information planning. Gym66 standalone combat starts and the Standard sidecar are
+M34s scope.
+
 ## Common schema and dispatch
 
 Schema/view ID `spire-gym-combat-policy-view-v1`; obtain the exact fingerprint

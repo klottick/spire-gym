@@ -271,3 +271,28 @@ created. End-of-turn power slots are unchanged (spire-oto.22).
 - A Distilled Chaos burst continues when a burst Alchemize refills the potion's slot.
 - Well-Laid Plans opens no retain choice when Runic Pyramid or Equilibrium already retains
   the hand. A retain choice adds to any retention set earlier that turn.
+
+## CHANGES — 2026-11-09/10 Standard profile (M34)
+
+No existing descriptor fingerprint changed. The captured M9–M25, policy Run-v3 and Gym66 combat-view encoders kept their
+bytes, their M10 `intent_hits` table and their Heart cap literal 300. A native test proves the table and the cap equal the
+engine at A0. The new Standard schema `spire-gym-standard-run-observation-v1`
+([Standard Run API](standard-run-api.md)) uses this shared registry as follows:
+
+- **Powers** use the shared `PUBLIC_POWERS` order (137 + padding). **Intents** use `PUBLIC_INTENTS` (184, ending in `hidden`)
+  followed by the seven `EVENT_INTENTS`. M34b pins both Standard families as frozen v1 lists, by length and SHA-256
+  (`standard_vocab_manifest_is_append_only`). A power or intent added to the shared registry later is appended at the END of
+  the Standard family, after the event intents, so no Standard index moves. Its Standard row may then differ from its row in
+  the other encoders, which append it inside the shared block.
+- **Intent category** (`intent_category`, 17 source `AbstractMonster.Intent` values + padding) is new and Standard-only. It is
+  keyed per (monster, move), with ascension conditions only where the source has one (Darkling Harden A17, Deca Square A19).
+  The census oracle is the checked-in `crates/spire-core/src/combat/tests/m34a_intent_census_v1.json`.
+- **Intent hits and Heart cap** (`enemies.intent_hits`, `combat_state.heart_cap`) are Standard-only live engine values:
+  - hits are the selected move's planned damage applications, including AI memory (Book of Stabbing's count grows to
+    `i32::MAX`);
+  - the cap is the present Heart's Invincible cap (300, or 200 from A19);
+  - hidden intents (Runic Dome) leave category, kind, damage and hits unknown.
+- The other open Standard families (cards, relics, potions, events, encounters, actors, rooms, choice kinds, selection
+  operations) come from the append-only manifest `standard-vocab-v1`, not from this registry.
+
+M34c (exact checkpoints, replay to a decision) adds no observation column and changes no fingerprint.
