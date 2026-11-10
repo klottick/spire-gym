@@ -241,4 +241,5 @@ mod m34b_stasis;
 mod m34s_intent_display;
 mod m34s_draw_rows;
 mod m34s_knowledge;
+mod m34s_belief;
 mod m34s_card_ties;

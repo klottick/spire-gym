@@ -116,10 +116,16 @@ fn stasis(c: &mut Combat, n: usize) -> u64 {
     c.state.pending.clear();
     c.state.stasis[&owner].full().unwrap().instance.0
 }
-/// The Seek grid (shared `sort_draw_grid` order); the player takes the first candidate of `class`.
-fn seek(c: &mut Combat, class: CardClass) -> u64 {
+/// The real Seek grid opening (`piles::open_draw_grid`: the shared `sort_draw_grid` order, then the I1 forgetting of
+/// published positions of ambiguous classes); returns the candidates in grid order.
+fn open_seek(c: &mut Combat) -> Vec<CardHandle> {
     let mut candidates = c.state.piles.draw.iter().map(OwnedCard::handle).collect::<Vec<_>>();
-    piles::sort_draw_grid(&c.state, &mut candidates);
+    piles::open_draw_grid(&mut c.state, &mut candidates);
+    candidates
+}
+/// The Seek grid; the player takes the first candidate of `class`.
+fn seek(c: &mut Combat, class: CardClass) -> u64 {
+    let candidates = open_seek(c);
     let classes = class_map(&c.state);
     let chosen = candidates.into_iter().find(|h| classes[&h.as_str().parse::<u64>().unwrap()] == class).unwrap();
     piles::move_draw_card(&mut c.state, &chosen, CardDestination::Hand, Removal::Grid).unwrap();
@@ -208,6 +214,10 @@ fn apply(c: &mut Combat, brute: &mut Brute, op: &Op, n: usize) {
             let mut present = c.state.piles.draw.iter().map(|o| classes[&o.full().unwrap().instance.0]).collect::<Vec<_>>();
             present.sort(); present.dedup();
             let class = present[pick % present.len()];
+            // The pick's public observation is taken after the grid opens (final review I1: the opening forgets the
+            // published positions of ambiguous classes, so `status` never reflects hidden instance order).
+            open_seek(c);
+            let (kt, kb) = (c.state.public.known_draw.len(), c.state.public.known_draw_bottom.len());
             let known = c.state.public.clone();
             let chosen = seek(c, class);
             let status = if let Some(i) = known.known_draw.iter().position(|h| *h == handle(chosen)) { Status::Top(i) }
@@ -262,7 +272,9 @@ fn scenario(seed: u64) -> (Combat, Vec<Op>) {
 
 #[derive(Default, Debug)]
 struct Stats { exact: usize, unrepresentable: usize, mismatches: Vec<String>, exact_ops: BTreeMap<&'static str, usize>,
-    seen: BTreeMap<String, Dist>, knowledges: Vec<(DrawKnowledge, Dist)>, unsound: Vec<String> }
+    seen: BTreeMap<String, Dist>, knowledges: Vec<(DrawKnowledge, Dist)>, unsound: Vec<String>,
+    /// (posterior, true top-to-bottom classes) at every exact ambiguous step: the input of the true-order negative control.
+    true_orders: Vec<(Dist, Vec<CardClass>)> }
 /// Record a normal form (its Debug text is the digest input) with the brute-force truth; false on a false merge.
 fn record(seen: &mut BTreeMap<String, Dist>, k: &DrawKnowledge, truth: Dist) -> bool {
     let key = format!("{k:?}");
@@ -295,6 +307,7 @@ fn run_oracle(variant: Option<Variant>, scenarios: u64) -> Stats {
                     let fresh = !stats.seen.contains_key(&format!("{k:?}"));
                     if !record(&mut stats.seen, &k, want.clone()) { stats.unsound.push(format!("seed {seed} after {:?}", &ops[..=n])); }
                     if fresh { stats.knowledges.push((k.clone(), want.clone())); }
+                    if want.len() > 1 { stats.true_orders.push((want.clone(), c.true_draw_classes())); }
                     if want != got || !known_cards_hold(&c, &k) {
                         stats.mismatches.push(format!("seed {seed} after {:?}: brute {} vs knowledge {} outcomes", &ops[..=n], want.len(), got.len()));
                         break;
@@ -521,13 +534,35 @@ fn knowledge_is_handle_free() {
 }
 #[test]
 fn knowledge_over_bound_is_unrepresentable_until_shuffle() {
+    // M34s-b final review I2 (amended part a test): the byte cap binds before N_COMPONENTS. The review's root (40 known
+    // Wounds, 3 Dazed shuffled in: 12,341 components, about 14 MB) is now Unrepresentable; the last representable stage
+    // keeps more than the contract minimum of 1,024 components within the cap.
     let mut c = fixture(&[Strike, Defend], 17);
     for _ in 0..40 { create(&mut c, Wound, 0, CardDestination::Draw); }
     let components = |c: &Combat| c.draw_knowledge().map(|k| k.components().len());
-    for _ in 0..3 { create(&mut c, Dazed, 0, CardDestination::ShuffledDraw); }
-    assert!(components(&c).unwrap() > 10_000, "{:?}", components(&c));
-    create(&mut c, Dazed, 0, CardDestination::ShuffledDraw);
-    assert_eq!(components(&c), Err(Unrepresentable), "over N_COMPONENTS = {}", knowledge::N_COMPONENTS);
+    let mut last = None;
+    for dazed in 1..=3 {
+        create(&mut c, Dazed, 0, CardDestination::ShuffledDraw);
+        match c.draw_knowledge() {
+            Ok(k) => { assert!(k.heap_bytes() <= knowledge::KNOWLEDGE_BYTES_CAP); last = Some((dazed, k.components().len(), k.heap_bytes())); }
+            Err(Unrepresentable) => break,
+        }
+    }
+    let (dazed, kept, bytes) = last.expect("a representable stage");
+    println!("over_bound: last representable after {dazed} Dazed: {kept} components, {bytes} heap bytes");
+    assert_eq!(components(&c), Err(Unrepresentable), "the review's ~14 MB root is over the {} byte cap", knowledge::KNOWLEDGE_BYTES_CAP);
+    // The contract minimum: more than 1,024 components of a smaller pile stay representable.
+    let mut small = fixture(&[Strike, Defend], 17);
+    for _ in 0..12 { create(&mut small, Wound, 0, CardDestination::Draw); }
+    let mut most = (0, 0);
+    for _ in 0..6 {
+        create(&mut small, Dazed, 0, CardDestination::ShuffledDraw);
+        let Ok(k) = small.draw_knowledge() else { break };
+        most = most.max((k.components().len(), k.heap_bytes()));
+    }
+    println!("over_bound: small pile: {} components, {} heap bytes", most.0, most.1);
+    assert!(most.0 > 1_024 && most.1 <= knowledge::KNOWLEDGE_BYTES_CAP, "{most:?}");
+    let mut c = small;
     piles::apply_effect(&mut c.state, &player_effect(EffectKind::DrawOne)).unwrap();
     assert_eq!(components(&c), Err(Unrepresentable), "until the next shuffle");
     shuffle(&mut c);
@@ -642,22 +677,34 @@ fn intangible_display_keeps_the_full_law() {
         assert_eq!(values(&c, PrerollKind::LouseBite), (lo..=hi).collect::<Vec<_>>());
     }
 }
-/// ASSUMPTION (final review M2, carried to M34s-b b0): this test writes Strength WITHOUT the refresh every engine power
-/// application performs (`powers.rs`), so the hit deals the stale stored `output` while execution-time narrowing uses the
-/// display recomputed under the modifiers now in force. In real play output is fresh at execution, so the two agree; b0 must
-/// either narrow on the dealt `output` (or assert it is fresh) and fix this premise before b samples from `C_v`, and must
-/// treat hits whose observable is masked (Torii, Buffer) as non-revealing.
+/// M34s-b b0 D2 (final review M2): the consistent set narrows only on the value published at a decision boundary, never
+/// at a move's execution (the player may not see the dealt value: block, Torii, Buffer, or modifiers changed during the
+/// enemy turn, here an ally's Strength). Replaces part a's `consistent_set_updates_at_execution_after_an_ally_buff`,
+/// whose premise (a stale stored output with execution-time narrowing) was not real play.
 #[test]
-fn consistent_set_updates_at_execution_after_an_ally_buff() {
+fn execution_does_not_narrow_on_an_unpublished_display() {
     let mut c = louse_combat(false, 7, 0, &[("strength", 2), ("weak", 1)], &[]);
     assert_eq!(values(&c, PrerollKind::LouseBite), vec![6, 7]);
-    // An ally's buff lands after the last refresh; the hit runs with the modifiers then in force (Strength 3: 6 vs 7).
+    // An ally's buff lands during the enemy turn (Strength 3 shows 6 vs 7), then the hit executes.
     enemy_power(&mut c, "strength", 3);
-    assert_eq!(values(&c, PrerollKind::LouseBite), vec![6, 7], "no refresh yet");
     let louse = c.state.enemies[0].instance_id.clone();
     let hit = Effect { source: Source::Actor(Actor::Enemy(louse)), target: Some(Actor::Player), kind: EffectKind::Damage(DamagePayload::FullEnemyMove(FullIntentId::Bite)) };
     effects::apply_effect(&mut c.state, &hit).unwrap();
+    assert_eq!(values(&c, PrerollKind::LouseBite), vec![6, 7], "no narrowing at execution");
+    // The next published boundary shows the refreshed value, which pins the base.
+    effects::refresh_enemy_values(&mut c.state).unwrap();
+    knowledge::observe_prerolls(&mut c.state);
     assert_eq!(values(&c, PrerollKind::LouseBite), vec![7]);
+}
+/// D2 fail-closed invariant: a published value the true base does not map to (a stale display) makes the set
+/// unrepresentable, never a wrong set.
+#[test]
+fn stale_published_display_fails_closed() {
+    let mut c = louse_combat(false, 7, 0, &[("strength", 2), ("weak", 1)], &[]);
+    enemy_power(&mut c, "strength", 3);
+    c.state.enemies[0].intent_damage = Some(4); // a value no candidate shows under the modifiers now in force
+    knowledge::observe_prerolls(&mut c.state);
+    assert!(set_of(&c, PrerollKind::LouseBite).is_err());
 }
 #[test]
 fn nip_consistent_set_and_both_stores_agree() {
@@ -860,4 +907,260 @@ fn knowledge_maintenance_flag_changes_nothing_but_the_knowledge() {
         }
         assert!(knowledge::MAINTENANCE.with(|m| m.get()).0 > 0, "the maintained combat did the work");
     }
+}
+
+// ---------- M34s-b P5: the belief's R1 sampler against the brute-force posterior ----------
+/// The sampler's exact induced distribution (every path of its uniform draws enumerated) equals the brute-force posterior
+/// for every distinct knowledge the oracle scenarios reach (design §4.10 P5, exact rather than statistical).
+#[test]
+fn sample_follows_the_knowledge_distribution() {
+    let stats = run_oracle(None, 300);
+    assert!(stats.mismatches.is_empty());
+    let mut multi = 0;
+    for (k, want) in &stats.knowledges {
+        let got = super::super::belief::exact::sampler_distribution(k).into_iter().map(|(seq, (n, d))| (seq, Q::new(n, d))).collect::<Dist>();
+        assert!(p5_holds(&got, want), "sampler distribution differs from the posterior for {k:?}");
+        multi += usize::from(want.len() > 1);
+    }
+    assert!(multi >= 50, "enough ambiguous knowledges: {multi}");
+}
+
+/// The P5 comparison both the sampler test and the negative control use: a sampler's induced distribution over
+/// top-to-bottom class sequences equals the brute-force posterior.
+fn p5_holds(sampler: &Dist, posterior: &Dist) -> bool { sampler == posterior }
+
+/// Negative control (c) (final review M1): a sampler that returns the TRUE order (`Combat::true_draw_classes`, the
+/// oracle) is passed through the same P5 comparison at every ambiguous oracle step and must fail it there.
+#[test]
+fn true_order_sampler_fails_p5() {
+    let stats = run_oracle(None, 300);
+    assert!(stats.true_orders.len() >= 50, "enough ambiguous steps: {}", stats.true_orders.len());
+    for (posterior, truth) in &stats.true_orders {
+        assert!(posterior.contains_key(truth), "the true order is in the posterior's support");
+        let true_order_sampler = Dist::from([(truth.clone(), Q(1, 1))]);
+        assert!(!p5_holds(&true_order_sampler, posterior), "a true-order sampler passes P5 on an ambiguous posterior");
+    }
+    // The control is not vacuous: the real sampler passes the same comparison on the same knowledges.
+    for (k, posterior) in stats.knowledges.iter().filter(|(_, want)| want.len() > 1) {
+        let got = super::super::belief::exact::sampler_distribution(k).into_iter().map(|(seq, (n, d))| (seq, Q::new(n, d))).collect::<Dist>();
+        assert!(p5_holds(&got, posterior));
+    }
+}
+
+// ---------- M34s-b final review I1: a grid pick among identical copies is public ----------
+/// What a pick's world publishes about the draw pile: the published known positions and classes, the unknown multiset,
+/// the grid candidates in grid order (class and published position), and the draw knowledge. Instances never appear.
+fn grid_signature(c: &Combat, candidates: &[CardHandle]) -> String {
+    let v = c.public_full().unwrap();
+    let known = v.known_draw.iter().map(|k| (k.from_top, k.offset, card_class(&k.card))).collect::<Vec<_>>();
+    let unknown = v.draw_unknown.iter().map(card_class).collect::<Vec<_>>();
+    let classes = class_map(&c.state);
+    let grid = candidates.iter().map(|h| (classes[&h.as_str().parse::<u64>().unwrap()],
+        v.known_draw.iter().find(|k| card_state::handle(k.card.instance) == *h).map(|k| (k.from_top, k.offset)))).collect::<Vec<_>>();
+    format!("{known:?}|{unknown:?}|{grid:?}|{:?}", c.draw_knowledge())
+}
+/// The review's repro: {Strike, Wound, Wound} shuffled, Scry 1 shows a Wound (kept), then a Seek grid takes the first
+/// Wound candidate. Returns (signature at the grid, signature after the pick, whether the known top Wound had the lower
+/// instance) for every seed whose Scry shows a Wound.
+fn identical_copies_pair(seeds: std::ops::Range<u8>) -> Vec<(String, String, bool)> {
+    let mut out = vec![];
+    for seed in seeds {
+        let mut c = fixture(&[Strike], seed);
+        create(&mut c, Wound, 0, CardDestination::Discard);
+        create(&mut c, Wound, 0, CardDestination::Discard);
+        piles::apply_effect(&mut c.state, &player_effect(EffectKind::Recycle)).unwrap();
+        shuffle(&mut c);
+        let top = top_to_bottom(&c.state)[0];
+        let wound = class_map(&c.state).into_iter().find(|(_, k)| k.id() == Wound).unwrap().1;
+        if class_map(&c.state)[&top] != wound { continue }
+        scry(&mut c, 1, &[]);
+        let lower = c.state.piles.draw.iter().filter_map(|o| o.full()).filter(|l| l.id == Wound).map(|l| l.instance.0).min().unwrap();
+        let candidates = open_seek(&mut c);
+        let at_grid = grid_signature(&c, &candidates);
+        let chosen = candidates.into_iter().find(|h| class_map(&c.state)[&h.as_str().parse::<u64>().unwrap()] == wound).unwrap();
+        piles::move_draw_card(&mut c.state, &chosen, CardDestination::Hand, Removal::Grid).unwrap();
+        out.push((at_grid, grid_signature(&c, &[]), top == lower));
+    }
+    out
+}
+
+/// P1 pair (final review I1): worlds with identical public history and a different hidden instance order publish the
+/// same grid and the same post-pick view and knowledge. The true posterior that the top is still a Wound is 3/4 (a
+/// mixture over the hidden order), which the knowledge cannot represent: it is `Unrepresentable` (fail closed) in
+/// both worlds, never a known top Wound in one world and nothing in the other.
+#[test]
+fn grid_pick_among_identical_copies_is_public() {
+    let pairs = identical_copies_pair(0..40);
+    assert!(pairs.iter().any(|p| p.2) && pairs.iter().any(|p| !p.2), "both hidden orders occur");
+    for (grid, after, _) in &pairs {
+        assert_eq!((grid, after), (&pairs[0].0, &pairs[0].1), "public outputs depend on the hidden instance order");
+    }
+    assert!(pairs[0].1.ends_with("Err(Unrepresentable)"), "{}", pairs[0].1);
+    // The brute-force posterior: the 6 orders of {S, W_lo, W_hi}, conditioned on a Wound on top; the pick removes W_lo.
+    let (mut wound_on_top, mut total) = (0, 0);
+    for order in permutations(&[0u64, 1, 2]) {
+        if order[0] == 0 { continue }
+        let rest = order.into_iter().filter(|i| *i != 1).collect::<Vec<_>>();
+        total += 1;
+        wound_on_top += usize::from(rest[0] == 2);
+    }
+    assert_eq!((wound_on_top, total), (3, 4), "posterior of a Wound on top is 3/4");
+}
+
+/// Negative control (I1): part a's grid rule (no forgetting, the update keyed on the true removed handle) publishes the
+/// hidden order — the pair diverges at the grid and after the pick.
+#[test]
+fn hidden_grid_rule_leaks_the_instance_order() {
+    VARIANT.with(|v| v.set(Some(Variant::HiddenGridRule)));
+    let pairs = identical_copies_pair(0..40);
+    VARIANT.with(|v| v.set(None));
+    let lower = pairs.iter().find(|p| p.2).unwrap();
+    let higher = pairs.iter().find(|p| !p.2).unwrap();
+    assert_ne!(lower.0, higher.0, "the grid order shows which copy is the known one");
+    assert_ne!(lower.1, higher.1, "the view and knowledge after the pick depend on the hidden order");
+}
+
+/// Ruling (c) scenario: two combat-local Burn copies shuffled with a Strike; the first draw shows a Burn (which copy
+/// is hidden), it is upgraded in hand, discarded, and everything is shuffled again; then a Seek grid opens. Returns
+/// (grid signature, whether the upgraded copy had the lower instance) for every seed whose first draw is a Burn.
+fn upgraded_copy_pair(seeds: std::ops::Range<u8>) -> Vec<(String, bool)> {
+    let mut out = vec![];
+    for seed in seeds {
+        let mut c = fixture(&[Strike], seed);
+        create(&mut c, Burn, 0, CardDestination::Discard);
+        create(&mut c, Burn, 0, CardDestination::Discard);
+        piles::apply_effect(&mut c.state, &player_effect(EffectKind::Recycle)).unwrap();
+        shuffle(&mut c);
+        if c.state.piles.draw.last().and_then(|o| o.full()).is_none_or(|l| l.id != Burn) { continue }
+        piles::apply_effect(&mut c.state, &player_effect(EffectKind::DrawOne)).unwrap();
+        let mut drawn = c.state.piles.hand.pop().unwrap();
+        drawn.full_mut().unwrap().upgrades = 1; // a public upgrade in hand (as Armaments)
+        let upgraded = drawn.full().unwrap().instance.0;
+        c.state.piles.discard.push(drawn);
+        piles::apply_effect(&mut c.state, &player_effect(EffectKind::Recycle)).unwrap();
+        shuffle(&mut c);
+        let other = c.state.piles.draw.iter().filter_map(|o| o.full()).find(|l| l.id == Burn && l.instance.0 != upgraded).unwrap().instance.0;
+        let candidates = open_seek(&mut c);
+        out.push((grid_signature(&c, &candidates), upgraded < other));
+    }
+    out
+}
+
+/// P1 pair (ruling (c)): two combat-local copies of one card id but different classes, whose instance rank is hidden,
+/// show the same grid in both worlds (the grid orders local copies of one id by class).
+#[test]
+fn grid_order_of_different_class_copies_is_public() {
+    let pairs = upgraded_copy_pair(0..60);
+    assert!(pairs.iter().any(|p| p.1) && pairs.iter().any(|p| !p.1), "both hidden ranks occur: {:?}", pairs.iter().map(|p| p.1).collect::<Vec<_>>());
+    for (grid, _) in &pairs { assert_eq!(grid, &pairs[0].0, "the grid order depends on the hidden instance rank"); }
+}
+
+/// Negative control (ruling (c)): the old (card id, instance) grid order shows the hidden rank.
+#[test]
+fn old_grid_sort_leaks_the_rank_of_different_class_copies() {
+    VARIANT.with(|v| v.set(Some(Variant::HiddenGridRule)));
+    let pairs = upgraded_copy_pair(0..60);
+    VARIANT.with(|v| v.set(None));
+    let lower = pairs.iter().find(|p| p.1).unwrap();
+    let higher = pairs.iter().find(|p| !p.1).unwrap();
+    assert_ne!(lower.0, higher.0, "the old grid order shows which copy is the upgraded one");
+}
+
+// ---------- M34s-b recheck R1: a hidden pick of one of several identical copies is public ----------
+/// The recheck's repro: {Strike, Defend}, a Wound inserted at a hidden position and a second Wound topdecked (published),
+/// then the real Stasis capture (every card is rank 0, so the capture is uniform over the four). Returns (signature after
+/// the capture, whether the published Wound was taken, the knowledge's P(Wound on top) when representable) for every
+/// seed whose capture takes a Wound.
+fn stasis_identical_copies_pair(seeds: std::ops::Range<u8>) -> Vec<(String, bool, Option<Q>)> {
+    let mut out = vec![];
+    for seed in seeds {
+        let mut c = fixture(&[Strike, Defend], seed);
+        let hidden = create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+        let top = create(&mut c, Wound, 0, CardDestination::Draw);
+        assert_eq!(c.state.public.known_draw.first(), Some(&handle(top)), "the topdecked Wound is published");
+        let wound = class_map(&c.state)[&top];
+        let taken = stasis(&mut c, 0);
+        if taken != top && taken != hidden { continue }
+        let on_top = c.draw_knowledge().ok().map(|k| expand(&k).iter().filter(|(seq, _)| seq.first() == Some(&wound)).fold(Q::new(0, 1), |a, (_, q)| a.add(*q)));
+        out.push((grid_signature(&c, &[]), taken == top, on_top));
+    }
+    out
+}
+
+/// P1 pair (recheck R1): Stasis takes one of two identical Wounds, one at a published top position. The public history
+/// is equal (a Wound was taken), so the view and the knowledge (hence the root support) are equal whichever copy the
+/// hidden RNG took: the published Wound's position is forgotten, and the knowledge is the exact mixture with
+/// P(Wound on top) = 1/2 (never a known top Wound in one world and `Unrepresentable` in the other).
+#[test]
+fn stasis_pick_among_identical_copies_is_public() {
+    let pairs = stasis_identical_copies_pair(0..200);
+    assert!(pairs.iter().any(|p| p.1) && pairs.iter().any(|p| !p.1), "both hidden picks occur");
+    for (after, _, _) in &pairs { assert_eq!(after, &pairs[0].0, "public outputs depend on the copy Stasis took"); }
+    assert!(pairs[0].0.starts_with("[]|"), "the published Wound's position is forgotten: {}", pairs[0].0);
+    assert!(pairs.iter().all(|p| p.2 == Some(Q::new(1, 2))), "the knowledge is the exact mixture: P(Wound on top) = 1/2");
+}
+
+/// Negative control (R1): without the forgetting (the published positions pruned by the TRUE taken handle) the pair
+/// diverges: the view shows a known top Wound in one world only, and the knowledge is `Unrepresentable` there.
+#[test]
+fn hidden_pick_rule_leaks_the_stasis_copy() {
+    VARIANT.with(|v| v.set(Some(Variant::HiddenPickRule)));
+    let pairs = stasis_identical_copies_pair(0..200);
+    VARIANT.with(|v| v.set(None));
+    let published = pairs.iter().find(|p| p.1).unwrap();
+    let hidden = pairs.iter().find(|p| !p.1).unwrap();
+    assert_ne!(published.0, hidden.0, "the view and knowledge after the capture show which copy was taken");
+    assert!(hidden.2.is_none() && published.2.is_some(), "root support flips with the hidden pick");
+}
+
+/// R1 on the shared uniform retrieval owner (`piles::move_draw_card` under `Removal::Uniform`, Violence's path): a Shiv
+/// topdecked over a Wound topdecked, a second Wound hidden and a third at the published bottom. Taking either Wound
+/// (the hidden pick) publishes the same view and knowledge: both prefixes are cut at their first Wound (the Shiv above it
+/// stays known). Taking the Shiv, a class with one copy, keeps the exact pruning (the Wound below it stays known).
+#[test]
+fn uniform_retrieval_among_identical_copies_is_public() {
+    let world = |seed: u8| {
+        let mut c = fixture(&[Strike, Defend], seed);
+        let hidden = create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+        let bottom = create(&mut c, Wound, 0, CardDestination::BottomDraw);
+        let top = create(&mut c, Wound, 0, CardDestination::Draw);
+        let shiv = create(&mut c, Shiv, 0, CardDestination::Draw);
+        assert_eq!((c.state.public.known_draw.clone(), c.state.public.known_draw_bottom.clone()), (vec![handle(shiv), handle(top)], vec![handle(bottom)]));
+        (c, [hidden, bottom, top], shiv)
+    };
+    for seed in 0..8 {
+        let mut outs = vec![];
+        for k in 0..3 {
+            let (mut c, wounds, shiv) = world(seed);
+            piles::move_draw_card(&mut c.state, &handle(wounds[k]), CardDestination::Hand, Removal::Uniform).unwrap();
+            assert_eq!((c.state.public.known_draw.clone(), c.state.public.known_draw_bottom.clone()), (vec![handle(shiv)], vec![]));
+            outs.push(grid_signature(&c, &[]));
+        }
+        assert!(outs.iter().all(|o| *o == outs[0]), "seed {seed}: the view depends on which Wound the hidden pick took");
+        let (mut c, wounds, shiv) = world(seed);
+        piles::move_draw_card(&mut c.state, &handle(shiv), CardDestination::Hand, Removal::Uniform).unwrap();
+        assert_eq!((c.state.public.known_draw.clone(), c.state.public.known_draw_bottom.clone()), (vec![handle(wounds[2])], vec![handle(wounds[1])]),
+            "a single copy keeps its exact pruning");
+    }
+}
+
+/// R1 (rank): Stasis maps its roll through (card id, physical position), never through the hidden instance rank. A world
+/// and its label-swapped twin (the published and the hidden Wound exchange places) with the same card stream take the
+/// same physical copy, so the true draw piles stay equal by class (common random numbers for public-equivalent roots).
+#[test]
+fn stasis_maps_its_roll_by_position_not_rank() {
+    let mut captured = 0;
+    for seed in 0..60u8 {
+        let mut a = fixture(&[Strike, Defend], seed);
+        let hidden = create(&mut a, Wound, 0, CardDestination::ShuffledDraw);
+        let top = create(&mut a, Wound, 0, CardDestination::Draw);
+        let mut b = a.clone();
+        assert!(b.diagnostic_swap_identical_copies(hidden, top), "identical copies");
+        let (ta, tb) = (stasis(&mut a, 0), stasis(&mut b, 0));
+        let draw = |c: &Combat| { let k = class_map(&c.state); top_to_bottom(&c.state).iter().map(|i| k[i]).collect::<Vec<_>>() };
+        assert_eq!(draw(&a), draw(&b), "seed {seed}: the same roll took a different physical copy");
+        assert_eq!(grid_signature(&a, &[]), grid_signature(&b, &[]), "seed {seed}: the twins publish different outputs");
+        captured += usize::from([hidden, top].contains(&ta) && [hidden, top].contains(&tb));
+    }
+    assert!(captured > 0, "some roll takes a Wound");
 }

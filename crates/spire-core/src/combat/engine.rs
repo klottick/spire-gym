@@ -2939,7 +2939,7 @@ pub(super) fn resolve(state: &mut State) -> Transition { resolve_from(state, sup
 /// consistent sets narrow only at these published boundaries and at a move's execution.
 pub(super) fn resolve_from(state: &mut State, marks: super::model::ResolveMarks) -> Transition {
     let transition=settle(state,marks);
-    if matches!(transition.status,TransitionStatus::Decision|TransitionStatus::Selection){super::knowledge::observe_prerolls(state,None);}
+    if matches!(transition.status,TransitionStatus::Decision|TransitionStatus::Selection){super::knowledge::observe_prerolls(state);}
     transition
 }
 

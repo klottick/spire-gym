@@ -38,7 +38,7 @@ fn pre_m34s_standard_record_is_incompatible_replay() {
     assert_eq!(fixture["observation_fingerprint"].as_array().map(|a| a.iter().map(|b| format!("{:02x}", b.as_u64().unwrap())).collect::<String>()),
         Some(PRE_M34S_FINGERPRINT.to_owned()));
     assert_eq!(fixture["rules_id"], "spire-gym-native-standard-rules-v1");
-    assert_eq!(crate::RUN_RULES_ID_STANDARD, "spire-gym-native-standard-rules-v2");
+    assert_eq!(crate::RUN_RULES_ID_STANDARD, "spire-gym-native-standard-rules-v3");
     // The identity (rules id) is checked before the fingerprint.
     let identity_mismatch = RunSessionError::IncompatibleReplay("Run identity mismatch");
     let fingerprint_mismatch = RunSessionError::IncompatibleReplay("Run observation fingerprint mismatch");

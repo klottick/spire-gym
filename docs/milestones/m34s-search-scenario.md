@@ -1,7 +1,7 @@
 # M34s Search and scenario API: public knowledge, belief branching, tactical starts
 
-Status: M34s-a source candidate (part 1 of 3), not accepted. M34s-b (belief and branching) and M34s-c (tactical starts)
-follow, one merge each, on M34s-a's merge.
+Status: M34s-a merged (part 1 of 3, PR 99). M34s-b (belief and branching, part 2 of 3) is a source candidate
+(candidate-v4: candidate-v2 plus the recheck v1 fixes R1–R3 and the recheck v2 S1 scope disclosure), not accepted. M34s-c (tactical starts) follows on M34s-b's merge.
 
 M34s builds a public-information search and scenario layer on the [Standard Run API](../standard-run-api.md): the
 Standard combat view, the exact public knowledge a belief model conditions on, standalone Standard combat sessions, then
@@ -34,7 +34,8 @@ has no original-runtime validation.
   updated on every draw-pile path and fail-closed (`Unrepresentable` until the next shuffle) on any change no operation
   explains, above 65,536 components, or when tied rows differ in an unpublished field. A brute-force oracle that
   reproduces the engine's real handle choices checks it exactly. `Combat::preroll_sets()` holds the Louse Bite and
-  Darkling Nip values consistent with every published intent display and execution.
+  Darkling Nip values consistent with every published intent display (as amended by M34s-b D2: no narrowing at
+  execution).
 - **Standard combat view.** `combat_view()` / `combat_observation_spec()` on Standard: `spire-gym-standard-combat-view-v1`,
   a projection of the Standard observation with `combat_context` (character, ascension, act, room kind, encounter,
   burning) from `Run::combat_identity()`.
@@ -54,6 +55,73 @@ has no original-runtime validation.
   encoding ([Standard Run API](../standard-run-api.md#standard-combat-view-and-sessions)).
 - **Records.** The Standard fingerprint changes once (`efbc1253…` → `bf8e1d11…`) and the Standard rules id moves to v2;
   pre-M34s Standard records are typed `IncompatibleReplay` (re-record).
+
+### M34s-b — belief and branching
+
+- **Combat-scope transplant.** `Run::combat_scope()` copies one positive list of the Run-side inputs a combat and its
+  Standard view read, plus the live combat, into a settlement-free Run. Run-level hidden state is absent by construction
+  (an exhaustive `RunState` literal; a new field fails to compile). The transplant steps identically to the original combat
+  at every decision to the combat's end: 8 supplied Heart routes (337 transplants), 4 event-seeking routes (including an
+  event combat) and 24 standalone starts.
+- **Belief `spire-gym-public-belief-v1` (core `combat/belief.rs`).** Canonical public roots, the fail-closed continuation
+  allow-list, and research-keyed re-sampling: R1 the draw order from the exact draw knowledge, R2 every stream, and R3 each
+  ambiguous pre-roll. No exact oracle (`exact_*`, `true_draw_classes`, `fuzz_combat`) feeds it.
+- **Search `spire-gym-public-search-v1` (spire-env `public_search.rs`).** `RunSession::public_root`,
+  `CombatTrainingSession::public_root`, and the `PublicSearch` arena (tokens, limits, Full or Mask steps, fork, close,
+  `actions`, nested roots, counters, spec) with distinct budget, fault, truncation and terminal outcomes. Python:
+  `public_search(...)` on `RunEnv` and `StandardCombatEnv`, `PublicSearch`, `PublicBranch`, and `RunBudgetError`. See the
+  [Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b).
+- **Rulings (b0, PM-accepted).** D1: root equality and the digest use part a's sound normal form, and roots whose equal
+  distributions have different structure stay distinct (independent streams; never a privacy issue). D2 (final review M2):
+  pre-roll sets narrow only on the intent value published at a boundary. The execution-time narrowing on a recomputed
+  display is removed. Part a's test `consistent_set_updates_at_execution_after_an_ally_buff` assumed it and was replaced
+  (wrong premise). b0's D3 ("the grid instance rank is public history, so nothing is relabelled") was **wrong** (final
+  review I1): the instance rank of combat-local copies of one card class is hidden once they have passed through a
+  hidden draw or shuffle, and the order-hiding grids ordered such copies by it. See "Global fixes (M34s-b)" below. Card
+  and enemy handles stay unrelabelled; no encoded output depends on them (the core typed `Run::decision()` names cards by
+  handle and is outside the belief's information set; [Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b)). The allow-list over-denies replayed player
+  targets.
+- **Gameplay delta:** the grid order of combat-local copies of one card id with different classes (I1-c below), and
+  which copy a given Stasis roll takes (R1-b below; the distribution is unchanged). Everything else changes public
+  knowledge, published views or the search only.
+- **Costs** (release medians, not gates): `public_root()` 0.36–0.54 ms, `branch()` 24–113 µs, Mask step 24–241 µs, Full
+  step 62–287 µs, `fork` under 3 µs. Retained bytes (final review I2): `spec()["max_retained_bytes"]` bounds the whole
+  arena (fixed part, live branches, and per-created-branch entries). The only measured term is the Run heap estimate
+  (64 KiB; allocator-measured at most 12,889 bytes at the first Act 3 boss); the draw knowledge is capped at 2 MiB
+  (`KNOWLEDGE_BYTES_CAP`; a larger one is `Unrepresentable`). The gated test `arena_heap_stays_within_the_published_bound`
+  checks real allocations against it. Part b adds no per-step cost on other profiles: the shared Python observation helper is unchanged from base, and the
+  core step is measured unchanged on Gym66 and M10 ([Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b)).
+
+### Global fixes (M34s-b, final review I1 and recheck R1: a leak in a merged surface)
+
+The order-hiding draw-pile grids (Seek, Omniscience, Secret Technique, Secret Weapon) ordered their candidates by
+(card id, instance), and selection rows and legal actions follow that order. Once copies of one card class have been
+shuffled together, which copy is which is hidden, so the order showed which copy sat at a published draw position, and
+the draw knowledge, root digests and belief samples followed the pick of a copy chosen by that hidden order. Part a
+(merged, PR 99) shipped this in the Standard surface; the M17–M25 extended encoders showed the same order. The fix is
+global and reads public facts only:
+
+| Id | Change | Profiles affected |
+| --- | --- | --- |
+| I1-a forgetting at the grid | Opening an order-hiding grid forgets every published draw position (`known_draw`, `known_draw_bottom`, cut at the first such entry) of a class with two or more copies among the candidates. View only: no rule reads public knowledge | Standard Run, Standard combat view, `standard-combat-v1`; M17–M20 Defect (Seek) and M21–M25 Watcher (Omniscience) extended encoders |
+| I1-b public grid law | The draw knowledge's grid removal reads public facts only: a class with a published copy and another copy is `Unrepresentable` until the next shuffle; Scry discards use their own published-position law | Knowledge (Standard surfaces only) |
+| I1-c grid order (PM ruling (c), gameplay) | Within one card id, combat-local candidates take their slots in (card class, instance) order. Permanent cards and one class of local copies keep (card id, instance) exactly. Standard rules id `spire-gym-native-standard-rules-v3`; captured ids unchanged (no compatibility promise; disclosed) | Every surface whose content reaches these grids: Standard, `standard-combat-v1`, M15 (colorless Secret Technique/Weapon), M17–M20, M21–M25; a reachable different-class local pair is not established for every bounded profile. Captured ids unchanged (replay caveat) |
+| I1-d branch refusal | A search branch refuses, with no effect, a pick among two or more same-class candidates that are not all published (`UnsupportedBoundary`, `HIDDEN_ORDER_PICK`): sampled worlds keep the true labels of identical copies | Search only |
+| I1-e root equality | `PublicRoot` equality is the digest and capacities (public content); the canonical worlds of public-equivalent combats may differ in copy labels | Search only |
+| R1-a forgetting before a hidden pick | A draw-pile card taken by a hidden choice (Bronze Orb's Stasis and Violence each take one uniformly at random) shows its class, never which copy. When the draw pile holds two or more copies of the taken class, every published draw position of that class is forgotten first (`known_draw`, `known_draw_bottom`, cut at the first such entry). One shared owner, `piles::take_draw_card`, runs this law for every `Removal::Uniform` pick. View only; the draw knowledge's uniform removal is the exact mixture | Standard Run, Standard combat view, `standard-combat-v1`; M17–M25 extended encoders (they publish `known_draw`) wherever Bronze Automaton or Violence is reachable |
+| R1-b Stasis roll mapping (gameplay, PM-approved) | Stasis maps its uniform roll through its candidates ordered by (card id, physical pile position) instead of (card id, instance). Each candidate stays equally likely; only which copy a given roll takes changes. The order no longer depends on the hidden rank of identical copies, and the original game also sorts by card id over its pile order. The Standard rules id v3 covers it | Run profiles: Standard (all characters, A0–A20, including the M34 Run API) and the captured M7, M8, M9, M10, M13, M14, M15, M18, M19, M20, M23, M24 and M25 (every captured profile that reaches the Act 2 boss). Combat profiles: Gym66 combat-v1 and v2, the M21 Watcher combat profile and `standard-combat-v1` (their encounter lists include Bronze Automaton). Not M6, M11, M12, M16, M17, M21 Run or M22 (no Act 2 boss). Ids and fingerprints are unchanged (PM ruling on recheck v2 S1: accepted globally under the user's 2026-11-02 override, so these profiles are not frozen until the roadmap is complete). A retained record from these profiles that contains a Stasis capture may replay to a different copy. In replay paths that do not compare observations, this happens without a typed `IncompatibleReplay` error. The one measured change is the frozen M23 supplied-boss Bronze Automaton replay, step 12 (Stasis takes the other Carve Reality copy) |
+
+The R1 census (all of `spire-core`: every zone with published positions, every specific-card operation and every RNG
+call site) found no other hidden copy pick. Hand, discard, exhaust and Stasis custody are fully published, so random
+picks there choose public positions. Havoc, Mayhem, Distilled Chaos and draws take the top card. Insertions choose no
+copy. Lesson Learned ranks public permanent instances. Thieves take gold only.
+
+Tests: the review's repro (Strike and two Wounds shuffled, Scry shows a Wound, Seek takes a Wound: true posterior 3/4,
+the knowledge `Unrepresentable` in both hidden orders) and an upgraded-copy pair, each with a negative control that fails
+under part a's rule; env label-swap families (Defect Seek with Wounds, Watcher Secret Technique with Insights, Wounds
+swapped across hand and draw, Ironclad Secret Weapon with Shivs, and two Burns of which one is upgraded) with identical
+views, roots, digests and branches at the decision and at the grid; their red evidence is mutation (each I1 part reverted
+in turn fails them).
 
 ### Global fixes and disclosed rulings (M34s-a)
 
@@ -85,6 +153,18 @@ distributions) but not complete for structurally different mixtures; M34s-b deci
 | a5 Python | `tests/python/env/test_standard_combat.py` |
 | a6 fuzz | `spire-fuzz` Standard combat specs and the draw-knowledge check |
 
+## Coverage ledger (M34s-b)
+
+| Plan item | Tests |
+| --- | --- |
+| b1 transplant | `spire-env` `tests::m34s_transplant::*`; `spire-core` `run::standard_combat::tests::transplant_holds_no_run_level_state` |
+| b2 belief (P2, P4–P7, negative controls) | `spire-core` `combat::tests::m34s_belief::*`, `combat::tests::m34s_knowledge::{sample_follows_the_knowledge_distribution, true_order_sampler_fails_p5, execution_does_not_narrow_on_an_unpublished_display, stale_published_display_fails_closed}`, `combat::knowledge::tracker_census_classifies_every_field`, `items::combat_item_context_census_classifies_every_field`, `run::rng::m34c_reserved_domain::research_label_is_disjoint` |
+| b3 arena (P1, P3, P7) | `spire-env` `tests::m34s_search::*` |
+| Global fixes I1 (a–e), I2 | `spire-core` `combat::tests::m34s_knowledge::{grid_pick_among_identical_copies_is_public, hidden_grid_rule_leaks_the_instance_order, grid_order_of_different_class_copies_is_public, old_grid_sort_leaks_the_rank_of_different_class_copies, knowledge_over_bound_is_unrepresentable_until_shuffle}`, `combat::tests::m34s_belief::knowledge_over_the_byte_cap_makes_the_root_unsupported`; `spire-env` `tests::m34s_dup_pairs::*`, `tests::m34s_search::a_publication_error_after_the_engine_commits_faults_the_branch` (M3) |
+| b4 Python | `tests/python/env/test_public_search.py` |
+| b5 examples, costs | `crates/spire-env/examples/public_lookahead.rs`, `examples/public_lookahead.py`, `tests::m34s_search_measure` (ignored) |
+| b6 fuzz | `spire-fuzz` search mode (P2 perturbation, token rejection, live-root invariance) |
+
 ## Reconciliation
 
 Checks on the read-only candidate snapshot against base `d6572940` (M34s-a evidence `c1-checks/`):
@@ -102,10 +182,46 @@ Checks on the read-only candidate snapshot against base `d6572940` (M34s-a evide
 - **Fixture limitation:** on the A20 keys route (seed 0xC3) the test-only supplied hit (`supplied_wound_enemies`) leaves the
   Run with no legal action; base reproduces it, and the same route with public actions only ends in a natural death.
 
-## Limits and outs
+### Reconciliation (M34s-b)
 
-- M34s-a publishes no belief, branch or position API (parts b and c). Run-level belief, Runic Dome belief, chance
-  enumeration and branch serialisation are out of M34s.
+Checks on the read-only snapshots against base `bdd82639` (M34s-b evidence `c2-checks/` to `c5-checks/`). c2 holds the
+final review v1 fixes; c3 and c4 change only the search arena, tests and docs. c5 holds the recheck v1 fixes (R1 in core,
+R2 in the arena), so every gate was rerun on c5.
+- **Workspace:** `cargo test --workspace` (c5 tree) exit 0, 5,016 passed, 0 failed, 17 ignored. Against base, 66 test names
+  are added and one is removed (`consistent_set_updates_at_execution_after_an_ally_buff`, replaced under D2). Core
+  diagnostics pass (m28/m29: 4,266; m34: 3,637), as do spire-fuzz default (18) and diagnostics (29).
+- **Gameplay and the I1/R1 effects, attributed:** every candidate output equals an attribution tree built as base plus
+  only I1-a, I1-c, R1-a, R1-b and the rules id.
+  - **Traversal:** 23/23 byte-identical, with the M33 gate passing for A0–A20; base also equals attribution in 23/23.
+  - **Fuzz gate:** 500/500 gameplay hashes and 498/498 trace hashes equal between candidate and attribution. Between base
+    and attribution, gameplay is 500/500 equal and 140 trace hashes differ: the published view change I1-a.
+  - **Frozen replay:** 323/323 equal to attribution. Base differs from attribution on one input, reproduced exactly: the
+    supplied-boss Bronze Automaton replay, where Stasis takes the other Carve Reality copy at step 12 (R1-b).
+  - **Examples:** equal. The released M22, M23 and M24 replays exit 1 identically on base, attribution and candidate, as
+    on c2.
+  - **Gameplay:** the one measured gameplay change is the R1-b Stasis capture above. The I1-c order change did not arise on
+    these inputs.
+- **Search driver** (100 seeds, all characters × {A0, A20}; identical on c2 to c5 apart from time):
+  - 4,280 searches, 16,687 branches, 46,557 steps;
+  - 4,280 hidden perturbations with equal roots (P2);
+  - 0 hidden-order refusals and 0 failures;
+  - unsupported roots: 102 hidden intents (Runic Dome), 2 draw knowledge beyond the model.
+- **Lane P** (built extension from each snapshot): 337 Python tests passed. Every captured fingerprint equals the `bdd82639`
+  packet; Standard `bf8e1d11…` and the Standard combat view `5d8147e1…` are unchanged. The Python and Rust lookahead
+  examples exit 0.
+- **Mutations:** 39 mutants (`scripts/mutations_b.py`, logs v3 to v5), 37 killed, including all six R1 mutants. M-i1b-true-handle survives in core and
+  env. It is equivalent on every opened grid, because forgetting at the opening makes the public law read the same as the
+  handle rule. The one difference is a disclosed fail-closed over-denial: when Seek takes the whole draw pile without
+  opening a grid, the mutant stays exact, while the candidate is `Unrepresentable` until the next shuffle.
+- **Verifiers:**
+  - v2 FAIL: the `PublicDecision` scope and the retained-bytes bound.
+  - v3 FAIL: arena core errors and `used_samples`.
+  - v4 PASS, after the fixes listed under "Global fixes (M34s-b)" and in the API doc.
+  - v5 PASS: an independent R1 census agrees that Stasis and Violence are the only hidden draw-pile copy picks.
+
+- M34s-b's belief is combat-scope only (L4) and sampling only (L3); Runic Dome roots are Unsupported (L2); the belief
+  conditions on more than the view shows (L6) and not on dealt damage (L5). Run-level belief, Runic Dome belief, chance
+  enumeration and branch serialisation are out of M34s; positions and recipes are M34s-c.
 - `standard-combat-v1` ends at the engine's combat terminal: settlement effects (Meat on the Bone, Face of Cleric) and
   rewards never apply, although the original applies some of them at victory.
 - The original randomises the Seek and Secret Technique/Secret Weapon grid order and sorts Omniscience's grid (by name,

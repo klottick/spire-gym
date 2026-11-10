@@ -93,6 +93,24 @@ class RunEnv(gym.Env[Observation, int]):
         with self._guard:
             return self._session.combat_view()
 
+    def public_search(
+        self,
+        research_seed: int,
+        *,
+        limits=None,
+        max_live_branches=None,
+        max_branches=None,
+        max_steps_per_branch=None,
+        max_total_steps=None,
+    ):
+        """Open bounded public-belief search at the current Standard combat decision."""
+        from .public_search import open_public_search
+
+        return open_public_search(
+            self, research_seed, limits, max_live_branches=max_live_branches, max_branches=max_branches,
+            max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps,
+        )
+
     def _package_reset(
         self, raw: RunResetPayload
     ) -> tuple[Observation, dict[str, Any]]:

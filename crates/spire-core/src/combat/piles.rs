@@ -370,18 +370,47 @@ pub(super) fn forget_known_draw(state:&mut State,handle:&CardHandle){
     state.public.known_draw_bottom.retain(|known|known!=handle);
 }
 
+/// Take a card out of the middle of the draw pile under the public-knowledge `law`: the shared owner of the pile removal,
+/// the draw knowledge's update and the published positions (Secret retrieval, Seek, Violence, Stasis).
+/// M34s-b recheck R1: a `Removal::Uniform` pick is a hidden choice, so [`forget_before_hidden_pick`] runs first.
+pub(in crate::combat) fn take_draw_card(state:&mut State,handle:&CardHandle,law:super::knowledge::Removal)->Option<OwnedCard>{
+    if law==super::knowledge::Removal::Uniform{forget_before_hidden_pick(state,handle);}
+    let index=state.piles.draw.iter().position(|card|card.handle()==*handle)?;
+    let card=state.piles.draw.remove(index);
+    removed_knowledge(state,&card,law);
+    forget_known_draw(state,handle);
+    Some(card)
+}
+
+/// M34s-b recheck R1 (PM ruling; the I1 principle for every hidden pick): a draw-pile card taken by a HIDDEN choice (an
+/// RNG index, or a handle or instance rank; Stasis and Violence take one uniformly) publishes its class, never which copy.
+/// With another copy of its class in the draw pile and a copy of that class at a published position, pruning the true
+/// handle would publish the hidden pick (the remaining known top would be certain in one world and gone in the other).
+/// So every published position of the taken class is forgotten first: `known_draw`/`known_draw_bottom` are cut at their
+/// first entry of that class. A function of public facts only (the taken class, which is shown, the published classes and
+/// the draw pile's class multiset). A class with one copy keeps its exact pruning; a legacy card (no class) forgets all.
+/// Public knowledge is never read by rules, so gameplay and RNG are unchanged; `Removal::Uniform` is the matching mixture.
+pub(in crate::combat) fn forget_before_hidden_pick(state:&mut State,handle:&CardHandle){
+    if super::knowledge::hidden_pick_rule(){return}
+    let class=|h:&CardHandle|state.piles.draw.iter().find(|card|card.handle()==*h).and_then(|card|super::knowledge::class_of(state,card));
+    let taken=class(handle);
+    let copies=state.piles.draw.iter().filter(|card|super::knowledge::class_of(state,card)==taken).count();
+    if taken.is_some()&&copies<2{return}
+    let ambiguous=|h:&CardHandle|taken.is_none()||class(h)==taken;
+    let top=state.public.known_draw.iter().position(&ambiguous);
+    let bottom=state.public.known_draw_bottom.iter().position(&ambiguous);
+    if let Some(cut)=top{state.public.known_draw.truncate(cut);}
+    if let Some(cut)=bottom{state.public.known_draw_bottom.truncate(cut);}
+}
+
 /// Move an existing draw-pile card without treating retrieval as an actual draw.
 /// Secret retrieval and Violence use this shared pile/public-knowledge owner.
 pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:super::command::CardDestination,law:super::knowledge::Removal)->Result<(),InputError>{
     if !matches!(destination,super::command::CardDestination::Hand|super::command::CardDestination::Discard){
         return Err(InputError::Invariant("draw retrieval destination must be Hand or Discard".into()));
     }
-    let index=state.piles.draw.iter().position(|card|card.handle()==*handle)
-        .ok_or_else(||InputError::Invariant("retrieved draw card is no longer owned".into()))?;
-    let card=state.piles.draw.remove(index);
-    removed_knowledge(state,&card,law);
+    let card=take_draw_card(state,handle,law).ok_or_else(||InputError::Invariant("retrieved draw card is no longer owned".into()))?;
     state.public.revealed_order.push(handle.clone());
-    forget_known_draw(state,handle);
     let destination=if destination==super::command::CardDestination::Hand&&state.piles.hand.len()>=10{
         super::command::CardDestination::Discard
     }else{destination};
@@ -807,6 +836,49 @@ pub(super) fn deal_opening_one(state:&mut State)->Option<Effect>{
 /// The one grid order for player-chosen draw-pile selections (Seek, Omniscience, Secret Technique, Secret Weapon):
 /// (card id, instance), never physical draw order. Among identical copies the lowest instance comes first
 /// (M34s-a a0(iii)/(ix): the deterministic handle rule the public draw knowledge models).
+/// M34s-b final review I1 (PM ruling (c)): the instance rank of combat-local copies is hidden once they have passed through
+/// a hidden draw, so within one card id the combat-local candidates take their slots of that order sorted by (card class,
+/// instance): copies of different classes never show their hidden rank. Permanent cards (public deck instances) and a
+/// single class of local copies keep the (card id, instance) order exactly.
 pub(in crate::combat) fn sort_draw_grid(state:&State,candidates:&mut [CardHandle]){
-    candidates.sort_by_key(|handle|state.piles.draw.iter().find(|card|card.handle()==*handle).and_then(OwnedCard::full).map(|card|(card.id.as_str(),card.instance)));
+    let card=|handle:&CardHandle|state.piles.draw.iter().find(|card|card.handle()==*handle);
+    candidates.sort_by_key(|handle|card(handle).and_then(OwnedCard::full).map(|card|(card.id.as_str(),card.instance)));
+    if super::knowledge::hidden_grid_rule(){return}
+    let local=|handle:&CardHandle|card(handle).and_then(|owned|owned.full().filter(|live|matches!(live.origin,CombatCardRef::CombatLocal(_)))
+        .map(|live|(live.id,super::knowledge::class_of(state,owned),live.instance)));
+    let mut start=0;
+    while start<candidates.len(){
+        let id=card(&candidates[start]).and_then(OwnedCard::full).map(|live|live.id);
+        let end=start+candidates[start..].iter().take_while(|h|card(h).and_then(OwnedCard::full).map(|live|live.id)==id).count();
+        let slots=(start..end).filter(|i|local(&candidates[*i]).is_some()).collect::<Vec<_>>();
+        let mut locals=slots.iter().map(|i|candidates[*i].clone()).collect::<Vec<_>>();
+        locals.sort_by_key(|h|local(h).map(|(_,class,instance)|(class,instance)));
+        for (slot,handle) in slots.into_iter().zip(locals){candidates[slot]=handle;}
+        start=end.max(start+1);
+    }
+}
+
+/// M34s-b final review I1: the opening of an order-hiding draw-pile grid (Seek, Omniscience, Secret Technique/Weapon).
+/// [`sort_draw_grid`] orders copies of one card class by their instance rank, which is hidden once copies have been
+/// shuffled together; a grid holding a copy at a published draw position with another copy of its class would publish
+/// which copy is the known one (and a pick would remove a copy chosen by hidden order). So every published position of
+/// such a class is forgotten first: `known_draw`/`known_draw_bottom` are cut at their first such entry. A function of
+/// public information only (the published classes and the candidates' class multiset); public knowledge is never read by
+/// rules, so gameplay and RNG are unchanged. Fail closed: the knowledge of the pick that follows is `Unrepresentable`.
+pub(in crate::combat) fn open_draw_grid(state:&mut State,candidates:&mut [CardHandle]){
+    sort_draw_grid(state,candidates);
+    forget_ambiguous_grid_positions(state,candidates);
+}
+/// The forgetting step of [`open_draw_grid`] (Omniscience keeps its own canonical candidate list).
+pub(in crate::combat) fn forget_ambiguous_grid_positions(state:&mut State,candidates:&[CardHandle]){
+    if super::knowledge::hidden_grid_rule(){return}
+    let class=|handle:&CardHandle|state.piles.draw.iter().find(|card|card.handle()==*handle).and_then(|card|super::knowledge::class_of(state,card));
+    let mut copies=std::collections::BTreeMap::new();
+    for handle in candidates{*copies.entry(class(handle)).or_insert(0usize)+=1;}
+    // A legacy card has no class: treat it as ambiguous (fail closed).
+    let ambiguous=|handle:&CardHandle|candidates.contains(handle)&&class(handle).is_none_or(|c|copies.get(&Some(c)).copied().unwrap_or(0)>=2);
+    let top=state.public.known_draw.iter().position(&ambiguous);
+    let bottom=state.public.known_draw_bottom.iter().position(&ambiguous);
+    if let Some(cut)=top{state.public.known_draw.truncate(cut);}
+    if let Some(cut)=bottom{state.public.known_draw_bottom.truncate(cut);}
 }

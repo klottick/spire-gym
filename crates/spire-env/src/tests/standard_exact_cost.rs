@@ -28,8 +28,8 @@ unsafe impl GlobalAlloc for Counting {
 #[global_allocator]
 static ALLOCATOR: Counting = Counting;
 
-/// Net heap bytes still held by the value `make` returns.
-fn retained_bytes<T>(make: impl FnOnce() -> T) -> (T, isize) {
+/// Net heap bytes still held by the value `make` returns (also the M34s-b search retained-bytes check).
+pub(super) fn retained_bytes<T>(make: impl FnOnce() -> T) -> (T, isize) {
     NET.with(|net| net.set(0));
     ARMED.with(|armed| armed.set(true));
     let value = make();

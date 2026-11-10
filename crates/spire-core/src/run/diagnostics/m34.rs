@@ -27,3 +27,14 @@ pub fn supplied_wound_enemies(run: &mut Run) -> Result<(), RunError> {
     if effects.is_empty() { return Ok(()) }
     combat.enqueue_native_effects(effects, None)
 }
+
+/// M34s-b diagnostics (search fault isolation tests): a Run fault retained now, so the next step reports it (never a
+/// policy or gameplay path).
+pub fn supplied_fault(run: &mut Run) {
+    use crate::run::{RunFault, RunFaultKind};
+    run.state.fault = Some(RunFault { kind: RunFaultKind::Invariant("supplied diagnostic fault"), checkpoint: "m34s.supplied-fault", committed_events: vec![] });
+}
+
+/// M34s-b final review I1 diagnostics (env P1 duplicate-copy families): the live combat, to create supplied copies
+/// (`Combat::diagnostic_create_card`) and build public-equivalent worlds (`Combat::diagnostic_swap_identical_copies`).
+pub fn supplied_combat(run: &mut Run) -> Option<&mut crate::combat::Combat> { run.state.combat.as_mut() }

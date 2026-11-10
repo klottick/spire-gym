@@ -120,14 +120,14 @@ fn assert_sidecar(session: &mut RunSession, bounds: &Bounds) -> Option<(i64, i64
 }
 
 /// The current map node's room: its resolved room when published (a `?` node), else its kind.
-fn current_node_kind(obs: &RunObservation) -> Option<String> {
+pub(super) fn current_node_kind(obs: &RunObservation) -> Option<String> {
     let row = usize::try_from(value(obs, "current_node", 0, 0)).ok()?;
     let g = obs.group("map_nodes").unwrap(); let cols = *g.shape.last().unwrap();
     let resolved = (g.known[row * cols + 4] == 1).then(|| g.values[row * cols + 4]).filter(|v| *v != 0);
     vocab_name("map_kind", resolved.unwrap_or(g.values[row * cols + 3]))
 }
 /// `simple_action`, except that on the map it moves to a `?` node when one is offered (event combats).
-fn event_seeking(obs: &RunObservation) -> usize {
+pub(super) fn event_seeking(obs: &RunObservation) -> usize {
     if context(obs).2 == "map" {
         let question = legal_indices(obs).into_iter().find(|&i| vocab_name("verb", value(obs, "actions", i, 0)).as_deref() == Some("move")
             && vocab_name("row_group", value(obs, "actions", i, 3)).as_deref() == Some("map_nodes")
