@@ -1,0 +1,355 @@
+{
+  "table_id": "standard-event-constants-v1",
+  "rows": [
+    {
+      "event": "accursed_blacksmith",
+      "stage": 0,
+      "option": 1,
+      "meaning": "pain_card",
+      "kind": "card",
+      "value": null,
+      "identity": "pain",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/one_time.rs:15"
+    },
+    {
+      "event": "accursed_blacksmith",
+      "stage": 0,
+      "option": 1,
+      "meaning": "warped_tongs_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "warped_tongs",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/one_time.rs:15"
+    },
+    {
+      "event": "addict",
+      "stage": 0,
+      "option": 1,
+      "meaning": "shame_card",
+      "kind": "card",
+      "value": null,
+      "identity": "shame",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:15"
+    },
+    {
+      "event": "ancient_writing",
+      "stage": null,
+      "option": null,
+      "meaning": "no_displayed_numeric_constants",
+      "kind": "none",
+      "value": null,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:9"
+    },
+    {
+      "event": "big_fish",
+      "stage": 0,
+      "option": 2,
+      "meaning": "regret_card",
+      "kind": "card",
+      "value": null,
+      "identity": "regret",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act1.rs:16"
+    },
+    {
+      "event": "drug_dealer",
+      "stage": 0,
+      "option": 0,
+      "meaning": "jax_card",
+      "kind": "card",
+      "value": null,
+      "identity": "jax",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:175"
+    },
+    {
+      "event": "drug_dealer",
+      "stage": 0,
+      "option": 2,
+      "meaning": "mutagenic_strength_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "mutagenic_strength",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:177"
+    },
+    {
+      "event": "falling",
+      "stage": null,
+      "option": null,
+      "meaning": "no_displayed_numeric_constants",
+      "kind": "none",
+      "value": null,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events/act3.rs:24"
+    },
+    {
+      "event": "forgotten_altar",
+      "stage": 0,
+      "option": 0,
+      "meaning": "golden_idol_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "golden_idol",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:198"
+    },
+    {
+      "event": "forgotten_altar",
+      "stage": 0,
+      "option": 2,
+      "meaning": "decay_card",
+      "kind": "card",
+      "value": null,
+      "identity": "decay",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:205"
+    },
+    {
+      "event": "ghosts",
+      "stage": 0,
+      "option": 0,
+      "meaning": "apparition_card",
+      "kind": "card",
+      "value": null,
+      "identity": "apparition",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:39"
+    },
+    {
+      "event": "golden_idol",
+      "stage": 0,
+      "option": 0,
+      "meaning": "golden_idol_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "golden_idol",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act1.rs:96"
+    },
+    {
+      "event": "golden_idol",
+      "stage": 1,
+      "option": 0,
+      "meaning": "injury_card",
+      "kind": "card",
+      "value": null,
+      "identity": "injury",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act1.rs:98"
+    },
+    {
+      "event": "golden_shrine",
+      "stage": 0,
+      "option": 1,
+      "meaning": "regret_card",
+      "kind": "card",
+      "value": null,
+      "identity": "regret",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/shrines.rs:14"
+    },
+    {
+      "event": "joust",
+      "stage": 0,
+      "option": 0,
+      "meaning": "bet_gold",
+      "kind": "gold",
+      "value": 50,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:10"
+    },
+    {
+      "event": "joust",
+      "stage": 0,
+      "option": 1,
+      "meaning": "bet_gold",
+      "kind": "gold",
+      "value": 50,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:10"
+    },
+    {
+      "event": "joust",
+      "stage": 1,
+      "option": 0,
+      "meaning": "murderer_win_gold",
+      "kind": "gold",
+      "value": 100,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:38"
+    },
+    {
+      "event": "joust",
+      "stage": 1,
+      "option": 1,
+      "meaning": "owner_win_gold",
+      "kind": "gold",
+      "value": 250,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:38"
+    },
+    {
+      "event": "mausoleum",
+      "stage": 0,
+      "option": 0,
+      "meaning": "writhe_card",
+      "kind": "card",
+      "value": null,
+      "identity": "writhe",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:83"
+    },
+    {
+      "event": "mind_bloom",
+      "stage": 0,
+      "option": 1,
+      "meaning": "mark_of_bloom_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "mark_of_bloom",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:23"
+    },
+    {
+      "event": "mind_bloom",
+      "stage": 0,
+      "option": 2,
+      "meaning": "doubt_card",
+      "kind": "card",
+      "value": null,
+      "identity": "doubt",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:25"
+    },
+    {
+      "event": "mind_bloom",
+      "stage": 0,
+      "option": 2,
+      "meaning": "normality_card",
+      "kind": "card",
+      "value": null,
+      "identity": "normality",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:24"
+    },
+    {
+      "event": "moai_head",
+      "stage": 0,
+      "option": 1,
+      "meaning": "golden_idol_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "golden_idol",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:45"
+    },
+    {
+      "event": "mushrooms",
+      "stage": 0,
+      "option": 1,
+      "meaning": "parasite_card",
+      "kind": "card",
+      "value": null,
+      "identity": "parasite",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act1.rs:122"
+    },
+    {
+      "event": "nest",
+      "stage": 0,
+      "option": 1,
+      "meaning": "ritual_dagger_card",
+      "kind": "card",
+      "value": null,
+      "identity": "ritual_dagger",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:104"
+    },
+    {
+      "event": "purifier",
+      "stage": null,
+      "option": null,
+      "meaning": "no_displayed_numeric_constants",
+      "kind": "none",
+      "value": null,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:12"
+    },
+    {
+      "event": "ssssserpent",
+      "stage": 0,
+      "option": 0,
+      "meaning": "doubt_card",
+      "kind": "card",
+      "value": null,
+      "identity": "doubt",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act1.rs:229"
+    },
+    {
+      "event": "tomb_of_lord_red_mask",
+      "stage": 0,
+      "option": 0,
+      "meaning": "gold_gained",
+      "kind": "gold",
+      "value": 222,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events/act3.rs:74"
+    },
+    {
+      "event": "tomb_of_lord_red_mask",
+      "stage": 0,
+      "option": 1,
+      "meaning": "all_current_gold_paid",
+      "kind": "gold",
+      "value": null,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events/act3.rs:76"
+    },
+    {
+      "event": "upgrade_shrine",
+      "stage": null,
+      "option": null,
+      "meaning": "no_displayed_numeric_constants",
+      "kind": "none",
+      "value": null,
+      "identity": null,
+      "engine": "crates/spire-core/src/run/rooms/events.rs:11"
+    },
+    {
+      "event": "vampires",
+      "stage": 0,
+      "option": 0,
+      "meaning": "bite_card",
+      "kind": "card",
+      "value": null,
+      "identity": "bite",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:66"
+    },
+    {
+      "event": "vampires",
+      "stage": 0,
+      "option": 1,
+      "meaning": "bite_card",
+      "kind": "card",
+      "value": null,
+      "identity": "bite",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:66"
+    },
+    {
+      "event": "vampires",
+      "stage": 0,
+      "option": 1,
+      "meaning": "blood_vial_relic",
+      "kind": "relic",
+      "value": null,
+      "identity": "blood_vial",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act2.rs:60"
+    },
+    {
+      "event": "winding_halls",
+      "stage": 0,
+      "option": 0,
+      "meaning": "madness_card",
+      "kind": "card",
+      "value": null,
+      "identity": "madness",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:101"
+    },
+    {
+      "event": "winding_halls",
+      "stage": 0,
+      "option": 1,
+      "meaning": "writhe_card",
+      "kind": "card",
+      "value": null,
+      "identity": "writhe",
+      "engine": "crates/spire-core/src/run/rooms/standard/events/act3.rs:102"
+    }
+  ]
+}

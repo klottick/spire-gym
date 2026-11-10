@@ -5,3 +5,6 @@ mod lifecycle;
 pub(crate) mod workers_faults;
 mod replay;
 mod integration;
+mod standard_traversal;
+mod standard_encoding;
+mod standard_review_fixes;

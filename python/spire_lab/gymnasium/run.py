@@ -18,11 +18,13 @@ if TYPE_CHECKING:
     from spire_lab._native import CombatPolicyPayload, RunResetPayload, RunStepPayload
 
 Observation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
-RunProfile = Literal["m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy"]
+RunProfile = Literal[
+    "m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy", "standard"
+]
 
 
 class RunEnv(gym.Env[Observation, int]):
-    """Captured Ironclad A0 Run; callers develop their own strategies externally.
+    """Native Run profile; callers develop their own strategies externally.
 
     Actions index the current legal mask, not stable game identities. The facade
     holds the matching native token; raw Gym integers alone cannot prove freshness.
@@ -35,7 +37,8 @@ class RunEnv(gym.Env[Observation, int]):
         *,
         profile: RunProfile = "m9-ironclad-act3",
         partition: str = "train",
-        boss_history: str = "awakened-unseen",
+        boss_history: str | None = None,
+        creation: dict[str, Any] | None = None,
         capacities: dict[str, int] | None = None,
         record_replay: bool = False,
     ) -> None:
@@ -48,6 +51,7 @@ class RunEnv(gym.Env[Observation, int]):
             profile=profile,
             partition=partition,
             boss_history=boss_history,
+            creation=creation,
             capacities=capacities,
             record_replay=record_replay,
         )

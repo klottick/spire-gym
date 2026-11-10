@@ -14,7 +14,7 @@ fn smoke_summary() -> RunSummary {
     let mut summary = RunSummary::new("smoke".into());
     let combat_options = EpisodeOptions { max_steps: 200, all_legal_every: 0, determinism: false, replay: false,
         shrink_budget: Duration::ZERO, scripted_actions: None, continue_first: false };
-    let run_options = EpisodeOptions { max_steps: 6, ..combat_options.clone() };
+    let run_options = EpisodeOptions { max_steps: 6, replay: true, ..combat_options.clone() };
     let catalog = CatalogCombat::generated(7).unwrap();
     assert!(catalog.entry_count() >= POLICIES.len(), "generated catalog needs one entry per policy episode");
     for (index, policy) in POLICIES.into_iter().enumerate() {
@@ -41,7 +41,7 @@ fn feature_free_native_smoke_is_deterministic() {
     assert_smoke_coverage(&second);
     assert_smoke_failures_are_engine_repros(&first, "first");
     assert_smoke_failures_are_engine_repros(&second, "second");
-    assert_eq!(first.episodes, 21);
+    assert_eq!(first.episodes, 6 + RUN_PROFILES.len() as u64);
     assert_eq!(first.stable_hash(), second.stable_hash());
 }
 

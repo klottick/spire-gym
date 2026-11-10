@@ -7,7 +7,7 @@ use spire_core::run::RunError;
 use spire_env::{RunActionIndex, RunBoundary, RunDecisionToken, RunEpisodeRecord, RunSession, RunSessionError,
     RunStepResult, encode_run, encode_run_m10, encode_run_m12, encode_run_m13, encode_run_m14, encode_run_m15,
     encode_run_m17, encode_run_m18, encode_run_m19, encode_run_m20, encode_run_m22, encode_run_m23,
-    encode_run_m24, encode_run_m25, encode_run_policy, replay_run};
+    encode_run_m24, encode_run_m25, encode_run_policy, encode_run_standard_decision, replay_run};
 use crate::{Decision, Driver, DriverError, IllegalProbe, RunProfileSpec, StepOut, mix64};
 
 #[derive(Clone)]
@@ -22,14 +22,25 @@ pub struct FullRun {
 
 impl FullRun {
     pub fn new(spec: RunProfileSpec) -> Result<Self, DriverError> {
-        let session = (spec.constructor)(spec.config()).map_err(|error| DriverError::fault(format!("{} session creation: {error:?}", spec.id)))?;
+        let session = if let Some(creation) = spec.creation {
+            let mut config = spire_env::StandardRunConfig::new(spec.character, spec.ascension,
+                spire_core::combat::rng::Partition::Test);
+            config.creation = creation;
+            config.record_replay = true;
+            RunSession::new_standard(config)
+        } else {
+            let constructor = spec.constructor.ok_or_else(|| DriverError::new("input", "captured Run profile constructor is missing"))?;
+            constructor(spec.config())
+        }.map_err(|error| DriverError::fault(format!("{} session creation: {error:?}", spec.id)))?;
         Ok(Self { spec, session, seal: None, saw_combat: false })
     }
 
     fn from_boundary(boundary: RunBoundary) -> Decision { Decision { observation: boundary.observation, token: boundary.token.into(), terminal: boundary.terminal.map(|terminal| format!("{terminal:?}")) } }
     fn config_value(&self) -> Value {
-        json!({"driver":"run","profile":self.spec.id,"character":character_name(self.spec.character),
-            "ascension":0,"partition":"test","record_replay":true})
+        let mut config = json!({"driver":"run","profile":self.spec.id,"character":character_name(self.spec.character),
+            "ascension":self.spec.ascension,"partition":"test","record_replay":true});
+        if let Some(creation) = self.spec.creation { config["creation"] = creation.to_json(); }
+        config
     }
     fn capture_seal(&self) -> Result<Seal, DriverError> {
         Ok(Seal { observation: self.session.observation_spec().map_err(|error| DriverError::new("encode", format!("observation spec: {error:?}")))?.fingerprint(),
@@ -45,8 +56,24 @@ impl FullRun {
         if report.accepted_count != record.steps.len() {
             return Err(DriverError::new("replay", format!("replay accepted {} of {} steps", report.accepted_count, record.steps.len())));
         }
-        encode_public_decision(self.spec, &report.final_decision, report.final_map.as_ref(), &record.config.capacities)
+        encode_public_decision(self.spec, &report.final_decision, report.final_map.as_ref(), &record.config.capacities,
+            report.final_room_selection)
             .map_err(|error| DriverError::new("replay", format!("replay final encode: {error:?}")))
+    }
+
+    #[cfg(feature = "diagnostics")]
+    fn validate_live_encoding(&self, boundary: &RunBoundary) -> Result<(), DriverError> {
+        if self.spec.creation.is_none() { return Ok(()); }
+        let run = self.session.fuzz_run().ok_or_else(|| DriverError::new("encode", "inner Standard Run is missing"))?;
+        let decision = run.decision().map_err(|error| DriverError::new("encode", format!("live Standard decision: {error:?}")))?;
+        let map = run.public_map();
+        let observation = encode_public_decision(self.spec, &decision, map.as_ref(), &spire_env::RunCapacities::standard_default(),
+            run.room_selection_operation())
+            .map_err(|error| DriverError::new("encode", format!("live Standard encoding: {error:?}")))?;
+        if observation != boundary.observation {
+            return Err(DriverError::new("encode", "live Standard encoding differs from the session boundary"));
+        }
+        Ok(())
     }
 
     fn observe_combat(&mut self) {
@@ -64,6 +91,8 @@ impl Driver for FullRun {
     fn reset(&mut self, seed: u64) -> Result<Decision, DriverError> {
         self.saw_combat = false;
         let boundary = self.session.reset(Some(seed)).map_err(|error| DriverError::fault(format!("reset: {error:?}; diagnostic={}", self.session_diagnostic())))?;
+        #[cfg(feature = "diagnostics")]
+        self.validate_live_encoding(&boundary)?;
         self.seal = Some(self.capture_seal()?);
         self.observe_combat();
         Ok(Self::from_boundary(boundary))
@@ -75,6 +104,8 @@ impl Driver for FullRun {
         let decision = self.decision()?;
         match self.session.step(decision.token.into(), RunActionIndex(index as i64)) {
             Ok(result) => {
+                #[cfg(feature = "diagnostics")]
+                self.validate_live_encoding(&result.boundary)?;
                 self.observe_combat();
                 Ok(step_out(result))
             }
@@ -122,6 +153,7 @@ impl Driver for FullRun {
         labels
     }
     fn profile_cutoff(&self) -> Option<&'static str> {
+        if self.spec.creation.is_some() { return None; }
         let reproduction = self.session.reproduction().ok()?;
         let decision = reproduction.latest_decision?.ok()?;
         if decision.terminal.is_some() || !decision.candidates.is_empty() { return None; }
@@ -215,7 +247,8 @@ fn character_name(character: spire_core::content::Character) -> &'static str {
 }
 
 fn encode_public_decision(spec: RunProfileSpec, decision: &spire_core::run::PublicDecision,
-    map: Option<&spire_core::run::map::PublicMap>, caps: &spire_env::RunCapacities) -> Result<spire_env::RunObservation, RunSessionError> {
+    map: Option<&spire_core::run::map::PublicMap>, caps: &spire_env::RunCapacities,
+    run_selection: Option<spire_core::run::RoomSelectionOperation>) -> Result<spire_env::RunObservation, RunSessionError> {
     match spec.id {
         "M9" => encode_run(decision, map, caps),
         "M10" => encode_run_m10(decision, map, caps),
@@ -232,6 +265,7 @@ fn encode_public_decision(spec: RunProfileSpec, decision: &spire_core::run::Publ
         "M23" => encode_run_m23(decision, map, caps),
         "M24" => encode_run_m24(decision, map, caps),
         "M25" => encode_run_m25(decision, map, caps),
+        id if id.starts_with("standard-") => encode_run_standard_decision(decision, map, caps, spec.ascension, run_selection),
         _ => Err(RunSessionError::Input("unknown native fuzz Run profile")),
     }
 }

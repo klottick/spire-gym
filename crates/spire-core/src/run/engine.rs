@@ -65,6 +65,13 @@ impl Run {
     /// replay counters and internal scheduling history.
     pub fn public_map(&self)->Option<super::map::PublicMap>{self.state.map.as_ref().map(super::map::public_view)}
     #[cfg(test)] pub(crate) fn state_mut_for_test(&mut self)->&mut RunState{&mut self.state}
+    /// M34b: the Run's ascension level (player-chosen configuration).
+    pub fn ascension(&self)->u8{self.state.ascension}
+    /// M34b: what the open Run card selection is for (the screen's prompt). `None` without a selection
+    /// or for a selection that resumes a non-room decision.
+    pub fn room_selection_operation(&self)->Option<RoomSelectionOperation>{
+        self.state.pending.as_ref().and_then(|p|match &p.parent{ContinuationTarget::Room{operation,..}=>Some(*operation),_=>None})
+    }
     pub fn decision(&self)->Result<PublicDecision,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.combat.is_some() { return self.combat_decision(); }

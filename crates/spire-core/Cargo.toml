@@ -25,6 +25,8 @@ m27-diagnostics = ["m26-diagnostics", "m25-diagnostics"]
 m28-diagnostics = ["m27-diagnostics"]
 # Default-off M29 A1–A5 standard Runs (diagnostics-only until M29f) and their builders.
 m29-diagnostics = ["m28-diagnostics"]
+# M34b env-traversal supplied helpers; standalone (implies no other feature, so default workspace test sets stay unchanged).
+m34-diagnostics = []
 
 # Read-only fuzz invariant accessors. Default-off and opt-in with the harness diagnostics lane.
 fuzz-diagnostics = []

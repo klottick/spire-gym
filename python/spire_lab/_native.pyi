@@ -8,12 +8,16 @@ from numpy.typing import NDArray
 
 type RunObservation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
 type RunProfile = Literal[
-    "m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy"
+    "m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy", "standard"
 ]
 
-class RunInfo(TypedDict):
+class RunInfo(TypedDict, total=False):
     schema_id: str
     terminal_reason: str | None
+    creation: dict[str, Any]
+    reward_events: list[dict[str, Any]]
+    episode_return: int
+    heart_victory: bool
 
 class RunBoundaryPayload(TypedDict):
     obs: RunObservation
@@ -58,7 +62,8 @@ class NativeRunSession:
         *,
         profile: RunProfile = ...,
         partition: str = ...,
-        boss_history: str = ...,
+        boss_history: str | None = ...,
+        creation: dict[str, Any] | None = ...,
         capacities: dict[str, int] | None = ...,
         record_replay: bool = ...,
     ) -> None: ...

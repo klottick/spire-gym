@@ -54,6 +54,9 @@ pub const RUN_CONTENT_ID_M14: &str = "spire-gym-m14-silent-a0-acts1-3-captured-v
 pub const RUN_RULES_ID_M15: &str = "spire-gym-native-m15-rules-v1";
 pub const RUN_CONTENT_ID_M15: &str = "spire-gym-m15-silent-a0-heart-captured-v1";
 pub(crate) const RUN_REWARD_ID: &str = "spire-gym-floor-key-terminal-reward-v1";
+pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v1";
+pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
 /// These IDs never participate in gameplay RNG, actor features or replay.
@@ -78,6 +81,8 @@ pub(crate) enum RunProfile {
     M23WatcherAct2,
     M24WatcherAct3,
     M25WatcherHeart,
+    /// M34b: the core Standard Run (every character, A0–A20; design §4).
+    Standard,
 }
 impl RunProfile {
     pub(crate) fn id(self) -> &'static str {
@@ -97,6 +102,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => "M23WatcherAct2",
             Self::M24WatcherAct3 => "M24WatcherAct3",
             Self::M25WatcherHeart => "M25WatcherHeart",
+            Self::Standard => "Standard",
         }
     }
     pub(crate) fn schema_id(self) -> &'static str {
@@ -116,6 +122,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => RUN_RECORD_SCHEMA_ID_M23,
             Self::M24WatcherAct3 => RUN_RECORD_SCHEMA_ID_M24,
             Self::M25WatcherHeart => RUN_RECORD_SCHEMA_ID_M25,
+            Self::Standard => RUN_RECORD_SCHEMA_ID_STANDARD,
         }
     }
     pub(crate) fn rules_id(self) -> &'static str {
@@ -134,6 +141,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => RUN_RULES_ID_M23,
             Self::M24WatcherAct3 => RUN_RULES_ID_M24,
             Self::M25WatcherHeart => RUN_RULES_ID_M25,
+            Self::Standard => RUN_RULES_ID_STANDARD,
         }
     }
     pub(crate) fn content_id(self) -> &'static str {
@@ -152,6 +160,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => RUN_CONTENT_ID_M23,
             Self::M24WatcherAct3 => RUN_CONTENT_ID_M24,
             Self::M25WatcherHeart => RUN_CONTENT_ID_M25,
+            Self::Standard => RUN_CONTENT_ID_STANDARD,
         }
     }
     pub(crate) fn observation_spec(
@@ -174,9 +183,20 @@ impl RunProfile {
             Self::M23WatcherAct2 => crate::m23_run_observation_spec(caps),
             Self::M24WatcherAct3 => crate::m24_run_observation_spec(caps),
             Self::M25WatcherHeart => crate::m25_run_observation_spec(caps),
+            Self::Standard => crate::standard_run_observation_spec(caps),
         }
     }
     fn validate(self, config: &RunSessionConfig) -> Result<(), RunSessionError> {
+        if self == Self::Standard {
+            if config.ascension > spire_core::run::STANDARD_MAX_ASCENSION { return Err(RunSessionError::Input("Standard supports ascension 0 to 20")) }
+            let RunBossHistory::Standard(creation) = config.boss_history else { return Err(RunSessionError::Input("Standard requires a Standard creation profile")) };
+            creation.validate()?;
+            crate::run_schema_standard::validate(&config.capacities)?;
+            // The core owns creation legality (the Note must be storable with legal upgrades): probe it once so invalid
+            // input is rejected before any episode Run is built (design §4.2).
+            return Run::new_room_scenario(RunConfig{character:config.character,ascension:config.ascension},creation.profile(),
+                RunRng::new([0;32],config.partition,0),RoomScenario::Standard).map(|_|()).map_err(|_|RunSessionError::Input("invalid Standard creation profile"));
+        }
         let expected_character = if matches!(self,Self::M22WatcherAct1|Self::M23WatcherAct2|Self::M24WatcherAct3|Self::M25WatcherHeart) { Character::Watcher } else if matches!(self,Self::M17DefectAct1|Self::M18DefectAct2|Self::M19DefectAct3|Self::M20DefectHeart) { Character::Defect } else if matches!(self, Self::M12SilentAct1 | Self::M13SilentAct2 | Self::M14SilentAct3 | Self::M15SilentHeart) {
             Character::Silent
         } else {
@@ -198,6 +218,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => "M23 requires Watcher A0",
             Self::M24WatcherAct3 => "M24 requires Watcher A0",
             Self::M25WatcherHeart => "M25 requires Watcher A0",
+            Self::Standard => unreachable!("Standard validated above"),
             }));
         }
         let history_matches = match self {
@@ -253,6 +274,7 @@ impl RunProfile {
             Self::M23WatcherAct2 => crate::run_schema_m23::validate(&config.capacities),
             Self::M24WatcherAct3 => crate::run_schema_m24::validate(&config.capacities),
             Self::M25WatcherHeart => crate::run_schema_m25::validate(&config.capacities),
+            Self::Standard => unreachable!("Standard validated above"),
         }
     }
     pub(crate) fn from_record(schema: &str, profile: &str) -> Result<Self, RunSessionError> {
@@ -272,6 +294,7 @@ impl RunProfile {
             (RUN_RECORD_SCHEMA_ID_M23, "M23WatcherAct2") => Ok(Self::M23WatcherAct2),
             (RUN_RECORD_SCHEMA_ID_M24, "M24WatcherAct3") => Ok(Self::M24WatcherAct3),
             (RUN_RECORD_SCHEMA_ID_M25, "M25WatcherHeart") => Ok(Self::M25WatcherHeart),
+            (RUN_RECORD_SCHEMA_ID_STANDARD, "Standard") => Ok(Self::Standard),
             _ => Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
         }
     }
@@ -312,6 +335,64 @@ pub enum RunBossHistory {
     M23WatcherAct2 { act1: RunAct1BossTarget, act2: RunAct2BossTarget },
     M24WatcherAct3 { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
     M25WatcherHeart { act1: RunAct1BossTarget, act2: RunAct2BossTarget, act3: RunAct3BossTarget },
+    /// M34b: the Standard creation profile (internal carrier; the public API is `StandardRunConfig`).
+    Standard(StandardCreation),
+}
+/// Neow at the Standard start: the full blessing screen, or the short (ineligible) screen.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StandardNeow { Full, Short }
+/// M34b explicit Standard creation inputs (design §4.2). Every reset builds a fresh Run from it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StandardCreation {
+    pub neow: StandardNeow,
+    /// Seen bosses per act, indexed by the act's boss target order (Act 1 Guardian/Hexaghost/SlimeBoss, …).
+    pub seen_bosses: [[bool; 3]; 3],
+    /// Note For Yourself's stored card and upgrades (the core checks it is storable).
+    pub stored_note: (spire_core::content::CardId, u32),
+}
+impl StandardCreation {
+    /// `CreationProfile::experienced()`: full Neow, every boss seen, Iron Wave+0.
+    pub fn experienced() -> Self { Self { neow: StandardNeow::Full, seen_bosses: [[true; 3]; 3], stored_note: (spire_core::content::CardId::IronWave, 0) } }
+    const BOSSES: [[&'static str; 3]; 3] = [["Guardian", "Hexaghost", "SlimeBoss"], ["Champ", "BronzeAutomaton", "Collector"], ["AwakenedOne", "TimeEater", "DonuAndDeca"]];
+    pub(crate) fn validate(&self) -> Result<(), RunSessionError> {
+        if matches!(self.stored_note.0, spire_core::content::CardId::Unknown(_)) { return Err(RunSessionError::Input("unknown Standard stored note card")) }
+        Ok(())
+    }
+    /// The core creation profile this Standard creation builds every episode from.
+    pub fn profile(&self) -> CreationProfile {
+        let mut profile = CreationProfile::experienced();
+        profile.neow_eligible = self.neow == StandardNeow::Full;
+        profile.seen_bosses = std::array::from_fn(|act| (0..3).filter(|&i| self.seen_bosses[act][i]).map(|i| Self::BOSSES[act][i]).collect());
+        profile.stored_note = self.stored_note;
+        profile
+    }
+    /// Strict inverse of `to_json` (record codec and Python): unknown keys, wrong-act or unknown bosses, unknown Note cards are `Input`.
+    pub fn from_json(value:&serde_json::Value)->Result<Self,RunSessionError>{crate::run_replay::parse_standard_creation(value)}
+    /// `from_json` over JSON text (for callers without a `serde_json` dependency, e.g. the Python binding).
+    pub fn from_json_str(text:&str)->Result<Self,RunSessionError>{let value=serde_json::from_str(text).map_err(|_|RunSessionError::Input("invalid Standard creation profile"))?;Self::from_json(&value)}
+    /// `to_json` as canonical JSON text.
+    pub fn to_json_string(&self)->String{self.to_json().to_string()}
+    /// Public JSON form (environment spec, reset info, record): player knowledge, never a per-step column.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({"neow": match self.neow { StandardNeow::Full => "full", StandardNeow::Short => "short" },
+            "seen_bosses": (0..3).map(|act| (0..3).filter(|&i| self.seen_bosses[act][i]).map(|i| Self::BOSSES[act][i]).collect::<Vec<_>>()).collect::<Vec<_>>(),
+            "stored_note": {"card": self.stored_note.0.as_str(), "upgrades": self.stored_note.1}})
+    }
+}
+/// M34b public Standard session configuration (design §4.2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StandardRunConfig {
+    pub character: Character, pub ascension: u8, pub partition: Partition,
+    pub creation: StandardCreation, pub capacities: RunCapacities, pub record_replay: bool,
+}
+impl StandardRunConfig {
+    /// Default creation and the `standard-default-v1` capacities.
+    pub fn new(character: Character, ascension: u8, partition: Partition) -> Self {
+        Self { character, ascension, partition, creation: StandardCreation::experienced(), capacities: RunCapacities::standard_default(), record_replay: false }
+    }
+    pub(crate) fn session_config(&self) -> RunSessionConfig {
+        RunSessionConfig { character: self.character, ascension: self.ascension, partition: self.partition, boss_history: RunBossHistory::Standard(self.creation), capacities: self.capacities.clone(), record_replay: self.record_replay }
+    }
 }
 pub type M9BossHistory = RunBossHistory;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -332,7 +413,9 @@ pub struct RunActionIndex(pub i64);
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct RunBoundary{pub observation:RunObservation,pub token:RunDecisionToken,pub terminal:Option<RunTerminal>}
 #[derive(Clone,Debug,PartialEq,Eq)]
-pub struct RunStepResult{pub boundary:RunBoundary,pub reward:i32,pub terminated:bool,pub truncated:bool}
+pub struct RunStepResult{pub boundary:RunBoundary,pub reward:i32,pub terminated:bool,pub truncated:bool,
+    /// M34b: the itemised credits of this transition (PoC §7); they sum to `reward`.
+    pub reward_events:Vec<RewardItem>}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub(crate) struct RunSessionStepFailure{pub error:RunSessionError,pub committed:bool}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -440,6 +523,11 @@ pub(crate) fn create_run(
     #[cfg(test)] if profile==RunProfile::M23WatcherAct2{M23_INITIALIZATIONS.with(|v|v.borrow_mut().push(ordinal));}
     let mut root = [0; 32];
     root[..8].copy_from_slice(&seed.to_le_bytes());
+    if profile == RunProfile::Standard {
+        let RunBossHistory::Standard(creation) = config.boss_history else { return Err(RunSessionError::Input("Standard requires a Standard creation profile")) };
+        return Run::new_room_scenario(RunConfig { character: config.character, ascension: config.ascension }, creation.profile(),
+            RunRng::new(root, config.partition, ordinal), RoomScenario::Standard).map_err(RunSessionError::Core);
+    }
     let mut creation = CreationProfile::experienced();
     creation.neow_eligible = false;
     creation.seen_bosses[0] = match config.boss_history {
@@ -609,6 +697,7 @@ pub(crate) fn create_run(
             RunProfile::M23WatcherAct2 => RoomScenario::M23WatcherAct2,
         RunProfile::M24WatcherAct3 => RoomScenario::M24WatcherAct3,
         RunProfile::M25WatcherHeart => RoomScenario::M25WatcherHeart,
+        RunProfile::Standard => unreachable!("Standard created above"),
     };
     #[cfg(test)] if profile==RunProfile::M24WatcherAct3{M24_INITIALIZATIONS.with(|v|v.borrow_mut().push((ordinal,creation.seen_bosses.clone())));}
     Run::new_room_scenario(
@@ -717,6 +806,8 @@ fn publish(
             RunProfile::M23WatcherAct2 => crate::encode_run_m23(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M24WatcherAct3 => crate::encode_run_m24(&decision, map.as_ref(), &config.capacities)?,
         RunProfile::M25WatcherHeart => crate::encode_run_m25(&decision, map.as_ref(), &config.capacities)?,
+        RunProfile::Standard => crate::run_observation::encode_run_standard(&decision, map.as_ref(), &config.capacities,
+            crate::run_observation::StandardContext{ascension:run.ascension(),run_selection:run.room_selection_operation()})?,
     }
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1|RunProfile::M22WatcherAct1)
@@ -742,6 +833,20 @@ fn publish(
         at_m13_cutoff,
         at_m14_cutoff,
     ))
+}
+pub(crate) const REWARD_ITEMS_FAULT:&str="reward items do not sum to the transition reward";
+#[cfg(test)]
+thread_local!{
+    /// TEST-ONLY: drop the first reward item to exercise the sum guard in sessions and replay.
+    pub(crate) static TEST_REWARD_SKEW:std::cell::Cell<bool>=const{std::cell::Cell::new(false)};
+}
+/// The itemised credits of one committed transition, or `None` if they do not sum to its reward (one check for
+/// sessions and replay).
+pub(crate) fn checked_reward_items(before:&RewardLedgerSnapshot,transition:&RunTransition)->Option<Vec<RewardItem>>{
+    #[allow(unused_mut)]
+    let mut items=itemise_rewards(before,&transition.committed_events).ok()?;
+    #[cfg(test)] if TEST_REWARD_SKEW.with(|s|s.get())&&!items.is_empty(){items.remove(0);}
+    (items.iter().try_fold(0i32,|n,item|n.checked_add(item.amount))==Some(transition.reward)).then_some(items)
 }
 fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)->Result<RunEpisodeRecord,RunSessionError>{
     Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint:profile.observation_spec(&config.capacities)?.fingerprint(),config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
@@ -850,9 +955,20 @@ impl RunSession{
             descriptor["finite_content"]["map_only_boss_icons"]=semantics["encounters"]["map_only_boss_icons"].clone();
             descriptor["ending"] = serde_json::json!("HeartVictory after the actual Act4 Proceed action");
         }
+        if self.profile==RunProfile::Standard{
+            descriptor["combat_view_id"]=serde_json::Value::Null;
+            descriptor["character"]=serde_json::json!(self.config.character.as_str());
+            descriptor["ascension"]=serde_json::json!(self.config.ascension);
+            // Standard creation is caller configuration and player knowledge (design §4.2), unlike captured profiles' fixed Note.
+            descriptor["creation"]=self.standard_creation().map(|c|c.to_json()).unwrap_or(serde_json::Value::Null);
+            descriptor["capacity_preset"]=serde_json::json!(if self.config.capacities==RunCapacities::standard_default(){crate::STANDARD_CAPACITY_PRESET_ID}else{"custom"});
+            descriptor["vocabulary_manifest"]=serde_json::json!(crate::STANDARD_VOCAB_MANIFEST_ID);
+            descriptor["ending"]=serde_json::json!("HeartVictory after the actual Act4 Proceed action; truncated is always false");
+        }
         Ok(descriptor)
     }
     pub fn combat_observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
+        if self.profile==RunProfile::Standard{return Err(RunSessionError::UnsupportedBoundary("Standard has no combat sidecar in M34; it is planned for M34s (spire-dxo.71)"))}
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}
@@ -871,6 +987,7 @@ impl RunSession{
     /// Resources are current; snapshot on the settled-count transition. The
     /// visit-keyed last_exit remains sticky across later noncombat decisions.
     pub fn combat_view(&mut self)->Result<crate::CombatPolicyBoundary,RunSessionError>{
+        if self.profile==RunProfile::Standard{return Err(RunSessionError::UnsupportedBoundary("Standard has no combat sidecar in M34; it is planned for M34s (spire-dxo.71)"))}
         if self.profile==RunProfile::M22WatcherAct1{return Err(RunSessionError::UnsupportedBoundary("M22 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M24WatcherAct3{return Err(RunSessionError::UnsupportedBoundary("M24 does not provide the Ironclad combat policy sidecar"))}
         if self.profile==RunProfile::M25WatcherHeart{return Err(RunSessionError::UnsupportedBoundary("M25 does not provide the Ironclad combat policy sidecar"))}
@@ -906,6 +1023,10 @@ impl RunSession{
     /// Opt into the finite Watcher A0 Acts 1–3 profile on the shared native owner.
     pub fn new_m24(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M24WatcherAct3)}
     pub fn new_m25(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M25WatcherHeart)}
+    /// M34b: a Standard session; invalid input is rejected before any Run is built.
+    pub fn new_standard(config:StandardRunConfig)->Result<Self,RunSessionError>{Self::with_profile(config.session_config(),RunProfile::Standard)}
+    /// The Standard creation profile, if this is a Standard session.
+    pub fn standard_creation(&self)->Option<StandardCreation>{match self.config.boss_history{RunBossHistory::Standard(c) if self.profile==RunProfile::Standard=>Some(c),_=>None}}
     pub fn new_m20(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M20DefectHeart)}
     pub fn new_m19(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M19DefectAct3)}
     /// Opt into the finite Defect A0 Acts 1–2 profile on the shared native owner.
@@ -958,6 +1079,28 @@ impl RunSession{
         let run=start.run().map_err(RunSessionError::Core)?;
         s.m24_diagnostic=Some(start);s.run=Some(run);s.seed=Some(start.seed());s.serial=1;
         s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,start.seed(),0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        Ok(s)
+    }
+    /// TEST-ONLY supplied intervention between steps (e.g. `diagnostics::supplied_wound_enemies`): applied to the live
+    /// Run, then the boundary is republished under a new serial (earlier tokens are stale). Replay applies the same
+    /// intervention at the same accepted-step count through `run_replay::replay_standard_supplied_with`.
+    #[cfg(test)]
+    pub(crate) fn apply_supplied(&mut self,f:impl FnOnce(&mut Run)->Result<(),RunError>)->Result<RunBoundary,RunSessionError>{
+        if self.closed||self.fault.is_some(){return Err(RunSessionError::Closed)}
+        f(self.run.as_mut().ok_or(RunSessionError::NotReset)?).map_err(RunSessionError::Core)?;
+        let serial=self.serial.checked_add(1).ok_or(RunSessionError::DeliveryFault("Run publication serial exhausted"))?;
+        let (boundary,actions,a,b,c)=self.publish_current(serial)?;
+        self.serial=serial;self.actions=actions;self.at_m12_cutoff=a;self.at_m13_cutoff=b;self.at_m14_cutoff=c;self.published=Some(boundary.clone());
+        boundary.owned()
+    }
+    /// TEST-ONLY supplied Standard start (e.g. `diagnostics::m29::standard_supplied_run_at`): the session publishes the
+    /// supplied Run as its first boundary at `seed`/ordinal 0; replay it with the same supplied Run.
+    #[cfg(test)]
+    pub(crate) fn from_standard_supplied(config:StandardRunConfig,run:Run,seed:u64)->Result<Self,RunSessionError>{
+        let mut s=Self::new_standard(config)?;
+        s.run=Some(run);s.seed=Some(seed);s.serial=1;
+        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,seed,0)?)}else{None};
         match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
@@ -1078,6 +1221,7 @@ impl RunSession{
             let error=self.freeze(error.clone(),error,Some(action),false,false);
             return Err(RunSessionStepFailure{error,committed:false});
         }}
+        let ledger=self.run.as_ref().unwrap().reward_snapshot();
         let transition=match self.run.as_mut().unwrap().step(&action){
             Ok(t)=>t,
             Err(error)=>{
@@ -1086,8 +1230,14 @@ impl RunSession{
                 return Err(RunSessionStepFailure{error,committed});
             },
         };
+        let reward_events=checked_reward_items(&ledger,&transition);
         self.serial=serial;let step=RunRecordedStep{action:action.clone(),reward:transition.reward,terminal:transition.terminal};self.last_step=Some(step.clone());
         if let Some(record)=&mut self.record{record.steps.push(step);record.terminal=transition.terminal;}
+        // A committed step whose items do not sum to its reward is recorded, then frozen (replay reproduces it; review m1).
+        let Some(reward_events)=reward_events else{
+            let error=RunSessionError::DeliveryFault(REWARD_ITEMS_FAULT);
+            let error=self.freeze(error.clone(),error,Some(action),true,true);return Err(RunSessionStepFailure{error,committed:true})
+        };
         let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current(serial){
             Ok(result)=>result,
             Err(error)=>{
@@ -1101,7 +1251,7 @@ impl RunSession{
             Err(error)=>{let error=self.freeze(error.clone(),error,Some(action),true,true);return Err(RunSessionStepFailure{error,committed:true})},
         };
         self.actions=actions;self.published=Some(boundary);self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;
-        Ok(RunStepResult{boundary:returned,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false})
+        Ok(RunStepResult{boundary:returned,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false,reward_events})
     }
     pub(crate) fn publication_serial(&self)->u64{self.serial}
     pub(crate) fn retain_batch_error(&mut self,error:RunSessionError,committed:bool)->RunSessionError{

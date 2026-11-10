@@ -43,6 +43,10 @@ pub use m28::{standard_run, standard_shop_run, standard_event_run, standard_supp
 mod m29;
 #[cfg(feature="m29-diagnostics")]
 pub use m29::{standard_run_at, standard_supplied_run_at, standard_map_at};
+#[cfg(feature="m34-diagnostics")]
+mod m34;
+#[cfg(feature="m34-diagnostics")]
+pub use m34::{standard_supplied_run_with, supplied_wound_enemies};
 
 #[cfg(feature="fuzz-diagnostics")]
 mod fuzz;
