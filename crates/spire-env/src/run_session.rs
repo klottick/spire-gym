@@ -474,6 +474,13 @@ pub struct RunSession{
     actions:Vec<GameAction>,seed:Option<u64>,ordinal:u64,record:Option<RunEpisodeRecord>,
     fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,at_m12_cutoff:bool,at_m13_cutoff:bool,at_m14_cutoff:bool,
 }
+/// M34c privileged exact-world checkpoint (design §4.8): an opaque, immutable deep copy of one session's episode (core
+/// Run, config and creation, seed, ordinal, published boundary, action table, record prefix, last step). It reveals the
+/// hidden future (restoring replays the same draws), so it is an oracle, never an observation: no accessor, no
+/// `Clone`/`PartialEq`/`Hash` (state equality would be a hidden-state side channel) and a redacted `Debug`.
+/// In-memory only; the portable form is the record.
+pub struct ExactCheckpoint{state:Box<RunSession>}
+impl std::fmt::Debug for ExactCheckpoint{fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("ExactCheckpoint { .. }")}}
 /// TEST-ONLY reset worker-panic stage for the shared RunBatch catch_unwind path. Not a production hook.
 #[cfg(test)]
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
@@ -1177,6 +1184,9 @@ impl RunSession{
     }
     pub fn reset(&mut self,seed:Option<u64>)->Result<RunBoundary,RunSessionError>{
         let (seed,ordinal,serial)=self.preflight_reset(seed)?;
+        self.start_episode(seed,ordinal,serial)
+    }
+    fn start_episode(&mut self,seed:u64,ordinal:u64,serial:u64)->Result<RunBoundary,RunSessionError>{
         #[cfg(test)] if self.test_reset_panic==Some(TestResetPanic::BeforeMutation){self.test_reset_panic=None;panic!("TEST-ONLY injected reset worker panic before mutation");}
         #[cfg(test)] {self.m20_diagnostic=None;}
         // Healthy reset intentionally abandons the old episode, never a fault.
@@ -1273,6 +1283,59 @@ impl RunSession{
         Ok(RunReproduction{config:self.config.clone(),seed:self.seed,ordinal:self.ordinal,latest_decision:self.run.as_ref().map(Run::decision),latest_map:self.run.as_ref().and_then(Run::public_map),last_accepted_step:self.last_step.clone(),fault:self.fault.clone(),record:self.record()?,closed:self.closed})
     }
     pub fn close(&mut self)->Result<(),RunSessionError>{self.closed=true;if let Some(record)=&mut self.record{record.closed=true;}Ok(())}
+    /// M34c: exact copy of this session's current episode. Allowed on any reset, unfrozen, unclosed session (terminal
+    /// included); reading it changes nothing (no draw, no serial). Privileged: see [`ExactCheckpoint`].
+    pub fn exact_checkpoint(&self)->Result<ExactCheckpoint,RunSessionError>{
+        self.usable()?;if self.published.is_none(){return Err(RunSessionError::NotReset)}
+        Ok(ExactCheckpoint{state:Box::new(self.exact_copy(self.id,self.serial)?)})
+    }
+    /// M34c: abandon the current episode and continue from `checkpoint`, which must come from a session with the same
+    /// profile and configuration (capacities, creation, recording). Seed, ordinal (so `reset(None)` continues at its
+    /// ordinal + 1), record prefix and last step come from the checkpoint; the boundary is republished under a new serial,
+    /// so every earlier token is stale. A frozen or closed session cannot restore; a rejected restore changes nothing.
+    pub fn exact_restore(&mut self,checkpoint:&ExactCheckpoint)->Result<RunBoundary,RunSessionError>{
+        self.usable()?;let source=&checkpoint.state;
+        if source.profile!=self.profile||source.config!=self.config{return Err(RunSessionError::Input("exact checkpoint belongs to another session configuration"))}
+        let serial=self.serial.checked_add(1).ok_or(RunSessionError::Input("Run decision identity exhausted"))?;
+        let restored=source.exact_copy(self.id,serial)?;let returned=restored.decision()?;
+        *self=restored;Ok(returned)
+    }
+    /// M34c: a new independent session (new identity, tokens and record) at `checkpoint`. Allowed even after the source
+    /// session froze or closed: the fork never inherits a later fault. That is an explicit caller choice, not a retry.
+    pub fn exact_fork(checkpoint:&ExactCheckpoint)->Result<Self,RunSessionError>{
+        let source=&checkpoint.state;let id=allocate_run_session_id()?;
+        let serial=source.serial.checked_add(1).ok_or(RunSessionError::Input("Run decision identity exhausted"))?;
+        source.exact_copy(id,serial)
+    }
+    /// Deep copy of the episode state under identity `[id, serial]` (the published token is reissued), never faulted or closed.
+    fn exact_copy(&self,id:u64,serial:u64)->Result<Self,RunSessionError>{
+        let published=match &self.published{Some(b)=>Some(RunBoundary{token:RunDecisionToken([id,serial]),..b.owned()?}),None=>None};
+        let mut actions=Vec::new();actions.try_reserve_exact(self.actions.len()).map_err(|_|RunSessionError::DeliveryFault("exact checkpoint allocation failed"))?;actions.extend(self.actions.iter().cloned());
+        let record=match &self.record{Some(r)=>{let mut steps=Vec::new();steps.try_reserve_exact(r.steps.len()).map_err(|_|RunSessionError::DeliveryFault("exact checkpoint allocation failed"))?;steps.extend(r.steps.iter().cloned());Some(RunEpisodeRecord{schema_id:r.schema_id.clone(),profile_id:r.profile_id.clone(),rules_id:r.rules_id.clone(),content_id:r.content_id.clone(),seed_adapter_id:r.seed_adapter_id.clone(),rng_id:r.rng_id.clone(),reward_id:r.reward_id.clone(),observation_fingerprint:r.observation_fingerprint,config:r.config.clone(),seed:r.seed,ordinal:r.ordinal,steps,terminal:r.terminal,fault:r.fault.clone(),closed:r.closed})},None=>None};
+        Ok(Self{#[cfg(test)] m22_diagnostic:self.m22_diagnostic,#[cfg(test)] m23_diagnostic:self.m23_diagnostic,#[cfg(test)] m24_diagnostic:self.m24_diagnostic,#[cfg(test)] m25_diagnostic:self.m25_diagnostic,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:self.m20_diagnostic.clone(),
+            config:self.config.clone(),profile:self.profile,id,serial,run:self.run.clone(),published,actions,seed:self.seed,ordinal:self.ordinal,record,
+            fault:None,last_step:self.last_step.clone(),closed:false,at_m12_cutoff:self.at_m12_cutoff,at_m13_cutoff:self.at_m13_cutoff,at_m14_cutoff:self.at_m14_cutoff})
+    }
+    /// M34c replay to a chosen decision (design §4.7): a live session at decision `steps` of `record`, i.e. after its first
+    /// `steps` accepted actions. The record is validated as for `replay_run`; the episode starts at the record's seed and
+    /// ordinal under its configuration with `capacities`, and each recorded action goes through this session's own `step`
+    /// (offered-action, reward/terminal, publication, capacity and fault checks unchanged). A recorded fault inside the
+    /// prefix that recurs (a core, capacity or reward-item fault) is reproduced and returned as that error; one that cannot
+    /// recur (a transport or batch delivery fault, or a capacity fault under larger capacities) does not stop the prefix,
+    /// as in `replay_run`. Any divergence is `IncompatibleReplay`. The new record holds the prefix and continues from it.
+    pub fn from_record(record:&RunEpisodeRecord,steps:usize,capacities:RunCapacities)->Result<Self,RunSessionError>{
+        let profile=crate::run_replay::validate_record(record)?;
+        if steps>record.steps.len(){return Err(RunSessionError::Input("replay-to-decision step is past the end of the record"))}
+        let mut session=Self::with_profile(RunSessionConfig{capacities,..record.config.clone()},profile)?;
+        session.start_episode(record.seed,record.ordinal,1)?;
+        for step in &record.steps[..steps]{
+            let index=session.actions.iter().position(|a|a==&step.action).ok_or(RunSessionError::IncompatibleReplay("Run action not currently offered"))?;
+            let token=session.published.as_ref().ok_or(RunSessionError::NotReset)?.token;
+            let result=session.step(token,RunActionIndex(index as i64))?;
+            if (result.reward,result.boundary.terminal)!=(step.reward,step.terminal){return Err(RunSessionError::IncompatibleReplay("Run reward or terminal mismatch"))}
+        }
+        Ok(session)
+    }
     /// Transport acknowledgement failure, not a gameplay callback. Keep the
     /// accepted native action; never rerun it because Python packaging failed.
     pub fn fail_delivery(&mut self,reason:&'static str)->Result<(),RunSessionError>{

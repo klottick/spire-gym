@@ -118,6 +118,23 @@ mod m8_falling_tests{
 }
 #[derive(Clone, Debug, PartialEq, Eq)] pub enum RunRngScopeError { Unregistered(String) }
 
+/// Root-keyed HMAC domain labels of the Run streams (one Run root key, disjoint labels).
+const RUN_RNG_LABEL:&[u8]=b"spire-lab-run-rng-v1\0";
+const RUN_COMBAT_STREAM_LABEL:&str="spire-lab/run-combat-stream/v1/";
+/// M34c reservation (design §10): the root-keyed HMAC domain label for later research draws (M34s public-information
+/// resampling). No gameplay stream derives from it and M34 adds no draw API, so research draws can never move a
+/// gameplay stream.
+pub const RESERVED_RESEARCH_RNG_DOMAIN:&str="spire-lab-research-rng-v1";
+#[cfg(test)]
+mod m34c_reserved_domain{
+    #[test]
+    fn reserved_research_domain_is_disjoint_from_gameplay_labels(){
+        let reserved=format!("{}\0",super::RESERVED_RESEARCH_RNG_DOMAIN);
+        // Every label keyed directly by a Run/combat root: Run scopes, Run combat streams, combat streams (combat/rng.rs).
+        let labels=[std::str::from_utf8(super::RUN_RNG_LABEL).unwrap(),super::RUN_COMBAT_STREAM_LABEL,"spire-lab/rng/v1/stream\0"];
+        for label in labels{assert!(!label.starts_with(&reserved)&&!reserved.starts_with(label),"{label} overlaps the reserved research domain");}
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunRng { root:[u8;32], partition:Partition, ordinal:u64, counters:BTreeMap<(RunRngScope,Vec<u64>),u64> }
 impl RunRng {
@@ -125,7 +142,7 @@ impl RunRng {
     pub fn draw(&mut self, scope:RunRngScope)->u64 { self.draw_scoped(scope,&[]) }
     pub fn draw_scoped(&mut self, scope:RunRngScope, semantic:&[u64])->u64 {
         let counter=self.counters.entry((scope,semantic.to_vec())).or_insert(0);
-        let mut message=b"spire-lab-run-rng-v1\0".to_vec();
+        let mut message=RUN_RNG_LABEL.to_vec();
         message.extend_from_slice(self.partition.as_str().as_bytes()); message.push(0);
         message.extend_from_slice(&self.ordinal.to_be_bytes()); message.push(0);
         message.extend_from_slice(scope.as_str().as_bytes()); message.push(0);
@@ -172,7 +189,7 @@ impl RunRng {
             _=>return Err(RngError::Invalid("combat stream requires run shuffle/card-random/actor AI domain and matching owner".into())),
         };
         let id=StreamId::new(domain,scope)?;
-        let key=hmac_sha256(&self.root,format!("spire-lab/run-combat-stream/v1/{combat_identity}").as_bytes());
+        let key=hmac_sha256(&self.root,format!("{RUN_COMBAT_STREAM_LABEL}{combat_identity}").as_bytes());
         make_stream(&key,self.partition,&combat_identity,&id)
     }
 }

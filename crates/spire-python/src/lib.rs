@@ -64,6 +64,7 @@ fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(card_metadata, m)?)?;
     m.add_class::<env::NativeCombatPool>()?;
     m.add_class::<run_env::NativeRunSession>()?;
+    m.add_class::<run_env::PyExactCheckpoint>()?;
     m.add_class::<combat_training::NativeIroncladCombatSession>()?;
     m.add_class::<combat_training::NativeIroncladCombatBatch>()?;
     run_env::register(m)?;

@@ -399,6 +399,8 @@ fn parse_config(v:&Value)->Result<RunSessionConfig,RunSessionError>{Ok(RunSessio
     boss_history:parse_boss_history(&v["boss_history"])? ,capacities:parse_capacities(&v["capacities"])? ,record_replay:flag(&v["record_replay"])? ,
 })}
 fn validate(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{validate_identity(record,None)}
+/// M34c: the shared record identity/shape validation, for `RunSession::from_record`.
+pub(crate) fn validate_record(record:&RunEpisodeRecord)->Result<RunProfile,RunSessionError>{validate(record)}
 fn validate_identity(record:&RunEpisodeRecord,expected_fingerprint:Option<[u8;32]>)->Result<RunProfile,RunSessionError>{
     let profile=RunProfile::from_record(&record.schema_id,&record.profile_id)?;
     if !watcher_profile(profile) && record.steps.iter().map(|s|&s.action).chain(record.fault.iter().filter_map(|f|f.action.as_ref())).any(|a|matches!(a,GameAction::Combat(CombatAction::ChooseStance{..}|CombatAction::DeselectCard{..}))){return Err(incompatible())}

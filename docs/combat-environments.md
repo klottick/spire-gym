@@ -1,5 +1,15 @@
 # Headless environments
 
+## Standard Run profile (M34) — source candidate
+
+The `Standard` profile covers every character, A0–A20, Acts 1–4 and the Heart, natively (`RunSession::new_standard`) and in
+Python (`RunEnv(character, ascension, profile="standard")`). The [Standard Run API](standard-run-api.md) is its contract:
+identities, creation inputs, observation groups, actions, the reward ledger, terminals and faults, seeding, records and
+replay to a chosen decision, and the privileged exact checkpoints (`exact_checkpoint`, `exact_restore`, `exact_fork`, with
+the oracle warning). The milestone record is [M34](milestones/m34-run-api.md). `combat_view()` on Standard returns
+`UnsupportedBoundary`; the Standard combat sidecar belongs to M34s. The captured profiles and the combat-v1 environment below
+are unchanged.
+
 ## Finite native Watcher Act1 — source accepted; publication pending
 
 The [M22 profile](milestones/m22-watcher-act1.md) extends the accepted shared Run

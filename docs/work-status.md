@@ -1,6 +1,26 @@
 # Work status
 
-## Current snapshot — 2026-11-09, M33 Ascension 20 candidate
+## Current snapshot — 2026-11-10, M34 full-run API candidate (M34a, M34b merged; M34c candidate)
+
+- M33 merged as PR #95; M34a (public view completeness) as PR #96 and M34b (Standard session contract) as PR #97 (main
+  `d1825a96`). M34c (exact checkpoints, replay to a decision, M34 docs) is a source candidate on that base, not accepted.
+- The `Standard` profile covers every character, A0–A20, Acts 1–4 and the Heart, natively and in Python. It brings:
+  - explicit creation inputs (Neow, seen bosses, stored Note; default `experienced()`);
+  - an append-only vocabulary manifest and engine-bound capacities;
+  - per-(monster, move) intent category, live intent hits and the Heart cap, and event display values;
+  - an itemised reward ledger, distinct terminals, and faults that freeze without retry;
+  - seeded reset, Standard records and semantic replay.
+  Captured, policy-v3 and Gym66 fingerprints are unchanged.
+- M34c adds two pieces:
+  - Privileged exact checkpoints (`exact_checkpoint`, `exact_restore`, `exact_fork`; opaque, with an oracle warning).
+  - `RunSession::from_record(record, steps, capacities)`, which returns a live session at a chosen recorded decision.
+  Both have a Python surface on the base `RunEnv`. M34c also reserves the research RNG domain for M34s and writes the
+  [Standard Run API](standard-run-api.md) contract and the [M34 profile](milestones/m34-run-api.md).
+- Next is M34s (spire-dxo.71: search and scenario API: public-information resampling, branch limits, synthetic setups,
+  Gym66/standalone starts and the Standard combat sidecar), then M35 (batching) and M36 (delivery).
+- No strategy or win-rate claim is made. The Heart routes use supplied resources (test-only frontier).
+
+## Snapshot — 2026-11-09, M33 Ascension 20 candidate
 
 - M30, M31 and M32 are merged (main `0ba3038a`, PR #94 for M32). M33 is a source candidate on that base, not accepted. A default build exposes Standard A0–A20 for all four characters; A21 is rejected. No spire-env or Python delivery is claimed.
 - At A20, a Standard Act 3 Run fights a second, distinct boss only when all three Act 3 bosses were seen at act start. The second entry follows ordinary room/floor hooks; Secret Portal receives the same route, while Mind Bloom event bosses do not.
