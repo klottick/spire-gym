@@ -321,6 +321,8 @@ impl CombatItemContext {
     /// A typed independent combat room supplies the same healing entitlement as
     /// an entered Run combat node, without constructing a fake map.
     pub(crate) fn with_training_room(mut self)->Self{self.heal_room=NativeHealRoom{combat:true,current_map_node:true};self}
+    /// M34s-a: validate owned resources against the potion base of `ascension` (M31 A11).
+    pub(crate) fn with_ascension(mut self,ascension:u8)->Self{self.ascension=ascension;self}
 
     fn with_potions(&self, potions: Vec<Option<PotionId>>) -> Self {
         Self { potion_potencies:if self.potion_potency_enabled(){potions.iter().enumerate().map(|(i,id)|id.map(|id|if self.potions.get(i)==Some(&Some(id)){self.potion_potency(i).unwrap_or_else(||self.initial_potency(id))}else{self.initial_potency(id)})).collect()}else{vec![]},

@@ -20,8 +20,8 @@ use spire_env::{
 use crate::{
     errors, numeric,
     run_env::{
-        error as run_error, integer, label, policy_boundary as boundary, specification as spec,
-        token,
+        error as run_error, integer, label, policy_boundary as boundary,
+        specification as spec, token,
     },
 };
 
@@ -110,21 +110,54 @@ fn json_value<'py, T: std::fmt::Display>(
     numeric::descriptor(py, value.to_string())
 }
 
-struct SingleLease<'a>(&'a NativeIroncladCombatSession);
+struct SingleLease<'a>(&'a OwnedCombatSession);
 impl Drop for SingleLease<'_> {
     fn drop(&mut self) {
         self.0.busy.store(false, Ordering::Release);
     }
 }
 
-#[pyclass(frozen, module = "spire_lab._native")]
-pub(crate) struct NativeIroncladCombatSession {
+struct OwnedCombatSession {
     session: Mutex<CombatTrainingSession>,
     catalog: CombatTrainingCatalog,
     busy: AtomicBool,
 }
 
-impl NativeIroncladCombatSession {
+impl OwnedCombatSession {
+    fn new(
+        py: Python<'_>,
+        catalog_json: &Bound<'_, PyAny>,
+        partition: String,
+        standard: bool,
+    ) -> PyResult<Self> {
+        let partition = parse_partition(py, &partition)?;
+        let bytes = catalog_bytes(catalog_json)?;
+        let catalog = py
+            .detach(move || {
+                if standard {
+                    CombatTrainingCatalog::standard_from_json(&bytes)
+                } else {
+                    CombatTrainingCatalog::from_json(&bytes)
+                }
+            })
+            .map_err(|error| run_error(error))?;
+        let session_catalog = catalog.clone();
+        let session = py
+            .detach(move || {
+                if standard {
+                    CombatTrainingSession::new_standard(session_catalog, partition)
+                } else {
+                    CombatTrainingSession::new(session_catalog, partition)
+                }
+            })
+            .map_err(|error| run_error(error))?;
+        Ok(Self {
+            session: Mutex::new(session),
+            catalog,
+            busy: AtomicBool::new(false),
+        })
+    }
+
     fn begin(&self) -> PyResult<SingleLease<'_>> {
         self.busy
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -206,31 +239,7 @@ impl NativeIroncladCombatSession {
     }
 }
 
-#[pymethods]
-impl NativeIroncladCombatSession {
-    #[new]
-    #[pyo3(signature=(catalog_json,*,partition="train".to_owned()))]
-    fn new(
-        py: Python<'_>,
-        catalog_json: &Bound<'_, PyAny>,
-        #[pyo3(from_py_with = label)] partition: String,
-    ) -> PyResult<Self> {
-        let partition = parse_partition(py, &partition)?;
-        let bytes = catalog_bytes(catalog_json)?;
-        let catalog = py
-            .detach(move || CombatTrainingCatalog::from_json(&bytes))
-            .map_err(|error| run_error(error))?;
-        let session_catalog = catalog.clone();
-        let session = py
-            .detach(move || CombatTrainingSession::new(session_catalog, partition))
-            .map_err(|error| run_error(error))?;
-        Ok(Self {
-            session: Mutex::new(session),
-            catalog,
-            busy: AtomicBool::new(false),
-        })
-    }
-
+impl OwnedCombatSession {
     fn observation_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let value = self
             .session
@@ -255,7 +264,6 @@ impl NativeIroncladCombatSession {
         json_value(py, self.catalog.descriptor())
     }
 
-    #[pyo3(signature=(seed=None,entry_id=None))]
     fn reset<'py>(
         &self,
         py: Python<'py>,
@@ -287,7 +295,6 @@ impl NativeIroncladCombatSession {
         self.deliver(|| boundary(py, value))
     }
 
-    #[pyo3(signature=(package,*,seed=None,entry_id=None))]
     fn _reset_deliver<'py>(
         &self,
         py: Python<'py>,
@@ -347,6 +354,93 @@ impl NativeIroncladCombatSession {
         .map_err(|error| run_error(error))
     }
 }
+
+#[pyclass(frozen, module = "spire_lab._native")]
+pub(crate) struct NativeIroncladCombatSession {
+    inner: OwnedCombatSession,
+}
+
+#[pyclass(frozen, module = "spire_lab._native")]
+pub(crate) struct NativeStandardCombatSession {
+    inner: OwnedCombatSession,
+}
+
+macro_rules! single_combat_methods {
+    ($class:ident, $standard:expr) => {
+        #[pymethods]
+        impl $class {
+            #[new]
+            #[pyo3(signature=(catalog_json,*,partition="train".to_owned()))]
+            fn new(
+                py: Python<'_>,
+                catalog_json: &Bound<'_, PyAny>,
+                #[pyo3(from_py_with = label)] partition: String,
+            ) -> PyResult<Self> {
+                Ok(Self {
+                    inner: OwnedCombatSession::new(py, catalog_json, partition, $standard)?,
+                })
+            }
+
+            fn observation_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                self.inner.observation_spec(py)
+            }
+            fn environment_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                self.inner.environment_spec(py)
+            }
+            fn catalog_descriptor<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                self.inner.catalog_descriptor(py)
+            }
+            #[pyo3(signature=(seed=None,entry_id=None))]
+            fn reset<'py>(
+                &self,
+                py: Python<'py>,
+                seed: Option<&Bound<'py, PyAny>>,
+                entry_id: Option<&Bound<'py, PyAny>>,
+            ) -> PyResult<Bound<'py, PyDict>> {
+                self.inner.reset(py, seed, entry_id)
+            }
+            fn step<'py>(
+                &self,
+                py: Python<'py>,
+                index: &Bound<'py, PyAny>,
+                token_value: &Bound<'py, PyAny>,
+            ) -> PyResult<Bound<'py, PyDict>> {
+                self.inner.step(py, index, token_value)
+            }
+            fn decision<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+                self.inner.decision(py)
+            }
+            #[pyo3(signature=(package,*,seed=None,entry_id=None))]
+            fn _reset_deliver<'py>(
+                &self,
+                py: Python<'py>,
+                package: &Bound<'py, PyAny>,
+                seed: Option<&Bound<'py, PyAny>>,
+                entry_id: Option<&Bound<'py, PyAny>>,
+            ) -> PyResult<Bound<'py, PyAny>> {
+                self.inner._reset_deliver(py, package, seed, entry_id)
+            }
+            fn _step_deliver<'py>(
+                &self,
+                py: Python<'py>,
+                index: &Bound<'py, PyAny>,
+                token_value: &Bound<'py, PyAny>,
+                package: &Bound<'py, PyAny>,
+            ) -> PyResult<Bound<'py, PyAny>> {
+                self.inner._step_deliver(py, index, token_value, package)
+            }
+            fn diagnostic<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+                self.inner.diagnostic(py)
+            }
+            fn close(&self, py: Python<'_>) -> PyResult<()> {
+                self.inner.close(py)
+            }
+        }
+    };
+}
+
+single_combat_methods!(NativeIroncladCombatSession, false);
+single_combat_methods!(NativeStandardCombatSession, true);
 
 struct ParsedReset {
     seeds: Vec<Option<u64>>,

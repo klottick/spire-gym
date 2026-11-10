@@ -48,6 +48,8 @@ pub use rooms::m19_content::{M19_DEFECT_ACT3_CARDS,M19_DEFECT_ACT3_RELICS,M19_DE
 
 #[cfg(any(test,feature="m20-diagnostics",feature="m22-diagnostics",feature="m34-diagnostics"))]
 pub mod diagnostics;
+mod standard_combat;
+pub use standard_combat::*;
 pub use rooms::m20_content::{M20_DEFECT_HEART_CARDS,M20_DEFECT_HEART_RELICS,M20_DEFECT_HEART_POTIONS};
 
 pub use rooms::m22_content;

@@ -23,7 +23,7 @@ fn field(obs: &RunObservation, group: &str, row: usize, column: usize) -> i64 {
     group.values[row * columns + column]
 }
 
-fn legal_indices(obs: &RunObservation) -> Vec<usize> {
+pub(super) fn legal_indices(obs: &RunObservation) -> Vec<usize> {
     let legal = obs.action_mask.iter().enumerate().filter_map(|(index, value)| (*value == 1).then_some(index)).collect::<Vec<_>>();
     let actions = obs.group("actions").unwrap();
     let occupied = actions.occupied.as_ref().unwrap();
@@ -164,7 +164,7 @@ fn terminal_diagnosis(session: &RunSession, terminal: Option<RunTerminal>, turn:
         decision.act, decision.floor, decision.room.as_ref().map(|room| room.kind), turn.unwrap_or(0), decision.player.hp, decision.objects.len())
 }
 
-fn needs_supplied_wound(obs: &RunObservation) -> bool {
+pub(super) fn needs_supplied_wound(obs: &RunObservation) -> bool {
     if context(obs).2 != "combat" { return false; }
     let end_turn_is_legal = legal_indices(obs).into_iter().any(|index|
         vocab_name("verb", field(obs, "actions", index, 0)).as_deref() == Some("end_turn"));
@@ -380,7 +380,7 @@ fn shortest_burning_elite_move(obs: &RunObservation, legal: &[usize]) -> Option<
     })
 }
 
-fn keys_route_action(obs: &RunObservation) -> usize {
+pub(super) fn keys_route_action(obs: &RunObservation) -> usize {
     let legal = legal_indices(obs);
     assert!(!legal.is_empty(), "nonterminal Standard boundary had no legal candidate");
     let room = context(obs).2;

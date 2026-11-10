@@ -72,7 +72,9 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             let (cards, next) = super::rng::shuffle(&state.rng.shuffle, &state.piles.discard)?;
             state.rng.shuffle = next;
             state.piles.discard.clear();
+            let recycled=cards.len();
             state.piles.draw.extend(cards);
+            super::knowledge::note(state,super::knowledge::PileOp::ShuffledOnTop(recycled));
             state.public.known_draw.clear();
             state.public.known_draw_bottom.clear();
             refresh_hand_values(state);
@@ -82,6 +84,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
             let (cards,next)=super::rng::shuffle(&state.rng.shuffle,&state.piles.draw)?;
             state.rng.shuffle=next;
             state.piles.draw=cards;
+            super::knowledge::note(state,super::knowledge::PileOp::Shuffled);
             state.public.known_draw.clear();
             state.public.known_draw_bottom.clear();
             refresh_hand_values(state);
@@ -119,6 +122,7 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
         EffectKind::DrawOne=>{
             let card=state.piles.draw.pop().ok_or_else(||InputError::Invariant("draw-one owner absent".into()))?;
             let handle=card.handle();
+            drawn_knowledge(state,&card);
             if state.public.known_draw.first()==Some(&handle){state.public.known_draw.remove(0);}else{state.public.known_draw.clear();}
             if state.piles.draw.len()<state.public.known_draw_bottom.len(){
                 let bottom_offset=state.piles.draw.len();
@@ -251,6 +255,13 @@ pub(super) fn insert_generated_with(state: &mut State, mut card: super::card_sta
         super::command::CardDestination::Discard => state.piles.discard.push(owned),
         super::command::CardDestination::ShuffledDraw=>state.piles.draw.insert(position.unwrap(),owned),
     }
+    match destination{
+        super::command::CardDestination::Draw=>super::knowledge::note(state,super::knowledge::PileOp::TopDecked),
+        super::command::CardDestination::BottomDraw=>super::knowledge::note(state,super::knowledge::PileOp::BottomDecked),
+        super::command::CardDestination::ShuffledDraw=>super::knowledge::note(state,if empty_draw{super::knowledge::PileOp::TopDecked}
+            else{super::knowledge::PileOp::Inserted(position.unwrap())}),
+        _=>{}
+    }
     if destination==super::command::CardDestination::ShuffledDraw{
         if empty_draw{state.public.known_draw.clear();state.public.known_draw.push(handle.clone());state.public.known_draw_bottom=vec![handle.clone()];}
         else{state.public.known_draw.truncate(1);state.public.known_draw_bottom.clear();}
@@ -334,6 +345,7 @@ pub(super) fn for_each_owned_card_mut(state:&mut State,mut visit:impl FnMut(&mut
 pub(super) fn topdeck_owned_card(state:&mut State,card:OwnedCard,handle:CardHandle){
     let empty=state.piles.draw.is_empty();
     state.piles.draw.push(card);
+    super::knowledge::note(state,super::knowledge::PileOp::TopDecked);
     state.public.known_draw.insert(0,handle.clone());
     if empty{state.public.known_draw_bottom=vec![handle];}
 }
@@ -341,6 +353,7 @@ pub(super) fn topdeck_owned_card(state:&mut State,card:OwnedCard,handle:CardHand
 pub(super) fn bottomdeck_owned_card(state:&mut State,card:OwnedCard,handle:CardHandle){
     let empty=state.piles.draw.is_empty();
     state.piles.draw.insert(0,card);
+    super::knowledge::note(state,super::knowledge::PileOp::BottomDecked);
     state.public.known_draw_bottom.insert(0,handle.clone());
     if empty{state.public.known_draw.insert(0,handle);}
 }
@@ -359,13 +372,14 @@ pub(super) fn forget_known_draw(state:&mut State,handle:&CardHandle){
 
 /// Move an existing draw-pile card without treating retrieval as an actual draw.
 /// Secret retrieval and Violence use this shared pile/public-knowledge owner.
-pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:super::command::CardDestination)->Result<(),InputError>{
+pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:super::command::CardDestination,law:super::knowledge::Removal)->Result<(),InputError>{
     if !matches!(destination,super::command::CardDestination::Hand|super::command::CardDestination::Discard){
         return Err(InputError::Invariant("draw retrieval destination must be Hand or Discard".into()));
     }
     let index=state.piles.draw.iter().position(|card|card.handle()==*handle)
         .ok_or_else(||InputError::Invariant("retrieved draw card is no longer owned".into()))?;
     let card=state.piles.draw.remove(index);
+    removed_knowledge(state,&card,law);
     state.public.revealed_order.push(handle.clone());
     forget_known_draw(state,handle);
     let destination=if destination==super::command::CardDestination::Hand&&state.piles.hand.len()>=10{
@@ -378,6 +392,22 @@ pub(super) fn move_draw_card(state:&mut State,handle:&CardHandle,destination:sup
     }
     refresh_hand_values(state);
     Ok(())
+}
+
+/// M34s-a a2: note, for the public draw knowledge, the top card that just left the draw pile (`drawn_knowledge`) or
+/// a card removed from it under `law` (`removed_knowledge`). A legacy card leaves the knowledge unrepresentable.
+pub(super) fn drawn_knowledge(state:&mut State,card:&OwnedCard){
+    if !state.knowledge.maintained{return}
+    match (card.full(),super::knowledge::class_of(state,card)){
+        (Some(live),Some(class))=>super::knowledge::note(state,super::knowledge::PileOp::Drawn{instance:live.instance.0,class}),
+        _=>super::knowledge::note(state,super::knowledge::PileOp::Sync),
+    }
+}
+pub(super) fn removed_knowledge(state:&mut State,card:&OwnedCard,law:super::knowledge::Removal){
+    if !state.knowledge.maintained{return}
+    if let (Some(live),Some(class))=(card.full(),super::knowledge::class_of(state,card)){
+        super::knowledge::note(state,super::knowledge::PileOp::Removed{instance:live.instance.0,class,law});
+    }else{super::knowledge::note(state,super::knowledge::PileOp::Sync);}
 }
 
 /// Actual-draw callback owns the just-moved identity before the remaining draw.
@@ -491,6 +521,7 @@ fn shuffle_owned_into_draw(state:&mut State,card:OwnedCard)->Result<(),InputErro
         state.card_rng=Some(next);index as usize
     };
     state.piles.draw.insert(index,card);
+    super::knowledge::note(state,if empty{super::knowledge::PileOp::TopDecked}else{super::knowledge::PileOp::Inserted(index)});
     if empty{state.public.known_draw=vec![handle.clone()];state.public.known_draw_bottom=vec![handle];}
     else{state.public.known_draw.truncate(1);state.public.known_draw_bottom.clear();}
     refresh_hand_values(state);Ok(())
@@ -759,10 +790,23 @@ fn opening_first(state:&State,card:&super::card_state::LiveCard)->bool{
 pub(super) fn deal_opening_one(state:&mut State)->Option<Effect>{
     let innate=state.piles.draw.iter().position(|c|c.full().is_some_and(|c|opening_first(state,c)));
     let card=if let Some(at)=innate{state.piles.draw.remove(at)}else{state.piles.draw.pop().expect("opening count bounded by draw size")};
+    if innate.is_some(){
+        // Exact once every Innate/bottled card is dealt (opening_hand_count deals them all when they fit).
+        let left=state.piles.draw.iter().filter(|c|c.full().is_some_and(|c|opening_first(state,c))).count();
+        let all_dealt=left<10usize.saturating_sub(state.piles.hand.len());
+        removed_knowledge(state,&card,super::knowledge::Removal::Opening{all_dealt});
+    }else{drawn_knowledge(state,&card);}
     let owner=card.handle();
     let callback=if state.silent.history_enabled{
         if let Some(live)=card.full(){state.silent.drawn_cards.push(super::cards::DrawnCard{id:live.id,instance:Some(live.instance)});}
         Some(Effect{source:Source::Card(owner.clone()),target:Some(Actor::Player),kind:EffectKind::AfterCardDrawn{card:owner.clone()}})
     }else{None};
     state.public.revealed_order.push(owner);state.piles.hand.push(card);refresh_hand_values(state);callback
+}
+
+/// The one grid order for player-chosen draw-pile selections (Seek, Omniscience, Secret Technique, Secret Weapon):
+/// (card id, instance), never physical draw order. Among identical copies the lowest instance comes first
+/// (M34s-a a0(iii)/(ix): the deterministic handle rule the public draw knowledge models).
+pub(in crate::combat) fn sort_draw_grid(state:&State,candidates:&mut [CardHandle]){
+    candidates.sort_by_key(|handle|state.piles.draw.iter().find(|card|card.handle()==*handle).and_then(OwnedCard::full).map(|card|(card.id.as_str(),card.instance)));
 }

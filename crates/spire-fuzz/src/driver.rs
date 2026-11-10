@@ -72,4 +72,10 @@ pub trait Driver: Send {
 
     #[cfg(feature = "diagnostics")]
     fn inner_run(&self) -> Option<spire_core::run::Run> { None }
+
+    /// Diagnostics-only exact draw-posterior check for Standard combat boundaries.
+    /// `Ok(None)` means the public posterior is Unrepresentable; `Ok(Some(n))` is
+    /// a representable posterior with `n` components.
+    #[cfg(feature = "diagnostics")]
+    fn draw_knowledge_check(&self) -> Option<Result<Option<usize>, DriverError>> { None }
 }

@@ -22,6 +22,7 @@ pub(in crate::combat) fn capture(state:&mut State,owner:&EnemyHandle)->Result<()
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Stasis card stream absent".into()))?;let (index,next)=rng::uniform_below(stream,candidates.len() as u128)?;
     let index=candidates[index as usize].0;let draw=!state.piles.draw.is_empty();state.card_rng=Some(next);
     let card=if draw{state.piles.draw.remove(index)}else{state.piles.discard.remove(index)};
+    if draw{crate::combat::piles::removed_knowledge(state,&card,crate::combat::knowledge::Removal::Uniform);}
     if draw{crate::combat::piles::forget_known_draw(state,&card.handle());}
     state.stasis.insert(owner.clone(),card);
     crate::combat::piles::refresh_hand_values(state);

@@ -120,3 +120,5 @@ mod m27_potion_rewards;
 mod m34a_public_view;
 mod m34b_reward_items;
 mod m34a_event_params;
+#[cfg(feature="m34-diagnostics")]
+mod m34s_measure;

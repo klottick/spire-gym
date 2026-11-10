@@ -45,6 +45,57 @@ fn feature_free_native_smoke_is_deterministic() {
     assert_eq!(first.stable_hash(), second.stable_hash());
 }
 
+#[test]
+fn standard_combat_specs_smoke_without_engine_or_harness_failures() {
+    use spire_core::content::Character;
+    use spire_fuzz::{generated_standard_catalog_json, CatalogCombat, RunSummary, run_episode};
+    let specs = [
+        (Character::Ironclad, 0), (Character::Ironclad, 20),
+        (Character::Silent, 0), (Character::Silent, 20),
+        (Character::Defect, 0), (Character::Defect, 20),
+        (Character::Watcher, 0), (Character::Watcher, 20),
+    ];
+    let pass = || {
+        let mut summary = RunSummary::new("standard-combat-smoke".into());
+        let options = EpisodeOptions {
+            max_steps: 120, all_legal_every: 0, determinism: true, replay: true,
+            shrink_budget: Duration::ZERO, scripted_actions: None, continue_first: false,
+        };
+        for (character, ascension) in specs {
+            for seed in 1..=8 {
+                let bytes = generated_standard_catalog_json(seed, character, ascension);
+                let mut driver = CatalogCombat::standard_from_json(&bytes, character, ascension).unwrap_or_else(|error| {
+                    let catalog: Value = serde_json::from_slice(&bytes).unwrap();
+                    for entry in catalog["entries"].as_array().unwrap() {
+                        let mut single = catalog.clone();
+                        single["entries"] = json!([entry]);
+                        let one = serde_json::to_vec(&single).unwrap();
+                        if let Err(entry_error) = CatalogCombat::standard_from_json(&one, character, ascension) {
+                            panic!("seed {seed} {character:?} A{ascension} entry {} rejected: {entry_error:?}; data={entry}; full catalog: {error:?}", entry["id"]);
+                        }
+                    }
+                    panic!("seed {seed} {character:?} A{ascension} catalog rejected despite individually valid entries: {error:?}");
+                });
+                driver.set_entry_cursor(seed as usize);
+                summary.add(run_episode(Box::new(driver), seed, Policy::First, options.clone()));
+            }
+        }
+        summary
+    };
+    let first = pass();
+    let second = pass();
+    for (spec, totals) in &first.outcomes_by_driver {
+        eprintln!("{spec}: episodes={} victories={} deaths={} escapes={} capped={}",
+            totals.episodes, totals.wins, totals.deaths, totals.escapes, totals.capped);
+    }
+    assert_eq!(first.episodes, 64);
+    assert_eq!(first.episodes_by_driver.len(), 8);
+    assert!(first.episodes_by_driver.values().all(|episodes| *episodes == 8));
+    assert!(first.failures.is_empty(), "Standard combat smoke failures: {:?}",
+        first.failures.iter().map(|failure| (&failure.driver, &failure.kind, &failure.message)).collect::<Vec<_>>());
+    assert_eq!(first.stable_hash(), second.stable_hash());
+}
+
 #[cfg(not(feature = "diagnostics"))]
 fn assert_smoke_coverage(summary: &RunSummary) {
     assert_eq!(summary.episodes_by_driver.get("catalog"), Some(&(POLICIES.len() as u64)));

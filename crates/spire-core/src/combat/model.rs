@@ -525,6 +525,8 @@ pub(super) struct State {
     pub colorless:ColorlessState,
     pub defect:super::cards::DefectState,
     pub watcher:super::cards::watcher::WatcherState,
+    /// M34s-a public knowledge (design §4.5); never read by rules and not part of the established Debug output.
+    pub knowledge:super::knowledge::KnowledgeTracker,
 }
 
 // Keep established Combat Debug output byte-for-byte when this new owner is

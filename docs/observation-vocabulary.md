@@ -296,3 +296,43 @@ engine at A0. The new Standard schema `spire-gym-standard-run-observation-v1`
   operations) come from the append-only manifest `standard-vocab-v1`, not from this registry.
 
 M34c (exact checkpoints, replay to a decision) adds no observation column and changes no fingerprint.
+
+## CHANGES — 2026-11-10 public knowledge and the Standard combat view (M34s-a)
+
+Descriptors: the Standard Run fingerprint changes once, `efbc1253…` → `bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae`,
+and the Standard rules id moves to `spire-gym-native-standard-rules-v2` (gameplay changes G-a4 and R-a1 below). The new
+Standard combat view `spire-gym-standard-combat-view-v1` has fingerprint
+`5d8147e13ded030c7faa501a8202eb2588915c2e1330b30cac5b06afc9f9916e`. No captured (M9–M25), policy Run-v3, combat-view v1/v2,
+Gym66 or M21 descriptor or fingerprint changes, but some of their VALUES change: values change only as listed below, on
+exactly the surfaces named (source-located census: M34s-a evidence `i1-census/surface-census-v1.md`):
+
+1. **Standard draw rows** (Standard only). The zone family gains `draw` (appended to `standard-vocab-v1`). Every unknown
+   draw-pile card is a `combat_cards` row in zone `draw`, `zone_position` −1 (known 0), after every other row, sorted by
+   the canonical card key (published row without zone and zone_position, `permanent_row` last); ties are interchangeable.
+   The `zone_position` domain is now −1..; semantics `draw_rows`.
+2. **Card lifecycle columns** (Standard only), appended to `combat_cards`, each the player-visible fact it encodes:
+   `autoplay_free` (an autoplay waiver; displayed cost 0), `free_play_once` (a one-use Forethought/Setup waiver; displayed
+   cost 0), `rolled_cost` (the Confusion/Snecko Oil roll shown when drawn), `modified_combat_cost` (a cost changed for this
+   combat, e.g. Madness, Enlightenment, Force Field), `hp_loss_discount` (Blood for Blood's HP-loss discount) and
+   `cost_zero_this_turn` (Infernal Blade's cost 0 for the turn); semantics `card_lifecycle`.
+3. **Intangible display** (every surface where the player can have Intangible while an attack intent is visible:
+   the Standard Run observation, the Standard combat view and `standard-combat-v1` sessions through Wraith Form, Ghost in a Jar, Incense Burner and Council of Ghosts' Apparition; the
+   `M15SilentHeart` Run through Wraith Form and Ghost in a Jar. Not reachable on M9, M10 (Run-v2, policy Run-v3, combat
+   sidecar), M12–M14, M16–M25, the M21 Watcher combat sessions or Gym66 `ironclad-combat-v1/v2`). `intent_damage` applies the player's
+   Intangible cap (1), as the original `calculateDamage`. Damage dealt is unchanged.
+4. **Back Attack display** (every surface that admits Shield and Spear: the Standard Run observation, the Standard combat view and `standard-combat-v1` sessions; the M10 Run-v2, the M10 policy
+   Run-v3 and the M10 combat sidecar (combat-policy view v1); the M15, M20 and M25 Runs; the M21 Watcher combat sessions;
+   and **Gym66 `ironclad-combat-v1` (combat-policy view v1) and `ironclad-combat-v2` (view v2)**, whose entry catalogs admit
+   `shield_and_spear`. Not reachable on M9, M12–M14, M16–M19, M22–M24). The displayed ×1.5 is truncated on the
+   unfloored value before the floor, as the original `calculateDamage` (e.g. Weak and Back Attack show 5 where 4 is dealt;
+   the dealt value is unchanged).
+5. **Gameplay, disclosed (G-a4).** A card played by a non-purge autoplay (Havoc, Mayhem, Distilled Chaos, Omniscience's
+   first play) no longer keeps its free-play waiver after its use, as the original `UseCardAction` clears it; if that card
+   comes back into play it costs its normal energy. Observable where such a card can return: the Standard Run observation, the Standard combat view and `standard-combat-v1` sessions; the M10
+   Run-v2, policy Run-v3 and combat sidecar, and **Gym66 `ironclad-combat-v1/v2`** (Havoc, then Exhume); the M25 Run
+   (Omniscience, then Tantrum's shuffle-back). Not reachable on M9, M12–M24 or the M21 Watcher combat sessions.
+   A retained record of those surfaces that reaches such a replayed card now stops with a typed `IncompatibleReplay`
+   (rules ids are unchanged); none of the 323 retained frozen-replay inputs does.
+6. **Selection order, disclosed (R-a1).** Secret Technique and Secret Weapon list their draw-pile candidates in the shared
+   grid order (card id, instance), as Seek and Omniscience already did, instead of physical draw order; their candidate
+   action indices change on the Standard Run observation, the Standard combat view and `standard-combat-v1` sessions (the only surfaces admitting them; no captured, M21 or Gym66 profile does).

@@ -93,9 +93,9 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&StateEffect)->Result<(
         },
         StateEffect::Seek{count}=>{
             let mut candidates=state.piles.draw.iter().map(OwnedCard::handle).collect::<Vec<_>>();
-            if candidates.len()<=*count{for card in candidates{crate::combat::piles::move_draw_card(state,&card,CardDestination::Hand)?;}}
+            if candidates.len()<=*count{for card in candidates{crate::combat::piles::move_draw_card(state,&card,CardDestination::Hand,crate::combat::knowledge::Removal::Grid)?;}}
             else{
-                candidates.sort_by_key(|handle|{let card=state.piles.draw.iter().find(|card|card.handle()==*handle).unwrap().full().unwrap();(card.id.as_str(),card.instance)});
+                crate::combat::piles::sort_draw_grid(state,&mut candidates);
                 open(state,&effect.source,candidates,Z::Draw,*count,O::SeekRetrieve,D::Hand)?;
             }
         },

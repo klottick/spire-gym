@@ -84,22 +84,18 @@ def _reset_inputs(seed, options):
     return entry_id
 
 
-class IroncladCombatEnv(gym.Env[Observation, int]):
-    """Independent native Ironclad A0 combats selected from a finite catalog.
-
-    Actions are indices into the current native legal mask. The decision token
-    stays private to the facade and ensures an old integer cannot be replayed.
-    """
-
+class _CombatEnv(gym.Env[Observation, int]):
     def __init__(
-        self, entry_catalog: dict[str, Any], *, partition: str = "train"
+        self,
+        entry_catalog: dict[str, Any],
+        *,
+        partition: str,
+        native_session_type,
     ) -> None:
         self.metadata = {"render_modes": []}
         self.render_mode = None
         self._guard = _common.OperationGuard()
-        self._session = _native.NativeIroncladCombatSession(
-            _catalog_json(entry_catalog), partition=partition
-        )
+        self._session = native_session_type(_catalog_json(entry_catalog), partition=partition)
         observations, actions = spaces_from_spec(self.observation_spec())
         self.observation_space = cast(gym.spaces.Space[Observation], observations)
         self.action_space = cast(gym.spaces.Space[int], actions)
@@ -176,3 +172,20 @@ class IroncladCombatEnv(gym.Env[Observation, int]):
 
     def render(self) -> None:
         return None
+
+
+class IroncladCombatEnv(_CombatEnv):
+    """Independent native Ironclad A0 combats selected from a finite catalog.
+
+    Actions are indices into the current native legal mask. The decision token
+    stays private to the facade and ensures an old integer cannot be replayed.
+    """
+
+    def __init__(
+        self, entry_catalog: dict[str, Any], *, partition: str = "train"
+    ) -> None:
+        super().__init__(
+            entry_catalog,
+            partition=partition,
+            native_session_type=_native.NativeIroncladCombatSession,
+        )

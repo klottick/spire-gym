@@ -10,3 +10,8 @@ mod standard_encoding;
 mod standard_review_fixes;
 mod standard_exact_cost;
 mod standard_exact_late;
+mod m34s_draw_rows;
+mod m34s_records;
+mod m34s_standard_combat_view;
+mod m34s_standard_combat;
+mod m34s_measure;

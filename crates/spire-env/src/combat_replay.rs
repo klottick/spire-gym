@@ -40,7 +40,7 @@ fn validate(r:&CombatEpisodeRecord)->Result<CombatTrainingCatalog,RunSessionErro
   action_value(&step.action)?;
   if !(-1..=1).contains(&step.reward)||!matches!(step.terminal,None|Some(RunTerminal::Death))||step.reward==0&&step.terminal.is_some()||step.reward!=0&&i+1!=r.steps.len(){return Err(incompatible())}
  }
- let last=r.steps.last();let expected=match r.outcome{None=>0,Some(Outcome::Victory)=>1,Some(Outcome::Death|Outcome::Escaped)=>-1};
+ let last=r.steps.last();let expected=r.outcome.map_or(0,crate::combat_training::outcome_reward);
  if last.map_or(0,|s|s.reward)!=expected||last.is_some_and(|s|s.terminal.is_some())!=(r.outcome==Some(Outcome::Death)){return Err(incompatible())}
  if let Some(f)=&r.fault{
   if let Some(a)=&f.action{action_value(a)?;}

@@ -274,7 +274,13 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
             }
         }
     }
-    capacity("combat_cards",cards.len(),caps.combat_cards)?;
+    // M34s-a (design §4.3): Standard publishes every unknown draw-pile card as a `draw` row, position unknown,
+    // after all other rows and in canonical-key order (below); a card already published elsewhere keeps that row.
+    let draw_rows=match d.combat.as_ref().filter(|_|profile==RunEncodingProfile::Standard){
+        Some(c)=>c.draw_unknown.iter().filter(|card|!cards.iter().any(|(v,_,_,_)|v.instance==card.instance)).collect::<Vec<_>>(),
+        None=>vec![],
+    };
+    capacity("combat_cards",cards.len()+draw_rows.len(),caps.combat_cards)?;
     if let Some(c)=d.combat.as_ref().filter(|_|extended){capacity("known_draw",c.known_draw.len(),caps.combat_cards)?;}
     let (relics,counters,potions)=if let Some(c)=&d.combat{let i=c.inventory.as_ref().ok_or(RunSessionError::Input("combat inventory missing"))?;(&i.relics,&i.relic_counters,&i.potions)}else{(&d.player.relics,&d.player.relic_counters,&d.player.potions)};
     capacity("relics",relics.len(),caps.relics)?;capacity("potions",potions.len(),caps.potions)?;
@@ -284,7 +290,7 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     for spec in match profile{RunEncodingProfile::Standard=>schema_standard::groups(caps),RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)}{
         let cols=spec.fields.split(',').count();let rows=spec.rows.unwrap_or(1);let mut values=reserved(rows*cols,0)?;
         // Unavailable references in real rows are -1/known0; all padding remains0.
-        let occupied_count=match spec.key{"combat_cards"=>cards.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
+        let occupied_count=match spec.key{"combat_cards"=>cards.len()+draw_rows.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
         for row in 0..occupied_count{for col in spec.references{values[row*cols+col]=-1;}}
         o.groups.push(RunFeatureGroup{key:spec.key,shape:spec.rows.map_or_else(||vec![cols],|rows|vec![rows,cols]),values,known:reserved(rows*cols,0)?,occupied:spec.rows.map(|rows|reserved(rows,0)).transpose()?});
     }
@@ -320,10 +326,10 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         if let Some(id)=map.current{o.group_mut("current_node").row(0,&[Some(number(position(&ids,&id)?)?)])?;}
     }
     let card_row=|instance:u64|cards.iter().position(|(c,_,_,_)|c.instance.0==instance).ok_or(RunSessionError::Input("public combat card reference missing"));
-    for (row,(card,zone,pos,stasis)) in cards.iter().enumerate(){
+    let card_values=|card:&spire_core::combat::LiveCardView,zone:i64,pos:Option<usize>,stasis:Option<usize>|->Result<Vec<Option<i64>>,RunSessionError>{
         let permanent_row=match card.origin{CombatCardRef::Permanent(id)=>Some(number(permanent(d,id.0)?)?),CombatCardRef::CombatLocal(_)=>None};
         let selected=d.combat.as_ref().and_then(|c|c.selection.as_ref()).map(|s|i64::from(s.selected.contains(&card.instance)));
-        let mut values=vec![Some(*zone),Some(number(*pos)?),Some(card_id(profile,card.id)?),Some(i64::from(card.upgrades)),card.effective_cost.map(i64::from),permanent_row,stasis.map(number).transpose()?,selected];
+        let mut values=vec![Some(zone),pos.map(number).transpose()?,Some(card_id(profile,card.id)?),Some(i64::from(card.upgrades)),card.effective_cost.map(i64::from),permanent_row,stasis.map(number).transpose()?,selected];
         if extended {
             if let Some(public)=&card.values {
                 values.extend([public.base_damage.map(i64::from),public.base_block.map(i64::from),public.magic_number.map(i64::from),public.damage_bonus.map(i64::from),
@@ -332,7 +338,26 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         }
         if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M17Defect|RunEncodingProfile::M18Defect|RunEncodingProfile::M19Defect|RunEncodingProfile::M20Defect|RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){values.push(Some(i64::from(card.misc)));}
         if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){if let Some(w)=&card.watcher{values.extend([w.combat_cost.map(i64::from),w.turn_cost.map(i64::from),Some(i64::from(w.self_retain)),Some(i64::from(w.retain))]);}else{values.extend([None;4]);}}
-        o.group_mut("combat_cards").row(row,&values)?;
+        if profile==RunEncodingProfile::Standard{
+            // M34s-a card lifecycle (schema_standard::CARD_LIFECYCLE_FIELDS).
+            let l=&card.lifecycle;
+            values.extend([Some(i64::from(l.free_play)),Some(i64::from(l.free_to_play_once)),l.randomized_cost.map(i64::from),
+                l.mutable_combat_cost.map(i64::from),Some(i64::from(l.combat_cost_reduction)),Some(i64::from(l.infernal_cost_this_turn))]);
+        }
+        Ok(values)
+    };
+    for (row,(card,zone,pos,stasis)) in cards.iter().enumerate(){
+        o.group_mut("combat_cards").row(row,&card_values(card,*zone,Some(*pos),*stasis)?)?;
+    }
+    if !draw_rows.is_empty(){
+        let zone=zone_id(profile,"draw")?;
+        let mut rows=draw_rows.iter().map(|card|card_values(card,zone,None,None)).collect::<Result<Vec<_>,_>>()?;
+        // Canonical card key: the published tuple without zone and zone_position, permanent_row (column 5) last.
+        rows.sort_by_key(|values|values[2..5].iter().chain(&values[6..]).chain(&values[5..6]).map(|v|(v.is_some(),v.unwrap_or(0))).collect::<Vec<_>>());
+        let group=o.group_mut("combat_cards");let cols=*group.shape.last().unwrap();
+        for (offset,values) in rows.iter().enumerate(){
+            let row=cards.len()+offset;group.row(row,values)?;group.values[row*cols+1]=-1;
+        }
     }
     if let Some(c)=&d.combat{
         let mut player_values=vec![Some(i64::from(c.player.hp)),Some(i64::from(c.player.max_hp)),None,Some(i64::from(c.player.block)),Some(i64::from(c.player.energy)),Some(i64::from(c.player.max_energy)),Some(i64::from(c.turn)),Some(number(c.draw_count)?),
@@ -643,6 +668,12 @@ pub fn encode_run_standard_decision(d:&PublicDecision,map:Option<&PublicMap>,cap
 }
 pub(crate) fn encode_run_standard(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::Standard){return Err(RunSessionError::Input("Standard encoder requires the Standard profile"))}
+    // Final review N2: Standard draw rows need a combat that maintains public knowledge; a combat entered without it has an
+    // empty draw multiset, which must fail loudly rather than silently drop the rows.
+    if let Some(c)=&d.combat{
+        let known=c.known_draw.iter().map(|k|k.card.instance).collect::<std::collections::BTreeSet<_>>().len();
+        if c.draw_unknown.len()+known!=c.draw_count{return Err(RunSessionError::Input("Standard combat draw multiset missing (combat entered without public knowledge)"))}
+    }
     let present=|e:&spire_core::combat::FullEnemyView|e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0);
     if d.combat.as_ref().is_some_and(|c|c.enemies.iter().all(present)){
         return encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context));

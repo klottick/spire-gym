@@ -24,7 +24,47 @@ pub struct PublicView {
 }
 #[derive(Clone, PartialEq, Eq)]
 pub struct LiveCardView { pub instance: CardInstanceId, pub id: crate::content::CardId,
-    pub origin: CombatCardRef, pub upgrades: u32, pub misc:i32, pub watcher:Option<WatcherCardValues>, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues> }
+    pub origin: CombatCardRef, pub upgrades: u32, pub misc:i32, pub watcher:Option<WatcherCardValues>, pub effective_cost:Option<i32>,pub values:Option<CardPublicValues>,
+    pub lifecycle:CardLifecycleView }
+/// M34s-a (a0(iv) follow-up): the card's cost and free-play lifecycle, each a fact the original player sees or derives
+/// from public history and each read by later gameplay: `free_play` an autoplay waiver still held (shown as cost 0),
+/// `free_to_play_once` a one-use waiver (Forethought/Setup; shown as cost 0), `randomized_cost` a rolled cost
+/// (Confusion/Snecko Oil; shown when drawn), `mutable_combat_cost` the modified combat cost, `combat_cost_reduction`
+/// Blood for Blood's HP-loss discount, `infernal_cost_this_turn` Infernal Blade's cost-0 that expires at end of turn.
+/// Not part of the captured Debug (unchanged); part of equality and the canonical card order.
+#[derive(Clone,Copy,Debug,Default,PartialEq,Eq,PartialOrd,Ord)]
+pub struct CardLifecycleView{pub free_play:bool,pub free_to_play_once:bool,pub randomized_cost:Option<i32>,
+    pub mutable_combat_cost:Option<i32>,pub combat_cost_reduction:i32,pub infernal_cost_this_turn:bool}
+pub(super) fn live_card_view(state:&State,live:&super::LiveCard)->LiveCardView{
+    let l=&live.local;
+    LiveCardView{misc:live.misc,instance:live.instance,id:live.id,origin:live.origin.clone(),upgrades:live.upgrades,
+        effective_cost:super::cards::visible_cost(state,live),values:super::cards::public_values(live),
+        watcher:super::cards::watcher::card_values(state,live),
+        lifecycle:CardLifecycleView{free_play:l.free_play,free_to_play_once:l.free_to_play_once,randomized_cost:l.randomized_cost,
+            mutable_combat_cost:l.mutable_combat_cost,combat_cost_reduction:l.combat_cost_reduction,
+            infernal_cost_this_turn:l.infernal_blade_cost_this_turn}}
+}
+/// M34s-a canonical card key (design §4.3, §4.5.1 card class): the published card values, then the origin
+/// (a permanent card's deck instance; every combat-local card alike), without the instance and the CombatLocal id.
+/// Cards with equal classes are interchangeable in the public draw knowledge (`knowledge::DrawKnowledge`).
+#[derive(Clone,Copy,Debug,PartialEq,Eq,PartialOrd,Ord)]
+pub struct CardClass(crate::content::CardId,u32,Option<i32>,Option<CardValuesKey>,i32,Option<(Option<i32>,Option<i32>,bool,bool)>,CardLifecycleView,(u8,u64));
+type CardValuesKey=(Option<i32>,Option<i32>,Option<i32>,Option<i32>,u8,bool,bool,bool,bool,i32);
+pub fn card_class(v:&LiveCardView)->CardClass{
+    let values=v.values.as_ref().map(|p|(p.base_damage,p.base_block,p.magic_number,p.damage_bonus,p.cost_kind as u8,p.free_play,p.exhaust_on_finish,p.ethereal,p.innate,p.temporary_cost));
+    let watcher=v.watcher.as_ref().map(|w|(w.combat_cost,w.turn_cost,w.self_retain,w.retain));
+    let origin=match v.origin{CombatCardRef::Permanent(id)=>(0,id.0),CombatCardRef::CombatLocal(_)=>(1,0)};
+    CardClass(v.id,v.upgrades,v.effective_cost,values,v.misc,watcher,v.lifecycle,origin)
+}
+impl CardClass{
+    /// The card kind of this class.
+    pub fn id(&self)->crate::content::CardId{self.0}
+}
+/// M34s-a canonical card order: the card class (published values, then origin), the instance only as the final
+/// tie-break between cards that are equal in every published value (design §4.3).
+pub fn canonical_card_order(a:&LiveCardView,b:&LiveCardView)->std::cmp::Ordering{
+    card_class(a).cmp(&card_class(b)).then(a.instance.0.cmp(&b.instance.0))
+}
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct WatcherCardValues{pub combat_cost:Option<i32>,pub turn_cost:Option<i32>,pub self_retain:bool,pub retain:bool}
 #[derive(Clone,Debug,PartialEq,Eq)]
@@ -78,6 +118,11 @@ pub struct CombatPublic {
     pub targets: Vec<(TargetId, bool)>,
     pub selection: Option<SelectionView>,
     pub known_draw:Vec<KnownDrawCardView>,
+    /// M34s-a: every draw-pile card not in `known_draw`, as a multiset in canonical card order
+    /// (`canonical_card_order`); never physical order. The original draw-pile screen shows it sorted. Populated only in a
+    /// combat that maintains public knowledge (`Combat::maintains_public_knowledge`: Standard, `standard-combat-v1`), the
+    /// profiles that publish draw rows; empty elsewhere (final review M7).
+    pub draw_unknown:Vec<LiveCardView>,
     pub encounter_facing:Option<EncounterFacingView>,
     pub inventory: Option<CombatInventoryView>,
     pub card_offer:Option<CombatCardOfferView>,
@@ -107,6 +152,7 @@ impl std::fmt::Debug for CombatPublic {
         value.field("targets",&self.targets);
         value.field("selection",&self.selection);
         value.field("known_draw",&self.known_draw);
+        value.field("draw_unknown",&self.draw_unknown);
         value.field("encounter_facing",&self.encounter_facing);
         value.field("inventory",&self.inventory);
         if self.card_offer.is_some(){value.field("card_offer",&self.card_offer);}
@@ -266,7 +312,7 @@ pub(super) fn full_enemies(state: &State,hide_intents:bool) -> Vec<FullEnemyView
             match e.intent_id { super::ActorIntentId::Full(id) => id,
                 super::ActorIntentId::Legacy(id) => super::FullIntentId::from_name(id.as_str()) }
         },
-        intent_damage: if hide_intents{None}else{e.intent_damage}, replaced: e.life == super::ActorLife::Replaced,
+        intent_damage: if hide_intents{None}else{e.intent_damage.map(|d|super::effects::displayed_intent_damage(state,e,d))}, replaced: e.life == super::ActorLife::Replaced,
         escaped:e.life==super::ActorLife::Escaped,half_dead:e.life==super::ActorLife::HalfDead,logical_slot:state.actor_slots.get(&e.instance_id).copied().unwrap_or(0),
         intent_category: if hide_intents{None}else{super::intents::category(super::intents::enemy_id(e),e.intent_id.as_str(),state.ascension)},
         intent_hits: if hide_intents{None}else{super::intents::planned_hits(e,state.ascension)},

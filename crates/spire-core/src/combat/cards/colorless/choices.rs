@@ -254,12 +254,13 @@ fn draw_candidates(state: &State, card_type: CardType) -> Vec<crate::combat::Car
 
 fn retrieve_secret(state: &mut State, effect: &Effect, card_type: CardType) -> Result<(), EffectError> {
     let Source::Card(parent) = &effect.source else { unreachable!("validated Colorless card parent") };
-    let candidates = draw_candidates(state, card_type);
+    let mut candidates = draw_candidates(state, card_type);
     if candidates.is_empty() { return Ok(()); }
+    crate::combat::piles::sort_draw_grid(state, &mut candidates);
     let destination = if state.piles.hand.len() >= 10 { SelectionDisposition::Discard } else { SelectionDisposition::Hand };
     if candidates.len() == 1 {
         let destination = if destination == SelectionDisposition::Hand { CardDestination::Hand } else { CardDestination::Discard };
-        crate::combat::piles::move_draw_card(state, &candidates[0], destination)?;
+        crate::combat::piles::move_draw_card(state, &candidates[0], destination, crate::combat::knowledge::Removal::Grid)?;
         return Ok(());
     }
     crate::combat::effects::begin_selection(state, parent.clone(), candidates, 1, destination, EmptySelection::Continue)?;
@@ -296,7 +297,7 @@ fn move_random_attacks(state: &mut State, count: u8) -> Result<(), EffectError> 
         let (index, next) = super::super::super::rng::uniform_below(stream, candidates.len() as u128)?;
         state.card_rng = Some(next);
         let destination = if state.piles.hand.len() >= 10 { CardDestination::Discard } else { CardDestination::Hand };
-        crate::combat::piles::move_draw_card(state, &candidates[index as usize], destination)?;
+        crate::combat::piles::move_draw_card(state, &candidates[index as usize], destination, crate::combat::knowledge::Removal::Uniform)?;
     }
     Ok(())
 }

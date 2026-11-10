@@ -169,7 +169,7 @@ pub fn standard_registry_names(family: &str) -> Option<Vec<&'static str>> {
 }
 
 /// Standard columns beyond the M25 layout (one owner; strings built once).
-struct Layout { enemies_fields: String, enemies_units: String, offers_fields: String, offers_units: String }
+struct Layout { enemies_fields: String, enemies_units: String, offers_fields: String, offers_units: String, cards_fields: String, cards_units: String }
 fn layout() -> &'static Layout {
     static L: OnceLock<Layout> = OnceLock::new();
     L.get_or_init(|| {
@@ -177,10 +177,15 @@ fn layout() -> &'static Layout {
         let find = |key: &str| base.iter().find(|g| g.key == key).map(|g| (g.fields, g.units)).expect("M25 group");
         let (ef, eu) = find("enemies");
         let (of, ou) = find("offers");
+        let (cf, cu) = find("combat_cards");
         Layout { enemies_fields: format!("{ef},intent_category"), enemies_units: format!("{eu},category"),
-            offers_fields: format!("{of},event_stage,event_option,param0,param1,param2"), offers_units: format!("{ou},stage,option,display_value,display_value,display_value") }
+            offers_fields: format!("{of},event_stage,event_option,param0,param1,param2"), offers_units: format!("{ou},stage,option,display_value,display_value,display_value"),
+            // M34s-a card lifecycle (a0(iv) follow-up): `core::combat::CardLifecycleView`, semantics `card_lifecycle`.
+            cards_fields: format!("{cf},{CARD_LIFECYCLE_FIELDS}"), cards_units: format!("{cu},flag,flag,energy,energy,energy,flag") }
     })
 }
+/// The Standard card lifecycle columns appended to `combat_cards` (after the M25 columns).
+pub(crate) const CARD_LIFECYCLE_FIELDS: &str = "autoplay_free,free_play_once,rolled_cost,modified_combat_cost,hp_loss_discount,cost_zero_this_turn";
 /// Offer column indices of the Standard additions (after the 16 shared offer columns).
 pub(crate) const OFFER_EVENT_STAGE: usize = 16;
 pub(crate) const OFFER_PARAMS: usize = 18;
@@ -192,6 +197,7 @@ pub(crate) fn groups(caps: &RunCapacities) -> Vec<v1::GroupSpec> {
         match g.key {
             "enemies" => { g.fields = &l.enemies_fields; g.units = &l.enemies_units; }
             "offers" => { g.fields = &l.offers_fields; g.units = &l.offers_units; }
+            "combat_cards" => { g.fields = &l.cards_fields; g.units = &l.cards_units; }
             _ => {}
         }
     }
@@ -205,6 +211,8 @@ pub(crate) fn validate(caps: &RunCapacities) -> Result<(), RunSessionError> { m1
 fn standard_domain(group: &str, field: &str) -> Option<(i64, i64, Option<&'static str>)> {
     Some(match (group, field) {
         ("context", "ascension") => (0, i64::from(spire_core::run::STANDARD_MAX_ASCENSION), None),
+        // M34s-a draw rows carry zone_position -1 (position unknown; semantics draw_rows).
+        ("combat_cards", "zone_position") => (-1, i64::MAX, None),
         ("enemies", "intent_kind") => (0, intent_family().count() as i64, Some("intent")),
         ("enemies", "intent_category") => (0, IntentCategory::ALL.len() as i64, Some("intent_category")),
         ("enemies", "intent_hits") => (0, i64::from(i32::MAX), None),
@@ -232,6 +240,9 @@ pub fn standard_run_observation_spec(caps: &RunCapacities) -> Result<RunObservat
         "intent":"intent_kind, intent_damage, intent_hits and intent_category are unknown while intents are hidden (Runic Dome)",
         "intent_hits":"planned damage applications of the selected move (engine-owned; includes AI memory such as Book of Stabbing); unknown for non-attacks",
         "heart_cap":"the present Corrupt Heart's live Invincible cap; unknown without a present Heart",
+        "draw_rows":"M34s: every draw-pile card not published as known_draw (or as another row) is a combat_cards row in zone draw with zone_position -1/known0, after all other rows, sorted by the canonical card key (the published row without zone and zone_position, permanent_row last); tied rows are interchangeable and their order carries no information; never physical draw order",
+        "card_lifecycle":"combat_cards lifecycle columns, each a fact the player sees or derives from public history and each read by later play: autoplay_free = the card still holds an autoplay waiver (displayed cost 0); free_play_once = a one-use waiver from Forethought or Setup (displayed cost 0); rolled_cost = the cost rolled by Confusion or Snecko Oil (shown when drawn), unknown when none; modified_combat_cost = the card's modified combat cost (cost changes this combat, e.g. Madness, Enlightenment, Force Field), unknown when none; hp_loss_discount = Blood for Blood's discount from HP losses this combat; cost_zero_this_turn = Infernal Blade's cost 0 that ends at end of turn",
+        "intent_damage":"displayed damage per hit as the original calculateDamage shows it, including the player's Intangible cap (1)",
         "offers":"choice payloads: amount/card/relic/potion/neow columns as named; event_stage and event_option for event rows; param0..2 are the row's displayed numbers per param_semantics",
         "room_params":"stage0..3: numbers the current room displays (Treasure stage0 = chest size 1/2/3); meanings in param_semantics",
         "param_semantics":param_semantics,

@@ -1,6 +1,22 @@
 # Work status
 
-## Current snapshot — 2026-11-10, M34 full-run API candidate (M34a, M34b merged; M34c candidate)
+## Current snapshot — 2026-11-10, M34s-a public knowledge candidate (M34 merged)
+
+- M34c merged as PR #98 (main `d6572940`). M34s-a (part 1 of 3 of M34s, spire-dxo.71.1) is a source candidate on that
+  base, not accepted. See the [M34s profile](milestones/m34s-search-scenario.md).
+- The Standard observation publishes the draw pile as an order-free multiset (draw rows) and six card lifecycle columns;
+  intent damage follows the original display (Intangible cap, Back Attack). The Standard fingerprint changes once
+  (`bf8e1d11…`) and the rules id moves to v2 (autoplay free-play fix G-a4, Secret Technique/Weapon order R-a1): pre-M34s
+  Standard records must be re-recorded.
+- New: exact public draw knowledge and pre-roll consistent sets in core; the Standard combat view on `RunSession`; and
+  `standard-combat-v1` combat sessions for every character at A0–A20 (Rust and Python).
+- Captured, policy-v3 and Gym66 descriptors are unchanged, but some values change (all disclosed, per surface, in the
+  observation-vocabulary CHANGES): the Intangible display (Standard, M15), the Back Attack display wherever Shield and
+  Spear is admitted (Standard, M10, M15, M20, M25, M21 Watcher combat and Gym66 `ironclad-combat-v1/v2`), and the gameplay
+  fixes G-a4 (Standard, M10, M25, Gym66 v1/v2) and R-a1 (Standard only).
+- Next: M34s-b (belief and branching), then M34s-c (tactical starts), M35 (batching) and M36 (delivery).
+
+## Snapshot — 2026-11-10, M34 full-run API candidate (M34a, M34b merged; M34c candidate)
 
 - M33 merged as PR #95; M34a (public view completeness) as PR #96 and M34b (Standard session contract) as PR #97 (main
   `d1825a96`). M34c (exact checkpoints, replay to a decision, M34 docs) is a source candidate on that base, not accepted.

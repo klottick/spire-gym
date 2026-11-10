@@ -21,6 +21,24 @@ pub struct AuthoredRunStart {
 pub struct CombatProgress { pub entered:u64, pub settled:u64 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CombatRecord { pub visit:u64, pub encounter:crate::content::EncounterId, pub outcome:crate::combat::Outcome }
+/// M34s-a `standard-combat-v1`: the Emerald-key burning-elite buff (`MonsterRoomElite.applyEmeraldEliteBuff`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BurningEliteBuff { Strength, MaxHp, Metallicize, Regeneration }
+impl BurningEliteBuff {
+    pub const ALL:[Self;4]=[Self::Strength,Self::MaxHp,Self::Metallicize,Self::Regeneration];
+    pub fn as_str(self)->&'static str{match self{Self::Strength=>"strength",Self::MaxHp=>"max_hp",Self::Metallicize=>"metallicize",Self::Regeneration=>"regeneration"}}
+    pub(crate) fn engine(self)->crate::combat::enemies::BurningBuff{
+        use crate::combat::enemies::BurningBuff as B;
+        match self{Self::Strength=>B::Strength,Self::MaxHp=>B::MaxHp,Self::Metallicize=>B::Metallicize,Self::Regeneration=>B::Regeneration}
+    }
+}
+/// M34s-a settlement-free combat scope (design §4.4): one Standard combat whose episode ends at the combat's own terminal.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CombatScope { pub encounter:crate::content::EncounterId, pub burning:Option<BurningEliteBuff> }
+/// M34s-a: the live combat's public identity (Standard combat view `combat_context`): the encounter being fought, its
+/// visit ordinal and whether it is a burning elite (the map's flame node). From `Run::combat_identity`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CombatIdentity { pub encounter:crate::content::EncounterId, pub visit:u64, pub burning:bool }
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) struct ActiveCombat { pub visit:u64, pub encounter:crate::content::EncounterId, pub origin:CombatOrigin,
     pub applied_gain_ordinal:u64,pub applied_mutation_ordinal:u64,pub acquired_instances:Vec<u64>,
@@ -149,6 +167,8 @@ pub struct RunState {
     pub(crate) potion_potencies:Vec<Option<(PotionId,i32)>>,
     /// M27 Run-potion restriction supplied by We Meet Again (false in frozen profiles).
     pub(crate) we_meet_again:bool,
+    /// M34s-a settlement-free combat scope; `None` in every Run (not printed by Debug).
+    pub(crate) combat_scope:Option<CombatScope>,
 }
 
 /// The derived field text, with `card_admission` printed only when `Complete`

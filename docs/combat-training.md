@@ -33,7 +33,8 @@ env.close()
 episode ordinal to zero, while `None` after reset advances the ordinal on the
 retained seed. First `None` obtains entropy. Catalog entry selection is explicit,
 defaulting to its first entry; no curriculum sampler. Partition is `train`,
-`selection`, `final` or `test`. Single rewards: +1 Victory, -1 Death, otherwise0.
+`selection`, `final` or `test`. Single rewards: +1 Victory, -1 Death, otherwise 0
+(an `Escaped` outcome is 0; see the Gym66 Escaped note below).
 There is no built-in time-limit truncation; an external budget remains unfinished,
 never converted into a loss or natural combat end. No semantic replay API is
 promised for this new profile; consumers can record catalog fingerprint, seeds,
@@ -298,3 +299,22 @@ both remain retained; no uncertain effects are replayed.
 The [finite M21 candidate](milestones/m21-watcher-combat.md) adds typed Rust entries through `M21WatcherCombatEntry` and `CombatTrainingCatalog::m21`, using the existing `CombatTrainingSession`. `CombatTrainingSession::new_m21(catalog, partition, caps)` supplies explicit transport capacities; ordinary `new` uses the shared combat capacities. The opt-in public descriptor is `watcher_combat_observation_spec`, and `encode_watcher_combat` uses the shared Run encoder. `CombatEpisodeRecord` and `replay_m21_combat` bind the complete ordered catalog and selected entry before initialization. This candidate adds no Python constructor or batch scheduler.
 
 The core example `cargo run -p spire-core --example m21_watcher_combat --locked --offline -- --seed 7 --scenario starter --budget 8192` is the prescribed public caller. Its outcome executions require the retained pre-outcome freeze described in the profile. The native `m21_same_choices` example prepares initial descriptors/records and consumes that caller's recorded semantic choices; it does not run another policy. Candidate source, native checks, prescribed results and independent acceptance remain separate grades.
+
+## Standard combat sessions and the Gym66 Escaped law (M34s-a)
+
+`standard-combat-v1` is a Standard arm of the same `CombatTrainingSession` owner: every character, A0–A20, any Standard
+setup row, owned resources and the Standard combat view. Its catalog, terminal and info are specified in the
+[Standard Run API](standard-run-api.md#standard-combat-view-and-sessions). The Ironclad surfaces above
+(`IroncladCombatEnv`, `NativeIroncladCombatSession`, the batch) reject its catalogs with `RunUnsupportedBoundaryError`;
+use `StandardCombatEnv` / `NativeStandardCombatSession`.
+
+**Gym66 values changed by M34s-a (descriptors and fingerprints unchanged).** Both `ironclad-combat-v1` and `-v2` admit
+`shield_and_spear`: the displayed `intent_damage` now truncates Back Attack's ×1.5 before the floor, as the original
+display (e.g. Weak with Back Attack shows 5 where base showed 4; the damage dealt is unchanged). Gameplay (G-a4): a card
+Havoc played no longer keeps its free-play waiver, so after Exhume returns it, it costs its normal energy. The M21 Watcher
+combat sessions share the Back Attack display change. Details: [observation vocabulary](observation-vocabulary.md).
+
+**Gym66 Escaped law.** `spire-gym-combat-outcome-reward-v1` gives an `Escaped` outcome 0. Before M34s-a the Gym66 step
+reward and the M21 replay validator gave it −1; both now use one law (victory +1, death −1, escaped 0). The change is
+unreachable in every Gym66 catalog: no Gym66 or M21 catalog admits Smoke Bomb, the only source of `Escaped` (a thief's
+escape ends as Victory), so no Gym66 trajectory, reward or record changes.

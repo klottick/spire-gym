@@ -1,5 +1,7 @@
-use spire_core::content::Character;
-use spire_fuzz::RUN_PROFILES;
+use spire_core::{combat::enemies::A0_ENCOUNTER_SETUPS, content::Character};
+use spire_env::CombatTrainingCatalog;
+use spire_fuzz::{generated_standard_catalog_json, CatalogCombat, Driver, RUN_PROFILES};
+use serde_json::Value;
 
 #[test]
 fn standard_fuzz_profiles_cover_four_characters_at_a0_a10_and_a20() {
@@ -38,5 +40,48 @@ fn standard_fuzz_profiles_cover_four_characters_at_a0_a10_and_a20() {
         assert_eq!(profile.ascension, ascension, "{id}");
         let creation = profile.creation.expect("Standard creation spec");
         assert_eq!(creation.to_json()["neow"], "full", "{id}");
+    }
+}
+
+#[test]
+fn standard_combat_specs_exist_and_generated_catalogs_parse_for_50_seeds() {
+    let characters = Character::ALL;
+    let expected = [
+        ("ironclad", Character::Ironclad, 0), ("ironclad", Character::Ironclad, 20),
+        ("silent", Character::Silent, 0), ("silent", Character::Silent, 20),
+        ("defect", Character::Defect, 0), ("defect", Character::Defect, 20),
+        ("watcher", Character::Watcher, 0), ("watcher", Character::Watcher, 20),
+    ];
+    let mut seen = Vec::new();
+    for (name, character, ascension) in expected {
+        let driver = CatalogCombat::generated_standard(17, character, ascension).unwrap();
+        assert_eq!(driver.class(), format!("standard-combat-{name}-a{ascension}"));
+        assert_eq!(driver.entry_count(), A0_ENCOUNTER_SETUPS.len());
+        let mut driver = driver;
+        driver.reset(17).unwrap();
+        let labels = driver.labels();
+        assert_eq!(labels.get("character").map(String::as_str), Some(name));
+        assert_eq!(labels.get("ascension").map(String::as_str), Some(if ascension == 0 { "0" } else { "20" }));
+        seen.push(driver.class());
+    }
+    seen.sort_unstable();
+    assert_eq!(seen, [
+        "standard-combat-defect-a0", "standard-combat-defect-a20",
+        "standard-combat-ironclad-a0", "standard-combat-ironclad-a20",
+        "standard-combat-silent-a0", "standard-combat-silent-a20",
+        "standard-combat-watcher-a0", "standard-combat-watcher-a20",
+    ]);
+    assert_eq!(characters.len(), 4);
+
+    for seed in 0..50 {
+        for (_, character, ascension) in expected {
+            let bytes = generated_standard_catalog_json(seed, character, ascension);
+            let first: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(bytes, generated_standard_catalog_json(seed, character, ascension), "seed {seed} {character:?} A{ascension}");
+            assert_eq!(first["entries"].as_array().unwrap().len(), A0_ENCOUNTER_SETUPS.len());
+            CombatTrainingCatalog::standard_from_json(&bytes).unwrap_or_else(|error| {
+                panic!("seed {seed} {character:?} A{ascension} catalog rejected: {error:?}")
+            });
+        }
     }
 }

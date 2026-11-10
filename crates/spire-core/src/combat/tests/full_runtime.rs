@@ -542,7 +542,7 @@ fn full_entry_owns_generic_card_ids_without_legacy_pile_rows() {
     let ready = combat.public_full().unwrap();
     assert_eq!(ready.hand, vec![LiveCardView { watcher:None,misc:0, instance: CardInstanceId(9001),
         id: crate::content::CardId::Unknown("unwired_runtime_fixture"),
-        origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None,values:None }]);
+        origin: CombatCardRef::CombatLocal(77), upgrades: 3, effective_cost:None,values:None,lifecycle:Default::default() }]);
     assert_eq!(combat.state.piles.draw.len(), 0);
     let owned = &combat.state.piles.hand[0];
     assert!(matches!(owned, OwnedCard::Full(_)), "full ID has no legacy pile row");

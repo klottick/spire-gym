@@ -238,3 +238,7 @@ pub(crate) mod m27_state {
 }
 mod m34a_public_view;
 mod m34b_stasis;
+mod m34s_intent_display;
+mod m34s_draw_rows;
+mod m34s_knowledge;
+mod m34s_card_ties;

@@ -536,6 +536,7 @@ pub(in crate::combat) fn scry(state:&mut State,effect:&Effect,amount:i32,relic_p
             SelectionParent::Power{turn:state.turn,id:FullPowerId("melange")},
         Source::Actor(Actor::Player) if relic_parent.is_none()&&state.phase==Phase::PlayerStart=>SelectionParent::Power{turn:state.turn,id:FullPowerId("foresight")},
         _=>return Err(InputError::Invariant("Scry requires a live card or Foresight parent".into()).into())};
+    crate::combat::knowledge::note(state,crate::combat::knowledge::PileOp::Revealed(candidates.len()));
     if candidates.len()>state.public.known_draw.len(){state.public.known_draw=candidates.clone();}
     super::super::effects::begin_selection_range(state,parent,SelectionSourceZone::Draw,candidates.clone(),0,candidates.len(),SelectionDisposition::Discard,EmptySelection::Continue)?;
     state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Scry;
@@ -552,7 +553,7 @@ fn open_omniscience(state:&mut State,effect:&Effect)->Result<(),EffectError>{
 }
 fn canonical_omniscience_candidates(state:&State)->Vec<CardHandle>{
     let mut candidates=state.piles.draw.iter().map(OwnedCard::handle).collect::<Vec<_>>();
-    candidates.sort_by_key(|handle|{let card=state.piles.draw.iter().find(|card|card.handle()==*handle).unwrap().full().unwrap();(card.id.as_str(),card.instance)});
+    crate::combat::piles::sort_draw_grid(state,&mut candidates);
     candidates
 }
 pub(in crate::combat) fn validate_selection(state:&State,s:&PendingSelection)->Result<(),InputError>{
@@ -594,7 +595,8 @@ pub(in crate::combat) fn commit_selection(state:&mut State,effect:&Effect,s:&Pen
     let handle=&s.selected[next];
     if s.operation==SelectionOperation::Scry{
         let index=state.piles.draw.iter().position(|card|card.handle()==*handle).ok_or_else(||InputError::Invariant("Scry selected physical card left draw".into()))?;
-        let card=state.piles.draw.remove(index);state.piles.discard.push(card);
+        let card=state.piles.draw.remove(index);
+        crate::combat::piles::removed_knowledge(state,&card,crate::combat::knowledge::Removal::Grid);state.piles.discard.push(card);
         state.public.known_draw.retain(|id|id!=handle);state.public.known_draw_bottom.retain(|id|id!=handle);
     }else{
         if state.piles.hand.len()<10{

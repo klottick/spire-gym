@@ -420,7 +420,8 @@ fn m10_upgraded_double_tap_has_two_independent_nonrecursive_purged_repeats(){
     assert!(!combat.state.player_full_powers.iter().any(|power|power.id.0=="double_tap"));
     let repeats=combat.state.inactive_cards.iter().filter_map(OwnedCard::full).filter(|card|card.copy_provenance==card_state::CopyProvenance::SameInstanceFamily).collect::<Vec<_>>();
     assert_eq!(repeats.len(),2);
-    assert!(repeats.iter().all(|copy|copy.local.free_play&&copy.local.purge&&!copy.local.exhaust_on_finish));
+    // M34s-a amendment: a completed use clears the autoplay waiver (original UseCardAction.update).
+    assert!(repeats.iter().all(|copy|!copy.local.free_play&&copy.local.purge&&!copy.local.exhaust_on_finish));
     assert!(repeats.iter().all(|copy|!combat.state.hook_events.iter().any(|event|
         event.hook==Hook::CardExhausted&&event.source==Source::Card(card_state::handle(copy.instance)))),
         "purged repeat copies do not enter exhaust callbacks");
