@@ -788,6 +788,12 @@ pub(crate) fn driver_from_config(class: &str, config: &Value) -> Result<Box<dyn 
             if let Some(id) = config["entry_id"].as_str() { driver.select_entry_id(id).map_err(|error| error.message)?; }
             Ok(Box::new(driver))
         }
+        "standard-position-ironclad-a0" | "standard-position-ironclad-a20"
+        | "standard-position-silent-a0" | "standard-position-silent-a20"
+        | "standard-position-defect-a0" | "standard-position-defect-a20"
+        | "standard-position-watcher-a0" | "standard-position-watcher-a20" => {
+            Ok(Box::new(crate::StandardPositionCombat::from_config(config)?))
+        }
         "run" => {
             let id = config["profile"].as_str().ok_or_else(|| "Run repro config lacks profile".to_owned())?;
             let spec = profile(id).ok_or_else(|| format!("unknown Run profile {id}"))?;

@@ -130,6 +130,15 @@ pub const RESERVED_RESEARCH_RNG_DOMAIN:&str="spire-lab-research-rng-v1";
 pub const RESEARCH_SAMPLE_LABEL:&[u8]=b"spire-lab-research-rng-v1\0belief-v1\0sample\0";
 /// The 32-byte research root of a caller `research_seed` (adapter `spire-gym-run-u64-le-v1`, as gameplay seeds).
 pub fn research_root(research_seed:u64)->[u8;32]{let mut root=[0;32];root[..8].copy_from_slice(&research_seed.to_le_bytes());root}
+/// M34s-c (design §4.8): the research label of a `reachable_recipe` start, under the reserved domain.
+pub const RESEARCH_START_LABEL:&[u8]=b"spire-lab-research-rng-v1\0belief-v1\0start\0";
+/// The sample key of a recipe reset: keyed by the reset's seed (adapter `spire-gym-run-u64-le-v1`), partition and episode
+/// ordinal, and the recipe's public root digest (Gym66 seed semantics; a reset never reads the record's hidden state).
+pub fn research_start_key(seed:u64,partition:crate::combat::rng::Partition,ordinal:u64,root_digest:&[u8;32])->[u8;32]{
+    let mut message=RESEARCH_START_LABEL.to_vec();message.extend_from_slice(partition.as_str().as_bytes());message.push(0);
+    message.extend_from_slice(&ordinal.to_be_bytes());message.extend_from_slice(root_digest);
+    crate::combat::rng::hmac_sha256(&research_root(seed),&message)
+}
 /// The key of sample `k` of the public root with digest `root_digest`.
 pub fn research_sample_key(research_root:&[u8;32],root_digest:&[u8;32],k:u64)->[u8;32]{
     let mut message=RESEARCH_SAMPLE_LABEL.to_vec();message.extend_from_slice(root_digest);message.extend_from_slice(&k.to_be_bytes());
@@ -149,7 +158,11 @@ mod m34c_reserved_domain{
     #[test]
     fn research_label_is_disjoint(){
         let reserved=format!("{}\0",super::RESERVED_RESEARCH_RNG_DOMAIN);
-        assert!(super::RESEARCH_SAMPLE_LABEL.starts_with(reserved.as_bytes()));
+        assert!(super::RESEARCH_SAMPLE_LABEL.starts_with(reserved.as_bytes())&&super::RESEARCH_START_LABEL.starts_with(reserved.as_bytes()));
+        assert!(!super::RESEARCH_START_LABEL.starts_with(super::RESEARCH_SAMPLE_LABEL)&&!super::RESEARCH_SAMPLE_LABEL.starts_with(super::RESEARCH_START_LABEL));
+        let start=|seed,part,ordinal|super::research_start_key(seed,part,ordinal,&[3;32]);
+        let (t,v)=(crate::combat::rng::Partition::Train,crate::combat::rng::Partition::Test);
+        assert!(start(7,t,0)!=start(8,t,0)&&start(7,t,0)!=start(7,v,0)&&start(7,t,0)!=start(7,t,1)&&start(7,t,0)!=super::research_start_key(7,t,0,&[4;32]));
         for label in [super::RUN_RNG_LABEL,super::RUN_COMBAT_STREAM_LABEL.as_bytes(),b"spire-lab/rng/v1/stream\0"]{
             assert!(!super::RESEARCH_SAMPLE_LABEL.starts_with(label)&&!label.starts_with(super::RESEARCH_SAMPLE_LABEL));
         }

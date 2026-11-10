@@ -1085,8 +1085,36 @@ pub(crate) fn fixed_formation(encounter: crate::content::EncounterId) -> Option<
     })
 }
 
+/// Encounters whose `fixed_formation` lists placeholder species that setup re-chooses from the seed, slot by slot (the
+/// shapes; c0 §3). One predicate for setup and for synthetic-position validation (M34s-c final review I1).
+pub(crate) fn seed_chosen_species(encounter: crate::content::EncounterId) -> bool {
+    use crate::content::EncounterId;
+    matches!(encounter, EncounterId::ThreeShapes | EncounterId::FourShapes | EncounterId::SphereAndTwoShapes)
+}
+/// The formation a synthetic position may edit (M34s-c): a fixed formation whose every slot's species is seed-independent.
+/// Its index is the position's `slot`: the setup order, which is also the order of the combat's enemies at the opening.
+pub(crate) fn position_formation(encounter: crate::content::EncounterId) -> Option<Vec<EnemyId>> {
+    if seed_chosen_species(encounter) { None } else { fixed_formation(encounter) }
+}
+/// The setup-override rejections (`setup_with_overrides`): a position error, never a Run fault.
+pub(crate) const OVERRIDE_SLOT_ERROR: &str = "enemies.slot: outside the formation";
+pub(crate) const OVERRIDE_HP_ERROR: &str = "enemies.hp: above the rolled max HP";
+
 pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     rng: &mut crate::run::RunRng, context: SetupContext)
+    -> Result<super::CombatEntry, crate::run::RunError> {
+    setup_with_overrides(encounter, act, ascension, rng, context, &[])
+}
+
+/// M34s-c (design §4.8 (1)): one formation slot's synthetic setup values — its initial HP and listed powers (amount 0
+/// removes) — installed after the HP roll and before the opening move selection, so the roll context sees them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EnemySetupOverride { pub slot: usize, pub hp: Option<i32>, pub powers: Vec<(FullPowerId, i32)> }
+
+/// `setup` with synthetic-position overrides (validated by `combat::position`; an override outside the formation or
+/// its HP range is rejected here as well).
+pub fn setup_with_overrides(encounter: crate::content::EncounterId, act: u8, ascension: u8,
+    rng: &mut crate::run::RunRng, context: SetupContext, overrides: &[EnemySetupOverride])
     -> Result<super::CombatEntry, crate::run::RunError> {
     use crate::content::EncounterId;
     // Genuine precondition failures are not the typed ascension interim (M29a1 review m2).
@@ -1155,8 +1183,10 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
     let mut shape_pool=vec![EnemyId::Repulsor,EnemyId::Repulsor,EnemyId::Exploder,EnemyId::Exploder,EnemyId::Spiker,EnemyId::Spiker];
     for (slot, mut id) in ids.into_iter().enumerate() {
         // Each chosen slot is constructed before the next composition request.
-        if matches!(encounter,EncounterId::ThreeShapes|EncounterId::FourShapes){let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],shape_pool.len() as u64);id=shape_pool.remove(index);}
-        else if encounter==EncounterId::SphereAndTwoShapes&&slot<2{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],3);id=[EnemyId::Spiker,EnemyId::Repulsor,EnemyId::Exploder][index];}
+        if seed_chosen_species(encounter){
+            if encounter!=EncounterId::SphereAndTwoShapes{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],shape_pool.len() as u64);id=shape_pool.remove(index);}
+            else if slot<2{let index=rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[3,encounter_key,visit,slot as u64,0],3);id=[EnemyId::Spiker,EnemyId::Repulsor,EnemyId::Exploder][index];}
+        }
         let louse = matches!(id, EnemyId::LouseRed | EnemyId::LouseGreen);
         let (min_hp, max_hp) = hp_range(id, ascension);
         let hp = if min_hp == max_hp { min_hp } else { min_hp + rng.bounded_scoped(
@@ -1194,6 +1224,14 @@ pub fn setup(encounter: crate::content::EncounterId, act: u8, ascension: u8,
             .map_err(|_| crate::run::RunError::Unsupported("invalid generated enemy identity"))?,
             enemy_id: id, hp, max_hp: hp, block: 0, intent: FullIntentId::from_name("unselected_native_entry"), ascension, profile,
             powers, ai_rng });
+    }
+    for o in overrides {
+        let enemy=enemies.get_mut(o.slot).ok_or(crate::run::RunError::Unsupported(OVERRIDE_SLOT_ERROR))?;
+        if let Some(hp)=o.hp{if !(1..=enemy.max_hp).contains(&hp){return Err(crate::run::RunError::Unsupported(OVERRIDE_HP_ERROR))}enemy.hp=hp;}
+        for (id,amount) in &o.powers{
+            enemy.powers.retain(|p|p.id!=*id);
+            if *amount!=0{enemy.powers.push(super::FullPowerEntry{id:*id,state:super::PowerState{amount:*amount,skip_first:false,monster_source_grace:false}});}
+        }
     }
     let player_constricted=context.player_powers.iter().any(|p|p.id.0=="constricted"&&p.state.amount>0);
     if encounter==EncounterId::Reptomancer{let slots=[(1,enemies[0].instance_id.clone()),(0,enemies[2].instance_id.clone())].into_iter().collect();enemies[1].initial_memory=Some(EnemyMemory::Reptomancer{first:true,slots});}

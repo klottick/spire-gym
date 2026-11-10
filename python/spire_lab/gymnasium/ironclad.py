@@ -91,11 +91,16 @@ class _CombatEnv(gym.Env[Observation, int]):
         *,
         partition: str,
         native_session_type,
+        records=None,
+        supports_records: bool = False,
     ) -> None:
         self.metadata = {"render_modes": []}
         self.render_mode = None
         self._guard = _common.OperationGuard()
-        self._session = native_session_type(_catalog_json(entry_catalog), partition=partition)
+        native_options = {"partition": partition}
+        if supports_records:
+            native_options["records"] = records
+        self._session = native_session_type(_catalog_json(entry_catalog), **native_options)
         observations, actions = spaces_from_spec(self.observation_spec())
         self.observation_space = cast(gym.spaces.Space[Observation], observations)
         self.action_space = cast(gym.spaces.Space[int], actions)

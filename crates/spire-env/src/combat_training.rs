@@ -81,9 +81,20 @@ impl CombatTrainingCatalog{
         Ok(Self{profile,entries,descriptor,fingerprint:h.finalize().into()})
     }
     /// M34s-a `standard-combat-v1` catalog (`spire-gym-standard-combat-catalog-v1`, design §4.4).
-    pub fn standard_from_json(bytes:&[u8])->Result<Self,Error>{
-        let (entries,descriptor,fingerprint)=crate::standard_combat::parse(bytes)?;
-        Ok(Self{profile:CombatTrainingProfile::Standard,entries:entries.into_iter().map(|(id,start)|(id,TrainingEntry::Standard(start))).collect(),descriptor,fingerprint})
+    pub fn standard_from_json(bytes:&[u8])->Result<Self,Error>{Self::standard_from_json_with_records(bytes,&[])}
+    /// M34s-c: a `standard-combat-v1` catalog whose `reachable_recipe` entries name records from `records` by SHA-256
+    /// (design §4.8; each ≤ 8 MiB, total ≤ 64 MiB). Each recipe's prefix is validated and its public root cached here, once.
+    pub fn standard_from_json_with_records(bytes:&[u8],records:&[Vec<u8>])->Result<Self,Error>{
+        let (entries,descriptor,fingerprint)=crate::standard_combat::parse(bytes,records)?;
+        Ok(Self{profile:CombatTrainingProfile::Standard,entries:entries.into_iter().map(|(id,entry)|(id,match entry{
+            crate::standard_combat::StandardEntry::Start(start)=>TrainingEntry::Standard(start),
+            crate::standard_combat::StandardEntry::Recipe(root)=>TrainingEntry::Recipe(Box::new(root)),
+        })).collect(),descriptor,fingerprint})
+    }
+    /// TEST-ONLY: replace a Standard entry's validated position (reaches the reset-time rejection path).
+    #[cfg(test)]
+    pub(crate) fn set_standard_position_for_test(&mut self,id:&str,position:spire_core::combat::position::Position){
+        if let Some((_,TrainingEntry::Standard(start)))=self.entries.iter_mut().find(|(key,_)|key==id){start.position=Some(position);}
     }
     pub fn descriptor(&self)->Value{self.descriptor.clone()}
     pub fn fingerprint(&self)->[u8;32]{self.fingerprint}
@@ -111,6 +122,8 @@ pub struct CombatTrainingStep{pub boundary:CombatPolicyBoundary,pub reward:i32,p
 pub struct CombatTrainingSession{
     catalog:CombatTrainingCatalog,caps:crate::RunCapacities,partition:Partition,id:u64,serial:u64,ordinal:u64,seed:Option<u64>,entry_id:Option<String>,
     record:Option<crate::CombatEpisodeRecord>,latest_public:Option<PublicDecision>,run:Option<Run>,published:Option<CombatPolicyBoundary>,actions:Vec<GameAction>,fault:Option<Error>,closed:bool,accepted_steps:u64,last_step_committed:bool,
+    /// The current episode's start label (design §4.8): `fresh_start`, `synthetic_position` or `reachable_recipe`.
+    start_kind:&'static str,
 }
 impl CombatTrainingSession{
     #[cfg(feature="fuzz-diagnostics")]
@@ -120,16 +133,20 @@ impl CombatTrainingSession{
     pub(crate) fn run_for_test(&self)->Option<&Run>{self.run.as_ref()}
     #[cfg(test)]
     pub(crate) fn run_mut_for_test(&mut self)->Option<&mut Run>{self.run.as_mut()}
+    #[cfg(test)]
+    pub(crate) fn catalog_for_test(&self)->CombatTrainingCatalog{self.catalog.clone()}
+    #[cfg(test)]
+    pub(crate) fn set_catalog_for_test(&mut self,catalog:CombatTrainingCatalog){self.catalog=catalog;}
     pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
         if catalog.profile==CombatTrainingProfile::Standard{return Err(STANDARD_ON_GYM66)}
         let id=crate::run_session::allocate_run_session_id()?;
-        Ok(Self{catalog,caps:crate::combat_policy_capacities(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false})
+        Ok(Self{catalog,caps:crate::combat_policy_capacities(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
     }
     /// M34s-a `standard-combat-v1` session: Standard capacities and the Standard combat view.
     pub fn new_standard(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
         if catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("the Standard combat session requires a standard-combat-v1 catalog"))}
         let id=crate::run_session::allocate_run_session_id()?;
-        Ok(Self{catalog,caps:crate::RunCapacities::standard_default(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false})
+        Ok(Self{catalog,caps:crate::RunCapacities::standard_default(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
     }
     pub fn observation_spec(&self)->Result<RunObservationSpec,Error>{match self.catalog.profile{
         CombatTrainingProfile::Standard=>crate::standard_combat_observation_spec(&self.caps),
@@ -178,6 +195,7 @@ impl CombatTrainingSession{
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;
         let (id,entry)=self.catalog.entry(entry_id)?.clone();
         if let TrainingEntry::Standard(start)=entry{return self.initialize_standard(effective,ordinal,id,start)}
+        if let TrainingEntry::Recipe(root)=entry{return self.initialize_recipe(effective,ordinal,id,&root)}
         #[cfg(test)]
         INITIALIZER_CALLS.with(|calls|calls.set(calls.get()+1));
         self.record=if self.catalog.profile==CombatTrainingProfile::M21{Some(crate::combat_replay::new_record(&self.catalog,&self.caps,self.partition,effective,ordinal,&id)?)}else{None};
@@ -187,25 +205,38 @@ impl CombatTrainingSession{
         let run=match entry{
             TrainingEntry::Legacy{entry,gold}=>if self.catalog.profile==CombatTrainingProfile::V2{Run::prepare_combat_training_v2_with_gold(entry,gold,rng)}else{Run::prepare_combat_training(entry,rng)},
             TrainingEntry::M21{start,..}=>Run::prepare_m21_watcher_combat(start,encounter,rng),
-            TrainingEntry::Standard(_)=>unreachable!("initialize_standard"),
+            TrainingEntry::Standard(_)|TrainingEntry::Recipe(_)=>unreachable!("initialize_standard"),
         }.map_err(Error::Core)?;
         self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();
         if let Err(e)=self.run.as_mut().unwrap().enter_training_combat(encounter){return Err(self.freeze(Error::Core(e)))}
         let result=self.publish();result.map_err(|e|self.freeze(e))
     }
     /// M34s-a: the Standard arm's reset: own the resources, enter through `enter_owned`, stop at the combat's terminal.
+    /// M34s-c: with a synthetic position the entry is built on a scratch Run: a rejected position changes nothing (the session,
+    /// its serial, seed and boundary are untouched); a core fault during entry still freezes the session as before.
     fn initialize_standard(&mut self,effective:u64,ordinal:u64,id:String,start:StandardCombatStart)->Result<CombatPolicyBoundary,Error>{
         let mut root=[0;32];root[..8].copy_from_slice(&effective.to_le_bytes());
-        let run=Run::prepare_standard_combat(start,RunRng::new(root,self.partition,ordinal)).map_err(Error::Core)?;
-        self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;
-        if let Err(e)=self.run.as_mut().unwrap().enter_standard_combat(){return Err(self.freeze(Error::Core(e)))}
+        let kind=if start.position.is_some(){"synthetic_position"}else{"fresh_start"};
+        start.validate_position().map_err(crate::standard_positions::position_error)?;
+        let mut run=Run::prepare_standard_combat(start,RunRng::new(root,self.partition,ordinal)).map_err(Error::Core)?;
+        let entered=run.enter_standard_combat_position();
+        if let Err(StandardStartError::Position(p))=entered{return Err(crate::standard_positions::position_error(p))}
+        self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;self.start_kind=kind;
+        if let Err(StandardStartError::Run(e))=entered{return Err(self.freeze(Error::Core(e)))}
+        let result=self.publish();result.map_err(|e|self.freeze(e))
+    }
+    /// M34s-c `reachable_recipe` (design §4.8): one world sampled from the recipe's cached public root, keyed by the reset's
+    /// seed, partition and ordinal (research purpose `start`); never the record's hidden state.
+    fn initialize_recipe(&mut self,effective:u64,ordinal:u64,id:String,root:&crate::PublicRoot)->Result<CombatPolicyBoundary,Error>{
+        let run=root.sample_start(effective,self.partition,ordinal)?;
+        self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;self.start_kind="reachable_recipe";
         let result=self.publish();result.map_err(|e|self.freeze(e))
     }
     /// Standard boundary: the Standard combat view; info carries the entry, start kind and terminal facts, never a seed.
     fn publish_standard(&mut self)->Result<CombatPolicyBoundary,Error>{
         let (observation,mut info,actions)=standard_combat_publication(self.run.as_ref().unwrap(),&self.caps)?;
         info["profile_id"]=json!(self.catalog.profile.id());info["entry_id"]=json!(self.entry_id);info["episode_ordinal"]=json!(self.ordinal);
-        info["start_kind"]=json!("fresh_start");
+        info["start_kind"]=json!(self.start_kind);
         let boundary=CombatPolicyBoundary{observation,token:[self.id,self.serial].into(),info};
         self.actions=actions;
         self.published=Some(boundary);self.decision()
@@ -329,8 +360,8 @@ pub const M21_WATCHER_COMBAT_CONTENT_ID:&str="spire-gym-m21-watcher-combat-conte
 pub const M21_WATCHER_COMBAT_RULES_ID:&str="spire-gym-native-m21-watcher-combat-rules-v1";
 pub const M21_WATCHER_COMBAT_CATALOG_SCHEMA_ID:&str="spire-gym-m21-watcher-combat-catalog-v1";
 #[derive(Clone,Debug)]
-enum TrainingEntry{Legacy{entry:CombatTrainingEntry,gold:u32},M21{encounter:EncounterId,start:M21WatcherCombatStart},Standard(StandardCombatStart)}
-impl TrainingEntry{fn encounter(&self)->EncounterId{match self{Self::Legacy{entry,..}=>entry.encounter,Self::M21{encounter,..}=>*encounter,Self::Standard(start)=>start.encounter}}}
+enum TrainingEntry{Legacy{entry:CombatTrainingEntry,gold:u32},M21{encounter:EncounterId,start:M21WatcherCombatStart},Standard(StandardCombatStart),Recipe(Box<crate::PublicRoot>)}
+impl TrainingEntry{fn encounter(&self)->EncounterId{match self{Self::Legacy{entry,..}=>entry.encounter,Self::M21{encounter,..}=>*encounter,Self::Standard(start)=>start.encounter,Self::Recipe(_)=>unreachable!("recipes start from their root")}}}
 fn m21_start_descriptor(s:&M21WatcherCombatStart)->Value{match s{
  M21WatcherCombatStart::Canonical=>json!({"kind":"canonical"}),
  M21WatcherCombatStart::Supplied(r)=>json!({"kind":"supplied","resources":{"hp":r.hp,"max_hp":r.max_hp,"gold":r.gold,

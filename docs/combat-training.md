@@ -306,7 +306,8 @@ The core example `cargo run -p spire-core --example m21_watcher_combat --locked 
 setup row, owned resources and the Standard combat view. Its catalog, terminal and info are specified in the
 [Standard Run API](standard-run-api.md#standard-combat-view-and-sessions). The Ironclad surfaces above
 (`IroncladCombatEnv`, `NativeIroncladCombatSession`, the batch) reject its catalogs with `RunUnsupportedBoundaryError`;
-use `StandardCombatEnv` / `NativeStandardCombatSession`.
+use `StandardCombatEnv` / `NativeStandardCombatSession`. M34s-c adds synthetic positions and reachable recipes to these
+catalogs ([tactical starts](standard-run-api.md#tactical-starts-m34s-c)).
 
 **Gym66 values changed by M34s-a (descriptors and fingerprints unchanged).** Both `ironclad-combat-v1` and `-v2` admit
 `shield_and_spear`: the displayed `intent_damage` now truncates Back Attack's ×1.5 before the floor, as the original

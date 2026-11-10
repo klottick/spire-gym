@@ -812,7 +812,7 @@ pub(super) fn opening_hand_count(state:&State,requested:usize)->usize{
 }
 /// Innate cards and, under complete items, an owned bottle's linked permanent instance share
 /// `initializeDeck`'s top placement (M27 relic research §3.8); the bottle is not Innate.
-fn opening_first(state:&State,card:&super::card_state::LiveCard)->bool{
+pub(super) fn opening_first(state:&State,card:&super::card_state::LiveCard)->bool{
     card.local.innate||state.item_context.as_ref().is_some_and(|items|items.complete_items()
         &&crate::items::relic_effects::structural::bottled(items,card.instance.0))
 }

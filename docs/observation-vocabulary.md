@@ -375,3 +375,11 @@ fixes (M34s-b)"):
    record from these profiles that contains a Stasis capture may replay to a different copy. In replay paths that do not
    compare observations, this happens without a typed `IncompatibleReplay` error. The one measured change is the frozen M23
    supplied-boss Bronze Automaton replay, step 12.
+6. **M34s-c tactical starts (`standard-combat-v1` only; no descriptor or fingerprint of any observation or view changes).**
+   A standalone entry that owns a Bottled relic now names its bottled deck card (`bottled_cards`; PM ruling), which is in
+   every opening hand as native (part a linked no card, so it was not innate; gameplay, `standard-combat-v1` only), or
+   names `null` for an owned bottle with no card (as part a played every bottle). A catalog whose owned bottle is missing
+   from `bottled_cards` is now rejected at load. Every
+   catalog descriptor entry carries `start_kind`, so every `standard-combat-v1` catalog fingerprint changes. Synthetic
+   positions and reachable recipes publish through the unchanged Standard combat view
+   ([Standard Run API](standard-run-api.md#tactical-starts-m34s-c)).

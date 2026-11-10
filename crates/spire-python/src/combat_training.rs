@@ -8,8 +8,9 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use pyo3::{
     exceptions::PyRuntimeError,
     prelude::*,
-    types::{PyAny, PyBytes, PyDict, PyList, PyString},
+    types::{PyAny, PyBytes, PyDict, PyList, PySequence, PyString},
 };
+use pyo3::exceptions::PyTypeError;
 use rust_numpy::{PyArrayDyn, PyArrayMethods, PyUntypedArrayMethods};
 use spire_core::combat::rng::Partition;
 use spire_env::{
@@ -64,6 +65,26 @@ fn catalog_bytes(value: &Bound<'_, PyAny>) -> PyResult<Vec<u8>> {
         "catalog must be UTF-8 JSON text or bytes",
         None,
     ))
+}
+
+fn records_bytes(value: Option<&Bound<'_, PyAny>>) -> PyResult<Vec<Vec<u8>>> {
+    let Some(value) = value.filter(|value| !value.is_none()) else {
+        return Ok(Vec::new());
+    };
+    if value.is_instance_of::<PyBytes>() || value.is_instance_of::<PyString>() {
+        return Err(PyTypeError::new_err("records must be a sequence of bytes"));
+    }
+    let sequence = value
+        .cast::<PySequence>()
+        .map_err(|_| PyTypeError::new_err("records must be a sequence of bytes"))?;
+    (0..sequence.len()?)
+        .map(|index| {
+            let item = sequence.get_item(index)?;
+            item.cast::<PyBytes>()
+                .map(|bytes| bytes.as_bytes().to_vec())
+                .map_err(|_| PyTypeError::new_err("records must contain only bytes"))
+        })
+        .collect()
 }
 
 fn parse_partition(py: Python<'_>, value: &str) -> PyResult<Partition> {
@@ -128,6 +149,7 @@ impl OwnedCombatSession {
         py: Python<'_>,
         catalog_json: &Bound<'_, PyAny>,
         partition: String,
+        records: Vec<Vec<u8>>,
         standard: bool,
     ) -> PyResult<Self> {
         let partition = parse_partition(py, &partition)?;
@@ -135,7 +157,7 @@ impl OwnedCombatSession {
         let catalog = py
             .detach(move || {
                 if standard {
-                    CombatTrainingCatalog::standard_from_json(&bytes)
+                    CombatTrainingCatalog::standard_from_json_with_records(&bytes, &records)
                 } else {
                     CombatTrainingCatalog::from_json(&bytes)
                 }
@@ -373,20 +395,10 @@ pub(crate) struct NativeStandardCombatSession {
 }
 
 macro_rules! single_combat_methods {
-    ($class:ident, $standard:expr) => {
+    ($class:ident, $standard:expr, $($constructor:tt)*) => {
         #[pymethods]
         impl $class {
-            #[new]
-            #[pyo3(signature=(catalog_json,*,partition="train".to_owned()))]
-            fn new(
-                py: Python<'_>,
-                catalog_json: &Bound<'_, PyAny>,
-                #[pyo3(from_py_with = label)] partition: String,
-            ) -> PyResult<Self> {
-                Ok(Self {
-                    inner: OwnedCombatSession::new(py, catalog_json, partition, $standard)?,
-                })
-            }
+            $($constructor)*
 
             fn observation_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
                 self.inner.observation_spec(py)
@@ -449,9 +461,21 @@ macro_rules! single_combat_methods {
         }
     };
 }
-
-single_combat_methods!(NativeIroncladCombatSession, false);
-single_combat_methods!(NativeStandardCombatSession, true);
+single_combat_methods!(NativeIroncladCombatSession, false,
+    #[new]
+    #[pyo3(signature=(catalog_json,*,partition="train".to_owned()))]
+    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, #[pyo3(from_py_with = label)] partition: String) -> PyResult<Self> {
+        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, Vec::new(), false)? })
+    }
+);
+single_combat_methods!(NativeStandardCombatSession, true,
+    #[new]
+    #[pyo3(signature=(catalog_json,*,records=None,partition="train".to_owned()))]
+    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, records: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] partition: String) -> PyResult<Self> {
+        let records = records_bytes(records)?;
+        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, records, true)? })
+    }
+);
 
 struct ParsedReset {
     seeds: Vec<Option<u64>>,

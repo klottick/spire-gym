@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{Value, json};
-use spire_core::{combat::{enemies::{A0_ENCOUNTER_SETUPS, EncounterKind}, rng::Partition}, content::{complete, CardId, Character, Catalog}, run::{BurningEliteBuff, TRAINING_CARDS, TRAINING_ENCOUNTERS_V2, TRAINING_POTIONS, TRAINING_RELICS}};
+use spire_core::{combat::{enemies::{A0_ENCOUNTER_SETUPS, EncounterKind}, rng::Partition}, content::{complete, CardId, CardType, Character, Catalog, NoteStorage, RelicId}, run::{BurningEliteBuff, TRAINING_CARDS, TRAINING_ENCOUNTERS_V2, TRAINING_POTIONS, TRAINING_RELICS}};
 use spire_env::{CombatTrainingCatalog, CombatTrainingSession, RunActionIndex, STANDARD_COMBAT_CATALOG_SCHEMA_ID, STANDARD_COMBAT_PROFILE_ID};
 use crate::{Decision, Driver, DriverError, IllegalProbe, StepOut, mix64, observation::hex};
 
@@ -349,6 +349,25 @@ pub fn generated_standard_catalog_json(seed: u64, character: Character, ascensio
             let relic = available[(start + offset) % available.len()];
             if !entry_relics.contains(&relic) { entry_relics.push(relic); }
         }
+        let deck_cards = deck.iter().filter_map(|row| CardId::from_name(row["card"].as_str()?)).collect::<Vec<_>>();
+        let mut used_bottle_cards = BTreeSet::new();
+        let mut bottled_cards = serde_json::Map::new();
+        for (relic, card_type) in [(RelicId::BottledFlame, CardType::Attack), (RelicId::BottledLightning, CardType::Skill),
+            (RelicId::BottledTornado, CardType::Power)] {
+            if !entry_relics.contains(&relic) { continue; }
+            let selected = deck_cards.iter().enumerate().find(|(index, card)| {
+                !used_bottle_cards.contains(index) && catalog.card(**card).is_some_and(|definition| {
+                    definition.card_type == card_type && definition.note_storage == NoteStorage::RemovablePermanent
+                })
+            });
+            if let Some((index, card)) = selected {
+                used_bottle_cards.insert(index);
+                bottled_cards.insert(relic.as_str().into(), json!({"card":card.as_str(),"upgrades":0,"misc":0}));
+            } else {
+                // An owned bottle with no eligible card stays owned and unlinked (native: no pickup selection).
+                bottled_cards.insert(relic.as_str().into(), serde_json::Value::Null);
+            }
+        }
         let slot_count = (if ascension >= 11 { 2 } else { 3 })
             + usize::from(entry_relics.contains(&spire_core::content::RelicId::PotionBelt)) * 2;
         let potion_count = (mix64(key ^ 0x082E_FA98_EC4E_6C89) as usize) % (slot_count + 1);
@@ -367,13 +386,15 @@ pub fn generated_standard_catalog_json(seed: u64, character: Character, ascensio
             let values = [-2, 1, 2, 3];
             json!({"neows_lament":values[(mix64(key ^ 0x3F84_D5B5_B547_0917) as usize) % values.len()]})
         } else { json!({}) };
-        json!({
+        let mut entry = json!({
             "id": format!("standard-{:02}-{}", entry_index, encounter.as_str()),
             "character": character.as_str(), "ascension": ascension, "encounter": encounter.as_str(),
             "burning": burning, "hp": 70, "max_hp": 80, "gold": 99,
             "deck": deck, "relics": entry_relics.iter().map(|id| id.as_str()).collect::<Vec<_>>(),
             "potions": entry_potions, "relic_counters": relic_counters
-        })
+        });
+        if !bottled_cards.is_empty() { entry["bottled_cards"] = bottled_cards.into(); }
+        entry
     }).collect::<Vec<_>>();
     serde_json::to_vec(&json!({
         "catalog_schema_id": STANDARD_COMBAT_CATALOG_SCHEMA_ID,

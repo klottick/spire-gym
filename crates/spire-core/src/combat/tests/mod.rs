@@ -243,3 +243,4 @@ mod m34s_draw_rows;
 mod m34s_knowledge;
 mod m34s_belief;
 mod m34s_card_ties;
+mod m34s_positions;
