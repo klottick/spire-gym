@@ -56,7 +56,23 @@ fn supported_full_damage(enemy: crate::content::EnemyId, ascension: u8) -> BTree
         .into_iter().map(|(id, base)| (id, DamageEntry { base, output: base })).collect()
 }
 
-fn valid_full_powers(powers: &[super::FullPowerEntry]) -> bool {
+/// Whether a decision would publish an empty hand under complete items (the hand-emptied seam's site).
+fn hand_emptied_applies(state:&State)->bool{
+    state.full_runtime&&state.item_context.as_ref().is_some_and(|items|items.complete_items())
+        &&state.phase==Phase::Decision&&state.player.hp>0&&state.piles.hand.is_empty()
+}
+/// The M27 hand-emptied seam's item work (Unceasing Top), dispatched with the state's facts. The engine runs it once per
+/// resolve when a decision would publish an empty hand; M34s-c positions use it to reject a hand the seam would refill.
+pub(super) fn hand_emptied_work(state:&mut State)->Option<Result<crate::items::RelicHookWork,super::InputError>>{
+    if !hand_emptied_applies(state){return None}
+    let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
+    facts.hand_size=state.piles.hand.len();facts.draw_size=state.piles.draw.len();
+    facts.discard_size=state.piles.discard.len();
+    facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
+    state.item_context.as_mut().map(|items|crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::HandEmptied,&facts))
+}
+
+pub(super) fn valid_full_powers(powers: &[super::FullPowerEntry]) -> bool {
     let mut ids = BTreeSet::new();
     powers.iter().all(|p| (if matches!(p.id.0, "strength" | "dexterity" | "focus") {
             (-999..=999).contains(&p.state.amount) && p.state.amount != 0
@@ -2962,18 +2978,9 @@ fn settle(state: &mut State, mut marks: super::model::ResolveMarks) -> Transitio
             dispatch_one(state);
             continue;
         }
-        if !marks.hand_emptied&&state.full_runtime
-            &&state.item_context.as_ref().is_some_and(|items|items.complete_items())
-            &&state.phase==Phase::Decision
-            &&state.player.hp>0&&state.piles.hand.is_empty() {
+        if !marks.hand_emptied&&hand_emptied_applies(state) {
             // M27 seam: hand-emptied
-            let work=if let Some(items)=state.item_context.as_mut(){
-                let mut facts=crate::items::dispatch::PhaseFacts::new(None,state.player.hp,state.player.max_hp,state.player.block);
-                facts.hand_size=state.piles.hand.len();facts.draw_size=state.piles.draw.len();
-                facts.discard_size=state.piles.discard.len();
-                facts.no_draw=state.player_full_powers.iter().any(|power|power.id.0=="no_draw"&&power.state.amount>0);
-                Some(crate::items::dispatch::combat_phase(items,crate::items::dispatch::ItemPhase::HandEmptied,&facts))
-            }else{None};
+            let work=hand_emptied_work(state);
             marks.hand_emptied=true;
             if let Some(work)=work {
                 let work=match work{Ok(work)=>work,Err(error)=>{retain_error(state,error.into());return Transition{status:TransitionStatus::Fault}}};

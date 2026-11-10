@@ -1,11 +1,11 @@
 # M34s Search and scenario API: public knowledge, belief branching, tactical starts
 
-Status: M34s-a merged (part 1 of 3, PR 99). M34s-b (belief and branching, part 2 of 3) is a source candidate
-(candidate-v4: candidate-v2 plus the recheck v1 fixes R1–R3 and the recheck v2 S1 scope disclosure), not accepted. M34s-c (tactical starts) follows on M34s-b's merge.
+Status: M34s-a merged (part 1 of 3, PR 99); M34s-b merged (part 2 of 3, PR 100). M34s-c (tactical starts, part 3 of 3) is
+a source candidate, not accepted; its merge closes M34s.
 
 M34s builds a public-information search and scenario layer on the [Standard Run API](../standard-run-api.md): the
-Standard combat view, the exact public knowledge a belief model conditions on, standalone Standard combat sessions, then
-(parts b and c) public belief branching and synthetic or reachable tactical starts. It makes no strategy or win claim and
+Standard combat view, the exact public knowledge a belief model conditions on, standalone Standard combat sessions, public
+belief branching (part b) and synthetic or reachable tactical starts (part c). It makes no strategy or win claim and
 has no original-runtime validation.
 
 ## Profile
@@ -92,6 +92,52 @@ has no original-runtime validation.
   checks real allocations against it. Part b adds no per-step cost on other profiles: the shared Python observation helper is unchanged from base, and the
   core step is measured unchanged on Gym66 and M10 ([Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b)).
 
+### M34s-c — tactical starts
+
+- **Start kinds.** `standard-combat-v1` entries are `fresh_start`, `synthetic_position` or `reachable_recipe`, labelled in
+  each catalog descriptor entry and in every reset's info (search branches stay `branch`). A synthetic position is never
+  presented as reachable gameplay ([Standard Run API](../standard-run-api.md#tactical-starts-m34s-c)).
+- **Positions (`spire-gym-combat-position-v1`, core `combat/position.rs`).** Enemy `hp` and powers are installed in
+  `enemies::setup_with_overrides` before the opening move selection (the opening intent follows the edited state; no damage
+  event is implied). The player, piles, scalars, ledgers and public knowledge are applied by `Combat::apply_position` at the
+  native opening's first main decision, on a scratch copy, per the overwrite table, then `validate_runtime`. Every check runs
+  before any state change: static checks at catalog parse (`Position::validate`), one trial construction, and a scratch Run at
+  reset (a rejected position leaves the session untouched; an engine fault during entry freezes it, as for every start).
+  Enemy edits need a fixed formation with seed-independent species (the shapes encounters reject them), and `slot` is the
+  formation index at validation, setup and the opening decision alike. Fail-closed allowlists: 35 amount-only player powers;
+  enemy start-relic powers, the entry's declared burning buff on every member with one amount, and each species'
+  amount-only setup powers; generated statuses and the character's generated cards. An empty hand the hand-emptied seam
+  would refill (Unceasing Top) is rejected. Hidden state (`order`, `seed`, `rng`, `intent`, `memory`, `instance`, `handle`, `turn`) is rejected by name.
+- **Recipes.** A record prefix (records map by SHA-256; ≤ 8 MiB each, ≤ 64 MiB total) is validated once with
+  `RunSession::from_record`; its M34s-b `PublicRoot` is cached and each reset samples a world keyed by the reset's seed,
+  partition and ordinal (`run::research_start_key`, research purpose `start`). Resets never read the record's hidden state.
+- **Lessons and paired starts.** Two lessons native-consistent at turn 1 (Ironclad exhaust engine vs Gremlin Nob before
+  Enrage; Silent poison vs Jaw Worm) and one smoke position each for Defect and Watcher, at A0 and A20, continue with random
+  legal actions to the combat's terminal (`tests/standard_positions.rs`). Python: `StandardCombatEnv(catalog, records=...)`,
+  `examples/tactical_lessons.py` (lessons, a recipe and paired evaluation starts).
+- **Fuzz.** spire-fuzz `standard-position-<character>-a<0|20>` specs build a random valid position per episode from the
+  allowlists and step it to a terminal or 40 decisions.
+
+### Global fix and disclosed rulings (M34s-c)
+
+| Id | Change | Profiles affected |
+| --- | --- | --- |
+| C-bottle (PM ruling c0 (6), gameplay) | A `standard-combat-v1` entry that owns a Bottled relic names its bottled deck card (`bottled_cards`; the pickup rule: a purgeable card of the bottle's type); the card is innate as native. Part a's standalone entries linked no card, so the bottled card was not innate. An owned bottle with no card is named explicitly (`null`: native when no card was eligible at pickup, or the card was removed, e.g. by Vampires); an owned bottle missing from `bottled_cards` is now `Input` naming the field | `standard-combat-v1` only (the Standard Run links bottles at pickup) |
+| Catalog descriptor | every Standard combat catalog entry carries `start_kind`; entries with bottles or a position carry their normalised `bottled_cards` / `position`; so every `standard-combat-v1` catalog fingerprint changes | `standard-combat-v1` |
+| Amended assertion | part a's `standard_combat_catalog_is_strict` row "position is rejected" now checks that an invalid position is rejected (M34s-c admits `position`) | test only |
+| Amended assertion (final review m3) | c's own `position_rejects_history_inconsistent_enemy_state` control lists Metallicize on a Gremlin Nob; it now declares `burning: "metallicize"` (an undeclared buff is rejected) | test only |
+
+An unknown position key is `Input` naming its object level and the admitted keys (`position`, `position.enemies[]`,
+`position.player`, `position.piles`, `position.piles card row`; verifier v1 note 1).
+
+Errata and rulings against the planning contract (planning-v2.1, c0 `task0-v1.md`): design §4.8 "channel counts zero" — with
+`orbs` listed, the Frost and Lightning channel totals equal the listed orbs of each kind (PM ruling c0 (5); zero would
+contradict a native Cracked Core start); design §4.1's `belief_branch` label is the merged `branch`; enemy `block` is set at
+the opening decision (the entry requires setup block 0) and listed enemy powers are also re-asserted there; enemy `hp` is
+bounded by the species' minimum max HP (the plan's "HP 0 or > max" bound depends on the seed's HP roll) and enemy edits need a
+fixed formation (slot species must not depend on the seed; `enemies::seed_chosen_species` names the shapes encounters, the
+only fixed formations whose species setup re-chooses, per the census test `enemy_edits_need_seed_independent_species`).
+
 ### Global fixes (M34s-b, final review I1 and recheck R1: a leak in a merged surface)
 
 The order-hiding draw-pile grids (Seek, Omniscience, Secret Technique, Secret Weapon) ordered their candidates by
@@ -142,6 +188,21 @@ and R-a1); design §4.5.1 / recheck R-I1's Seek example has Strike on top with p
 `Unrepresentable` there by the fail-closed row, as required). The normal form is sound (equal normal forms mean equal
 distributions) but not complete for structurally different mixtures; M34s-b decides root equality and digests.
 
+## Coverage across M34s (design goals; M34s-c closes the milestone)
+
+| Goal | Part | Where |
+| --- | --- | --- |
+| G1 Standard combat view | a | ledger a3; branches publish it (b3) |
+| G2 draw multiset, Intangible and Back Attack intent display | a | ledger a1 |
+| G3 `standard-combat-v1` (4 characters, A0–A20) | a, c | ledger a4; c adds start kinds and the bottled-card link (c1–c3) |
+| G4 exact public knowledge (draw posterior, pre-roll sets) | a, b | ledger a2; global fixes I1 and R1 (b) |
+| G5 belief model v1 | b | ledger b2 |
+| G6 branch arena | b | ledger b3 |
+| G7 privacy oracle with negative controls | b, c | ledger b2/b3 (P1–P7); c: hidden fields rejected by name, recipes re-sample (c1, c3) |
+| G8 synthetic positions and reachable recipes with labels | c | ledger c1–c3 |
+| G9 Python on the built extension | a, b, c | ledgers a5, b4, c4; lane P in each reconciliation |
+| G10 examples and measured costs | b, c | ledgers b5, c4; costs in the [Standard Run API](../standard-run-api.md) |
+
 ## Coverage ledger (M34s-a)
 
 | Plan item | Tests |
@@ -164,6 +225,17 @@ distributions) but not complete for structurally different mixtures; M34s-b deci
 | b4 Python | `tests/python/env/test_public_search.py` |
 | b5 examples, costs | `crates/spire-env/examples/public_lookahead.rs`, `examples/public_lookahead.py`, `tests::m34s_search_measure` (ignored) |
 | b6 fuzz | `spire-fuzz` search mode (P2 perturbation, token rejection, live-root invariance) |
+
+## Coverage ledger (M34s-c)
+
+| Plan item | Tests |
+| --- | --- |
+| c0 rebind, overwrite table, allowlists, lessons | evidence `m34s-c/task0-v1.md` (lanes 1–2 under `task0/`) |
+| c1 validation | `spire-env` `tests/standard_positions.rs` `position_rejects_invalid_inputs`, `position_rejects_history_inconsistent_enemy_state`, `rejected_reset_has_no_effect`; `tests::m34s_recipes::position_rejected_at_reset_has_no_effect`; `spire-core` `combat::tests::m34s_positions::{enemy_edits_need_seed_independent_species, setup_override_failure_is_a_position_rejection, enemy_burning_powers_follow_the_native_buff, empty_hand_under_unceasing_top_is_rejected}` |
+| c2 construction | `spire-core` `combat::tests::m34s_positions::*` (setup before the roll, named fields, generated cards, relic-start powers, Snecko costs, armed relic state, debuff flags, draw order and top, knowledge reset, ledgers, refreshed values, opening boundary, bottled card linked and unlinked, formation slots, continuation); `spire-env` `tests/standard_positions.rs` `position_is_labelled_synthetic`, `position_draw_order_is_gym_owned_and_seeded`, `position_continues_with_normal_actions_to_combat_end` |
+| c3 recipes | `spire-env` `tests::m34s_recipes::*`; `spire-core` `run::rng::m34c_reserved_domain::research_label_is_disjoint` |
+| c4 Python, lessons, paired starts | `tests/python/env/test_standard_positions.py`, `examples/tactical_lessons.py` |
+| c5 fuzz, docs | `spire-fuzz` `standard-position-*` specs and `tests/standard_positions.rs`; this profile and the API doc |
 
 ## Reconciliation
 
@@ -221,9 +293,47 @@ R2 in the arena), so every gate was rerun on c5.
 
 - M34s-b's belief is combat-scope only (L4) and sampling only (L3); Runic Dome roots are Unsupported (L2); the belief
   conditions on more than the view shows (L6) and not on dealt damage (L5). Run-level belief, Runic Dome belief, chance
-  enumeration and branch serialisation are out of M34s; positions and recipes are M34s-c.
+  enumeration and branch serialisation are out of M34s.
 - `standard-combat-v1` ends at the engine's combat terminal: settlement effects (Meat on the Bone, Face of Cleric) and
   rewards never apply, although the original applies some of them at victory.
 - The original randomises the Seek and Secret Technique/Secret Weapon grid order and sorts Omniscience's grid (by name,
   then rarity, status and type); the engine shows all four in one deterministic (card id, instance) order, which hides the
   physical draw order but is not the original's display order (design S19).
+
+### Reconciliation (M34s-c)
+
+Checks on the read-only c2 snapshot against base `f99f7de0` (M34s-c evidence `c2-checks/`; c1 in `c1-checks/`). c2 is c1
+plus verifier v1 note 1 (an unknown position key's `Input` names its object level) and the final review v1 fixes
+(`fixes-v2.md`: I1 seed-chosen species, I2 formation slots, I3 pre-roll test, m1 unlinked bottles, m2 Unceasing Top, m3
+burning buffs, m4 docs). Base outputs are reused from c1 (the base tree is unchanged).
+- **Workspace:** `cargo test --workspace` (c2) exit 0, 5,049 passed, 0 failed, 19 ignored. Against base, 35 test names
+  are added (2 ignored: `tactical_start_costs` and the 500-episode position fuzz) and none removed; part a's
+  `standard_combat_catalog_is_strict` is amended in place. Core diagnostics pass (m28/m29: 4,285; m34: 3,656), as do
+  spire-fuzz default (20) and diagnostics (31).
+- **Gameplay, attributed** (every difference from base maps to exactly one listed change):
+  - **Traversal:** every configuration equal to base (A0 control, A1–A20, A20 diagnostics); M33 gate PASS for A1–A20.
+  - **Fuzz gate** (500 episodes, 0 failure groups): all 400 non-Standard gameplay hashes and their trace hashes are equal.
+    Of the 100 `standard-combat-*` runs, every trace hash differs through the catalog descriptor (`start_kind`, and
+    `bottled_cards`), and exactly two gameplay hashes differ, both entries linking a bottled card (C-bottle: Watcher A0
+    Three Louse, Bottled Tornado; Defect A0 Gremlin Nob, Bottled Flame and Bottled Lightning). Entries owning a bottle with
+    no eligible card name it `null` and play as base. Against c1, gameplay is identical.
+  - **Frozen replay** 323/323 equal; **examples** equal (the released M22–M24 comparisons exit 1 identically on both).
+  - **Search driver** (6b): identical counts to M34s-b c5 (4,280 searches, 16,687 branches, 46,557 steps, 0 failures).
+- **Positions fuzz:** the eight `standard-position-*` specs, 500 episodes each (4,000), 0 failure groups; rejected
+  positions 6.9–9.9% per spec.
+- **Lane P** (built extension from the c2 snapshot): 345 Python tests passed. All nine captured fingerprints equal the
+  `f99f7de0` packet, including Standard `bf8e1d11…` and the Standard combat view `5d8147e1…`. `tactical_lessons.py`,
+  `public_lookahead.py` and `standard_run.py` (4 characters × A0, A20) exit 0. The retained n14g, bhl and tsw replays stop
+  exactly where base `f99f7de0` stops (n14g rechecked on the packet wheel: same batch, slot, seed and action).
+- **Mutations:** 32 mutants (`scripts/mutations_c2.py`, `logs/mutations-v3.log`), 31 killed, including all seven for the
+  final review fixes and M-c2-no-preroll-reset (the Philosopher's Stone row: a start relic shifts an enemy power during the
+  native opening and the position re-asserts it, so the published display is coarser than the native one; c1 wrongly
+  recorded this mutant as equivalent). One is equivalent: M-c1-extra-deck-rows (the core `replace_piles` re-checks missing
+  deck cards at the trial).
+- **Verifier v1** PASS-WITH-NOTES (one Minor, fixed red-first). **Final review v1** NOT READY (I1–I3, m1–m4); the fixes are
+  red-first (`logs/review-v1-red.log`), except the I3 row, whose red is the killed mutant.
+- **Tests not written red-first (disclosed):** the c1 env tests in `tests/standard_positions.rs` and `tests::m34s_recipes`
+  were written before the implementation but not run red, and the Python tests were written with it; the mutations above
+  show that they can fail.
+- **Costs** (release, `logs/measure-tactical-starts-v1.log`): recipe load 4.66–5.05 ms for a 3-step A20 prefix; recipe reset
+  76–116 µs; synthetic-position reset 163 µs against 151 µs fresh.

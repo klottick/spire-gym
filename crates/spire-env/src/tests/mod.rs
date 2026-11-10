@@ -19,3 +19,4 @@ mod m34s_transplant;
 mod m34s_search;
 mod m34s_search_measure;
 mod m34s_dup_pairs;
+mod m34s_recipes;

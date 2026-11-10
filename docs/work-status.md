@@ -1,6 +1,20 @@
 # Work status
 
-## Current snapshot — 2026-11-10, M34s-b belief and branching candidate (M34s-a merged)
+## Current snapshot — 2026-11-10, M34s-c tactical starts candidate (M34s-b merged)
+
+- M34s-b merged as PR #100 (main `f99f7de0`). M34s-c (part 3 of 3 of M34s, spire-dxo.71.3) is a source candidate on that
+  base, not accepted; its merge closes M34s. See the [M34s profile](milestones/m34s-search-scenario.md).
+- New: `standard-combat-v1` start kinds `fresh_start`, `synthetic_position` (`spire-gym-combat-position-v1`: enemy fields at
+  setup before the opening roll, player and piles applied at the native opening's main decision by one core owner per an
+  overwrite table, fail-closed allowlists, hidden state rejected by name) and `reachable_recipe` (a Standard record prefix
+  validated once; each reset re-samples hidden state from its public root), in Rust and Python, with lessons, paired starts
+  and fuzzed random positions.
+- Global fix (PM ruling): a `standard-combat-v1` entry owning a Bottled relic names its bottled card (`bottled_cards`), which
+  is innate as native; part a's standalone entries linked none. Every Standard combat catalog descriptor now carries
+  `start_kind` (catalog fingerprints change); view and observation fingerprints are unchanged.
+- Next: M35 (batching) and M36 (delivery).
+
+## Snapshot — 2026-11-10, M34s-b belief and branching candidate (M34s-a merged)
 
 - M34s-a merged as PR #99 (main `bdd82639`). M34s-b (part 2 of 3 of M34s, spire-dxo.71.2) is a source candidate on that
   base, not accepted. See the [M34s profile](milestones/m34s-search-scenario.md).

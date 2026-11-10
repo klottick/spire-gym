@@ -43,6 +43,12 @@ impl PublicRoot {
     pub fn fuzz_of(run: &Run, caps: &RunCapacities) -> Result<Self, Error> { Self::of(run, caps) }
     /// SHA-256 over the root's encoded Standard combat view and its public knowledge in normal form (public).
     pub fn digest(&self) -> [u8; 32] { self.digest }
+    /// M34s-c `reachable_recipe` (design §4.8): the world of one reset, keyed by its seed, partition and ordinal (research
+    /// purpose `start`), sampled from this root exactly as a branch is.
+    pub(crate) fn sample_start(&self, seed: u64, partition: spire_core::combat::rng::Partition, ordinal: u64) -> Result<Run, Error> {
+        let key = spire_core::run::research_start_key(seed, partition, ordinal, &self.digest);
+        self.run.belief_sample(&key).map_err(|u| Error::UnsupportedBoundary(u.reason()))
+    }
     /// Oracle only (never public): whether two roots hold the same canonical world, labels included (P1/P2 checks that
     /// canonicalisation removed every hidden value; stronger than root equality).
     #[cfg(any(test, feature = "fuzz-diagnostics"))]

@@ -169,6 +169,9 @@ pub struct RunState {
     pub(crate) we_meet_again:bool,
     /// M34s-a settlement-free combat scope; `None` in every Run (not printed by Debug).
     pub(crate) combat_scope:Option<CombatScope>,
+    /// M34s-c: the validated synthetic position of a combat-scope start, taken at entry (`None` everywhere else; not
+    /// printed by Debug).
+    pub(crate) combat_position:Option<Box<crate::combat::position::Position>>,
 }
 
 /// The derived field text, with `card_admission` printed only when `Complete`

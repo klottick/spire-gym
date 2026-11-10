@@ -4,7 +4,7 @@
 //! effects never run.
 use super::*;
 use crate::combat::enemies::{EncounterKind, A0_ENCOUNTER_SETUPS};
-use crate::content::{Character, EncounterId};
+use crate::content::{Character, EncounterId, RelicId};
 
 /// One owned Standard combat start. Resources are already owned: acquisition effects are not re-applied.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,6 +13,42 @@ pub struct StandardCombatStart {
     /// Elite encounters only: the Emerald-key buff the original rolls at entry, named by the caller.
     pub burning:Option<BurningEliteBuff>,
     pub resources:AuthoredRunStart,
+    /// M34s-c (PM ruling c0 (6)): each owned Bottled relic names its bottled deck instance (a bottle-eligible card, as
+    /// the relic's pickup selection requires; innate as native), or `None` for an owned bottle with no card.
+    pub bottled_cards:Vec<(RelicId,Option<u64>)>,
+    /// M34s-c synthetic position (design §4.8), validated here and applied at entry.
+    pub position:Option<crate::combat::position::Position>,
+}
+
+/// Why a combat-scope entry with a position failed: a Run error, or the position (typed; the Run is not usable then).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StandardStartError { Run(RunError), Position(crate::combat::position::PositionError) }
+
+impl StandardCombatStart {
+    /// The static position checks (design §4.8: before any state change).
+    pub fn validate_position(&self)->Result<(),crate::combat::position::PositionError>{
+        let Some(position)=&self.position else {return Ok(())};
+        let (_,kind)=standard_combat_encounter(self.encounter).ok_or(crate::combat::position::PositionError::Input("encounter outside the Standard setup table"))?;
+        position.validate(self.character,self.ascension,self.encounter,kind==EncounterKind::Elite,self.burning,&self.resources.deck)
+    }
+    /// PM ruling c0 (6): the bottle links (every owned bottle exactly once: an owned eligible deck instance, no shared card,
+    /// or explicitly none).
+    pub fn validate_bottled_cards(&self)->Result<(),&'static str>{
+        let bottles=[RelicId::BottledFlame,RelicId::BottledLightning,RelicId::BottledTornado];
+        for bottle in bottles.into_iter().filter(|b|self.resources.relics.contains(b)){
+            if self.bottled_cards.iter().filter(|(r,_)|*r==bottle).count()!=1{return Err("bottled_cards: an owned Bottled relic names exactly one bottled deck card")}
+        }
+        for (i,(relic,instance)) in self.bottled_cards.iter().enumerate(){
+            if !bottles.contains(relic)||!self.resources.relics.contains(relic){return Err("bottled_cards: relic is not an owned Bottled relic")}
+            if self.bottled_cards[..i].iter().any(|(r,x)|r==relic||x.is_some()&&x==instance){return Err("bottled_cards: duplicated bottle or card")}
+            // `None`: an owned bottle with no card (final review m1: native when no card was eligible at pickup, or the
+            // bottled card was later removed, e.g. by Vampires).
+            let Some(instance)=instance else {continue};
+            let card=self.resources.deck.iter().find(|c|c.instance==*instance).ok_or("bottled_cards: card is not in the deck")?;
+            if !crate::items::relic_effects::structural::bottle_eligible(*relic,card.id){return Err("bottled_cards: card is not eligible for this bottle")}
+        }
+        Ok(())
+    }
 }
 
 /// The combat's own terminal (design §4.4): its outcome, the HP before and after the combat's end-of-combat hooks
@@ -34,6 +70,8 @@ impl Run {
         if start.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::InvalidAscension(start.ascension))}
         let (act,kind)=standard_combat_encounter(start.encounter).ok_or(RunError::Unsupported("encounter outside the Standard setup table"))?;
         if start.burning.is_some()&&kind!=EncounterKind::Elite{return Err(RunError::Unsupported("burning requires an elite encounter"))}
+        start.validate_bottled_cards().map_err(RunError::Unsupported)?;
+        start.validate_position().map_err(|_|RunError::Unsupported("invalid synthetic position"))?;
         let CompleteCombatStart::Supplied(resources)=CompleteCombatStart::Supplied(start.resources).normalized_standard(start.character,start.ascension)?;
         let next=resources.deck.iter().map(|c|c.instance).max().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
         let mut run=Self::from_validated_combat_resources(RunConfig{character:start.character,ascension:start.ascension},resources,rng,next);
@@ -41,15 +79,39 @@ impl Run {
         run.state.card_admission=CardAdmission::Complete;run.state.item_admission=ItemAdmission::Complete;
         run.state.relic_pools=Some(crate::items::relic_pools::build(&run.state,&[])?);
         run.state.combat_scope=Some(CombatScope{encounter:start.encounter,burning:start.burning});
+        run.state.relic_cards=start.bottled_cards.iter().filter_map(|(r,i)|i.map(|i|(*r,i))).collect();
+        run.state.combat_position=start.position.map(Box::new);
         Ok(run)
     }
     /// Enter the prepared combat once, through `enter_owned` (an encounter decided at entry stops at its terminal).
     pub fn enter_standard_combat(&mut self)->Result<RunTransition,RunError>{
-        let scope=self.state.combat_scope.ok_or(RunError::InvalidAction)?;
-        if self.state.combat_progress.entered!=0{return Err(RunError::InvalidAction)}
-        let (_,kind)=standard_combat_encounter(scope.encounter).ok_or(RunError::InvalidAction)?;
+        self.enter_standard_combat_position().map_err(|e|match e{StandardStartError::Run(e)=>e,StandardStartError::Position(_)=>RunError::Unsupported("synthetic position rejected")})
+    }
+    /// Enter once; with a position (M34s-c, design §4.8): the enemy fields go into setup before the opening roll, and the
+    /// rest is applied at the native opening's main decision (`Combat::apply_position`, on a scratch copy). After a
+    /// position error the Run must be discarded (the native combat has been entered).
+    /// TEST-ONLY: install a position without validation (reaches the setup-override rejection path).
+    #[cfg(test)]
+    pub(crate) fn set_combat_position_for_test(&mut self,position:crate::combat::position::Position){self.state.combat_position=Some(Box::new(position));}
+    pub fn enter_standard_combat_position(&mut self)->Result<RunTransition,StandardStartError>{
+        let scope=self.state.combat_scope.ok_or(StandardStartError::Run(RunError::InvalidAction))?;
+        if self.state.combat_progress.entered!=0{return Err(StandardStartError::Run(RunError::InvalidAction))}
+        let (_,kind)=standard_combat_encounter(scope.encounter).ok_or(StandardStartError::Run(RunError::InvalidAction))?;
         let kind=match kind{EncounterKind::Monster=>MapNodeKind::Monster,EncounterKind::Elite=>MapNodeKind::Elite,EncounterKind::Boss=>MapNodeKind::Boss};
-        self.enter_owned(scope.encounter,CombatOrigin::Training{kind})
+        let position=self.state.combat_position.take();
+        let overrides=position.as_ref().map(|p|p.setup_overrides()).unwrap_or_default();
+        // A setup override the rolled formation cannot take is a position rejection (final review I1), never a Run fault.
+        let transition=self.enter_owned_with(scope.encounter,CombatOrigin::Training{kind},&overrides).map_err(|e|match e{
+            RunError::Unsupported(m) if !overrides.is_empty()&&[crate::combat::enemies::OVERRIDE_SLOT_ERROR,crate::combat::enemies::OVERRIDE_HP_ERROR].contains(&m)
+                =>StandardStartError::Position(crate::combat::position::PositionError::Input(m)),
+            e=>StandardStartError::Run(e),
+        })?;
+        if let Some(position)=position{
+            let combat=self.state.combat.as_ref().ok_or(StandardStartError::Run(RunError::InvalidAction))?;
+            let applied=combat.apply_position(&position,&self.state.deck).map_err(StandardStartError::Position)?;
+            self.state.combat=Some(applied);
+        }
+        Ok(transition)
     }
     /// M34s-b b1 (design §4.6.3): the combat-scope transplant of the live combat — one positive list of the Run-side
     /// inputs the combat and its Standard view read (character, ascension, act, floor, room label, HP, gold, deck and
@@ -73,7 +135,7 @@ impl Run {
             last_selection:None,last_resumed_parent:None,rng:RunRng::new([0;32],crate::combat::rng::Partition::Test,0),pending:None,
             next_instance:s.next_instance,resume_count:0,card_admission:s.card_admission,item_admission:s.item_admission,relic_pools:None,
             relic_cards:s.relic_cards.clone(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:s.potion_potencies.clone(),
-            we_meet_again:s.we_meet_again,combat_scope:Some(CombatScope{encounter:active.encounter,burning:None}),
+            we_meet_again:s.we_meet_again,combat_scope:Some(CombatScope{encounter:active.encounter,burning:None}),combat_position:None,
         };
         Ok(Run{state,candidates:vec![],next_choice:0})
     }
@@ -141,7 +203,7 @@ mod tests {
 
     fn start(hp:u32,relics:Vec<RelicId>)->StandardCombatStart{
         let deck=(1..=10).map(|instance|CardInstance{id:CardId::Bludgeon,instance,upgrades:1,misc:0}).collect();
-        StandardCombatStart{character:Character::Ironclad,ascension:0,encounter:EncounterId::Cultist,burning:None,
+        StandardCombatStart{character:Character::Ironclad,ascension:0,encounter:EncounterId::Cultist,burning:None,bottled_cards:vec![],position:None,
             resources:AuthoredRunStart{hp,max_hp:80,gold:7,deck,relics,potions:vec![None;3],relic_counters:Default::default()}}
     }
 

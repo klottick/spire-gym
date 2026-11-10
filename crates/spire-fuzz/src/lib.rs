@@ -7,6 +7,7 @@ mod observation;
 mod policy;
 mod profiles;
 mod runner;
+mod standard_positions_fuzz;
 mod run_driver;
 #[cfg(feature = "diagnostics")]
 mod search_mode;
@@ -25,6 +26,7 @@ pub use profiles::{RunProfileSpec, RUN_PROFILES};
 #[cfg(feature = "diagnostics")]
 pub use profiles::{CompleteItemsRunProfile, COMPLETE_ITEMS_RUN_PROFILES, complete_items_profile};
 pub use run_driver::FullRun;
+pub use standard_positions_fuzz::{standard_position_spec, StandardPositionCombat};
 pub use runner::{EpisodeOptions, EpisodeResult, OutcomeTotals, RunSummary, run_episode, run_repro, shrink_failure_case};
 #[cfg(feature = "diagnostics")]
 pub use search_mode::{run_search_mode, search_selection, SearchDriver, SearchFuzzStats, SearchSelection};

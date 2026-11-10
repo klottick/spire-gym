@@ -207,9 +207,7 @@ pub(crate) fn selection_done(id: RelicId, state: &mut RunState, chosen: &[u64]) 
         RelicId::BottledFlame | RelicId::BottledLightning | RelicId::BottledTornado => {
             let [instance] = chosen else { return Err(RunError::InvalidAction) };
             let card = owned(state, instance).ok_or(RunError::InvalidAction)?;
-            if !crate::run::mutations::removable(card.id) || Some(card_type(card.id)?) != bottle_type(id) {
-                return Err(RunError::InvalidAction)
-            }
+            if !bottle_eligible(id, card.id) { return Err(RunError::InvalidAction) }
             state.relic_cards.insert(id, *instance);
         }
         // Each chosen card is transformed once with the upgraded-transform flag.
@@ -243,6 +241,11 @@ const TINY_HOUSE_MAX_HP: u32 = 5;
 const TINY_HOUSE_GOLD: u32 = 50;
 const CAULDRON_POTIONS: usize = 5;
 const ORRERY_CARD_REWARDS: usize = 5;
+
+/// Whether `card` may be bottled by `bottle` (the pickup selection's rule: a purgeable card of the bottle's type).
+pub(crate) fn bottle_eligible(bottle: RelicId, card: CardId) -> bool {
+    crate::run::mutations::removable(card) && card_type(card).ok().is_some_and(|t| Some(t) == bottle_type(bottle))
+}
 
 fn bottle_type(id: RelicId) -> Option<CardType> {
     match id {

@@ -16,12 +16,14 @@ class StandardCombatEnv(_CombatEnv):
     """
 
     def __init__(
-        self, entry_catalog: dict[str, Any], *, partition: str = "train"
+        self, entry_catalog: dict[str, Any], *, records=None, partition: str = "train"
     ) -> None:
         super().__init__(
             entry_catalog,
             partition=partition,
             native_session_type=_native.NativeStandardCombatSession,
+            records=records,
+            supports_records=True,
         )
 
     def public_search(

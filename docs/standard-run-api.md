@@ -7,7 +7,8 @@ The milestone record, coverage ledger and reconciliation are in [M34](milestones
 checkpoints. Python (`crates/spire-python`, `python/spire_lab/gymnasium/run.py`) only transports them.
 
 Status: M34 source candidate, extended by M34s-a (public knowledge, the Standard combat view and `standard-combat-v1`
-sessions; [M34s profile](milestones/m34s-search-scenario.md)). M34s (search and scenario API), M35 (batching) and M36
+sessions), M34s-b (public belief and search) and M34s-c (synthetic positions and reachable recipes;
+[M34s profile](milestones/m34s-search-scenario.md)). M34s (search and scenario API), M35 (batching) and M36
 (delivery) build on this contract.
 Until the roadmap finishes, no compatibility is promised (fingerprints may change with disclosure). M35 and M36 freeze it.
 
@@ -20,6 +21,7 @@ Until the roadmap finishes, no compatibility is promised (fingerprints may chang
 | Observation fingerprint | SHA-256 over the canonical descriptor (`observation_spec()["fingerprint"]`); since M34s-a `bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae` (M34b: `efbc1253544a80c5c4a5b3a63cb8169a215229aaffa4ac2af5402252e195311a`; see [Records](#records-and-semantic-replay)) |
 | Standard combat view | `spire-gym-standard-combat-view-v1`, fingerprint `5d8147e13ded030c7faa501a8202eb2588915c2e1330b30cac5b06afc9f9916e` ([below](#standard-combat-view-and-sessions)) |
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
+| Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
 | Rules / content | `spire-gym-native-standard-rules-v3` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
@@ -249,7 +251,7 @@ wherever Shield and Spear is admitted, including Gym66 `ironclad-combat-v1/v2`, 
 owned resources:
 - **Catalog** `{"catalog_schema_id": "spire-gym-standard-combat-catalog-v1", "profile_id": "standard-combat-v1", "entries": [...]}`,
   ≤ 1 MiB, 1–256 entries, unknown fields rejected (hidden state such as `draw_order`, `seed`, `rng` or `hand` is never an
-  input; `position` and `recipe` arrive in M34s-c). Each entry: `id`, `character`, `ascension` (0–20), `encounter` (any row
+  input; M34s-c adds `bottled_cards`, `position` and recipe entries, [below](#tactical-starts-m34s-c)). Each entry: `id`, `character`, `ascension` (0–20), `encounter` (any row
   of the Standard setup table; its act is the setup act), optional `burning` (`strength`, `max_hp`, `metallicize` or
   `regeneration`; elite encounters only), `hp`, `max_hp` (≤ 999), `gold`, `deck` (1–999 `{card, upgrades, misc}`, with
   entry-generated cards such as Mark of Pain's Wounds counted toward the engine's 999-card bound; an unordered multiset;
@@ -264,7 +266,8 @@ owned resources:
   and rewards never apply. `info.terminal_reason` is `victory` (an all-enemies-escaped victory sets
   `info.all_enemies_escaped`), `death` or `escaped` (Smoke Bomb), with `hp_before_healing` and `hp_after_cleanup`. The
   reward is +1, −1 or 0; `truncated` is always false. Faults freeze the session and are never retried.
-- **Observation** is the Standard combat view; `info` adds `start_kind` (`fresh_start`), `entry_id` and `episode_ordinal`.
+- **Observation** is the Standard combat view; `info` adds `start_kind` (`fresh_start`, `synthetic_position` or
+  `reachable_recipe`; also in each catalog descriptor entry), `entry_id` and `episode_ordinal`.
   No seed or hidden value appears in observations, info or specs; the effective seed is only in `diagnostic()`, an explicit
   oracle (a twin session with that seed replays the true future).
 - The Ironclad Gym66 surfaces reject `standard-combat-v1` catalogs (and `new_standard` rejects Gym66 catalogs) with
@@ -450,6 +453,119 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
 - The allow-list over-denies replayed player targets (above). Branches refuse picks among identical draw-pile copies
   (above). There is no batching or vector search API (M35).
 
+## Tactical starts (M34s-c)
+
+A `standard-combat-v1` entry starts one of three ways, labelled `start_kind` in its catalog descriptor entry and in every
+reset's `info`. No start is ever presented as something it is not: a synthetic position is never labelled reachable.
+
+| `start_kind` | Input | Claim |
+| --- | --- | --- |
+| `fresh_start` | owned resources and an encounter | native-consistent owned resources; no reachability claim |
+| `synthetic_position` | the same plus a `position` | native-consistent synthetic state at the opening decision; never reachable or authentic gameplay |
+| `reachable_recipe` | `{"recipe": {"record_sha256", "steps"}}` | reachable under Standard: the record prefix is the independently checkable history; hidden state is re-sampled, not the record's |
+| `branch` | a search branch (M34s-b) | a public-belief sample of a root |
+
+**Bottled relics** (PM ruling, M34s-c). An entry that owns Bottled Flame, Bottled Lightning or Bottled Tornado names its
+bottled deck card: `"bottled_cards": {"bottled_flame": {"card": "bash", "upgrades": 0, "misc": 0}}` (a purgeable deck card of
+the bottle's type, the rule of the relic's pickup selection; the lowest instance of that row). The bottled card is in every
+opening hand, as native. An owned bottle with no card is named explicitly, `"bottled_flame": null` (native when no card was
+eligible at pickup, or the bottled card was later removed, for example by Vampires); an owned bottle missing from
+`bottled_cards` is `Input` naming the field. Before M34s-c a standalone entry's bottle linked no card, so its card was not
+innate (a part-a divergence, fixed here).
+
+### Positions (`spire-gym-combat-position-v1`)
+
+```json
+"position": {
+  "enemies": [{"slot": 0, "hp": 209, "block": 0, "powers": {"strength": 2}}],
+  "player":  {"powers": {"feel_no_pain": 3}, "block": 0, "energy": 3, "stance": "calm", "mantra": 5, "orb_slots": 3, "orbs": ["frost", "lightning"]},
+  "piles":   {"hand": [{"card": "bash", "upgrades": 0, "misc": 0, "generated": false}], "draw_top": [], "draw": [], "discard": [], "exhaust": []}
+}
+```
+
+Every field is optional. A position describes the **opening decision** of a native start and is applied in two places, so
+every mechanic sees a native-consistent history (core owner `combat::position`):
+1. **Enemy fields at setup.** `hp` and listed `powers` are the setup's initial values, installed after the HP roll and before
+   the opening move selection (`enemies::setup_with_overrides`): the opening intent is chosen from the edited state (a Champ at
+   209 of 420 HP opens with Anger) and no damage event is implied (split, wake-on-damage, Curl Up and threshold mechanics start
+   from these values). Native opening effects then act on the edited setup (burning Max HP, Neow's Lament, Preserved Insect,
+   Mercury Hourglass, start relics). Listed enemy powers are re-asserted at the opening decision (final amount = listed; 0
+   removes) and `block` is set there (the entry requires setup block 0, and no opening roll reads block).
+2. **Player and pile fields after the native opening.** At the native opening's first main decision, `Combat::apply_position`
+   (one owner, on a scratch copy) applies the overwrite table below, refreshes intent and card values, resets public
+   knowledge and runs `validate_runtime`. If the native opening stops anywhere else (Toolbox's offer, Gambling Chip's
+   discard, any opening selection), the position is `UnsupportedBoundary`.
+
+**Overwrite table.**
+
+| Family | Rule |
+| --- | --- |
+| Opening-generated cards (Ninja Scroll Shivs, Pure/Holy Water Miracles, the Enchiridion card, Mark of Pain Wounds, any non-deck card) | with `piles`: removed and de-issued; listed generated cards are issued anew (ids from max issued + 1) |
+| Piles | `piles` is all-or-nothing and replaces every pile: `hand` (≤ 10, left to right), `draw_top` (known top cards, top first), `draw` (an unordered multiset), `discard` and `exhaust` (oldest first). Every entry deck card appears exactly once (deck rows match `(card, upgrades, misc)`; deck cards are rebuilt as at entry); generated rows come from the allowlist below |
+| Innate / bottled | every deck card a native opening forces into the hand must be in `hand`, else `Input` |
+| Empty hand | an empty `hand` that the engine's hand-emptied seam would refill before publishing (Unceasing Top with cards to draw) is `Input`: native never publishes that decision |
+| Draw order | the gym's: the draw multiset in canonical order, shuffled on the session's shuffle stream; `draw_top` placed over it, known |
+| Draw-time effects | each hand card passes the shared draw callback in hand order: Confused / Snecko Eye costs roll on the session's card stream, Eviscerate's price; Void or Endless Agony in hand, or a Status/Curse in hand under Evolve or Fire Breathing, are `Input` (v1) |
+| Relic-start player powers (Vajra, Akabeko, Bronze Scales, Clockwork Souvenir, Oddly Smooth Stone, Data Disk, Fossilized Helix, Sling of Courage, Red Skull) | kept unless listed; a listed power is set (0 removes) |
+| Position-set Weak, Vulnerable, Frail | `skip_first` and `monster_source_grace` false: the first end of round decrements them |
+| Scalars (`block`, `energy`, `stance`, `mantra`, `orb_slots` + `orbs`) | replace the native values when listed; `stance`/`mantra` need Watcher card laws, `orbs` a combat with orb slots |
+| Relic counters and armed flags (Pen Nib, Nunchaku, Ink Bottle, Kunai, Shuriken, Ornamental Fan, Lantern, Necronomicon, …) | never set by a position: the native opening's values (none depends on the hand or piles at the opening decision) |
+| Ledgers | drawn this turn = the hand; played and discarded this turn empty; with `orbs` listed, the Frost and Lightning channel totals equal the listed orbs of each kind (PM ruling: every orb channelled this combat, none evoked) |
+| Public knowledge | reset: the draw knowledge is the known `draw_top` prefix over one bag; `revealed_order` is the hand; pre-roll sets are cleared and re-observed at the position's own boundary (the native opening's decision is never published) |
+
+**Allowlists (fail closed).** Player powers (whole state is the amount): `strength`, `dexterity`, `focus`, `weak`,
+`vulnerable`, `frail`, `artifact`, `thorns`, `metallicize`, `plated_armor`, `vigor`, `demon_form`, `feel_no_pain`,
+`dark_embrace`, `barricade`, `juggernaut`, `rage`, `noxious_fumes`, `a_thousand_cuts`, `after_image`, `envenom`, `accuracy`,
+`infinite_blades`, `storm`, `static_discharge`, `heatsinks`, `loop`, `mental_fortress`, `rushdown`, `like_water`, `devotion`,
+`battle_hymn`, `energized`, `draw_card_next_turn`, `next_turn_block`, amounts in the engine's own power domains. Enemy
+powers: `strength`, `vulnerable`, `weak`, `poison` (start relics) for every species; the entry's declared burning buff
+(`metallicize` for `burning: "metallicize"`, `regenerate` for `"regeneration"`), listed on every member with one amount, as
+the native start applies it; the species' own amount-only setup powers (`artifact` on Deca, Donu, Spire Shield, Spire
+Spear, Bronze Automaton, Spheric Guardian and Sentry; `thorns` on Spiker; `strength_up` on Orb Walker; `spore_cloud` on
+Fungi Beast; `plated_armor` on Shelled Parasite; `metallicize` on Lagavulin). Powers that only a species' own move applies
+(Gremlin Nob's Enrage, Cultist Ritual, …) and structural powers (Curl Up, Split, Mode Shift, Flight, …) are rejected.
+Enemy edits need a fixed formation whose species are seed-independent: the shapes encounters (Three Shapes, Four Shapes,
+Sphere and Two Shapes) choose each slot's species from the seed and reject `enemies` (one predicate,
+`enemies::seed_chosen_species`, shared with setup). `slot` is the formation index, the setup order (Reptomancer: Dagger 0,
+Reptomancer 1, Dagger 2), not the view's `logical_slot`; the same index names the enemy at setup and at the opening
+decision. `hp` is 1..= the species' minimum max HP at the ascension (so every seed admits it). Generated cards: Wound, Dazed, Burn, Slimed,
+Void (never in hand), the Silent's Shiv, and the Watcher's Miracle, Insight, Smite, Safety, Through Violence, Expunger,
+Beta and Omega.
+
+**Never an input:** draw order, seeds, streams, intents, AI memory, card instances or handles, the turn number (each rejected as `Input` naming
+the field), relic counters, HP, max HP or items (the entry's owned
+resources). Any other unknown key is `Input` naming its object level and the admitted keys. Every check runs before any
+state change: static checks at catalog parse, then one trial construction. A position rejected at reset (`Input`, including
+a setup override the rolled formation cannot take, or `UnsupportedBoundary`) changes nothing: the session's boundary,
+token, seed and ordinal are untouched. An engine fault during entry freezes the session, as for every start.
+
+### Reachable recipes
+
+A recipe entry is `{"id": ..., "recipe": {"record_sha256": "<hex>", "steps": N}}`; its record comes from the records map passed
+with the catalog (`CombatTrainingCatalog::standard_from_json_with_records(catalog, records)`, Python
+`StandardCombatEnv(catalog, records=[bytes, ...])`), matched by SHA-256; each record ≤ 8 MiB, all records ≤ 64 MiB. At load,
+once per entry: bad bytes, a missing or unmatched record, a non-Standard record or a prefix past the record is `Input`; a
+record from another identity (for example a pre-M34s Standard record, [Records](#records-and-semantic-replay)) or a
+diverging prefix is `IncompatibleReplay`; a prefix that does not stop at a supported combat decision is
+`UnsupportedBoundary`. `RunSession::from_record` replays the prefix and the combat's `PublicRoot` (M34s-b) is cached; the
+record's own world is discarded. Each reset samples one world from that root keyed by the reset's seed, partition and episode
+ordinal (`run::research_start_key`, label `spire-lab-research-rng-v1\0belief-v1\0start\0`; explicit seed ⇒ ordinal 0,
+implicit reset ⇒ ordinal + 1): every reset shows the same first view, different seeds give different hidden draw orders, and
+resets never follow the record's hidden future.
+
+**Measured costs (M34s-c; release, ignored measurement `tests::m34s_recipes::tactical_start_costs`, not gates).** A recipe's
+load (record parse, prefix replay and public root; once per entry) took a median of 4.7–5.0 ms for a 3-step A20 prefix, of
+which the Standard Run creation dominates; it grows with the prefix length as the replay does. A recipe reset (one belief
+sample and publication) took a median of 76–116 µs across the four characters. A synthetic position's reset (the native
+opening plus `apply_position`) took 163 µs against 151 µs for the same fresh start (Ironclad A20, Gremlin Nob).
+
+### Paired starts and lessons
+
+Starts are deterministic in `(entry, seed)`: two sessions (or two policies) reset with the same entry and seed see identical
+initial observations, and identical actions give identical trajectories. `examples/tactical_lessons.py` builds the two c0
+lessons (an Ironclad exhaust engine against Gremlin Nob before Enrage; a Silent poison turn against Jaw Worm), a recipe and
+paired evaluation starts.
+
 ## Privacy and ownership
 
 The encoder reads only `PublicDecision` and `PublicMap`. Public means what the player currently sees, or has been shown
@@ -478,7 +594,8 @@ branching and tactical starts:
 - No strategy, policy or win-rate claim. The examples (`crates/spire-env/examples/standard_rollout.rs`,
   `examples/standard_run.py`) take random legal actions.
 - Not covered here: batching, vector envs and autoreset (M35); throughput and memory gates and packaging (M36); checkpoint
-  and branch serialisation; synthetic positions and recipes (M34s-c).
+  and branch serialisation; turn-N, mid-turn and selection-boundary positions; setting enemy intents, AI memory or relic
+  counters (M34s-c limits, [below](#tactical-starts-m34s-c)).
 - `standard-combat-v1` is not the original runtime: its terminal is the engine's combat terminal (settlement effects
   that the original applies at victory, such as Meat on the Bone, are Run settlement here and do not apply).
 - Source acceptance is not Python delivery proof. Python results count only on a verified built extension (see

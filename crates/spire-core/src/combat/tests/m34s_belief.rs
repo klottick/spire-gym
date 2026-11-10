@@ -10,7 +10,7 @@ fn deck(cards: &[CardId]) -> Vec<CardInstance> {
 }
 /// An entered `standard-combat-v1` Run (the combat scope) at its opening decision.
 fn standalone(character: Character, ascension: u8, encounter: EncounterId, cards: &[CardId], relics: Vec<RelicId>, seed: u8) -> Run {
-    let start = StandardCombatStart { character, ascension, encounter, burning: None,
+    let start = StandardCombatStart { character, ascension, encounter, burning: None, bottled_cards: vec![], position: None,
         resources: AuthoredRunStart { hp: 70, max_hp: 80, gold: 50, deck: deck(cards), relics, potions: vec![None; if ascension >= 11 { 2 } else { 3 }], relic_counters: Default::default() } };
     let mut run = Run::prepare_standard_combat(start, RunRng::new([seed; 32], rng::Partition::Test, 0)).unwrap();
     run.enter_standard_combat().unwrap();

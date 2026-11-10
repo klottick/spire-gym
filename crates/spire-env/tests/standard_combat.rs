@@ -53,7 +53,8 @@ fn standard_combat_catalog_is_strict() {
         ("seed", Box::new(|e| e["seed"] = json!(7))),
         ("rng", Box::new(|e| e["rng"] = json!({}))),
         ("hand", Box::new(|e| e["hand"] = json!([]))),
-        ("position (M34s-c)", Box::new(|e| e["position"] = json!({}))),
+        // M34s-c admits `position` (design §4.8); an invalid one is still `Input` (amended from "position is rejected").
+        ("invalid position (M34s-c)", Box::new(|e| e["position"] = json!({"unknown": 1}))),
         ("recipe (M34s-c)", Box::new(|e| e["recipe"] = json!({}))),
         ("unknown character", Box::new(|e| e["character"] = json!("necromancer"))),
         ("ascension 21", Box::new(|e| e["ascension"] = json!(21))),

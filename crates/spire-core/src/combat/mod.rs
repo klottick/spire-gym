@@ -30,6 +30,7 @@ mod hooks;
 mod view;
 pub mod knowledge;
 pub mod belief;
+pub mod position;
 pub mod public_ids;
 pub mod intents;
 pub(crate) mod observe;

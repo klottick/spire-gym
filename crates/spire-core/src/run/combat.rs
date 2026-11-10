@@ -100,7 +100,7 @@ fn prepare_settlement(state:&RunState) -> Result<(CombatExit,CombatRecord,u64,Op
     Ok((exit,record,settled,local_visits))
 }
 
-fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
+fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin,overrides:&[enemies::EnemySetupOverride]) -> Result<(CombatEntry,RunRng,crate::items::NativeBattleContext),RunError> {
     // An M26 complete-card Run is not the frozen M16 authored Defect profile.
     let m16=state.authored_combat&&state.character==Character::Defect&&state.card_admission==super::CardAdmission::Profile;
     let m16_metadata=if m16 {
@@ -138,13 +138,13 @@ fn prepare_entry(state:&RunState, encounter:EncounterId,origin:CombatOrigin) -> 
     let mut battle=crate::items::NativeBattleContext{elite_trigger:event_elite||m16_metadata.is_some_and(|(_,kind)|kind==enemies::EncounterKind::Elite)||matches!(origin,CombatOrigin::MapRoom{kind:MapNodeKind::Elite,..}|CombatOrigin::Training{kind:MapNodeKind::Elite}),boss:false,burning:None,m15:super::rooms::is_m15(state),m20:super::rooms::is_m20(state)};
     // An event combat fights its encounter's own setup act (design §5.7: Mind Bloom's Act 1 boss in Act 3).
     let event_act=matches!(origin,CombatOrigin::Event{..}).then(||enemies::A0_ENCOUNTER_SETUPS.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,_)|*act)).flatten();
-    let mut entry=enemies::setup(encounter,m16_metadata.map(|(act,_)|act).or(event_act).unwrap_or(state.act),state.ascension,&mut rng,SetupContext {
+    let mut entry=enemies::setup_with_overrides(encounter,m16_metadata.map(|(act,_)|act).or(event_act).unwrap_or(state.act),state.ascension,&mut rng,SetupContext {
         player:PlayerState {hp:state.hp as i32,max_hp:state.max_hp as i32,block:0,
             energy:3,max_energy:3,draw_per_turn:5,powers:vec![]},player_powers:vec![],
         character:state.character,cards:state.deck.iter().map(|card|
             crate::combat::permanent_live_card_with_misc(card.id,CardInstanceId(card.instance),card.upgrades,card.misc)).collect(),
         opening_draw:state.deck.len().min(5),encounter_visit:state.combat_progress.entered,
-    })?;
+    },overrides)?;
     // G13 (PM source check m28c Q3): a boss fight is one with a BOSS-type monster, whatever the room
     // (Pantograph, Slaver's Collar; Smoke Bomb already reads the enemy type in `combat::smoke`).
     battle.boss=entry.setup.enemies.iter().any(|enemy|enemies::is_boss_type(enemy.enemy_id));
@@ -377,7 +377,7 @@ impl Run {
             keys:[false;3],act:1,floor:0,room:"AuthoredCombat",act4_enabled:true,neow_eligible:profile.neow_eligible,
             seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
             history:RunHistory::default(),combat:None,selected_neow:None,fault:None,last_selection:None,
-            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,combat_scope:None,
+            last_resumed_parent:None,rng,pending:None,next_instance,resume_count:0,card_admission:Default::default(),item_admission:Default::default(),relic_pools:None,relic_cards:Default::default(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:Default::default(),we_meet_again:false,combat_scope:None,combat_position:None,
         },candidates:vec![],next_choice:0}
     }
 
@@ -387,12 +387,17 @@ impl Run {
     }
 
     pub(super) fn enter_owned(&mut self, encounter:EncounterId, origin:CombatOrigin) -> Result<RunTransition,RunError> {
+        self.enter_owned_with(encounter,origin,&[])
+    }
+
+    /// `enter_owned` with M34s-c synthetic-position enemy setup overrides (design §4.8 (1)).
+    pub(super) fn enter_owned_with(&mut self, encounter:EncounterId, origin:CombatOrigin, overrides:&[enemies::EnemySetupOverride]) -> Result<RunTransition,RunError> {
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
         if self.state.terminal.is_some() { return Err(RunError::Terminal); }
         if self.state.combat.is_some() || self.state.active_combat.is_some()
             || self.state.pending.is_some() { return Err(RunError::InvalidAction); }
         let entered=self.state.combat_progress.entered.checked_add(1).ok_or(RunError::Unsupported("combat visit exhausted"))?;
-        let (entry,rng,battle)=prepare_entry(&self.state,encounter,origin)?;
+        let (entry,rng,battle)=prepare_entry(&self.state,encounter,origin,overrides)?;
         let context=CombatItemContext::take_from_run(&mut self.state)
             .with_native_room(PotionRoomPhase::Combat,self.state.map.as_ref()).with_battle_context(battle);
         let context=if matches!(origin,CombatOrigin::Training{..}){context.with_training_room()}else{context};
