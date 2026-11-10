@@ -15,3 +15,7 @@ mod m34s_records;
 mod m34s_standard_combat_view;
 mod m34s_standard_combat;
 mod m34s_measure;
+mod m34s_transplant;
+mod m34s_search;
+mod m34s_search_measure;
+mod m34s_dup_pairs;

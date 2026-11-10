@@ -2,13 +2,14 @@
 use std::sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}};
 use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError,PyTypeError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
-use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10};
+use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView};
 use crate::numeric;
 
 create_exception!(_native,RunInputError,PyValueError);
 create_exception!(_native,RunStateError,PyRuntimeError);
 create_exception!(_native,RunFaultError,PyRuntimeError);
 create_exception!(_native,RunUnsupportedBoundaryError,PyNotImplementedError);
+create_exception!(_native,RunBudgetError,RunStateError);
 pub(crate) fn integer<T:for<'a,'py> FromPyObject<'a,'py>>(v:&Bound<'_,PyAny>)->PyResult<T>{
     if !v.is_exact_instance_of::<PyInt>(){return Err(RunInputError::new_err("expected built-in integer, not bool"))}
     v.extract().map_err(|_|RunInputError::new_err("integer outside native range"))
@@ -18,6 +19,7 @@ pub(crate) fn boolean(v:&Bound<'_,PyAny>)->PyResult<bool>{if !v.is_exact_instanc
 pub(crate) fn error(e:RunSessionError)->PyErr{match e{
     RunSessionError::Input(s)=>RunInputError::new_err(s),RunSessionError::StaleToken=>RunStateError::new_err("stale Run decision token"),RunSessionError::NotReset=>RunStateError::new_err("Run has not been reset"),RunSessionError::Terminal=>RunStateError::new_err("Run is terminal"),RunSessionError::Closed=>RunStateError::new_err("Run is closed"),
     RunSessionError::UnsupportedBoundary(s)=>RunUnsupportedBoundaryError::new_err(s),RunSessionError::DeliveryFault(s)=>RunFaultError::new_err(s),RunSessionError::Capacity{group,required,capacity}=>RunFaultError::new_err(format!("Run capacity {group}: {required} > {capacity}")),RunSessionError::IncompatibleReplay(s)=>RunInputError::new_err(s),RunSessionError::Core(_)=>RunFaultError::new_err("native Run fault; inspect privileged reproduction"),
+    RunSessionError::Budget(s)=>RunBudgetError::new_err(s),RunSessionError::BranchFaulted=>RunStateError::new_err("search branch is faulted"),
 }}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart,M10IroncladPolicy,Standard}
@@ -113,6 +115,38 @@ pub(crate) fn token(v:&Bound<'_,PyAny>)->PyResult<RunDecisionToken>{
     let t=v.cast::<PyTuple>().map_err(|_|RunInputError::new_err("token must be a two-integer tuple"))?;
     if t.len()!=2{return Err(RunInputError::new_err("token must have length two"))}Ok([integer(&t.get_item(0)?)?,integer(&t.get_item(1)?)?].into())
 }
+
+pub(crate) fn search_limits(live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_branch:&Bound<'_,PyAny>,total:&Bound<'_,PyAny>)->PyResult<SearchLimits>{
+    Ok(SearchLimits{max_live_branches:integer(live)?,max_branches:integer(branches)?,max_steps_per_branch:integer(per_branch)?,max_total_steps:integer(total)?})
+}
+fn search_error()->PyErr{RunStateError::new_err("public search is closed")}
+pub(crate) fn public_search(root:PublicRoot,research_seed:u64,limits:SearchLimits)->PyResult<NativePublicSearch>{
+    PublicSearch::new(root,SearchConfig{research_seed,limits}).map(|inner|NativePublicSearch{inner:Some(inner)}).map_err(error)
+}
+#[pyclass(module="spire_lab._native",unsendable)]
+pub(crate) struct NativePublicSearch{inner:Option<PublicSearch>}
+#[pymethods]
+impl NativePublicSearch{
+    fn __repr__(&self)->String{match &self.inner{Some(s)=>{let c=s.counters();format!("<NativePublicSearch live_branches={} branches_created={} total_steps={}>",c["live_branches"],c["branches_created"],c["total_steps"])},None=>"<NativePublicSearch closed>".to_owned()}}
+    fn __reduce__(&self)->PyResult<()>{Err(PyTypeError::new_err("PublicSearch is in-memory only and cannot be pickled"))}
+    #[pyo3(signature=(sample=None))]
+    fn branch(&mut self,sample:Option<&Bound<'_,PyAny>>)->PyResult<u64>{let sample=sample.filter(|v|!v.is_none()).map(integer::<u64>).transpose()?;self.inner.as_mut().ok_or_else(search_error)?.branch(sample).map(|b|b.0).map_err(error)}
+    fn decision<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>)->PyResult<Bound<'py,PyDict>>{let b=BranchId(integer(branch)?);let d=self.inner.as_ref().ok_or_else(search_error)?.decision(b).map_err(error)?;let out=PyDict::new(py);out.set_item("obs",observation(py,d.observation)?)?;let t:[u64;2]=d.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("info",numeric::descriptor(py,d.info.to_string())?)?;Ok(out)}
+    #[pyo3(signature=(branch,token,action,view="full".to_owned()))]
+    fn step<'py>(&mut self,py:Python<'py>,branch:&Bound<'_,PyAny>,token:&Bound<'_,PyAny>,action:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]view:String)->PyResult<Bound<'py,PyDict>>{
+        let view=match view.as_str(){"full"=>BranchView::Full,"mask"=>BranchView::Mask,_=>return Err(RunInputError::new_err("view must be 'full' or 'mask'"))};
+        let result=self.inner.as_mut().ok_or_else(search_error)?.step(BranchId(integer(branch)?),crate::run_env::token(token)?,RunActionIndex(integer(action)?),view).map_err(error)?;
+        let out=PyDict::new(py);let obs=match result.observation{Some(o)=>Some(observation(py,o)?),None=>None};out.set_item("obs",obs)?;let count=result.action_mask.len();out.set_item("action_mask",numeric::array(py,result.action_mask,&[count])?)?;let t:[u64;2]=result.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("reward",result.reward)?;out.set_item("terminated",result.terminated)?;out.set_item("truncated",result.truncated)?;out.set_item("info",numeric::descriptor(py,result.info.to_string())?)?;Ok(out)
+    }
+    fn fork(&mut self,branch:&Bound<'_,PyAny>)->PyResult<u64>{self.inner.as_mut().ok_or_else(search_error)?.fork(BranchId(integer(branch)?)).map(|b|b.0).map_err(error)}
+    fn actions(&self,branch:&Bound<'_,PyAny>)->PyResult<Vec<i64>>{self.inner.as_ref().ok_or_else(search_error)?.actions(BranchId(integer(branch)?)).map_err(error)}
+    #[pyo3(signature=(branch=None))]
+    fn close(&mut self,branch:Option<&Bound<'_,PyAny>>)->PyResult<()>{if let Some(branch)=branch{self.inner.as_mut().ok_or_else(search_error)?.close(BranchId(integer(branch)?)).map_err(error)}else{self.inner=None;Ok(())}}
+    #[pyo3(signature=(branch,research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps))]
+    fn public_search<'py>(&self,branch:&Bound<'_,PyAny>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>)->PyResult<Self>{let root=self.inner.as_ref().ok_or_else(search_error)?.public_root(BranchId(integer(branch)?)).map_err(error)?;public_search(root,integer(research_seed)?,search_limits(max_live_branches,max_branches,max_steps_per_branch,max_total_steps)?)}
+    fn counters<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let v=self.inner.as_ref().ok_or_else(search_error)?.counters();numeric::descriptor(py,v.to_string())}
+    fn spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let v=self.inner.as_ref().ok_or_else(search_error)?.spec();numeric::descriptor(py,v.to_string())}
+}
 /// M34c privileged exact checkpoint: opaque, in-memory only (pickling/copying raise), redacted repr, identity equality.
 #[pyclass(frozen,module="spire_lab._native",name="ExactCheckpoint")]
 pub(crate) struct PyExactCheckpoint{inner:spire_env::ExactCheckpoint,profile:RunProfile,episode_return:i64}
@@ -180,6 +214,13 @@ impl NativeRunSession{
         let _lease=self.begin()?;
         let (b,effective,creation)=py.detach(||{let s=self.session.lock().unwrap_or_else(|p|p.into_inner());Ok::<_,RunSessionError>((s.decision()?,s.effective_seed(),s.standard_creation()))}).map_err(error)?;
         self.deliver(self.current(py,b,effective,creation))
+    }
+    #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps))]
+    fn public_search(&self,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>)->PyResult<NativePublicSearch>{
+        let limits=search_limits(max_live_branches,max_branches,max_steps_per_branch,max_total_steps)?;
+        let _lease=self.begin()?;
+        let root=self.session.lock().unwrap_or_else(|p|p.into_inner()).public_root().map_err(error)?;
+        public_search(root,integer(research_seed)?,limits)
     }
     /// M34c privileged exact checkpoint (oracle: restoring replays the same hidden future).
     fn exact_checkpoint(&self,py:Python<'_>)->PyResult<PyExactCheckpoint>{
@@ -255,4 +296,4 @@ impl NativeRunSession{
         d.set_item("final_decision_error",report.final_decision_error.map(|_|"native core fault; final obs is the last readable boundary"))?;Ok(d)
     }
 }
-pub(crate) fn register(m:&Bound<'_,PyModule>)->PyResult<()>{let py=m.py();m.add("RunInputError",py.get_type::<RunInputError>())?;m.add("RunStateError",py.get_type::<RunStateError>())?;m.add("RunFaultError",py.get_type::<RunFaultError>())?;m.add("RunUnsupportedBoundaryError",py.get_type::<RunUnsupportedBoundaryError>())?;Ok(())}
+pub(crate) fn register(m:&Bound<'_,PyModule>)->PyResult<()>{let py=m.py();m.add_class::<NativePublicSearch>()?;m.add("RunInputError",py.get_type::<RunInputError>())?;m.add("RunStateError",py.get_type::<RunStateError>())?;m.add("RunFaultError",py.get_type::<RunFaultError>())?;m.add("RunUnsupportedBoundaryError",py.get_type::<RunUnsupportedBoundaryError>())?;m.add("RunBudgetError",py.get_type::<RunBudgetError>())?;Ok(())}

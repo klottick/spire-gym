@@ -95,7 +95,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&StateEffect)->Result<(
             let mut candidates=state.piles.draw.iter().map(OwnedCard::handle).collect::<Vec<_>>();
             if candidates.len()<=*count{for card in candidates{crate::combat::piles::move_draw_card(state,&card,CardDestination::Hand,crate::combat::knowledge::Removal::Grid)?;}}
             else{
-                crate::combat::piles::sort_draw_grid(state,&mut candidates);
+                crate::combat::piles::open_draw_grid(state,&mut candidates);
                 open(state,&effect.source,candidates,Z::Draw,*count,O::SeekRetrieve,D::Hand)?;
             }
         },

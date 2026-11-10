@@ -59,6 +59,8 @@ pub struct EpisodeResult {
     pub failure: Option<FuzzFailure>,
     #[cfg(feature = "diagnostics")]
     pub draw_knowledge_stats: DrawKnowledgeStats,
+    #[cfg(feature = "diagnostics")]
+    pub search_fuzz_stats: Option<crate::SearchFuzzStats>,
 }
 
 #[cfg(feature = "diagnostics")]
@@ -175,6 +177,9 @@ pub struct RunSummary {
     pub gameplay_hashes: Vec<String>,
     #[cfg(feature = "diagnostics")]
     pub draw_knowledge_by_spec: BTreeMap<String, DrawKnowledgeStats>,
+    #[cfg(feature = "diagnostics")]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub search_fuzz_by_seed: BTreeMap<String, crate::SearchFuzzStats>,
 }
 
 impl RunSummary {
@@ -189,6 +194,8 @@ impl RunSummary {
                 "encode":"harness projection (spire-fuzz-complete-public-v1)","fingerprint":"n/a"}));
             summary.driver_descriptions.insert("items".into(), json!({"driver":"CompleteItemsRun","profile":"M27 complete items",
                 "starts_at":"Act4 map","neow":false,"encode":"n/a"}));
+            summary.driver_descriptions.insert("search".into(), json!({"driver":"SearchDriver","mode":"m34s-b public-search invariance and belief audit",
+                "run_scope":"first two Standard Run combats, at most 40 decisions","standalone_scope":"seed-rotated standard-combat-v1 entry, at most 40 decisions"}));
         }
         summary
     }
@@ -242,6 +249,12 @@ impl RunSummary {
                 .map(String::as_str).unwrap_or("unprofiled").to_owned();
             self.draw_knowledge_by_spec.entry(spec).or_default().merge(&result.draw_knowledge_stats);
         }
+        #[cfg(feature = "diagnostics")]
+        if result.driver == "search" {
+            if let Some(stats) = result.search_fuzz_stats.as_ref() {
+                self.search_fuzz_by_seed.insert(result.seed.to_string(), stats.clone());
+            }
+        }
         if let Some(mut failure) = result.failure {
             if failure.occurrences == 0 { failure.occurrences = 1; }
             if failure.example_seeds.is_empty() { failure.example_seeds.push(failure.seed); }
@@ -284,6 +297,14 @@ impl RunSummary {
             "outcomes_by_character":self.outcomes_by_character,"outcomes_by_encounter":self.outcomes_by_encounter,
             "outcomes_by_policy":self.outcomes_by_policy,
             "unsupported_encounters":self.unsupported_encounters,"failures":failures,"trace_hashes":self.trace_hashes});
+        #[cfg(feature = "diagnostics")]
+        let stable = {
+            let mut stable = stable;
+            if !self.search_fuzz_by_seed.is_empty() {
+                stable["search_fuzz_by_seed"] = serde_json::to_value(&self.search_fuzz_by_seed).unwrap_or(Value::Null);
+            }
+            stable
+        };
         let bytes = serde_json::to_vec(&stable).unwrap_or_default();
         hex(&Sha256::digest(bytes))
     }
@@ -304,6 +325,8 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
         unsupported: 0, failure: None,
         #[cfg(feature = "diagnostics")]
         draw_knowledge_stats: DrawKnowledgeStats::default(),
+        #[cfg(feature = "diagnostics")]
+        search_fuzz_stats: None,
     };
     let mut actions = Vec::<usize>::new();
     let mut prefix_hashes = Vec::<String>::new();
@@ -498,6 +521,8 @@ fn run_episode_inner(mut driver: Box<dyn Driver>, seed: u64, policy: Policy, opt
     }
     result.reached_combat = driver.reached_combat();
     result.labels = driver.labels();
+    #[cfg(feature = "diagnostics")]
+    { result.search_fuzz_stats = driver.search_fuzz_stats(); }
     result.gameplay_hash = gameplay.finish();
     result
 }
@@ -790,6 +815,10 @@ pub(crate) fn driver_from_config(class: &str, config: &Value) -> Result<Box<dyn 
         }
         #[cfg(not(feature = "diagnostics"))]
         "items" => Err("CompleteItemsRun repro requires --features diagnostics".into()),
+        #[cfg(feature = "diagnostics")]
+        "search" => Ok(Box::new(crate::SearchDriver::new())),
+        #[cfg(not(feature = "diagnostics"))]
+        "search" => Err("search repro requires --features diagnostics".into()),
         _ => Err(format!("unknown fuzz driver {class}")),
     }
 }
@@ -971,6 +1000,8 @@ mod tests {
             profile_cutoff: None, unsupported: 0,
             #[cfg(feature = "diagnostics")]
             draw_knowledge_stats: DrawKnowledgeStats::default(),
+            #[cfg(feature = "diagnostics")]
+            search_fuzz_stats: None,
             failure: Some(FuzzFailure {
                 driver: "complete".into(), driver_config: json!({"encounter":format!("cultist-{seed}")}),
                 feature_set: "diagnostics".into(), seed, policy: Policy::First, actions: vec![], step: 0,
@@ -1001,6 +1032,8 @@ mod tests {
             capped_reason: Some("max_steps".into()), profile_cutoff: None, unsupported: 0,
             #[cfg(feature = "diagnostics")]
             draw_knowledge_stats: DrawKnowledgeStats::default(),
+            #[cfg(feature = "diagnostics")]
+            search_fuzz_stats: None,
             failure: None });
         assert_eq!(summary.capped_by_driver.get("run"), Some(&1));
         assert_eq!(summary.capped_by_policy.get("choose_none"), Some(&1));

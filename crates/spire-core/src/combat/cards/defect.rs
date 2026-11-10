@@ -5,6 +5,8 @@ mod direct;
 pub(in crate::combat) use direct::DirectEffect;
 pub(in crate::combat) use powers::{end_turn_equilibrium, end_turn_rebound};
 mod state;
+/// M34s-b P6: named by the belief allow-list's exhaustive match (`combat::belief`).
+pub(in crate::combat) use state::StateEffect;
 mod powers;
 use crate::content::CardId;
 

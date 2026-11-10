@@ -8,6 +8,8 @@ mod policy;
 mod profiles;
 mod runner;
 mod run_driver;
+#[cfg(feature = "diagnostics")]
+mod search_mode;
 
 #[cfg(feature = "diagnostics")]
 mod complete;
@@ -24,6 +26,8 @@ pub use profiles::{RunProfileSpec, RUN_PROFILES};
 pub use profiles::{CompleteItemsRunProfile, COMPLETE_ITEMS_RUN_PROFILES, complete_items_profile};
 pub use run_driver::FullRun;
 pub use runner::{EpisodeOptions, EpisodeResult, OutcomeTotals, RunSummary, run_episode, run_repro, shrink_failure_case};
+#[cfg(feature = "diagnostics")]
+pub use search_mode::{run_search_mode, search_selection, SearchDriver, SearchFuzzStats, SearchSelection};
 #[cfg(feature = "diagnostics")]
 pub use runner::DrawKnowledgeStats;
 

@@ -30,11 +30,13 @@ struct Options {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct DriverWeights { catalog: u32, complete: u32, run: u32, items: u32, standard_combat: u32 }
-impl Default for DriverWeights { fn default() -> Self { Self { catalog: 1, complete: 1, run: 1, items: 1, standard_combat: 1 } } }
+struct DriverWeights { catalog: u32, complete: u32, run: u32, items: u32, standard_combat: u32, search: u32 }
+impl Default for DriverWeights { fn default() -> Self { Self { catalog: 1, complete: 1, run: 1, items: 1, standard_combat: 1,
+    search: if cfg!(feature = "diagnostics") { 1 } else { 0 } } } }
 impl DriverWeights {
     fn get(self, driver: &str) -> u32 {
-        match driver { "combat" => self.catalog, "complete" => self.complete, "run" => self.run, "items" => self.items, "standard-combat" => self.standard_combat, _ => 0 }
+        match driver { "combat" => self.catalog, "complete" => self.complete, "run" => self.run, "items" => self.items,
+            "standard-combat" => self.standard_combat, "search" => self.search, _ => 0 }
     }
 }
 
@@ -60,7 +62,7 @@ fn run() -> Result<(), String> {
 fn parse_options(args: Vec<String>) -> Result<Options, String> {
     let mut options = Options { seed_start: 0, seed_end: 0, threads: 2, budget: Duration::ZERO,
         out: PathBuf::from("native-fuzz-out"),
-        drivers: if cfg!(feature = "diagnostics") { vec!["combat".into(), "complete".into(), "run".into(), "items".into(), "standard-combat".into()] } else { vec!["combat".into(), "run".into(), "standard-combat".into()] },
+        drivers: if cfg!(feature = "diagnostics") { vec!["combat".into(), "complete".into(), "run".into(), "items".into(), "standard-combat".into(), "search".into()] } else { vec!["combat".into(), "run".into(), "standard-combat".into()] },
         weights: DriverWeights::default(), policy: None, catalogs: Vec::new(), combat_max_steps: 2_000,
         run_max_steps: 20_000, all_legal_every: 0, determinism_every: 1, replay_every: 1, min_combat: 0, min_runs: 0 };
     let mut max_steps_override = None;
@@ -94,12 +96,12 @@ fn parse_options(args: Vec<String>) -> Result<Options, String> {
     }
     if options.threads == 0 { return Err("--threads must be positive".into()); }
     if options.seed_start > options.seed_end { return Err("--seed-start must be <= --seed-end".into()); }
-    if options.drivers.iter().any(|driver| !["combat", "complete", "run", "items", "standard-combat"].contains(&driver.as_str())) { return Err("--drivers accepts combat,complete,run,items,standard-combat".into()); }
+    if options.drivers.iter().any(|driver| !["combat", "complete", "run", "items", "standard-combat", "search"].contains(&driver.as_str())) { return Err("--drivers accepts combat,complete,run,items,standard-combat,search".into()); }
     if options.drivers.iter().collect::<std::collections::BTreeSet<_>>().len() != options.drivers.len() {
         return Err("--drivers cannot contain duplicates".into());
     }
-    if options.drivers.iter().any(|driver| ["complete", "items"].contains(&driver.as_str())) && !cfg!(feature = "diagnostics") {
-        return Err("complete and items drivers require --features diagnostics".into());
+    if options.drivers.iter().any(|driver| ["complete", "items", "search"].contains(&driver.as_str())) && !cfg!(feature = "diagnostics") {
+        return Err("complete, items, and search drivers require --features diagnostics".into());
     }
     if weighted_driver_schedule(&options.drivers, options.weights)?.is_empty() { return Err("selected drivers have zero total weight".into()); }
     options.combat_max_steps = combat_steps_override.or(max_steps_override).unwrap_or(options.combat_max_steps);
@@ -126,6 +128,8 @@ fn parse_weights(value: &str) -> Result<DriverWeights, String> {
             "run" => weights.run = weight,
             "items" => weights.items = weight,
             "standard-combat" => weights.standard_combat = weight,
+            "search" if cfg!(feature = "diagnostics") => weights.search = weight,
+            "search" => return Err("search weight requires --features diagnostics".into()),
             _ => return Err(format!("unknown driver weight {name}")),
         }
     }
@@ -181,6 +185,9 @@ fn run_batch(options: Options) -> Result<(), String> {
     if options.drivers.iter().any(|driver| driver == "standard-combat") {
         summary.weights.insert("standard-combat".into(), options.weights.standard_combat);
         summary.driver_descriptions.insert("standard-combat".into(), json!({"driver":"CatalogCombat","source":"generated standard-combat-v1 catalogs","specs":"four characters at A0 and A20"}));
+    }
+    if options.drivers.iter().any(|driver| driver == "search") {
+        summary.weights.insert("search".into(), options.weights.search);
     }
     summary.combat_max_steps = options.combat_max_steps;
     summary.run_max_steps = options.run_max_steps;
@@ -280,6 +287,12 @@ fn worker_run(worker: usize, workers: usize, options: Options, started: Instant)
                     driver.set_entry_cursor(episode_seed as usize);
                     results.push(run_one(Box::new(driver), episode_seed, episode_ordinal, &options));
                 }
+                "search" => {
+                    #[cfg(feature = "diagnostics")]
+                    results.push(run_one(Box::new(spire_fuzz::SearchDriver::new()), episode_seed, episode_ordinal, &options));
+                    #[cfg(not(feature = "diagnostics"))]
+                    return Err("search driver requires --features diagnostics".into());
+                }
                 "items" => {
                     #[cfg(feature = "diagnostics")]
                     {
@@ -323,12 +336,23 @@ fn git_revision() -> String {
 }
 
 fn usage() -> String {
-        "usage: native_fuzz run --seed-start A --seed-end B --threads 2 --budget-secs S --out DIR [--drivers combat,complete,run,items,standard-combat] [--weights catalog=W,complete=W,run=W,items=W,standard-combat=W] [--policy P] [--catalog PATH]... [--max-steps N] [--all-legal-every N] [--min-combat N --min-runs N]\n       native_fuzz repro PATH".into()
+        "usage: native_fuzz run --seed-start A --seed-end B --threads 2 --budget-secs S --out DIR [--drivers combat,complete,run,items,standard-combat,search] [--weights catalog=W,complete=W,run=W,items=W,standard-combat=W,search=W] [--policy P] [--catalog PATH]... [--max-steps N] [--all-legal-every N] [--min-combat N --min-runs N]\n       native_fuzz repro PATH".into()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "diagnostics")]
+    #[test]
+    fn search_is_selectable_and_included_in_default_diagnostics_drivers() {
+        let defaults = parse_options(vec![]).unwrap();
+        assert!(defaults.drivers.iter().any(|driver| driver == "search"));
+        assert_eq!(defaults.weights.search, 1);
+        let options = parse_options(vec!["--drivers".into(), "search".into(), "--seed-start".into(), "1".into(), "--seed-end".into(), "2".into()]).unwrap();
+        assert_eq!(options.drivers, ["search"]);
+        assert_eq!(weighted_driver_schedule(&options.drivers, options.weights).unwrap(), ["search"]);
+    }
 
     #[test]
     fn cli_accepts_explicit_weighted_driver_schedule() {

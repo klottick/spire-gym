@@ -1,6 +1,6 @@
 //! Standalone full-engine combat owner. Validation is separate from accepted
 //! effects; faults retain the same Run and cannot reset into a fabricated loss.
-use crate::{RunSessionError as Error,RunObservationSpec,RunDecisionToken,RunActionIndex,CombatPolicyBoundary};
+use crate::{RunSessionError as Error,RunObservationSpec,RunDecisionToken,RunActionIndex,CombatPolicyBoundary,RunObservation};
 use crate::combat_policy::{encode_combat_policy,lifecycle,hex};
 use spire_core::{run::*,content::*,combat::{rng::Partition,Outcome}};
 use serde::Deserialize;
@@ -115,6 +115,11 @@ pub struct CombatTrainingSession{
 impl CombatTrainingSession{
     #[cfg(feature="fuzz-diagnostics")]
     pub fn fuzz_run(&self)->Option<&Run>{self.run.as_ref()}
+    /// TEST-ONLY: the session's core Run (M34s-b transplant and belief tests).
+    #[cfg(test)]
+    pub(crate) fn run_for_test(&self)->Option<&Run>{self.run.as_ref()}
+    #[cfg(test)]
+    pub(crate) fn run_mut_for_test(&mut self)->Option<&mut Run>{self.run.as_mut()}
     pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
         if catalog.profile==CombatTrainingProfile::Standard{return Err(STANDARD_ON_GYM66)}
         let id=crate::run_session::allocate_run_session_id()?;
@@ -148,6 +153,13 @@ impl CombatTrainingSession{
         self.fault.clone().unwrap()
     }
     pub fn effective_seed(&self)->Option<u64>{self.seed}
+    /// M34s-b (design §4.6.1): the canonical public root of the current decision; `standard-combat-v1` only.
+    pub fn public_root(&self)->Result<crate::PublicRoot,Error>{
+        if self.catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("public roots exist only on the Standard surface"))}
+        self.usable()?;self.published.as_ref().ok_or(Error::NotReset)?;
+        if self.terminal_outcome().is_some(){return Err(Error::Terminal)}
+        crate::PublicRoot::of(self.run.as_ref().ok_or(Error::NotReset)?,&self.caps)
+    }
     pub fn preflight_reset(&self,seed:Option<u64>,entry_id:Option<&str>)->Result<(),Error>{
         self.usable()?;self.catalog.entry(entry_id)?;
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;
@@ -191,19 +203,11 @@ impl CombatTrainingSession{
     }
     /// Standard boundary: the Standard combat view; info carries the entry, start kind and terminal facts, never a seed.
     fn publish_standard(&mut self)->Result<CombatPolicyBoundary,Error>{
-        let run=self.run.as_ref().unwrap();
-        let d=run.decision().map_err(Error::Core)?;
-        let observation=crate::combat_policy::encode_standard_combat(&d,&self.caps,run.ascension(),run.room_selection_operation(),run.combat_identity())?;
-        let terminal=run.combat_scope_terminal();
-        let mut info=crate::combat_policy::standard_lifecycle(&d,None);
+        let (observation,mut info,actions)=standard_combat_publication(self.run.as_ref().unwrap(),&self.caps)?;
         info["profile_id"]=json!(self.catalog.profile.id());info["entry_id"]=json!(self.entry_id);info["episode_ordinal"]=json!(self.ordinal);
         info["start_kind"]=json!("fresh_start");
-        info["terminal_reason"]=terminal.map(|t|json!(outcome_label(t.outcome))).unwrap_or(Value::Null);
-        info["all_enemies_escaped"]=json!(terminal.is_some_and(|t|t.all_enemies_escaped));
-        info["hp_before_healing"]=terminal.map(|t|json!(t.hp_before_healing)).unwrap_or(Value::Null);
-        info["hp_after_cleanup"]=terminal.map(|t|json!(t.hp_after_cleanup)).unwrap_or(Value::Null);
         let boundary=CombatPolicyBoundary{observation,token:[self.id,self.serial].into(),info};
-        self.actions=if terminal.is_some(){vec![]}else{d.candidates.into_iter().map(|c|c.action).collect()};
+        self.actions=actions;
         self.published=Some(boundary);self.decision()
     }
     fn terminal_outcome(&self)->Option<Outcome>{
@@ -260,8 +264,23 @@ impl CombatTrainingSession{
     pub fn close(&mut self)->Result<(),Error>{self.closed=true;if let Some(record)=&mut self.record{record.closed=true;}Ok(())}
 }
 
+/// The Standard combat view of a combat-scope Run's decision with its lifecycle info (terminal reason, escape flag,
+/// settlement-free HP) and its action table (empty at the terminal): shared by `standard-combat-v1` sessions and search
+/// branches (M34s-b), so both publish identically.
+pub(crate) fn standard_combat_publication(run:&Run,caps:&crate::RunCapacities)->Result<(RunObservation,Value,Vec<GameAction>),Error>{
+    let d=run.decision().map_err(Error::Core)?;
+    let observation=crate::combat_policy::encode_standard_combat(&d,caps,run.ascension(),run.room_selection_operation(),run.combat_identity())?;
+    let terminal=run.combat_scope_terminal();
+    let mut info=crate::combat_policy::standard_lifecycle(&d,None);
+    info["terminal_reason"]=terminal.map(|t|json!(outcome_label(t.outcome))).unwrap_or(Value::Null);
+    info["all_enemies_escaped"]=json!(terminal.is_some_and(|t|t.all_enemies_escaped));
+    info["hp_before_healing"]=terminal.map(|t|json!(t.hp_before_healing)).unwrap_or(Value::Null);
+    info["hp_after_cleanup"]=terminal.map(|t|json!(t.hp_after_cleanup)).unwrap_or(Value::Null);
+    let actions=if terminal.is_some(){vec![]}else{d.candidates.into_iter().map(|c|c.action).collect()};
+    Ok((observation,info,actions))
+}
 pub(crate) fn outcome_reward(outcome:Outcome)->i32{match outcome{Outcome::Victory=>1,Outcome::Death=>-1,Outcome::Escaped=>0}}
-fn outcome_label(outcome:Outcome)->&'static str{match outcome{Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"}}
+pub(crate) fn outcome_label(outcome:Outcome)->&'static str{match outcome{Outcome::Victory=>"victory",Outcome::Death=>"death",Outcome::Escaped=>"escaped"}}
 
 /// Typed-only finite Watcher entry; no hidden combat state or pile order.
 #[derive(Clone,Debug,PartialEq,Eq)]

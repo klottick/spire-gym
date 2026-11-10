@@ -78,4 +78,8 @@ pub trait Driver: Send {
     /// a representable posterior with `n` components.
     #[cfg(feature = "diagnostics")]
     fn draw_knowledge_check(&self) -> Option<Result<Option<usize>, DriverError>> { None }
+
+    /// Per-episode counters for the public-search gate driver.
+    #[cfg(feature = "diagnostics")]
+    fn search_fuzz_stats(&self) -> Option<crate::SearchFuzzStats> { None }
 }

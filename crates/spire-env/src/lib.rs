@@ -29,6 +29,8 @@ mod run_batch;
 mod combat_policy;
 mod combat_training;
 mod standard_combat;
+mod public_search;
+pub use public_search::{PublicRoot,PublicSearch,SearchConfig,SearchLimits,SEARCH_HARD_CAPS,BranchId,BranchView,BranchBoundary,BranchStep,PUBLIC_SEARCH_ID,PUBLIC_BELIEF_ID,PUBLIC_KNOWLEDGE_ID,BRANCH_RUN_BYTES_ESTIMATE,branch_retained_bytes_bound,search_retained_bytes_bound,HIDDEN_ORDER_PICK,BRANCH_CORE_FAULT};
 pub use standard_combat::{standard_combat_support,STANDARD_COMBAT_PROFILE_ID,STANDARD_COMBAT_CATALOG_SCHEMA_ID};
 mod card_metadata;
 pub use card_metadata::{card_metadata_descriptor,CARD_METADATA_SCHEMA_ID};

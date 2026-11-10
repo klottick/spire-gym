@@ -16,14 +16,17 @@ pub(in crate::combat) fn capture(state:&mut State,owner:&EnemyHandle)->Result<()
     let mut candidates=Vec::new();for (index,owned) in pile.iter().enumerate(){
         let card=owned.full().ok_or_else(||InputError::Invariant("legacy card in Stasis pile".into()))?;
         let row=crate::content::Catalog::standard().card(card.id).ok_or_else(||InputError::Unsupported("Stasis card rarity unavailable".into()))?;
-        let rank=match row.rarity{crate::content::CardRarity::Rare=>3,crate::content::CardRarity::Uncommon=>2,crate::content::CardRarity::Common=>1,_=>0};candidates.push((index,rank,card.id.as_str(),card.instance));
+        let rank=match row.rarity{crate::content::CardRarity::Rare=>3,crate::content::CardRarity::Uncommon=>2,crate::content::CardRarity::Common=>1,_=>0};candidates.push((index,rank,card.id.as_str()));
     }
-    let rank=candidates.iter().map(|c|c.1).max().unwrap();candidates.retain(|c|c.1==rank);candidates.sort_by_key(|c|(c.2,c.3));
+    // M34s-b recheck R1: the uniform index maps through the candidates ordered by card id, then physical pile position
+    // (bottom to top); never through the hidden instance rank of identical copies.
+    let rank=candidates.iter().map(|c|c.1).max().unwrap();candidates.retain(|c|c.1==rank);candidates.sort_by_key(|c|(c.2,c.0));
     let stream=state.card_rng.as_ref().ok_or_else(||InputError::Invariant("Stasis card stream absent".into()))?;let (index,next)=rng::uniform_below(stream,candidates.len() as u128)?;
     let index=candidates[index as usize].0;let draw=!state.piles.draw.is_empty();state.card_rng=Some(next);
-    let card=if draw{state.piles.draw.remove(index)}else{state.piles.discard.remove(index)};
-    if draw{crate::combat::piles::removed_knowledge(state,&card,crate::combat::knowledge::Removal::Uniform);}
-    if draw{crate::combat::piles::forget_known_draw(state,&card.handle());}
+    let card=if draw{
+        let handle=state.piles.draw[index].handle();
+        crate::combat::piles::take_draw_card(state,&handle,crate::combat::knowledge::Removal::Uniform).ok_or_else(||InputError::Invariant("Stasis candidate left the draw pile".into()))?
+    }else{state.piles.discard.remove(index)};
     state.stasis.insert(owner.clone(),card);
     crate::combat::piles::refresh_hand_values(state);
     state.pending.push_front(effect(Actor::Enemy(owner.clone()),Actor::Enemy(owner.clone()),EffectKind::ApplyFullPower{id:FullPowerId("stasis"),amount:1}));Ok(())

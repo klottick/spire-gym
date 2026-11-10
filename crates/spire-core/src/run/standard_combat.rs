@@ -20,6 +20,9 @@ pub struct StandardCombatStart {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CombatScopeTerminal { pub outcome:crate::combat::Outcome, pub hp_before_healing:u32, pub hp_after_cleanup:u32, pub all_enemies_escaped:bool }
 
+struct OwnedStreamIdentity{act:u8,encounter:&'static str,visit:u64}
+impl OwnedStreamIdentity{fn as_ref(&self)->crate::combat::belief::StreamIdentity<'static>{crate::combat::belief::StreamIdentity{act:self.act,encounter:self.encounter,visit:self.visit}}}
+
 /// The Standard setup row of `encounter`: its setup act and kind (every row of the shared setup table).
 pub fn standard_combat_encounter(encounter:EncounterId)->Option<(u8,EncounterKind)>{
     A0_ENCOUNTER_SETUPS.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,kind)|(*act,*kind))
@@ -48,9 +51,79 @@ impl Run {
         let kind=match kind{EncounterKind::Monster=>MapNodeKind::Monster,EncounterKind::Elite=>MapNodeKind::Elite,EncounterKind::Boss=>MapNodeKind::Boss};
         self.enter_owned(scope.encounter,CombatOrigin::Training{kind})
     }
+    /// M34s-b b1 (design §4.6.3): the combat-scope transplant of the live combat — one positive list of the Run-side
+    /// inputs the combat and its Standard view read (character, ascension, act, floor, room label, HP, gold, deck and
+    /// permanent identity counter, keys, combat progress and identity, item admission and custody) plus an exact copy of
+    /// the combat, in the settlement-free mode. Run-level hidden and progression state (Run RNG, map, room loop, pools,
+    /// events, history, ledgers, Neow, selections) is absent by construction; the Run RNG is a fixed zero root, which
+    /// no live combat action draws. No canonicalisation: `combat/belief.rs` canonicalises this copy.
+    pub fn combat_scope(&self)->Result<Run,RunError>{
+        if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()))}
+        if self.state.terminal.is_some(){return Err(RunError::Terminal)}
+        let (Some(combat),Some(active))=(self.state.combat.as_ref(),self.state.active_combat.as_ref()) else {return Err(RunError::InvalidAction)};
+        let s=&self.state;
+        let profile=CreationProfile::experienced();
+        let state=RunState{
+            room_loop:None,reward_ledger:Default::default(),authored_combat:false,training_encounter:None,last_combat_checkpoint:None,
+            combat_progress:s.combat_progress,active_combat:Some(active.clone()),last_combat:None,
+            character:s.character,ascension:s.ascension,hp:s.hp,max_hp:s.max_hp,gold:s.gold,
+            deck:s.deck.clone(),relics:s.relics.clone(),potions:s.potions.clone(),keys:s.keys,act:s.act,floor:s.floor,room:s.room,
+            act4_enabled:true,neow_eligible:false,seen_bosses:profile.seen_bosses,stored_note:profile.stored_note,terminal:None,map:None,
+            history:RunHistory::default(),relic_counters:s.relic_counters.clone(),combat:Some(combat.clone()),selected_neow:None,fault:None,
+            last_selection:None,last_resumed_parent:None,rng:RunRng::new([0;32],crate::combat::rng::Partition::Test,0),pending:None,
+            next_instance:s.next_instance,resume_count:0,card_admission:s.card_admission,item_admission:s.item_admission,relic_pools:None,
+            relic_cards:s.relic_cards.clone(),potion_offset:0,card_rarity_offset:None,event_pools:None,potion_potencies:s.potion_potencies.clone(),
+            we_meet_again:s.we_meet_again,combat_scope:Some(CombatScope{encounter:active.encounter,burning:None}),
+        };
+        Ok(Run{state,candidates:vec![],next_choice:0})
+    }
+    /// M34s-b (design §4.6.3): the canonical public root of the live combat — the combat-scope transplant with the
+    /// combat canonicalised (`combat/belief.rs`). Errors name a class of reason, never a value.
+    pub fn public_root_run(&self)->Result<Run,crate::combat::belief::Unsupported>{
+        use crate::combat::belief::Unsupported;
+        if self.state.fault.is_some(){return Err(Unsupported::Faulted)}
+        let mut root=self.combat_scope().map_err(|e|match e{RunError::Terminal=>Unsupported::Terminal,_=>Unsupported::NotAtDecision})?;
+        let id=root.stream_identity().ok_or(Unsupported::NotAtDecision)?;
+        let combat=root.state.combat.as_ref().unwrap().belief_canonical(id.as_ref())?;
+        root.state.combat=Some(combat);
+        Ok(root)
+    }
+    /// M34s-b (design §4.6.2): the world of sample `key` from this canonical root (`public_root_run`); its Run RNG root is
+    /// research-derived as well, so nothing in the world derives from a gameplay key.
+    pub fn belief_sample(&self,key:&[u8;32])->Result<Run,crate::combat::belief::Unsupported>{
+        use crate::combat::belief::Unsupported;
+        if self.state.combat_scope.is_none(){return Err(Unsupported::NotAtDecision)}
+        let id=self.stream_identity().ok_or(Unsupported::NotAtDecision)?;
+        let combat=self.state.combat.as_ref().ok_or(Unsupported::NotAtDecision)?.belief_sample(key,id.as_ref())?;
+        let mut world=self.clone();
+        world.state.rng=RunRng::new(crate::combat::rng::hmac_sha256(key,b"r2-run-rng"),crate::combat::rng::Partition::Test,0);
+        world.state.combat=Some(combat);
+        Ok(world)
+    }
+    /// The public knowledge of the live combat in normal form, as digest input bytes (design §4.6.3): the draw
+    /// knowledge and every actor's pre-roll candidates. `None` without supported knowledge.
+    pub fn public_knowledge_bytes(&self)->Option<Vec<u8>>{
+        let (draw,prerolls)=self.state.combat.as_ref()?.belief_support().ok()?;
+        Some(format!("{draw:?}\0{prerolls:?}").into_bytes())
+    }
+    /// Final review I1: whether `action` picks a draw-pile copy chosen by hidden instance order
+    /// (`Combat::pick_depends_on_hidden_order`); public.
+    pub fn pick_depends_on_hidden_order(&self,action:&GameAction)->bool{
+        let GameAction::Combat(crate::combat::CombatAction::SelectCard{instance})=action else{return false};
+        self.state.combat.as_ref().is_some_and(|c|c.pick_depends_on_hidden_order(*instance))
+    }
+    /// The heap the live combat's draw knowledge retains (public: a function of the knowledge; final review I2 measurement).
+    pub fn public_knowledge_heap_bytes(&self)->Option<usize>{self.state.combat.as_ref()?.draw_knowledge().ok().map(|k|k.heap_bytes())}
+    fn stream_identity(&self)->Option<OwnedStreamIdentity>{
+        let active=self.state.active_combat.as_ref()?;
+        Some(OwnedStreamIdentity{act:self.state.act,encounter:active.encounter.as_str(),visit:active.visit})
+    }
     /// Fuzz oracle only (never public): the live combat, for the a6 draw-knowledge support check.
     #[cfg(any(test, feature = "fuzz-diagnostics"))]
     pub fn fuzz_combat(&self)->Option<&crate::combat::Combat>{self.state.combat.as_ref()}
+    /// Fuzz oracle only (never public): the live combat, mutable, for the M34s-b P2 perturbation check.
+    #[cfg(any(test, feature = "fuzz-diagnostics"))]
+    pub fn fuzz_combat_mut(&mut self)->Option<&mut crate::combat::Combat>{self.state.combat.as_mut()}
     /// The combat scope's terminal, once the combat has an outcome; `None` before, and outside a combat scope.
     pub fn combat_scope_terminal(&self)->Option<CombatScopeTerminal>{
         self.state.combat_scope?;
@@ -121,6 +194,32 @@ mod tests {
             }
             assert!(run.state.combat.is_some(),"reached a combat");
         }
+    }
+
+    /// M34s-b b1 (design §4.6.3): the transplant is a positive list of combat inputs; Run-level hidden and progression
+    /// state (Run RNG, map, room loop, pools, events, history, ledgers) is absent, so perturbing it changes nothing.
+    #[test]
+    fn transplant_holds_no_run_level_state(){
+        let mut run=Run::new_room_scenario(RunConfig{character:Character::Silent,ascension:20},
+            CreationProfile{neow_eligible:false,..CreationProfile::experienced()},RunRng::new([9;32],Partition::Test,0),super::rooms::RoomScenario::Standard).unwrap();
+        for _ in 0..200{ if run.state.combat.is_some(){break} let a=run.decision().unwrap().candidates[0].action.clone();run.step(&a).unwrap(); }
+        assert!(run.state.combat.is_some(),"reached a combat");
+        let mut other=run.clone();
+        other.state.rng=RunRng::new([77;32],Partition::Final,9);other.state.map=None;other.state.room_loop=None;
+        other.state.history.rooms.clear();other.state.seen_bosses=Default::default();other.state.relic_pools=None;other.state.event_pools=None;
+        other.state.card_rarity_offset=Some(-40);other.state.potion_offset=30;other.state.reward_ledger=Default::default();
+        other.state.last_combat=None;other.next_choice=12_345;other.state.stored_note=(CardId::Strike,3);other.state.neow_eligible=true;
+        let (a,b)=(run.combat_scope().unwrap(),other.combat_scope().unwrap());
+        assert!(a==b,"Run-level state never enters the transplant");
+        let s=&a.state;
+        assert!(s.map.is_none()&&s.room_loop.is_none()&&s.relic_pools.is_none()&&s.event_pools.is_none()&&s.history==RunHistory::default());
+        assert_eq!((s.rng.clone(),s.combat_scope.is_some(),a.next_choice),(RunRng::new([0;32],Partition::Test,0),true,0));
+        assert!(s.combat.as_ref().unwrap().maintains_public_knowledge());
+        // Outside a live combat, after a fault or at a Run terminal there is no transplant.
+        let mut idle=Run::new(RunConfig{character:Character::Ironclad,ascension:0},CreationProfile::experienced(),RunRng::new([1;32],Partition::Test,0)).unwrap();
+        assert_eq!(idle.combat_scope().err(),Some(RunError::InvalidAction));
+        idle.install_terminal_for_test(RunTerminal::Death);
+        assert_eq!(idle.combat_scope().err(),Some(RunError::Terminal));
     }
 
     #[test]

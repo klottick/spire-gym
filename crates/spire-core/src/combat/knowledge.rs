@@ -14,8 +14,8 @@
 //! class is `x` as `Known(x)` + the rest) preserves the distribution over class sequences, so equal normal forms always
 //! mean equal distributions (`knowledge_equality_is_sound`).
 //!
-//! Pre-roll sets narrow only at published decision/selection boundaries (`engine::resolve_from`) and at a pre-rolled
-//! move's execution, never at an unpublished mid-resolution refresh (main's ruling, P1).
+//! Pre-roll sets narrow only at published decision/selection boundaries (`engine::resolve_from`), on the published
+//! intent value (M34s-b b0 D2), never at execution or at an unpublished mid-resolution refresh (P1).
 use super::model::{OwnedCard, PublicKnowledge, State};
 use super::view::CardClass;
 use super::*;
@@ -23,6 +23,12 @@ use std::collections::BTreeMap;
 
 /// a0(ix) lane 3 proposal (contract minimum 1,024): more components make the knowledge `Unrepresentable`.
 pub const N_COMPONENTS: usize = 65_536;
+/// M34s-b (final review I2): the retained heap of a knowledge ([`DrawKnowledge::heap_bytes`]) is capped; a larger knowledge
+/// is `Unrepresentable` (fail closed), so a root or search branch never retains more. 2 MiB keeps the contract minimum of
+/// 1,024 components for a 60-card pile (about 1.5 KiB per component).
+pub const KNOWLEDGE_BYTES_CAP: usize = 2 * 1024 * 1024;
+/// Per-allocation overhead counted by [`DrawKnowledge::heap_bytes`] (a conservative allocator header).
+const ALLOCATION_OVERHEAD: usize = 16;
 
 /// The draw knowledge exceeds the exact model (a bound, an unmapped path or a fail-closed removal; design §4.5.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,6 +75,13 @@ impl DrawKnowledge {
                 }
             }) && at == classes_top_to_bottom.len()
         })
+    }
+    /// The heap this knowledge retains: every vector's capacity in bytes plus [`ALLOCATION_OVERHEAD`] per allocation
+    /// (a function of the knowledge built from public operations; at most [`KNOWLEDGE_BYTES_CAP`]).
+    pub fn heap_bytes(&self) -> usize {
+        fn vec<T>(v: &Vec<T>) -> usize { if v.capacity() == 0 { 0 } else { v.capacity() * std::mem::size_of::<T>() + ALLOCATION_OVERHEAD } }
+        vec(&self.classes) + vec(&self.components) + self.components.iter().map(|c| vec(&c.segments)
+            + c.segments.iter().map(|s| match s { Segment::Known(_) => 0, Segment::Bag(e) => vec(e) }).sum::<usize>()).sum::<usize>()
     }
     fn empty() -> Self { Self { classes: vec![], components: vec![Component { weight: 1, segments: vec![] }] } }
     /// Every arrangement of `top_to_bottom` known (Frozen Eye, a full reveal).
@@ -190,7 +203,9 @@ fn finish(classes: Vec<CardClass>, acc: Acc) -> Result<DrawKnowledge, Unrepresen
     let g = weights.iter().fold(0, |g, w| gcd(g, *w)).max(1);
     weights.iter().try_fold(0u128, |t, w| t.checked_add(w / g)).ok_or(Unrepresentable)?;
     let components = normal.map.into_keys().zip(weights).map(|(segments, weight)| Component { weight: weight / g, segments }).collect();
-    Ok(DrawKnowledge { classes: used, components })
+    let knowledge = DrawKnowledge { classes: used, components };
+    if knowledge.heap_bytes() > KNOWLEDGE_BYTES_CAP { return Err(Unrepresentable) }
+    Ok(knowledge)
 }
 
 /// Push a bag in normal form: known segments while its first card is forced (one class, or one class not
@@ -225,9 +240,13 @@ enum Published { Top(usize), Bottom(usize), No }
 pub(in crate::combat) enum Removal {
     /// Uniform over the eligible copies (Violence, the Stasis tie-break): the uniform-removal row.
     Uniform,
-    /// A player-chosen grid candidate under a deterministic handle rule (Seek, Secret Technique/Weapon, Omniscience,
-    /// Scry discards; `piles::sort_draw_grid`): exact only for interchangeable copies, otherwise fail closed.
+    /// A player-chosen candidate of an order-hiding grid (Seek, Secret Technique/Weapon, Omniscience; `piles::sort_draw_grid`,
+    /// opened by `piles::open_draw_grid`). Which copy of the class the pick removed is not public (final review I1), so the
+    /// update reads only public facts: a class with a published copy and another copy fails closed; one published copy is
+    /// that copy; otherwise the unpublished copies must be interchangeable, or fail closed.
     Grid,
+    /// A card chosen by its published position (Scry discards: the revealed top cards in position order).
+    Revealed,
     /// The opening's Innate/bottled placement (first such card in physical order): exact when every such card is
     /// dealt (`all_dealt`), otherwise fail closed.
     Opening { all_dealt: bool },
@@ -384,13 +403,17 @@ fn step(knowledge: &DrawKnowledge, before: &[(u64, CardClass)], now: &[(u64, Car
         }
         PileOp::Removed { instance, class, law } => {
             let c = intern(&mut classes, class);
-            let handle = super::card_state::handle(CardInstanceId(instance));
-            let published = if let Some(i) = public.known_draw.iter().position(|h| *h == handle) { Published::Top(i) }
-                else if let Some(i) = public.known_draw_bottom.iter().position(|h| *h == handle) { Published::Bottom(i) } else { Published::No };
+            let law = variant_law(law);
+            let published = if law == Removal::Grid && !hidden_grid_rule() { grid_published(public, &pre, class)? } else {
+                let handle = super::card_state::handle(CardInstanceId(instance));
+                if let Some(i) = public.known_draw.iter().position(|h| *h == handle) { Published::Top(i) }
+                else if let Some(i) = public.known_draw_bottom.iter().position(|h| *h == handle) { Published::Bottom(i) } else { Published::No }
+            };
+            if law == Removal::Revealed && published == Published::No { return Err(Unrepresentable) }
             for (w, s) in components {
-                match variant_law(law) {
+                match law {
                     Removal::Uniform => remove_uniform(&mut out, w, s, c)?,
-                    Removal::Grid | Removal::Opening { all_dealt: true } =>
+                    Removal::Grid | Removal::Revealed | Removal::Opening { all_dealt: true } =>
                         remove_chosen(&mut out, w, s, c, published, public.known_draw.len(), public.known_draw_bottom.len())?,
                     Removal::Opening { all_dealt: false } => return Err(Unrepresentable),
                 }
@@ -398,6 +421,22 @@ fn step(knowledge: &DrawKnowledge, before: &[(u64, CardClass)], now: &[(u64, Car
         }
     }
     finish(classes, out)
+}
+
+/// Final review I1: where an order-hiding grid's pick of class `class` was published, from public facts only (the
+/// classes at the published positions and the class count; never the removed handle). A class with a published copy and
+/// another copy is ambiguous: `Unrepresentable` (`piles::open_draw_grid` forgets such positions before the grid opens).
+fn grid_published(public: &PublicKnowledge, pre: &[(u64, CardClass)], class: CardClass) -> Result<Published, Unrepresentable> {
+    let class_of = |h: &CardHandle| pre.iter().find(|(i, _)| super::card_state::handle(CardInstanceId(*i)) == *h).map(|(_, c)| *c);
+    let top = public.known_draw.iter().enumerate().filter(|(_, h)| class_of(h) == Some(class)).map(|(i, _)| i).collect::<Vec<_>>();
+    let bottom = public.known_draw_bottom.iter().enumerate().filter(|(_, h)| class_of(h) == Some(class)).map(|(i, _)| i).collect::<Vec<_>>();
+    let copies = pre.iter().filter(|(_, c)| *c == class).count();
+    match (top.as_slice(), bottom.as_slice()) {
+        ([], []) => Ok(Published::No),
+        ([i], []) if copies == 1 => Ok(Published::Top(*i)),
+        ([], [i]) if copies == 1 => Ok(Published::Bottom(*i)),
+        _ => Err(Unrepresentable),
+    }
 }
 
 /// Observe the top card's class `c` and pop it; `None` when this component cannot show `c`.
@@ -524,7 +563,13 @@ fn remove_chosen(out: &mut Acc, w: Ratio, s: &[Segment], c: u16, published: Publ
 /// Test-only knowledge variants for the negative controls of design §4.10 (d) and recheck R-I1.
 #[cfg(test)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::combat) enum Variant { NoTopExclusion, V1PrefixTruncation, UniformGrid }
+pub(in crate::combat) enum Variant { NoTopExclusion, V1PrefixTruncation, UniformGrid,
+    /// Final review I1 negative control: part a's grid rule (no forgetting at the grid opening; the update branches on
+    /// whether the TRUE removed handle was published).
+    HiddenGridRule,
+    /// Recheck R1 negative control: no forgetting before a hidden (uniform random) pick; the published positions are
+    /// pruned by the TRUE taken handle.
+    HiddenPickRule }
 #[cfg(test)]
 thread_local! { pub(in crate::combat) static VARIANT: std::cell::Cell<Option<Variant>> = const { std::cell::Cell::new(None) }; }
 #[cfg(test)]
@@ -533,6 +578,20 @@ fn variant() -> Option<Variant> { VARIANT.with(|v| v.get()) }
 fn top_exclusion() -> u16 { u16::from(variant() != Some(Variant::NoTopExclusion)) }
 #[cfg(not(test))]
 fn top_exclusion() -> u16 { 1 }
+/// Whether the I1 negative control (part a's leaky grid rule) is active (always false outside tests).
+pub(in crate::combat) fn hidden_grid_rule() -> bool {
+    #[cfg(test)]
+    { variant() == Some(Variant::HiddenGridRule) }
+    #[cfg(not(test))]
+    { false }
+}
+/// Whether the R1 negative control (no forgetting before a hidden pick) is active (always false outside tests).
+pub(in crate::combat) fn hidden_pick_rule() -> bool {
+    #[cfg(test)]
+    { variant() == Some(Variant::HiddenPickRule) }
+    #[cfg(not(test))]
+    { false }
+}
 fn variant_law(law: Removal) -> Removal {
     #[cfg(test)]
     if law == Removal::Grid && variant() == Some(Variant::UniformGrid) { return Removal::Uniform }
@@ -568,6 +627,22 @@ fn tie_guard(state: &State) -> bool {
 }
 
 impl Combat {
+    /// M34s-b final review I1: whether selecting card `instance` in the open selection would remove a draw-pile copy chosen
+    /// by hidden instance order: two or more candidates share its card class and not all of them sit at published
+    /// positions (an order-hiding grid; a Scry selection's candidates are all published). Public: the candidates' classes
+    /// and published positions. The search arena refuses such a pick in a branch, whose copy labels are not resampled.
+    pub fn pick_depends_on_hidden_order(&self, instance: u64) -> bool {
+        let state = &self.state;
+        let Some(selection) = &state.pending_selection else { return false };
+        if selection.source_zone != SelectionSourceZone::Draw { return false }
+        let class = |h: &CardHandle| state.piles.draw.iter().find(|c| c.handle() == *h).and_then(|c| class_of(state, c));
+        let chosen = super::card_state::handle(CardInstanceId(instance));
+        if !selection.candidates.contains(&chosen) { return false }
+        let target = class(&chosen);
+        let copies = selection.candidates.iter().filter(|h| target.is_none() || class(h) == target).collect::<Vec<_>>();
+        let published = |h: &&CardHandle| state.public.known_draw.contains(h) || state.public.known_draw_bottom.contains(h);
+        copies.len() >= 2 && !copies.iter().all(published)
+    }
     /// M34s-a public draw knowledge (design §4.5.1): the exact posterior over the draw pile's class sequence given
     /// public history, in normal form, or `Unrepresentable` (L1). With Frozen Eye the true order is public.
     /// Without maintenance (`maintains_public_knowledge` false) there is no knowledge: always `Unrepresentable`, never stale.
@@ -626,21 +701,24 @@ fn preroll_law(kind: PrerollKind, ascension: u8) -> (i32, i32) {
     }
 }
 
-/// Intersect the consistent sets with the displayed intent of every pre-rolled move now selected, at a published
-/// boundary (`only` = None, from `engine::resolve_from`) or at one actor's move execution (`only`): `C_v := {x ∈ C_v : display(x, modifiers now) = displayed value}`. A set is created at the
-/// actor's first observation as its setup law `L_v`. Nothing happens while intents are hidden (Runic Dome, L2).
-pub(in crate::combat) fn observe_prerolls(state: &mut State, only: Option<&EnemyHandle>) {
+/// Intersect the consistent sets with the intent value the view publishes at a published decision or selection boundary
+/// (`engine::resolve_from`): `C_v := {x ∈ C_v : display(x, modifiers now) = published value}` (M34s-b b0 D2, final review
+/// M2: narrow on the published display, never on a value recomputed at execution, which the player may not see — a
+/// blocked hit, Torii, Buffer, or modifiers changed during the enemy turn). A set is created at the actor's first
+/// observation as its setup law `L_v`. Nothing happens while intents are hidden (Runic Dome, L2). Invariant: the true
+/// base maps to the published value (the display is fresh at every boundary); otherwise the set fails closed.
+pub(in crate::combat) fn observe_prerolls(state: &mut State) {
     if !state.knowledge.maintained { return }
     #[cfg(test)]
     let start = std::time::Instant::now();
-    observe_prerolls_inner(state, only);
+    observe_prerolls_inner(state);
     #[cfg(test)]
     MAINTENANCE.with(|m| { let (calls, nanos) = m.get(); m.set((calls + 1, nanos + start.elapsed().as_nanos())); });
 }
-fn observe_prerolls_inner(state: &mut State, only: Option<&EnemyHandle>) {
+fn observe_prerolls_inner(state: &mut State) {
     if !state.full_runtime || super::view::public_rules(state).hide_intents { return }
     let mut updates = vec![];
-    for enemy in state.enemies.iter().filter(|e| only.is_none_or(|o| *o == e.instance_id)) {
+    for enemy in &state.enemies {
         let Some((kind, intent)) = preroll_of(enemy) else { continue };
         let Some(entry) = enemy.full_damage_entries.get(&intent) else { continue };
         let key = (enemy.instance_id.clone(), kind);
@@ -654,12 +732,13 @@ fn observe_prerolls_inner(state: &mut State, only: Option<&EnemyHandle>) {
         let stores_agree = kind != PrerollKind::DarklingNip
             || matches!(enemy.full_memory, Some(EnemyMemory::Darkling { nip, .. }) if nip == entry.base);
         if !stores_agree || set.is_ok_and(|s| !s.contains(entry.base)) { set = Err(Unrepresentable); }
-        if let (Ok(s), true) = (&mut set, enemy.intent_id == ActorIntentId::Full(intent) && enemy.intent_damage.is_some()) {
-            match super::effects::displayed_damage_of_base(state, enemy, entry.base) {
-                Ok(shown) => for x in s.values().collect::<Vec<_>>() {
-                    if super::effects::displayed_damage_of_base(state, enemy, x).ok() != Some(shown) { s.mask &= !(1 << (x - s.low)); }
-                },
-                Err(_) => set = Err(Unrepresentable),
+        if let (Ok(s), ActorIntentId::Full(shown_intent), Some(output)) = (&mut set, &enemy.intent_id, enemy.intent_damage) {
+            if *shown_intent == intent {
+                let published = super::effects::displayed_intent_damage(state, enemy, output);
+                for x in s.values().collect::<Vec<_>>() {
+                    if super::effects::displayed_damage_of_base(state, enemy, x).ok() != Some(published) { s.mask &= !(1 << (x - s.low)); }
+                }
+                if !s.contains(entry.base) { set = Err(Unrepresentable); }
             }
         }
         updates.push((key, set));
@@ -680,5 +759,132 @@ impl Combat {
     pub fn preroll_sets(&self) -> Vec<(EnemyHandle, PrerollKind, Result<ConsistentSet, Unrepresentable>)> {
         if !self.state.knowledge.maintained { return vec![] }
         self.state.knowledge.prerolls.sets.iter().map(|((enemy, kind), set)| (enemy.clone(), *kind, *set)).collect()
+    }
+}
+
+/// M34s-b: one hidden pre-rolled value of an actor with its consistent candidates (ascending; the setup law until the
+/// first observation). The belief keeps a value with one candidate and re-samples one with several (design §4.6.2 R3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PrerollCandidates { pub enemy: EnemyHandle, pub slot: u8, pub kind: PrerollKind, pub intent: FullIntentId, pub values: Vec<i32> }
+
+/// Every actor's pre-rolled values with their candidates; `Unrepresentable` if any set is (a value outside its law,
+/// disagreeing Darkling stores).
+pub(in crate::combat) fn preroll_candidates(state: &State) -> Result<Vec<PrerollCandidates>, Unrepresentable> {
+    let mut out = vec![];
+    for enemy in &state.enemies {
+        let Some((kind, intent)) = preroll_of(enemy) else { continue };
+        if !enemy.full_damage_entries.contains_key(&intent) { continue }
+        let set = match state.knowledge.prerolls.sets.get(&(enemy.instance_id.clone(), kind)) {
+            Some(set) => (*set)?,
+            None => {
+                let (low, high) = preroll_law(kind, state.ascension);
+                let width = high - low + 1;
+                if !(1..=32).contains(&width) { return Err(Unrepresentable) }
+                ConsistentSet { low, mask: if width == 32 { u32::MAX } else { (1 << width) - 1 } }
+            }
+        };
+        let slot = *state.actor_slots.get(&enemy.instance_id).ok_or(Unrepresentable)?;
+        out.push(PrerollCandidates { enemy: enemy.instance_id.clone(), slot, kind, intent, values: set.values().collect() });
+    }
+    Ok(out)
+}
+/// Write a pre-rolled value to every place it is stored (the move's damage base; Darkling's memory too).
+pub(in crate::combat) fn set_preroll(state: &mut State, p: &PrerollCandidates, value: i32) {
+    let Some(enemy) = state.enemies.iter_mut().find(|e| e.instance_id == p.enemy) else { return };
+    if let Some(entry) = enemy.full_damage_entries.get_mut(&p.intent) { entry.base = value; }
+    if let Some(EnemyMemory::Darkling { nip, .. }) = enemy.full_memory.as_mut() { *nip = value; }
+}
+/// Resynchronise the physical bookkeeping with a rearranged draw pile (the knowledge value is unchanged).
+pub(in crate::combat) fn resync(state: &mut State) { state.knowledge.tracked = draw_classes(state); }
+
+/// P6: the tracker's fields, classified (b0): `maintained` profile flag, `draw` and `prerolls` public knowledge,
+/// `tracked` physical bookkeeping (excluded from equality; the belief resynchronises it with every arrangement).
+#[cfg(test)]
+#[test]
+fn tracker_census_classifies_every_field() {
+    let KnowledgeTracker { maintained: _, draw: _, tracked: _, prerolls: _ } = KnowledgeTracker::default();
+}
+
+/// M34s-b final review I1 diagnostics (env P1 duplicate-copy families; never a gameplay path).
+#[cfg(any(test, feature = "m34-diagnostics"))]
+impl Combat {
+    /// Create a card through the shared generated-card constructor and insertion owner (the `CreateCard` arm's pile,
+    /// knowledge and public-history owners, without its effect-producer whitelist, so a fixture can create e.g. Seek);
+    /// returns its instance.
+    pub fn diagnostic_create_card(&mut self, id: crate::content::CardId, upgrades: u32, destination: CardDestination) -> Option<u64> {
+        let state = &mut self.state;
+        let instance = super::piles::next_generated_instance(state).ok()?;
+        let history = super::card_state::CardConstructionHistory::from_state(state);
+        let card = super::card_state::generated_with_history(id, instance, upgrades, history)?;
+        super::piles::insert_generated(state, card, destination).ok()?;
+        Some(instance.0)
+    }
+    /// Apply one player effect through the shared pile owner (e.g. `Recycle`).
+    pub fn diagnostic_apply(&mut self, kind: EffectKind) -> Option<()> {
+        super::piles::apply_effect(&mut self.state, &Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player), kind }).ok()?;
+        Some(())
+    }
+    /// The discard pile's size.
+    pub fn diagnostic_discard_len(&self) -> usize { self.state.piles.discard.len() }
+    /// Oracle (never public): the true draw pile's classes, top to bottom (proves a family's true worlds differ).
+    pub fn diagnostic_draw_classes(&self) -> Vec<Option<CardClass>> { self.state.piles.draw.iter().rev().map(|c| class_of(&self.state, c)).collect() }
+    /// A supplied public upgrade of the discard pile's card at `index` (as a visible in-pile upgrade).
+    pub fn diagnostic_upgrade_discard(&mut self, index: usize) -> Option<()> {
+        self.state.piles.discard.get_mut(index)?.full_mut()?.upgrades += 1;
+        Some(())
+    }
+    /// Pairs of combat-local cards in the hand, draw or discard pile with equal card classes (the copies whose labels a
+    /// public-equivalent world may exchange).
+    pub fn diagnostic_identical_copies(&self) -> Vec<(u64, u64)> {
+        let state = &self.state;
+        let cards = state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard)
+            .filter_map(|o| o.full().filter(|l| matches!(l.origin, CombatCardRef::CombatLocal(_))).map(|l| (l.instance.0, class_of(state, o))))
+            .collect::<Vec<_>>();
+        let mut out = vec![];
+        for (i, (a, ca)) in cards.iter().enumerate() { for (b, cb) in &cards[i + 1..] { if ca.is_some() && ca == cb { out.push((*a, *b)); } } }
+        out
+    }
+    /// The public-equivalent world in which copies `a` and `b` (equal classes) have exchanged places: each takes the
+    /// other's pile slot, and a published draw position follows the card now there. False when not identical copies.
+    pub fn diagnostic_swap_identical_copies(&mut self, a: u64, b: u64) -> bool {
+        if !self.diagnostic_identical_copies().contains(&(a.min(b), a.max(b))) && !self.diagnostic_identical_copies().contains(&(a, b)) { return false }
+        let (ha, hb) = (super::card_state::handle(CardInstanceId(a)), super::card_state::handle(CardInstanceId(b)));
+        let state = &mut self.state;
+        let locate = |piles: &super::model::OwnedPiles, h: &CardHandle| -> Option<(u8, usize)> {
+            for (z, pile) in [&piles.hand, &piles.draw, &piles.discard].into_iter().enumerate() {
+                if let Some(i) = pile.iter().position(|c| c.handle() == *h) { return Some((z as u8, i)) }
+            }
+            None
+        };
+        let (Some(pa), Some(pb)) = (locate(&state.piles, &ha), locate(&state.piles, &hb)) else { return false };
+        let take = |piles: &mut super::model::OwnedPiles, (z, i): (u8, usize)| -> OwnedCard {
+            let pile = match z { 0 => &mut piles.hand, 1 => &mut piles.draw, _ => &mut piles.discard };
+            pile[i].clone()
+        };
+        let (ca, cb) = (take(&mut state.piles, pa), take(&mut state.piles, pb));
+        let mut put = |(z, i): (u8, usize), card: OwnedCard| { let pile = match z { 0 => &mut state.piles.hand, 1 => &mut state.piles.draw, _ => &mut state.piles.discard }; pile[i] = card; };
+        put(pa, cb);
+        put(pb, ca);
+        for known in state.public.known_draw.iter_mut().chain(state.public.known_draw_bottom.iter_mut()) {
+            if *known == ha { *known = hb.clone() } else if *known == hb { *known = ha.clone() }
+        }
+        resync(state);
+        true
+    }
+    /// Recheck R1 pairs: advance the hidden card-random stream by `draws` draws (a world with an equal public history and
+    /// another hidden RNG state). None without the stream.
+    pub fn diagnostic_advance_card_rng(&mut self, draws: usize) -> Option<()> {
+        for _ in 0..draws {
+            let (_, next) = super::rng::uniform_below(self.state.card_rng.as_ref()?, 2).ok()?;
+            self.state.card_rng = Some(next);
+        }
+        Some(())
+    }
+    /// Oracle (never public): the hand and the Stasis custody as (instance, class), in order (which copies a hidden pick
+    /// took).
+    pub fn diagnostic_hand_and_stasis(&self) -> [Vec<(u64, Option<CardClass>)>; 2] {
+        let state = &self.state;
+        let row = |o: &OwnedCard| (o.full().map_or(0, |l| l.instance.0), class_of(state, o));
+        [state.piles.hand.iter().map(row).collect(), state.stasis.values().map(row).collect()]
     }
 }

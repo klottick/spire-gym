@@ -546,6 +546,7 @@ fn open_omniscience(state:&mut State,effect:&Effect)->Result<(),EffectError>{
     let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Omniscience selection lacks its card parent".into()).into())};
     if state.piles.draw.is_empty(){return Ok(())}
     let candidates=canonical_omniscience_candidates(state);
+    crate::combat::piles::forget_ambiguous_grid_positions(state,&candidates);
     super::super::effects::begin_selection_range(state,SelectionParent::Card(parent.clone()),SelectionSourceZone::Draw,candidates,1,1,
         SelectionDisposition::Exhaust,EmptySelection::Continue)?;
     state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Omniscience;
@@ -596,7 +597,7 @@ pub(in crate::combat) fn commit_selection(state:&mut State,effect:&Effect,s:&Pen
     if s.operation==SelectionOperation::Scry{
         let index=state.piles.draw.iter().position(|card|card.handle()==*handle).ok_or_else(||InputError::Invariant("Scry selected physical card left draw".into()))?;
         let card=state.piles.draw.remove(index);
-        crate::combat::piles::removed_knowledge(state,&card,crate::combat::knowledge::Removal::Grid);state.piles.discard.push(card);
+        crate::combat::piles::removed_knowledge(state,&card,crate::combat::knowledge::Removal::Revealed);state.piles.discard.push(card);
         state.public.known_draw.retain(|id|id!=handle);state.public.known_draw_bottom.retain(|id|id!=handle);
     }else{
         if state.piles.hand.len()<10{

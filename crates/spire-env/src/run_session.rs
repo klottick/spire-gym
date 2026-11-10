@@ -5,6 +5,10 @@ pub enum RunSessionError {
     Core(spire_core::run::RunError),
     Capacity{group:&'static str,required:usize,capacity:usize},
     UnsupportedBoundary(&'static str),DeliveryFault(&'static str),IncompatibleReplay(&'static str),
+    /// M34s-b: a declared search limit would be exceeded; nothing happened.
+    Budget(&'static str),
+    /// M34s-b: the search branch is faulted (never retried or revived).
+    BranchFaulted,
 }
 use spire_core::{combat::rng::Partition,content::Character,run::*};
 use crate::{RunCapacities,RunObservation};
@@ -56,7 +60,8 @@ pub const RUN_CONTENT_ID_M15: &str = "spire-gym-m15-silent-a0-heart-captured-v1"
 pub(crate) const RUN_REWARD_ID: &str = "spire-gym-floor-key-terminal-reward-v1";
 pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
 /// v2 since M34s-a: G-a4 (autoplay free-play lifecycle) and R-a1 (Secret Technique/Weapon candidate order) change Standard gameplay.
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v2";
+/// v3 since M34s-b: I1-c (grid order of combat-local copies) and R1-b (Stasis roll mapping by card id and pile position).
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v3";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
@@ -425,7 +430,7 @@ pub struct RunRecordedStep{pub action:GameAction,pub reward:i32,pub terminal:Opt
 pub struct RunRecordedFault{pub action:Option<GameAction>,pub committed:bool,pub gameplay_recorded:bool,pub error:RunRecordError}
 #[derive(Clone,Debug,PartialEq,Eq,serde::Serialize,serde::Deserialize)]
 #[serde(rename_all="snake_case")]
-pub enum RunRecordErrorKind{Input,StaleToken,NotReset,Terminal,Closed,Core,Capacity,UnsupportedBoundary,DeliveryFault,IncompatibleReplay}
+pub enum RunRecordErrorKind{Input,StaleToken,NotReset,Terminal,Closed,Core,Capacity,UnsupportedBoundary,DeliveryFault,IncompatibleReplay,Budget,BranchFaulted}
 #[derive(Clone,Debug,PartialEq,Eq,serde::Serialize,serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RunCapacityFailure{pub group:String,pub required:usize,pub capacity:usize}
@@ -442,6 +447,7 @@ impl RunRecordError{
             RunSessionError::Core(e)=>{let message=match e{RunError::Faulted(f)=>format!("{}: {}",f.checkpoint,match &f.kind{RunFaultKind::UnsupportedBoundary(s)|RunFaultKind::Invariant(s)=>*s,RunFaultKind::Combat(_)=>"combat fault (full owner retained in reproduction)"}),_=>format!("{e:?}")};(K::Core,message,None)},
             RunSessionError::Capacity{group,required,capacity}=>(K::Capacity,"Run capacity exceeded".into(),Some(RunCapacityFailure{group:(*group).into(),required:*required,capacity:*capacity})),
             RunSessionError::UnsupportedBoundary(s)=>(K::UnsupportedBoundary,(*s).into(),None),RunSessionError::DeliveryFault(s)=>(K::DeliveryFault,(*s).into(),None),RunSessionError::IncompatibleReplay(s)=>(K::IncompatibleReplay,(*s).into(),None),
+            RunSessionError::Budget(s)=>(K::Budget,(*s).into(),None),RunSessionError::BranchFaulted=>(K::BranchFaulted,"branch faulted".into(),None),
         };Self{kind,message,capacity}
     }
 }
@@ -1023,6 +1029,15 @@ impl RunSession{
         };
         Ok(crate::CombatPolicyBoundary{observation,token,info:crate::combat_policy::lifecycle(&d,cp.as_ref())})
     }
+    /// M34s-b (design §4.6.1): the canonical public root of the current Standard combat decision. Captured profiles,
+    /// noncombat, terminal, faulted or closed sessions and unsupported combats are typed errors (a class, never a value).
+    pub fn public_root(&self)->Result<crate::PublicRoot,RunSessionError>{
+        if self.profile!=RunProfile::Standard{return Err(RunSessionError::UnsupportedBoundary("public roots exist only on the Standard surface"))}
+        self.usable()?;self.published.as_ref().ok_or(RunSessionError::NotReset)?;
+        let run=self.run.as_ref().ok_or(RunSessionError::NotReset)?;
+        if run.decision().map_err(RunSessionError::Core)?.terminal.is_some(){return Err(RunSessionError::Terminal)}
+        crate::PublicRoot::of(run,&self.config.capacities)
+    }
     /// Transport-only Gym seeding metadata, never an observation feature.
     pub fn effective_seed(&self)->Option<u64>{self.seed}
     pub fn new(config:RunSessionConfig)->Result<Self,RunSessionError>{
@@ -1098,6 +1113,11 @@ impl RunSession{
         match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
+    /// TEST-ONLY: the session's core Run (M34s-b transplant and belief tests).
+    #[cfg(test)]
+    pub(crate) fn run_for_test(&self)->Option<&Run>{self.run.as_ref()}
+    #[cfg(test)]
+    pub(crate) fn run_mut_for_test(&mut self)->Option<&mut Run>{self.run.as_mut()}
     /// TEST-ONLY supplied intervention between steps (e.g. `diagnostics::supplied_wound_enemies`): applied to the live
     /// Run, then the boundary is republished under a new serial (earlier tokens are stale). Replay applies the same
     /// intervention at the same accepted-step count through `run_replay::replay_standard_supplied_with`.

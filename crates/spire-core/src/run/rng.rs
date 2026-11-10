@@ -125,6 +125,16 @@ const RUN_COMBAT_STREAM_LABEL:&str="spire-lab/run-combat-stream/v1/";
 /// resampling). No gameplay stream derives from it and M34 adds no draw API, so research draws can never move a
 /// gameplay stream.
 pub const RESERVED_RESEARCH_RNG_DOMAIN:&str="spire-lab-research-rng-v1";
+/// M34s-b research labels (design §4.6.4), all under the reserved domain: sample `k` of a public root uses
+/// `HMAC(research_root, RESEARCH_SAMPLE_LABEL || root_digest || k_be)`; its R1/R2/R3 sub-keys are HMACs of that key.
+pub const RESEARCH_SAMPLE_LABEL:&[u8]=b"spire-lab-research-rng-v1\0belief-v1\0sample\0";
+/// The 32-byte research root of a caller `research_seed` (adapter `spire-gym-run-u64-le-v1`, as gameplay seeds).
+pub fn research_root(research_seed:u64)->[u8;32]{let mut root=[0;32];root[..8].copy_from_slice(&research_seed.to_le_bytes());root}
+/// The key of sample `k` of the public root with digest `root_digest`.
+pub fn research_sample_key(research_root:&[u8;32],root_digest:&[u8;32],k:u64)->[u8;32]{
+    let mut message=RESEARCH_SAMPLE_LABEL.to_vec();message.extend_from_slice(root_digest);message.extend_from_slice(&k.to_be_bytes());
+    crate::combat::rng::hmac_sha256(research_root,&message)
+}
 #[cfg(test)]
 mod m34c_reserved_domain{
     #[test]
@@ -134,11 +144,26 @@ mod m34c_reserved_domain{
         let labels=[std::str::from_utf8(super::RUN_RNG_LABEL).unwrap(),super::RUN_COMBAT_STREAM_LABEL,"spire-lab/rng/v1/stream\0"];
         for label in labels{assert!(!label.starts_with(&reserved)&&!reserved.starts_with(label),"{label} overlaps the reserved research domain");}
     }
+    /// M34s-b: the research sample label lies inside the reserved domain, so a research seed equal to a gameplay seed
+    /// still keys disjoint HMAC messages (`research_label_is_disjoint`).
+    #[test]
+    fn research_label_is_disjoint(){
+        let reserved=format!("{}\0",super::RESERVED_RESEARCH_RNG_DOMAIN);
+        assert!(super::RESEARCH_SAMPLE_LABEL.starts_with(reserved.as_bytes()));
+        for label in [super::RUN_RNG_LABEL,super::RUN_COMBAT_STREAM_LABEL.as_bytes(),b"spire-lab/rng/v1/stream\0"]{
+            assert!(!super::RESEARCH_SAMPLE_LABEL.starts_with(label)&&!label.starts_with(super::RESEARCH_SAMPLE_LABEL));
+        }
+        let (root,digest)=(super::research_root(7),[3;32]);
+        assert_eq!(root,{let mut r=[0;32];r[0]=7;r});
+        assert_ne!(super::research_sample_key(&root,&digest,0),super::research_sample_key(&root,&digest,1));
+        assert_ne!(super::research_sample_key(&root,&digest,0),super::research_sample_key(&root,&[4;32],0));
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunRng { root:[u8;32], partition:Partition, ordinal:u64, counters:BTreeMap<(RunRngScope,Vec<u64>),u64> }
 impl RunRng {
     pub fn new(root:[u8;32], partition:Partition, ordinal:u64)->Self { Self{root,partition,ordinal,counters:BTreeMap::new()} }
+    #[cfg(test)] pub(crate) fn root_for_test(&self)->[u8;32]{self.root}
     pub fn draw(&mut self, scope:RunRngScope)->u64 { self.draw_scoped(scope,&[]) }
     pub fn draw_scoped(&mut self, scope:RunRngScope, semantic:&[u64])->u64 {
         let counter=self.counters.entry((scope,semantic.to_vec())).or_insert(0);

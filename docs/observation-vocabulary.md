@@ -336,3 +336,42 @@ exactly the surfaces named (source-located census: M34s-a evidence `i1-census/su
 6. **Selection order, disclosed (R-a1).** Secret Technique and Secret Weapon list their draw-pile candidates in the shared
    grid order (card id, instance), as Seek and Omniscience already did, instead of physical draw order; their candidate
    action indices change on the Standard Run observation, the Standard combat view and `standard-combat-v1` sessions (the only surfaces admitting them; no captured, M21 or Gym66 profile does).
+
+## CHANGES — 2026-11-10 belief and branching (M34s-b)
+
+Descriptors and fingerprints: none change. The Standard rules id moves to `spire-gym-native-standard-rules-v3` (gameplay
+changes I1-c and R1-b). Final review I1 found a leak in the merged M34s-a surface: the order-hiding draw-pile grids (Seek,
+Omniscience, Secret Technique, Secret Weapon) ordered candidates by (card id, instance), and selection rows and legal
+actions follow that order, so the order showed which of several identical copies sat at a published draw position (and
+which copy a pick removed). Values change only as follows (profile [M34s](milestones/m34s-search-scenario.md), "Global
+fixes (M34s-b)"):
+
+1. **Forgetting at the grid (I1-a; values only).** Opening such a grid forgets the published draw positions of every
+   class with two or more copies among the candidates: `known_draw` / `known_draw_bottom` rows are cut at the first such
+   entry, and those cards become unknown draw rows. Surfaces: Standard Run, Standard combat view and `standard-combat-v1`;
+   the M17–M20 Defect (Seek) and M21–M25 Watcher (Omniscience) extended encoders, which publish `known_draw`.
+2. **Grid order of combat-local copies (I1-c; gameplay, PM ruling (c)).** Within one card id, combat-local candidates take
+   their slots of the (card id, instance) order sorted by (card class, instance). Permanent cards and a single class of
+   local copies are unchanged; only copies of one id with different classes (e.g. one upgraded) can move. Surfaces: every
+   surface whose content reaches these grids (Standard, `standard-combat-v1`, M15 Silent through its colorless Secret
+   Technique/Secret Weapon, M17–M20 Defect Seek, M21–M25 Watcher Omniscience); a reachable different-class local pair is
+   not established for every bounded profile. The candidate order gives recorded action indices their meaning, so the
+   Standard rules id moves to v3; the captured M15 and M17–M25 profiles keep their ids, as for earlier global fixes, with the
+   replay caveat that a recorded grid pick among such copies may replay to a different card.
+3. **Draw knowledge (I1-b; no observation column).** The grid removal reads public facts only; ambiguous picks make the
+   knowledge `Unrepresentable` until the next shuffle, and a knowledge over `KNOWLEDGE_BYTES_CAP` (2 MiB; final review I2)
+   is `Unrepresentable`.
+4. **Forgetting before a hidden pick (recheck R1-a; values only).** Bronze Orb's Stasis and Violence take a draw-pile
+   card uniformly at random. When the draw pile holds two or more copies of the taken class, the published draw positions
+   of that class are forgotten first (`known_draw` / `known_draw_bottom` cut at the first such entry), so the rows never
+   show which copy the hidden roll took. Surfaces: Standard Run, Standard combat view and `standard-combat-v1`, and the
+   M17–M25 extended encoders wherever Bronze Automaton or Violence is reachable.
+5. **Stasis roll mapping (recheck R1-b; gameplay, PM-approved).** Stasis maps its roll through its candidates ordered by
+   (card id, physical pile position) instead of (card id, instance). The distribution is unchanged; only which copy a
+   given roll takes changes. The Standard rules id v3 covers it. Surfaces: Standard (all characters, A0–A20); the captured
+   M7, M8, M9, M10, M13, M14, M15, M18, M19, M20, M23, M24 and M25 Run profiles; Gym66 combat-v1 and v2, the M21 Watcher
+   combat profile and `standard-combat-v1`. The captured ids and fingerprints keep their values: the PM accepted this
+   globally under the user's 2026-11-02 override, so these profiles are not frozen until the roadmap is complete. A retained
+   record from these profiles that contains a Stasis capture may replay to a different copy. In replay paths that do not
+   compare observations, this happens without a typed `IncompatibleReplay` error. The one measured change is the frozen M23
+   supplied-boss Bronze Automaton replay, step 12.

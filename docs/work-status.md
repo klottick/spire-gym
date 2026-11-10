@@ -1,6 +1,24 @@
 # Work status
 
-## Current snapshot — 2026-11-10, M34s-a public knowledge candidate (M34 merged)
+## Current snapshot — 2026-11-10, M34s-b belief and branching candidate (M34s-a merged)
+
+- M34s-a merged as PR #99 (main `bdd82639`). M34s-b (part 2 of 3 of M34s, spire-dxo.71.2) is a source candidate on that
+  base, not accepted. See the [M34s profile](milestones/m34s-search-scenario.md).
+- New: public roots of Standard Run and `standard-combat-v1` combat decisions (a canonical combat-scope transplant), the public
+  belief `spire-gym-public-belief-v1` (re-samples the draw order, every stream and ambiguous pre-rolls from public knowledge
+  only; fail-closed continuation allow-list; Runic Dome roots Unsupported), and the search arena
+  `spire-gym-public-search-v1` (branches, forks, tokens, budgets, Mask steps, combat horizon) in Rust and Python, with the
+  privacy oracle P1–P7 and negative controls. Descriptors and fingerprints are unchanged.
+- Global privacy fix I1 in the merged M34s-a surface: the order-hiding grids (Seek, Omniscience, Secret Technique/Weapon)
+  no longer show which identical copy is which. It forgets published draw positions at the grid and uses a public-only
+  knowledge law. Its one gameplay change orders combat-local copies of one id by class in the grid (Standard rules id v3).
+  Affected: Standard, `standard-combat-v1`, M15, M17–M25; see "Global fixes (M34s-b)" in the profile.
+- Recheck R1 extends I1 to hidden picks: Stasis and Violence forget the published positions of the taken class first.
+  Stasis maps its roll by card id and pile position, not instance rank; this gameplay change is covered by rules id v3.
+- Ruling D2: pre-roll consistent sets narrow only on published intent values (part a's execution-time narrowing removed).
+- Next: M34s-c (tactical starts), M35 (batching) and M36 (delivery).
+
+## Snapshot — 2026-11-10, M34s-a public knowledge candidate (M34 merged)
 
 - M34c merged as PR #98 (main `d6572940`). M34s-a (part 1 of 3 of M34s, spire-dxo.71.1) is a source candidate on that
   base, not accepted. See the [M34s profile](milestones/m34s-search-scenario.md).

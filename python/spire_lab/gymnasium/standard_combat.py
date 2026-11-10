@@ -5,6 +5,7 @@ from typing import Any
 from spire_lab import _native
 
 from .ironclad import Observation, _CombatEnv
+from .public_search import PublicSearch, open_public_search
 
 
 class StandardCombatEnv(_CombatEnv):
@@ -21,4 +22,20 @@ class StandardCombatEnv(_CombatEnv):
             entry_catalog,
             partition=partition,
             native_session_type=_native.NativeStandardCombatSession,
+        )
+
+    def public_search(
+        self,
+        research_seed: int,
+        *,
+        limits=None,
+        max_live_branches=None,
+        max_branches=None,
+        max_steps_per_branch=None,
+        max_total_steps=None,
+    ) -> PublicSearch:
+        """Open bounded public-belief search at the current combat decision."""
+        return open_public_search(
+            self, research_seed, limits, max_live_branches=max_live_branches, max_branches=max_branches,
+            max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps,
         )

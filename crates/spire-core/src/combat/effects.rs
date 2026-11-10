@@ -294,10 +294,6 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             // The validated target is needed while calculating typed payloads as
             // well as for the shared Block/HP commit below.
             let target = effect.target.as_ref().unwrap();
-            // M34s-a a2: a pre-rolled move's execution narrows its consistent set under the modifiers then in force.
-            if let (DamagePayload::FullEnemyMove(_),Source::Actor(Actor::Enemy(source)))=(payload,&effect.source){
-                super::knowledge::observe_prerolls(state,Some(source));
-            }
             let damage = match payload {
                 DamagePayload::Fixed(n) | DamagePayload::Thorns(n)
                 | DamagePayload::HpLoss(n) => *n,

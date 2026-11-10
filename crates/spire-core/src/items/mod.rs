@@ -939,3 +939,19 @@ fn validate_defect_relic_counters(context:&CombatItemContext)->Result<(),InputEr
         return Err(InputError::Invariant("M20 Inserter counter invalid".into()))
     }Ok(())
 }
+
+/// M34s-b P6 (final review M2): every field of the combat item context a public root carries, classified by exhaustive
+/// destructuring (a new field fails to compile until classified). No field holds an already-sampled hidden value: the
+/// profile flags and the battle context are public entry facts; relics, potions, potencies, counters, local relic state,
+/// bottled card links, the last potion use, the played card's phase facts and the trigger/armed latches are public item
+/// state; the heal room and ascension are public Run facts.
+#[cfg(test)]
+#[test]
+fn combat_item_context_census_classifies_every_field() {
+    let CombatItemContext { battle, startup_profile: _, watcher_progression: _, watcher_act3: _, watcher_heart: _,
+        complete_cards: _, master_order: _, complete_items: _, local: _, relic_cards: _, potion_potencies: _,
+        last_potion_use: _, collar_activated: _, emotion_chip_armed: _, counters: _, relics: _, potions: _,
+        orichalcum_trigger: _, runic_capacitor_armed: _, kite_triggered: _, wrist_blade_bonus: _, damage_card: _,
+        lantern_armed: _, heal_room: NativeHealRoom { combat: _, current_map_node: _ }, ascension: _ } = CombatItemContext::default();
+    let NativeBattleContext { elite_trigger: _, boss: _, burning: _, m15: _, m20: _ } = battle;
+}

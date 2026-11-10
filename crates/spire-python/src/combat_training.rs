@@ -21,7 +21,7 @@ use crate::{
     errors, numeric,
     run_env::{
         error as run_error, integer, label, policy_boundary as boundary,
-        specification as spec, token,
+        specification as spec, token, search_limits, public_search, NativePublicSearch,
     },
 };
 
@@ -353,6 +353,13 @@ impl OwnedCombatSession {
         })
         .map_err(|error| run_error(error))
     }
+
+    fn public_search(&self,research_seed:&Bound<'_,PyAny>,live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_branch:&Bound<'_,PyAny>,total:&Bound<'_,PyAny>)->PyResult<NativePublicSearch>{
+        let limits=search_limits(live,branches,per_branch,total)?;
+        let _lease=self.begin()?;
+        let root=self.session.lock().unwrap_or_else(|p|p.into_inner()).public_root().map_err(run_error)?;
+        public_search(root,integer(research_seed)?,limits)
+    }
 }
 
 #[pyclass(frozen, module = "spire_lab._native")]
@@ -409,6 +416,10 @@ macro_rules! single_combat_methods {
             }
             fn decision<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
                 self.inner.decision(py)
+            }
+            #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps))]
+            fn public_search(&self,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>)->PyResult<NativePublicSearch>{
+                self.inner.public_search(research_seed,max_live_branches,max_branches,max_steps_per_branch,max_total_steps)
             }
             #[pyo3(signature=(package,*,seed=None,entry_id=None))]
             fn _reset_deliver<'py>(

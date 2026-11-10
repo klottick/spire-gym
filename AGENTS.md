@@ -31,7 +31,7 @@ user did not request.
 | --- | --- |
 | Current product boundary and delivery path | [scope](docs/scope.md) and dated [work status](docs/work-status.md) |
 | Accepted behavior and evidence | [milestone profiles](docs/milestones/) and each profile's linked plan |
-| Frozen combat-v1 and M9/M10 Run contracts | [environment guide](docs/combat-environments.md), [M9](docs/milestones/m9-act3.md), [M10](docs/milestones/m10-heart.md) |
+| combat-v1 and M9/M10 Run contracts (not frozen until roadmap completion) | [environment guide](docs/combat-environments.md), [M9](docs/milestones/m9-act3.md), [M10](docs/milestones/m10-heart.md) |
 | Gym66 standalone combat and common policy view | [combat-training guide](docs/combat-training.md) |
 | Opt-in static card metadata descriptor (spire-90f) | [card metadata](docs/card-metadata.md) |
 | Shared power/intent observation vocabulary and fingerprint CHANGES (spire-85d) | [observation vocabulary](docs/observation-vocabulary.md) |
@@ -48,7 +48,7 @@ user did not request.
 | M32 Ascension 16–19 (source candidate; Standard A0–A19; A16 shop ×1.1; 26 A17–A19 monster behavior rows; playable ceilings removed; global Louse-opening fix G1) | [M32 profile](docs/milestones/m32-ascension16-19.md) (profile, coverage ledger and reconciliation in one file) |
 | M33 Ascension 20 (source candidate; Standard A0–A20; A20 all-seen Act 3 double boss; Act 3 unseen-priority fix G1; Act 4 route follows the double boss) | [M33 profile](docs/milestones/m33-ascension20.md) (profile, coverage ledger and reconciliation in one file) |
 | M34 full-run API (source candidate; M34a public view completeness, M34b Standard session/records/Python, M34c exact checkpoints and replay to a decision; base for M34s) | [Standard Run API](docs/standard-run-api.md) (contract) and [M34 profile](docs/milestones/m34-run-api.md) (profile, coverage ledger and reconciliation in one file) |
-| M34s search and scenario API (M34s-a source candidate: Standard draw rows and card lifecycle columns, Intangible and Back Attack intent display, exact public draw knowledge and pre-roll sets, the Standard combat view, `standard-combat-v1` sessions; Standard fingerprint `bf8e1d11…` and rules id v2; M34s-b belief and M34s-c tactical starts follow) | [M34s profile](docs/milestones/m34s-search-scenario.md) and [Standard Run API](docs/standard-run-api.md#standard-combat-view-and-sessions) |
+| M34s search and scenario API (M34s-a merged: Standard draw rows and card lifecycle columns, Intangible and Back Attack intent display, exact public draw knowledge and pre-roll sets, the Standard combat view, `standard-combat-v1` sessions; Standard fingerprint `bf8e1d11…` and rules id v2. M34s-b source candidate: combat-scope transplant, public belief `spire-gym-public-belief-v1` with a fail-closed allow-list, search arena `spire-gym-public-search-v1` on Standard Run and `standard-combat-v1` roots, privacy oracle P1–P7, global privacy fixes I1 (grids) and R1 (hidden picks) with Standard rules id v3; M34s-c tactical starts follow) | [M34s profile](docs/milestones/m34s-search-scenario.md) and [Standard Run API](docs/standard-run-api.md#public-belief-and-search-m34s-b) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |
@@ -75,8 +75,10 @@ crates/spire-core/src/combat/engine.rs, crates/spire-env/src/combat_policy.rs,
 and crates/spire-python/src/run_env.rs.
 See the [Gym66 guide](docs/combat-training.md) and [shared-engine guidance in the
 public history archive](docs/handoffs/2026-10-26-agent-guidance-history.md).
-Keep combat-v1 and existing M9/M10 profiles frozen; opt-in policy-v3 is documented
-separately and does not silently change the M10 Heart or default profile.
+combat-v1 and the M9/M10 profiles are not frozen until roadmap completion (user override, 2026-11-02: no
+compatibility promises). Global fixes may change their gameplay, with disclosure in the profile, CHANGES and the
+delivery note; for example, M34s-b R1-b changes which copy a Stasis roll takes. Opt-in policy-v3 is documented
+separately and is not switched on silently for the M10 Heart or the default profile.
 
 A source acceptance is not proof that the matching Python extension was built or
 loaded. The default Rust workspace does not enable the Python extension feature.

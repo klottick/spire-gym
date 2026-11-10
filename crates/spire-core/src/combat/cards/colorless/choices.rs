@@ -256,7 +256,7 @@ fn retrieve_secret(state: &mut State, effect: &Effect, card_type: CardType) -> R
     let Source::Card(parent) = &effect.source else { unreachable!("validated Colorless card parent") };
     let mut candidates = draw_candidates(state, card_type);
     if candidates.is_empty() { return Ok(()); }
-    crate::combat::piles::sort_draw_grid(state, &mut candidates);
+    crate::combat::piles::open_draw_grid(state, &mut candidates);
     let destination = if state.piles.hand.len() >= 10 { SelectionDisposition::Discard } else { SelectionDisposition::Hand };
     if candidates.len() == 1 {
         let destination = if destination == SelectionDisposition::Hand { CardDestination::Hand } else { CardDestination::Discard };
