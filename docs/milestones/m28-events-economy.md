@@ -1,6 +1,11 @@
 # M28 events and economy rooms
 
-Status: M28a–M28f2 merged as PR72, 74, 76, 79, 80, 82 and 83 (`ec8716b`). M28 is an A0 source profile, not a separate public Gym/Python profile or descriptor. The former M28f2-under-review wording is historical; M34 later exposed the Standard Run in spire-env and Python.
+Status: **merged.** Chunks M28a–M28f2 merged as PR72, 74, 76, 79, 80, 82 and 83 (`ec8716b`).
+M28 was delivered in merge chunks, each with green suites, one independent review and a separate
+merge. This page states what M28 provides and its limits. M28 is an A0 source profile, not a
+separate public Gym/Python profile or descriptor (PM ruling Q1). The former M28f2-under-review
+wording is historical; M34 later exposed the Standard Run in spire-env and Python. (This status
+block keeps its original six-line length because data/events citations refer to later lines.)
 
 ## What M28 is
 
@@ -330,7 +335,8 @@ fix across the chunks.
 
 ## Limits
 
-- M28 adds no separate spire-env, Gym or Python profile (PM ruling Q1); M34 later exposes the Standard Run through those surfaces. The native fuzz and traversal evidence here remain M28/A0 scoped.
+- M28 adds no separate spire-env, Gym or Python profile (PM ruling Q1); M34 later exposes the
+  Standard Run through those surfaces. The native fuzz and traversal evidence here stay M28/A0 scoped.
 - A0 only. Encounters without enemy facts at the Run's ascension stay the typed `Unsupported`,
   rejected before the choice (A1–A20 are M29–M33).
 - No original-runtime or Java RNG parity (RNG-001); no score screen (M34); no strategy or win claim.
