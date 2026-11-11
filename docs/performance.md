@@ -7,6 +7,9 @@ scaffold is not implemented coverage or a passing test. No gameplay
 optimizations, new dependencies or original-runtime fidelity claims accompany
 those measurements.
 
+For where this time goes (perf profiles, a phase-timing harness, and the ranked fixes
+proposed for M37b), see [profiling](profiling.md).
+
 ## A20 Standard checks (M36)
 
 The M36 diagnostic workload is Standard A20, measured on 2026-11-11 on the host

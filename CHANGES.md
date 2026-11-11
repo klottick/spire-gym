@@ -3,6 +3,13 @@
 Changes from the versioned contract freeze onward. The earlier `## CHANGES`
 entries are retained in [observation vocabulary history](docs/observation-vocabulary.md).
 
+## Unreleased
+
+- Add M37a profiling diagnostics: the ignored `m37_phase_timing` test in
+  `spire-env`, `examples/run_vector_phase_timing.py`, [profiling](docs/profiling.md) and
+  a README Speed section. These are diagnostics and documentation only. No gameplay,
+  identity, fingerprint, observation or API change.
+
 ## 1.0.0 — effective at the merge of PR #103
 
 See the [1.0.0 release notes](docs/releases/v1.0.0.md).

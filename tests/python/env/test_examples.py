@@ -17,6 +17,7 @@ CASES = [
     ("standard_run.py", [], ("exact fork reproduced", "from_record(")),
     ("run_vector_rollout.py", ["--steps", "8"], ("episodes=", "slot_steps_per_s=", "completed_episodes")),
     ("standard_combat_vector.py", ["--steps", "8"], ("episodes=", "slot_steps_per_s=", "completed_episodes")),
+    ("run_vector_phase_timing.py", ["--slots", "4", "--steps", "4"], ("spire-gym-m37-python-phase-timing-v1", '"binding"')),
     ("public_lookahead.py", ["--samples", "1"], ("legal root actions", "counters=")),
     ("tactical_lessons.py", [], ("first_legal:", "seeded_random:")),
     ("combat_gymnasium.py", [], ("Collected 64 batches", "natural endings")),
