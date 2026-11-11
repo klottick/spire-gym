@@ -98,6 +98,33 @@ The [examples](examples/) directory also has demos for the older Gym66, M9 and M
 surfaces. All examples use random or trivial policies; they are demonstrations, not
 strategy.
 
+## Speed
+
+Measured on 2026-11-11 on an AMD Ryzen 9 9950X (16 cores, Linux, release build) with
+v1.0.0 code. Workload: Standard A20, all four characters, random legal actions.
+
+| Path | `record_replay` | Throughput |
+| --- | --- | --- |
+| Native scalar (`a20_checks`) | off | about 10.3k actions/s, observation read included |
+| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers | on | about 5.2k / 11.0k / 12.1k slot steps/s |
+| Native batch (profiling harness), 64 slots, 1 / 4 / 16 workers | off | about 6.1k / 15.0k / 19.7k slot steps/s (test build, about 8% slower than a release example) |
+| Python `RunVectorEnv`, 64 slots, 1 / 16 workers | off | about 4.6k / 8.6k slot steps/s |
+
+**Main bottlenecks.**
+- About a third of each step goes to enumerating legal actions. It clones the whole
+  combat state for each card and target it prepares.
+- About a third goes to building and copying a 764 KB dense observation.
+- At 16 workers, batch steps become memory-bound in the zeroing and copying of those
+  observations; there is no significant serial section.
+- With `record_replay` on, every reset and record export rebuilds the observation-spec
+  fingerprint: about 22% of batch time at 1 worker.
+- In Python, packing about 49 MB per 64-slot call under the GIL is the serial part. At
+  16 workers the vector reaches less than half the native recording-off rate.
+
+These figures are diagnostic, not targets or guarantees. Results vary by host and run.
+For the method and the proposed fixes, see [profiling](docs/profiling.md) and
+[performance](docs/performance.md).
+
 ## Stability
 
 v1.0.0 freezes, by version:
@@ -117,6 +144,7 @@ explicit error rather than diverging silently.
 - [Standard Run API](docs/standard-run-api.md): observations, actions, records, replay, search and tactical starts.
 - [Batching](docs/batching.md): batch and vector behaviour, faults and workers.
 - [Performance](docs/performance.md): A20 diagnostic measurements.
+- [Profiling](docs/profiling.md): where the time goes, and the proposed fixes.
 - [Development](docs/development.md): toolchain, build, test lanes and extension identity.
 - [Milestones](docs/milestones/README.md): the M1–M36 history and per-milestone evidence.
 - [Release notes](docs/releases/v1.0.0.md) and the earlier [README](docs/handoffs/2026-11-11-readme-history.md).
