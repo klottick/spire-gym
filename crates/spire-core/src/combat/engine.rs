@@ -765,11 +765,12 @@ impl Combat {
             .filter(|(_, enemy)| enemy.life == super::ActorLife::Active && enemy.hp > 0)
             .map(|(slot, _)| Some(TargetId(slot as u64 + 1)))).collect::<Vec<_>>();
         let mut actions = Vec::new();
+        let mut projection = super::cards::Projection::new(&self.state);
         for owned in &self.state.piles.hand {
             let card = owned.full().ok_or(crate::run::RunError::Unsupported("legacy card in full combat menu"))?;
             for target in &targets {
                 let action = CombatAction::PlayCard { instance: card.instance.0, target: *target };
-                match super::cards::prepare(self, &action) {
+                match super::cards::prepare_projected(self, &action, &mut projection) {
                     Ok(_) => actions.push(action),
                     Err(crate::run::RunError::InvalidAction) => (),
                     Err(error) => return Err(error),

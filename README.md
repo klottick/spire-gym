@@ -100,29 +100,33 @@ strategy.
 
 ## Speed
 
-Measured on 2026-11-11 on an AMD Ryzen 9 9950X (16 cores, Linux, release build) with
-v1.0.0 code. Workload: Standard A20, all four characters, random legal actions.
+Measured on 2026-11-11 on an AMD Ryzen 9 9950X (16 cores, Linux, release build), with the
+M37b speedups applied. Workload: Standard A20, all four characters, random legal actions.
+The v1.0.0 figures from the same host are shown for comparison.
 
-| Path | `record_replay` | Throughput |
-| --- | --- | --- |
-| Native scalar (`a20_checks`) | off | about 10.3k actions/s, observation read included |
-| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers | on | about 5.2k / 11.0k / 12.1k slot steps/s |
-| Native batch (profiling harness), 64 slots, 1 / 4 / 16 workers | off | about 6.1k / 15.0k / 19.7k slot steps/s (test build, about 8% slower than a release example) |
-| Python `RunVectorEnv`, 64 slots, 1 / 16 workers | off | about 4.6k / 8.6k slot steps/s |
+| Path | `record_replay` | v1.0.0 | After M37b |
+| --- | --- | --- | --- |
+| Native scalar (`a20_checks`), actions/s, observation read included | off | about 11.0k | about 20.4k |
+| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers, slot steps/s | on | about 5.2k / 11.1k / 12.1k | about 12.9k / 31.0k / 37.9k |
+| Native batch (profiling harness, a test build about 8% slower), 64 slots, 1 / 4 / 16 workers, slot steps/s | off | about 6.3k / 14.8k / 19.6k | about 12.6k / 30.5k / 45.3k |
+| Python `RunVectorEnv`, 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 8.8k | about 7.4k / 11.5k |
+| Python `NativeRunBatch.step` alone (no Gymnasium facade), 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 9.1k | about 7.1k / 12k–15k |
 
-**Main bottlenecks.**
-- About a third of each step goes to enumerating legal actions. It clones the whole
-  combat state for each card and target it prepares.
-- About a third goes to building and copying a 764 KB dense observation.
-- At 16 workers, batch steps become memory-bound in the zeroing and copying of those
-  observations; there is no significant serial section.
-- With `record_replay` on, every reset and record export rebuilds the observation-spec
-  fingerprint: about 22% of batch time at 1 worker.
-- In Python, packing about 49 MB per 64-slot call under the GIL is the serial part. At
-  16 workers the vector reaches less than half the native recording-off rate.
+The 16-worker Python figure varies with allocator state within a process; see
+[performance](docs/performance.md#a20-standard-checks-after-m37b--2026-11-11).
+
+**Where the time goes now.**
+- Rules work and encoding the 764 KB dense observation take most of a step. Legal-action
+  enumeration no longer clones the combat state for each card, and the session no longer
+  copies each observation.
+- At 16 workers batch steps are still partly memory-bound. Every step writes a fresh
+  dense observation, and the Python binding copies the rows into the stacked arrays (on
+  the batch's workers, with the GIL released).
+- Recording replays no longer rebuilds the observation-spec fingerprint at every reset
+  and record export.
 
 These figures are diagnostic, not targets or guarantees. Results vary by host and run.
-For the method and the proposed fixes, see [profiling](docs/profiling.md) and
+For the method and the remaining options, see [profiling](docs/profiling.md) and
 [performance](docs/performance.md).
 
 ## Stability

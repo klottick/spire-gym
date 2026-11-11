@@ -122,8 +122,9 @@ pub(super) fn candidates(run:&Run)->Result<Vec<Candidate>,RunError>{
     }}
     Ok(candidates)
 }
-pub(super) fn step(run:&mut Run,action:&GameAction)->Result<RunTransition,RunError>{
-    if !candidates(run)?.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction)}
+/// `check: false` only for an action from this unchanged Run's published candidates (`Run::step_offered`).
+pub(super) fn step(run:&mut Run,action:&GameAction,check:bool)->Result<RunTransition,RunError>{
+    if check&&!candidates(run)?.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction)}
     match action {
         // The standard Neow owns its screen and every child screen until its map is shown.
         GameAction::Choose(id) if is_standard(&run.state)&&run.state.room=="Neow"=>standard::neow::choose(run,*id),

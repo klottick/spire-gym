@@ -371,6 +371,13 @@ impl<S: BatchSession> SessionBatch<S> {
     pub fn last_statuses(&self) -> &[SlotDelivery] { &self.last }
     /// The fault row's zeroed boundary (the published layout), once any slot has published.
     pub fn zero_boundary(&self) -> Option<&S::Boundary> { self.template.as_ref() }
+    /// M37b: run `f` over `jobs` on this batch's workers (inline with one worker), results in job order. For transport
+    /// packaging that should use the batch's parallelism, such as the Python binding's stacked copies; it never touches
+    /// sessions or slot state.
+    #[doc(hidden)]
+    pub fn map_jobs<T: Send, R: Send>(&self, jobs: Vec<T>, f: impl Fn(T) -> R + Send + Sync) -> Result<Vec<R>, SessionBatchError> {
+        self.scheduler.map(jobs, f).map_err(SessionBatchError::Setup)
+    }
     fn usable(&self) -> Result<(), SessionBatchError> {
         if self.closed { return Err(SessionBatchError::Input { slot: None, error: Error::Closed }) }
         if let Some(fault) = &self.frozen { return Err(SessionBatchError::Fault(fault.clone())) }

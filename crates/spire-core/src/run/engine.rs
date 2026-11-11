@@ -83,12 +83,24 @@ impl Run {
         let room_params=super::rooms::standard::room_params(self,room.as_ref());
         Ok(PublicDecision{room_params,content_profile:self.state.room_loop.as_ref().map(|r|r.scenario),room,reward_total:self.state.reward_ledger.total,combat:None,combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone(),act:self.state.act,floor:self.state.floor,player:PublicPlayer{bottled_cards:self.state.relic_cards.iter().map(|(relic,instance)|(*relic,*instance)).collect(),relic_counters:crate::items::visible_counters(&self.state.relic_counters),character:self.state.character,hp:self.state.hp,max_hp:self.state.max_hp,gold:self.state.gold,relics:self.state.relics.clone(),potions:self.state.potions.clone(),keys:self.state.keys},objects,candidates,offers,selection,terminal:self.state.terminal})
     }
-    pub fn step(&mut self,action:&GameAction)->Result<RunTransition,RunError>{
+    pub fn step(&mut self,action:&GameAction)->Result<RunTransition,RunError>{self.step_checked(action,true)}
+    /// M37b: [`Run::step`] for an action taken from the candidates of [`Run::decision`] on this same Run, unchanged
+    /// since (a session's published action table). The combat and room candidate lists that `step` rebuilds to check
+    /// the action are then known to contain it, so they are not rebuilt; otherwise this is `step`.
+    ///
+    /// Precondition: `action` is one of those candidates. For any other action the result is unspecified. Deeper
+    /// validation usually rejects it, but it need not reject it as `step` would, and it may change or fault the Run.
+    /// Use `step` for any action that does not come from the current decision. Checking the precondition would
+    /// rebuild the candidate lists this method exists to skip, so it is not asserted. The M37b lockstep differential
+    /// checks offered actions against `step` instead.
+    #[doc(hidden)]
+    pub fn step_offered(&mut self,action:&GameAction)->Result<RunTransition,RunError>{self.step_checked(action,false)}
+    fn step_checked(&mut self,action:&GameAction,check:bool)->Result<RunTransition,RunError>{
         if let Some(fault)=&self.state.fault{return Err(RunError::Faulted(fault.clone()));}
         if self.state.terminal.is_some(){return Err(RunError::Terminal);}
-        if let GameAction::Combat(action)=action { return self.choose_combat(action.clone()); }
+        if let GameAction::Combat(action)=action { return self.choose_combat_checked(action.clone(),check); }
         if self.state.combat.is_some() { return Err(RunError::InvalidAction); }
-        if self.state.room_loop.is_some() {return super::rooms::step(self,action);}
+        if self.state.room_loop.is_some() {return super::rooms::step(self,action,check);}
         if !self.candidates.iter().any(|c|&c.action==action){return Err(RunError::InvalidAction);}
         match action{
             GameAction::Choose(id)=>{

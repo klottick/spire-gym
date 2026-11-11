@@ -4,9 +4,10 @@
 //! Workload: the `a20_checks` one, Standard A20, the four characters and the seeded R1 legal-action rule.
 //! - `scalar`: pass 1 times the public `RunSession::reset`/`step`; pass 2 replays the same seeds and actions through
 //!   the steps `RunSession::step_with_status` and `publish` run, timing each one: reward snapshot, `Run::step` (game
-//!   logic), reward items, `Run::decision` (public decision and legal candidates), `Run::public_map`,
-//!   `encode_run_standard` (dense observation and action mask), `RunObservation::owned` (the returned copy), the action
-//!   list and the observation drops, holding observations as long as the session and caller do. Pass 2 must reproduce
+//!   logic; `Run::step_offered` since M37b), reward items, `Run::decision` (public decision and legal candidates),
+//!   `Run::public_map`, `encode_run_standard` (dense observation and action mask), the action list and the observation
+//!   drop, holding the returned observation as long as the caller does (since M37b the session keeps no copy and
+//!   `RunObservation::owned` is no longer on the step path). Pass 2 must reproduce
 //!   pass 1's episode lengths and terminals. Layout probes then time the fixed Standard layout alone: fresh zeroed
 //!   allocation, zeroing a reused buffer, a fresh copy and a copy into a reused buffer.
 //! - `batch`: a `SessionBatch` over a timing wrapper of `RunSession`. Per job it records the slot, worker thread and
@@ -118,9 +119,7 @@ fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
             let caps = config.capacities.clone();
             let mut run = phases.time("reset_create_run", || create_run(RunProfile::Standard, &config, seed, 0).unwrap());
             let mut length = 0usize;
-            // Held as the session holds them: the published observation until the next publish, and the returned
-            // copy until the caller's next step returns.
-            let mut published: Option<RunObservation> = None;
+            // The returned observation, held until the caller's next step returns (the session keeps no copy).
             let mut returned_previous: Option<RunObservation> = None;
             let terminal;
             loop {
@@ -129,9 +128,7 @@ fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
                 let context = StandardContext { ascension: run.ascension(), run_selection: run.room_selection_operation() };
                 let observation = phases.time("encode_observation", || encode_run_standard(&decision, map.as_ref(), &caps, context).unwrap());
                 let actions = phases.time("candidate_actions", || decision.candidates.into_iter().map(|c| c.action).collect::<Vec<_>>());
-                let returned = phases.time("owned_copy", || observation.owned().unwrap());
-                let previous = published.replace(observation);
-                phases.time("drop_previous_published", || drop(previous));
+                let returned = observation;
                 if steps == 0 && length == 0 {
                     for g in &returned.groups { group_bytes.insert(g.key, g.values.len() * 8 + g.known.len() + g.occupied.as_ref().map_or(0, Vec::len)); }
                     group_bytes.insert("action_mask", returned.action_mask.len());
@@ -142,7 +139,7 @@ fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
                 let mask = &returned_previous.as_ref().unwrap().action_mask;
                 let action = phases.time("policy_select", || crate::tests::m35_r2::r1(seed, length as u64, mask));
                 let ledger = phases.time("reward_snapshot", || run.reward_snapshot());
-                let transition = phases.time("core_step", || run.step(&actions[action]).unwrap());
+                let transition = phases.time("core_step", || run.step_offered(&actions[action]).unwrap());
                 let items = phases.time("reward_items", || checked_reward_items(&ledger, &transition).unwrap());
                 black_box(items);
                 length += 1;

@@ -477,15 +477,22 @@ pub struct RunSession{
     test_reset_panic:Option<TestResetPanic>,
     #[cfg(test)]
     m20_diagnostic:Option<spire_core::run::diagnostics::M20DiagnosticLoadout>,
-    config:RunSessionConfig,profile:RunProfile,id:u64,serial:u64,run:Option<Run>,published:Option<RunBoundary>,
+    config:RunSessionConfig,profile:RunProfile,id:u64,serial:u64,run:Option<Run>,published:Option<Published>,
     actions:Vec<GameAction>,seed:Option<u64>,ordinal:u64,record:Option<RunEpisodeRecord>,
     fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,at_m12_cutoff:bool,at_m13_cutoff:bool,at_m14_cutoff:bool,
+    /// M37b: the profile's observation-spec fingerprint for `config.capacities`, computed once for record headers.
+    profile_fingerprint:std::sync::OnceLock<[u8;32]>,
 }
 /// M34c privileged exact-world checkpoint (design §4.8): an opaque, immutable deep copy of one session's episode (core
 /// Run, config and creation, seed, ordinal, published boundary, action table, record prefix, last step). It reveals the
 /// hidden future (restoring replays the same draws), so it is an oracle, never an observation: no accessor, no
 /// `Clone`/`PartialEq`/`Hash` (state equality would be a hidden-state side channel) and a redacted `Debug`.
 /// In-memory only; the portable form is the record.
+/// M37b: the published boundary as the session keeps it. After `reset` and `step` the encoded observation is moved to
+/// the caller (`observation: None`) and `decision` re-encodes it from the unchanged Run; publication is deterministic,
+/// so the bytes are identical. Supplied test publications keep their observation.
+struct Published{token:RunDecisionToken,terminal:Option<RunTerminal>,observation:Option<RunObservation>}
+impl From<RunBoundary> for Published{fn from(b:RunBoundary)->Self{Self{token:b.token,terminal:b.terminal,observation:Some(b.observation)}}}
 pub struct ExactCheckpoint{state:Box<RunSession>}
 impl std::fmt::Debug for ExactCheckpoint{fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("ExactCheckpoint { .. }")}}
 /// TEST-ONLY reset worker-panic stage for the shared RunBatch catch_unwind path. Not a production hook.
@@ -862,8 +869,9 @@ pub(crate) fn checked_reward_items(before:&RewardLedgerSnapshot,transition:&RunT
     #[cfg(test)] if TEST_REWARD_SKEW.with(|s|s.get())&&!items.is_empty(){items.remove(0);}
     (items.iter().try_fold(0i32,|n,item|n.checked_add(item.amount))==Some(transition.reward)).then_some(items)
 }
-fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64)->Result<RunEpisodeRecord,RunSessionError>{
-    Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint:profile.observation_spec(&config.capacities)?.fingerprint(),config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
+/// `observation_fingerprint` is the profile's spec fingerprint for `config.capacities` (memoised per session, M37b).
+fn new_record(profile:RunProfile,config:&RunSessionConfig,seed:u64,ordinal:u64,observation_fingerprint:[u8;32])->Result<RunEpisodeRecord,RunSessionError>{
+    Ok(RunEpisodeRecord{schema_id:profile.schema_id().into(),profile_id:profile.id().into(),rules_id:profile.rules_id().into(),content_id:profile.content_id().into(),seed_adapter_id:RUN_SEED_ADAPTER_ID.into(),rng_id:spire_core::combat::rng::RNG_CONTRACT_ID.into(),reward_id:RUN_REWARD_ID.into(),observation_fingerprint,config:config.clone(),seed,ordinal,steps:vec![],terminal:None,fault:None,closed:false})
 }
 impl RunSession{
     #[cfg(feature="fuzz-diagnostics")]
@@ -1082,8 +1090,8 @@ impl RunSession{
         let mut s=Self::new_m22(config)?;
         let run=spire_core::run::diagnostics::m22_diagnostic(fixture).map_err(RunSessionError::Core)?;
         s.m22_diagnostic=Some(fixture);s.run=Some(run);s.seed=Some(7);s.serial=1;
-        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
-        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0,s.profile_fingerprint()?)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
     /// TEST-ONLY owner inconsistency for the shared batch panic path: drops the Run owner while the published
@@ -1099,8 +1107,8 @@ impl RunSession{
         let mut s=Self::new_m23(config)?;
         let run=spire_core::run::diagnostics::m23_diagnostic(fixture).map_err(RunSessionError::Core)?;
         s.m23_diagnostic=Some(fixture);s.run=Some(run);s.seed=Some(7);s.serial=1;
-        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
-        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0,s.profile_fingerprint()?)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
     /// Fixed constructed/supplied M24 owner stage; absent from normal builds and config/JSON.
@@ -1109,8 +1117,8 @@ impl RunSession{
         let mut s=Self::new_m24(config)?;
         let run=start.run().map_err(RunSessionError::Core)?;
         s.m24_diagnostic=Some(start);s.run=Some(run);s.seed=Some(start.seed());s.serial=1;
-        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,start.seed(),0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
-        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,start.seed(),0,s.profile_fingerprint()?)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
     /// TEST-ONLY: the session's core Run (M34s-b transplant and belief tests).
@@ -1127,8 +1135,8 @@ impl RunSession{
         f(self.run.as_mut().ok_or(RunSessionError::NotReset)?).map_err(RunSessionError::Core)?;
         let serial=self.serial.checked_add(1).ok_or(RunSessionError::DeliveryFault("Run publication serial exhausted"))?;
         let (boundary,actions,a,b,c)=self.publish_current(serial)?;
-        self.serial=serial;self.actions=actions;self.at_m12_cutoff=a;self.at_m13_cutoff=b;self.at_m14_cutoff=c;self.published=Some(boundary.clone());
-        boundary.owned()
+        self.serial=serial;self.actions=actions;self.at_m12_cutoff=a;self.at_m13_cutoff=b;self.at_m14_cutoff=c;self.published=Some(boundary.owned()?.into());
+        Ok(boundary)
     }
     /// TEST-ONLY supplied Standard start (e.g. `diagnostics::m29::standard_supplied_run_at`): the session publishes the
     /// supplied Run as its first boundary at `seed`/ordinal 0; replay it with the same supplied Run.
@@ -1136,8 +1144,8 @@ impl RunSession{
     pub(crate) fn from_standard_supplied(config:StandardRunConfig,run:Run,seed:u64)->Result<Self,RunSessionError>{
         let mut s=Self::new_standard(config)?;
         s.run=Some(run);s.seed=Some(seed);s.serial=1;
-        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,seed,0)?)}else{None};
-        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,seed,0,s.profile_fingerprint()?)?)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
     /// Fixed constructed M25 owner stage; absent from normal builds and config/JSON.
@@ -1146,8 +1154,8 @@ impl RunSession{
         let mut s=Self::new_m25(config)?;
         let run=spire_core::run::diagnostics::m25_diagnostic(fixture).map_err(RunSessionError::Core)?;
         s.m25_diagnostic=Some(fixture);s.run=Some(run);s.seed=Some(7);s.serial=1;
-        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
-        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
+        s.record=if s.config.record_replay{let mut r=new_record(s.profile,&s.config,7,0,s.profile_fingerprint()?)?;r.observation_fingerprint=s.observation_spec()?.fingerprint();Some(r)}else{None};
+        match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
         Ok(s)
     }
     /// Fixed supplied M25 starts; played-fixture bootstrap is applied to the owned Run
@@ -1158,9 +1166,9 @@ impl RunSession{
         let mut run=start.run().map_err(RunSessionError::Core)?;
         if let Some(action)=start.bootstrap_action(&run).map_err(RunSessionError::Core)?{run.step(&action).map_err(RunSessionError::Core)?;}
         s.run=Some(run);s.seed=Some(7);s.serial=1;
-        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,7,0)?)}else{None};
+        s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,7,0,s.profile_fingerprint()?)?)}else{None};
         let (boundary,actions,a,b,c)=s.publish_current(1)?;
-        s.published=Some(boundary);s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;
+        s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;
         Ok(s)
     }
     #[cfg(test)]
@@ -1168,17 +1176,17 @@ impl RunSession{
         validate_m20_diagnostic_config(&config)?;
         let mut session=Self::new_m20(config)?;
         let run=spire_core::run::diagnostics::m20_supplied_act4(loadout).map_err(RunSessionError::Core)?;
-        let mut record=if session.config.record_replay{Some(new_record(session.profile,&session.config,7,0)?)}else{None};
+        let mut record=if session.config.record_replay{Some(new_record(session.profile,&session.config,7,0,session.profile_fingerprint()?)?)}else{None};
         if let Some(r)=&mut record{r.observation_fingerprint=crate::run_schema_m20::diagnostic_spec(&session.config.capacities)?.fingerprint();}
         session.m20_diagnostic=Some(loadout);session.run=Some(run);session.seed=Some(7);session.serial=1;session.record=record;
         let (boundary,actions,a,b,c)=session.publish_current(1)?;
-        session.published=Some(boundary);session.actions=actions;session.at_m12_cutoff=a;session.at_m13_cutoff=b;session.at_m14_cutoff=c;
+        session.published=Some(boundary.into());session.actions=actions;session.at_m12_cutoff=a;session.at_m13_cutoff=b;session.at_m14_cutoff=c;
         Ok(session)
     }
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
         let id=allocate_run_session_id()?;
-        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] m25_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false})
+        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] m25_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false,profile_fingerprint:std::sync::OnceLock::new()})
     }
     /// The immutable numeric action/observation contract selected by this session.
     pub fn observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
@@ -1193,6 +1201,12 @@ impl RunSession{
         let encoder:Option<RunEncoder>=None;
         #[cfg(test)] let encoder=if self.m20_diagnostic.is_some(){Some(crate::run_observation::encode_run_m20_diagnostic as RunEncoder)}else{encoder};
         publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial]),encoder)
+    }
+    /// The profile's spec fingerprint for this session's capacities (what `new_record` stamps); built once, then reused.
+    fn profile_fingerprint(&self)->Result<[u8;32],RunSessionError>{
+        if let Some(fingerprint)=self.profile_fingerprint.get(){return Ok(*fingerprint)}
+        let fingerprint=self.profile.observation_spec(&self.config.capacities)?.fingerprint();
+        Ok(*self.profile_fingerprint.get_or_init(||fingerprint))
     }
     fn usable(&self)->Result<(),RunSessionError>{if self.closed{return Err(RunSessionError::Closed)}if let Some(error)=&self.fault{return Err(error.clone())}Ok(())}
     fn freeze(&mut self,error:RunSessionError,cause:RunSessionError,action:Option<GameAction>,committed:bool,gameplay_recorded:bool)->RunSessionError{
@@ -1222,7 +1236,7 @@ impl RunSession{
         #[cfg(test)] {self.m22_diagnostic=None;}
         #[cfg(test)] {self.m23_diagnostic=None;}
         #[cfg(test)] {self.m24_diagnostic=None;}
-        let record=if self.config.record_replay{Some(new_record(self.profile,&self.config,seed,ordinal)?)}else{None};
+        let record=if self.config.record_replay{Some(new_record(self.profile,&self.config,seed,ordinal,self.profile_fingerprint()?)?)}else{None};
         self.record=record;self.seed=Some(seed);self.ordinal=ordinal;self.last_step=None;self.published=None;self.actions.clear();
         let run=match create_run(self.profile,&self.config,seed,ordinal){Ok(run)=>run,Err(error)=>{self.run=None;return Err(self.freeze(error.clone(),error,None,false,false))}};
         self.run=Some(run);self.serial=serial;
@@ -1230,10 +1244,13 @@ impl RunSession{
         let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current(serial){
             Ok(result)=>result,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false)),
         };
-        let returned=match boundary.owned(){Ok(b)=>b,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false))};
-        self.published=Some(boundary);self.actions=actions;self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;Ok(returned)
+        self.published=Some(Published{token:boundary.token,terminal:boundary.terminal,observation:None});self.actions=actions;self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;Ok(boundary)
     }
-    pub fn decision(&self)->Result<RunBoundary,RunSessionError>{self.usable()?;self.published.as_ref().ok_or(RunSessionError::NotReset)?.owned()}
+    pub fn decision(&self)->Result<RunBoundary,RunSessionError>{
+        self.usable()?;let published=self.published.as_ref().ok_or(RunSessionError::NotReset)?;
+        let observation=match &published.observation{Some(observation)=>observation.owned()?,None=>self.publish_current(self.serial)?.0.observation};
+        Ok(RunBoundary{observation,token:published.token,terminal:published.terminal})
+    }
     fn step_preflight(&self,token:RunDecisionToken,index:RunActionIndex)->Result<(usize,u64),RunSessionError>{
         self.usable()?;let published=self.published.as_ref().ok_or(RunSessionError::NotReset)?;
         if token!=published.token{return Err(RunSessionError::StaleToken)}
@@ -1261,7 +1278,8 @@ impl RunSession{
             return Err(RunSessionStepFailure{error,committed:false});
         }}
         let ledger=self.run.as_ref().unwrap().reward_snapshot();
-        let transition=match self.run.as_mut().unwrap().step(&action){
+        // The action comes from the table published for this unchanged Run, so the candidate check is skipped (M37b).
+        let transition=match self.run.as_mut().unwrap().step_offered(&action){
             Ok(t)=>t,
             Err(error)=>{
                 let committed=matches!(error,RunError::Faulted(_));let error=RunSessionError::Core(error);
@@ -1285,12 +1303,8 @@ impl RunSession{
                 return Err(RunSessionStepFailure{error,committed:true});
             },
         };
-        let returned=match boundary.owned(){
-            Ok(b)=>b,
-            Err(error)=>{let error=self.freeze(error.clone(),error,Some(action),true,true);return Err(RunSessionStepFailure{error,committed:true})},
-        };
-        self.actions=actions;self.published=Some(boundary);self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;
-        Ok(RunStepResult{boundary:returned,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false,reward_events})
+        self.actions=actions;self.published=Some(Published{token:boundary.token,terminal:boundary.terminal,observation:None});self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;
+        Ok(RunStepResult{boundary,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false,reward_events})
     }
     pub(crate) fn publication_serial(&self)->u64{self.serial}
     /// M35: the retained first fault, if any (batch statuses and isolate fault records).
@@ -1312,7 +1326,7 @@ impl RunSession{
     pub fn record(&self)->Result<Option<RunEpisodeRecord>,RunSessionError>{
         let Some(record)=&self.record else{return Ok(None)};
         let mut steps=Vec::new();steps.try_reserve_exact(record.steps.len()).map_err(|_|RunSessionError::DeliveryFault("Run record export allocation failed"))?;steps.extend(record.steps.iter().cloned());
-        let mut owned=new_record(self.profile,&record.config,record.seed,record.ordinal)?;owned.observation_fingerprint=record.observation_fingerprint;owned.steps=steps;owned.terminal=record.terminal;owned.fault=record.fault.clone();owned.closed=record.closed;Ok(Some(owned))
+        let mut owned=new_record(self.profile,&record.config,record.seed,record.ordinal,record.observation_fingerprint)?;owned.steps=steps;owned.terminal=record.terminal;owned.fault=record.fault.clone();owned.closed=record.closed;Ok(Some(owned))
     }
     pub fn reproduction(&self)->Result<RunReproduction,RunSessionError>{
         Ok(RunReproduction{config:self.config.clone(),seed:self.seed,ordinal:self.ordinal,latest_decision:self.run.as_ref().map(Run::decision),latest_map:self.run.as_ref().and_then(Run::public_map),last_accepted_step:self.last_step.clone(),fault:self.fault.clone(),record:self.record()?,closed:self.closed})
@@ -1344,12 +1358,12 @@ impl RunSession{
     }
     /// Deep copy of the episode state under identity `[id, serial]` (the published token is reissued), never faulted or closed.
     fn exact_copy(&self,id:u64,serial:u64)->Result<Self,RunSessionError>{
-        let published=match &self.published{Some(b)=>Some(RunBoundary{token:RunDecisionToken([id,serial]),..b.owned()?}),None=>None};
+        let published=match &self.published{Some(b)=>Some(Published{token:RunDecisionToken([id,serial]),terminal:b.terminal,observation:b.observation.as_ref().map(RunObservation::owned).transpose()?}),None=>None};
         let mut actions=Vec::new();actions.try_reserve_exact(self.actions.len()).map_err(|_|RunSessionError::DeliveryFault("exact checkpoint allocation failed"))?;actions.extend(self.actions.iter().cloned());
         let record=match &self.record{Some(r)=>{let mut steps=Vec::new();steps.try_reserve_exact(r.steps.len()).map_err(|_|RunSessionError::DeliveryFault("exact checkpoint allocation failed"))?;steps.extend(r.steps.iter().cloned());Some(RunEpisodeRecord{schema_id:r.schema_id.clone(),profile_id:r.profile_id.clone(),rules_id:r.rules_id.clone(),content_id:r.content_id.clone(),seed_adapter_id:r.seed_adapter_id.clone(),rng_id:r.rng_id.clone(),reward_id:r.reward_id.clone(),observation_fingerprint:r.observation_fingerprint,config:r.config.clone(),seed:r.seed,ordinal:r.ordinal,steps,terminal:r.terminal,fault:r.fault.clone(),closed:r.closed})},None=>None};
         Ok(Self{#[cfg(test)] m22_diagnostic:self.m22_diagnostic,#[cfg(test)] m23_diagnostic:self.m23_diagnostic,#[cfg(test)] m24_diagnostic:self.m24_diagnostic,#[cfg(test)] m25_diagnostic:self.m25_diagnostic,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:self.m20_diagnostic.clone(),
             config:self.config.clone(),profile:self.profile,id,serial,run:self.run.clone(),published,actions,seed:self.seed,ordinal:self.ordinal,record,
-            fault:None,last_step:self.last_step.clone(),closed:false,at_m12_cutoff:self.at_m12_cutoff,at_m13_cutoff:self.at_m13_cutoff,at_m14_cutoff:self.at_m14_cutoff})
+            fault:None,last_step:self.last_step.clone(),closed:false,at_m12_cutoff:self.at_m12_cutoff,at_m13_cutoff:self.at_m13_cutoff,at_m14_cutoff:self.at_m14_cutoff,profile_fingerprint:self.profile_fingerprint.clone()})
     }
     /// M34c replay to a chosen decision (design §4.7): a live session at decision `steps` of `record`, i.e. after its first
     /// `steps` accepted actions. The record is validated as for `replay_run`; the episode starts at the record's seed and
@@ -1380,6 +1394,7 @@ impl RunSession{
     }
 }
 impl RunBoundary{
+    #[cfg(test)]
     fn owned(&self)->Result<Self,RunSessionError>{Ok(Self{observation:self.observation.owned()?,token:self.token,terminal:self.terminal})}
 }
 #[cfg(test)]
@@ -1407,7 +1422,7 @@ mod tests{
         let room=decision.room.as_mut().unwrap();room.kind=RoomViewKind::Act4Ready;room.choices.clear();
         assert_eq!(check_boundary(RunProfile::M14SilentAct3,&decision),Ok(()));
         let observation=crate::encode_run_m14(&decision,None,&config.capacities).unwrap();
-        session.published=Some(RunBoundary{observation,token:start.token,terminal:None});
+        session.published=Some(RunBoundary{observation,token:start.token,terminal:None}.into());
         session.actions.clear();session.at_m14_cutoff=true;
         let before_boundary=session.decision().unwrap();
         let before_record=session.record().unwrap();
@@ -1503,7 +1518,7 @@ mod tests{
                 RunProfile::M14SilentAct3 => crate::encode_run_m14(&decision, None, &config.capacities).unwrap(),
                 _ => unreachable!(),
             };
-            session.published = Some(RunBoundary { observation, token: start.token, terminal: None });
+            session.published = Some(RunBoundary { observation, token: start.token, terminal: None }.into());
             session.actions.clear();
             match profile {
                 RunProfile::M12SilentAct1 => session.at_m12_cutoff = true,
@@ -2604,7 +2619,7 @@ mod m17_boundary_tests{
         // child, heal and map initialization are covered by core owner tests.
         let mut d=create_run(RunProfile::M17DefectAct1,&cfg,7,0).unwrap().decision().unwrap();d.act=2;d.floor=17;d.candidates.clear();d.room.as_mut().unwrap().kind=RoomViewKind::Act2Ready;d.room.as_mut().unwrap().choices.clear();
         assert_eq!(check_boundary(RunProfile::M17DefectAct1,&d),Ok(()));
-        let observation=crate::encode_run_m17(&d,None,&cfg.capacities).unwrap();s.published=Some(RunBoundary{observation,token:initial.token,terminal:None});s.actions.clear();s.at_m12_cutoff=true;
+        let observation=crate::encode_run_m17(&d,None,&cfg.capacities).unwrap();s.published=Some(RunBoundary{observation,token:initial.token,terminal:None}.into());s.actions.clear();s.at_m12_cutoff=true;
         let before=s.reproduction().unwrap();let b=s.decision().unwrap();assert!(b.terminal.is_none());assert!(b.observation.action_mask.iter().all(|v|*v==0));assert_eq!(s.step(b.token,RunActionIndex(0)),Err(RunSessionError::UnsupportedBoundary("M17 stops at Act2Ready")));assert_eq!(s.reproduction().unwrap(),before);assert_eq!(s.decision().unwrap(),b);
         let reset=s.reset(Some(11)).unwrap();assert_ne!(reset.token,b.token);assert!(!s.at_m12_cutoff);assert_eq!(s.reproduction().unwrap().latest_decision.unwrap().unwrap().player.hp,75);s.close().unwrap();
     }
@@ -2630,7 +2645,7 @@ mod m19_boundary_characterization {
         assert_eq!(check_boundary(RunProfile::M19DefectAct3,&projected),Ok(()));
         let observation=crate::encode_run_m19(&projected,None,&config.capacities).unwrap();
         assert!(observation.action_mask.iter().all(|v|*v==0));
-        session.published=Some(RunBoundary{observation,token:start.token,terminal:None});
+        session.published=Some(RunBoundary{observation,token:start.token,terminal:None}.into());
         session.actions.clear();session.at_m14_cutoff=true;
         let boundary=session.decision().unwrap();let before=session.reproduction().unwrap();
         assert_eq!(session.step(stale,RunActionIndex(0)),Err(RunSessionError::StaleToken));
