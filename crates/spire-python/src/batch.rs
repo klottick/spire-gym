@@ -26,6 +26,8 @@ create_exception!(_native, BatchFaultError, RunFaultError);
 pub(crate) trait Transport: BatchSession {
     const COMBAT: bool;
     fn observation(b: &Self::Boundary) -> &RunObservation;
+    /// Move the boundary's observation out for stacking (M37b), leaving an empty one.
+    fn take_observation(b: &mut Self::Boundary) -> RunObservation;
     fn token(b: &Self::Boundary) -> RunDecisionToken;
     fn record_json(r: &Self::Record) -> Result<Vec<u8>, RunSessionError>;
     /// A published boundary's info: `events` and `episode_return` belong to the transition that produced it.
@@ -35,6 +37,7 @@ pub(crate) trait Transport: BatchSession {
 impl Transport for RunSession {
     const COMBAT: bool = false;
     fn observation(b: &RunBoundary) -> &RunObservation { &b.observation }
+    fn take_observation(b: &mut RunBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &RunBoundary) -> RunDecisionToken { b.token }
     fn record_json(r: &spire_env::RunEpisodeRecord) -> Result<Vec<u8>, RunSessionError> { r.to_json() }
     fn info<'py>(py: Python<'py>, profile: Option<RunProfile>, b: &RunBoundary, events: &[RewardItem], episode_return: i64)
@@ -54,6 +57,7 @@ impl Transport for RunSession {
 impl Transport for CombatTrainingSession {
     const COMBAT: bool = true;
     fn observation(b: &CombatPolicyBoundary) -> &RunObservation { &b.observation }
+    fn take_observation(b: &mut CombatPolicyBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &CombatPolicyBoundary) -> RunDecisionToken { b.token }
     fn record_json(r: &spire_env::CombatEpisodeRecord) -> Result<Vec<u8>, RunSessionError> { r.to_json() }
     fn info<'py>(py: Python<'py>, _: Option<RunProfile>, b: &CombatPolicyBoundary, _: &[RewardItem], _: i64) -> PyResult<Bound<'py, PyAny>> {
@@ -61,15 +65,21 @@ impl Transport for CombatTrainingSession {
     }
 }
 
-fn stacked<'py>(py: Python<'py>, rows: &[&RunObservation]) -> PyResult<Bound<'py, PyDict>> {
+fn empty_observation() -> RunObservation { RunObservation { groups: Vec::new(), action_mask: Vec::new() } }
+/// The stacked `obs` and `final_obs` columns of one packaged result (M37b: built outside the GIL on the batch's workers).
+struct Columns { obs: Vec<stacking::Stacked>, final_obs: Option<Vec<stacking::Stacked>> }
+fn stacked<'py>(py: Python<'py>, columns: Vec<stacking::Stacked>) -> PyResult<Bound<'py, PyDict>> {
     let out = PyDict::new(py);
-    for tensor in stacking::stack(rows).map_err(RunFaultError::new_err)? {
+    for tensor in columns {
         match tensor.column {
             Column::I64(v) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
             Column::I8(v) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
         }
     }
     Ok(out)
+}
+fn stacked_rows<'py>(py: Python<'py>, rows: &[&RunObservation]) -> PyResult<Bound<'py, PyDict>> {
+    stacked(py, stacking::stack(rows).map_err(RunFaultError::new_err)?)
 }
 fn tokens<'py>(py: Python<'py>, tokens: impl Iterator<Item = RunDecisionToken>, count: usize) -> PyResult<Bound<'py, PyAny>> {
     numeric::array(py, tokens.flat_map(<[u64; 2]>::from).collect(), &[count, 2])
@@ -227,16 +237,50 @@ impl<S: Transport> Core<S> {
     fn lock(&self) -> std::sync::MutexGuard<'_, State<S>> { self.state.lock().unwrap_or_else(|p| p.into_inner()) }
     fn error(&self, py: Python<'_>, error: SessionBatchError) -> PyErr { batch_error(py, error, S::COMBAT) }
 
-    /// The raw batch dict (binding-api-v1). `None` rows (recovery) are zero rows with `recovered` false.
-    fn package<'py>(&self, py: Python<'py>, returns: &Returns, zero: Option<S::Boundary>, rows: &[Option<SlotRow<S::Boundary>>], recovered: bool)
-        -> PyResult<Bound<'py, PyDict>> {
-        let count = rows.len();
+    /// The stacked observation columns of `rows` (run without the GIL). Each row's observations move into the copy jobs,
+    /// which run on the batch's workers and drop them; `None` rows (recovery) and rows without a final boundary read the
+    /// zero layout.
+    fn columns(batch: &SessionBatch<S>, zero: Option<&S::Boundary>, rows: &mut [Option<SlotRow<S::Boundary>>]) -> PyResult<Columns> {
+        let zeroed;
         let zero = match rows.iter().flatten().next() {
-            Some(row) => S::batch_zeroed(&row.boundary).map_err(run_env::error)?,
+            Some(row) => { zeroed = S::batch_zeroed(&row.boundary).map_err(run_env::error)?; &zeroed }
             None => zero.ok_or_else(|| RunStateError::new_err("no published batch layout"))?,
         };
+        let zero = S::observation(zero);
+        let finals = rows.iter().any(|r| r.as_ref().is_some_and(|r| r.final_boundary.is_some()));
+        let mut obs = Vec::with_capacity(rows.len());
+        let mut final_obs = Vec::with_capacity(if finals { rows.len() } else { 0 });
+        for row in rows.iter_mut() {
+            match row {
+                Some(r) => {
+                    obs.push(stacking::SlotSource::Owned(S::take_observation(&mut r.boundary)));
+                    if finals {
+                        final_obs.push(match &mut r.final_boundary {
+                            Some(b) => stacking::SlotSource::Owned(S::take_observation(b)),
+                            None => stacking::SlotSource::Shared(zero),
+                        });
+                    }
+                }
+                None => {
+                    obs.push(stacking::SlotSource::Shared(zero));
+                    if finals { final_obs.push(stacking::SlotSource::Shared(zero)); }
+                }
+            }
+        }
+        let stack = |sources| stacking::stack_slots(sources, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ()))
+            .map_err(RunFaultError::new_err);
+        let obs = stack(obs)?;
+        let final_obs = if finals { Some(stack(final_obs)?) } else { None };
+        Ok(Columns { obs, final_obs })
+    }
+    /// The raw batch dict (binding-api-v1). `None` rows (recovery) are zero rows with `recovered` false. `columns` holds
+    /// the rows' stacked observations (`Core::columns`), which no longer sit in `rows`.
+    fn package<'py>(&self, py: Python<'py>, returns: &Returns, columns: Columns, rows: &[Option<SlotRow<S::Boundary>>], recovered: bool)
+        -> PyResult<Bound<'py, PyDict>> {
+        let count = rows.len();
+        let Columns { obs, final_obs } = columns;
         let out = PyDict::new(py);
-        out.set_item("obs", stacked(py, &rows.iter().map(|row| row.as_ref().map_or(S::observation(&zero), |r| S::observation(&r.boundary))).collect::<Vec<_>>())?)?;
+        out.set_item("obs", stacked(py, obs)?)?;
         out.set_item("tokens", tokens(py, rows.iter().map(|r| r.as_ref().map_or(RunDecisionToken::from([0_u64, 0]), |r| S::token(&r.boundary))), count)?)?;
         let column = |f: &dyn Fn(&SlotRow<S::Boundary>) -> bool| rows.iter().map(|r| r.as_ref().is_some_and(f)).collect::<Vec<_>>();
         out.set_item("rewards", numeric::array(py, rows.iter().map(|r| r.as_ref().map_or(0, |r| r.reward)).collect(), &[count])?)?;
@@ -264,9 +308,8 @@ impl<S: Transport> Core<S> {
         out.set_item("fault", faults)?;
         out.set_item("info", infos)?;
         let final_mask = column(&|r| r.final_boundary.is_some());
-        if final_mask.iter().any(|m| *m) {
-            let finals = rows.iter().map(|r| r.as_ref().and_then(|r| r.final_boundary.as_ref()).map_or(S::observation(&zero), S::observation)).collect::<Vec<_>>();
-            out.set_item("final_obs", stacked(py, &finals)?)?;
+        if let Some(final_obs) = final_obs {
+            out.set_item("final_obs", stacked(py, final_obs)?)?;
         } else {
             out.set_item("final_obs", py.None())?;
         }
@@ -278,10 +321,13 @@ impl<S: Transport> Core<S> {
     /// Package and deliver; a failed export freezes the batch (every committed slot recoverable) and the caller's own
     /// exception propagates unchanged.
     fn deliver<'py, T>(&self, py: Python<'py>, rows: Vec<SlotRow<S::Boundary>>, package: impl FnOnce(Bound<'py, PyDict>) -> PyResult<T>) -> PyResult<T> {
-        let rows = rows.into_iter().map(Some).collect::<Vec<_>>();
+        let mut rows = rows.into_iter().map(Some).collect::<Vec<_>>();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let returns = self.lock().returns.clone();
-            let raw = self.package(py, &returns, None, &rows, false)?;
+            let (returns, columns) = py.detach(|| {
+                let state = self.lock();
+                (state.returns.clone(), Self::columns(&state.batch, None, &mut rows))
+            });
+            let raw = self.package(py, &returns, columns?, &rows, false)?;
             package(raw)
         })).unwrap_or_else(|_| Err(RunFaultError::new_err("native batch packaging panicked")));
         if result.is_err() { self.lock().batch.fail_export(); }
@@ -328,8 +374,10 @@ impl<S: Transport> Core<S> {
             let state = self.lock();
             (state.batch.recover_committed(), state.returns.clone(), state.batch.zero_boundary().cloned())
         });
-        let rows = rows.map_err(|e| self.error(py, e))?;
-        self.package(py, &returns, zero, &rows, true)
+        let mut rows = rows.map_err(|e| self.error(py, e))?;
+        let target = &mut rows;
+        let columns = py.detach(move || Self::columns(&self.lock().batch, zero.as_ref(), target))?;
+        self.package(py, &returns, columns, &rows, true)
     }
     fn committed_result<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
         let _lease = self.begin()?;
@@ -498,7 +546,7 @@ impl NativeRunBatch {
         let zero = <CombatTrainingSession as BatchSession>::batch_zeroed(first).map_err(run_env::error)?;
         let count = views.len();
         let out = PyDict::new(py);
-        out.set_item("obs", stacked(py, &views.iter().map(|v| v.as_ref().map_or(&zero.observation, |v| &v.observation)).collect::<Vec<_>>())?)?;
+        out.set_item("obs", stacked_rows(py, &views.iter().map(|v| v.as_ref().map_or(&zero.observation, |v| &v.observation)).collect::<Vec<_>>())?)?;
         out.set_item("tokens", tokens(py, views.iter().map(|v| v.as_ref().map_or(RunDecisionToken::from([0_u64, 0]), |v| v.token)), count)?)?;
         let infos = PyList::empty(py);
         for v in &views { match v { Some(v) => infos.append(numeric::descriptor(py, v.info.to_string())?)?, None => infos.append(py.None())? } }
@@ -674,7 +722,7 @@ pub(crate) fn branch_outcomes<'py>(py: Python<'py>, outcomes: Vec<BranchStepOutc
                 .map_err(run_env::error)?;
             let rows = outcomes.iter().map(|o| match o { BranchStepOutcome::Stepped(s) => s.observation.as_ref().unwrap_or(&zero.observation), _ => &zero.observation })
                 .collect::<Vec<_>>();
-            out.set_item("obs", stacked(py, &rows)?)?;
+            out.set_item("obs", stacked_rows(py, &rows)?)?;
         }
         None => out.set_item("obs", py.None())?,
     }

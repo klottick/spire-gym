@@ -297,6 +297,8 @@ impl CombatItemContext {
     pub(crate) fn set_wrist_blade_bonus(&mut self,value:i32){self.wrist_blade_bonus=value;}
     pub(crate) fn damage_card(&self)->Option<dispatch::PhaseCard>{self.damage_card}
     pub(crate) fn set_damage_card_for_projection(&mut self,card:dispatch::PhaseCard){self.damage_card=Some(card);}
+    /// M37b: undo a card payload projection's damage card (see `combat::cards::Projection`).
+    pub(crate) fn restore_damage_card_for_projection(&mut self,card:Option<dispatch::PhaseCard>){self.damage_card=card;}
     pub(crate) fn relics(&self) -> &[RelicId] { &self.relics }
     pub(crate) fn potions(&self) -> &[Option<PotionId>] { &self.potions }
     pub(crate) fn counters(&self)->&std::collections::BTreeMap<RelicId,i32>{&self.counters}

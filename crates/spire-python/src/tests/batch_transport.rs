@@ -76,6 +76,55 @@ fn stacking_rejects_mismatched_layouts() {
     assert!(stacking::stack(&[]).is_err());
 }
 
+/// M37b: the parallel per-slot stacking (`stack_slots`) gives `stack`'s tensors exactly, for owned and shared rows, run
+/// inline, on scoped threads or on a batch's own workers, after steps that change occupancy; and it rejects the same
+/// mismatched layouts with the same messages.
+#[test]
+fn m37b_slot_stacking_matches_serial_stacking() {
+    fn serial(jobs: Vec<stacking::SlotCopy<'_>>) -> Result<(), ()> { jobs.into_iter().for_each(stacking::SlotCopy::run); Ok(()) }
+    fn threads(jobs: Vec<stacking::SlotCopy<'_>>) -> Result<(), ()> {
+        std::thread::scope(|scope| { for job in jobs { scope.spawn(move || job.run()); } });
+        Ok(())
+    }
+    let (mut batch, mut rows) = standard_batch(8);
+    for round in 0..6 {
+        let observations = rows.iter().map(|r| &r.boundary.observation).collect::<Vec<_>>();
+        let expected = stacking::stack(&observations).unwrap();
+        let owned = || rows.iter().map(|r| stacking::SlotSource::Owned(r.boundary.observation.clone())).collect::<Vec<_>>();
+        assert_eq!(stacking::stack_slots(owned(), serial).unwrap(), expected, "round {round} inline");
+        assert_eq!(stacking::stack_slots(owned(), threads).unwrap(), expected, "round {round} threads");
+        assert_eq!(stacking::stack_slots(owned(), |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).unwrap(), expected,
+            "round {round} batch workers");
+        let zero = <RunSession as spire_env::BatchSession>::batch_zeroed(&rows[0].boundary).unwrap();
+        let mixed = rows.iter().enumerate().map(|(slot, r)| if slot % 3 == 1 { stacking::SlotSource::Shared(&zero.observation) }
+            else { stacking::SlotSource::Owned(r.boundary.observation.clone()) }).collect::<Vec<_>>();
+        let mixed_views = rows.iter().enumerate().map(|(slot, r)| if slot % 3 == 1 { &zero.observation } else { &r.boundary.observation })
+            .collect::<Vec<_>>();
+        assert_eq!(stacking::stack_slots(mixed, threads).unwrap(), stacking::stack(&mixed_views).unwrap(), "round {round} shared rows");
+        let tokens = rows.iter().map(|r| r.boundary.token).collect::<Vec<_>>();
+        let actions = rows.iter().map(first_legal).collect::<Vec<_>>();
+        rows = batch.step(&tokens, &actions).unwrap();
+    }
+    let first = rows[0].boundary.observation.clone();
+    let check = |other: RunObservation| {
+        let views = [&first, &other];
+        let expected = stacking::stack(&views).unwrap_err();
+        let got = stacking::stack_slots(vec![stacking::SlotSource::Shared(&first), stacking::SlotSource::Owned(other)], serial).unwrap_err();
+        assert_eq!(got, expected);
+    };
+    let mut shape = first.clone(); shape.groups[0].shape.push(1); check(shape);
+    let mut short = first.clone(); short.action_mask.pop(); check(short);
+    let mut fewer = first.clone(); fewer.groups.pop(); check(fewer);
+    let mut occupancy = first.clone();
+    let index = occupancy.groups.iter().position(|g| g.occupied.is_some()).unwrap();
+    occupancy.groups[index].occupied = None; check(occupancy);
+    assert_eq!(stacking::stack_slots(Vec::new(), serial).unwrap_err(), stacking::stack(&[]).unwrap_err());
+    // A runner that reports success without running every job is rejected before any column length is set.
+    let skip = |jobs: Vec<stacking::SlotCopy<'_>>| -> Result<(), ()> { jobs.into_iter().skip(1).for_each(stacking::SlotCopy::run); Ok(()) };
+    let rows = [stacking::SlotSource::Shared(&first), stacking::SlotSource::Shared(&first)];
+    assert_eq!(stacking::stack_slots(rows.into_iter().collect(), skip).unwrap_err(), "observation stacking did not copy every slot");
+}
+
 #[test]
 fn batch_fault_error_attributes() {
     let report = |delivery, error| SlotReport { delivery, error };

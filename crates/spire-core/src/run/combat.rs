@@ -215,12 +215,14 @@ impl Run {
             terminal:self.state.terminal,combat:Some(combat),combat_progress:self.state.combat_progress,last_combat:self.state.last_combat.clone()})
     }
 
-    pub fn choose_combat(&mut self, action:CombatAction) -> Result<RunTransition,RunError> {
+    pub fn choose_combat(&mut self, action:CombatAction) -> Result<RunTransition,RunError> {self.choose_combat_checked(action,true)}
+    /// `check: false` only for an action from this unchanged Run's published combat candidates (`Run::step_offered`).
+    pub(super) fn choose_combat_checked(&mut self, action:CombatAction, check:bool) -> Result<RunTransition,RunError> {
         let observation_owner=std::ptr::from_ref(self) as usize;
         if let Some(fault)=&self.state.fault { return Err(RunError::Faulted(fault.clone())); }
         if self.state.terminal.is_some() { return Err(RunError::Terminal); }
         let combat=self.state.combat.as_mut().ok_or(RunError::InvalidAction)?;
-        if !combat.legal_actions_full()?.contains(&action) { return Err(RunError::InvalidAction); }
+        if check && !combat.legal_actions_full()?.contains(&action) { return Err(RunError::InvalidAction); }
         let _observation=crate::combat::observe::bind_run(observation_owner,combat);
         let result=combat.step_full(&action);
         if let Err(error)=&result {

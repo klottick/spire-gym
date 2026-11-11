@@ -9,6 +9,8 @@ mod silent;
 mod colorless;
 pub(crate) mod defect;
 pub(crate) mod curses;
+#[cfg(test)]
+mod m37b_projection_tests;
 pub use defect::{DefectEffect,DefectState};
 pub use silent::{SilentEffect, SilentState, DrawnCard};
 pub use colorless::ColorlessEffect;
@@ -185,6 +187,13 @@ pub(super) struct PreparedCard {
 /// Validate a full-card play and construct its ordered native effects without
 /// mutating combat state. The engine owns the single commit and resolver drain.
 pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<PreparedCard, crate::run::RunError> {
+    prepare_projected(combat, action, &mut Projection::new(&combat.state))
+}
+
+/// [`prepare`] with a projection shared across one enumeration of `combat` (M37b; `projection` reads `combat.state`).
+pub(super) fn prepare_projected(combat: &Combat, action: &CombatAction, projection: &mut Projection<'_>)
+    -> Result<PreparedCard, crate::run::RunError> {
+    debug_assert!(std::ptr::eq(projection.state, &combat.state), "projection reads this combat's state");
     let CombatAction::PlayCard { instance, target } = action else {
         return Err(crate::run::RunError::InvalidAction);
     };
@@ -198,7 +207,7 @@ pub(super) fn prepare(combat: &Combat, action: &CombatAction) -> Result<Prepared
     let exhaust_on_finish=validate_card_use(&combat.state,card,*target)?;
     let captured_energy=combat.state.player.energy;
     let (cost, payloads) = if exhaust_on_finish { (0,Vec::new()) }
-        else { payload_with_wrist_blade(&combat.state, card, target.map(|id| id.0))? };
+        else { projected_payload(projection, card, target.map(|id| id.0))? };
     let attack=crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
     // Free Attack (Swivel) makes every Attack free while a positive count remains; the count
     // is spent by the shared CardPlayed owner for any non-purge Attack use (watcher.md:123).
@@ -319,6 +328,7 @@ pub fn resolve(combat: &mut Combat, action: &CombatAction) -> Result<(), crate::
 }
 
 #[derive(Clone)]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub(in crate::combat) enum PayloadTarget { Player, SelectedEnemy, Enemy(EnemyHandle) }
 
 /// M26 colour dispatcher (design §5.2): under the complete capability a card is
@@ -516,10 +526,83 @@ fn payload(state: &State, card: &LiveCard, target: Option<u64>)
     Ok((cost, effects))
 }
 
+/// M37b: the projected `State` that card payloads read. It is cloned once per enumeration, on the first card that needs
+/// a projection, and every card's projection edits (Vigor as Strength, the Wrist Blade bonus, the item damage card)
+/// are undone after its payload, so each payload reads the same `State` that a fresh clone would give.
+pub(super) struct Projection<'a>{state:&'a State,scratch:Option<State>}
+impl<'a> Projection<'a>{
+    pub(super) fn new(state:&'a State)->Self{Self{state,scratch:None}}
+}
+
 /// Source-stage Wrist Blade modification. The first pure payload pass obtains
 /// the live costForTurn; an eligible non-X Attack is recalculated with +4
 /// present before the shared NORMAL damage modifiers run.
 pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option<u64>)
+    ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
+    projected_payload(&mut Projection::new(state),card,target)
+}
+
+pub(super) fn projected_payload(projection:&mut Projection<'_>,card:&LiveCard,target:Option<u64>)
+    ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
+    let state=projection.state;
+    #[cfg(test)] if reference_payloads(){return reference_payload_with_wrist_blade(state,card,target)}
+    let attack=crate::content::Catalog::standard().card(card.id)
+        .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
+    let vigor=if watcher::cards_active(state)&&attack{state.player_full_powers.iter()
+        .find(|power|power.id.0=="vigor").map_or(0,|power|power.state.amount.max(0))}else{0};
+    let eligible=state.item_context.as_ref().is_some_and(|items|
+        (items.m15_profile()||items.complete_items())&&items.owns_relic(crate::content::RelicId::WristBlade))
+        &&attack&&!card.local.x_cost;
+    let complete_items=state.item_context.as_ref().is_some_and(crate::items::CombatItemContext::complete_items);
+    if !(vigor>0||eligible||complete_items){return payload(state,card,target)}
+    let scratch=projection.scratch.get_or_insert_with(||state.clone());
+    let powers=scratch.player_full_powers.len();
+    let items=scratch.item_context.as_ref().map(|items|(items.wrist_blade_bonus(),items.damage_card()));
+    let result=projected_card_payload(scratch,state,card,target,vigor,eligible,complete_items);
+    scratch.player_full_powers.truncate(powers);
+    if let (Some(context),Some((bonus,damage_card)))=(scratch.item_context.as_mut(),items){
+        context.set_wrist_blade_bonus(bonus);context.restore_damage_card_for_projection(damage_card);
+    }
+    result
+}
+
+/// One card's projection on `projected` (equal to `state` on entry); the caller undoes the edits.
+fn projected_card_payload(projected:&mut State,state:&State,card:&LiveCard,target:Option<u64>,vigor:i32,eligible:bool,complete_items:bool)
+    ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
+    if vigor>0 {
+        projected.player_full_powers.push(super::FullPowerEntry{id:super::FullPowerId("strength"),
+            state:super::PowerState{amount:vigor,skip_first:false,monster_source_grace:false}});
+    }
+    let base=payload(projected,card,target)?;
+    let wrist=eligible&&super::card_state::effective_cost(card,base.0).ok()==Some(0);
+    if !wrist {
+        if complete_items {
+            let definition=crate::content::Catalog::standard().card(card.id).expect("validated live card definition");
+            let paid=state.play_context.as_ref().filter(|context|context.card==card_handle(card)).map_or(0,|context|context.paid);
+            if let Some(items)=projected.item_context.as_mut(){
+                items.set_damage_card_for_projection(crate::items::dispatch::PhaseCard{id:card.id,card_type:definition.card_type,cost_paid:paid});
+            }
+            return payload(projected,card,target);
+        }
+        return Ok(base)
+    }
+    if let Some(items)=projected.item_context.as_mut(){items.set_wrist_blade_bonus(4);}
+    if complete_items {
+        let definition=crate::content::Catalog::standard().card(card.id).expect("validated live card definition");
+        let paid=state.play_context.as_ref().filter(|context|context.card==card_handle(card)).map_or(0,|context|context.paid);
+        if let Some(items)=projected.item_context.as_mut(){
+            items.set_damage_card_for_projection(crate::items::dispatch::PhaseCard{id:card.id,card_type:definition.card_type,cost_paid:paid});
+        }
+    }
+    let boosted=payload(projected,card,target)?;
+    if boosted.0!=base.0{return Err(crate::run::RunError::Unsupported("Wrist Blade payload cost changed during source modification"));}
+    Ok(boosted)
+}
+
+/// TEST-ONLY (M37b): the pre-M37b `payload_with_wrist_blade`, verbatim (a fresh `State` clone per payload). The
+/// differential tests compare it with the shared projection.
+#[cfg(test)]
+pub(super) fn reference_payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option<u64>)
     ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
     let attack=crate::content::Catalog::standard().card(card.id)
         .is_some_and(|definition|definition.card_type==crate::content::CardType::Attack);
@@ -562,6 +645,14 @@ pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option
     if boosted.0!=base.0{return Err(crate::run::RunError::Unsupported("Wrist Blade payload cost changed during source modification"));}
     Ok(boosted)
 }
+
+#[cfg(test)]
+thread_local!{
+    /// TEST-ONLY (M37b): route card payloads through [`reference_payload_with_wrist_blade`] on this thread.
+    pub(super) static REFERENCE_PAYLOADS:std::cell::Cell<bool>=const{std::cell::Cell::new(false)};
+}
+#[cfg(test)]
+fn reference_payloads()->bool{REFERENCE_PAYLOADS.with(std::cell::Cell::get)}
 
 /// Read-only equivalent of the ordinary card preparation path for an already
 /// owned autoplay child. It shares use legality, payload production and target

@@ -5,7 +5,9 @@ This report explains where the time goes in the M36 Standard A20 measurements
 scaling and the Python vector path, and it proposes fixes for a later milestone
 (M37b). It is diagnostic only. No engine code changed for it. Gameplay, IDs,
 fingerprints and observations are unchanged, and the numbers below are not
-thresholds or promises.
+thresholds or promises. M37b has since implemented five of the six fixes. The "After
+M37b" columns and [After M37b](#after-m37b) give the re-measured numbers; the rest of the
+report describes v1.0.0.
 
 ## Method
 
@@ -66,15 +68,15 @@ The phase-timing harness has two parts, and neither changes gameplay or a public
 Harness, scalar pass 2. The values are µs per accepted action, averaged over 42,783
 actions; the two runs agree within 2%.
 
-| Phase | µs/step | Share |
-| --- | ---: | ---: |
-| `Run::step` (game logic, including its own legal-action check) | 42.1 | 44.0% |
-| `encode_run_standard` (dense observation and action mask) | 17.9 | 18.7% |
-| `Run::decision` (public decision and legal candidates) | 17.6 | 18.4% |
-| `RunObservation::owned` (the returned copy) | 12.5 | 13.1% |
-| Episode reset (`create_run`, amortised: 109 µs per episode) | 2.6 | 2.7% |
-| Observation drops, public map, policy, reward ledger | 3.0 | 3.1% |
-| **Sum** (pass 1's public `step` is 105.8 µs; about 10 µs are session bookkeeping and cache effects) | 95.7 | |
+| Phase | µs/step | Share | After M37b, µs/step |
+| --- | ---: | ---: | ---: |
+| `Run::step` (game logic, including its own legal-action check; after M37b `Run::step_offered`, without it) | 42.1 | 44.0% | 24.5 |
+| `encode_run_standard` (dense observation and action mask) | 17.9 | 18.7% | 20.3 |
+| `Run::decision` (public decision and legal candidates) | 17.6 | 18.4% | 7.2 |
+| `RunObservation::owned` (the returned copy) | 12.5 | 13.1% | none |
+| Episode reset (`create_run`, amortised: 109 µs per episode) | 2.6 | 2.7% | 2.6 |
+| Observation drops, public map, policy, reward ledger | 3.0 | 3.1% | 2.6 |
+| **Sum** (pass 1's public `step` is 105.8 µs; about 10 µs are session bookkeeping and cache effects; after M37b, 49.2 µs) | 95.7 | | 57.1 |
 
 Every Standard observation has the same dense layout of **763,720 bytes**: values are
 `i64`; known flags, occupancy and mask are `i8`. The `standard-default-v1` capacities
@@ -141,17 +143,18 @@ play, so the rates are not directly comparable.
 
 Harness batch part: 64 mixed-character slots, NextStep autoreset, 100 calls per row.
 These are run 1 numbers. Run 2 is within 7% (for example, 16 workers with recording on
-gave 13,175 slot steps/s). `a20_checks` measured 5,195, 10,997 and 12,128 slot steps/s at
+gave 13,175 slot steps/s). In the After M37b column, run 2 differs from run 1 by up to 11%
+(16 workers, recording on: 40,307). `a20_checks` measured 5,195, 10,997 and 12,128 slot steps/s at
 1, 4 and 16 workers on the same host.
 
-| Workers | `record_replay` | Slot steps/s | Step job (µs) | Busy sum (ms) | Critical path (ms) | Wall (ms) | Head + tail (ms) |
-| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | on | 4,791 | 161 | 1,169 | 1,169 | 1,336 | 9.4 |
-| 4 | on | 11,099 | 258 | 1,803 | 500 | 577 | 8.0 |
-| 16 | on | 14,111 | 726 | 4,723 | 331 | 454 | 8.5 |
-| 1 | off | 6,131 | 161 | 1,036 | 1,036 | 1,044 | 4.7 |
-| 4 | off | 15,017 | 252 | 1,625 | 416 | 426 | 7.6 |
-| 16 | off | 19,695 | 725 | 4,666 | 313 | 325 | 9.5 |
+| Workers | `record_replay` | Slot steps/s | Step job (µs) | Busy sum (ms) | Critical path (ms) | Wall (ms) | Head + tail (ms) | After M37b: slot steps/s, step job (µs) |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | on | 4,791 | 161 | 1,169 | 1,169 | 1,336 | 9.4 | 12,433, 78 |
+| 4 | on | 11,099 | 258 | 1,803 | 500 | 577 | 8.0 | 30,442, 121 |
+| 16 | on | 14,111 | 726 | 4,723 | 331 | 454 | 8.5 | 45,356, 296 |
+| 1 | off | 6,131 | 161 | 1,036 | 1,036 | 1,044 | 4.7 | 12,593, 77 |
+| 4 | off | 15,017 | 252 | 1,625 | 416 | 426 | 7.6 | 30,976, 118 |
+| 16 | off | 19,695 | 725 | 4,666 | 313 | 325 | 9.5 | 46,183, 295 |
 
 **The serial part is small.** The work before the first job and after the last job
 (preflight, joining rows, scheduler wake-up) takes 5–10 ms of a 325–1,336 ms run, about
@@ -248,8 +251,8 @@ harness, which uses `test` and per-slot seeds. Both are random A20 play.
 
 ## Proposed fixes, ranked
 
-The gains below are estimates from the shares above; none has been implemented or
-measured. Each fix must leave gameplay, IDs, fingerprints, observations and replay
+The gains below are the M37a estimates from the shares above. The last column gives
+the M37b outcome; [After M37b](#after-m37b) has the measured results. Each fix must leave gameplay, IDs, fingerprints, observations and replay
 digests unchanged. Check it with the freeze tests, the traversal, frozen replay and the
 fuzz hashes ([freeze protocol](delivery.md#freeze-and-change-protocol)). The frozen
 replay corpus covers only short Act 1 runs, so ranks 1, 4 and 5 also need a differential
@@ -257,14 +260,14 @@ check. Compare old and new card payloads, legal-action lists or encoded observat
 over a broad set of states (late-game decks, Watcher stances, relics, Vigor and Wrist
 Blade).
 
-| Rank | Bead | Fix | Measured share | Expected gain | Risk | Observable change |
-| ---: | --- | --- | --- | --- | --- | --- |
-| 1 | spire-4yo.2.1 | Project only the mutated parts (item context, Vigor) in `payload_with_wrist_blade` instead of cloning `State` per (card, target) pair | 28% of scalar step (clone 17.8% + drop 10.0%) | about −25 µs/step, scalar about 1.3× | Medium: core rules path | None if payloads stay identical |
-| 2 | spire-4yo.2.3 | Return the encoded observation by move; stop the per-step `owned` copy (shared or re-encoded published copy, internal to the session) | 13% scalar; most of the 29% memcpy share at 16 workers | about −12 µs scalar; a large part of 16-worker memory traffic | Low–medium: fault and recovery paths read the published boundary; the allocation-failure freeze path of `owned` goes away | None; public `RunBoundary` and `RunObservation` types unchanged |
-| 3 | spire-4yo.2.5 | Build the stacked Python columns inside the GIL-free section, per slot in parallel | about 3–3.5 ms per call by subtraction (about half the 16-worker call; see Workload P) | 16-worker Python vector up to about 1.7× (rough estimate) | Medium | None, provided each call still returns new arrays; reusing returned buffers would be observable and is excluded |
-| 4 | spire-4yo.2.2 | Validate the chosen action against the decision's candidates instead of re-enumerating legal actions in `Run::step` | 16.8% of scalar step | about −15 µs/step; overlaps rank 1 | Low–medium: cache validity | None; public types unchanged |
-| 5 | spire-4yo.2.4 | Avoid zero-allocating the full 764 KB layout each step: reuse buffers, clear only used rows, or encode straight into the batch slab (pairs with rank 3) | 5% scalar; 25% of worker time at 16 workers | a few µs scalar; with rank 2, the main batch-scaling lever | Medium | None |
-| 6 | spire-4yo.2.6 | Compute the observation-spec fingerprint once per session (or memoise per profile and capacities) in `new_record` | 22% of batch time with `record_replay` at 1 worker; 1.3–2.5 ms per reset or export | about +25–30% batch throughput with recording on; less worker imbalance | Very low | None (same value) |
+| Rank | Bead | Fix | Measured share | Expected gain | Risk | Observable change | M37b |
+| ---: | --- | --- | --- | --- | --- | --- | --- |
+| 1 | spire-4yo.2.1 | Project only the mutated parts (item context, Vigor) in `payload_with_wrist_blade` instead of cloning `State` per (card, target) pair | 28% of scalar step (clone 17.8% + drop 10.0%) | about −25 µs/step, scalar about 1.3× | Medium: core rules path | None if payloads stay identical | done |
+| 2 | spire-4yo.2.3 | Return the encoded observation by move; stop the per-step `owned` copy (shared or re-encoded published copy, internal to the session) | 13% scalar; most of the 29% memcpy share at 16 workers | about −12 µs scalar; a large part of 16-worker memory traffic | Low–medium: fault and recovery paths read the published boundary; the allocation-failure freeze path of `owned` goes away | None; public `RunBoundary` and `RunObservation` types unchanged | done |
+| 3 | spire-4yo.2.5 | Build the stacked Python columns inside the GIL-free section, per slot in parallel | about 3–3.5 ms per call by subtraction (about half the 16-worker call; see Workload P) | 16-worker Python vector up to about 1.7× (rough estimate) | Medium | None, provided each call still returns new arrays; reusing returned buffers would be observable and is excluded | done |
+| 4 | spire-4yo.2.2 | Validate the chosen action against the decision's candidates instead of re-enumerating legal actions in `Run::step` | 16.8% of scalar step | about −15 µs/step; overlaps rank 1 | Low–medium: cache validity | None; public types unchanged | done |
+| 5 | spire-4yo.2.4 | Avoid zero-allocating the full 764 KB layout each step: reuse buffers, clear only used rows, or encode straight into the batch slab (pairs with rank 3) | 5% scalar; 25% of worker time at 16 workers | a few µs scalar; with rank 2, the main batch-scaling lever | Medium | None | not done (see [After M37b](#after-m37b)) |
+| 6 | spire-4yo.2.6 | Compute the observation-spec fingerprint once per session (or memoise per profile and capacities) in `new_record` | 22% of batch time with `record_replay` at 1 worker; 1.3–2.5 ms per reset or export | about +25–30% batch throughput with recording on; less worker imbalance | Very low | None (same value) | done |
 
 Suggested order: rank 6 first (small and safe), then ranks 2, 1 and 4, then ranks 5 and 3
 together, since both concern how observations reach the batch output. Re-measure after
@@ -273,6 +276,51 @@ each step: removing memory traffic changes the batch shares.
 Not proposed: smaller capacity presets also cut the bytes moved. A caller can already
 pass smaller `capacities`, but that is an opt-in observable change: different shapes and
 a different fingerprint. It is not a safe speedup under the freeze.
+
+## After M37b
+
+M37b (Bead `spire-4yo.2`) implemented ranks 1, 2, 3, 4 and 6 on 2026-11-11. Nothing
+observable changed: gameplay, RNG use, IDs, rules IDs, fingerprints, observations, masks,
+records and replay bytes all stay the same. The freeze tests, frozen replay (323/323),
+traversal and fuzz hashes match base `bad72c7f`. Two lockstep checks compare old and new
+paths. The routine one covers 14,900 decisions and 145,576 (card, target) payloads, and
+the broad ignored one covers 82,511 decisions and 802,317 payloads. Both span four
+characters at A0 and A20, with injected Wrist Blade, Akabeko and Pen Nib, up to Act 3.
+
+- **Rank 1:** card preparation clones `State` once per enumeration and undoes each
+  card's projection edits. The scalar `Run::decision` falls from 17.6 to 7.2 µs.
+- **Rank 4:** the session steps with the internal `Run::step_offered`, which skips the
+  re-enumeration for an action from the table it just published. `Run::step` falls from
+  42.1 to 24.5 µs.
+- **Rank 2:** the session returns the observation by move and keeps no copy;
+  `decision()` re-encodes it from the unchanged Run. This removes the 12.5 µs copy, and
+  exact checkpoints shrink from about 0.9 MB to 0.07–0.17 MB. The allocation-failure
+  freeze path that belonged to the removed `owned` copy goes with it.
+  Reading an observation again now costs a re-encode instead of a copy, with the same
+  bytes. That covers `decision()`, the kept slots of a masked batch reset and
+  `committed_result`, none of which is on the step path.
+- **Rank 6:** each session builds the fingerprint once. An autoreset job with recording
+  on falls from about 1.3 ms to 0.15–0.48 ms. Recording now costs about 1–9% of batch
+  throughput across the two runs, down from 22–28%.
+- **Rank 3:** `NativeRunBatch` stacks each slot's rows on the batch's own workers, with
+  the GIL released, and drops the rows there. Each call still returns new arrays. The
+  1-worker Python step falls from 13.5 to 8.5 ms per call, and the 16-worker step from
+  6.6 to about 3.8–5.1 ms, depending on allocator state.
+
+**Rank 5 (not done; PM ruling).** After rank 2 the scalar API returns a fresh, owned
+dense observation every step, so writing the full layout once per step is the floor.
+The zeroing left is about 4 µs of a step of about 57 µs. Clearing only the rows used
+before is not exact without more work: the encoder writes reference `-1`s below
+`occupied_count` without marking occupancy, and it writes values directly in three
+places. Exact clearing would need dirty-extent tracking across about 30 write sites plus
+a new recycle API. **Possible future item:** a batch-only recycle, in which the stacking
+job hands each buffer back to its session, with dirty-extent tracking and a
+byte-identical differential. This is not planned.
+
+What remains in a scalar step is rules work (`Run::step`, about 24 µs) and encoding the
+764 KB observation (about 20 µs). At 16 workers, batch step jobs still cost about 3.8
+times the 1-worker job (296 µs against 78 µs), because every step writes a fresh dense
+observation. Measurements: [performance](performance.md#a20-standard-checks-after-m37b--2026-11-11).
 
 ## Reproduce
 

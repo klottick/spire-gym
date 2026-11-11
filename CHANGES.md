@@ -9,6 +9,22 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   `spire-env`, `examples/run_vector_phase_timing.py`, [profiling](docs/profiling.md) and
   a README Speed section. These are diagnostics and documentation only. No gameplay,
   identity, fingerprint, observation or API change.
+- M37b internal performance work, with no contract change. Gameplay, RNG use, IDs, rules
+  IDs, fingerprints, observations, masks, records and replay bytes are unchanged; the
+  freeze tests, frozen replay, traversal and fuzz hashes match v1.0.0. See
+  [performance](docs/performance.md) and [profiling](docs/profiling.md) for the numbers.
+  - Card preparation clones the combat state once per legal-action enumeration, not once
+    per (card, target) payload.
+  - `RunSession` returns each observation by move and keeps no copy. `decision()`
+    re-encodes it from the unchanged Run, so the bytes are identical.
+  - The session step no longer re-enumerates legal actions to check an action it has
+    just published.
+  - Record headers reuse a per-session observation-spec fingerprint.
+  - The Python batch binding stacks observations per slot on the batch's own workers,
+    with the GIL released. Each call still returns new arrays.
+  - Two internal, `#[doc(hidden)]` additive Rust methods support this: `Run::step_offered`
+    and `SessionBatch::map_jobs`. They are not part of the documented API and add no
+    Python names.
 
 ## 1.0.0 — effective at the merge of PR #103
 

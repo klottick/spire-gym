@@ -10,6 +10,77 @@ those measurements.
 For where this time goes (perf profiles, a phase-timing harness, and the ranked fixes
 proposed for M37b), see [profiling](profiling.md).
 
+## A20 Standard checks after M37b — 2026-11-11
+
+M37b made five internal speedups with no observable change
+([profiling](profiling.md#after-m37b)). Below, the same workloads run on the same host as
+the M36 section (rustc 1.99.0, `--release --locked --offline`). "Before" is base
+`bad72c7f` (v1.0.0 code plus the M37a harness). "After" is the M37b candidate. Both sides
+were run twice on a quiet machine on 2026-11-11, and both runs are shown. Episode
+lengths, terminals, record bytes and capacity maxima are identical before and after.
+Timings vary between runs and hosts, so compare like with like.
+
+| `a20_checks` (record_replay as in M36) | Before (run 1 / run 2) | After (run 1 / run 2) |
+| --- | ---: | ---: |
+| S: scalar, 1,024 episodes, 42,783 actions, actions/s | 10,994 / 10,988 | 20,437 / 20,347 |
+| B: 64 slots, `record_replay` on, 1 worker, slot steps/s | 5,167 / 5,153 | 12,892 / 12,922 |
+| B: 64 slots, `record_replay` on, 4 workers | 11,111 / 11,028 | 30,523 / 31,444 |
+| B: 64 slots, `record_replay` on, 16 workers | 11,933 / 12,255 | 38,128 / 37,573 |
+| B: 256 slots, 16 workers | 14,120 / 14,161 | 28,301 / 29,102 |
+| M: VmHWM after the 256-slot phase, KiB | 1,072,860 / 1,021,492 | 595,660 / 604,112 |
+| M: growth per added slot, KiB | 3,323 / 3,057 | 1,666 / 1,612 |
+
+The phase harness (`m37_phase_timing`, a test build about 8% slower than the example)
+runs 64 slots under NextStep autoreset with no stacking copy. Values are run 1 / run 2,
+in slot steps/s.
+
+| Workers | `record_replay` off, before | Off, after | On, before | On, after |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 6,310 / 6,284 | 12,593 / 12,518 | 4,910 / 4,855 | 12,433 / 12,281 |
+| 4 | 14,849 / 14,827 | 30,976 / 29,993 | 11,673 / 11,531 | 30,442 / 27,965 |
+| 16 | 19,636 / 19,562 | 46,183 / 44,508 | 14,455 / 13,767 | 45,356 / 40,307 |
+
+The harness's public scalar step falls from 104.3 to 49.2 µs (run 1 on both sides). An autoreset job with
+recording on falls from about 1.3–1.5 ms to about 0.15–0.48 ms.
+
+**Supplied routes** (`m36_a20_route_measure`, one run each side): steps, terminals and
+record bytes are unchanged. Exact checkpoints shrink because the session no longer holds
+a copy of the published observation.
+
+| Route | Character | Actions/s before → after | Checkpoint heap bytes before → after |
+| --- | --- | ---: | ---: |
+| Wounded | Ironclad | 10,665 → 14,383 | 911,384 → 145,072 |
+| Wounded | Silent | 11,073 → 15,373 | 905,128 → 138,816 |
+| Wounded | Defect | 13,571 → 17,635 | 908,840 → 142,528 |
+| Wounded | Watcher | 11,317 → 16,150 | 935,320 → 169,008 |
+| Full-length | Ironclad | 10,225 → 17,277 | 883,976 → 117,664 |
+| Full-length | Silent | 8,880 → 18,079 | 886,848 → 120,536 |
+| Full-length | Defect | 9,988 → 21,516 | 865,888 → 99,576 |
+| Full-length | Watcher | 9,728 → 21,102 | 834,648 → 68,336 |
+
+**Python vector** (`examples/run_vector_phase_timing.py`, 64 slots, A20, 2,000 calls per
+loop, `record_replay` off). Each side used a lane-P build of its own source, with features
+`["spire-python/extension"]` and profile `release`: `source_digest` `d4b31212…` for the base
+and `a4bcbfb8…` for the measured candidate. The final candidate differs from the measured
+one only by a completion count in the stacking copy. Values are the means of two runs, in
+step ms per call.
+
+| Workers | Loop | Before | After |
+| ---: | --- | ---: | ---: |
+| 1 | `run_vector_rollout.py` loop | 13.63 | 8.23 |
+| 1 | `NativeRunBatch.step` | 13.55 | 8.54 |
+| 16 | `run_vector_rollout.py` loop | 6.83 | 5.11 |
+| 16 | `NativeRunBatch.step` | 6.63 | 3.82 |
+
+At 16 workers the per-loop figure now depends on the loop's position in the process,
+probably through allocator state. A rerun with the loops in reverse order (binding,
+facade, example, binding; one run of 2,000 calls each) gave 4.74, 4.94, 5.11 and 3.86 ms.
+Read the 16-worker Python step as about 3.8–5.1 ms per call, against 6.6–6.8 ms before.
+Including the policy step, lane P measured about 11.3k–11.6k slot steps/s for the
+`RunVectorEnv` loops (11.6k–11.7k in the reordered run) and 15.0k for the raw
+`NativeRunBatch.step` loop (12.4k–14.9k in the reordered run). The Gymnasium facade adds no
+measurable cost of its own.
+
 ## A20 Standard checks (M36)
 
 The M36 diagnostic workload is Standard A20, measured on 2026-11-11 on the host
