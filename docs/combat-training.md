@@ -1,9 +1,11 @@
 # Ironclad combat training interface
 
-Feature `.66` provides two modes over the authoritative Rust engine. Source is
-based on accepted M11 plus the isolated `.66` delta; parent integration and final
-feature acceptance are separate from this guide. No Learn installation/training,
-complete standard pools, original-game RNG/runtime parity or strategy win claim.
+Feature `.66` provides supplied-entry Ironclad combat over the authoritative Rust
+engine. It is integrated as Gym66; M35 added shared native batching and the
+Gymnasium vector facade. See the [batching contract](batching.md) for current
+behavior. This guide describes that bounded combat surface, not the Standard Run
+contract. No Learn installation/training, original-game RNG/runtime parity or
+strategy win claim is made.
 
 **M35 binding change.** `_native.NativeIroncladCombatBatch` is removed with no alias. Use
 `NativeCombatTrainingBatch(..., kind="ironclad")`; the supported `IroncladCombatVectorEnv`
@@ -307,9 +309,9 @@ hit cannot apply an overflowing permanent increase. This is an operational fault
 not Death. A batch test verifies an accepted first row and failing second row
 both remain retained; no uncertain effects are replayed.
 
-## M21 native Watcher candidate
+## M21 native Watcher combat — merged profile
 
-The [finite M21 candidate](milestones/m21-watcher-combat.md) adds typed Rust entries through `M21WatcherCombatEntry` and `CombatTrainingCatalog::m21`, using the existing `CombatTrainingSession`. `CombatTrainingSession::new_m21(catalog, partition, caps)` supplies explicit transport capacities; ordinary `new` uses the shared combat capacities. The opt-in public descriptor is `watcher_combat_observation_spec`, and `encode_watcher_combat` uses the shared Run encoder. `CombatEpisodeRecord` and `replay_m21_combat` bind the complete ordered catalog and selected entry before initialization. This candidate adds no Python constructor or batch scheduler.
+The [finite M21 profile](milestones/m21-watcher-combat.md) merged as PR60 (`f75eed1`) and adds typed Rust entries through `M21WatcherCombatEntry` and `CombatTrainingCatalog::m21`, using the existing `CombatTrainingSession`. `CombatTrainingSession::new_m21(catalog, partition, caps)` supplies explicit transport capacities; ordinary `new` uses the shared combat capacities. The opt-in public descriptor is `watcher_combat_observation_spec`, and `encode_watcher_combat` uses the shared Run encoder. `CombatEpisodeRecord` and `replay_m21_combat` bind the complete ordered catalog and selected entry before initialization. The profile adds no Python constructor or batch scheduler.
 
 The core example `cargo run -p spire-core --example m21_watcher_combat --locked --offline -- --seed 7 --scenario starter --budget 8192` is the prescribed public caller. Its outcome executions require the retained pre-outcome freeze described in the profile. The native `m21_same_choices` example prepares initial descriptors/records and consumes that caller's recorded semantic choices; it does not run another policy. Candidate source, native checks, prescribed results and independent acceptance remain separate grades.
 

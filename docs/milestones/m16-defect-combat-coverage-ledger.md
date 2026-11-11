@@ -71,7 +71,7 @@ repeat source/API remains unaccepted. M16 reuses actual accepted owners before
 adding blue callbacks; no random generator is required by this finite roster.
 Task68 PR53 is merged to main and accepted at
 `d1fa706638a31a854fdcaeed9a9a4642abf716eb`; retained read-only source export:
-`/home/klottick/.local/share/spire-gym/accepted/encounters-d1fa706638a31a854fdcaeed9a9a4642abf716eb`.
+`<private-accepted>/encounters-d1fa706638a31a854fdcaeed9a9a4642abf716eb`.
 Root reports native2043/0 for that source; this task ran no runtime check.
 Reconcile its exact accepted source before integration. The planning read baseline
 remains e5b07da, and the original frozen evidence is unchanged. M17 is unassigned

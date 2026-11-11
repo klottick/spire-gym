@@ -21,6 +21,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILD_RS = REPO_ROOT / "crates" / "spire-python" / "build.rs"
+IDENTITY_RS = REPO_ROOT / "crates" / "spire-python" / "src" / "identity.rs"
+CARGO_LOCK = REPO_ROOT / "Cargo.lock"
 
 CANDIDATES = [
     shutil.which("cargo"),
@@ -42,6 +44,24 @@ _MANIFEST = (
     "[[bin]]\n"
     'name = "show-revision"\n'
     'path = "src/main.rs"\n'
+    "\n"
+    "[build-dependencies]\n"
+    'sha2 = "=0.10.9"\n'
+    "\n"
+    "[workspace]\n"
+)
+
+# build.rs takes its workspace root as the crate's grandparent and digests the
+# spire-core/env/python manifests and sources plus these root-level inputs.
+_DIGEST_PLACEHOLDERS = (
+    "crates/spire-core/Cargo.toml",
+    "crates/spire-core/src/lib.rs",
+    "crates/spire-env/Cargo.toml",
+    "crates/spire-env/src/lib.rs",
+    "crates/spire-env/src/standard_vocab_v1.json",
+    "crates/spire-env/src/standard_event_constants_v1.json",
+    "Cargo.toml",
+    "pyproject.toml",
 )
 
 OVERRIDE = "deadbeef" * 5  # 40 hex chars, valid SPIRE_REVISION value
@@ -71,23 +91,39 @@ def _git(base: Path, *args: str) -> str:
     )
 
 
+def _write_probe(root: Path) -> Path:
+    """Write the probe crate at ``root/crates/spire-python`` with the minimal
+    workspace layout that build.rs's source-identity digest reads."""
+    for name in _DIGEST_PLACEHOLDERS:
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text("# build-metadata probe placeholder\n")
+    crate = root / "crates" / "spire-python"
+    (crate / "src").mkdir(parents=True)
+    (crate / "Cargo.toml").write_text(_MANIFEST)
+    (crate / "Cargo.lock").write_text(CARGO_LOCK.read_text())
+    (crate / "build.rs").write_text(BUILD_RS.read_text())
+    (crate / "src" / "identity.rs").write_text(IDENTITY_RS.read_text())
+    (crate / "src" / "lib.rs").write_text(_LIB)
+    (crate / "src" / "main.rs").write_text(_BIN)
+    (root / "Cargo.lock").write_text("# build-metadata probe placeholder\n")
+    return crate
+
+
 def _setup(tmp: Path, with_git: bool = True) -> Path:
-    (tmp / "crate" / "src").mkdir(parents=True)
     (tmp / "outside").mkdir()
-    (tmp / "crate" / "Cargo.toml").write_text(_MANIFEST)
-    (tmp / "crate" / "build.rs").write_text(BUILD_RS.read_text())
-    (tmp / "crate" / "src" / "lib.rs").write_text(_LIB)
-    (tmp / "crate" / "src" / "main.rs").write_text(_BIN)
+    crate = _write_probe(tmp)
     (tmp / "outside" / "a.txt").write_text("one\n")
     if with_git:
         _git(tmp, "init", "-b", "main")
-        _git(tmp, "add", "crate", "outside")
+        _git(tmp, "add", "-A")
         _git(tmp, "commit", "-m", "initial")
-    return tmp / "crate"
+    return crate
 
 
 def _build(crate: Path, env: dict[str, str] | None = None) -> None:
-    _run(crate, [CARGO, "build", "--quiet"], env=env)
+    # The probe's own target dir: _revision reads crate/target, whatever the caller's CARGO_TARGET_DIR.
+    merged = {"CARGO_TARGET_DIR": str(crate / "target"), **(env or {})}
+    _run(crate, [CARGO, "build", "--quiet", "--offline"], env=merged)
 
 
 def _revision(crate: Path) -> str:
@@ -181,14 +217,9 @@ def test_packed_only_refs_in_linked_worktree_refresh(tmp_path):
     assert not loose_ref.parent.is_dir()  # shared common-dir ref dirs pruned
 
     # Disposable crate inside the worktree; the tracked file lives outside it.
-    (worktree / "crate" / "src").mkdir(parents=True)
-    crate = worktree / "crate"
-    (crate / "Cargo.toml").write_text(_MANIFEST)
-    (crate / "build.rs").write_text(BUILD_RS.read_text())
-    (crate / "src" / "lib.rs").write_text(_LIB)
-    (crate / "src" / "main.rs").write_text(_BIN)
+    crate = _write_probe(worktree)
     (worktree / "shared" / "notes" / "b.txt").write_text("w\n")
-    _git(worktree, "add", "crate", "shared")
+    _git(worktree, "add", "-A")
     # NOTE: this add does not alter the ref; it only stages the crate dir.
 
     head_before = _git(worktree, "rev-parse", "HEAD")

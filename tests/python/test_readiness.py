@@ -65,11 +65,17 @@ def test_check_normalizes_cpu_probe_exception(monkeypatch, capsys):
 
 
 def test_check_fails_closed_when_required_cuda_report_is_unsuccessful(monkeypatch):
-    # Validates result checking for a required CUDA probe. The CPU probe
-    # stays real; only the CUDA report is faked with failure flags (this
-    # exercises validation logic, not GPU success).
+    # Only CUDA result checking is under test here. Keep the unrelated CPU
+    # readiness calculation isolated so a host without visible CUDA devices
+    # cannot fail this mocked CUDA branch before it runs.
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
-    real_probe = readiness.probe
+    cpu_report = {
+        "device": "cpu",
+        "finite_gradient": True,
+        "weights_changed": True,
+        "synchronized": True,
+        "torch": torch.__version__,
+    }
     failed = {
         "device": "cuda",
         "finite_gradient": False,
@@ -78,22 +84,28 @@ def test_check_fails_closed_when_required_cuda_report_is_unsuccessful(monkeypatc
         "torch": torch.__version__,
     }
     def fake_probe(device):
-        return real_probe(device) if device == "cpu" else dict(failed)
+        return dict(cpu_report) if device == "cpu" else dict(failed)
     monkeypatch.setattr(readiness, "probe", fake_probe)
     with pytest.raises(RuntimeError, match="readiness check for cuda failed"):
         check(require_cuda=True)
 
 
 def test_check_normalizes_cuda_probe_exception(monkeypatch):
-    # CPU probe stays real; a required-CUDA probe failure normalizes to the
-    # same RuntimeError/JSON contract (no GPU success is simulated).
+    # Keep CPU readiness isolated; this test only checks normalization of a
+    # mocked CUDA probe failure (no GPU success is simulated).
     monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
-    real_probe = readiness.probe
+    cpu_report = {
+        "device": "cpu",
+        "finite_gradient": True,
+        "weights_changed": True,
+        "synchronized": True,
+        "torch": torch.__version__,
+    }
 
     def cuda_fails(device):
-        if device == "cuda":
-            raise ValueError("focused CUDA probe failure")
-        return real_probe(device)
+        if device == "cpu":
+            return dict(cpu_report)
+        raise ValueError("focused CUDA probe failure")
 
     monkeypatch.setattr(readiness, "probe", cuda_fails)
     with pytest.raises(RuntimeError, match="CUDA readiness probe failed"):

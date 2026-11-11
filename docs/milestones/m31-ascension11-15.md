@@ -1,6 +1,6 @@
 # M31 Ascension 11–15
 
-Status: source candidate, not accepted; no spire-env, Gym or Python profile (M28 ruling Q1; exposure M34–M36).
+Status: merged as PR93 (`9fdf8db`); this is the finite M31 source profile, not a separate spire-env, Gym or Python profile.
 
 M31 extends the Standard Run boundary and records the finite A11–A15 rules. The source basis is the static source check and engine audit listed below. This profile is a candidate record, not an acceptance or delivery record.
 
@@ -39,7 +39,7 @@ The global fixes apply at every ascension:
 
 ## Evidence index
 
-Paths beginning $E are under E=/home/klottick/.local/share/spire-gym/evidence/m31-execution-20261104 (private evidence store, not published here).
+Paths beginning $E are under E=<private-evidence>/m31-execution-20261104 (private evidence store, not published here).
 
 - Static source record: $E/planning-v2/research/m31-source-check-v1.md
 - Engine source audit and equip-offer comparison: $E/planning-v2/research/m31-engine-audit-v1.md and $E/planning-v2/research/m31-equip-offers-v1.md
@@ -148,7 +148,7 @@ This section records candidate changes and amendments against the accepted M28�
 
 | ID | Change | Source or ruling | Pinning tests | Amended accepted assertions | Status |
 |---|---|---|---|---|---|
-| E1 | Standard admits A0–A15 in the default build; A16 is the first rejected level; error text is Unsupported("Standard supports A0–A15"). | Source-check §A; plan item 1; review-v2. | m31_standard_creation_a0_to_a15_all_characters; m31_standard_rejects_a16_and_above. | Retarget m28_standard_creation_all_characters and m28_standard_a0_is_public_in_a_default_build from rejecting A11 to rejecting A16 and update the error. Retarget m29_standard_rejects_above_cap to admit A11/A15 while retaining 16/20/21 rejection. Rename m30_standard_rejects_a11_and_above to m30_standard_rejects_above_cap, with a Formerly doc comment; it rejects 16/20/21. The A0–A10 creation test remains unchanged. | Source candidate; originals retained. |
+| E1 | Standard admits A0–A15 in the default build; A16 is the first rejected level; error text is Unsupported("Standard supports A0–A15"). | Source-check §A; plan item 1; review-v2. | m31_standard_creation_a0_to_a15_all_characters; m31_standard_rejects_a16_and_above. | Retarget m28_standard_creation_all_characters and m28_standard_a0_is_public_in_a_default_build from rejecting A11 to rejecting A16 and update the error. Retarget m29_standard_rejects_above_cap to admit A11/A15 while retaining 16/20/21 rejection. Rename m30_standard_rejects_a11_and_above to m30_standard_rejects_above_cap, with a Formerly doc comment; it rejects 16/20/21. The A0–A10 creation test remains unchanged. | Merged (PR93); originals retained. |
 | E2 | A11 Run/Complete contexts use a two-slot base; authored and finite A0 contexts retain three. | Source-check §B; task0-bind §(b). | m31_a11_two_slots_before_neow; m31_a11_first_combat_enters. | No accepted test assertion changes the finite-profile contract. | Candidate. |
 | E3 | Potion Belt adds two to the live base: four slots at A11, five below A11; entry, use and settlement keep the vector. | Source-check §B; design §6.2–§6.3. | m31_a11_potion_belt_four_slots; m31_a0_potion_belt_unchanged; m31_a11_belt_generated_potions_fill_four. | Existing finite three-to-five tests remain unchanged. | Candidate. |
 | E4 | G2 permits potion use from an extra slot retained after Belt loss, at every ascension; the slot's potion may also trigger Fairy rescue. | Source-check §B; design §6.3; progress-v1 narrowing. | m31_lost_belt_kept_slot_usable; m31_a11_belt_lost_keeps_four; m31_lost_belt_fairy_rescue_kept_slot. | No accepted rule assertion changed. | Candidate. |

@@ -1,28 +1,26 @@
 # Headless environments
 
-## Standard Run profile (M34) — source candidate
+## Standard Run and combat sessions (M34/M34s)
 
 The `Standard` profile covers every character, A0–A20, Acts 1–4 and the Heart, natively (`RunSession::new_standard`) and in
 Python (`RunEnv(character, ascension, profile="standard")`). The [Standard Run API](standard-run-api.md) is its contract:
 identities, creation inputs, observation groups, actions, the reward ledger, terminals and faults, seeding, records and
 replay to a chosen decision, and the privileged exact checkpoints (`exact_checkpoint`, `exact_restore`, `exact_fork`, with
 the oracle warning). The milestone record is [M34](milestones/m34-run-api.md). `combat_view()` on Standard returns
-`UnsupportedBoundary`; the Standard combat sidecar belongs to M34s. The captured profiles and the combat-v1 environment below
-are unchanged.
+`UnsupportedBoundary`; the Standard combat sidecar belongs to M34s. M34, M34s and M35 are integrated (PR98, PR99–101 and PR102); see the Standard Run API and batching contracts for current sessions and batches. Captured finite profiles and combat-v1 retain their own boundaries.
 
-## Finite native Watcher Act1 — source accepted; publication pending
+## M22 finite native Watcher Act1 — merged historical profile
 
-The [M22 profile](milestones/m22-watcher-act1.md) extends the accepted shared Run
+M22 merged as PR61 (`02839be`). Its normal-start Guardian/Hexaghost completion remains unproven in the recorded outcomes, while the outcome requirement is strategy-only and closed under Bead spire-dxo.44. The following details record the finite profile. The [M22 profile](milestones/m22-watcher-act1.md) extends the accepted shared Run
 through canonical Watcher A0 short Neow, finite28 permanent/18 relic/7 potion
 producers, Act1 combat/rewards/shops/boss children and healthy Act2Ready `(2,17)`.
 `RunSession::new_m22`, `RunBatch::new_m22` and shared semantic replay use the
 versioned public encoder. Only three Act1 histories are public; Act2 is map-only,
-with no legal cutoff action, terminal or readiness bonus. There is no Python/Gym
-constructor, arbitrary supplied-run API, full Watcher closure or M23 release.
+with no legal cutoff action, terminal or readiness bonus. M22 itself adds no
+Python/Gym constructor or arbitrary supplied-run API; M34 later exposes Standard
+Run in Python. The M22 profile does not cover full Watcher closure; M23 is merged.
 
-Root accepted this finite source after one fresh comprehensive independent senior
-review returned SOURCE ACCURACY READY with0 Critical/Important/Minor findings.
-Publication is pending; full M22 and parent44 remain open. The
+Historical candidate-review status (2026-10-29): root accepted this finite source after one fresh comprehensive independent senior review returned SOURCE ACCURACY READY with0 Critical/Important/Minor findings. Publication-pending and parent-open statements below refer to that review snapshot. The
 [review record](superpowers/plans/2026-10-29-m22-native-runtime-review.md) separates
 current corrected source proof from historical outcomes. Original six normal
 outcomes (four Deaths, one healthy cutoff, one Anchor fault) and original
@@ -35,17 +33,11 @@ ordinal identity, actual diagnostic-owner and inherited source limits. The
 pre-correction3071/2knownFAIL/7ignore workspace is distinct from current focused
 checks. No Python delivery or original-runtime validation is claimed.
 
-Current corrected native324 agreement and supplied38/32/26 actual accepted
-actions (each including one bootstrap) are separately retained. Source-composition
-assessment does not imply an executed late M22 fault at every combined checkpoint.
-Normal Guardian/Hexaghost completion remains UNPROVEN_OPEN. M23 dependency release
-requires actual M22 merge and verified accepted export; implementation also
-requires explicit root assignment. No M22 merge SHA or M23 release is claimed.
+Current corrected native324 agreement and supplied38/32/26 actual accepted actions (each including one bootstrap) are separately retained. Source-composition assessment does not imply an executed late M22 fault at every combined checkpoint. Normal-start Guardian/Hexaghost completion remains unproven; M22 merged as PR61.
 
-## M21 authored-combat status before M22 — retained snapshot
+## M21 authored-combat status — historical evidence and current disposition
 
-The [M21 profile](milestones/m21-watcher-combat.md) has root source-only
-acceptance under the primary standing workflow; publication remains pending.
+M21 merged as PR60 (`f75eed1`). Bead spire-dxo.43 records the seed11 `meditate_choice` witness satisfied by current-source tests. The original run and its outcome remain historical evidence. The profile retains the finite native authored-combat boundary.
 The initial comprehensive review's0C/3I/0M became SAME-reviewer READY0C/0I/0M
 with I1/I2/I3 closed at explicit supplied/native grades. The
 [review record](superpowers/plans/2026-10-29-m21-native-runtime-review.md) and
@@ -67,17 +59,11 @@ Corrected focused checks pass66core/5admission/8caller/17native/2owner and named
 Historical workspace2996/2 known normal failures/7 inherited ignores remains
 PRE-METADATA/PRE-REVIEW-CORRECTION. All16 original12Victory/4Death,349 choices and
 native matches are PRE-REVIEW-CORRECTION, with no outcome rerun or replacement.
-Seed11 retain `meditate_choice` remains UNMET_UNWAIVED; full M21/parent43 stays
-open. M18/M19 normal gates/parents and M20 canonical normal Heart remain open.
-No whole-workspace-green, Python delivery, authenticated original build or
-original-runtime parity is claimed. M22 waits for actual root merge, verified
-accepted export and explicit assignment against its approved plan.
+The original seed11 retain run did not expose `meditate_choice`; later current-source tests satisfied that witness under spire-dxo.43. The M18/M19 normal outcome gates and M20 canonical normal Heart gate closed as strategy-only under spire-dxo.40–.42. No whole-workspace-green, Python delivery or original-runtime parity claim follows from this finite evidence. M22 merged as PR61.
 
-## Prior environment history — retained without changes
+## Prior environment history — dated evidence
 
-The prior statements and full supplied combat-v1 contract below retain their
-dated evidence, command fences and limits; older publication/release statements
-do not supersede the current M21 source-only disposition.
+The profile records below retain dated evidence, command fences and limits. Any publication, merge, open-gate or assignment wording in those historical paragraphs describes its recorded date; current merge status is summarized in the [milestone index](milestones/README.md).
 
 For the captured normal-start Ironclad A0 **single-Run** API, see the
 [M9 RunEnv profile](milestones/m9-act3.md) and the
@@ -93,9 +79,7 @@ remain distinct from normal progression. Its
 [review record](superpowers/plans/2026-10-28-m16-native-runtime-review.md)
 retains corrected-focused versus pre-correction evidence qualifications.
 
-The [M17 Defect Act1 profile](milestones/m17-defect-act1.md) has independently
-reviewed, manager-accepted finite native source; publication/main integration
-remains pending. Canonical Defect A0 short Neow traverses the shared generated
+The [M17 Defect Act1 profile](milestones/m17-defect-act1.md) merged as PR56 (`d979954`). The following records its finite native source evidence; older publication wording is historical. Canonical Defect A0 short Neow traverses the shared generated
 Act1 route with exactly12 captured encounters,28 obtainable permanent kinds,
 14 relics and five potions; M16 mechanics capability remains29, with no M17
 EchoForm acquisition. All six prescribed canonical boss cases have actual boss
@@ -122,11 +106,7 @@ manager-controlled. The supplied combat-v1 contract below is unchanged.
 
 ## Finite native Defect Acts1–2 source
 
-The [M18 profile](milestones/m18-defect-act2.md) has source accuracy READY after
-one fresh independent senior review with zero new technical findings. The primary
-user accepted source merge and conditional M19 dependency release separately from
-the OPEN normal BronzeAutomaton coverage gate. Full M18 remains incomplete; source
-publication/main integration is pending and no M18 merge SHA is claimed.
+The [M18 profile](milestones/m18-defect-act2.md) merged as PR57 (`9628b77`). Its normal Bronze Automaton entry/record requirement is a strategy-only outcome gate closed under Bead spire-dxo.40. No original fixed run entered BronzeAutomaton; its original result and failed assertion remain unchanged.
 
 Use `RunSession::new_m18`, `RunBatch::new_m18`, `encode_run_m18` and
 `m18_run_observation_spec` with
@@ -147,8 +127,7 @@ Gym delivery or playable Act3 contract.
 
 The six unchanged originals are five Deaths and one actual Collector Victory
 through Act3Ready99/99. Champ has an actual matching Death record; neither
-Automaton-targeted run entered that boss. COV1 remains open and its failed normal
-coverage assertion is preserved. Retained native verification is2484 pass,
+Automaton-targeted run entered that boss. Its failed normal coverage assertion is preserved; the requirement was later closed as strategy-only under spire-dxo.40. Retained native verification is2484 pass,
 1 coverage failure,2 old holds; all22 M18 native tests pass and1933 same original
 actions agree through scalar, portable and workers1/2, including actual cutoff/
 reset and EmptyCage custody. These are retained results, not new administrative
@@ -160,15 +139,7 @@ manager-controlled. The supplied combat-v1 contract below is unchanged.
 
 ## Finite native Defect Acts1–3 source
 
-The [M19 profile](milestones/m19-defect-act3.md) has independently reviewed source
-accuracy READY with zero new Critical, Important or Minor technical findings.
-The primary user approved source merge and conditional M20 dependency release on
-2026-10-28 for reviewed857-file manifest
-`61c186d19a0d0beddf87dc2a2251b3871574354ac32c1fd4520fdaecb4a4724f`.
-Publication/main integration remains pending. M20 execution requires actual merged
-source and an assignment; this is not full M19 acceptance or a coverage waiver.
-M19 uses accepted M18 PR57 merge `9628b77a59c83890012c7e4903679e9ae46d2b7e`;
-earlier profile publication statements retain their dated evidence.
+The [M19 profile](milestones/m19-defect-act3.md) merged as PR58 (`0c43d7d`), after M18 PR57 (`9628b77`). Its normal boss-entry/Act3NoKeys and M18 normal Automaton outcome requirements are strategy-only gates closed under spire-dxo.41 and .40. Original outcomes and failed assertions remain unchanged.
 
 Use `RunSession::new_m19`, `RunBatch::new_m19`, `encode_run_m19` and
 `m19_run_observation_spec` with typed
@@ -184,9 +155,8 @@ All six originals ended in Death; no Act3 boss entry/matching record or Act3NoKe
 was observed. The same2,015 choices agree across scalar sessions, portable replay
 and complete paired workers1/2 lanes. The retained workspace is2529 pass,
 2 normal coverage failures and2 inherited M15 holds, not a green workspace.
-The M19 normal gate and M18 Automaton gate, failed assertions and parents remain
-open. The [review record](superpowers/plans/2026-10-28-m19-native-runtime-review.md)
-distinguishes source acceptance from these unmet requirements.
+The M19 and M18 normal outcome gates were later closed as strategy-only under spire-dxo.41 and .40; failed assertions and original outcomes remain preserved. The [review record](superpowers/plans/2026-10-28-m19-native-runtime-review.md)
+distinguishes source acceptance from the original outcomes preserved above; the later scope dispositions are recorded separately.
 
 Actual supplied CORE boss settlement/ending reaches Act3NoKeys or all-key/enabled
 healthy Act4Ready at3/50 through the shared owner. The native private published-boundary characterization checks exact
@@ -199,13 +169,12 @@ Java RNG/map parity is claimed. The supplied combat-v1 contract below is unchang
 
 ## Finite native Defect Acts1–4/Heart source
 
-The [M20 profile](milestones/m20-defect-heart.md) has root source acceptance;
-publication remains pending. The initial comprehensive independent review had
+The [M20 profile](milestones/m20-defect-heart.md) merged as PR59 (`71bc569`). Its canonical normal Heart outcome gate is strategy-only and closed under spire-dxo.42; the retained current-source HeartVictory is a supplied witness, not normal-start evidence. The initial comprehensive independent review had
 one Important finding, then the same reviewer's scoped recheck closed I1 and its
 M20 Sunder/EnergyPotion extensions: source accuracy READY,0C/0I/0M remaining.
 The [review record](superpowers/plans/2026-10-29-m20-native-runtime-review.md)
 binds exact reviewed source and current focused validation. Preceding M16–M19
-paragraphs retain their dated history; no M20 merge SHA is claimed.
+paragraphs retain their dated history; M20 merged as PR59 (`71bc569`).
 
 Use `RunSession::new_m20`, `RunBatch::new_m20`, `encode_run_m20` and
 `m20_run_observation_spec` with typed
@@ -229,11 +198,9 @@ Earlier workspace2906/2/6, six normal Deaths, original supplied Anchor fault,
 corrective110-action Defect HeartVictory and both native agreement proofs remain
 PRE-I1-CORRECTION evidence on their respective exact sources. Strong is unexecuted
 (original BLOCKED/corrective SKIPPED). No normal M20 Heart completion is proven;
-M18/M19 normal gates and parents remain open and unwaived. This is finite native
+M18/M19 normal outcome gates were later closed as strategy-only under spire-dxo.40/.41; their original outcomes remain preserved. This is finite native
 source acceptance, not Python/Gym delivery, original-runtime parity or full-game
-content. M21 execution needs actual merge, verified accepted export and explicit
-root assignment. The supplied combat-v1 contract and all prior history below are
-unchanged.
+content. M21 later merged as PR60 (`f75eed1`). The supplied combat-v1 contract and all prior history below are unchanged.
 
 ## Supplied-entry combat-v1
 

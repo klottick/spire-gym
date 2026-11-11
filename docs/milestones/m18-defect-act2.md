@@ -1,19 +1,20 @@
-# M18 finite native Defect Acts1–2: source accepted, coverage open
+# M18 finite native Defect Acts1–2: source accepted
 
-On 2026-10-28 the primary user accepted the independently reviewed finite source
-for merge preparation under an explicit source-only exception. One fresh senior
-review returned **source accuracy READY**, with zero new technical findings.
-Source merge and conditional M19 dependency release are separated from the still
-OPEN normal coverage requirement: **no original fixed run entered BronzeAutomaton
-and supplied a matching record.** Full M18 is not established and its parent stays
-open. Collector completed normally and Champ has an actual matching Death record;
-all five Deaths and the original failed coverage assertion remain unchanged.
+As of 2026-10-30, the normal Bronze Automaton entry/record requirement is a
+strategy-only outcome gate, closed under Bead spire-dxo.40. No original fixed run
+entered BronzeAutomaton and supplied a matching record; the five Deaths and failed
+coverage assertion remain unchanged.
+
+Historical review status (2026-10-28): the primary user accepted the independently
+reviewed finite source for merge preparation under a source-only exception. One
+fresh senior review returned source accuracy READY, with zero new technical
+findings. Collector completed normally and Champ has an actual matching Death
+record; all original outcomes remain as recorded.
 
 The [public review record](../superpowers/plans/2026-10-28-m18-native-runtime-review.md)
 binds reviewed832 source, independent review and actual primary approval.
-Publication/main integration and M19 execution dispatch remain manager operations;
-no M18 merged revision or M19 start is claimed. This is not a coverage waiver or
-permission to tune the frozen caller or run additional episodes.
+M18 merged as PR57 (`9628b77`). The later scope disposition does not alter the
+failed assertion or authorize caller tuning or additional episodes.
 
 The immutable approved [design](../superpowers/specs/2026-10-27-m18-defect-act2-design.md)
 and [plan](../superpowers/plans/2026-10-27-m18-defect-act2.md) govern the work.

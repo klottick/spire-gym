@@ -17,7 +17,7 @@ fn vocab_name(family: &str, index: i64) -> Option<String> {
     Some(crate::standard_vocab_manifest()["families"][family].as_array()?.get(index)?.as_str()?.to_owned())
 }
 
-fn field(obs: &RunObservation, group: &str, row: usize, column: usize) -> i64 {
+pub(super) fn field(obs: &RunObservation, group: &str, row: usize, column: usize) -> i64 {
     let group = obs.group(group).unwrap_or_else(|| panic!("missing {group} group"));
     let columns = *group.shape.last().unwrap();
     group.values[row * columns + column]
@@ -195,9 +195,9 @@ pub(super) fn standard_session(character: Character, ascension: u8, seed: u8, cr
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct DriveProgress { steps: usize, boss_fights: usize, last_combat_turn: Option<i64>, wound_counts: Vec<usize>, reward_steps: Vec<(i32, Vec<RewardItem>, [i64; 6])> }
+pub(super) struct DriveProgress { pub(super) steps: usize, pub(super) boss_fights: usize, last_combat_turn: Option<i64>, pub(super) wound_counts: Vec<usize>, reward_steps: Vec<(i32, Vec<RewardItem>, [i64; 6])> }
 #[derive(Debug)]
-pub(super) struct DriveFailure { progress: DriveProgress, action_row: Option<usize>, checkpoint: String, action: String, candidates: String, error: String }
+pub(super) struct DriveFailure { pub(super) progress: DriveProgress, action_row: Option<usize>, pub(super) checkpoint: String, pub(super) action: String, candidates: String, pub(super) error: String }
 
 fn candidate_list(session: &RunSession) -> String {
     session.reproduction().ok().and_then(|reproduction| reproduction.latest_decision)
@@ -206,7 +206,7 @@ fn candidate_list(session: &RunSession) -> String {
         .unwrap_or_else(|| "unavailable".to_owned())
 }
 
-fn replay_wounded_supplied(record: &crate::RunEpisodeRecord, replay_start: Run, wound_counts: &[usize]) -> crate::run_replay::RunReplayReport {
+pub(super) fn replay_wounded_supplied(record: &crate::RunEpisodeRecord, replay_start: Run, wound_counts: &[usize]) -> crate::run_replay::RunReplayReport {
     let mut applied = Vec::new();
     let mut hook = |accepted: usize, run: &mut Run| -> Result<bool, RunError> {
         if wound_counts.contains(&accepted) {
@@ -293,7 +293,7 @@ pub(super) fn drive(session: &mut RunSession, limit: usize, mut stop: impl FnMut
     Ok(DriveProgress { steps, boss_fights: act3_boss_fights, last_combat_turn, wound_counts, reward_steps })
 }
 
-fn assert_heart_rewards(progress: &DriveProgress, ascension: u8) -> (i32, usize, usize) {
+pub(super) fn assert_heart_rewards(progress: &DriveProgress, ascension: u8) -> (i32, usize, usize) {
     let mut highest = 0_i64;
     let mut expected_floors = Vec::new();
     let mut all = Vec::new();

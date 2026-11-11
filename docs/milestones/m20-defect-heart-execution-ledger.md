@@ -1,5 +1,9 @@
 # M20 execution coverage ledger
 
+Status as of 2026-10-30: M20 merged as PR59 (`71bc569`); the canonical normal Heart
+requirement is strategy-only and closed under Bead spire-dxo.42. The 2026-10-29
+record below is unchanged.
+
 2026-10-29: finite native source accepted; publication pending. Initial independent
 comprehensive review0C/1I/0M was followed by the same reviewer's I1/extension
 closure and SOURCE ACCURACY READY,0C/0I/0M remaining. The

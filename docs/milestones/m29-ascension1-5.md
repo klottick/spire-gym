@@ -1,9 +1,6 @@
 # M29 Ascension 1–5
 
-Status: **source-complete candidate: M29a1, M29a2, M29b and M29c merged; M29d (the rest of M29
-and its close) under review.** This page states what M29 provides and its limits. It is a candidate
-profile, not a public profile: M29 adds no spire-env, Gym or Python profile (PM ruling Q1 of M28
-holds; native exposure is M34–M36). From M29d a default build admits A0–A5 standard Runs as a
+Status: M29a1, M29a2, M29b, M29c and M29d merged as PR84, 86, 88, 89 and 91 (`417ad9c`). This page states the finite M29 evidence and limits; it is not a separate Gym/Python profile. Standard Run exposure followed in M34. From M29d a default build admits A0–A5 standard Runs as a
 native Rust constructor; before M29d, A1–A5 was diagnostics-only (`m29-diagnostics`). The
 [coverage ledger](m29-ascension1-5-coverage-ledger.md) maps every inventory row to its tests and
 the [reconciliation](m29-ascension1-5-reconciliation.md) lists every disclosed change.
@@ -192,8 +189,8 @@ string `Unsupported("Standard is A0 only until M29f")`; A6+ still returns
 - **Behaviour rows (M32).** Enemy AI and new effects at A17+ (for example the Mystic's heal cutoff,
   the Champ's Forge cutoff, the Snecko's Weak, Deca's Plated Armor, the Time Eater's A19 effects,
   the Shield's 99 Block, the Spear's draw-pile Burns, the Darkling's Strength and Spire Growth's
-  forced Constrict) are not implemented. Their amounts are checked at table level where numeric.
+  forced Constrict) were outside M29; M32 later implemented these A17–A19 behaviors. Their amounts were checked at table level in M29 where numeric.
 - A6+ run-level rules are dormant (`Run::new` codes A6/A10/A11/A14; creation caps at A5). Hand-forward
   for M30: `run/engine.rs:17` computes A6 start HP as the integer `(max * 9 + 5) / 10`; the source is
   `MathUtils.round(max * 0.9f)`.
-- The native fuzz harness has no standard-Run driver and is A0/finite-profile evidence only.
+- The M29-era native fuzz harness had no Standard Run driver and its evidence was A0/finite-profile scoped; M34 later added Standard Run fuzz coverage.

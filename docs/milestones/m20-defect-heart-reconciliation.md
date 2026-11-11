@@ -1,5 +1,9 @@
 # M20 execution reconciliation
 
+Status as of 2026-10-30: M20 merged as PR59 (`71bc569`); the canonical normal Heart
+requirement is strategy-only and closed under Bead spire-dxo.42. The 2026-10-29
+record below is unchanged.
+
 2026-10-29 status: **finite native source accepted; publication pending**.
 The initial comprehensive independent review0C/1I/0M was preserved; the SAME
 reviewer closed I1 and its bounded extensions with source accuracy READY and

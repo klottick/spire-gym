@@ -1,10 +1,8 @@
-# M35 Batching — source candidate
+# M35 Batching — merged source
 
-This record covers shared native session batching, Python/Gymnasium vector facades, delivery
-identity and batched public-search stepping. It is a finite source candidate. Lane P on the candidate
-export passed (Checks); the post-merge build is pending. See the [batching
-contract](../batching.md) for the public API and [development guide](../development.md) for
-artifact identity requirements.
+M35 merged as PR102 (`09b8fc81`). The verified post-merge packet records source digest `bb188887…` and 427 passing Python tests. This source identity is distinct from later M36 deliverables.
+
+This record covers shared native session batching, Python/Gymnasium vector facades, delivery identity and batched public-search stepping. Lane P on the candidate export passed (Checks). See the [batching contract](../batching.md) for the public API and [development guide](../development.md) for artifact identity requirements.
 
 ## Breaking change
 
@@ -29,21 +27,21 @@ second game engine or Python batch loop is introduced.
 
 **Delivery path.** Source checks and native tests are separate from Python extension delivery.
 Lane P uses the candidate export and records `_native.__file__`, `build_info()`, source and
-artifact digests, facade hashes, descriptor fingerprints and exact results. Post-merge identity
-also requires `dirty=false` with the same source digest as Lane P.
+artifact digests, facade hashes, descriptor fingerprints and exact results. The post-merge
+packet is verified at PR102 source identity `09b8fc81` with source digest `bb188887…`.
 
 ## Coverage ledger
 
 | Contract | Evidence in source | Evidence path | Status |
 | --- | --- | --- | --- |
-| Shared owner, 1–256 slots, descriptor uniformity, worker pool and scalar seed expansion | `SessionBatch`, `Scheduler`, native mixed-session and seed tests | `crates/spire-env/src/session_batch.rs`; `crates/spire-env/tests/m35_session_batch.rs`; `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-env/src/tests/m35_batch_unit.rs` | Source candidate; passed (Checks) |
-| Partial reset, sticky automatic entries, DISABLED/NEXT_STEP/SAME_STEP, final rows, records and `combat_views()` | Native autoreset and terminal comparisons | `crates/spire-env/tests/m35_autoreset.rs`; `crates/spire-env/src/tests/m35_r2.rs` | Source candidate; passed (Checks) |
-| Freeze/isolate fault policies, committed-result recovery, export failure and fault records | Fault-stage and recovery tests | `crates/spire-env/src/tests/m35_batch_faults.rs` | Source candidate; passed (Checks) |
-| Gym66 batch rebase and `standard-combat-v1` mixed catalog | Shared combat owner and catalog-kind tests | `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-python/src/batch.rs` | Source candidate; passed on the lane P extension (Checks) |
-| R1–R7 native and Python agreement, plus R4-neg entry negative control | Mixed Run, autoreset, combat, finite-profile and digest-fixture tests | `crates/spire-env/tests/m35_session_batch.rs`; `crates/spire-env/tests/m35_autoreset.rs`; `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-env/tests/m35_agreement_digests.rs`; `crates/spire-env/tests/fixtures/m35_agreement_digests.json`; `tests/python/env/test_m35_agreement.py` | Source candidate; passed (Checks) |
-| R8 `PublicSearch.step_many`, privacy, fault, preflight and shared pool | Crate-private M35 search tests | `crates/spire-env/src/public_search.rs`; `crates/spire-env/src/tests/m35_step_many.rs` | Source candidate; passed (Checks) |
-| Gymnasium facades and extension identity | Vector conformance, wrapper compatibility, export recovery, agreement/search batch and identity tests | `python/spire_lab/gymnasium/_vector.py`; `python/spire_lab/gymnasium/run_vector.py`; `python/spire_lab/gymnasium/standard_combat_vector.py`; `tests/python/env/test_m35_agreement.py`; `tests/python/env/test_build_identity.py` | Source candidate; passed on the lane P extension (Checks) |
-| Native class removal and Gym66 compatibility contract | Removal, facade and gated task 0 golden tests | `tests/python/test_ironclad_training.py`; `tests/python/env/test_compatibility.py`; `tests/python/env/test_m35_agreement.py`; `/home/klottick/.local/share/spire-gym/evidence/m35-execution-20261110/m35/task0/golden/` | Source candidate; golden comparison v1 427/427 and v2 427/427 rows equal on the lane P extension (Checks) |
+| Shared owner, 1–256 slots, descriptor uniformity, worker pool and scalar seed expansion | `SessionBatch`, `Scheduler`, native mixed-session and seed tests | `crates/spire-env/src/session_batch.rs`; `crates/spire-env/tests/m35_session_batch.rs`; `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-env/src/tests/m35_batch_unit.rs` | Merged (PR102); passed (Checks) |
+| Partial reset, sticky automatic entries, DISABLED/NEXT_STEP/SAME_STEP, final rows, records and `combat_views()` | Native autoreset and terminal comparisons | `crates/spire-env/tests/m35_autoreset.rs`; `crates/spire-env/src/tests/m35_r2.rs` | Merged (PR102); passed (Checks) |
+| Freeze/isolate fault policies, committed-result recovery, export failure and fault records | Fault-stage and recovery tests | `crates/spire-env/src/tests/m35_batch_faults.rs` | Merged (PR102); passed (Checks) |
+| Gym66 batch rebase and `standard-combat-v1` mixed catalog | Shared combat owner and catalog-kind tests | `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-python/src/batch.rs` | Merged (PR102); passed on the lane P extension (Checks) |
+| R1–R7 native and Python agreement, plus R4-neg entry negative control | Mixed Run, autoreset, combat, finite-profile and digest-fixture tests | `crates/spire-env/tests/m35_session_batch.rs`; `crates/spire-env/tests/m35_autoreset.rs`; `crates/spire-env/tests/m35_combat_training_batch.rs`; `crates/spire-env/tests/m35_agreement_digests.rs`; `crates/spire-env/tests/fixtures/m35_agreement_digests.json`; `tests/python/env/test_m35_agreement.py` | Merged (PR102); passed (Checks) |
+| R8 `PublicSearch.step_many`, privacy, fault, preflight and shared pool | Crate-private M35 search tests | `crates/spire-env/src/public_search.rs`; `crates/spire-env/src/tests/m35_step_many.rs` | Merged (PR102); passed (Checks) |
+| Gymnasium facades and extension identity | Vector conformance, wrapper compatibility, export recovery, agreement/search batch and identity tests | `python/spire_lab/gymnasium/_vector.py`; `python/spire_lab/gymnasium/run_vector.py`; `python/spire_lab/gymnasium/standard_combat_vector.py`; `tests/python/env/test_m35_agreement.py`; `tests/python/env/test_build_identity.py` | Merged (PR102); passed on the lane P extension (Checks) |
+| Native class removal and Gym66 compatibility contract | Removal, facade and gated task 0 golden tests | `tests/python/test_ironclad_training.py`; `tests/python/env/test_compatibility.py`; `tests/python/env/test_m35_agreement.py`; `<private-evidence>/m35-execution-20261110/m35/task0/golden/` | Merged (PR102); golden comparison v1 427/427 and v2 427/427 rows equal on the lane P extension (Checks) |
 
 ## Checks
 
@@ -59,7 +57,7 @@ Results are from the read-only candidate snapshots c3 (Rust lanes) and c4 (lane 
 | Native R7 digest fixture | `cargo test -p spire-env --locked --offline --test m35_agreement_digests` | c3: included above; workers 1 and 4 equal |
 | Native terminal, batching unit/fault, R8 and unchanged M34s search | `cargo test -p spire-env --locked --offline --lib m35_r2`; `cargo test -p spire-env --locked --offline --lib m35_batch`; `cargo test -p spire-env --locked --offline --lib m35_step_many`; `cargo test -p spire-env --locked --offline --lib m34s_search` | c3 (`--release --lib -- m35_ workers_faults seed`): 46 passed, 0 failed |
 | Python Lane P | `uv run --locked --no-sync python -B -m pytest tests/python/env -q`; `uv run --locked --no-sync python -B -m pytest tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py tests/python/test_card_metadata.py -q` | c4 extension built from the read-only export (`features=["spire-python/extension"]`, `profile=release`, `dirty=unknown`, `source_digest=083f4061…`): 427 passed, 0 skipped (with `tests/python/test_static_audit.py`); 10 examples exit 0; all 9 descriptor fingerprints equal the e3574ed6 packet; n14g/bhl/tsw replays line-equal to the e3574ed6 baselines, no `RunFaultError` |
-| Gated Gym66 task 0 golden comparison | `SPIRE_M35_GYM66_GOLDEN=/home/klottick/.local/share/spire-gym/evidence/m35-execution-20261110/m35/task0/golden uv run --locked --no-sync python -B -m pytest tests/python/env/test_m35_agreement.py -q -k test_gym66_task0_golden_comparison` | c4 lane P (gate set): passed; v1 and v2 427/427 rows equal, only delta the added `diagnostic()` `slots` key |
+| Gated Gym66 task 0 golden comparison | `SPIRE_M35_GYM66_GOLDEN=<private-evidence>/m35-execution-20261110/m35/task0/golden uv run --locked --no-sync python -B -m pytest tests/python/env/test_m35_agreement.py -q -k test_gym66_task0_golden_comparison` | c4 lane P (gate set): passed; v1 and v2 427/427 rows equal, only delta the added `diagnostic()` `slots` key |
 | Binding helper tests (default features; PyO3 extension is built in Lane P) | `cargo test -p spire-python --locked --offline` | c4: 15 passed, 0 failed |
 | Workspace (runner A) | `cargo test --workspace --locked --offline --no-fail-fast` | c3: 5,123 passed, 0 failed, 19 ignored; 74 test names added, none removed |
 | Diagnostics, fuzz, traversal, frozen replay, examples (runner B) | as the M34s-c runner brief steps 1, 2, 5–8 | c1 (carried to c3/c4: those lanes do not link the batch modules): diagnostics 7,941 passed; fuzz 51 passed; traversal byte-identical to base, M33 gate A1–A20; fuzz trace and gameplay hashes equal to base, no failure group; frozen replay 323/323 equal; c3 examples equal to base |
@@ -92,7 +90,7 @@ The implementation follows the M35 design with these bound changes and disclosed
 - P5 also changes Rust finite-profile `RunBatch`: after a sibling fault, healthy peers in M10,
   M14, M15 and M23–M25 stay healthy and readable (not frozen; the batch itself refuses further resets and steps) and no
   longer receive `DeliveryFault`. Nine accepted tests
-  were amended in `/home/klottick/.local/share/spire-gym/evidence/m35-execution-20261110/m35/amendments/ledger.md`:
+  were amended in `<private-evidence>/m35-execution-20261110/m35/amendments/ledger.md`:
   `m23_batch_postdispatch_faults_keep_indexed_peer_delivery_with_actual_core_fault`,
   `m24_batch_postdispatch_faults_with_actual_core_errors`,
   `m23_batch_postdispatch_faults_keep_indexed_peer_delivery`, `m24_batch_postdispatch_faults`,
@@ -104,10 +102,9 @@ The implementation follows the M35 design with these bound changes and disclosed
   and recomputes the R7 facade-array digests. The task 0 golden comparison is gated by
   `SPIRE_M35_GYM66_GOLDEN`; its evidence record reports 427/427 rows equal for each of v1 and v2,
   with only the added `diagnostic().slots` key as a diagnostic delta.
-- M35 does not promise original-game runtime parity, strategy performance, throughput or a
-  completed Python delivery until Lane P and the post-merge build are verified.
+- The verified PR102 packet records the post-merge Python extension identity and test result above. M35 does not establish original-game runtime parity, strategy performance or a Standard Run throughput result.
 
 The relevant source and test evidence is retained under
-`/home/klottick/.local/share/spire-gym/evidence/m35-execution-20261110/m35/`, including
+`<private-evidence>/m35-execution-20261110/m35/`, including
 `task0/`, `amendments/`, the task briefs, runner logs and delivery drafts. A managed worktree
 path is not an independent retention copy.

@@ -82,7 +82,7 @@ artwork coverage.
 Explicit local preparation, using the already installed project interpreter:
 
 ```sh
-/home/klottick/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/bin/python3.12 \
+/path/to/cpython-3.12.15/bin/python3.12 \
   tools/prepare_report_assets.py --local-dir /path/to/supplied/originals \
   --output-dir files/run-viewer/art
 cargo run -p spire-report --locked --offline -- \
@@ -146,7 +146,7 @@ decode failures fall back to labels.
 ```sh
 cargo build -p spire-report --all-targets --locked --offline
 cargo test -p spire-report --locked --offline
-/home/klottick/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/bin/python3.12 \
+/path/to/cpython-3.12.15/bin/python3.12 \
   -m unittest discover -s tools/tests -p test_prepare_report_assets.py
 cargo build -p spire-report --locked --offline
 SPIRE_REPORT_BIN="$PWD/target/debug/spire-report" NODE_PATH="$SPIRE_PLAYWRIGHT_NODE_MODULES" \
@@ -165,7 +165,7 @@ scratch directory. This permits verification without removing prior artifacts wh
 the default `/tmp/opencode` quota is exhausted.
 
 Installed Playwright1.64.1 was located at
-`/home/klottick/repos/present-wishlist/frontend/node_modules/` for this session,
+a local `node_modules/` directory for this session,
 used read-only with the existing Chromium cache. No installation is implied.
 
 The native recorder is bound to the Run's stable address between start/finish:

@@ -1,11 +1,12 @@
-# Current native encounter coverage
+# Encounter setup census (M14-era evidence)
 
-This inventory reconciles the57 concrete `EncounterId` values with the shared
+This inventory reconciles the 57 concrete `EncounterId` values with the shared
 setup owner, catalog, world domains, finite Run admission and numeric publication.
-It describes the encounter-closure change against accepted M14 commit
-`a8261aa55e64d9c013f418b37711060003ca50b4`. It is native source/test evidence;
-it does not establish a matching built/imported Python extension, complete
-standard pools, all-character A0–20 Runs or original-game parity.
+It is a historical setup census against accepted M14 commit
+`a8261aa55e64d9c013f418b37711060003ca50b4`, not the current Standard coverage
+summary. M29–M33 and M34 later integrated Standard A0–A20 Runs and the Run API;
+see the [Standard Run API](standard-run-api.md) and [milestone index](milestones/README.md).
+This census alone does not establish extension identity or original-game parity.
 
 ## Supported setups and finite profiles
 
@@ -18,11 +19,11 @@ and the shared actor dispatcher. Catalog omissions for Small/Large/Lots of Slime
 six slime species and stale definition-only flags were corrected here.
 
 `v1` below means the frozen43-entry standalone Ironclad A0 profile. `v2` means
-that set plus the14 explicit additions. `Run` means selectable in the accepted
-captured progression for that act: M5/M12 onward for Act1, M6/M13 onward for
-Act2 (boss completion requires M7/M13 onward), M8/M14 for Act3 ordinary/elites,
-M9/M14 for Act3 bosses, and M10 Ironclad Heart for Act4. Later Ironclad profiles
-retain their predecessors. M14 Silent remains Acts1–3 only.
+that set plus the14 explicit additions. `Run` in this table means selectable in
+the captured progression at the M14-era census point: M5/M12 onward for Act1,
+M6/M13 onward for Act2 (boss completion requires M7/M13 onward), M8/M14 for Act3
+ordinary/elites, M9/M14 for Act3 bosses, and M10 Ironclad Heart for Act4. Later
+Standard coverage is described by M29–M34; M14 Silent remains Acts1–3 only.
 
 | Act | Encounter ID | Setup key | Admission |
 |---:|---|---:|---|

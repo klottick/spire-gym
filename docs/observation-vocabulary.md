@@ -69,6 +69,8 @@ M9 prefix. Retrain or re-derive any consumer that embeds these indices.
 - M21 Watcher combat view at `combat_policy_capacities()`: `e7e49e88d50c947fde064a764153a5846ba3dc6c8298116f03e8126383b51e34` → `bbb3ad92bc04542773435bf30194a6ef7ac533807931832628bb41d7b47af861` (the table row above uses `RunCapacities::m10_default()`).
 - M16 Defect combat at `combat_policy_capacities()`: `2b53f59fac1899e231300914b0b88aabc4e26add3492584de479b60e5fafce0a` → `6092fd366225add31b35bde2fb0f8984f943773f8399404d89de410ddf7618d7`.
 
+For later fingerprints, see the [post-oto-8 fingerprint table](#2026-11-02-interrupting-selection-phase-spire-oto8) and the M34s change history below.
+
 Schema IDs are unchanged; only descriptor bytes changed. Diagnostic-only test
 descriptors (M20, M22–M25 diagnostic specs) change with their parents. Dated
 milestone profiles and reconciliation records keep the fingerprints accepted at
@@ -371,7 +373,7 @@ fixes (M34s-b)"):
    given roll takes changes. The Standard rules id v3 covers it. Surfaces: Standard (all characters, A0–A20); the captured
    M7, M8, M9, M10, M13, M14, M15, M18, M19, M20, M23, M24 and M25 Run profiles; Gym66 combat-v1 and v2, the M21 Watcher
    combat profile and `standard-combat-v1`. The captured ids and fingerprints keep their values: the PM accepted this
-   globally under the user's 2026-11-02 override, so these profiles are not frozen until the roadmap is complete. A retained
+   globally under the user's 2026-11-02 override. At the M36 merge, the F-a freeze covers Standard and the named legacy surfaces; native-only M12–M25 profiles remain outside it. Later gameplay fixes follow [delivery.md](delivery.md) and disclose affected rules-id and replay-pin changes. A retained
    record from these profiles that contains a Stasis capture may replay to a different copy. In replay paths that do not
    compare observations, this happens without a typed `IncompatibleReplay` error. The one measured change is the frozen M23
    supplied-boss Bronze Automaton replay, step 12.

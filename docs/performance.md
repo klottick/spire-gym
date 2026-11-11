@@ -1,10 +1,151 @@
 # Measuring simulator speed
 
-The performance scaffold follows the complete four-character, A0–20, Acts1–4/
-Heart design, with A20 the eventual primary workload. **Only the three declared
-Ironclad A0 native workloads below are measured today.** A catalog entry marked
-planned is not implemented coverage or a passing test. No gameplay optimizations,
-new dependencies or original-runtime fidelity claims accompany this scaffold.
+The `performance/` directory remains a historical core-only scaffold. **Historical note
+(2026-10-26):** only the three declared Ironclad A0 native workloads below had
+been measured at that date. A catalog entry marked planned in that historical
+scaffold is not implemented coverage or a passing test. No gameplay
+optimizations, new dependencies or original-runtime fidelity claims accompany
+those measurements.
+
+## A20 Standard checks (M36)
+
+The M36 diagnostic workload is Standard A20, measured on 2026-11-11 on the host
+below. It separates scalar single-run throughput (S), batch scaling (B), process
+memory (M), capacity headroom (C), supplied Heart-route throughput, and the
+Python X1 vector example. Numbers come from two `a20_checks` runs and one
+`m36_a20_route_measure` run on the M36 candidate source; run 1 is shown, with
+run 2 where it differs. No other build or test ran during the measurements.
+
+| Host | Value |
+| --- | --- |
+| CPU / cores / threads | AMD Ryzen 9 9950X, 16 cores / 32 threads |
+| Memory / OS / kernel | 59 GiB; Linux 7.0.0-42-generic (Ubuntu) |
+| Rust / target | rustc 1.99.0; x86_64-unknown-linux-gnu |
+| Build profile / jobs | `--release --locked --offline`; `CARGO_BUILD_JOBS=8` |
+
+| Source identity | Value |
+| --- | --- |
+| Revision and dirty state | M36 candidate on base `09b8fc81` (read-only export, not a Git tree: revision `null`) |
+| Rules ID / observation fingerprint | `spire-gym-native-standard-rules-v3` / `bf8e1d11…` |
+| `a20_checks` executable SHA-256 | `e86a4e1bfd2acde41aebf4e9aed78b317a250f14110b0b2f1e7432815c43a500` |
+| Whole process (`/usr/bin/time`) | 8.72 s / 8.75 s wall; max RSS 1,081,252 / 1,149,576 KiB |
+
+### S — scalar A20
+
+Four characters, 256 seeds each, the seeded uniform legal-action rule.
+
+| Characters / episodes | Accepted actions | Step + read seconds | Actions/s | Episodes/s | Terminal histogram |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 4 / 1,024 | 42,783 | 4.15 | 10,297 (10,240) | 220 (219) | Death 1,024; mean length 41.8, max 111 |
+
+### B — batch scaling
+
+Mixed-character A20 slots, NextStep autoreset, Freeze fault policy, `record_replay` on;
+64 slots for 100 batch calls per worker count, then the 256-slot memory phase.
+
+| Slots | Workers | Batch calls / slot steps | Step + read seconds | Slot steps/s |
+| ---: | ---: | ---: | ---: | ---: |
+| 64 | 1 | 100 / 6,400 | 1.24 | 5,175 (5,188) |
+| 64 | 4 | 100 / 6,400 | 0.57 | 11,158 (11,244) |
+| 64 | 16 | 100 / 6,400 | 0.50 | 12,735 (12,462) |
+| 256 | 16 | 50 / 12,800 | 0.91 | 14,127 (13,982) |
+
+### M — process memory
+
+Read from `/proc/self/status` after each phase; VmHWM is the process high-water mark so far.
+
+| Phase | Slots / calls | VmHWM (KiB) | VmRSS (KiB) |
+| --- | ---: | ---: | ---: |
+| After S | 1 / — | 11,420 | 10,764 |
+| After B=64 budget, `record_replay` on | 64 / 100 | 436,156 (425,444) | 436,000 (424,888) |
+| After B=256 reset + 50 steps | 256 / 50 | 1,081,252 (1,153,508) | 1,067,404 (1,153,508) |
+
+The B=64 → B=256 growth is about 3.2–3.7 MiB (3,289 and 3,795 KiB) per added slot, including retained replay records.
+
+### C — capacity headroom
+
+Maximum occupied rows over the S, B and M phases (identical in both runs), against the `standard-default-v1` preset.
+
+| Observation group | Preset capacity | Maximum occupied | Remaining |
+| --- | ---: | ---: | ---: |
+| map_nodes | 107 | 76 | 31 |
+| map_edges | 742 | 88 | 654 |
+| permanent_cards | 1,024 | 17 | 1,007 |
+| combat_cards | 1,024 | 47 | 977 |
+| enemies | 12 | 5 | 7 |
+| powers | 2,048 | 6 | 2,042 |
+| relics | 256 | 5 | 251 |
+| potions | 16 | 2 | 14 |
+| offers | 512 | 15 | 497 |
+| selection | 1,024 | 16 | 1,008 |
+| orbs | 10 | 3 | 7 |
+| actions | 2,048 | 26 | 2,022 |
+
+Random A20 play ends in Act 1, so these maxima say little about late-game use;
+the supplied routes below reach Act 4. Their highest rows (map_nodes 72 and
+offers 20 on the Watcher wounded route, combat_cards 63 on the Ironclad
+full-length route, enemies 4 on the Silent full-length route) also stay well
+inside the preset.
+
+### Supplied route measure
+
+Each A20 route from the Heart acceptance (wounded) and each character's supplied
+full-length variant (no wound until a fight passes 15 player turns). Timing
+covers only `step` plus the boundary read. Neither is a normal-policy reach
+measurement: the full-length variants are supplied runs that all ended in Death.
+
+| Route | Character | Steps | Terminal | Actions/s | Record JSON bytes | Checkpoint heap bytes |
+| --- | --- | ---: | --- | ---: | ---: | ---: |
+| Wounded | Ironclad | 345 | HeartVictory | 8,159 | 26,739 | 911,384 |
+| Wounded | Silent | 333 | HeartVictory | 10,679 | 25,598 | 905,128 |
+| Wounded | Defect | 329 | HeartVictory | 13,644 | 25,497 | 908,840 |
+| Wounded | Watcher | 419 | HeartVictory | 11,286 | 32,873 | 935,320 |
+| Full-length | Ironclad | 569 | Death | 7,821 | 46,678 | 883,976 |
+| Full-length | Silent | 820 | Death | 8,939 | 69,013 | 886,848 |
+| Full-length | Defect | 595 | Death | 10,002 | 50,507 | 865,888 |
+| Full-length | Watcher | 164 | Death | 9,740 | 13,851 | 834,648 |
+
+### Python X1
+
+`examples/run_vector_rollout.py` on a lane-P build of the M36 candidate extension,
+imported from its source copy and source-matched (`source_digest` `7ad1b521…`,
+features `["spire-python/extension"]`, profile `release`; wheel `spire_lab-1.0.0`).
+The final candidate differs from that build only in a `PublicSearch` pool-release
+fix, which `RunVectorEnv` does not use. 64 slots
+(16 × Ironclad, Silent, Defect, Watcher), A20, random policy, 20,000 vector step
+calls per run, two runs per worker count.
+
+| Workers | Wall seconds | Episodes | Slot steps/s (run 1 / run 2) |
+| ---: | ---: | ---: | ---: |
+| 1 | 277.2 / 281.3 | 29,826 | 4,515 / 4,448 |
+| 16 | 145.6 / 143.8 | 29,826 | 8,601 / 8,709 |
+
+The Python timing includes the Gymnasium facade, observation copies and the
+example's per-slot Python action selection, so it is lower than the native B
+rows; it is not an agent episode rate.
+
+Random play often ends in Act 1; late-game coverage in supplied routes is
+deliberate and does not predict natural arrival. Observed maxima are lower bounds
+on capacity use, not guarantees for arbitrary future content. These checks are
+diagnostic, have no performance thresholds, and do not establish policy
+strength, Python delivery without a source-matched import, or original-runtime
+fidelity. Timings vary between runs and hosts; compare like with like.
+
+Rerun commands (release/native unless noted):
+
+```sh
+cargo run --release --locked --offline -p spire-env --example a20_checks -- --out target/a20-checks.json
+cargo test --release --locked --offline -p spire-env m36_a20_route_measure -- --ignored --nocapture
+cargo test --release --locked --offline -p spire-env m36_heart
+cargo test --release --locked --offline -p spire-env m36_heart_sweep_all_ascensions -- --ignored
+uv run --locked --no-sync python examples/run_vector_rollout.py --ascension 20 --slots 64 --workers 16
+```
+
+For S/B/M/C, use the example defaults or record the exact `--seeds`,
+`--batch-steps`, and `--workers` arguments with the output. The Python row must
+include the imported `_native.__file__`, `build_info()`, source match and exact
+command in its receipt; a source fingerprint alone does not establish a current
+extension artifact.
 
 ## Current measured baseline — 2026-10-26
 
@@ -86,7 +227,7 @@ its standard library, not a rebuilt Python extension or Gymnasium installation.
 From the repository root:
 
 ```sh
-PY312=/home/klottick/.local/share/uv/python/cpython-3.12.15-linux-x86_64-gnu/bin/python3.12
+PY312=/path/to/cpython-3.12.15/bin/python3.12
 
 # Ordinary deterministic harness/comparison tests; no speed thresholds.
 "$PY312" -B -m unittest discover -s tests/performance -v

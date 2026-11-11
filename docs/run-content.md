@@ -1,5 +1,11 @@
 # Run-content registry foundation
 
+This page describes static metadata and producer eligibility, not the whole current
+playable catalog. M26–M33 added shared/off-colour cards, items, events, economy and
+Ascension A0–A20 behavior; M34 exposes the Standard Run in native and Python APIs.
+See the [Standard Run API](standard-run-api.md) and [milestone index](milestones/README.md)
+for the integrated scope.
+
 `spire_core::content::Catalog::standard()` is the static typed registry
 foundation. The four standard characters have exact fresh, upgrade-0 base decks
 and starter relic identities. `CardId` includes distinct character-color starter
@@ -43,11 +49,11 @@ Current definition rows include the four starts, Anger, Iron Wave, Ascender's
 Bane, Miracle, Wound, Madness, Regret, four starter relic identities, Fire Potion, Neow, and the
 existing supplied-entry Cultist/Jaw Worm and encounter identities. Relic,
 potion, enemy, encounter, and event records are definition-only. The supplied
-combat engine's narrow behavior is not promoted to full-run support. The
-registry is extensible, not a complete playable catalog: later card/item/
-encounter/event owners extend their own families alongside mechanics. Normally
-reachable full-game coverage remains required at final integration; this
-foundation is not a reduced-profile release.
+combat engine's narrow behavior is not promoted to full-run support. This registry
+remains a metadata foundation, not an executable-support promise for each row.
+Current Standard Run support and its limits are defined by the [Standard Run API](standard-run-api.md) and finite milestone records. Static reference facts and
+source-grounded mechanics have separate evidence grades; the original game has
+not been run as part of this foundation record.
 
 Bounded source-grounded facts reused: existing public authored Act 1 research
 for the four basic-card identities, red start, Anger/Iron Wave, Miracle, and

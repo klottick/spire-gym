@@ -46,7 +46,7 @@ pub use m29::{standard_run_at, standard_supplied_run_at, standard_map_at};
 #[cfg(feature="m34-diagnostics")]
 mod m34;
 #[cfg(feature="m34-diagnostics")]
-pub use m34::{standard_supplied_run_with, supplied_combat, supplied_fault, supplied_wound_enemies};
+pub use m34::{standard_supplied_run_with, supply_hp_and_keys, supplied_combat, supplied_fault, supplied_wound_enemies};
 
 #[cfg(feature="fuzz-diagnostics")]
 mod fuzz;

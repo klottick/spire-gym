@@ -1,5 +1,11 @@
 # M19 execution reconciliation
 
+Status as of 2026-10-30: M19 merged as PR58 (`0c43d7d`). Its normal Act3 boss/
+Act3NoKeys requirement and M18's normal Automaton requirement are strategy-only
+outcome gates, closed under Beads spire-dxo.41 and spire-dxo.40. The failed
+assertions and recorded outcomes below are unchanged; the paragraphs below are
+the 2026-10-28 record.
+
 Execution is released by the primary session against accepted M18 PR57 merge
 `9628b77a59c83890012c7e4903679e9ae46d2b7e`. The approved M19 design, plan and
 mandatory routing correction retain their exact bytes and historical labels.

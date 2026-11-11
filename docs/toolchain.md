@@ -63,7 +63,7 @@ actually tested.
 | --- | --- | --- |
 | pyo3 | 0.29.3 | extension binding, `pyo3/extension-module` in extension builds |
 | rust-numpy (`numpy`) | 0.29.0 | optional, extension-feature only; requires `pyo3 ^0.29` (compatible with the locked 0.29.3) and targets the NumPy 2.x runtime (2.5.4); used by native numeric environment bindings |
-| spire-core / spire-env / spire-python / spire-cli | 0.1.0 (workspace) | narrow combat core, native environment/batching, bindings and developer CLI are implemented; not full-run support |
+| spire-core / spire-env / spire-python / spire-cli | 1.0.0 (workspace) | the delivered simulator: core rules, native Run/combat sessions and batching, bindings and developer CLI (four characters, A0–A20, Acts 1–4 and the Heart; see `docs/delivery.md`) |
 
 ## Test evidence (fix round 1, on CPython 3.12.15)
 

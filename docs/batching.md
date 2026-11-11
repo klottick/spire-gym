@@ -209,6 +209,17 @@ values use the lazily shared process pool for that worker count. The Python API 
 results; `view="mask"` omits encoded observations. Branch handles keep per-branch tokens. Budget
 errors map to `RunBudgetError`; the M34s privacy guarantees continue to apply to every output.
 
+The public search worker count is bounded to `1..=256`; zero and values above
+256 return `Input("search workers must be 1..=256")` (Python exposes this as
+`RunInputError`). `workers <= 1` creates or touches no pool. For
+parallel calls, the registry retains weak handles for each worker count and one
+strong hot pool for the most recently taken count. A live search takes its pool
+on its first parallel `step_many` and holds it until that search is dropped or
+`with_workers` changes its worker count.
+Thus resident pools are bounded by the live searches' worker counts plus one
+hot pool, rather than one permanently resident pool per count. This reverses
+M35 P13's per-count residency rule.
+
 ## Agreement corpus and commands
 
 The M35 corpus covers Standard Run and `standard-combat-v1` across Ironclad, Silent, Defect and
@@ -253,7 +264,7 @@ On the already provisioned, source-matched Gym environment, Lane P runs:
 ```sh
 uv run --locked --no-sync python -B -m pytest tests/python/env -q
 uv run --locked --no-sync python -B -m pytest tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py tests/python/test_card_metadata.py -q
-SPIRE_M35_GYM66_GOLDEN=/home/klottick/.local/share/spire-gym/evidence/m35-execution-20261110/m35/task0/golden uv run --locked --no-sync python -B -m pytest tests/python/env/test_m35_agreement.py -q -k test_gym66_task0_golden_comparison
+SPIRE_M35_GYM66_GOLDEN=<private-evidence>/m35-execution-20261110/m35/task0/golden uv run --locked --no-sync python -B -m pytest tests/python/env/test_m35_agreement.py -q -k test_gym66_task0_golden_comparison
 ```
 
 Without `SPIRE_M35_GYM66_GOLDEN`, the task 0 comparison is skipped with an explicit message.
