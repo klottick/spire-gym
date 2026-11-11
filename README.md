@@ -1,91 +1,128 @@
 # Spire Gym
 
-Spire Gym is a headless Slay the Spire 1 simulator for external machine-learning
-and evaluation tools. One Rust engine owns game state and rules; native sessions,
-observations, replay and batching are exposed through thin Python/Gymnasium
-facades. Models, training loops and experiments live outside this repository.
-There is no graphical client.
+A headless, deterministic Slay the Spire (StS1) simulator built as a training and
+evaluation environment for external machine-learning tools. One Rust engine owns all
+game state and rules. Thin Python/Gymnasium facades expose it. There is no graphical
+client, and no models or training code live here.
 
-## Delivered scope
+**Current release: [v1.0.0](https://github.com/klottick/spire-gym/releases/tag/v1.0.0).**
+The roadmap is complete, and the public contracts are under a
+[versioned freeze](docs/delivery.md#freeze-and-change-protocol).
 
-The Standard profile covers Ironclad, Silent, Defect and Watcher at Ascension
-0–20, Acts 1–4 and the Heart, using finite Standard content. The repository also
-retains legacy Run and combat training surfaces. Source grounding and reference
-data are distinct: data files are cited offline records, not a runtime registry
-or proof that a behavior is implemented. The simulator has not been validated
-against the original game's runtime. Training and strategy evaluation belong to
-consumers.
+## Intentions
 
-See [delivery and claim grades](docs/delivery.md) for acceptance evidence,
-limits, intentional deviations, the contract freeze and consumer guidance. The
-previous README body remains verbatim in the
-[history archive](docs/handoffs/2026-11-11-readme-history.md).
+**What this project is for**
+
+- **Correct gameplay.** A full run should play by the original game's rules. Behaviour
+  comes from static reading of the decompiled game and is checked by Rust tests.
+- **One source of truth.** A single Rust engine owns everything. Python never
+  reimplements game logic.
+- **Reproducibility.** Seeded resets, exact replay of recorded runs, deterministic
+  batches, and identity checks that tie a built extension to its source.
+- **Honest information.** Observations show only what a player could know. Hidden state
+  (draw order, RNG, unrevealed cards) stays private unless you call the explicitly
+  privileged `exact_*` tools.
+- **Throughput for learning.** Native batching with worker pools, Gymnasium vector
+  environments, and public-information search for planning agents.
+
+**What it deliberately does not do**
+
+- **No strategy, policy or win-rate work.** Agents and training live in consumer
+  repositories. A random policy usually dies in Act 1, and that is expected.
+- **No original-game runtime validation.** The original game was never run, and RNG
+  streams are project-owned rather than the game's own (see
+  [intentional deviations](docs/delivery.md#intentional-deviations)).
+- **No other game modes or interface.** Daily, custom and modded modes, the graphical
+  client and career progression are out of scope.
+
+## Coverage
+
+| Area | Covered |
+| --- | --- |
+| Characters | Ironclad, Silent, Defect and Watcher, fully unlocked |
+| Ascension | A0–A20, every ascension rule (including the A20 double boss) |
+| Acts | Acts 1–3, then Act 4 and the Heart via the three keys |
+| Cards | Every standard card in base and upgraded form (369 of 370 reference rows; Pride is Endless-only): all four character pools, plus colourless, curse and status cards and off-colour generation |
+| Relics and potions | All 179 relics and 42 potions, with their full lifecycles |
+| Events and rooms | Neow, all 52 events, shops, rest sites, treasure, rewards and the economy |
+| Enemies | Every Act 1–4 normal, elite and boss encounter, including the Heart, with A0–A20 behaviour |
+| Run API | Seeded reset, public observations and action masks, reward events, terminal reasons, records, replay to any decision, and exact checkpoints/forks (privileged) |
+| Search and scenarios | Draw-pile knowledge limited to what the player can know, belief-sampled branching (`PublicSearch`), and validated tactical start positions |
+| Batching and Python | Native `SessionBatch` with worker pools, partial reset, autoreset and opt-in fault isolation. Gymnasium: `RunEnv`, `RunVectorEnv`, `StandardCombatEnv`, `StandardCombatVectorEnv`, plus the older `CombatEnv`, `CombatVectorEnv`, `IroncladCombatEnv` and `IroncladCombatVectorEnv` |
+
+**What the evidence shows.** Each claim is graded in
+[delivery](docs/delivery.md#claim-grades). In summary:
+
+- **Source-grounded rules.** Behaviour was derived from the decompiled source and is
+  covered by about 5,100 Rust tests, fuzzing and full A0–A20 traversals.
+- **From-start Heart acceptance.** Each character at A0 and A20 is driven from a public
+  seed to Heart victory on a *supplied* route: 900 HP, all three keys, and a test-only
+  hook that leaves every enemy at 1 HP. This exercises progression, routing, events,
+  rewards and the endings, not combat difficulty, and it is not a policy win.
+- **Not claimed:** original-runtime fidelity, original RNG and seed parity, and
+  normal-play Heart reach.
 
 ## Quick start
 
-With the pinned Rust toolchain and locked dependencies already available, build
-the workspace and run the native example:
+You need the pinned Rust toolchain (see `rust-toolchain.toml`). The Python side needs
+Python 3.12; setup is in [development](docs/development.md).
 
 ```sh
 cargo build --workspace --locked --offline
 cargo run --release --locked --offline -p spire-env --example standard_rollout -- ironclad 0 7
 ```
 
-With an already provisioned Gym environment and matching imported extension,
-run the Python example:
+```python
+from spire_lab.gymnasium import RunEnv
 
-```sh
-uv run --locked --no-sync python examples/standard_run.py --character ironclad --ascension 0 --seed 7
+env = RunEnv("ironclad", 20, profile="standard")
+obs, info = env.reset(seed=7)
 ```
 
-The setup and extension identity requirements are in
-[development](docs/development.md). The examples take bounded or random legal
-actions; they are demonstrations, not strategy claims.
+A prebuilt Linux wheel for CPython 3.12 is attached to the
+[v1.0.0 release](https://github.com/klottick/spire-gym/releases/tag/v1.0.0). Check `spire_lab._native.build_info()`
+against the release's published `source_digest`.
 
 ## Examples
 
-Run commands from the repository root. Rust examples build through Cargo;
-Python examples require the provisioned Gym environment described above.
+| Example | Command |
+| --- | --- |
+| Native Standard rollout (random or first-legal) | `cargo run --release --locked --offline -p spire-env --example standard_rollout -- --policy random` |
+| A20 throughput, memory and capacity diagnostics | `cargo run --release --locked --offline -p spire-env --example a20_checks -- --smoke` |
+| Python Standard run, with replay and fork check | `uv run --locked --no-sync python examples/standard_run.py` |
+| Python run and combat vector environments | `uv run --locked --no-sync python examples/run_vector_rollout.py --steps 8` and `examples/standard_combat_vector.py` |
+| Public-information lookahead | `uv run --locked --no-sync python examples/public_lookahead.py` |
+| Tactical lessons (validated start positions) | `uv run --locked --no-sync python examples/tactical_lessons.py` |
 
-| Surface | Policy kind | Command | What it prints |
-| --- | --- | --- | --- |
-| Native Standard rollout | Random by default; `--policy first_legal` selects the first legal action | `cargo run --release --locked --offline -p spire-env --example standard_rollout -- --policy random` / `cargo run --release --locked --offline -p spire-env --example standard_rollout -- --policy first_legal` | Character, ascension, seed, terminal/step summary, return, and replay/fork agreement |
-| Native A20 checks | Seeded uniform legal-action diagnostic | `cargo run --release --locked --offline -p spire-env --example a20_checks -- --smoke` | JSON identity, single/batch/memory phases, and capacity occupancy |
-| Python Standard Run | Random legal | `uv run --locked --no-sync python examples/standard_run.py` | Rollout terminal, reward and replay/fork comparison |
-| Python Run vector | Random legal by default; `--policy first_legal` available | `uv run --locked --no-sync python examples/run_vector_rollout.py --steps 8` | Per-slot episode state and throughput summary |
-| Python Standard combat vector | Random legal by default; `--policy first_legal` available | `uv run --locked --no-sync python examples/standard_combat_vector.py --steps 8` | Per-slot combat terminal/reward summary |
-| Python public lookahead | Sampled public belief worlds with random-legal continuation | `uv run --locked --no-sync python examples/public_lookahead.py` | Mean sampled outcomes per legal combat action; baseline only |
-| Python tactical lessons | Synthetic/reachable setup; first-legal and seeded-random paired baselines | `uv run --locked --no-sync python examples/tactical_lessons.py` | Setup labels, paired outcome summaries and digest |
-| Legacy `CombatVectorEnv` | Random legal, finite collection | `uv run --locked --no-sync python examples/combat_gymnasium.py` | Natural terminal summaries for completed slots; no environment time cap |
-| Legacy Ironclad combat training | First legal in the demonstration | `uv run --locked --no-sync python examples/ironclad_combat_training.py` | Supplied combat, vector, and normal-Run smoke summaries |
-| Legacy M9 Run | Masked random; `--nonattacking` prefers end turn | `uv run --locked --no-sync python examples/run_m9_gymnasium.py` | M9 Run episode and replay summary |
-| Legacy M10 Run | Masked random; `--nonattacking` prefers end turn | `uv run --locked --no-sync python examples/run_m10_gymnasium.py` | M10 Run episode and replay summary |
+The [examples](examples/) directory also has demos for the older Gym66, M9 and M10
+surfaces. All examples use random or trivial policies; they are demonstrations, not
+strategy.
 
-The retired `m22_same_choices`, `m23_same_choices` and `m24_same_choices` Rust
-examples are not available. The M21 example remains historical support.
+## Stability
 
-## Contracts and limits
+v1.0.0 freezes, by version:
+- the Standard family's identities;
+- card metadata;
+- `build_info()`;
+- the batching contract and the Python API names;
+- the legacy surfaces current consumers use.
 
-- [Standard Run API](docs/standard-run-api.md) defines Standard creation,
-  observations, actions, replay and the M36 supplied Heart acceptance.
-- [Batching](docs/batching.md) defines batch/vector behavior and public search
-  worker limits.
-- [Combat training](docs/combat-training.md) documents the legacy Gym66
-  interfaces and their boundaries.
-- [Milestone index](docs/milestones/README.md) links the finite profiles;
-  [M36 final delivery](docs/milestones/m36-final-delivery.md) records the final
-  profile and evidence reconciliation.
+Gameplay bug fixes still land. Each one bumps the affected rules id and is logged in
+[CHANGES.md](CHANGES.md). Records from an older rules id fail replay with an
+explicit error rather than diverging silently.
 
-Standard source coverage does not establish normal policy reach or strategy
-strength. The M36 Heart routes are supplied, not policy wins: a test-only hook
-hits every enemy down to 1 HP at each combat decision, so they exercise
-progression and settlement, not combat difficulty. RNG/seed-stream parity,
-absolute original-game floor numbering and original-runtime fidelity are not
-claimed. See [delivery limits](docs/delivery.md#known-limits-by-surface) and
-[intentional deviations](docs/delivery.md#intentional-deviations).
+## Documentation
+
+- [Delivery](docs/delivery.md): scope, evidence, claim grades, limits, deviations, the freeze protocol.
+- [Standard Run API](docs/standard-run-api.md): observations, actions, records, replay, search and tactical starts.
+- [Batching](docs/batching.md): batch and vector behaviour, faults and workers.
+- [Performance](docs/performance.md): A20 diagnostic measurements.
+- [Development](docs/development.md): toolchain, build, test lanes and extension identity.
+- [Milestones](docs/milestones/README.md): the M1–M36 history and per-milestone evidence.
+- [Release notes](docs/releases/v1.0.0.md) and the earlier [README](docs/handoffs/2026-11-11-readme-history.md).
 
 ## Licensing, attribution and trademarks
 
-Project code is under the [MIT License](LICENSE); reference data has separate
+Project code is under the [MIT License](LICENSE). Reference data has separate
 [attribution and licensing terms](data/README.md#licensing). Slay the Spire and its original
 assets remain the property of their respective owners.
