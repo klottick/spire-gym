@@ -1,12 +1,14 @@
 """Synthetic-only operational audit tests; no installed JVM is used."""
 
 import hashlib
+import ast
 import importlib
 import json
 import os
 from pathlib import Path
 import stat
 import sys
+import re
 import zipfile
 
 import pytest
@@ -14,6 +16,20 @@ import pytest
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def test_gymnasium_facades_do_not_import_gameplay_or_expand_seeds():
+    repo = Path(__file__).resolve().parents[2]
+    facade_dir = repo / "python" / "spire_lab" / "gymnasium"
+    for path in facade_dir.glob("*.py"):
+        source = path.read_text()
+        tree = ast.parse(source, filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                assert not (node.module or "").startswith("spire_lab.combat")
+            elif isinstance(node, ast.Import):
+                assert all(not item.name.startswith("spire_lab.combat") for item in node.names)
+        assert not re.search(r"\bseed\s*\+\s*(?:slot|index)\b", source)
 
 
 @pytest.fixture

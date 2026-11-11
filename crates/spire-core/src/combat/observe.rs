@@ -33,6 +33,9 @@ pub struct CombatBoundary { pub kind:CombatBoundaryKind, pub public:PublicCombat
 
 struct Collector { owner:usize, run:Option<usize>, run_state:Option<usize>, entry:bool, effects:Vec<ResolvedEffect>, boundaries:Vec<CombatBoundary> }
 thread_local! { static CAPTURE:RefCell<Option<Collector>> = const { RefCell::new(None) }; }
+/// Whether an observer collector is active on this thread (M35: worker threads must carry no engine-visible state
+/// between jobs, including after a caught panic). Diagnostic only.
+pub fn capture_active() -> bool { CAPTURE.with(|slot| slot.borrow().is_some()) }
 
 // Guards cannot migrate to a different thread's collector. Addresses are only
 // compared as identities; no pointer is ever dereferenced.
@@ -208,5 +211,24 @@ impl Combat {
         let result = self.step_full(action);
         if result.is_ok() { boundary(self); }
         session.finish(result)
+    }
+}
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+
+    /// M35 (design §3.1): a panic inside an active observer session restores the thread's collector on unwind, so a
+    /// pooled worker thread carries no engine-visible state into its next job.
+    #[test]
+    fn capture_is_restored_when_an_observed_operation_panics() {
+        assert!(!capture_active());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _session = Session::run(1, 2);
+            assert!(capture_active());
+            panic!("TEST-ONLY panic inside an observer session");
+        }));
+        assert!(result.is_err());
+        assert!(!capture_active(), "the collector is restored on unwind");
     }
 }

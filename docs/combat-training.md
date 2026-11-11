@@ -5,6 +5,14 @@ based on accepted M11 plus the isolated `.66` delta; parent integration and fina
 feature acceptance are separate from this guide. No Learn installation/training,
 complete standard pools, original-game RNG/runtime parity or strategy win claim.
 
+**M35 binding change.** `_native.NativeIroncladCombatBatch` is removed with no alias. Use
+`NativeCombatTrainingBatch(..., kind="ironclad")`; the supported `IroncladCombatVectorEnv`
+facade keeps its existing call shape and adds optional worker/autoreset/fault-policy settings.
+Gym66 `diagnostic()` adds a `slots` delivery-status key and batch-fault messages now say
+“native combat fault”. After a sibling faults, healthy
+`diagnostic()["sessions"][k]["fault"]` values remain `null` (P5). See the [M35 batching
+contract](batching.md#breaking-changes).
+
 ```python
 from spire_lab.gymnasium import IroncladCombatEnv, IroncladCombatVectorEnv, RunEnv
 
@@ -215,30 +223,35 @@ if terminated.any():
 batch.close()
 ```
 
-B=1..256. One GIL-released native serial batch operation; no Python loop of native
-sessions, threaded scaling or Python full-Run vector claim. Numeric observations
-are stacked `[B,...]`; rewards float32[B], bool terminal/truncation flags;
-`info["slots"]` owns one lifecycle dictionary per row. Scalar seed expands as
-`base+slot`, rejecting u64 overflow before dispatch; explicit length-B seed lists
-are supported. `options` permits only length-B `entry_ids` and NumPy bool[B]
-`reset_mask`. Initial reset must initialize every uninitialized row. Masked reset
-preserves unselected state/token exactly. All-false reset is a read-only refresh.
+B=1..256. `NativeCombatTrainingBatch(num_envs, catalog_json, *, kind, records=None,
+partition="train", entry_ids=None, workers=1, autoreset="disabled",
+fault_policy="freeze")` owns native Gym66 and `standard-combat-v1` batch sessions through
+the shared `SessionBatch`. `kind="ironclad"` admits Gym66 v1/v2 catalogs;
+`kind="standard"` admits Standard combat catalogs. Opposite-kind catalogs raise the
+scalar-compatible `RunUnsupportedBoundaryError`; see the [full contract](batching.md#owner-and-construction).
 
-Autoreset is DISABLED. Every row must be active/nonterminal before step; one
-terminal row rejects the whole step before any dispatch. Reset terminal rows
-explicitly before next batch step. Returned terminal obs/reward/info belong to
-the OLD episode; there is no replacement row/final_obs alias. All arrays and
-info are independently owned across calls, reset, close and caller mutation.
+`IroncladCombatVectorEnv` remains the Gym66 facade. It calls one GIL-released native batch
+operation; there is no Python loop of native sessions. Numeric observations are stacked
+`[B,...]`; rewards are float32[B] with bool ending flags; `info["slots"]` retains the existing
+row dictionaries and `effective_seed`. Scalar seeds expand natively as `base+slot`; explicit
+length-B seed lists are supported. `reset_mask` is a NumPy bool[B]. The initial reset must
+initialize all slots, and masked reset preserves unselected state and tokens.
 
-Invalid types/ranges/tokens/actions/reset requests reject before any dispatch and
-are recoverable. Native runtime, capacity or accepted-output packaging failures
-retain first fault and accepted counts, freeze the session/batch, and prohibit
-reset/step/retry. A batch failure can follow accepted earlier rows; inspect
-`diagnostic()` per-slot counts/committed flags, never replay uncertain actions.
-Faults are exceptions, never Death/reward/truncation. A panic can leave an
-uncertain partial attempt beyond the known completed prefix; counts are not
-permission to replay that attempt. Close is idempotent and
-retains diagnostics. Use a new owner after investigating a fault.
+Gym66 keeps autoreset `disabled` by default: a terminal slot rejects the whole step until the
+caller resets it. The new batch owner also supports NEXT_STEP and SAME_STEP, worker pools and
+`fault_policy="isolate"`; see [batching.md](batching.md) for reset, terminal and fault-row
+semantics. Run and Standard-combat vector facades default to NEXT_STEP. All exported arrays are
+owned and do not alias across calls.
+
+`diagnostic()` keeps `{status, accepted_steps, last_step_committed, sessions, first_fault}` and
+adds `slots`, one delivery status per slot. `first_fault` comes from the lowest-index faulted
+slot; `sessions[k].fault` stays null for healthy peers after a sibling fault (P5). Runtime
+failures raise `BatchFaultError(RunFaultError)` with `.operation`, `.policy` and
+`.slots`; combat messages say “native combat fault”. Preflight input/state errors retain their
+classes. Python packaging failures propagate the caller's exception and freeze the owner;
+later operations report `BatchFaultError(operation="export")`. `recover_committed()` packages
+the retained transition without retrying the action. Combat-v1's `CombatFaultError.slots` remains
+informational; the pool has no committed-result recovery API.
 
 ## Shared implementation and extension build
 

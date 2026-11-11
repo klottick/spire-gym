@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
 use std::sync::atomic::{AtomicBool, Ordering};
 use spire_core::combat::rng::Partition;
 use crate::{DecisionToken, EnvError, FaultStage, InputReason, IntegerSeed, ObservationBatch,
-    ObservationRow, ScenarioCatalog, SlotFault, SlotStatus, StateReason};
+    ObservationRow, PoolSlotStatus, ScenarioCatalog, SlotFault, SlotStatus, StateReason};
 use crate::episode::{EpisodeSequence, PreparedEpisode};
 use crate::error::{input, reserved, setup};
 use crate::identity::{CheckedCounter, pool_id};
@@ -203,18 +203,31 @@ impl CombatPool {
             prepared.push(p);
         }
         let mut staged = reserved(indices.len())?;
+        let mut delivery = reserved(s.slots.len())?;
+        delivery.extend((0..s.slots.len()).map(|_|PoolSlotStatus::unaffected()));
         let results=s.scheduler.map(prepared,|p|catch_unwind(AssertUnwindSafe(|| Slot::build(p))))?;
         // Every staged construction has quiesced before inspecting any error.
         let mut reset_error=None;
         for (&index,result) in indices.iter().zip(results) {
             match result {
-                Ok(Ok(slot)) => staged.push(slot),
-                Ok(Err(e @ EnvError::Fault { .. })) => { s.runtime_fault(index,FaultStage::Reset,e); },
-                Ok(Err(e)) => { if reset_error.is_none() { reset_error=Some(at_slot(e,index)); } },
-                Err(_) => { s.runtime_fault(index,FaultStage::Panic,setup("reset construction panicked")); },
+                Ok(Ok(slot)) => { staged.push(slot); delivery[index]=PoolSlotStatus::not_committed(); },
+                Ok(Err(e @ EnvError::Fault { .. })) => {
+                    s.runtime_fault(index,FaultStage::Reset,e);
+                    let fault=s.faults.iter().find(|f|f.slot==Some(index)).expect("runtime fault retained");
+                    delivery[index]=PoolSlotStatus::faulted(fault,false);
+                },
+                Ok(Err(e)) => {
+                    delivery[index]=PoolSlotStatus::not_committed();
+                    if reset_error.is_none() { reset_error=Some(at_slot(e,index)); }
+                },
+                Err(_) => {
+                    s.runtime_fault(index,FaultStage::Panic,setup("reset construction panicked"));
+                    let fault=s.faults.iter().find(|f|f.slot==Some(index)).expect("panic fault retained");
+                    delivery[index]=PoolSlotStatus::faulted(fault,false);
+                },
             }
         }
-        if s.status==PoolStatus::Faulted { return Err(EnvError::Fault { records:s.faults.clone() }); }
+        if s.status==PoolStatus::Faulted { return Err(EnvError::Fault { records:s.faults.clone(), slots:delivery }); }
         if let Some(e)=reset_error { return Err(e); }
         // Allocate only in staged metadata; failed output packing cannot consume a serial.
         let mut serials = s.serials.clone();
@@ -264,6 +277,8 @@ impl CombatPool {
         }
         let mut actions = reserved(count)?;
         let mut replacements: Vec<Option<PreparedEpisode>> = reserved(count)?;
+        let mut prior_steps = reserved(count)?;
+        let mut prior_tokens = reserved(count)?;
         // Check maximum publication capacity without consuming metadata or constructing combats.
         s.serials.check(count)?;
         for (i,slot) in s.slots.iter().enumerate() {
@@ -273,6 +288,8 @@ impl CombatPool {
                 SlotStatus::Ready => (),
             }
             let live = slot.live.as_ref().expect("ready live episode");
+            prior_steps.push(live.steps);
+            prior_tokens.push(live.token.into());
             if <[u64;2]>::from(live.token) != tokens[i] {
                 return Err(at_slot(input(InputReason::Token,"obsolete or foreign decision"),i));
             }
@@ -287,6 +304,8 @@ impl CombatPool {
         let mut truncated = reserved(count)?;
         let mut final_rows = reserved(count)?;
         let mut faults = reserved(count)?;
+        let mut delivery = reserved(count)?;
+        delivery.resize(count,PoolSlotStatus::not_committed());
         // Finish all checked reservations before dispatch; then every slot reports,
         // including after a peer fault. Scheduler reserves its result vector first.
         let mut jobs=reserved(count)?;
@@ -350,18 +369,29 @@ impl CombatPool {
         for (i,result) in results.into_iter().enumerate() {
             match result {
                 Ok(Ok((outcome,final_row))) => {
+                    delivery[i]=PoolSlotStatus::committed_undelivered();
                     rewards.push(match outcome { 1=>1.0,2=>-1.0,_=>0.0 });
                     terminated.push(outcome!=0);truncated.push(false);
                     if let Some(row)=final_row { final_rows.push(row); }
                 },
-                Ok(Err(e)) => faults.push(s.fault_record(i,FaultStage::Encoding,e)),
-                Err(_) => faults.push(s.fault_record(i,FaultStage::Panic,setup("slot execution panicked"))),
+                Ok(Err(e)) => {
+                    let fault=s.fault_record(i,FaultStage::Encoding,e);
+                    let committed=slot_operation_committed(&s.slots[i],prior_steps[i],prior_tokens[i]);
+                    delivery[i]=PoolSlotStatus::faulted(&fault,committed);
+                    faults.push(fault);
+                },
+                Err(_) => {
+                    let fault=s.fault_record(i,FaultStage::Panic,setup("slot execution panicked"));
+                    let committed=slot_operation_committed(&s.slots[i],prior_steps[i],prior_tokens[i]);
+                    delivery[i]=PoolSlotStatus::faulted(&fault,committed);
+                    faults.push(fault);
+                },
             }
         }
         if !faults.is_empty() {
             for fault in faults { s.retain_fault(fault,None); }
             for i in 0..count {s.abandon(i);}
-            return Err(EnvError::Fault { records:s.faults.clone() });
+            return Err(EnvError::Fault { records:s.faults.clone(), slots:delivery });
         }
         let PoolState { slots,serials,.. } = &mut *s;
         for slot in slots {
@@ -379,7 +409,7 @@ impl CombatPool {
             Ok(batch) => Ok(batch),
             Err(e) => {
                 s.retain_fault(SlotFault { slot:None,stage:FaultStage::Export,message:e.to_string(),core_fault:None },*delivery_start);
-                Err(EnvError::Fault { records:s.faults.clone() })
+                Err(EnvError::Fault { records:s.faults.clone(), slots:delivery })
             }
         }
     }
@@ -512,7 +542,7 @@ impl PoolState {
     }
     fn fault_record(&self, index:usize, stage:FaultStage, error:EnvError) -> SlotFault {
         let mut fault = match error {
-            EnvError::Fault { records } => records.into_iter().next().unwrap_or(SlotFault {
+            EnvError::Fault { records, .. } => records.into_iter().next().unwrap_or(SlotFault {
                 slot:Some(index),stage,message:"runtime failure without fault detail".into(),core_fault:None }),
             e => SlotFault { slot:Some(index),stage,message:e.to_string(),core_fault:None },
         };
@@ -524,7 +554,7 @@ impl PoolState {
     }
     fn runtime_fault(&mut self, index:usize, stage:FaultStage, error:EnvError) -> EnvError {
         let fault = self.fault_record(index,stage,error); self.retain_fault(fault,None);
-        EnvError::Fault { records:self.faults.clone() }
+        EnvError::Fault { records:self.faults.clone(), slots:vec![] }
     }
 }
 
@@ -539,8 +569,11 @@ fn at_slot(error:EnvError, index:usize) -> EnvError {
 fn fault_error(stage:FaultStage, error:EnvError) -> EnvError {
     match error {
         e @ EnvError::Fault { .. } => e,
-        e => EnvError::Fault { records:vec![SlotFault { slot:None,stage,message:e.to_string(),core_fault:None }] },
+        e => EnvError::Fault { records:vec![SlotFault { slot:None,stage,message:e.to_string(),core_fault:None }], slots:vec![] },
     }
+}
+fn slot_operation_committed(slot:&Slot, prior_steps:u64, prior_token:[u64;2]) -> bool {
+    slot.live.as_ref().is_some_and(|live| live.steps>prior_steps || <[u64;2]>::from(live.token)!=prior_token)
 }
 fn collect_rows<'a>(slots:impl ExactSizeIterator<Item=(usize,&'a Slot)>) -> Result<DecisionRows,EnvError> {
     let mut rows = reserved(slots.len())?;

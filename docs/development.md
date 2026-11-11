@@ -24,7 +24,7 @@ Choose the narrowest existing lane for the changed surface:
 | Work | Command | Limit |
 | --- | --- | --- |
 | Rust core, environment, or CLI | `cargo test --workspace --locked --offline` | Native Rust only; default features do not build the Python extension. Use a profile's focused command when available. |
-| Gym/Python facade | `uv run --locked --no-sync python -B -m pytest tests/python/env tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py -q` | Requires an already provisioned Gym environment and a source-matched extension; covers the existing facade and Gym66 session/policy-view tests. |
+| Gym/Python facade | `uv run --locked --no-sync python -B -m pytest tests/python/env tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py -q` | Requires an already provisioned Gym environment and a source-matched extension; `tests/python/env` includes `test_build_identity.py`. |
 | Python combat reference / legacy comparator | `uv run --locked --no-sync python -B -m pytest tests/python/combat -q` | Separate compatibility lane. Known legacy comparator mismatches are baseline-reported in [work status](work-status.md) and [M9 limits](milestones/m9-act3.md#verification-boundaries); this is not a Python-package delivery claim. |
 
 For Python/Gym results, first inspect the imported module in the same environment:
@@ -36,19 +36,39 @@ uv run --locked --no-sync python -B -c 'import spire_lab._native as n; print(n._
 If the scoped environment is not the project default, set
 `UV_PROJECT_ENVIRONMENT` to that existing environment for both commands. The
 module path identifies what Python imported. Record it with the build context
-(Python environment, build command, Rust toolchain, Cargo features, and
-revision/dirty state). `build_info()` reports revision and Rust version but
-contains no source hashes. Use the build context and source-match
-receipt: hashes for the Rust engine, bindings, and Python inputs that affect the
-extension; native module or wheel SHA-256; relevant descriptor fingerprint(s);
-and exact test results. A Git revision or descriptor fingerprint alone does not
-identify source bytes. A different HEAD does not invalidate a verified source
-receipt when only documentation changed or the build used verified dirty source;
-equal HEAD alone does not make an unverified or stale artifact current. If those
+(Python environment, build command, Rust toolchain, Cargo features and revision).
+`build_info()` reports `source_digest`, `file_digest`, enabled `features`, build
+`profile` and `dirty`, in addition to revision and Rust version. `source_digest`
+covers the extension dependency closure, enabled crate features and profile;
+`file_digest` covers the source-file portion. `dirty` is informational
+(`true`/`false`, or `"unknown"` when Git is unavailable). Lane P requires
+`features == ["spire-python/extension"]` and a release profile. Its read-only
+candidate export has `dirty="unknown"`; the post-merge build must report
+`dirty=false` and the same `source_digest` as Lane P. The identity test
+recomputes the digest from the checkout and runs in the routine `tests/python/env`
+lane as `tests/python/env/test_build_identity.py`.
+
+Still record `_native.__file__`, the Python environment and build command, Rust
+toolchain, revision, source and file digests, enabled features, profile, dirty
+value, native module or wheel SHA-256, Python facade hashes, descriptor
+fingerprints and exact test results. A Git revision or descriptor fingerprint
+alone does not identify source bytes. A different HEAD does not invalidate a
+verified receipt when only documentation changed or the build used verified
+source bytes; equal HEAD alone does not make a stale artifact current. If those
 inputs cannot be matched, report that limitation and do not count the run as
 Python proof. The [Gym66 build guide](combat-training.md#shared-implementation-and-extension-build)
 shows an isolated wheel workflow for authorized binding validation that preserves
 other environments.
+
+**M35 Lane P.** After the native lanes are green, build the candidate from its
+retained read-only export into the isolated `m35-lane-p` directory using the
+accepted build recipe. Run `tests/python/env` (including vector conformance,
+search batching and build identity), `test_ironclad_training.py`,
+`test_combat_policy_view.py`, `test_card_metadata.py` and the M34s Python search
+tests. Record exact counts and the imported extension path in the receipt.
+Compare retained n14g/bhl/tsw consumer replay logs with their recipe baselines
+modulo the documented Gym66 `diagnostic()` delta. See the [batching contract](batching.md)
+for the candidate commands and compatibility limits.
 
 Consumer source, manifests, artifacts and required ignored evidence must outlive
 managed sessions. Before archiving, preserve them in independently retained

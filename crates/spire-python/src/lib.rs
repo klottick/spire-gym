@@ -17,6 +17,10 @@ pub const REVISION: &str = env!("SPIRE_REVISION");
 pub const RUST_VERSION: &str = env!("SPIRE_RUST_VERSION");
 
 mod export_guard;
+#[allow(dead_code)] // the file walk and digest are also used by the identity tests only
+mod identity;
+#[cfg_attr(not(feature = "extension"), allow(dead_code))]
+mod stacking;
 #[cfg(test)]
 mod tests;
 #[cfg(feature = "extension")]
@@ -31,6 +35,8 @@ mod numeric;
 mod run_env;
 #[cfg(feature = "extension")]
 mod combat_training;
+#[cfg(feature = "extension")]
+mod batch;
 
 #[cfg(feature = "extension")]
 use pyo3::prelude::*;
@@ -45,6 +51,20 @@ fn build_info(py: Python) -> PyResult<Py<PyDict>> {
     info.set_item("extension", EXTENSION_NAME)?;
     info.set_item("revision", REVISION)?;
     info.set_item("rust_version", RUST_VERSION)?;
+    let file_digest = env!("SPIRE_FILE_DIGEST");
+    let python_features = env!("SPIRE_PYTHON_FEATURES").lines().collect::<Vec<_>>();
+    let features = identity::features(spire_core::ENABLED_FEATURES, spire_env::ENABLED_FEATURES, &python_features);
+    let feature_refs = features.iter().map(String::as_str).collect::<Vec<_>>();
+    let profile = env!("SPIRE_BUILD_PROFILE");
+    info.set_item("file_digest", file_digest)?;
+    info.set_item("source_digest", identity::source_digest(file_digest, &feature_refs, profile))?;
+    info.set_item("features", features)?;
+    info.set_item("profile", profile)?;
+    match env!("SPIRE_DIRTY") {
+        "true" => info.set_item("dirty", true)?,
+        "false" => info.set_item("dirty", false)?,
+        _ => info.set_item("dirty", "unknown")?,
+    }
     Ok(info.into())
 }
 
@@ -67,8 +87,8 @@ fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<run_env::PyExactCheckpoint>()?;
     m.add_class::<combat_training::NativeIroncladCombatSession>()?;
     m.add_class::<combat_training::NativeStandardCombatSession>()?;
-    m.add_class::<combat_training::NativeIroncladCombatBatch>()?;
     run_env::register(m)?;
+    batch::register(m)?;
     errors::register(m)?;
     Ok(())
 }

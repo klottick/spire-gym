@@ -12,8 +12,12 @@ from gymnasium.utils.passive_env_checker import (
 import numpy as np
 import pytest
 
-from spire_lab.gymnasium import CombatEnv, CombatVectorEnv
+from spire_lab.gymnasium import (
+    CombatEnv, CombatVectorEnv, IroncladCombatEnv, RunEnv, RunVectorEnv,
+    StandardCombatEnv,
+)
 from .test_integration import equal_tree, resource_catalog
+from .test_standard_combat import catalog as standard_catalog, entry as standard_entry
 
 
 def test_official_reset_space_signature_and_masked_passive_subset():
@@ -41,6 +45,39 @@ def test_official_reset_space_signature_and_masked_passive_subset():
         assert term
     finally:
         env.close()
+
+
+def test_single_facade_passive_checkers_follow_legal_masks():
+    gym66_catalog = {"profile_id": "ironclad-combat-v2", "entries": [{
+        "id": "base", "encounter": "cultist", "hp": 80, "max_hp": 80,
+        "deck": [{"card": "strike", "upgrades": 0}] * 10,
+        "relics": [], "potions": [None, None, None], "relic_counters": {},
+    }]}
+    envs = [
+        (RunEnv("ironclad", 0, profile="standard"), 5),
+        (StandardCombatEnv(standard_catalog(standard_entry("base")), partition="test"), 6),
+        (IroncladCombatEnv(gym66_catalog, partition="test"), 7),
+    ]
+    try:
+        for env, seed in envs:
+            first, _ = env.reset(seed=seed)
+            second, _ = env.reset(seed=seed)
+            equal_tree(first, second)
+            assert all(not np.shares_memory(first[key], second[key]) for key in first)
+            observation, _ = env_reset_passive_checker(env, seed=seed)
+            assert env.observation_space.contains(observation)
+            for _ in range(4):
+                legal = np.flatnonzero(observation["action_mask"].reshape(-1))
+                assert legal.size
+                action = int(legal[0])
+                observation, _, terminated, truncated, _ = env_step_passive_checker(env, action)
+                assert env.observation_space.contains(observation)
+                assert not truncated
+                if terminated:
+                    break
+    finally:
+        for env, _ in envs:
+            env.close()
 
 
 def test_supported_single_identity_transform_and_vector_mode_rejection():
@@ -96,3 +133,20 @@ def test_vector_statistics_same_step_returns_lengths_and_partial_reset_isolation
     finally:
         for wrapper in wrappers:
             wrapper.close()
+
+
+def test_run_vector_wrapper_mode_matrix_and_statistics_wrapper_support():
+    for mode in ("disabled", "next_step", "same_step"):
+        env = RunVectorEnv([{"character": "ironclad", "ascension": 0}],
+                           autoreset_mode=mode)
+        try:
+            if mode == "same_step":
+                with pytest.raises(ValueError, match="autoreset_mode.*NEXT_STEP or DISABLED"):
+                    gym.vector.VectorObservationWrapper(env)
+            else:
+                wrapper = gym.vector.VectorObservationWrapper(env)
+                assert wrapper.single_observation_space == env.single_observation_space
+            stats = gym.wrappers.vector.RecordEpisodeStatistics(env)
+            stats.close()
+        finally:
+            env.close()

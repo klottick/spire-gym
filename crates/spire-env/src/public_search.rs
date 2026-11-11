@@ -134,6 +134,47 @@ pub struct BranchStep {
     pub reward: i32, pub terminated: bool, pub truncated: bool, pub info: Value,
 }
 
+/// One `step_many` entry (design §3.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BranchStepRequest { pub branch: BranchId, pub token: RunDecisionToken, pub index: RunActionIndex }
+/// One `step_many` outcome, in input order: the step, or the branch's fault (`stage`: `step`, `encode` or `panic`; the
+/// error is the class-only redacted one `step` returns). A faulted branch is frozen; its prefix stays readable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BranchStepOutcome { Stepped(BranchStep), Fault { error: Error, stage: &'static str, committed: bool } }
+/// A world after one action: its publication, or its fault.
+enum Advanced {
+    Done { observation: Option<RunObservation>, action_mask: Vec<i8>, info: Value, legal: Vec<GameAction>, reward: i32, terminated: bool },
+    Fault { error: Error, stage: &'static str, committed: bool },
+}
+/// The single-branch step on a world: the shared resolver, then the requested view (`step` and `step_many` both use it).
+fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapacities) -> Advanced {
+    if let Err(e) = run.step(action) {
+        let committed = matches!(e, spire_core::run::RunError::Faulted(_));
+        return Advanced::Fault { error: redacted(e), stage: "step", committed }
+    }
+    let terminal = run.combat_scope_terminal();
+    let reward = terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome));
+    let published = match view {
+        BranchView::Full => crate::combat_training::standard_combat_publication(run, caps).map(|(o, info, legal)| {
+            let mask = o.action_mask.clone();
+            (Some(o), mask, info, legal)
+        }),
+        BranchView::Mask => run.decision().map_err(redacted).and_then(|d| {
+            let legal: Vec<GameAction> = if terminal.is_some() { vec![] } else { d.candidates.into_iter().map(|c| c.action).collect() };
+            if legal.len() > caps.actions { return Err(Error::Capacity { group: "actions", required: legal.len(), capacity: caps.actions }) }
+            let mut mask = vec![0; caps.actions];
+            mask[..legal.len()].iter_mut().for_each(|m| *m = 1);
+            Ok((None, mask, json!({"terminal_reason": terminal.map(|t| crate::combat_training::outcome_label(t.outcome))}), legal))
+        }),
+    };
+    // Final review M3: the engine has committed, so a publication error faults the branch (never a Live branch with the
+    // previous boundary's action table).
+    match published {
+        Ok((observation, action_mask, info, legal)) => Advanced::Done { observation, action_mask, info, legal, reward, terminated: terminal.is_some() },
+        Err(e) => Advanced::Fault { error: redact(e), stage: "encode", committed: true },
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Status { Live, Terminal, Truncated, Faulted }
 #[derive(Clone)]
@@ -143,7 +184,9 @@ struct Branch { run: Run, origin: [u8; 32], serial: u64, steps: u64, actions: Ve
 
 /// The arena (design §4.7): owns its root and branches; deterministic budgets; no wall clock; no live-session reference.
 pub struct PublicSearch { root: PublicRoot, research_root: [u8; 32], limits: SearchLimits, branches: std::collections::BTreeMap<u64, Box<Branch>>,
-    closed: std::collections::BTreeSet<u64>, used_samples: std::collections::BTreeSet<u64>, next_auto: u64, created: u64, total_steps: u64 }
+    closed: std::collections::BTreeSet<u64>, used_samples: std::collections::BTreeSet<u64>, next_auto: u64, created: u64, total_steps: u64,
+    /// M35 `step_many` workers (execution configuration, not a budget; design §3.6).
+    workers: usize }
 impl std::fmt::Debug for PublicSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "PublicSearch {{ root: {:?}, live: {}, created: {}, total_steps: {} }}", self.root, self.branches.len(), self.created, self.total_steps)
@@ -157,8 +200,15 @@ impl PublicSearch {
             return Err(Error::Input("search limits exceed the hard caps"))
         }
         Ok(Self { root, research_root: spire_core::run::research_root(config.research_seed), limits: l, branches: Default::default(), closed: Default::default(),
-            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0 })
+            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0, workers: 1 })
     }
+    /// M35: `step_many` runs on `workers` threads of the shared process-wide pool for that count (1: no pool).
+    pub fn with_workers(mut self, workers: usize) -> Result<Self, Error> {
+        if workers == 0 { return Err(Error::Input("search workers must be positive")) }
+        self.workers = workers;
+        Ok(self)
+    }
+    pub fn workers(&self) -> usize { self.workers }
     fn admit_branch(&self) -> Result<(), Error> {
         if self.branches.len() >= self.limits.max_live_branches { return Err(Error::Budget("live branch limit reached")) }
         if self.created >= self.limits.max_branches { return Err(Error::Budget("branch limit reached")) }
@@ -219,6 +269,16 @@ impl PublicSearch {
     /// One action through the shared resolver. Budget, stale-token, illegal-index and hidden-order-pick
     /// (`UnsupportedBoundary(HIDDEN_ORDER_PICK)`) errors have no effect; the branch stays live.
     pub fn step(&mut self, b: BranchId, token: RunDecisionToken, index: RunActionIndex, view: BranchView) -> Result<BranchStep, Error> {
+        let action = self.preflight(b, token, index)?;
+        if self.total_steps >= self.limits.max_total_steps { return Err(Error::Budget("total step limit reached")) }
+        let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
+        self.total_steps += 1;
+        let branch = self.branches.get_mut(&b.0).unwrap();
+        let advanced = advance(&mut branch.run, &action, view, &caps);
+        match Self::settle(b, branch, index, advanced, max_steps) { BranchStepOutcome::Stepped(step) => Ok(step), BranchStepOutcome::Fault { error, .. } => Err(error) }
+    }
+    /// The no-effect checks of `step` for one entry; returns the action.
+    fn preflight(&self, b: BranchId, token: RunDecisionToken, index: RunActionIndex) -> Result<GameAction, Error> {
         let branch = self.get(b)?;
         match branch.status { Status::Faulted => return Err(Error::BranchFaulted), Status::Terminal | Status::Truncated => return Err(Error::Terminal), Status::Live => {} }
         if token != RunDecisionToken([b.0, branch.serial]) { return Err(Error::StaleToken) }
@@ -226,46 +286,67 @@ impl PublicSearch {
         // Final review I1: a sampled world keeps the true labels of identical copies, so a pick that removes a copy chosen
         // by hidden instance order would make the branch depend on hidden state; refused with no effect (fail closed).
         if branch.run.pick_depends_on_hidden_order(&action) { return Err(Error::UnsupportedBoundary(HIDDEN_ORDER_PICK)) }
-        if self.total_steps >= self.limits.max_total_steps { return Err(Error::Budget("total step limit reached")) }
-        let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
-        self.total_steps += 1;
-        let branch = self.branches.get_mut(&b.0).unwrap();
+        Ok(action)
+    }
+    /// Apply one advanced world to its branch record: serial and step count always advance (the step was attempted); a
+    /// fault freezes the branch (never retried or revived; `actions` keeps the accepted prefix).
+    fn settle(b: BranchId, branch: &mut Branch, index: RunActionIndex, advanced: Advanced, max_steps: u64) -> BranchStepOutcome {
         branch.serial += 1;
         branch.steps += 1;
-        if let Err(e) = branch.run.step(&action) {
-            // The fault freezes this branch only; it is never retried or revived. `actions` keeps the accepted prefix.
-            branch.status = Status::Faulted;
-            branch.legal.clear();
-            return Err(redacted(e))
-        }
+        let (observation, action_mask, info, legal, reward, terminated) = match advanced {
+            Advanced::Done { observation, action_mask, info, legal, reward, terminated } => (observation, action_mask, info, legal, reward, terminated),
+            Advanced::Fault { error, stage, committed } => {
+                branch.status = Status::Faulted;
+                branch.legal.clear();
+                // As `step`: the accepted prefix includes an action whose engine step committed only when its publication
+                // failed (`encode`); an engine fault or a panic leaves the prefix at the last published boundary.
+                if stage == "encode" { branch.actions.push(index.0); }
+                return BranchStepOutcome::Fault { error, stage, committed }
+            }
+        };
         branch.actions.push(index.0);
-        let terminal = branch.run.combat_scope_terminal();
-        let reward = terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome));
-        let published = match view {
-            BranchView::Full => crate::combat_training::standard_combat_publication(&branch.run, &caps).map(|(o, info, legal)| {
-                let mask = o.action_mask.clone();
-                (Some(o), mask, info, legal)
-            }),
-            BranchView::Mask => branch.run.decision().map_err(redacted).and_then(|d| {
-                let legal: Vec<GameAction> = if terminal.is_some() { vec![] } else { d.candidates.into_iter().map(|c| c.action).collect() };
-                if legal.len() > caps.actions { return Err(Error::Capacity { group: "actions", required: legal.len(), capacity: caps.actions }) }
-                let mut mask = vec![0; caps.actions];
-                mask[..legal.len()].iter_mut().for_each(|m| *m = 1);
-                Ok((None, mask, json!({"terminal_reason": terminal.map(|t| crate::combat_training::outcome_label(t.outcome))}), legal))
-            }),
-        };
-        // Final review M3: the engine has committed, so a publication error faults the branch (never a Live branch with the
-        // previous boundary's action table).
-        let (observation, action_mask, info, legal) = match published {
-            Ok(published) => published,
-            Err(e) => { branch.status = Status::Faulted; branch.legal.clear(); return Err(redact(e)) }
-        };
         branch.legal = legal;
-        let terminated = terminal.is_some();
         let truncated = !terminated && branch.steps >= max_steps;
         branch.status = if terminated { Status::Terminal } else if truncated { Status::Truncated } else { Status::Live };
         let token = RunDecisionToken([b.0, branch.serial]);
-        Ok(BranchStep { observation, action_mask, token, reward, terminated, truncated, info: Self::info(branch.steps, branch.status, info) })
+        BranchStepOutcome::Stepped(BranchStep { observation, action_mask, token, reward, terminated, truncated, info: Self::info(branch.steps, branch.status, info) })
+    }
+    /// M35 batched branch stepping (design §3.6, G8): every entry is checked first (a repeated branch, a branch that is
+    /// not live, closed, foreign, faulted, terminal or truncated, a stale token, an illegal index, a hidden-order pick, or a
+    /// total-step budget that cannot cover every entry rejects the whole call naming the first offending entry, with no
+    /// effect). The selected worlds then step in parallel on disjoint borrows, each through exactly `step`'s resolver; the
+    /// arena records counters, step counts, truncations, faults and accepted actions after the join in input order. So the
+    /// result equals sequential `step` calls in input order and depends on no other entry, grouping or worker count.
+    /// A fault freezes only its branch (`Fault` outcome); siblings are unaffected and nothing is retried.
+    pub fn step_many(&mut self, steps: &[BranchStepRequest], view: BranchView) -> Result<Vec<BranchStepOutcome>, Error> {
+        let mut seen = std::collections::BTreeSet::new();
+        let mut actions = Vec::new();
+        actions.try_reserve_exact(steps.len()).map_err(|_| Error::DeliveryFault("step_many allocation failed"))?;
+        for s in steps {
+            if !seen.insert(s.branch.0) { return Err(Error::Input("a branch appears twice in one step_many call")) }
+            actions.push(self.preflight(s.branch, s.token, s.index)?);
+        }
+        if (steps.len() as u64) > self.limits.max_total_steps.saturating_sub(self.total_steps) { return Err(Error::Budget("total step limit reached")) }
+        let scheduler = crate::workers::Scheduler::shared(self.workers).map_err(|_| Error::DeliveryFault("search worker pool unavailable"))?;
+        let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
+        // Disjoint borrows in sorted id order; each job owns its entry's action and touches only its own world.
+        let position: std::collections::BTreeMap<u64, usize> = steps.iter().enumerate().map(|(i, s)| (s.branch.0, i)).collect();
+        let mut worlds: Vec<(usize, &mut Branch)> = self.branches.iter_mut().filter_map(|(id, b)| position.get(id).map(|i| (*i, &mut **b))).collect();
+        let jobs: Vec<GameAction> = worlds.iter().map(|(i, _)| actions[*i].clone()).collect();
+        let advanced = scheduler.map_mut(&mut worlds, jobs, |_, (_, branch), action| {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| advance(&mut branch.run, &action, view, &caps))) {
+                Ok(advanced) => advanced,
+                Err(_) => Advanced::Fault { error: Error::DeliveryFault(BRANCH_CORE_FAULT), stage: "panic", committed: true },
+            }
+        }).map_err(|_| Error::DeliveryFault("step_many allocation failed"))?;
+        let mut by_input: Vec<Option<Advanced>> = (0..steps.len()).map(|_| None).collect();
+        for ((i, _), a) in worlds.iter().zip(advanced) { by_input[*i] = Some(a); }
+        drop(worlds);
+        self.total_steps += steps.len() as u64;
+        Ok(steps.iter().zip(by_input).map(|(s, a)| {
+            let branch = self.branches.get_mut(&s.branch.0).unwrap();
+            Self::settle(s.branch, branch, s.index, a.expect("every entry was stepped"), max_steps)
+        }).collect())
     }
     /// An exact copy of a live branch inside its sampled world (new id and tokens); inherits its step count.
     pub fn fork(&mut self, b: BranchId) -> Result<BranchId, Error> {
@@ -313,6 +394,9 @@ impl PublicSearch {
     /// TEST-ONLY: a branch's world (fault injection and P3 comparisons).
     #[cfg(test)]
     pub(crate) fn branch_run_for_test(&mut self, b: BranchId) -> &mut Run { &mut self.branches.get_mut(&b.0).unwrap().run }
+    /// TEST-ONLY: a branch's key material (its sample key; M35 R8 privacy oracle on the batched path).
+    #[cfg(test)]
+    pub(crate) fn origin_for_test(&self, b: BranchId) -> [u8; 32] { self.branches[&b.0].origin }
     /// TEST-ONLY: the number of recorded sample indices (final review v3).
     #[cfg(test)]
     pub(crate) fn used_samples_for_test(&self) -> usize { self.used_samples.len() }

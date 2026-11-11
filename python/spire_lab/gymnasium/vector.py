@@ -7,6 +7,7 @@ import numpy as np
 
 from spire_lab import _native
 from . import _common
+from ._vector import combat_v1_package_info as _package_info, combat_v1_package_finals as _package_finals
 from .spaces import spaces_from_spec
 
 
@@ -29,50 +30,6 @@ def _reset_inputs(num_envs, options):
             raise _common.input_error("shape", "reset_mask must be nonempty bool[B] with a true row")
         selected = mask.copy()
     return selected, options.get("scenario_ids")
-
-
-def _package_info(columns, present, *, indices=None):
-    """Batch/scatter numeric columns without dispatching per-slot Python rules.
-
-    ``present`` is a full-width presence mask. Compact final columns use indices;
-    current columns are already full-width and pass through on ordinary steps.
-    """
-    result = {}
-    for key in ("episode_id", "scenario_id", "episode_steps", "outcome",
-                "hp_before_healing", "hp_after_cleanup"):
-        mask = present.copy()
-        if key.startswith("hp_"):
-            if indices is None:
-                mask &= columns[key + "_mask"]
-            else:
-                mask[indices] &= columns[key + "_mask"]
-            if not mask.any():
-                continue
-        values = columns[key]
-        if indices is not None:
-            scattered = np.zeros(present.shape, dtype=values.dtype)
-            scattered[indices] = values
-            values = scattered
-        elif not present.all():
-            values = values.copy()
-            values[~present] = "" if values.dtype.kind == "U" else 0
-        result[key], result["_" + key] = values, mask
-    return result
-
-
-def _package_finals(raw, num_envs, info):
-    """Only terminal rows become independent observation dictionaries."""
-    indices = raw["final_indices"]
-    if not indices.size:
-        return
-    present = np.zeros(num_envs, dtype=bool)
-    present[indices] = True
-    observations = np.full(num_envs, None, dtype=object)
-    for row, slot in enumerate(indices):
-        observations[slot], _ = _common.package_row(raw["final_obs"], raw["final_info"], row)
-    info["final_obs"], info["_final_obs"] = observations, present
-    info["final_info"] = _package_info(raw["final_info"], present, indices=indices)
-    info["_final_info"] = present.copy()
 
 
 class CombatVectorEnv(gym.vector.VectorEnv):
@@ -176,7 +133,7 @@ class CombatVectorEnv(gym.vector.VectorEnv):
 
             return self._pool._step_deliver(actions, self._tokens, package)
 
-    def close(self):
+    def close(self, **kwargs):
         with self._guard:
             self._pool.close()
             self.closed = True

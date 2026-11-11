@@ -172,14 +172,13 @@ fn m15_capacity_fault_retains_first_prefix_and_quiesces_delivered_peers() {
 
         let peer_record = batch.record(1).unwrap().unwrap();
         assert_eq!(peer_record.steps.len(), 1);
-        let peer_fault = peer_record.fault.as_ref().unwrap();
-        assert!(peer_fault.committed && peer_fault.gameplay_recorded);
-        assert_eq!(peer_fault.error.kind, RunRecordErrorKind::DeliveryFault);
+        // M35 (design §3.3, P5): a committed peer stays healthy and recoverable; only the batch freezes.
+        assert!(peer_record.fault.is_none());
 
         assert_eq!(batch.record(2).unwrap(), None);
         let unrecorded_peer = batch.reproduction(2).unwrap();
         assert!(unrecorded_peer.last_accepted_step.is_some());
-        assert!(matches!(unrecorded_peer.fault, Some(RunSessionError::DeliveryFault(_))));
+        assert!(unrecorded_peer.fault.is_none());
 
         let mut single = RunSession::new_m15(constrained).unwrap();
         let initial = single.reset(Some(7)).unwrap();

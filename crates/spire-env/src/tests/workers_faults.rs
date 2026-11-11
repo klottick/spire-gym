@@ -107,7 +107,7 @@ fn runtime_faults_quiesce_and_keep_first_provenance() {
         assert_eq!(core.step(&spire_core::combat::Action::EndTurn).unwrap().status,spire_core::combat::TransitionStatus::Fault);
         native.push(core.snapshot());
     } }
-    let f=match p.step_batch(&[0;3],&r.decisions.tokens) { Err(EnvError::Fault { records })=>records,x=>panic!("{x:?}") };
+    let f=match p.step_batch(&[0;3],&r.decisions.tokens) { Err(EnvError::Fault { records, .. })=>records,x=>panic!("{x:?}") };
     assert_eq!(f.iter().map(|f|f.slot).collect::<Vec<_>>(),[Some(0),Some(2)]);
     let d=p.diagnostics().unwrap();assert_eq!(d.status,PoolStatus::Faulted);assert_eq!(d.faults,f);
     let s=p.state.lock().unwrap();assert_eq!(s.slots[1].live.as_ref().unwrap().steps,1);
@@ -151,7 +151,7 @@ impl Injection {
         if self.stage!=stage {return Ok(());}
         if self.panic {panic!("private stage panic");}
         Err(EnvError::Fault { records:vec![SlotFault { slot:None,stage,
-            message:"private stage failure".into(),core_fault:None }] })
+            message:"private stage failure".into(),core_fault:None }], slots:vec![] })
     }
     pub(crate) fn complete(&self) {
         if !self.first {self.finish.wait();}
@@ -180,7 +180,7 @@ fn injected_stages_quiesce_with_reversed_completion() {
                 first:i==2,slot:i,completed:completed.clone(),worker_ids:worker_ids.clone()});
         } }
         let faults=match p.step_batch(&[0;3],&r.decisions.tokens) {
-            Err(EnvError::Fault { records })=>records,x=>panic!("{x:?}")
+            Err(EnvError::Fault { records, .. })=>records,x=>panic!("{x:?}")
         };
         assert_eq!(*completed.lock().unwrap(),[2,0]);
         assert_eq!(faults.iter().map(|f|f.slot).collect::<Vec<_>>(),[Some(0),Some(2)]);
@@ -259,4 +259,28 @@ fn parallel_preflight_and_staged_reset_remain_atomic() {
     let before=p.diagnostics().unwrap();
     assert!(matches!(p.step_batch(&[0;8],&step.current.tokens),Err(EnvError::Setup {slot:Some(7),..})));
     assert_eq!(p.diagnostics().unwrap(),before);
+}
+
+// Catches a failed pool batch that names fault records but omits delivery state
+// for successful peers (whose transitions committed but cannot be recovered).
+#[test]
+fn pool_fault_reports_slot_statuses() {
+    let pool=CombatPool::new(Arc::new(ScenarioCatalog::starter()),config(4,4)).unwrap();
+    let reset=pool.reset_batch(&[0,1,2,3],&requests(4)).unwrap();
+    let start=Arc::new(std::sync::Barrier::new(2));let finish=Arc::new(std::sync::Barrier::new(2));
+    let completed=Arc::new(std::sync::Mutex::new(vec![]));
+    let worker_ids=Arc::new(match &pool.state.lock().unwrap().scheduler {
+        crate::workers::Scheduler::Parallel(workers)=>workers.broadcast(|_|std::thread::current().id()),
+        _=>panic!("fixture requires actual workers"),
+    });
+    { let mut state=pool.state.lock().unwrap();
+        for (slot,panic) in [(0,false),(2,true)] {
+            state.slots[slot].injection=Some(Injection { stage:FaultStage::Resolution,panic,start:start.clone(),finish:finish.clone(),
+                first:slot==2,slot,completed:completed.clone(),worker_ids:worker_ids.clone() });
+        }
+    }
+    let error=pool.step_batch(&[0;4],&reset.decisions.tokens).unwrap_err();
+    let debug=format!("{error:?}");
+    let expected="slots: [PoolSlotStatus { status: \"faulted\", stage: Some(Resolution), committed: Some(false), recoverable: Some(false), message: Some(\"private stage failure\") }, PoolSlotStatus { status: \"committed_undelivered\", stage: None, committed: Some(true), recoverable: Some(false), message: None }, PoolSlotStatus { status: \"faulted\", stage: Some(Panic), committed: Some(false), recoverable: Some(false), message: Some(\"setup at None: slot execution panicked\") }, PoolSlotStatus { status: \"committed_undelivered\", stage: None, committed: Some(true), recoverable: Some(false), message: None }]";
+    assert!(debug.contains(expected),"each slot has its exact ordered delivery status; got {debug}");
 }

@@ -1,6 +1,6 @@
 //! Owned, typed Python errors; no automatic lossy input coercions.
-use pyo3::{create_exception, exceptions::{PyRuntimeError, PyValueError}, prelude::*, types::{PyDict, PyList}};
-use spire_env::{EnvError, InputReason, SlotFault};
+use pyo3::{create_exception, exceptions::{PyRuntimeError, PyValueError}, prelude::*, types::{PyDict, PyList, PyTuple}};
+use spire_env::{EnvError, FaultStage, InputReason, PoolSlotStatus, SlotFault};
 
 create_exception!(_native, CombatInputError, PyValueError);
 create_exception!(_native, CombatStateError, PyRuntimeError);
@@ -30,24 +30,39 @@ pub(crate) fn faults<'py>(py: Python<'py>, records: &[SlotFault]) -> PyResult<Bo
     Ok(list)
 }
 
+fn slot_statuses<'py>(py: Python<'py>, statuses: &[PoolSlotStatus]) -> PyResult<Bound<'py, PyTuple>> {
+    let mut entries=Vec::with_capacity(statuses.len());
+    for status in statuses {
+        let dict=PyDict::new(py);
+        dict.set_item("status",status.status)?;
+        dict.set_item("stage",status.stage.map(FaultStage::label))?;
+        dict.set_item("committed",status.committed)?;
+        dict.set_item("recoverable",status.recoverable)?;
+        dict.set_item("message",status.message.as_deref())?;
+        entries.push(dict);
+    }
+    PyTuple::new(py,entries)
+}
+
 pub(crate) fn native(py: Python<'_>, error: EnvError) -> PyErr {
     let message = error.to_string();
-    let (exception, slot, reason, records) = match error {
+    let (exception, slot, reason, records, statuses) = match error {
         EnvError::Input { slot, reason, .. } => {
             let reason = match reason { InputReason::IllegalAction => "illegal_action".into(),
                 r => format!("{r:?}").to_lowercase() };
-            (CombatInputError::new_err(message), slot, reason, vec![])
+            (CombatInputError::new_err(message), slot, reason, vec![], vec![])
         },
         EnvError::State { slot, reason } =>
-            (CombatStateError::new_err(message), slot, format!("{reason:?}").to_lowercase(), vec![]),
-        EnvError::Setup { slot, .. } => (CombatSetupError::new_err(message), slot, "setup".into(), vec![]),
-        EnvError::Fault { records } => (CombatFaultError::new_err(message),
-            records.first().and_then(|f|f.slot), "fault".into(), records),
+            (CombatStateError::new_err(message), slot, format!("{reason:?}").to_lowercase(), vec![], vec![]),
+        EnvError::Setup { slot, .. } => (CombatSetupError::new_err(message), slot, "setup".into(), vec![], vec![]),
+        EnvError::Fault { records, slots } => (CombatFaultError::new_err(message),
+            records.first().and_then(|f|f.slot), "fault".into(), records, slots),
     };
     let attach = || -> PyResult<()> {
         exception.value(py).setattr("slot", slot)?;
         exception.value(py).setattr("reason", reason)?;
         exception.value(py).setattr("faults", faults(py, &records)?)?;
+        exception.value(py).setattr("slots", slot_statuses(py, &statuses)?)?;
         Ok(())
     };
     match attach() { Ok(()) => exception, Err(error) => error }

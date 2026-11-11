@@ -11,6 +11,12 @@ pub enum StateReason { Uninitialized, Terminal, Busy, Closed, Faulted }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FaultStage { Resolution, Encoding, Reset, Panic, Export }
+impl FaultStage {
+    pub fn label(self) -> &'static str {
+        match self { Self::Resolution => "resolution", Self::Encoding => "encoding", Self::Reset => "reset",
+            Self::Panic => "panic", Self::Export => "export" }
+    }
+}
 
 /// A slot's first fault. Pool-wide export faults use `slot: None`.
 /// Coordinators preserve first records and sort Some(slot) ascending, then None.
@@ -22,12 +28,38 @@ pub struct SlotFault {
     pub core_fault: Option<FaultRecord>,
 }
 
+/// Delivery of one combat-v1 pool slot when a whole batch operation faults.
+/// The pool has no committed-result recovery, so committed peers remain informational only.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PoolSlotStatus {
+    pub status: &'static str,
+    pub stage: Option<FaultStage>,
+    pub committed: Option<bool>,
+    pub recoverable: Option<bool>,
+    pub message: Option<String>,
+}
+impl PoolSlotStatus {
+    pub(crate) fn faulted(fault: &SlotFault, committed: bool) -> Self {
+        Self { status:"faulted", stage:Some(fault.stage), committed:Some(committed), recoverable:Some(false),
+            message:Some(fault.message.clone()) }
+    }
+    pub(crate) fn committed_undelivered() -> Self {
+        Self { status:"committed_undelivered", stage:None, committed:Some(true), recoverable:Some(false), message:None }
+    }
+    pub(crate) fn not_committed() -> Self {
+        Self { status:"not_committed", stage:None, committed:Some(false), recoverable:None, message:None }
+    }
+    pub(crate) fn unaffected() -> Self {
+        Self { status:"unaffected", stage:None, committed:None, recoverable:None, message:None }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EnvError {
     Input { slot: Option<usize>, reason: InputReason, message: String },
     State { slot: Option<usize>, reason: StateReason },
     Setup { slot: Option<usize>, message: String },
-    Fault { records: Vec<SlotFault> },
+    Fault { records: Vec<SlotFault>, slots: Vec<PoolSlotStatus> },
 }
 
 impl std::fmt::Display for EnvError {
@@ -36,7 +68,7 @@ impl std::fmt::Display for EnvError {
             Self::Input { slot, reason, message } => write!(f, "input {reason:?} at {slot:?}: {message}"),
             Self::State { slot, reason } => write!(f, "state {reason:?} at {slot:?}"),
             Self::Setup { slot, message } => write!(f, "setup at {slot:?}: {message}"),
-            Self::Fault { records } => write!(f, "environment fault: {records:?}"),
+            Self::Fault { records, .. } => write!(f, "environment fault: {records:?}"),
         }
     }
 }

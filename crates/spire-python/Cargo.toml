@@ -22,5 +22,9 @@ extension = ["dep:pyo3", "pyo3/extension-module", "dep:rust-numpy"]
 [dependencies]
 spire-core.workspace = true
 spire-env.workspace = true
+sha2 = "=0.10.9"
 pyo3 = { workspace = true, optional = true }
 rust-numpy = { workspace = true, optional = true }
+
+[build-dependencies]
+sha2 = "=0.10.9"

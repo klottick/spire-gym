@@ -396,6 +396,15 @@ Recording is off by default; opting in grows action traces/retired queues until
 drained and leaves memory retention the caller's responsibility. Ordinary stepping
 does not snapshot, serialize JSON, perform trace I/O or construct worker pools.
 
+## M35 combat-v1 diagnostics and close
+
+`CombatFaultError` now has ordered per-slot `.slots` status records in addition to its existing
+fault details. These are informational for `CombatPool`: combat-v1 has no `decision()` or
+`recover_committed()` path, so a committed-undelivered status does not provide row recovery.
+`CombatVectorEnv.close(**kwargs)` accepts Gymnasium's close keyword arguments and closes the
+underlying pool; this does not add reset or recovery behavior. The shared Run and combat-training
+batch fault/recovery contract is in [batching.md](batching.md).
+
 ## Verified compatibility subset and limits
 
 Pinned Gymnasium **1.4.0** tests execute upstream `check_reset_seed_determinism`,

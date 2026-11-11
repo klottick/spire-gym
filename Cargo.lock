@@ -441,6 +441,7 @@ version = "0.1.0"
 dependencies = [
  "numpy",
  "pyo3",
+ "sha2",
  "spire-core",
  "spire-env",
 ]
