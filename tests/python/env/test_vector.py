@@ -10,10 +10,20 @@ import pytest
 
 from spire_lab import _native
 from .support import template
+from .vector_conformance import assert_vector_conformance
 
 
 def vector_class():
     return importlib.import_module("spire_lab.gymnasium.vector").CombatVectorEnv
+
+
+def test_combat_v1_vector_conformance():
+    env = vector_class()(3, workers=2)
+    try:
+        assert env.metadata["autoreset_mode"] is gym.vector.AutoresetMode.SAME_STEP
+        assert_vector_conformance(env)
+    finally:
+        env.close(extra="ignored")
 
 
 def victory_catalog():
@@ -83,6 +93,11 @@ def test_vector_contract_and_same_step_final_layout():
             assert finals.shape == (3,) and finals.dtype == object
             np.testing.assert_array_equal(info["_final_obs"], ended)
             np.testing.assert_array_equal(info["_final_info"], ended)
+            assert list(info["final_info"]) == [
+                item for key in ("episode_id", "scenario_id", "episode_steps", "outcome",
+                                 "hp_before_healing", "hp_after_cleanup")
+                for item in (key, "_" + key)
+            ]
             for key in ("episode_id", "scenario_id", "episode_steps", "outcome",
                         "hp_before_healing", "hp_after_cleanup"):
                 np.testing.assert_array_equal(info["final_info"]["_" + key], ended)

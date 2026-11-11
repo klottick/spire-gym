@@ -87,6 +87,6 @@ impl LiveEpisode {
         Ok(())
     }
     fn failure(&self, stage: FaultStage, message: String) -> EnvError {
-        EnvError::Fault { records:vec![SlotFault { slot:None,stage,message,core_fault:self.combat.fault_record() }] }
+        EnvError::Fault { records:vec![SlotFault { slot:None,stage,message,core_fault:self.combat.fault_record() }], slots:vec![] }
     }
 }

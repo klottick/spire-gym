@@ -26,12 +26,14 @@ mod run_observation;
 mod run_session;
 mod run_replay;
 mod run_batch;
+mod session_batch;
+pub use session_batch::{AutoresetMode,BatchConfig,BatchFault,BatchFaultStage,BatchOperation,BatchSession,BatchStep,BatchStepFailure,CombatTrainingBatch,CompletedRecord,FaultPolicy,RetiredFault,RunSessionBatch,SessionBatch,SessionBatchError,SlotDelivery,SlotFaultRow,SlotRow,SlotReport,BATCH_MAX_SLOTS};
 mod combat_policy;
 mod combat_training;
 mod standard_combat;
 mod standard_positions;
 mod public_search;
-pub use public_search::{PublicRoot,PublicSearch,SearchConfig,SearchLimits,SEARCH_HARD_CAPS,BranchId,BranchView,BranchBoundary,BranchStep,PUBLIC_SEARCH_ID,PUBLIC_BELIEF_ID,PUBLIC_KNOWLEDGE_ID,BRANCH_RUN_BYTES_ESTIMATE,branch_retained_bytes_bound,search_retained_bytes_bound,HIDDEN_ORDER_PICK,BRANCH_CORE_FAULT};
+pub use public_search::{PublicRoot,PublicSearch,SearchConfig,SearchLimits,SEARCH_HARD_CAPS,BranchId,BranchView,BranchBoundary,BranchStep,BranchStepRequest,BranchStepOutcome,PUBLIC_SEARCH_ID,PUBLIC_BELIEF_ID,PUBLIC_KNOWLEDGE_ID,BRANCH_RUN_BYTES_ESTIMATE,branch_retained_bytes_bound,search_retained_bytes_bound,HIDDEN_ORDER_PICK,BRANCH_CORE_FAULT};
 pub use standard_combat::{standard_combat_support,STANDARD_COMBAT_PROFILE_ID,STANDARD_COMBAT_CATALOG_SCHEMA_ID,STANDARD_RECORD_MAX_BYTES,STANDARD_RECORDS_MAX_TOTAL_BYTES};
 mod card_metadata;
 pub use card_metadata::{card_metadata_descriptor,CARD_METADATA_SCHEMA_ID};
@@ -40,9 +42,9 @@ pub use combat_training::{CombatTrainingCatalog,CombatTrainingSession,CombatTrai
 
 pub use canonical::canonical_json;
 pub use episode::EpisodeJob;
-pub use error::{EnvError, FaultStage, InputReason, SlotFault, StateReason};
+pub use error::{EnvError, FaultStage, InputReason, PoolSlotStatus, SlotFault, StateReason};
 pub use scenario::{CardSpec, PublicContext, ScenarioCatalog, ScenarioTemplate};
-pub use seed::{IntegerSeed, SEED_ADAPTER_ID, SeedBatch, expand_seeds};
+pub use seed::{IntegerSeed, SEED_ADAPTER_ID, SeedBatch, expand_scalar_seed, expand_seeds};
 pub use observation::{NamedTensor, ObservationBatch, ObservationRow, TensorValues};
 pub use schema::{ObservationSpec, OBSERVATION_SCHEMA_ID, observation_spec};
 pub use identity::DecisionToken;
@@ -125,3 +127,8 @@ pub use run_observation::encode_run_m25;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M25,RUN_RULES_ID_M25,RUN_CONTENT_ID_M25};
 pub use run_session::{RUN_RECORD_SCHEMA_ID_STANDARD,RUN_RULES_ID_STANDARD,RUN_CONTENT_ID_STANDARD,StandardCreation,StandardNeow,StandardRunConfig};
 pub use run_session::ExactCheckpoint;
+
+/// Cargo features enabled when this crate was compiled, excluding `default`.
+pub const ENABLED_FEATURES: &[&str] = &[
+    #[cfg(feature = "fuzz-diagnostics")] "spire-env/fuzz-diagnostics",
+];

@@ -274,7 +274,7 @@ fn runtime_failures_fault_pool_and_preserve_first_core_fault() {
             l.combat=Combat::new(&scenario).unwrap();
         }
     }
-    let faults=match pool.step_batch(&[0;3],&reset.decisions.tokens) { Err(EnvError::Fault { records })=>records,other=>panic!("{other:?}") };
+    let faults=match pool.step_batch(&[0;3],&reset.decisions.tokens) { Err(EnvError::Fault { records, .. })=>records,other=>panic!("{other:?}") };
     assert_eq!(faults.iter().map(|f|f.slot).collect::<Vec<_>>(),[Some(0),Some(2)]);
     assert!(faults.iter().all(|f|f.stage==FaultStage::Resolution && f.core_fault.as_ref().unwrap().kind==FaultKind::RngExhausted));
     {
@@ -292,7 +292,7 @@ fn runtime_failures_fault_pool_and_preserve_first_core_fault() {
     let encoding=CombatPool::new(Arc::new(ScenarioCatalog::starter()),config(1,AutoReset::Manual)).unwrap();
     let r=encoding.reset_batch(&[0],&[request()]).unwrap();
     encoding.state.lock().unwrap().slots[0].live.as_mut().unwrap().knowledge.deck=[[0;2];3];
-    let f=match encoding.step_batch(&[1],&r.decisions.tokens) { Err(EnvError::Fault { records })=>records,_=>panic!("expected encoding fault") };
+    let f=match encoding.step_batch(&[1],&r.decisions.tokens) { Err(EnvError::Fault { records, .. })=>records,_=>panic!("expected encoding fault") };
     assert_eq!(f[0].stage,FaultStage::Encoding);assert_eq!(f[0].slot,Some(0));
     assert_eq!(encoding.state.lock().unwrap().slots[0].live.as_ref().unwrap().steps,1);
 

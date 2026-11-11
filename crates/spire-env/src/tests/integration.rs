@@ -88,7 +88,7 @@ fn complete_runtime_fault_diagnostics_match_across_workers() {
             }
         }
         let faults = match p.step_batch(&[0; 3], &rows.decisions.tokens) {
-            Err(EnvError::Fault { records }) => records, other => panic!("{other:?}"),
+            Err(EnvError::Fault { records, .. }) => records, other => panic!("{other:?}"),
         };
         let diagnostics = p.diagnostics().unwrap();
         assert_eq!(diagnostics.faults, faults);

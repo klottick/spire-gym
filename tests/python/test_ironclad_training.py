@@ -21,6 +21,10 @@ def vector_class():
     ).IroncladCombatVectorEnv
 
 
+def test_native_ironclad_batch_removed():
+    assert not hasattr(_native, "NativeIroncladCombatBatch")
+
+
 def entry(
     entry_id, *, encounter="cultist", hp=80, deck=None, relics=None, potions=None
 ):
@@ -314,6 +318,24 @@ def test_batch_matches_independent_seeds_and_manual_masked_reset_preserves_other
     vector.close()
 
 
+@pytest.mark.parametrize("mode", ["disabled", "next_step", "same_step"])
+def test_ironclad_vector_conformance_mode_metadata_and_seed_compatibility(mode):
+    from env.vector_conformance import assert_vector_conformance
+
+    vector = vector_class()(2, catalog(entry("first")), partition="test",
+                            autoreset_mode=mode, fault_policy="freeze")
+    try:
+        assert vector.metadata["autoreset_mode"] == {
+            "disabled": gym.vector.AutoresetMode.DISABLED,
+            "next_step": gym.vector.AutoresetMode.NEXT_STEP,
+            "same_step": gym.vector.AutoresetMode.SAME_STEP,
+        }[mode]
+        _, info = assert_vector_conformance(vector)
+        assert "effective_seed" in info["slots"][0]
+    finally:
+        vector.close(timeout=0)
+
+
 def observations_row(observations, row):
     return {key: value[row] for key, value in observations.items()}
 
@@ -400,8 +422,8 @@ def test_batch_reset_mask_requires_exact_native_bool_vector(reset_mask):
 
 
 def test_batch_stale_token_in_one_row_rejects_every_row_before_dispatch():
-    native = _native.NativeIroncladCombatBatch(
-        2, json.dumps(catalog(entry("first"))), partition="test"
+    native = _native.NativeCombatTrainingBatch(
+        2, json.dumps(catalog(entry("first"))), kind="ironclad", partition="test"
     )
     initial = native.reset(
         seeds=[5, 6],
@@ -425,8 +447,8 @@ def test_batch_stale_token_in_one_row_rejects_every_row_before_dispatch():
 
 
 def test_batch_native_step_accepts_strided_readonly_integer_inputs():
-    native = _native.NativeIroncladCombatBatch(
-        2, json.dumps(catalog(entry("first"))), partition="test"
+    native = _native.NativeCombatTrainingBatch(
+        2, json.dumps(catalog(entry("first"))), kind="ironclad", partition="test"
     )
     initial = native.reset(
         seeds=[5, 6],
@@ -456,8 +478,8 @@ def test_batch_native_step_accepts_strided_readonly_integer_inputs():
 
 
 def test_batch_native_step_rejects_non_native_endian_arrays_atomically():
-    native = _native.NativeIroncladCombatBatch(
-        2, json.dumps(catalog(entry("first"))), partition="test"
+    native = _native.NativeCombatTrainingBatch(
+        2, json.dumps(catalog(entry("first"))), kind="ironclad", partition="test"
     )
     initial = native.reset(
         seeds=[5, 6],
@@ -486,9 +508,9 @@ def test_batch_native_step_rejects_non_native_endian_arrays_atomically():
     native.close()
 
 
-def test_batch_package_failure_freezes_all_rows_and_reports_accepted_counts():
-    native = _native.NativeIroncladCombatBatch(
-        2, json.dumps(catalog(entry("first"))), partition="test"
+def test_batch_package_failure_is_recoverable_and_reports_accepted_counts():
+    native = _native.NativeCombatTrainingBatch(
+        2, json.dumps(catalog(entry("first"))), kind="ironclad", partition="test"
     )
     initial = native.reset(
         seeds=[5, 6],
@@ -511,10 +533,52 @@ def test_batch_package_failure_freezes_all_rows_and_reports_accepted_counts():
     diagnostic = native.diagnostic()
     assert diagnostic["status"] == "faulted"
     assert diagnostic["accepted_steps"] == [1, 1]
-    with pytest.raises(RuntimeError):
+    recovered = native.recover_committed()
+    assert recovered["recovered"].tolist() == [True, True]
+    assert recovered["rewards"].shape == (2,)
+    with pytest.raises(_native.BatchFaultError) as caught:
         native.reset(
             seeds=[None, None],
             entry_ids=[None, None],
             reset_mask=np.ones(2, dtype=np.bool_),
         )
+    assert caught.value.operation == "export"
+    assert [row["status"] for row in caught.value.slots] == [
+        "committed_undelivered", "committed_undelivered"
+    ]
     native.close()
+
+
+def test_isolate_policy_requires_seed_to_resume_faulted_slot_and_preserves_others():
+    limit = entry("limit", hp=900, deck=[{"card": "feed", "upgrades": 0}] * 5,
+                  relics=["neows_lament"])
+    limit["max_hp"] = 999
+    entries = catalog(
+        entry("healthy"),
+        limit,
+    )
+    vector = vector_class()(2, entries, partition="test", fault_policy="isolate")
+    try:
+        observations, _ = vector.reset(seed=[1, 41], options={"entry_ids": ["healthy", "limit"]})
+        # Action zero is the known fault-triggering path for this fixture.
+        actions = np.zeros(2, dtype=np.int64)
+        stepped = vector.step(actions)
+        info = stepped[4]
+        assert info["slot_fault"].tolist() == [False, True]
+        assert info["_fault"].tolist() == [False, True]
+        assert not stepped[2][1] and not stepped[3][1] and stepped[1][1] == 0
+        before = deepcopy(vector.diagnostic())
+        with pytest.raises(_native.RunInputError, match=r"faulted slot needs an explicit seed.*\(slot 1\)"):
+            vector.reset(seed=None)
+        assert vector.diagnostic() == before
+        mask = np.asarray([True, False], dtype=np.bool_)
+        vector.reset(seed=None, options={"reset_mask": mask})
+        restored, reset_info = vector.reset(
+            seed=42,
+            options={"entry_ids": [None, "limit"],
+                     "reset_mask": np.asarray([False, True], dtype=np.bool_)},
+        )
+        assert reset_info["slots"][1]["entry_id"] == "limit"
+        assert restored["action_mask"][1].any()
+    finally:
+        vector.close()

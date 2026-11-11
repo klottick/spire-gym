@@ -1,6 +1,21 @@
 # Work status
 
-## Current snapshot — 2026-11-10, M34s-c tactical starts candidate (M34s-b merged)
+## Current snapshot — 2026-11-11, M35 batching candidate (M34s merged)
+
+- M34s-c merged as PR #101 (main `e3574ed6`), closing M34s. M35 (spire-dxo.57) is a source candidate on that base, not
+  accepted. See the [M35 profile](milestones/m35-batching.md) and the [batching contract](batching.md).
+- New: one native batch owner, `SessionBatch`, for every Run profile and every combat-training arm (Gym66 v1/v2, M21,
+  `standard-combat-v1`): mixed characters, ascensions and entries per batch, masked reset, DISABLED/NEXT_STEP/SAME_STEP
+  autoreset with exact final observations, per-slot fault statuses with committed-result recovery, an opt-in isolate policy,
+  and workers with 8 MiB stacks. Python `NativeRunBatch`, `NativeCombatTrainingBatch`, `BatchFaultError`, Gymnasium
+  `RunVectorEnv` and `StandardCombatVectorEnv`, `PublicSearch.step_many`, and `build_info()` source identity.
+- Breaking: `NativeIroncladCombatBatch` is removed with no alias (use `NativeCombatTrainingBatch(..., kind="ironclad")`);
+  `IroncladCombatVectorEnv` keeps its reset/step returns (task 0 golden 427/427 rows for v1 and v2).
+- Global change (P5): a sibling's fault no longer freezes healthy peers in any Run batch; nine accepted tests were amended.
+  No gameplay, encoder or descriptor change.
+- Lane P on the candidate export passed; the post-merge build is pending. Next: M36 (delivery).
+
+## Snapshot — 2026-11-10, M34s-c tactical starts candidate (M34s-b merged)
 
 - M34s-b merged as PR #100 (main `f99f7de0`). M34s-c (part 3 of 3 of M34s, spire-dxo.71.3) is a source candidate on that
   base, not accepted; its merge closes M34s. See the [M34s profile](milestones/m34s-search-scenario.md).

@@ -155,6 +155,12 @@ def test_combat_facades_reject_the_other_catalog_boundary():
         IroncladCombatEnv(standard, partition="test")
     with pytest.raises(_native.RunUnsupportedBoundaryError):
         StandardCombatEnv(gym66, partition="test")
+    with pytest.raises(_native.RunUnsupportedBoundaryError):
+        _native.NativeCombatTrainingBatch(1, json.dumps(gym66),
+                                          kind="standard", partition="test")
+    with pytest.raises(_native.RunUnsupportedBoundaryError):
+        _native.NativeCombatTrainingBatch(1, json.dumps(standard),
+                                          kind="ironclad", partition="test")
 
 
 def test_standard_combat_terminals_and_smoke_bomb_escape():

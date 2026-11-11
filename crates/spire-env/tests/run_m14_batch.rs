@@ -204,7 +204,7 @@ fn m14_batch_retains_first_capacity_fault_and_accepted_peer_work() {
             assert_eq!(actual.latest_decision, expected.latest_decision);
             assert_eq!(actual.latest_map, expected.latest_map);
             assert_eq!(actual.last_accepted_step, expected.last_accepted_step);
-            assert!(matches!(actual.fault, Some(RunSessionError::DeliveryFault(_))));
+            assert!(actual.fault.is_none(), "M35 P5 (amended): a sibling's fault never freezes a healthy peer");
         }
         let retained = (0..3).map(|slot| batch.reproduction(slot).unwrap()).collect::<Vec<_>>();
         assert_eq!(batch.step(&tokens, &indices), Err(RunBatchError::Fault { slots: faults.clone() }));

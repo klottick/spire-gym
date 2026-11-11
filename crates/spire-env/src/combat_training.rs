@@ -97,6 +97,10 @@ impl CombatTrainingCatalog{
         if let Some((_,TrainingEntry::Standard(start)))=self.entries.iter_mut().find(|(key,_)|key==id){start.position=Some(position);}
     }
     pub fn descriptor(&self)->Value{self.descriptor.clone()}
+    /// M35: whether this is a `standard-combat-v1` catalog.
+    pub fn is_standard(&self)->bool{self.profile==CombatTrainingProfile::Standard}
+    /// M35: `Ok` when `id` names an entry (`None`: the first entry).
+    pub(crate) fn has_entry(&self,id:Option<&str>)->Result<(),Error>{self.entry(id).map(|_|())}
     pub fn fingerprint(&self)->[u8;32]{self.fingerprint}
     fn entry(&self,id:Option<&str>)->Result<&(String,TrainingEntry),Error>{match id{None=>Ok(&self.entries[0]),Some(id)=>self.entries.iter().find(|(key,_)|key==id).ok_or(Error::Input("unknown combat entry ID"))}}
 }
@@ -120,7 +124,8 @@ let mut support=json!({
 #[derive(Clone,Debug,PartialEq,Eq)]
 pub struct CombatTrainingStep{pub boundary:CombatPolicyBoundary,pub reward:i32,pub terminated:bool,pub truncated:bool}
 pub struct CombatTrainingSession{
-    catalog:CombatTrainingCatalog,caps:crate::RunCapacities,partition:Partition,id:u64,serial:u64,ordinal:u64,seed:Option<u64>,entry_id:Option<String>,
+    /// M35 (design §3.1): one shared catalog (entries, records and cached recipe roots) for every session of a batch.
+    catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,partition:Partition,id:u64,serial:u64,ordinal:u64,seed:Option<u64>,entry_id:Option<String>,
     record:Option<crate::CombatEpisodeRecord>,latest_public:Option<PublicDecision>,run:Option<Run>,published:Option<CombatPolicyBoundary>,actions:Vec<GameAction>,fault:Option<Error>,closed:bool,accepted_steps:u64,last_step_committed:bool,
     /// The current episode's start label (design §4.8): `fresh_start`, `synthetic_position` or `reachable_recipe`.
     start_kind:&'static str,
@@ -133,21 +138,37 @@ impl CombatTrainingSession{
     pub(crate) fn run_for_test(&self)->Option<&Run>{self.run.as_ref()}
     #[cfg(test)]
     pub(crate) fn run_mut_for_test(&mut self)->Option<&mut Run>{self.run.as_mut()}
+    /// TEST-ONLY: the session's capacities (M35 post-commit publication fault).
     #[cfg(test)]
-    pub(crate) fn catalog_for_test(&self)->CombatTrainingCatalog{self.catalog.clone()}
+    pub(crate) fn caps_mut_for_test(&mut self)->&mut crate::RunCapacities{&mut self.caps}
     #[cfg(test)]
-    pub(crate) fn set_catalog_for_test(&mut self,catalog:CombatTrainingCatalog){self.catalog=catalog;}
-    pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
+    pub(crate) fn catalog_for_test(&self)->CombatTrainingCatalog{(*self.catalog).clone()}
+    #[cfg(test)]
+    pub(crate) fn set_catalog_for_test(&mut self,catalog:CombatTrainingCatalog){self.catalog=std::sync::Arc::new(catalog);}
+    pub fn new(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{Self::new_shared(std::sync::Arc::new(catalog),partition)}
+    /// M35: a Gym66 (or M21) session over a shared catalog.
+    pub fn new_shared(catalog:std::sync::Arc<CombatTrainingCatalog>,partition:Partition)->Result<Self,Error>{
         if catalog.profile==CombatTrainingProfile::Standard{return Err(STANDARD_ON_GYM66)}
-        let id=crate::run_session::allocate_run_session_id()?;
-        Ok(Self{catalog,caps:crate::combat_policy_capacities(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
+        Self::unstarted(catalog,crate::combat_policy_capacities(),partition)
     }
     /// M34s-a `standard-combat-v1` session: Standard capacities and the Standard combat view.
-    pub fn new_standard(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{
+    pub fn new_standard(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{Self::new_standard_shared(std::sync::Arc::new(catalog),partition)}
+    /// M35: a `standard-combat-v1` session over a shared catalog.
+    pub fn new_standard_shared(catalog:std::sync::Arc<CombatTrainingCatalog>,partition:Partition)->Result<Self,Error>{
         if catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("the Standard combat session requires a standard-combat-v1 catalog"))}
-        let id=crate::run_session::allocate_run_session_id()?;
-        Ok(Self{catalog,caps:crate::RunCapacities::standard_default(),partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
+        Self::unstarted(catalog,crate::RunCapacities::standard_default(),partition)
     }
+    fn unstarted(catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,partition:Partition)->Result<Self,Error>{
+        let id=crate::run_session::allocate_run_session_id()?;
+        Ok(Self{catalog,caps,partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
+    }
+    /// M35 isolate resume (design §3.3): a new unstarted session with this one's catalog, capacities and partition (new
+    /// identity, no episode, no fault). The old session is kept by the caller; nothing is copied from its episode.
+    pub(crate) fn fresh_like(&self)->Result<Self,Error>{Self::unstarted(self.catalog.clone(),self.caps.clone(),self.partition)}
+    /// M35: the shared catalog (batch construction and the shared-`Arc` test).
+    pub fn shared_catalog(&self)->&std::sync::Arc<CombatTrainingCatalog>{&self.catalog}
+    /// The entry of the current episode (`None` before the first reset).
+    pub fn current_entry(&self)->Option<&str>{self.entry_id.as_deref()}
     pub fn observation_spec(&self)->Result<RunObservationSpec,Error>{match self.catalog.profile{
         CombatTrainingProfile::Standard=>crate::standard_combat_observation_spec(&self.caps),
         CombatTrainingProfile::V1=>crate::combat_policy_observation_spec(),
@@ -271,13 +292,20 @@ impl CombatTrainingSession{
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;self.accepted_steps.checked_add(1).ok_or(Error::Input("combat step count exhausted"))?;Ok(())
     }
     pub fn step(&mut self,token:RunDecisionToken,index:RunActionIndex)->Result<CombatTrainingStep,Error>{
-        self.preflight_step(token,index)?;
+        self.step_with_status(token,index).map_err(|failure|failure.error)
+    }
+    /// M35 (design §3.1): `step` with whether the engine committed the action (the batch's delivery status). Behaviour,
+    /// freezing and diagnostics are those of `step`.
+    pub(crate) fn step_with_status(&mut self,token:RunDecisionToken,index:RunActionIndex)->Result<CombatTrainingStep,crate::run_session::RunSessionStepFailure>{
+        use crate::run_session::RunSessionStepFailure as Failure;
+        self.preflight_step(token,index).map_err(|error|Failure{error,committed:false})?;
         let action=self.actions[index.0 as usize].clone();
-        if let Some(record)=&mut self.record{if record.steps.try_reserve(1).is_err(){return Err(self.freeze_action(Error::DeliveryFault("combat recorder allocation failed"),Some(action),false,false))}}
+        if let Some(record)=&mut self.record{if record.steps.try_reserve(1).is_err(){return Err(Failure{error:self.freeze_action(Error::DeliveryFault("combat recorder allocation failed"),Some(action),false,false),committed:false})}}
         if let Err(e)=self.run.as_mut().unwrap().step(&action){
             self.last_step_committed=matches!(e,RunError::Faulted(_));
             if self.last_step_committed{self.accepted_steps+=1;self.serial+=1;}
-            return Err(self.freeze_action(Error::Core(e),Some(action),self.last_step_committed,false))
+            let committed=self.last_step_committed;
+            return Err(Failure{error:self.freeze_action(Error::Core(e),Some(action),committed,false),committed})
         }
         self.last_step_committed=true;
         self.accepted_steps+=1;self.serial+=1;
@@ -285,8 +313,18 @@ impl CombatTrainingSession{
         // `spire-gym-combat-outcome-reward-v1`: victory +1, death -1, escaped 0 (M34s-a aligns Gym66 to the documented law).
         let reward=outcome.map_or(0,outcome_reward);
         if let Some(record)=&mut self.record{record.steps.push(crate::RunRecordedStep{action:action.clone(),reward,terminal:self.run.as_ref().unwrap().decision().ok().and_then(|d|d.terminal)});record.outcome=self.run.as_ref().unwrap().combat_checkpoint().map(|c|c.record.outcome);}
-        let boundary=self.publish().map_err(|e|self.freeze_action(e,Some(action),true,true))?;Ok(CombatTrainingStep{boundary,reward,terminated,truncated:false})
+        let boundary=self.publish().map_err(|e|Failure{error:self.freeze_action(e,Some(action),true,true),committed:true})?;Ok(CombatTrainingStep{boundary,reward,terminated,truncated:false})
     }
+    /// M35: the publication serial (advances only when a boundary is published or an action commits).
+    pub(crate) fn publication_serial(&self)->u64{self.serial}
+    /// M35: the retained first fault, if any.
+    pub(crate) fn retained_fault(&self)->Option<Error>{self.fault.clone()}
+    /// M35: retain a batch job's error as this session's first fault (idempotent: the first fault is kept).
+    pub(crate) fn retain_batch_error(&mut self,error:Error,committed:bool)->Error{self.freeze_action(error,None,committed,committed)}
+    /// M35: retain a caught panic of a batch job.
+    pub(crate) fn retain_batch_panic(&mut self,committed:bool)->Error{self.retain_batch_error(Error::DeliveryFault("native combat session operation panicked"),committed)}
+    /// M35: whether the published boundary is the combat's terminal.
+    pub(crate) fn is_terminal(&self)->bool{self.published.is_some()&&self.run.is_some()&&self.terminal_outcome().is_some()}
     pub fn fail_delivery(&mut self,reason:&'static str){self.freeze(Error::DeliveryFault(reason));}
     pub fn diagnostic(&self)->Value{json!({"fault":self.fault.as_ref().map(|e|match e{
         Error::Core(_)=>format!("Core({})",crate::RunRecordError::from_error(e).message.replace(" (full owner retained in reproduction)","")),

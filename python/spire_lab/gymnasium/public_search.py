@@ -10,6 +10,7 @@ import numpy as np
 from spire_lab import _native
 
 from .run import Observation
+from ._vector import pack_rows
 
 
 _HARD_CAPS = {
@@ -74,6 +75,46 @@ class PublicSearch:
     def close(self) -> None:
         self._native.close()
 
+    def step_many(self, branches, actions, *, view="full"):
+        """Step distinct branches in one native call, returning owned stacked rows."""
+        if view not in ("full", "mask"):
+            raise _native.RunInputError("view must be 'full' or 'mask'")
+        if not isinstance(branches, (list, tuple)) or not branches:
+            raise _native.RunInputError("branches must be a nonempty sequence")
+        if not isinstance(actions, (list, tuple, np.ndarray)) or len(actions) != len(branches):
+            raise _native.RunInputError("actions must have one integer per branch")
+        ids, token_rows, action_rows = [], [], []
+        for branch, action in zip(branches, actions, strict=True):
+            if not isinstance(branch, PublicBranch) or branch._search is not self:
+                raise _native.RunInputError("every branch must belong to this search")
+            if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+                raise _native.RunInputError("action must be an integer scalar, not bool")
+            action_index = index(action)
+            if not -(2**63) <= action_index < 2**63:
+                raise _native.RunInputError("action is outside the native index range")
+            if branch._token is None:
+                branch.decision()
+            ids.append(branch._branch_id)
+            token_rows.append(branch._token)
+            action_rows.append(action_index)
+        tokens = np.asarray(token_rows, dtype=np.uint64)
+        action_array = np.asarray(action_rows, dtype=np.int64)
+        raw = self._native.step_many(ids, tokens, action_array, view=view)
+        returned_tokens = raw["tokens"]
+        for i, branch in enumerate(branches):
+            if raw["fault"][i] is None:
+                branch._token = (int(returned_tokens[i, 0]), int(returned_tokens[i, 1]))
+        if view == "mask":
+            observations = {"action_mask": raw["action_mask"]}
+        else:
+            observations = raw["obs"]
+        info = pack_rows(raw["info"])
+        faults = np.empty(len(branches), dtype=object)
+        faults[:] = raw["fault"]
+        info["fault"] = faults
+        info["_fault"] = np.asarray([item is not None for item in raw["fault"]], dtype=np.bool_)
+        return observations, raw["rewards"], raw["terminated"], raw["truncated"], info
+
 
 class PublicBranch:
     """A sampled combat trajectory with a private, branch-specific decision token."""
@@ -137,6 +178,7 @@ class PublicBranch:
         max_branches=None,
         max_steps_per_branch=None,
         max_total_steps=None,
+        workers=1,
     ) -> PublicSearch:
         if type(research_seed) is not int or not 0 <= research_seed < 2**64:
             raise _native.RunInputError("research_seed must be a nonnegative built-in u64 integer")
@@ -145,11 +187,12 @@ class PublicBranch:
             research_seed,
             **_limits(limits, max_live_branches=max_live_branches, max_branches=max_branches,
                       max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps),
+            workers=workers,
         )
         return PublicSearch(child)
 
 
-def open_public_search(env, research_seed, limits=None, **legacy) -> PublicSearch:
+def open_public_search(env, research_seed, limits=None, *, workers=1, **legacy) -> PublicSearch:
     """Open a search at ``env``'s current Standard combat decision (``RunEnv`` and ``StandardCombatEnv``).
 
     ``limits`` is a mapping of any of the four limit names (missing names take the hard caps); ``None`` with no
@@ -159,5 +202,5 @@ def open_public_search(env, research_seed, limits=None, **legacy) -> PublicSearc
         raise _native.RunInputError("research_seed must be a nonnegative built-in u64 integer")
     resolved = _limits(limits, **legacy)
     with env._guard:
-        native = env._session.public_search(research_seed, **resolved)
+        native = env._session.public_search(research_seed, workers=workers, **resolved)
     return PublicSearch(native)

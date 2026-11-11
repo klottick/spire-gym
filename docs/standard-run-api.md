@@ -8,7 +8,8 @@ checkpoints. Python (`crates/spire-python`, `python/spire_lab/gymnasium/run.py`)
 
 Status: M34 source candidate, extended by M34s-a (public knowledge, the Standard combat view and `standard-combat-v1`
 sessions), M34s-b (public belief and search) and M34s-c (synthetic positions and reachable recipes;
-[M34s profile](milestones/m34s-search-scenario.md)). M34s (search and scenario API), M35 (batching) and M36
+[M34s profile](milestones/m34s-search-scenario.md)). M35 extends the Run and combat-training owners with batching and
+adds `PublicSearch.step_many` ([M35 contract](batching.md), [M35 profile](milestones/m35-batching.md)); M36
 (delivery) build on this contract.
 Until the roadmap finishes, no compatibility is promised (fingerprints may change with disclosure). M35 and M36 freeze it.
 
@@ -451,7 +452,23 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
   and the consistent sets are not published. Everything the belief uses is public history the player has seen, but a policy
   that reads only the view sees less.
 - The allow-list over-denies replayed player targets (above). Branches refuse picks among identical draw-pile copies
-  (above). There is no batching or vector search API (M35).
+  (above). M34s itself does not batch branch steps; M35 adds the extension documented below.
+
+## Batched public search (M35)
+
+`PublicSearch::step_many` steps distinct live branches in one call. It preflights every entry before mutation, then
+dispatches each branch's own world through the same resolver as `step`. Per-entry outcomes are returned in input order;
+one branch fault freezes only that branch. Results, tokens, counters and accepted-action histories do not depend on input
+order, grouping or worker count. `with_workers(n)` selects the lazily shared pool for `n > 1`; `n=1` is serial. Branch
+creation and forks remain separate operations.
+
+Python uses `public_search(research_seed, ..., workers=1)` and
+`NativePublicSearch.step_many(branches, tokens, actions, *, view="full")`. The `full` view is the default; `mask` skips
+observation encoding. The native call returns stacked observations (or a mask-only view), masks, tokens, rewards, terminal
+flags, info and per-entry fault details. Whole-call preflight failures leave all branches unchanged, including duplicates,
+foreign/closed/faulted/terminal/truncated branches, stale tokens and insufficient total-step budget. `RunBudgetError`
+represents an exhausted budget in Python. The M34s public-knowledge, privacy and search contract is unchanged; see the
+[M35 batching contract](batching.md#batched-public-search-m35) and the [M35 profile](milestones/m35-batching.md).
 
 ## Tactical starts (M34s-c)
 
@@ -593,9 +610,9 @@ branching and tactical starts:
 
 - No strategy, policy or win-rate claim. The examples (`crates/spire-env/examples/standard_rollout.rs`,
   `examples/standard_run.py`) take random legal actions.
-- Not covered here: batching, vector envs and autoreset (M35); throughput and memory gates and packaging (M36); checkpoint
-  and branch serialisation; turn-N, mid-turn and selection-boundary positions; setting enemy intents, AI memory or relic
-  counters (M34s-c limits, [below](#tactical-starts-m34s-c)).
+- Batching and vector environments are documented in [M35](batching.md). Throughput and memory gates and packaging remain
+  M36. Checkpoint and branch serialisation; turn-N, mid-turn and selection-boundary positions; and setting enemy intents,
+  AI memory or relic counters are not covered (M34s-c limits, [below](#tactical-starts-m34s-c)).
 - `standard-combat-v1` is not the original runtime: its terminal is the engine's combat terminal (settlement effects
   that the original applies at victory, such as Meat on the Bone, are Run settlement here and do not apply).
 - Source acceptance is not Python delivery proof. Python results count only on a verified built extension (see

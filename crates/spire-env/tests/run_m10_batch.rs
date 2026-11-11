@@ -289,12 +289,12 @@ fn execution_fault_keeps_failing_owner_and_marks_only_committed_undelivered_peer
             && fault.error.capacity.as_ref().is_some_and(|capacity| capacity.group == "map_nodes")));
     let delivered_peer = batch.record(1).unwrap().unwrap();
     assert_eq!(delivered_peer.steps.len(), 1);
-    assert!(delivered_peer.fault.as_ref().is_some_and(|fault|
-        fault.committed && fault.gameplay_recorded && fault.error.kind == RunRecordErrorKind::DeliveryFault));
+    // M35 (design §3.3, P5): a committed peer stays healthy and recoverable; only the batch freezes.
+    assert!(delivered_peer.fault.is_none());
     let unrecorded_peer = batch.reproduction(2).unwrap();
     assert!(unrecorded_peer.record.is_none());
     assert!(unrecorded_peer.last_accepted_step.is_some());
-    assert!(matches!(unrecorded_peer.fault, Some(spire_env::RunSessionError::DeliveryFault(_))));
+    assert!(unrecorded_peer.fault.is_none());
 
     let retained = (0..3).map(|slot| batch.reproduction(slot).unwrap()).collect::<Vec<_>>();
     assert_eq!(batch.step(&tokens, &indices).unwrap_err(), RunBatchError::Fault { slots: faults.clone() });
@@ -357,9 +357,8 @@ fn reset_capacity_fault_retains_first_error_and_marks_successful_peer_resets_und
 
     let delivered_record = batch.record(1).unwrap().unwrap();
     assert!(delivered_record.steps.is_empty(), "a delivered reset is not a gameplay step");
-    assert!(delivered_record.fault.as_ref().is_some_and(|fault|
-        !fault.committed && !fault.gameplay_recorded
-            && fault.error.kind == RunRecordErrorKind::DeliveryFault));
+    // M35 (design §3.3, P5): a committed peer stays healthy and recoverable; only the batch freezes.
+    assert!(delivered_record.fault.is_none());
 
     let unrecorded_peer = batch.reproduction(2).unwrap();
     assert_eq!(unrecorded_peer.seed, Some(11));
@@ -367,10 +366,7 @@ fn reset_capacity_fault_retains_first_error_and_marks_successful_peer_resets_und
     assert!(unrecorded_peer.record.is_none());
     assert!(unrecorded_peer.last_accepted_step.is_none());
     assert!(unrecorded_peer.latest_decision.as_ref().is_some_and(Result::is_ok));
-    assert!(matches!(
-        unrecorded_peer.fault,
-        Some(spire_env::RunSessionError::DeliveryFault(_))
-    ));
+    assert!(unrecorded_peer.fault.is_none());
 
     let retained = (0..3)
         .map(|slot| batch.reproduction(slot).unwrap())

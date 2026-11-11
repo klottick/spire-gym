@@ -102,6 +102,7 @@ class RunEnv(gym.Env[Observation, int]):
         max_branches=None,
         max_steps_per_branch=None,
         max_total_steps=None,
+        workers=1,
     ):
         """Open bounded public-belief search at the current Standard combat decision."""
         from .public_search import open_public_search
@@ -109,6 +110,7 @@ class RunEnv(gym.Env[Observation, int]):
         return open_public_search(
             self, research_seed, limits, max_live_branches=max_live_branches, max_branches=max_branches,
             max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps,
+            workers=workers,
         )
 
     def _package_reset(

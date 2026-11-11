@@ -105,7 +105,7 @@ impl ObservationBatch {
 
 pub(crate) fn encoding_error(message: impl Into<String>) -> EnvError {
     EnvError::Fault { records: vec![SlotFault { slot: None, stage: FaultStage::Encoding,
-        message: message.into(), core_fault: None }] }
+        message: message.into(), core_fault: None }], slots: vec![] }
 }
 
 pub(crate) fn capacity(hand: usize, enemies: usize, actions: usize) -> Result<(), EnvError> {

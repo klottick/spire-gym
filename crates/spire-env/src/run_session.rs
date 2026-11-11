@@ -1293,6 +1293,12 @@ impl RunSession{
         Ok(RunStepResult{boundary:returned,reward:transition.reward,terminated:transition.terminal.is_some(),truncated:false,reward_events})
     }
     pub(crate) fn publication_serial(&self)->u64{self.serial}
+    /// M35: the retained first fault, if any (batch statuses and isolate fault records).
+    pub(crate) fn retained_fault(&self)->Option<RunSessionError>{self.fault.clone()}
+    /// M35: whether the published boundary is terminal.
+    pub(crate) fn is_terminal(&self)->bool{self.published.as_ref().is_some_and(|b|b.terminal.is_some())}
+    /// M35 isolate resume (design §3.3): a new unstarted session with this one's profile and configuration.
+    pub(crate) fn fresh_like(&self)->Result<Self,RunSessionError>{Self::with_profile(self.config.clone(),self.profile)}
     pub(crate) fn retain_batch_error(&mut self,error:RunSessionError,committed:bool)->RunSessionError{
         let action=if committed{self.last_step.as_ref().map(|step|step.action.clone())}else{None};
         self.freeze(error.clone(),error,action,committed,committed)

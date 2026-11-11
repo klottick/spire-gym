@@ -49,6 +49,7 @@ user did not request.
 | M33 Ascension 20 (source candidate; Standard A0–A20; A20 all-seen Act 3 double boss; Act 3 unseen-priority fix G1; Act 4 route follows the double boss) | [M33 profile](docs/milestones/m33-ascension20.md) (profile, coverage ledger and reconciliation in one file) |
 | M34 full-run API (source candidate; M34a public view completeness, M34b Standard session/records/Python, M34c exact checkpoints and replay to a decision; base for M34s) | [Standard Run API](docs/standard-run-api.md) (contract) and [M34 profile](docs/milestones/m34-run-api.md) (profile, coverage ledger and reconciliation in one file) |
 | M34s search and scenario API (M34s-a merged: Standard draw rows and card lifecycle columns, Intangible and Back Attack intent display, exact public draw knowledge and pre-roll sets, the Standard combat view, `standard-combat-v1` sessions; Standard fingerprint `bf8e1d11…` and rules id v2. M34s-b merged: combat-scope transplant, public belief `spire-gym-public-belief-v1` with a fail-closed allow-list, search arena `spire-gym-public-search-v1` on Standard Run and `standard-combat-v1` roots, privacy oracle P1–P7, global privacy fixes I1 (grids) and R1 (hidden picks) with Standard rules id v3. M34s-c source candidate (closes M34s): start kinds `fresh_start`, `synthetic_position` (`spire-gym-combat-position-v1`, core `combat/position.rs`) and `reachable_recipe`, bottled-card links in standalone entries) | [M34s profile](docs/milestones/m34s-search-scenario.md) and [Standard Run API](docs/standard-run-api.md#tactical-starts-m34s-c) |
+| M35 batching (source candidate; shared `SessionBatch` for Run and combat training, Gymnasium vector facades, fault recovery, extension identity and `PublicSearch::step_many`; candidate lane P passed, post-merge build pending) | [batching contract](docs/batching.md) and [M35 profile](docs/milestones/m35-batching.md) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |
@@ -105,8 +106,12 @@ manifest stored alongside it.
 Before relying on Python results, inspect `spire_lab._native.__file__` and
 `spire_lab._native.build_info()` in the same environment. Record the imported path
 and build context (Python environment, build command, Rust toolchain, Cargo
-features, and revision/dirty state). `build_info()` reports build revision and
-Rust version, not source hashes. Establish source match from the context and
+features, and revision/dirty state). From M35, `build_info()` also reports
+`source_digest` and `file_digest` (SHA-256 over the extension's Rust inputs,
+features and profile), `features`, `profile` and `dirty`;
+`tests/python/env/test_build_identity.py` (routine Gym lane) recomputes the
+digest from the checkout and requires `features == ["spire-python/extension"]`.
+Python facade files are not in the digest. Establish source match from the context and
 receipt: hashes for Rust, binding, and Python inputs that affect the extension,
 the native module or wheel SHA-256, relevant descriptor fingerprint(s), and exact
 test results. A Git revision or descriptor fingerprint alone does not establish

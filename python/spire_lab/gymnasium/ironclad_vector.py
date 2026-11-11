@@ -13,21 +13,20 @@ from spire_lab import _native
 
 from . import _common
 from .ironclad import _catalog_json
+from ._vector import package_batch, package_recovered
 from .spaces import spaces_from_spec
 
 
-def _seed_values(seed, num_envs: int) -> list[int | None]:
+def _seed_values(seed, num_envs: int):
+    """Validate seeds while leaving scalar slot expansion to native code."""
     if seed is None:
-        return [None] * num_envs
+        return None
     if type(seed) is int:
         if not 0 <= seed < 2**64:
             raise _common.input_error(
                 "seed", "seed must fit in an unsigned 64-bit integer"
             )
-        values: list[int | None] = [seed + slot for slot in range(num_envs)]
-        if any(value is not None and value >= 2**64 for value in values):
-            raise _common.input_error("seed", "scalar seed expansion exceeds u64")
-        return values
+        return seed
     if type(seed) is not list or len(seed) != num_envs:
         raise _common.input_error(
             "shape", "seed must be None, an integer, or a length-B list"
@@ -95,17 +94,26 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
         entry_catalog: dict[str, Any],
         *,
         partition: str = "train",
+        workers: int = 1,
+        autoreset_mode: str = "disabled",
+        fault_policy: str = "freeze",
     ) -> None:
         if type(num_envs) is not int or not 1 <= num_envs <= 256:
             raise _common.input_error("range", "num_envs must be an integer in 1..=256")
+        modes = {"disabled": gym.vector.AutoresetMode.DISABLED,
+                 "next_step": gym.vector.AutoresetMode.NEXT_STEP,
+                 "same_step": gym.vector.AutoresetMode.SAME_STEP}
+        if autoreset_mode not in modes:
+            raise _native.RunInputError("unknown autoreset mode")
         self.metadata = {
             "render_modes": [],
-            "autoreset_mode": gym.vector.AutoresetMode.DISABLED,
+            "autoreset_mode": modes[autoreset_mode],
         }
         self.render_mode = None
         self._guard = _common.OperationGuard()
-        self._batch = _native.NativeIroncladCombatBatch(
-            num_envs, _catalog_json(entry_catalog), partition=partition
+        self._batch = _native.NativeCombatTrainingBatch(
+            num_envs, _catalog_json(entry_catalog), kind="ironclad", partition=partition,
+            workers=workers, autoreset=autoreset_mode, fault_policy=fault_policy,
         )
         self.num_envs = num_envs
         self.closed = False
@@ -115,6 +123,8 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
         self.observation_space = batch_space(self.single_observation_space, num_envs)
         self.action_space = batch_space(self.single_action_space, num_envs)
         self._tokens = np.zeros((num_envs, 2), dtype=np.uint64)
+        self._autoreset_active = autoreset_mode != "disabled"
+        self._fault_active = fault_policy == "isolate"
 
     def observation_spec(self) -> dict[str, Any]:
         """Return the native common combat view descriptor."""
@@ -129,7 +139,9 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
         return self._batch.catalog_descriptor()
 
     def _package_reset(self, raw):
-        info = {"slots": [dict(row) for row in raw["info"]]}
+        info = package_batch(raw, self.num_envs, slots=True,
+                             include_autoreset=self._autoreset_active,
+                             include_fault=self._fault_active)
         tokens = raw["tokens"].copy()
         self._tokens = tokens
         return raw["obs"], info
@@ -146,7 +158,9 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
             )
 
     def _package_step(self, raw):
-        info = {"slots": [dict(row) for row in raw["info"]]}
+        info = package_batch(raw, self.num_envs, slots=True,
+                             include_autoreset=self._autoreset_active,
+                             include_fault=self._fault_active)
         result = (
             raw["obs"],
             np.asarray(raw["rewards"], dtype=np.float32),
@@ -165,6 +179,10 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
         """Return per-session accepted-step counts and retained batch faults."""
         with self._guard:
             return self._batch.diagnostic()
+
+    def recover_committed(self):
+        with self._guard:
+            return package_recovered(self._batch.recover_committed(), self.num_envs, slots=True)
 
     def close(self, **kwargs: Any) -> None:
         with self._guard:

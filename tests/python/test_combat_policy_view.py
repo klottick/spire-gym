@@ -75,7 +75,7 @@ try: a.step(0,r0["token"])
 except _native.RunStateError: pass
 else: raise AssertionError("foreign token accepted after reset")
 assert a.decision()["token"] == b2["token"]
-batch = _native.NativeIroncladCombatBatch(2,catalog,partition="test")
+batch = _native.NativeCombatTrainingBatch(2,catalog,kind="ironclad", partition="test")
 rows = batch.reset(seeds=[1,2])
 r1 = _native.NativeRunSession("ironclad",0,profile="m10-ironclad-policy")
 r2 = _native.NativeRunSession("ironclad",0,profile="m10-ironclad-policy")
@@ -140,14 +140,15 @@ def test_actual_runtime_fault_diagnostic_is_bounded_and_batch_prefix_cannot_retr
     assert "combat" in text.lower()
     with pytest.raises(_native.RunFaultError):
         single.reset(seed=42)
-    batch = _native.NativeIroncladCombatBatch(2, catalog, partition="test")
+    batch = _native.NativeCombatTrainingBatch(2, catalog, kind="ironclad", partition="test")
     rows = batch.reset(seeds=[1, 41], entry_ids=["healthy", "limit"])
     with pytest.raises(_native.RunFaultError):
         batch.step(np.zeros(2, dtype=np.int64), rows["tokens"])
     diagnostic = batch.diagnostic()
     assert diagnostic["accepted_steps"] == [1, 1]
     assert diagnostic["first_fault"]["failing_slot"] == 1
-    assert all(len(row["fault"]) < 256 for row in diagnostic["sessions"])
+    assert diagnostic["sessions"][0]["fault"] is None
+    assert len(diagnostic["sessions"][1]["fault"]) < 256
     with pytest.raises(_native.RunFaultError):
         batch.reset(seeds=[2, 42])
     with pytest.raises(_native.RunFaultError):

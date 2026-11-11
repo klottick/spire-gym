@@ -17,6 +17,10 @@
 use std::path::Path;
 use std::process::Command;
 
+#[path = "src/identity.rs"]
+#[allow(dead_code)] // build.rs uses only the file-digest half
+mod identity;
+
 /// Run `git` with `args`, returning trimmed stdout on success.
 fn git_output(args: &[&str]) -> Option<String> {
     let output = Command::new("git").args(args).output().ok()?;
@@ -33,6 +37,24 @@ fn main() {
 
     let revision = std::env::var("SPIRE_REVISION")
         .unwrap_or_else(|_| git_output(&["rev-parse", "HEAD"]).unwrap_or_else(|| "unknown".to_string()));
+
+    let manifest_dir = std::env::var_os("CARGO_MANIFEST_DIR").expect("Cargo sets manifest dir");
+    let root = Path::new(&manifest_dir).parent().and_then(Path::parent).expect("crate within workspace");
+    let (digest_files, digest_dirs) = identity::digest_inputs(root);
+    for path in &digest_files {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+    for path in &digest_dirs {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+    let file_digest = identity::file_digest(root);
+    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "unknown".to_string());
+    let python_features = python_features(root);
+    let dirty = dirty_status(root, &digest_files);
+    println!("cargo:rustc-env=SPIRE_FILE_DIGEST={file_digest}");
+    println!("cargo:rustc-env=SPIRE_BUILD_PROFILE={profile}");
+    println!("cargo:rustc-env=SPIRE_PYTHON_FEATURES={}", python_features.join("\n"));
+    println!("cargo:rustc-env=SPIRE_DIRTY={dirty}");
 
     let mut watched = Vec::new();
     if let Some(git_dir) = git_output(&["rev-parse", "--absolute-git-dir"]) {
@@ -90,4 +112,38 @@ fn main() {
 
     println!("cargo:rustc-env=SPIRE_REVISION={revision}");
     println!("cargo:rustc-env=SPIRE_RUST_VERSION={rust_version}");
+}
+
+fn python_features(root: &Path) -> Vec<String> {
+    let manifest = std::fs::read_to_string(root.join("crates/spire-python/Cargo.toml"))
+        .expect("spire-python manifest readable");
+    let section = manifest.split("[features]").nth(1).unwrap_or("").split("\n[").next().unwrap_or("");
+    let mut features = Vec::new();
+    for line in section.lines() {
+        let Some((name, _)) = line.split_once('=') else { continue };
+        let name = name.trim();
+        if name.is_empty() || name == "default" || name.starts_with('#') { continue; }
+        let env_name = format!("CARGO_FEATURE_{}", name.replace('-', "_").to_ascii_uppercase());
+        println!("cargo:rerun-if-env-changed={env_name}");
+        if std::env::var_os(&env_name).is_some() {
+            features.push(format!("spire-python/{name}"));
+        }
+    }
+    features.sort();
+    features
+}
+
+fn dirty_status(root: &Path, files: &[std::path::PathBuf]) -> &'static str {
+    let mut command = Command::new("git");
+    command.current_dir(root).args(["status", "--porcelain", "--"]);
+    for path in files {
+        let Ok(relative) = path.strip_prefix(root) else { return "unknown"; };
+        command.arg(relative);
+    }
+    match command.output() {
+        Ok(output) if output.status.success() => {
+            if output.stdout.is_empty() { "false" } else { "true" }
+        }
+        _ => "unknown",
+    }
 }

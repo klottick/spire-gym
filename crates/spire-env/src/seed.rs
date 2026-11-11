@@ -57,6 +57,17 @@ pub enum SeedBatch {
     PerSlot(Vec<Option<IntegerSeed>>),
 }
 
+/// Expand a Gymnasium-style scalar u64 seed into consecutive per-slot u64 seeds.
+/// This is shared by vector/batch adapters; overflow is a typed seed input error.
+pub fn expand_scalar_seed(seed: u64, slots: usize) -> Result<Vec<u64>, EnvError> {
+    let mut expanded = reserved(slots)?;
+    for slot in 0..slots {
+        let offset = u64::try_from(slot).map_err(|_| input(InputReason::Seed, "scalar seed slot exceeds u64"))?;
+        expanded.push(seed.checked_add(offset).ok_or_else(|| input(InputReason::Seed, "scalar seed expansion overflows u64"))?);
+    }
+    Ok(expanded)
+}
+
 pub fn expand_seeds(batch: SeedBatch, slots: usize) -> Result<Vec<Option<IntegerSeed>>, EnvError> {
     if let SeedBatch::PerSlot(seeds) = batch {
         if seeds.len() != slots {

@@ -167,7 +167,7 @@ fn replay_visiting(record:&EpisodeRecord,prepare:impl FnOnce(&mut Slot),
             else {l.advance(&action)}
         });
         match attempted {
-            Err(EnvError::Fault { records })=> {
+            Err(EnvError::Fault { records, .. })=> {
                 fault=records.into_iter().next();
                 if let Some(v)=visitor.as_mut() {v(ReplayVisit {index:record.actions.len()+1,kind:ReplayVisitKind::FaultAttempt,
                     action:Some(action.core),public:l.combat.public_view().ok(),effects,boundary:None})

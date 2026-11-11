@@ -70,7 +70,8 @@ has no original-runtime validation.
   `CombatTrainingSession::public_root`, and the `PublicSearch` arena (tokens, limits, Full or Mask steps, fork, close,
   `actions`, nested roots, counters, spec) with distinct budget, fault, truncation and terminal outcomes. Python:
   `public_search(...)` on `RunEnv` and `StandardCombatEnv`, `PublicSearch`, `PublicBranch`, and `RunBudgetError`. See the
-  [Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b).
+  [Standard Run API](../standard-run-api.md#public-belief-and-search-m34s-b). M35 adds batched branch stepping; see
+  [Batched public search](../standard-run-api.md#batched-public-search-m35).
 - **Rulings (b0, PM-accepted).** D1: root equality and the digest use part a's sound normal form, and roots whose equal
   distributions have different structure stay distinct (independent streams; never a privacy issue). D2 (final review M2):
   pre-roll sets narrow only on the intent value published at a boundary. The execution-time narrowing on a recomputed

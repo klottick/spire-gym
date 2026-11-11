@@ -182,9 +182,8 @@ fn m25_batch_postdispatch_faults() {
         let first = batch.record(0).unwrap().unwrap();
         let second = batch.record(1).unwrap().unwrap();
         assert_eq!((first.steps.len(), second.steps.len()), (1, 1));
-        let first_fault = first.fault.as_ref().unwrap();
-        assert!(first_fault.committed && first_fault.gameplay_recorded);
-        assert_eq!(first_fault.error.kind, RunRecordErrorKind::DeliveryFault);
+        // M35 P5 (amended): a sibling's fault never freezes a healthy peer; its committed row stays recoverable.
+        assert!(first.fault.is_none());
         let second_fault = second.fault.as_ref().unwrap();
         assert!(second_fault.committed && second_fault.gameplay_recorded);
         assert_eq!(second_fault.error.kind, RunRecordErrorKind::Capacity);
