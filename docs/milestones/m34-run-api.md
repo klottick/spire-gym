@@ -1,8 +1,8 @@
 # M34 Full-run API: Standard session, records, exact checkpoints
 
-Status: source candidate, not accepted. M34a and M34b merged as PRs 96/97; M34c is a candidate.
+Status: M34a, M34b and M34c merged as PR96, PR97 and PR98 (`d657294`). The merge state does not by itself upgrade this finite profile’s acceptance evidence.
 
-M34 adds a native and Python transport contract for Standard full runs across Ironclad, Silent, Defect and Watcher, Ascension 0–20, Acts 1–4 and the Heart. It provides a complete public decision view, explicit creation, seeded sessions, records, reward items, terminal and fault distinctions, exact checkpoints, forks and replay to a recorded decision. It makes no strategy or win claim and has no original-runtime validation. M34s (spire-dxo.71), M35 and M36 remain separate milestones.
+M34 adds a native and Python transport contract for Standard full runs across Ironclad, Silent, Defect and Watcher, Ascension 0–20, Acts 1–4 and the Heart. It provides a complete public decision view, explicit creation, seeded sessions, records, reward items, terminal and fault distinctions, exact checkpoints, forks and replay to a recorded decision. It makes no strategy or win claim and has no original-runtime validation. M34s (PR99–101) and M35 (PR102) are integrated; M36 records final delivery and the versioned contract freeze.
 
 ## Profile
 

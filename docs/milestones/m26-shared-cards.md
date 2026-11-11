@@ -1,8 +1,6 @@
 # M26 shared and off-colour card coverage
 
-Status: **source frozen at freeze v2 (2026-11-01), candidate-v2 for the independent final
-review; not accepted.** Freeze v2 follows the corrections from final review v1 (corrections
-7–11 below). The source was built early on the frozen M25 tree and rebased onto merged M25
+Status: source merged as PR66 (`918f628`). Historical candidate status at freeze v2 (2026-11-01): the independent final review candidate incorporated corrections 7–11 below; this remains a finite M26 source record, not a separate public profile. The source was built early on the frozen M25 tree and rebased onto merged M25
 (`main` at `3729b29e`, PR65). The design §16 interface check and the §6.3 site sweep were
 rerun on the merged source with no unaccommodated difference. The freeze v2 tree has 1035
 files; documentation edits after it are listed in the candidate.

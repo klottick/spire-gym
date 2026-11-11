@@ -253,4 +253,4 @@ original game execution or Java RNG/cursor parity is claimed.
 review and exact-source verification. The six normal-start traces remain early gameplay Deaths;
 normal-start HeartVictory remains unobserved. At M10 acceptance, M11 planning-only `.33.1` was
 open/unassigned for ONE written Silent combat plan and actual user review before implementation.
-Current planning state is recorded in [work status](../work-status.md); no product start follows automatically.
+Current planning state is recorded in [work-status history](../handoffs/2026-11-11-work-status-history.md); no product start follows automatically.

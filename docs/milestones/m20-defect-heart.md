@@ -1,6 +1,12 @@
 # M20 Defect A0 Acts1–4 and Heart
 
-2026-10-29: **finite native source accepted; publication pending**. One fresh
+As of 2026-10-30, M20 source is merged as PR59 (`71bc569`). The canonical normal
+Heart outcome requirement is strategy-only and closed under spire-dxo.42; a
+current-source supplied Defect HeartVictory witness is retained. Original normal
+Deaths and earlier supplied/fault evidence remain unchanged.
+
+Historical review status (2026-10-29): finite native source accepted; publication
+pending. One fresh
 comprehensive review was0C/1I/0M; the same reviewer's scoped recheck closed I1
 and its bounded extensions with SOURCE ACCURACY READY,0C/0I/0M remaining.
 The [review record](../superpowers/plans/2026-10-29-m20-native-runtime-review.md)
@@ -14,7 +20,7 @@ records the accepted M19 API binding and bounded source corrections.
 The initial independent comprehensive review requested one Important correction
 (I1): Turbo overflowed at999 before issuing Void. The current source applies a
 bounded M20 add-energy correction; the same reviewer closed I1 and its extensions.
-Root accepted the exact reviewed890 source; administrative publication is pending.
+Root accepted the exact reviewed 890-file source. The historical publication statement was superseded by PR59 integration.
 All workspace and outcome results below are retained **pre-I1-correction**
 evidence. They were not rerun or relabelled as current-source results.
 
@@ -90,6 +96,10 @@ no Python extension, source-extension import or original-game parity is claimed.
 
 ## Normal original outcomes
 
+**Historical core caller (M36):** this caller depended on the retired pre-run
+freeze marker and cannot be run as documented; its recorded outcomes remain
+historical evidence.
+
 The frozen public caller uses the approved routing/key objective and fixed
 policy, budget8192, seed7/11 and these six history triples. Each selected case
 ran once. All six ended in genuine Death on Act1 floor8; none established a
@@ -107,7 +117,7 @@ normal Act3 boss, key set, Act4 entry or Heart completion.
 Canonical normal Heart completion remains **UNPROVEN**. These valid losses are
 retained, not replaced by corrected episodes or supplied traversal. M18's
 Automaton normal gate and M19's normal Act3 boss/NoKeys gate remain
-OPEN_UNMET_UNWAIVED under their accepted source-only dispositions.
+OPEN_UNMET_UNWAIVED under their accepted source-only dispositions at the time of those retained outcomes; Bead spire-dxo.42 later closed the canonical normal Heart requirement as strategy-only.
 
 ## Supplied original and corrective validation
 
@@ -182,9 +192,8 @@ loadout and wrong fallback branches before execution.
 The exact full source, standard reconstructable patch, preimages, Git/POSIX
 modes, executable gradlew, authority, static bindings, TDD attempts, original and
 corrective receipts, compiled consumers, binaries, commands, logs and manifests
-are retained independently of managed worktrees. The completed independent review
-and root source acceptance do not close the normal gate or milestone parent.
-Publication remains pending; no M20 merged revision is claimed.
+are retained independently of managed worktrees. The completed independent review and root source acceptance are separate from the later strategy-only normal outcome disposition under spire-dxo.42.
+M20 merged as PR59 (`71bc569`). The earlier publication-pending statement is historical; source and original evidence are preserved.
 
 ## I1 bounded energy correction
 
@@ -219,12 +228,13 @@ exit0. These overlapping counts are not a new complete-workspace result. The
 same reviewer inspected the complete correction, raw source-bound results and
 ownership, and returned READY with zero remaining findings. This is source
 acceptance at the finite scope, distinct from historical supplied success.
-M21 release remains conditional on actual merged M20 source, verified accepted
-export and explicit root assignment; no implementation release is claimed.
+Historical release condition: M21 required merged M20 source, verified accepted
+export and explicit assignment. M20 merged as PR59; M21 subsequently merged as
+PR60 (`f75eed1`).
 
 ## Scope reconciliation (2026-10-30)
 
-The primary user clarified that this repository's scope is the ability to play the game, not strategy, and that a supplied victory is acceptable (receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`). Under the PM disposition (`35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`), the canonical normal Heart gate is a strategy-only outcome gate. The only supplied Defect HeartVictory (110 actions, freeze `c69b2a31…`) predates the I1 energy-cap correction. Parent spire-dxo.42 therefore stays OPEN until one current-source supplied Heart witness runs after the M23 merge (task spire-dxo.42.11). All original outcomes and supplied-versus-normal provenance above are preserved.
+The primary user clarified that this repository's scope is the ability to play the game, not strategy, and that a supplied victory is acceptable (receipt `6a471ebf82e034b43dddc3352bb0d9d2839a391d4ca5aa9a1c265952e42e0498`). Under the PM disposition (`35d2fdb7acc3393ed3183af3dd58086928d7e02b28141ccd622850ab558d908c`), the canonical normal Heart gate is a strategy-only outcome gate. The only supplied Defect HeartVictory (110 actions, freeze `c69b2a31…`) predates the I1 energy-cap correction. At the time of this scope note, parent spire-dxo.42 awaited one current-source supplied Heart witness after M23. Bead spire-dxo.42 records that witness and closes the parent under the strategy-only disposition. All original outcomes and supplied-versus-normal provenance above are preserved.
 
 ### Current-source supplied witness (2026-10-30)
 

@@ -1,6 +1,6 @@
 # M33 Ascension 20
 
-Status: source candidate, not accepted. A default build exposes Standard A0–A20 for all four characters; A21 is rejected. No spire-env or Python change or delivery claim is included. This profile records engine source and native tests, not original-runtime validation.
+Status: merged as PR95 (`ea409f8`). A default build exposes Standard A0–A20 for all four characters; A21 is rejected. This profile records engine source and native tests, not original-runtime validation or Python delivery.
 
 ## Profile
 
@@ -36,7 +36,7 @@ No A20 traversal Run reached an Act 3 boss. In the runner B check (25 seeds × f
 
 Realistic A20 profiles are all-seen because seen-boss flags are global preferences and reaching A20 entails prior Act 3 victories. The one-boss A20 branch is a synthetic or custom profile case. M34's environment workload should default to an all-seen, `experienced()`-like profile.
 
-M34 consumers should account for `Act3BossComplete + Proceed` also preceding the second boss; the synthetic second-boss node appearing in the map view (M9 map capacity 106); Act 4 floors 52–55 after a double boss; and the requirement that all three Act 3 bosses be seen for the double boss. The engine profile does not deliver those changes through spire-env or Python.
+M34 consumers should account for `Act3BossComplete + Proceed` also preceding the second boss; the synthetic second-boss node appearing in the map view (M9 map capacity 106); Act 4 floors 52–55 after a double boss; and the requirement that all three Act 3 bosses be seen for the double boss. M34 later exposes the Standard Run, including these engine behaviors, through spire-env and Python; the M33 route evidence remains constructed rather than normal A20 boss traversal.
 
 ## Coverage ledger
 

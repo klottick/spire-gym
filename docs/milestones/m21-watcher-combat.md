@@ -1,6 +1,9 @@
 # M21 finite Watcher authored combat — source accepted
 
-Status: root accepted the finite native source under the primary standing source-only conditions; publication is pending. One comprehensive independent review initially found0C/3I/0M, then the SAME reviewer closed I1/I2/I3 at explicit supplied/native grades and returned SOURCE ACCURACY READY0C/0I/0M. Full M21 remains incomplete: seed11 retain `meditate_choice` is UNMET_UNWAIVED and parent43 stays OPEN. See the [public review record](../superpowers/plans/2026-10-29-m21-native-runtime-review.md). This profile implements the [approved design](../superpowers/specs/2026-10-27-m21-watcher-combat-design.md), [plan](../superpowers/plans/2026-10-27-m21-watcher-combat.md), and separate [source reconciliation](m21-watcher-source-reconciliation.md). The immutable approved pair is unchanged.
+Status as of 2026-10-30: M21 source merged as PR60 (`f75eed1`). The seed11
+`meditate_choice` witness was satisfied by current-source tests under Bead
+spire-dxo.43. The original seed11 retained-run outcome below remains unchanged.
+Historical review status is recorded in the [public review record](../superpowers/plans/2026-10-29-m21-native-runtime-review.md). This profile implements the [approved design](../superpowers/specs/2026-10-27-m21-watcher-combat-design.md), [plan](../superpowers/plans/2026-10-27-m21-watcher-combat.md), and separate [source reconciliation](m21-watcher-source-reconciliation.md). The immutable approved pair is unchanged.
 
 ## Finite scope
 
@@ -26,7 +29,10 @@ The metadata correction removes invented card magic fields from MasterReality, C
 
 The frozen public caller has eight exact resource scenarios, seeds 7/11 and budget 8192. All core/native/consumer/caller/configuration inputs, descriptors, binaries and initial metadata were retained outside managed worktrees and their hashes notified to root before the prescribed executions below. Actual deaths and the missing witness remain reported without tuning or replacement episodes. Native consumers used the same recorded choices.
 
-M18/M19 normal gates and parents remain open, unmet and unwaived. M20 normal Heart remains unproven. Source acceptance of a predecessor or this candidate does not imply those normal outcomes or full milestone completion.
+M18/M19 normal outcome gates and M20 canonical normal Heart outcome gate were
+closed as strategy-only under Beads spire-dxo.40–.42. Their original outcomes
+remain unaltered. Source acceptance does not imply an unrecorded outcome or
+original-runtime validation.
 
 ## Original frozen demonstrations — pre-review-correction
 
@@ -45,7 +51,10 @@ The complete 910-file runtime/caller/consumer source, two binaries, eight-entry 
 
 All sixteen settled through the shared Run owner without faults or budget exhaustion. The native consumer imported and replayed the same recorded semantic choices; all sixteen matched final public-decision hashes, accepted counts, rewards and outcomes. It did not run a second policy. Budget0/1 controls remained unfinished with exit1; the bad-scenario control rejected with exit2.
 
-Seed11 retain did not expose a `meditate_choice` witness. That required modal witness remains **UNMET and unwaived** even though the case won; no replacement episode was run. Unit tests separately exercise mandatory Meditate selection, ordered return and resumption. The four genuine Deaths remain valid results. These are canonical/supplied authored-combat demonstrations, not Watcher normal progression or original-game runtime validation.
+As recorded for the original run, seed11 retain did not expose a
+`meditate_choice` witness, although the case won; no replacement episode was run.
+The separately required witness was later satisfied by current-source tests under
+spire-dxo.43. Unit tests separately exercise mandatory Meditate selection, ordered return and resumption. The four genuine Deaths remain valid results. These are canonical/supplied authored-combat demonstrations, not Watcher normal progression or original-game runtime validation.
 
 The original reviewed candidate differed from that freeze only in this profile and dated status. The later I1/I2 source corrections below change the runtime after those executions. All sixteen original outcomes and all 349-choice native evidence are explicitly **PRE-REVIEW-CORRECTION**; none proves outcomes on the corrected source. No policy, replacement episode or full same-choice series was rerun. The required seed11 witness remains unmet and unwaived.
 

@@ -1,8 +1,8 @@
 # M30 Ascension 6–10
 
-Status: source candidate, not accepted; no spire-env, Gym or Python profile (M28 ruling Q1; exposure M34–M36).
+Status: merged as PR92 (`5e2a10b`); this is the finite M30 source profile, not a separate spire-env, Gym or Python profile.
 
-This profile covers Standard Runs at A0–A10 in a default build. It records the source rules, the coverage map, and the changes from the accepted M28 and M29 contracts. It is a candidate, not an acceptance or delivery record.
+This profile covers Standard Runs at A0–A10 in a default build. It records the source rules, coverage map and changes from the accepted M28 and M29 contracts. Its finite source evidence does not claim original-runtime validation.
 
 ## What M30 is
 
@@ -24,7 +24,7 @@ The global fixes apply at every ascension:
 
 - A11+ rules remain for M31–M33: potion slots, upgrades, boss gold, A14 HP, A15 events, A16 shop changes, and the A20 double boss.
 - Enemy behavior rows at A17+ remain for M32. M30 adds no enemy rule.
-- Standard has no spire-env or Python profile here. Public exposure remains M34–M36.
+- M30 adds no separate spire-env or Python profile. Standard Run public exposure merged in M34; M34s and M35 added search and batching.
 - Original-runtime validation is out of scope. Source-check §G cannot determine whether a ShowCardAndObtainEffect update reaches onObtainCard after Omamori; callback timing depends on frame delta. Test5’s normal pool registration is also not determinable statically.
 - Strategy tuning and win-rate targets are out of scope.
 - **Traversal reach stops at Act 2 at A6–A10.** No A6–A10 traversal Run reached an Act 3 boss, Act 4 or the Heart; the supplied mode reached 15/10/10/9/7 Act 2 bosses at A6–A10 (`$E/m30/c2-checks/r2-traversal-summary.md`). The A8 rows for Act 3 and Act 4 elites and bosses (Giant Head, Nemesis, Reptomancer, Spire Shield and Spear) and the A9 rows (Time Eater, Awakened One, Donu and Deca, the Heart) rest on the M29 combat tests (the cross-check MATCH), not on Run reachability at their thresholds. "0 faults at every level" covers the Acts the traversal reached.
@@ -32,7 +32,7 @@ The global fixes apply at every ascension:
 
 ## Evidence index
 
-Paths beginning `$E` are under `E=/home/klottick/.local/share/spire-gym/evidence/m30-execution-20261103` (private evidence store, not published here).
+Paths beginning `$E` are under `E=<private-evidence>/m30-execution-20261103` (private evidence store, not published here).
 
 - Static source record: $E/planning-v2/research/m30-source-check-v1.md
 - Accepted design and implementation plan: $E/planning-v2/2026-11-03-m30-ascension6-10-design.md and 2026-11-03-m30-ascension6-10-plan.md
@@ -265,4 +265,4 @@ This section records disclosed changes and amendments against accepted M28/M29 a
 
 ### Source and evidence limitations
 
-M30 remains a source candidate until one fresh independent final review returns READY. The runner receipts above are on snapshot c2. No Python, Gym, or original-runtime delivery is claimed.
+M30 merged as PR92 (`5e2a10b`). The runner receipts above are on snapshot c2. M30 does not independently claim original-runtime validation.

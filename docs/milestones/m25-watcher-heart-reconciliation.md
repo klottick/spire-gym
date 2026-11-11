@@ -1,7 +1,8 @@
 # M25 source and API reconciliation
 
-Status: **source candidate; once-only outcomes complete (freeze v1, the F1 corrective
-freeze v2 and the G1 corrective freeze v3); independent final review pending. Not accepted.** This record accompanies the approved
+Status: merged as PR65 (`3729b29`); complete under the gameplay-not-strategy scope. Historical
+status at review time: source candidate; once-only outcomes complete (freeze v1, the F1 corrective
+freeze v2 and the G1 corrective freeze v3). This record accompanies the approved
 [design](../superpowers/specs/2026-10-30-m25-watcher-heart-design.md) and
 [plan](../superpowers/plans/2026-10-30-m25-watcher-heart.md) (version 2, design SHA-256
 `04a085d1…24e0`, plan `20bf21c4…a62f`). Those documents are unchanged. This record maps their

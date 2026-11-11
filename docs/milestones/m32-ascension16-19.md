@@ -1,6 +1,6 @@
 # M32 Ascension 16–19
 
-Status: source candidate, not accepted; no spire-env, Gym or Python profile (exposure M34–M36).
+Status: merged as PR94 (`0ba3038`); this is the finite M32 source profile, not a separate spire-env, Gym or Python profile.
 
 M32 extends the default-build Standard Run boundary to A19, implements the source's A16 shop markup and the 26 monster
 behavior rows whose thresholds fall at A17–A19, and removes the engine's playable encounter ceilings through combat
@@ -72,8 +72,7 @@ source/facade behavior changed.
 
 - A20 Standard admission and the second Act 3 boss remain M33. The M32 combat engine admits A20 encounters, but M32
   does not claim a Standard A20 Run.
-- There is no M32 spire-env, Gym or Python profile. Public exposure is M34–M36. G1 test/example expectations, seeds and
-  receipts may be re-pinned under the PM ruling; no spire-env or Python source/facade edit is in scope.
+- M32 adds no separate spire-env, Gym or Python profile; Standard Run exposure merged in M34. G1 test/example expectations, seeds and receipts may be re-pinned under the PM ruling; M32 itself made no spire-env or Python source/facade edit.
 - M32 changes no numeric enemy ladder and does not add RNG draws to imitate original `rollMove` call counts (RNG-001).
   Original-runtime validation and strategy or win-rate targets are out of scope.
 - The public enemy view has no hit-count or intent-category field. Book of Stabbing's counter and several A17–A19
@@ -106,7 +105,7 @@ The traversal records one `m32.first_louse_step` marker per Run outside the A0 c
 traversal detector samples each monster once per `FullCombatView.turn`, keys histories by instance, starts a new opening
 after entry/spawn/split, and breaks a chain on hidden, half-dead, escaped or replaced actors.
 
-Paths beginning `$E` are under `E=/home/klottick/.local/share/spire-gym/evidence/m32-execution-20261104` in the private
+Paths beginning `$E` are under `E=<private-evidence>/m32-execution-20261104` in the private
 evidence store.
 
 #### A0–A15 attribution and compatibility checks

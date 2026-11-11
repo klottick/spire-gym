@@ -29,7 +29,7 @@ passes and exactly the seven preserved historical failures; scoped M10–M6 filt
 and all 17 example/CLI invocations matched their expected results. M10 is accepted
 at its declared captured profile after ONE clean independent review and exact-source
 verification. M10 merged in [PR46](https://github.com/klottick/spire-gym/pull/46).
-The user-approved [M11 Silent combat plan](superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md) is complete at its finite representative Silent A0 scope after one fresh independent review (`m11_milestone_review`; evidence: `.superpowers/sdd/2026-10-25-m11-silent-combat-mechanics/task8-independent-review.md`). The [accepted profile](milestones/m11-silent-combat.md) covers Poison, discard, Shiv, retain, copy, and the canonical-resource authored-combat bridge. Its acceptance matrix retained one Blue Slaver/Two Fungi fixture failure; the profile records the exact test and evidence. The bridge bypasses Neow, map generation, and Act 1; it is neither a Silent Gym profile nor a normal-start route, and no Python extension refresh or delivery claim was made. Gym interoperability `.66` merged to main in PR47; its opt-in standalone and common combat-policy interfaces are described in [combat training](combat-training.md). M11 constrained `.66` integration, and the existing combat-v1/M9/M10 contracts remain frozen. The user approved M12's brainstormed design and implementation plan after independent review and released implementation against the accepted post-`.66` baseline. This dated status does not assign a checkout; use the current primary session and Beads.
+The user-approved [M11 Silent combat plan](superpowers/plans/2026-10-25-m11-silent-combat-mechanics.md) is complete at its finite representative Silent A0 scope after one fresh independent review (`m11_milestone_review`; see the [archived work-status record](handoffs/2026-11-11-work-status-history.md)). The [accepted profile](milestones/m11-silent-combat.md) covers Poison, discard, Shiv, retain, copy, and the canonical-resource authored-combat bridge. Its acceptance matrix retained one Blue Slaver/Two Fungi fixture failure; the profile records the exact test and evidence. The bridge bypasses Neow, map generation, and Act 1; it is neither a Silent Gym profile nor a normal-start route, and no Python extension refresh or delivery claim was made. Gym interoperability `.66` merged to main in PR47; its opt-in standalone and common combat-policy interfaces are described in [combat training](combat-training.md). M11 constrained `.66` integration, and the existing combat-v1/M9/M10 contracts remain frozen. The user approved M12's brainstormed design and implementation plan after independent review and released implementation against the accepted post-`.66` baseline. This dated status does not assign a checkout; use the current primary session and Beads.
 The [M12 finite Silent Act1 profile](milestones/m12-silent-act1.md) is implemented
 on the shared Run/room/resolver/public session owners, with actual normal-start
 boss alternatives and a nonterminal Act2Ready cutoff. Independent milestone review
@@ -55,7 +55,7 @@ supplied-start API, full-pool, Act 4/Heart or Python-extension delivery claim.
 M15 remains unstarted.
 
 The milestone narratives below preserve earlier scope and acceptance history;
-use [work status](work-status.md) and live Beads for current scheduling and ownership.
+use the [milestone index](milestones/README.md) and live Beads for current scheduling and ownership.
 
 Natural Death remains a valid
 episode outcome, not a simulator failure; the six frozen seed-7/11 runs remain early
@@ -137,7 +137,7 @@ content explicit; deferral is not acceptance or permission to invent behavior.
 Historical plans/reports retain their evidence, approvals and failures. Existing
 implemented contracts still apply; no original-runtime, publication, dependency
 change or new product-implementation approval is inferred. See
-[work status](work-status.md) for the administrative handoff and
+[work-status history](handoffs/2026-11-11-work-status-history.md) for the administrative history and
 [environment usage](combat-environments.md) for the implemented API.
 
 ## Approved source-first sequencing amendment (2026-10-16)
@@ -305,54 +305,15 @@ code-migration authorization.
 This administrative publication does not authorize new simulation implementation,
 training, dependencies, original access, evidence promotion or cleanup.
 
-## Delivery path
+## Delivery path and current implementation
 
-1. Reuse the implemented Rust combat core, native batching and Gymnasium facades;
-   do not rebuild already merged functionality or mistake historical dirty copies
-   for unmerged product work.
-2. Specify the smallest useful gym PoC gameplay path and runnable acceptance checks.
-   Identify actual missing content/transitions/interfaces, reusing accepted facts
-   at their existing grade. Resolve only ambiguities that affect that milestone.
-3. Obtain the narrow design/plan/start decisions and implement the selected path
-   with focused correctness, hidden-information, lifecycle/replay and integration
-   tests. Do not require a custom semantic-verification platform to proceed.
-4. Demonstrate complete supported rollouts and batching from an external-style
-   caller; measure representative release performance when scoped. Learner training,
-   learned-strength evaluation and training checkpoints are not gym deliverables.
-5. Expand the supported game content toward the long-term roadmap, preserving
-   explicit unsupported behavior and fidelity limitations.
+At the M36 merge, the delivered simulator uses one authoritative Rust engine. The Standard Run supports all four characters at A0–A20 through Acts 1–4 and the Heart, with native sessions, public search, replay and exact in-memory checkpoints. M34 integrated the Run API and M34s integrated combat search and tactical starts; M35 integrated shared batching, worker pools and the Gymnasium facades. Gym66 remains a supplied-entry combat surface. The [milestone index](milestones/README.md) records merge status and links each finite profile.
 
-Perform original-game comparisons as a later fidelity-promotion milestone under
-separately approved capture scope. They remain necessary for validated-fidelity and
-original-game-transfer claims, not for starting Rust. Each later implementation or
-training milestone still requires its own reviewed plan and start approval.
+The public contract is the Rust source plus its versioned observations, actions, records and replay identities. Python/Gym behavior additionally requires a verified matching extension; source merge alone does not prove Python delivery. M36 records the final delivery evidence and freeze. The freeze takes effect at the M36 merge, and subsequent gameplay fixes follow the versioned change protocol in [delivery](delivery.md).
 
-The existing gym slice is deliberately narrow: supplied-entry Ironclad A0 starter
-cards against Cultist/Jaw Worm. It is not full-run support or unrestricted StS.
-The next PoC must add useful gym capability beyond merely renaming this existing
-slice; exact scope and acceptance remain in `spire-dxo.1`. Existing design,
-plan/start and evidence approvals still apply to each actual implementation step.
+This repository delivers gameplay capability, not strategy, win rate or learned strength. Supplied or constructed outcomes remain distinct from normal-start outcomes. Source-grounded mechanics and reference-informed facts remain distinct from original-runtime observations.
 
-Content progression remains combat → Act 1 Ironclad → full-game/Heart Ironclad →
-A0–A20 → the same progression for Silent → Defect/Watcher → Daily modifiers under
-their original mode rules. Content support is not evidence of agent competence.
-
-## Current implementation status
-
-This table describes the implemented source tree and its recorded verification,
-not a claim that the planned interfaces or full-game content already exist.
-
-| Area | Status |
-|---|---|
-| Rust/Python packaging and device readiness | Implemented smoke/readiness tooling; not a trained agent or simulator-performance result |
-| Narrow Python combat reference | Implemented and independently reviewed: supplied ready state, base/upgraded Strike/Defend/Bash, Burning Blood, one Cultist/Jaw Worm, necessary powers/piles/turns, owned project RNG and schema-2 replay |
-| Python verification | Reviewed reference baseline: 735 tests, including 52 whole-combat acceptance cases. Final minor-fix verification: 830 full-suite tests and all 95 differential tests pass, including above-CPython-threshold handles and isolated reveal execution. Native provenance correction and adapter fix are independently reviewed; historical failed exchanges remain retained. The unchanged default Python product engine still has its enormous-handle reveal conversion limit. Not original-runtime correctness evidence |
-| Original combat validation | Incomplete; the reference remains static-evidence-grounded, **not original-runtime validated** |
-| Narrow Rust combat core | User plan/start approval executed; supplied-entry combat, project RNG, public actions/views, snapshots, native acceptance and test-only differential harness implemented. Historical core-handoff controller workspace/release runs each passed 124 native tests; complete differential checkpoints agreed, including both formerly failing fault cases. Task reviews, whole-slice review, final correction review and controller verification were complete for that core-only handoff, not the later batching/Gymnasium integration. **Source-grounded, not original-runtime validated**; no optimization/throughput claim |
-| Native environment pool/batched interface | Implemented for bounded supplied-entry Ironclad A0 combat with public observations, replay, native workers and single/vector Gymnasium facades. Fresh verification passed 169 offline Rust workspace tests and all 167 environment Python tests with a newly built candidate-revision extension. Full Python:995 passed and the same two baseline readiness-test failures as main, not fully green. Historical CUDA allocation OOMs are separate; neither CUDA readiness nor full-run support is claimed |
-| Learning/training/evaluation system | External; not an unfinished repository deliverable. No learned playing-strength claim |
-| Linux capture readiness | Approved specification retained; helper/feasibility work deferred in favor of source-first Rust. A concrete capture consumer remains required if resumed |
-| Windows real capture adapter/platform gates | Incomplete/fail-closed; Linux readiness does not satisfy them |
+The approved scope's principles remain: reuse implemented owners, preserve explicit unsupported behavior and fidelity limits, and make no original-game claim without original-game evidence. The original-runtime gaps and validation requirements below remain open for any later fidelity-promotion claim.
 
 ## Validation scope and stopping rules
 
@@ -375,6 +336,8 @@ original seeds per enemy, the required interactions and both terminal HP
 observations, plus applicable adapter/export/load/visibility/non-interference and
 Windows gates. Exact conditional AI laws remain required despite RNG-001. Python
 self-tests and later Python/Rust agreement cannot replace original observations.
+These are future fidelity-promotion requirements, not M36 evidence; see the
+[claim grades](delivery.md#claim-grades).
 
 No playable client, generic card-game engine, generic capture framework, unrelated
 infrastructure, private game redistribution or installation is implied by scope

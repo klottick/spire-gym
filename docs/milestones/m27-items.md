@@ -1,9 +1,8 @@
 # M27 relic and potion lifecycles
 
-Status: **source frozen at freeze v5 (2026-11-02), candidate for independent final review;
-M27 is not accepted.** The 1,090-entry tree manifest is
+Status: source merged as PR69 (`5d6a6be`). Historical candidate status at freeze v5 (2026-11-02): the 1,090-entry tree manifest is
 `ec633c788b49b937029efa27f05713ea153493f3fbe2f964d4b956e3114014c1`. Freeze v5 adds the fixes for the
-first final review's findings (reconciliation D5–D16) to freeze v4. M27 is uncommitted on base `db42bf4d` (the merged PR #68 No Draw and native-fault
+first final review's findings (reconciliation D5–D16) to freeze v4. At freeze v5 (2026-11-02), M27 was uncommitted on base `db42bf4d` (the merged PR #68 No Draw and native-fault
 fix), which follows PR #67 (`a86df922`) and merged M26 (PR #66, `918f628`). The freeze packet
 and its verification records are retained under `main-v1/freeze-v5/`.
 
@@ -310,6 +309,6 @@ M27 does not claim:
 
 The named M28 room laws are Constructed entry-point evidence until M28 calls them. F7's source
 fallback and Constructed empty-Boss-pool check are described above. G9/F3 is bound by PM ruling
-and static source reading, and frozen-unreachable as described above. M27 is a source candidate;
-it is not accepted. Remaining evidence and scope boundaries are
+and static source reading, and frozen-unreachable as described above. M27 merged as PR69;
+its finite lifecycle scope is complete. Remaining evidence and scope boundaries are
 recorded in [Not established](m27-items-reconciliation.md#not-established).

@@ -1,6 +1,6 @@
 # M24 source and API reconciliation
 
-Status: **candidate record; independent final review pending**. This record
+Status: M24 complete under the gameplay-not-strategy scope; merged as PR64 (`7b036e8`). This record
 accompanies the approved [design](../superpowers/specs/2026-10-30-m24-watcher-act3-design.md)
 and [plan](../superpowers/plans/2026-10-30-m24-watcher-act3.md) (version 2, design SHA-256
 `ca0474de…c516`, plan `c98de65e…a545`). Those documents are unchanged. This record maps their
@@ -30,7 +30,7 @@ two approved documents. Focused baseline suites at that revision all passed: cor
 | Diagnostics | `run/diagnostics/m24.rs` and feature `m24-diagnostics = ["m23-diagnostics"]`. The private helpers in `run/diagnostics/m23.rs` take the scenario, Act3 history and optional resources as parameters; M23 call sites pass the old values and M23's diagnostics tests are unchanged. |
 | Legacy env schema | `crates/spire-env/src/run_schema.rs::profile` rejects M24 like M22/M23. Main added this mechanical arm before the native lane started so the workspace compiles. |
 | Caller | `examples/m13_support/mod.rs`: `CallerProfile::M24`, `M24CallerOutcome`, `Caller::new_m24`, `rollout_m24` in the same `rollout_shared` loop. `examples/m24_support/{mod,policy,inputs}.rs`. The M23 receipt writer became a generic `receipt(...)`; M23's `persist` is a wrapper and its receipt bytes are unchanged. M24 receipts add `invocation` (argv, executable path and SHA-256). |
-| Native consumer | `crates/spire-env/examples/m24_same_choices.rs` (mirrors `m23_same_choices`). |
+| Native consumer | `crates/spire-env/examples/m24_same_choices.rs` (mirrors `m23_same_choices`; retired 2026-11-11 in M36, see the [M24 profile](m24-watcher-act3.md)). |
 
 ## Deviations and rulings (all recorded before the freeze)
 
@@ -127,7 +127,7 @@ the frozen commands (seed and scenario) together with the frozen executables' ha
   - **Interaction fixtures.** All nine died in combat. Their Watcher × Act3 interactions remain pinned by the combat composition tests (W1–W14, W2b, W7b).
 - **Constructed.** Ending key masks, ending faults, preflight rejection, the Act3 continuation stage, Falling/Tomb/chest stages and the Scry/Meditate/stance choice stages are owner-level evidence only.
 - **Native.**
-  - The frozen `m24_same_choices` consumed the six canonical receipts (release `6d0d237d…`). Scalar session, strict typed/JSON round trip, portable replay, and homogeneous batches with workers 1 and 2 all matched. Coexistence ran 32 actions in each of the M24, M23, M15 and M20 lanes, and each lane crossed an actual combat (`native-result-v1.json`).
+  - The frozen `m24_same_choices` (retired 2026-11-11 in M36) consumed the six canonical receipts (release `6d0d237d…`). Scalar session, strict typed/JSON round trip, portable replay, and homogeneous batches with workers 1 and 2 all matched. Coexistence ran 32 actions in each of the M24, M23, M15 and M20 lanes, and each lane crossed an actual combat (`native-result-v1.json`).
   - The 18 supplied and fixture receipts (release `cc517d2c…`) were replayed by the env test `m24_supplied_recorded_native_agreement`. State matched at every step, and the internal diagnostic replay agreed. That test binary was **built from the frozen source**, not taken from the frozen executables; the invocation log says so.
 
 ## Not established

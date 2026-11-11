@@ -5,17 +5,14 @@ gym with a Rust simulator, native batching and thin Python/Gymnasium interfaces
 for external ML consumers. Models, training, learner checkpoints and experiments
 are outside this repo. No playable client or rendering is part of the product.
 
-Use the [dated work-status snapshot](work-status.md) for current milestone
-coordination and each [accepted profile](milestones/) for its exact evidence and
-limits. M11 is accepted as a finite native Silent A0 authored-combat slice; it did
-not refresh the Python extension or establish Python delivery. Gym66 adds an
-opt-in standalone Ironclad A0 interface and common combat-policy view; see the
-[training guide](combat-training.md). M12's approved design and plan passed
-independent review, and implementation is authorized against the accepted
-post-`.66` baseline. Check Beads and the current primary session for live task
-ownership. A native source result, an installed extension, and Python/Gym behavior
-are separate evidence. Models and learners remain external; no original-runtime
-validation or full-workspace-green claim follows from a scoped profile.
+Use the [work-status history archive](handoffs/2026-11-11-work-status-history.md)
+for dated coordination evidence and the [milestone index](milestones/README.md)
+for current merge status. Each finite profile records its own evidence and limits.
+Gym66 is the supplied-entry Ironclad A0 surface; M35 added shared batching and
+Gymnasium facades. Check Beads and the current primary session for live ownership.
+A native source result, a verified extension and Python/Gym behavior are separate
+evidence. Models and learners remain external; scoped checks establish neither
+original-runtime validation nor a full-workspace-green claim.
 
 ## Agent lane selection and artifact identity
 
@@ -25,7 +22,7 @@ Choose the narrowest existing lane for the changed surface:
 | --- | --- | --- |
 | Rust core, environment, or CLI | `cargo test --workspace --locked --offline` | Native Rust only; default features do not build the Python extension. Use a profile's focused command when available. |
 | Gym/Python facade | `uv run --locked --no-sync python -B -m pytest tests/python/env tests/python/test_ironclad_training.py tests/python/test_combat_policy_view.py -q` | Requires an already provisioned Gym environment and a source-matched extension; `tests/python/env` includes `test_build_identity.py`. |
-| Python combat reference / legacy comparator | `uv run --locked --no-sync python -B -m pytest tests/python/combat -q` | Separate compatibility lane. Known legacy comparator mismatches are baseline-reported in [work status](work-status.md) and [M9 limits](milestones/m9-act3.md#verification-boundaries); this is not a Python-package delivery claim. |
+| Python combat reference / legacy comparator | `uv run --locked --no-sync python -B -m pytest tests/python/combat -q` | Separate compatibility lane. Known legacy comparator mismatches are baseline-reported in [work-status history](handoffs/2026-11-11-work-status-history.md) and [M9 limits](milestones/m9-act3.md#verification-boundaries); this is not a Python-package delivery claim. |
 
 For Python/Gym results, first inspect the imported module in the same environment:
 
@@ -60,15 +57,17 @@ Python proof. The [Gym66 build guide](combat-training.md#shared-implementation-a
 shows an isolated wheel workflow for authorized binding validation that preserves
 other environments.
 
-**M35 Lane P.** After the native lanes are green, build the candidate from its
-retained read-only export into the isolated `m35-lane-p` directory using the
-accepted build recipe. Run `tests/python/env` (including vector conformance,
-search batching and build identity), `test_ironclad_training.py`,
-`test_combat_policy_view.py`, `test_card_metadata.py` and the M34s Python search
-tests. Record exact counts and the imported extension path in the receipt.
-Compare retained n14g/bhl/tsw consumer replay logs with their recipe baselines
-modulo the documented Gym66 `diagnostic()` delta. See the [batching contract](batching.md)
-for the candidate commands and compatibility limits.
+**M35 post-merge build (2026-11-11).** The verified post-merge packet for PR102
+(`09b8fc81`) reports `source_digest`
+`bb1888874447b0fd40090323b10311be45349f568d84f35cccb7813a05deb43a` and
+427 passing Python tests. This receipt establishes the M35 extension build at
+that source identity; it is not M36 evidence. The [batching contract](batching.md)
+describes the merged API and compatibility limits.
+
+**Historical core callers (M20 and M22–M25).** These legacy callers depended on
+pre-run freeze markers from the retired ceremony and cannot be run as documented.
+Their retained outcomes are historical evidence; Standard records and replay are
+the current consumer path.
 
 Consumer source, manifests, artifacts and required ignored evidence must outlive
 managed sessions. Before archiving, preserve them in independently retained

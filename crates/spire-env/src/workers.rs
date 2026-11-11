@@ -12,22 +12,33 @@ fn build_pool(threads:usize) -> Result<rayon::ThreadPool,EnvError> {
     rayon::ThreadPoolBuilder::new().num_threads(threads).stack_size(WORKER_STACK_BYTES).build()
         .map_err(|e|setup(format!("worker pool construction: {e}")))
 }
-static SHARED_POOLS: std::sync::Mutex<Vec<(usize,std::sync::Arc<rayon::ThreadPool>)>> = std::sync::Mutex::new(Vec::new());
+/// M36 (design §3.5, spire-dmm M5): `Weak` handles per worker count plus one strong hot slot, the most recently used
+/// pool. A pool lives while a search holds it or while it is hot, so residency is the live searches' counts plus one.
+struct SharedPools { handles: Vec<(usize,std::sync::Weak<rayon::ThreadPool>)>, hot: Option<std::sync::Arc<rayon::ThreadPool>> }
+static SHARED_POOLS: std::sync::Mutex<SharedPools> = std::sync::Mutex::new(SharedPools { handles: Vec::new(), hot: None });
 impl Scheduler {
     pub(crate) fn new(workers:usize, batch:usize) -> Result<Self,EnvError> {
         let effective=workers.min(batch);
         if effective==1 { return Ok(Self::Serial); }
         build_pool(effective).map(|pool|Self::Parallel(std::sync::Arc::new(pool)))
     }
-    /// M35 (design §3.6, P13): one lazily created process-wide pool per worker count, for callers created per decision or
-    /// nested (`PublicSearch::step_many`); `workers <= 1` touches no pool. Batches keep their own private pool.
+    /// M35 (design §3.6) shared pools for callers created per decision or nested (`PublicSearch::step_many`); `workers <= 1`
+    /// touches no pool. M36: a live pool of that count is reused, otherwise a new one is built; dead handles are pruned
+    /// and the returned pool becomes hot (this replaces M35 P13's per-count residency). Batches keep their own pool.
     pub(crate) fn shared(workers:usize) -> Result<Self,EnvError> {
         if workers<=1 { return Ok(Self::Serial); }
         let mut pools=SHARED_POOLS.lock().unwrap_or_else(|p|p.into_inner());
-        if let Some((_,pool))=pools.iter().find(|(n,_)|*n==workers) { return Ok(Self::Parallel(pool.clone())); }
-        let pool=std::sync::Arc::new(build_pool(workers)?);
-        pools.try_reserve(1).map_err(|_|setup("worker pool registry allocation failed"))?;
-        pools.push((workers,pool.clone()));
+        pools.handles.retain(|(_,pool)|pool.strong_count()>0);
+        let pool=match pools.handles.iter().find_map(|(n,pool)|if *n==workers { pool.upgrade() } else { None }) {
+            Some(pool) => pool,
+            None => {
+                let pool=std::sync::Arc::new(build_pool(workers)?);
+                pools.handles.try_reserve(1).map_err(|_|setup("worker pool registry allocation failed"))?;
+                pools.handles.push((workers,std::sync::Arc::downgrade(&pool)));
+                pool
+            }
+        };
+        pools.hot=Some(pool.clone());
         Ok(Self::Parallel(pool))
     }
     pub(crate) fn map<T:Send,R:Send>(&self, jobs:Vec<T>, f:impl Fn(T)->R+Send+Sync)
@@ -64,4 +75,9 @@ impl Scheduler {
         }
         Ok(results)
     }
+}
+/// TEST-ONLY (M36): whether the registry holds a live pool for `workers` (read only for counts a test owns).
+#[cfg(test)]
+pub(crate) fn registry_contains_for_test(workers:usize) -> bool {
+    SHARED_POOLS.lock().unwrap_or_else(|p|p.into_inner()).handles.iter().any(|(n,pool)|*n==workers && pool.strong_count()>0)
 }

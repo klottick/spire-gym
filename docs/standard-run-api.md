@@ -6,12 +6,11 @@ The milestone record, coverage ledger and reconciliation are in [M34](milestones
 (`crates/spire-core`) owns every rule and value. spire-env (`crates/spire-env`) owns the session, encoder, records and
 checkpoints. Python (`crates/spire-python`, `python/spire_lab/gymnasium/run.py`) only transports them.
 
-Status: M34 source candidate, extended by M34s-a (public knowledge, the Standard combat view and `standard-combat-v1`
-sessions), M34s-b (public belief and search) and M34s-c (synthetic positions and reachable recipes;
-[M34s profile](milestones/m34s-search-scenario.md)). M35 extends the Run and combat-training owners with batching and
-adds `PublicSearch.step_many` ([M35 contract](batching.md), [M35 profile](milestones/m35-batching.md)); M36
-(delivery) build on this contract.
-Until the roadmap finishes, no compatibility is promised (fingerprints may change with disclosure). M35 and M36 freeze it.
+Status: Standard Run, public search, tactical starts and batching are integrated in PRs 96–102. M36 applies the
+versioned contract freeze at its merge; see the [freeze and change protocol](delivery.md#freeze-and-change-protocol).
+Source-grounded native acceptance and Python delivery are separate evidence grades. The verified post-merge Python
+artifact identity and hashes are published in the private build packet and release records, not inferred from this
+source contract.
 
 ## Identities
 
@@ -610,10 +609,69 @@ branching and tactical starts:
 
 - No strategy, policy or win-rate claim. The examples (`crates/spire-env/examples/standard_rollout.rs`,
   `examples/standard_run.py`) take random legal actions.
-- Batching and vector environments are documented in [M35](batching.md). Throughput and memory gates and packaging remain
-  M36. Checkpoint and branch serialisation; turn-N, mid-turn and selection-boundary positions; and setting enemy intents,
+- Batching and vector environments are documented in [batching](batching.md). Checkpoint and branch serialisation;
+  turn-N, mid-turn and selection-boundary positions; and setting enemy intents,
   AI memory or relic counters are not covered (M34s-c limits, [below](#tactical-starts-m34s-c)).
 - `standard-combat-v1` is not the original runtime: its terminal is the engine's combat terminal (settlement effects
   that the original applies at victory, such as Meat on the Bone, are Run settlement here and do not apply).
 - Source acceptance is not Python delivery proof. Python results count only on a verified built extension (see
-  [AGENTS.md](../AGENTS.md)).
+  [development](development.md)).
+- A Standard random policy often terminates in Act 1. Supplied full-length routes test progression mechanics, not normal
+  reach or combat strength. Original-runtime fidelity and source RNG/seed parity are not established.
+
+## From-start Heart acceptance (M36)
+
+Run the focused native acceptance with:
+
+```sh
+cargo test --locked --offline -p spire-env m36_heart
+```
+
+The matrix is Ironclad, Silent, Defect and Watcher at A0 and A20 (eight routes).
+For each character index `i` in that order, A0 uses seed `0xB0 + i` and A20
+uses `0xB8 + i`. These are public seeds with default experienced creation and
+full Neow.
+
+**What is supplied.** Before the first public boundary the test sets HP and max
+HP to 900 and gives all three keys. Then, at every combat decision where an enemy
+is above 1 HP, a test-only wound hook (the M34b `m34-diagnostics` hook) deals each
+living enemy one fixed hit through the shared resolver that leaves it at 1 HP;
+Invincible, Intangible and Buffer still apply. M36 made the hook halve any hit
+that a damage modifier would make lethal, so it never kills. The policy's next
+attack then finishes the enemy. The supplied fields and hook are test-only
+diagnostics, not a public API.
+
+**What this exercises.** Because enemies are reduced to 1 HP, fights are not
+really fought: only the Heart, Invincible, Intangible, Buffer and splitting
+enemies prolong them. The routes therefore exercise creation and Neow, map
+routing, rooms, events, shops, rewards, keys, the Act 3 ending and the A20
+double-boss routing, Act 4 and terminal settlement through the public
+`RunSession::step`. They do not exercise real combat difficulty, enemy
+behaviour over a full fight or combat balance. A route is supplied, not a
+policy win.
+
+| Character | A0 steps | A20 steps |
+| --- | ---: | ---: |
+| Ironclad | 326 | 345 |
+| Silent | 331 | 333 |
+| Defect | 309 | 329 |
+| Watcher | 351 | 419 |
+
+**Grade: native, source-grounded, supplied.** The acceptance validates default
+creation and Neow, map and room progression, rewards, keys, the Act 3 ending,
+reaching the A20 double boss, Act 4 and terminal settlement for each matrix
+cell, with combat bypassed as described above. It
+checks HeartVictory on the final Proceed (reward 110), TrueVictory at floor 55
+(A0) or 56 (A20), replay, deterministic record construction, semantic pins and
+a B=8 SAME_STEP batch twin. It does not establish normal-start reach, combat
+difficulty or strength, Python delivery of a Heart route, or original-runtime
+fidelity.
+
+An ignored A0–A20 sweep covers 84 supplied routes. It exposed and fixed the
+test-only supply-hook lethal-hit defect before acceptance. Two routes reached
+the Heart at lower final floors because Secret Portal skipped to the boss;
+two policy outcomes died and were reseeded with disclosure. The final sweep
+completed 84/84. It is diagnostic coverage, not a normal traversal or routine
+gate. The 2026-10-30 scope rule permits a supplied victory; it supersedes the
+older spire-dxo.21 ACC language that excluded teleports or injected resources
+from full-run success. This section labels the route supplied accordingly.

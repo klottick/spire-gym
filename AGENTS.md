@@ -29,27 +29,14 @@ user did not request.
 
 | Need | Start here |
 | --- | --- |
-| Current product boundary and delivery path | [scope](docs/scope.md) and dated [work status](docs/work-status.md) |
-| Accepted behavior and evidence | [milestone profiles](docs/milestones/) and each profile's linked plan |
-| combat-v1 and M9/M10 Run contracts (not frozen until roadmap completion) | [environment guide](docs/combat-environments.md), [M9](docs/milestones/m9-act3.md), [M10](docs/milestones/m10-heart.md) |
-| Gym66 standalone combat and common policy view | [combat-training guide](docs/combat-training.md) |
-| Opt-in static card metadata descriptor (spire-90f) | [card metadata](docs/card-metadata.md) |
-| Shared power/intent observation vocabulary and fingerprint CHANGES (spire-85d) | [observation vocabulary](docs/observation-vocabulary.md) |
-| M11 finite Silent authored-combat boundary | [M11 profile](docs/milestones/m11-silent-combat.md) |
-| M12 accepted finite Silent Act1 native progression | [M12 profile](docs/milestones/m12-silent-act1.md) and [approval record](docs/superpowers/plans/2026-10-26-m12-silent-act1-approval.md) |
-| M13 accepted finite Silent Acts1–2 native progression | [M13 profile](docs/milestones/m13-silent-act2.md) and [coverage amendment](docs/superpowers/plans/2026-10-26-silent-normal-run-coverage-amendment.md) |
-| M14 accepted finite Silent A0 Acts 1–3 native progression | [M14 profile](docs/milestones/m14-silent-act3.md) and [approved supplied-full-boss amendment](docs/superpowers/plans/2026-10-26-m14-supplied-full-boss-approval.md); canonical normal-start completion remains unproven |
-| M26 shared and off-colour card layer (candidate; no public profile) | [M26 profile](docs/milestones/m26-shared-cards.md), [coverage ledger](docs/milestones/m26-shared-cards-coverage-ledger.md) and [reconciliation](docs/milestones/m26-shared-cards-reconciliation.md) |
-| M27 relic and potion lifecycles (candidate; no public profile) | [M27 profile](docs/milestones/m27-items.md), [coverage ledger](docs/milestones/m27-items-coverage-ledger.md) and [reconciliation](docs/milestones/m27-items-reconciliation.md) |
-| M28 events and economy rooms (source-complete candidate, M28f2 close-out; native `StandardA0`, no public profile) | [M28 profile](docs/milestones/m28-events-economy.md), [coverage ledger](docs/milestones/m28-events-economy-coverage-ledger.md), [reconciliation](docs/milestones/m28-events-economy-reconciliation.md) and the [event reference record](data/events/README.md) |
-| M29 Ascension 1–5 (source-complete candidate; M29a1 run rules; M29a2 combat ascension owner and ceilings; M29b Act 1 normal ladders; M29c Act 1 elites/bosses, Slavers and Act 2 elites; M29d Acts 2–4 and close: A1–A5 public in a default build; `StandardA0` renamed `Standard`) | [M29 profile](docs/milestones/m29-ascension1-5.md), [coverage ledger](docs/milestones/m29-ascension1-5-coverage-ledger.md) and [reconciliation](docs/milestones/m29-ascension1-5-reconciliation.md) |
-| M30 Ascension 6–10 (candidate; A6 start HP, A10 Ascender's Bane at master-deck index 0 and its lifecycle, Standard cap A10; global fixes G1 Toke, G2 empty shop purge, G3 raw remove, G4 Standard combat shuffle order, G5 Red Skull latch) | [M30 profile](docs/milestones/m30-ascension6-10.md) (profile, coverage ledger and reconciliation in one file) |
-| M31 Ascension 11–15 (candidate; A11 two potion slots, four with Potion Belt; A12 upgrade chance halved in Acts 2–4; A13 boss and Mind Bloom gold; A14 max HP and A15 events pinned; Standard cap A15; global fixes G1 equip card rows by the reward law, G2 kept Belt slots usable, G3 shop card stock at ShopRoom 9/37) | [M31 profile](docs/milestones/m31-ascension11-15.md) (profile, coverage ledger and reconciliation in one file) |
-| M32 Ascension 16–19 (source candidate; Standard A0–A19; A16 shop ×1.1; 26 A17–A19 monster behavior rows; playable ceilings removed; global Louse-opening fix G1) | [M32 profile](docs/milestones/m32-ascension16-19.md) (profile, coverage ledger and reconciliation in one file) |
-| M33 Ascension 20 (source candidate; Standard A0–A20; A20 all-seen Act 3 double boss; Act 3 unseen-priority fix G1; Act 4 route follows the double boss) | [M33 profile](docs/milestones/m33-ascension20.md) (profile, coverage ledger and reconciliation in one file) |
-| M34 full-run API (source candidate; M34a public view completeness, M34b Standard session/records/Python, M34c exact checkpoints and replay to a decision; base for M34s) | [Standard Run API](docs/standard-run-api.md) (contract) and [M34 profile](docs/milestones/m34-run-api.md) (profile, coverage ledger and reconciliation in one file) |
-| M34s search and scenario API (M34s-a merged: Standard draw rows and card lifecycle columns, Intangible and Back Attack intent display, exact public draw knowledge and pre-roll sets, the Standard combat view, `standard-combat-v1` sessions; Standard fingerprint `bf8e1d11…` and rules id v2. M34s-b merged: combat-scope transplant, public belief `spire-gym-public-belief-v1` with a fail-closed allow-list, search arena `spire-gym-public-search-v1` on Standard Run and `standard-combat-v1` roots, privacy oracle P1–P7, global privacy fixes I1 (grids) and R1 (hidden picks) with Standard rules id v3. M34s-c source candidate (closes M34s): start kinds `fresh_start`, `synthetic_position` (`spire-gym-combat-position-v1`, core `combat/position.rs`) and `reachable_recipe`, bottled-card links in standalone entries) | [M34s profile](docs/milestones/m34s-search-scenario.md) and [Standard Run API](docs/standard-run-api.md#tactical-starts-m34s-c) |
-| M35 batching (source candidate; shared `SessionBatch` for Run and combat training, Gymnasium vector facades, fault recovery, extension identity and `PublicSearch::step_many`; candidate lane P passed, post-merge build pending) | [batching contract](docs/batching.md) and [M35 profile](docs/milestones/m35-batching.md) |
+| Current scope and status | [scope](docs/scope.md) and [work status](docs/work-status.md) |
+| Delivery and handoff | [delivery](docs/delivery.md), [M36 profile](docs/milestones/m36-final-delivery.md), and [milestone index](docs/milestones/README.md) |
+| Standard Run API | [Standard Run API](docs/standard-run-api.md) |
+| Batching | [batching contract](docs/batching.md) |
+| Gym66 and legacy combat training | [combat-training guide](docs/combat-training.md) and [environment guide](docs/combat-environments.md) |
+| Opt-in static card metadata | [card metadata](docs/card-metadata.md) |
+| Shared observation vocabulary and descriptor changes | [observation vocabulary](docs/observation-vocabulary.md) |
+| Milestone status and profiles | [milestone index](docs/milestones/README.md) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |
 | Build, test, packaging, and tool versions | [development](docs/development.md), [toolchain](docs/toolchain.md), Cargo.toml, pyproject.toml, and lockfiles |
 | Live task state and owner | Beads context, assigned task ID, and current primary-session instructions |
@@ -76,10 +63,20 @@ crates/spire-core/src/combat/engine.rs, crates/spire-env/src/combat_policy.rs,
 and crates/spire-python/src/run_env.rs.
 See the [Gym66 guide](docs/combat-training.md) and [shared-engine guidance in the
 public history archive](docs/handoffs/2026-10-26-agent-guidance-history.md).
-combat-v1 and the M9/M10 profiles are not frozen until roadmap completion (user override, 2026-11-02: no
-compatibility promises). Global fixes may change their gameplay, with disclosure in the profile, CHANGES and the
-delivery note; for example, M34s-b R1-b changes which copy a Stasis roll takes. Opt-in policy-v3 is documented
-separately and is not switched on silently for the M10 Heart or the default profile.
+The versioned contract freeze takes effect at the M36 merge. It covers the Standard family, card metadata,
+build_info() fields, the batching contract and the Python facade names, plus the legacy surfaces consumers use:
+combat-v1, Gym66 v1/v2 and its policy views, and the M9/M10 Run contracts. See the
+[freeze and change protocol](docs/delivery.md#freeze-and-change-protocol). Opt-in policy-v3 remains separately
+documented and is not switched on silently for the M10 Heart or the default profile.
+
+## After the freeze
+
+- Fix gameplay bugs globally; treat every frozen profile routed through changed rules as affected unless review records a reasoned exemption. Bump affected rules ids, re-pin frozen replay digests, Heart and existing descriptor pins, and record the change in CHANGES.md. Old records fail closed; there is no multi-version support or return to a per-merge freeze ceremony.
+- For a changed observation, action, or descriptor layout, bump its schema version and fingerprint, and add CHANGES and DELIVERY notes.
+- Additive API names or optional arguments with unchanged defaults need a CHANGES entry but no version bump.
+- Get user approval before removing or renaming a frozen name.
+- Keep frozen identities, replay digests, Heart pins, and the Python API name checks green for other changes.
+- Every merge still gets the post-merge extension build packet.
 
 A source acceptance is not proof that the matching Python extension was built or
 loaded. The default Rust workspace does not enable the Python extension feature.

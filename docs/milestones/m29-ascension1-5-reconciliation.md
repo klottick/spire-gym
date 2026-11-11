@@ -5,7 +5,7 @@ rest of M29 and its close) is a candidate for final review. This record accompan
 [M29 profile](m29-ascension1-5.md) and its [coverage ledger](m29-ascension1-5-coverage-ledger.md).
 It is not a public profile or a Python-delivery claim.
 
-Evidence paths below are relative to /home/klottick/.local/share/spire-gym/evidence/m29-execution-20261103
+Evidence paths below are relative to <private-evidence>/m29-execution-20261103
 unless they begin with docs/, data/ or crates/. A test name is the exact native test unless a
 different lane is stated. Each chunk keeps the original bytes of every amended accepted test in its
 `amended-original/` directory (with `SHA256SUMS`); M29d's originals equal main `4546d65e`.

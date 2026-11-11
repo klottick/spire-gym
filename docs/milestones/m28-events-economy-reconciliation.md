@@ -2,7 +2,7 @@
 
 Status: M28a–M28f1 are merged, each accepted through its cited chunk receipt; the M28f2 close-out is a candidate for final review. This record accompanies the [M28 profile](m28-events-economy.md) and its [coverage ledger](m28-events-economy-coverage-ledger.md). It is not a public profile or a Python-delivery claim.
 
-Evidence paths below are relative to /home/klottick/.local/share/spire-gym/evidence/m28-execution-20261101 unless they begin with docs/ or crates/. A test name is the exact native test unless a different lane is stated. “Settled” means source/ruling and test evidence agree; “disclosed decision” records an accepted project choice; “W-graded” identifies an item grounded in a captured wiki page, with source-grounded corrections called out.
+Evidence paths below are relative to <private-evidence>/m28-execution-20261101 unless they begin with docs/ or crates/. A test name is the exact native test unless a different lane is stated. “Settled” means source/ruling and test evidence agree; “disclosed decision” records an accepted project choice; “W-graded” identifies an item grounded in a captured wiki page, with source-grounded corrections called out.
 
 ## E-items and F-frontiers
 

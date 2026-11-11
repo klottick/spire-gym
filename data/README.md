@@ -46,8 +46,8 @@ copy at the old path. Historical authored reports remain in
    new sources merely to start a milestone.
 
 The accepted simulator boundary is not the data catalog's coverage. See the
-[current work-status snapshot](../docs/work-status.md), [repository scope](../docs/scope.md),
-and accepted [milestone profiles](../docs/milestones/) for the current status; use
+[work-status snapshot](../docs/work-status.md) (dated history in the [archive](../docs/handoffs/2026-11-11-work-status-history.md)),
+[repository scope](../docs/scope.md) and the [milestone index](../docs/milestones/README.md) for the current status; use
 Beads and the primary session for live task ownership and authorization. As of the
 2026-10-26 snapshot, M11 is accepted at its finite Silent A0 authored-combat scope,
 and Gym interoperability `.66` is merged to main. Its opt-in standalone and common

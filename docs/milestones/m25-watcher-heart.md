@@ -1,12 +1,19 @@
-# M25 finite native Watcher A0 Acts 1–4 and Heart — candidate
+# M25 finite native Watcher A0 Acts 1–4 and Heart — complete
 
-Status: **source candidate; frozen once-only sequences complete (freeze v1, the F1
-corrective freeze v2 and the G1 corrective freeze v3); independent final review pending. Not accepted.**
+Status: complete under the gameplay-not-strategy scope; merged as PR65 (`3729b29`). Original outcomes and finite evidence limits remain as recorded. The freeze v1, F1 corrective freeze v2 and G1 corrective freeze v3 evidence remains historical.
 This profile implements the approved [design](../superpowers/specs/2026-10-30-m25-watcher-heart-design.md)
 and [plan](../superpowers/plans/2026-10-30-m25-watcher-heart.md). Owners, deviations, global
 corrections and lane provenance are in the [reconciliation](m25-watcher-heart-reconciliation.md);
 per-item test keys are in the [coverage ledger](m25-watcher-heart-coverage-ledger.md). The
 predecessor is M24 ([PR64](https://github.com/klottick/spire-gym/pull/64)).
+
+Retired 2026-11-11 (M36): the m22/m23/m24_same_choices consumers depended on
+private receipts and were stale by design after disclosed global fixes; Standard
+records and replay supersede them.
+
+Historical core caller (M36): this caller depended on the retired pre-run freeze
+marker and cannot be run as documented; its retained outcomes are historical
+evidence.
 
 ## Finite boundary
 

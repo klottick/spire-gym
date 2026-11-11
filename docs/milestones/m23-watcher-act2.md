@@ -1,6 +1,14 @@
-# M23 finite native Watcher A0 Acts 1–2 — candidate
+# M23 finite native Watcher A0 Acts 1–2 — complete
 
-Status: **source candidate; frozen once-only sequence complete; independent final review pending**. Not accepted. This profile implements the [approved design](../superpowers/specs/2026-10-28-m23-watcher-act2-design.md) and [plan](../superpowers/plans/2026-10-28-m23-watcher-act2.md); their historical pending-status prose is unchanged. Actual owners, corrections and provenance are in the [source/API reconciliation](m23-watcher-act2-reconciliation.md). The predecessor is accepted M22 ([PR61](https://github.com/klottick/spire-gym/pull/61), merge `02839be64c2fb94195aa2045aee8062656199894`). M18–M22 normal gates and parents stay open and unwaived.
+Status: complete under the gameplay-not-strategy scope; merged as PR62 (`5afcc7c`). M18–M22 normal outcome requirements are strategy-only closures under Beads spire-dxo.40–.44. The profile’s original outcomes, evidence grades and finite boundaries remain as recorded. The [approved design](../superpowers/specs/2026-10-28-m23-watcher-act2-design.md) and [plan](../superpowers/plans/2026-10-28-m23-watcher-act2.md) retain their historical pending-status prose. Actual owners, corrections and provenance are in the [source/API reconciliation](m23-watcher-act2-reconciliation.md). The predecessor M22 merged as PR61 (`02839be`).
+
+Retired 2026-11-11 (M36): the m22/m23/m24_same_choices consumers depended on
+private receipts and were stale by design after disclosed global fixes; Standard
+records and replay supersede them.
+
+Historical core caller (M36): this caller depended on the retired pre-run freeze
+marker and cannot be run as documented; its retained outcomes are historical
+evidence.
 
 ## Finite boundary
 

@@ -1,6 +1,27 @@
 # M22 finite native Watcher A0 Act1 — source accepted
 
-Status: root accepted this finite native source under the primary standing source-only workflow after ONE fresh comprehensive independent senior review of Tasks0–7 and all five focus classes returned **SOURCE ACCURACY READY,0 Critical / 0 Important / 0 Minor findings**. Publication is pending; full M22 and parent44 remain OPEN. The [public review record](../superpowers/plans/2026-10-29-m22-native-runtime-review.md) binds the reviewed source, root acceptance and actual proof grades. Normal Guardian and Hexaghost completion remain **UNPROVEN_OPEN**. The [approved design](../superpowers/specs/2026-10-28-m22-watcher-act1-design.md) and [Tasks0–7 plan](../superpowers/plans/2026-10-28-m22-watcher-act1.md) retain their exact approved bytes; current authority supersedes their historical pending-status prose. The [source/API reconciliation](m22-watcher-act1-reconciliation.md) records actual accepted owners, diagnostic grades and inherited limits.
+As of 2026-11-11, M22 merged as PR61 (`02839be`). Normal Guardian/Hexaghost
+completion is unproven in the recorded normal-start outcomes, but its outcome
+requirement is strategy-only and closed under Bead spire-dxo.44. The retained
+source and supplied Victory evidence do not alter those original outcomes.
+
+Retired 2026-11-11 (M36): the m22/m23/m24_same_choices consumers depended on
+private receipts and were stale by design after disclosed global fixes; Standard
+records and replay supersede them.
+
+Historical core caller (M36): this caller depended on the retired pre-run freeze
+marker and cannot be run as documented; its retained outcomes are historical
+evidence.
+
+Historical review status (2026-10-29): root accepted this finite native source
+after one fresh comprehensive independent senior review of Tasks0–7 and all five
+focus classes returned SOURCE ACCURACY READY with 0 Critical / 0 Important /
+0 Minor findings. The [public review record](../superpowers/plans/2026-10-29-m22-native-runtime-review.md)
+binds the reviewed source and its proof grades. The [approved design](../superpowers/specs/2026-10-28-m22-watcher-act1-design.md)
+and [Tasks0–7 plan](../superpowers/plans/2026-10-28-m22-watcher-act1.md) retain
+their approved bytes; their historical pending-status prose is not current. The
+[source/API reconciliation](m22-watcher-act1-reconciliation.md) records actual
+owners, diagnostic grades and inherited limits.
 
 ## Finite boundary and producers
 
@@ -87,11 +108,11 @@ Current corrected focused checks pass268 affected M20/M21/M22 core tests with tw
 
 The independent review assessed shared source compositions directly where a single combined checkpoint was absent. General delivery/capacity and shared row controls do not establish a separately executed elite-capture/capacity checkpoint, a late M22 fault for every group or a new panic/allocation iteration. Fixed diagnostic flags/invalid frames do not prove normal reachability, and direct ordinal1 proof is a zero-step record. These are explicit source/execution grades, not additional runtime claims or normal-gate waivers.
 
-Normal Guardian and Hexaghost completion remain unproven; only original seed7 SlimeBoss supplies a normal Victory/healthy Act2Ready witness, on pre-correction source. No all-six current-source completion claim is made. The original four Deaths/fault and corrective Death remain unchanged evidence. M18/M19 normal gates/parents, M20 canonical normal Heart and M21 seed11 retain `meditate_choice`/parent43 stay open and unwaived.
+Historical normal-start evidence: Guardian and Hexaghost completion remain unproven; only original seed7 SlimeBoss supplies a normal Victory/healthy Act2Ready witness, on pre-correction source. No all-six current-source completion claim is made. The original four Deaths/fault and corrective Death remain unchanged. The M18/M19/M20 outcome requirements and M21 seed11 witness were later closed/satisfied under Beads spire-dxo.40–.44; these dispositions do not change the original outcomes.
 
-Core M22 construction preserves explicitly supplied future CreationProfile histories; normal public M22 still rejects downstream variants. This does not release M23 or prove equality across different histories/RNG. M23 must later use the actual accepted M22 matched core histories, resources, identity/custody and transitions.
+At the M22 source snapshot, construction preserved explicitly supplied future CreationProfile histories; normal public M22 still rejected downstream variants. M23 later merged as PR62 and used matched M22 histories, resources, identity/custody and transitions. That matched-history evidence does not establish equality across different histories/RNG.
 
-The candidate is native source only. There was no new original-game execution, broad archive extraction, install/dependency change, Python extension build/import/test or runtime parity proof. Inherited Scry gameplay-projection, numeric/source-authentication and original-frame/cap limitations remain as documented in the reconciliation. The independent final review is complete and root source-only acceptance is granted; publication, actual merge, verified accepted export and task/lifecycle disposition remain root-owned. M23 dependency release requires that actual M22 merge and verified export, and implementation additionally requires explicit root assignment against its already-approved plan. No M22 merged SHA or M23 implementation release is claimed.
+At the historical candidate review, there was no new original-game execution, broad archive extraction, install/dependency change, Python extension build/import/test or runtime parity proof. Inherited Scry projection, numeric/source-authentication and original-frame/cap limits remain in the reconciliation. M22 later merged as PR61 (`02839be`); this does not establish Python delivery or original-runtime parity.
 
 ## Scope reconciliation (2026-10-30)
 

@@ -183,10 +183,14 @@ enum Status { Live, Terminal, Truncated, Faulted }
 struct Branch { run: Run, origin: [u8; 32], serial: u64, steps: u64, actions: Vec<i64>, legal: Vec<GameAction>, status: Status }
 
 /// The arena (design §4.7): owns its root and branches; deterministic budgets; no wall clock; no live-session reference.
+/// M36 (spire-dmm M5): the most `step_many` workers a search admits, equal to the batch slot ceiling.
+pub const MAX_SEARCH_WORKERS: usize = 256;
 pub struct PublicSearch { root: PublicRoot, research_root: [u8; 32], limits: SearchLimits, branches: std::collections::BTreeMap<u64, Box<Branch>>,
     closed: std::collections::BTreeSet<u64>, used_samples: std::collections::BTreeSet<u64>, next_auto: u64, created: u64, total_steps: u64,
     /// M35 `step_many` workers (execution configuration, not a budget; design §3.6).
-    workers: usize }
+    workers: usize,
+    /// M36 (spire-dmm M5): the shared pool, taken on the first parallel `step_many` and released when the search drops.
+    pool: Option<crate::workers::Scheduler> }
 impl std::fmt::Debug for PublicSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "PublicSearch {{ root: {:?}, live: {}, created: {}, total_steps: {} }}", self.root, self.branches.len(), self.created, self.total_steps)
@@ -200,15 +204,23 @@ impl PublicSearch {
             return Err(Error::Input("search limits exceed the hard caps"))
         }
         Ok(Self { root, research_root: spire_core::run::research_root(config.research_seed), limits: l, branches: Default::default(), closed: Default::default(),
-            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0, workers: 1 })
+            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0, workers: 1, pool: None })
     }
-    /// M35: `step_many` runs on `workers` threads of the shared process-wide pool for that count (1: no pool).
+    /// M35: `step_many` runs on `workers` threads of the shared pool for that count (1: no pool). M36: 1 ≤ `workers` ≤
+    /// `MAX_SEARCH_WORKERS`; the search holds its pool from its first parallel `step_many` until it drops or its worker
+    /// count changes.
     pub fn with_workers(mut self, workers: usize) -> Result<Self, Error> {
-        if workers == 0 { return Err(Error::Input("search workers must be positive")) }
+        if !(1..=MAX_SEARCH_WORKERS).contains(&workers) { return Err(Error::Input("search workers must be 1..=256")) }
+        if workers != self.workers { self.pool = None; }
         self.workers = workers;
         Ok(self)
     }
     pub fn workers(&self) -> usize { self.workers }
+    /// TEST-ONLY (M36): the pool this search took on its first parallel `step_many`.
+    #[cfg(test)]
+    pub(crate) fn pool_for_test(&self) -> Option<std::sync::Weak<rayon::ThreadPool>> {
+        match &self.pool { Some(crate::workers::Scheduler::Parallel(p)) => Some(std::sync::Arc::downgrade(p)), _ => None }
+    }
     fn admit_branch(&self) -> Result<(), Error> {
         if self.branches.len() >= self.limits.max_live_branches { return Err(Error::Budget("live branch limit reached")) }
         if self.created >= self.limits.max_branches { return Err(Error::Budget("branch limit reached")) }
@@ -327,7 +339,8 @@ impl PublicSearch {
             actions.push(self.preflight(s.branch, s.token, s.index)?);
         }
         if (steps.len() as u64) > self.limits.max_total_steps.saturating_sub(self.total_steps) { return Err(Error::Budget("total step limit reached")) }
-        let scheduler = crate::workers::Scheduler::shared(self.workers).map_err(|_| Error::DeliveryFault("search worker pool unavailable"))?;
+        if self.pool.is_none() { self.pool = Some(crate::workers::Scheduler::shared(self.workers).map_err(|_| Error::DeliveryFault("search worker pool unavailable"))?); }
+        let scheduler = self.pool.as_ref().expect("the search pool was just taken");
         let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
         // Disjoint borrows in sorted id order; each job owns its entry's action and touches only its own world.
         let position: std::collections::BTreeMap<u64, usize> = steps.iter().enumerate().map(|(i, s)| (s.branch.0, i)).collect();

@@ -121,3 +121,20 @@ def test_step_many_budget_preflight_is_atomic():
         search.close()
     finally:
         env.close()
+
+
+def test_search_workers_cap_rejects_257_without_state_change():
+    # M36 (spire-dmm M5): 1 <= workers <= 256, through the same native path as Rust.
+    env = StandardCombatEnv(entry(), partition="test")
+    try:
+        obs, _ = env.reset(seed=LIVE_SEED)
+        for bad in (0, 257):
+            with pytest.raises(_native.RunInputError, match=r"search workers must be 1\.\.=256"):
+                env.public_search(RESEARCH_SEED, workers=bad)
+        # 256 is admitted (no pool exists until a parallel step_many), and the failed opens left the env usable.
+        search = env.public_search(RESEARCH_SEED, workers=256)
+        assert search.branch(1).decision()[0]["action_mask"].any()
+        search.close()
+        env.step(_action(obs))
+    finally:
+        env.close()

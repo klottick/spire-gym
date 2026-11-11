@@ -14,7 +14,7 @@ cargo run -p spire-core --example m4_rooms --locked --offline -- --scenario all 
 From any directory (the subshell leaves your current directory unchanged):
 
 ```sh
-(cd /home/klottick/.local/share/opencode/worktree/503d4a/full-run-gym-poc-20261022 && cargo run -p spire-core --example m4_rooms --locked --offline -- --scenario all --seed 7)
+(cd <historical-checkout> && cargo run -p spire-core --example m4_rooms --locked --offline -- --scenario all --seed 7)
 ```
 
 Choose `route`, `purge`, `keys`, or `death` instead of `all`. Seed7 observed:

@@ -396,7 +396,7 @@ dependencies = [
 
 [[package]]
 name = "spire-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "spire-core",
  "spire-env",
@@ -404,7 +404,7 @@ dependencies = [
 
 [[package]]
 name = "spire-core"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hmac",
  "serde",
@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "spire-env"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "getrandom",
  "rayon",
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "spire-fuzz"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "spire-python"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "numpy",
  "pyo3",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "spire-report"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "libc",
  "serde_json",

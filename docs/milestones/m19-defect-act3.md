@@ -1,18 +1,19 @@
 # M19 finite native Defect through Act3
 
-The primary user approved **source merge and conditional M20 dependency release**
-on 2026-10-28 after one fresh independent senior returned **source accuracy READY**
-with zero new Critical, Important or Minor technical findings. The exact reviewed
-source manifest is
-`61c186d19a0d0beddf87dc2a2251b3871574354ac32c1fd4520fdaecb4a4724f`.
-See the [independent review and actual approval record](../superpowers/plans/2026-10-28-m19-native-runtime-review.md).
-Publication/main integration remains pending; no M19 merged revision is claimed.
-M20 execution waits for actual merged source and a root-assigned checkout/task.
+M19 source merged as PR58 (`0c43d7d`). As of 2026-10-30, its normal Act3 boss/
+Act3NoKeys outcome requirement and M18's normal Automaton outcome requirement
+are strategy-only gates, closed under Beads spire-dxo.41 and spire-dxo.40.
 
-**M19’s normal global gate remains OPEN_UNMET_UNWAIVED:** all six originals ended
-in Death, none entered an Act3 boss, and none reached Act3NoKeys. Source-only
-acceptance does not establish full M19, waive its failed assertion or close its
-parent. The M18 Automaton gate, failed assertion and parent remain open as well.
+Historical decision (2026-10-28): the primary user approved source merge and
+conditional M20 dependency release after one fresh independent senior returned
+source accuracy READY with zero new technical findings. The exact reviewed source
+manifest was `61c186d19a0d0beddf87dc2a2251b3871574354ac32c1fd4520fdaecb4a4724f`.
+See the [independent review and actual approval record](../superpowers/plans/2026-10-28-m19-native-runtime-review.md).
+
+**Historical normal-run outcomes:** all six originals ended in Death, none entered
+an Act3 boss, and none reached Act3NoKeys. The M19 and M18 normal outcome gates
+were later closed as strategy-only under Beads spire-dxo.41 and .40. Their failed
+assertions and original outcomes remain preserved; no victory is inferred.
 The approved design, plan and routing correction retain their exact bytes.
 
 The native profile extends canonical Defect A0 short Neow through the accepted

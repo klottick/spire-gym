@@ -1,10 +1,18 @@
-# M24 finite native Watcher A0 Acts 1–3 — candidate
+# M24 finite native Watcher A0 Acts 1–3 — complete
 
-Status: **source candidate; frozen once-only sequence complete; independent final review pending. Not accepted.**
+Status: complete under the gameplay-not-strategy scope; merged as PR64 (`7b036e8`). Original outcomes and finite evidence limits remain as recorded.
 This profile implements the approved [design](../superpowers/specs/2026-10-30-m24-watcher-act3-design.md)
 and [plan](../superpowers/plans/2026-10-30-m24-watcher-act3.md). Owners, deviations and
 corrections are in the [reconciliation](m24-watcher-act3-reconciliation.md). The predecessor
 is M23 ([PR62](https://github.com/klottick/spire-gym/pull/62)).
+
+Retired 2026-11-11 (M36): the m22/m23/m24_same_choices consumers depended on
+private receipts and were stale by design after disclosed global fixes; Standard
+records and replay supersede them.
+
+Historical core caller (M36): this caller depended on the retired pre-run freeze
+marker and cannot be run as documented; its retained outcomes are historical
+evidence.
 
 ## Finite boundary
 

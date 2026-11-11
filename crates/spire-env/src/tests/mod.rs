@@ -24,3 +24,6 @@ mod m35_batch_unit;
 mod m35_r2;
 mod m35_batch_faults;
 mod m35_step_many;
+mod m36_workers;
+mod m36_freeze;
+mod m36_heart;
