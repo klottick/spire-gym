@@ -211,8 +211,7 @@ fn setup(state: &mut State, effect: &Effect) -> Result<(), EffectError> {
         _ => {
             crate::combat::effects::begin_selection(state, parent.clone(), candidates, 1,
                 crate::combat::SelectionDisposition::DrawTop, crate::combat::EmptySelection::Continue)?;
-            state.pending_selection.as_mut().expect("Setup creates a nonempty selection").operation =
-                crate::combat::SelectionOperation::Setup;
+            crate::combat::effects::set_selection_operation(state,crate::combat::SelectionOperation::Setup);
             Ok(())
         }
     }

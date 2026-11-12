@@ -190,7 +190,9 @@ fn m10_act4_native_entry_fault_retains_actual_combat_and_owned_inventory(){
     let RunError::Faulted(first)=error else{panic!("the real native setup frontier must remain an accepted fault")};
     match &first.kind {
         RunFaultKind::Combat(fault)=>{
-            assert_eq!(fault.record.message,"native generated-card support/count/target","the accepted native fault is Mark of Pain's real temporary Wound at the full issued-ID frontier");
+            // spire-3xq F2-C: the 999-identity frontier is the typed Unsupported boundary on every generation path
+            // (amended from the CreateCard validator's Invariant "native generated-card support/count/target").
+            assert_eq!((fault.record.kind,fault.record.message.as_str()),(crate::combat::FaultKind::Unsupported,"generated card count/runtime boundary"),"the accepted native fault is Mark of Pain's real temporary Wound at the full issued-ID frontier");
             assert!(matches!(fault.current.as_ref().map(|effect|&effect.kind),Some(crate::combat::EffectKind::CreateCard{id:crate::content::CardId::Wound,destination:crate::combat::CardDestination::ShuffledDraw,upgrades:0})),"the retained source frame is Mark of Pain's qualified post-opening temporary Wound creation");
         },
         other=>panic!("expected Mark of Pain's owned combat generation fault, got {other:?}"),

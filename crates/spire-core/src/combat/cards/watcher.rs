@@ -539,7 +539,7 @@ pub(in crate::combat) fn scry(state:&mut State,effect:&Effect,amount:i32,relic_p
     crate::combat::knowledge::note(state,crate::combat::knowledge::PileOp::Revealed(candidates.len()));
     if candidates.len()>state.public.known_draw.len(){state.public.known_draw=candidates.clone();}
     super::super::effects::begin_selection_range(state,parent,SelectionSourceZone::Draw,candidates.clone(),0,candidates.len(),SelectionDisposition::Discard,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Scry;
+    crate::combat::effects::set_selection_operation(state,SelectionOperation::Scry);
     notify_scry_discard(state);Ok(())
 }
 fn open_omniscience(state:&mut State,effect:&Effect)->Result<(),EffectError>{
@@ -549,7 +549,7 @@ fn open_omniscience(state:&mut State,effect:&Effect)->Result<(),EffectError>{
     crate::combat::piles::forget_ambiguous_grid_positions(state,&candidates);
     super::super::effects::begin_selection_range(state,SelectionParent::Card(parent.clone()),SelectionSourceZone::Draw,candidates,1,1,
         SelectionDisposition::Exhaust,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Omniscience;
+    crate::combat::effects::set_selection_operation(state,SelectionOperation::Omniscience);
     Ok(())
 }
 fn canonical_omniscience_candidates(state:&State)->Vec<CardHandle>{
@@ -637,7 +637,7 @@ pub(in crate::combat) fn meditate(state:&mut State,effect:&Effect,count:usize)->
     }
     let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Meditate has no physical card parent".into()).into())};
     super::super::effects::begin_selection_range(state,SelectionParent::Card(parent.clone()),SelectionSourceZone::Discard,candidates,count,count,SelectionDisposition::Hand,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::MeditateReturn;Ok(())
+    crate::combat::effects::set_selection_operation(state,SelectionOperation::MeditateReturn);Ok(())
 }
 pub(in crate::combat) fn construct_mantra(state:&mut State,amount:i32)->Result<EffectKind,InputError>{
     state.character.mantra_gained=state.character.mantra_gained.checked_add(amount).ok_or_else(||InputError::Unsupported("Watcher Mantra history int32 exhausted".into()))?;

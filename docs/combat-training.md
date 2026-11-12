@@ -205,7 +205,7 @@ Never step an old candidate index against a new decision. Common capacities are
 finite; overflow is a retained fault, never truncation/paging.
 
 Standalone profile `ironclad-combat-v1`; content
-`spire-gym-ironclad-combat-content-v1`; rules `spire-gym-native-m10-rules-v1`;
+`spire-gym-ironclad-combat-content-v1`; rules `spire-gym-native-m10-rules-v2`;
 reward `spire-gym-combat-outcome-reward-v1`; seed adapter
 `spire-gym-run-u64-le-v1`; RNG `spire-lab-rng-hmac-sha256-v1`.
 `environment_spec()` also includes mode/partition, common-view ID and canonical

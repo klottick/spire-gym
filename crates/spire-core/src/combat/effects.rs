@@ -698,7 +698,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     slot:*slot,id:crate::content::PotionId::LiquidMemories},super::selection::SelectionSourceZone::Discard,
                     candidates,requested,requested,super::selection::SelectionDisposition::Hand,
                     super::selection::EmptySelection::Continue)?;
-                state.pending_selection.as_mut().unwrap().operation=super::selection::SelectionOperation::RetrieveMemories;
+                crate::combat::effects::set_selection_operation(state,super::selection::SelectionOperation::RetrieveMemories);
             }else{
                 for card in candidates.into_iter().rev(){state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),
                     kind:EffectKind::Potion(super::PotionEffect::LiquidMemoriesRetrieve{card})});}
@@ -961,8 +961,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             let candidates = state.piles.hand.iter().map(|card| card.handle()).collect::<Vec<_>>();
             begin_selection(state, parent.clone(), candidates, 1,
                 super::selection::SelectionDisposition::Hand, super::selection::EmptySelection::Continue)?;
-            state.pending_selection.as_mut().expect("nonempty Nightmare hand creates selection").operation =
-                super::selection::SelectionOperation::NightmareCapture;
+            crate::combat::effects::set_selection_operation(state,super::selection::SelectionOperation::NightmareCapture);
         }
         EffectKind::NightmareCopy { owner, installation_id } =>
             super::cards::apply_silent_nightmare_copy(state,effect,owner,*installation_id)?,
@@ -987,7 +986,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     super::selection::SelectionSourceZone::Hand,candidates,0,state.piles.hand.len(),*disposition,*empty)?;}
             }else{let super::selection::SelectionParent::Card(parent)=parent else{return Err(InputError::Invariant("required potion selection is not supported".into()).into())};begin_selection(state, parent, candidates, *required, *disposition, *empty)?;
                 if *disposition==super::selection::SelectionDisposition::DrawTop{
-                    state.pending_selection.as_mut().unwrap().operation=super::selection::SelectionOperation::Topdeck;
+                    crate::combat::effects::set_selection_operation(state,super::selection::SelectionOperation::Topdeck);
                 }
             }
         }
@@ -1081,6 +1080,11 @@ pub(in crate::combat) fn begin_selection(state: &mut State, parent: super::model
     begin_selection_range(state,super::selection::SelectionParent::Card(parent),source_zone,candidates,required,required,disposition,empty)
 }
 
+/// The opened selection's operation; nothing when no selection opened (a won combat, [`begin_selection_range`]).
+pub(in crate::combat) fn set_selection_operation(state:&mut State,operation:super::selection::SelectionOperation){
+    if let Some(selection)=state.pending_selection.as_mut(){selection.operation=operation;}
+}
+
 fn infer_selection_zone(state:&State,candidates:&[super::model::CardHandle])->Result<super::selection::SelectionSourceZone,EffectError>{
     let zones=[(&state.piles.hand,super::selection::SelectionSourceZone::Hand),(&state.piles.draw,super::selection::SelectionSourceZone::Draw),
         (&state.piles.discard,super::selection::SelectionSourceZone::Discard),(&state.piles.exhaust,super::selection::SelectionSourceZone::Exhaust)];
@@ -1094,9 +1098,17 @@ fn infer_selection_zone(state:&State,candidates:&[super::model::CardHandle])->Re
     Ok(found.unwrap_or(super::selection::SelectionSourceZone::Hand))
 }
 
+/// Once every enemy is dead the combat is won and no player selection opens (a selection needs a living enemy,
+/// `validate_runtime`). Reptomancer's cleanup queues its terminal behind already queued work, so a Gambling Chip discard
+/// or a killing card's follow-up choice (Dagger Throw's discard) reaches here (spire-3xq F2-D). The original guards some
+/// of these itself (Scry, Headbutt's and the discard's battle-ending checks). For the others its battle-end cleanup drops
+/// the owning action, so the choice has no effect after victory; the exception is a choose-one option, which applies
+/// itself (Wish's gold). The engine opens no choice once the combat is won.
+/// Callers set the operation with [`set_selection_operation`].
 pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::selection::SelectionParent,
     source_zone:super::selection::SelectionSourceZone,candidates:Vec<super::model::CardHandle>,minimum:usize,maximum:usize,
     disposition:super::selection::SelectionDisposition,empty:super::selection::EmptySelection)->Result<(),EffectError>{
+    if super::enemies::act2::combat_victory_ready(state){return Ok(())}
     let mut seen = std::collections::BTreeSet::new();
     if candidates.iter().any(|id| !seen.insert(id.clone()))
         || candidates.iter().any(|id| !state.piles.all(None).any(|card| card.handle() == *id)) {

@@ -24,7 +24,6 @@ pub(super) fn begin(state:&mut State,effect:&Effect,limit:i32)->Result<(),Effect
     super::super::super::effects::begin_selection_range(state,
         SelectionParent::EndTurn{turn:state.turn},SelectionSourceZone::Hand,candidates,0,maximum,
         SelectionDisposition::Hand,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().expect("nonempty hand creates retain selection").operation=
-        crate::combat::SelectionOperation::Retain;
+    crate::combat::effects::set_selection_operation(state,crate::combat::SelectionOperation::Retain);
     Ok(())
 }

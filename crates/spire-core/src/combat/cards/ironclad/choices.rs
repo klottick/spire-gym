@@ -23,7 +23,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,choice:&IroncladEffect)->Res
                 _=>{
                     super::super::super::effects::begin_selection(state,parent.clone(),candidates,1,
                         SelectionDisposition::DrawTop,EmptySelection::Continue)?;
-                    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Topdeck;
+                    crate::combat::effects::set_selection_operation(state,SelectionOperation::Topdeck);
                 }
             }
         }
@@ -37,7 +37,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,choice:&IroncladEffect)->Res
                 _=>{
                     super::super::super::effects::begin_selection(state,parent.clone(),candidates,1,
                         SelectionDisposition::Hand,EmptySelection::Continue)?;
-                    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::ReturnFromExhaust;
+                    crate::combat::effects::set_selection_operation(state,SelectionOperation::ReturnFromExhaust);
                 }
             }
         }
@@ -56,7 +56,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,choice:&IroncladEffect)->Res
                 _=>{
                     super::super::super::effects::begin_selection(state,parent.clone(),candidates,1,
                         SelectionDisposition::Hand,EmptySelection::Continue)?;
-                    state.pending_selection.as_mut().unwrap().operation=SelectionOperation::CopyToHand{copies:copies+1};
+                    crate::combat::effects::set_selection_operation(state,SelectionOperation::CopyToHand{copies:copies+1});
                 }
             }
         }

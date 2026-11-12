@@ -167,10 +167,20 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
     Ok(())
 }
 
-pub(super) fn next_generated_instance(state: &State) -> Result<super::CardInstanceId, InputError> {
-    if !state.full_runtime || state.card_ids_issued.len() >= 999 {
+/// A combat issues at most 999 card identities (deck included; identities are never reused). Reaching that bound is the
+/// engine's typed `Unsupported` boundary on every generation path (spire-3xq F2-C); the original has no such cap.
+pub(super) fn issued_card_capacity(state: &State) -> Result<(), InputError> {
+    if state.card_ids_issued.len() >= 999 {
         return Err(InputError::Unsupported("generated card count/runtime boundary".into()));
     }
+    Ok(())
+}
+
+pub(super) fn next_generated_instance(state: &State) -> Result<super::CardInstanceId, InputError> {
+    if !state.full_runtime {
+        return Err(InputError::Unsupported("generated card count/runtime boundary".into()));
+    }
+    issued_card_capacity(state)?;
     let mut maximum = 0_u64;
     for handle in &state.card_ids_issued {
         let issued = handle.as_str().parse::<u64>()
@@ -230,8 +240,8 @@ pub(super) fn insert_generated_with(state: &mut State, mut card: super::card_sta
     }
     let instance = card.instance;
     let handle = super::card_state::handle(instance);
-    if !state.full_runtime || state.card_ids_issued.len() >= 999
-        || state.card_ids_issued.contains(&handle) {
+    issued_card_capacity(state)?;
+    if !state.full_runtime || state.card_ids_issued.contains(&handle) {
         return Err(InputError::Invariant("generated card issuance precondition".into()).into());
     }
     let destination = if requested == super::command::CardDestination::Hand
