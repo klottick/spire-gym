@@ -1,7 +1,7 @@
 //! Standard shop (design §6.3), reached only from `RoomScenario::Standard`.
 //! Lane body: see `m28a/task0/spec-sheets/c-a.md` rules S1.. .
 use super::*;
-use crate::content::{CardId, CardRarity, CardType, PotionId, PotionRarity, RelicId, RelicTier};
+use crate::content::{CardId, CardRarity, CardType, PotionId, PotionRarity, RelicTier};
 
 const SHOP_STOCK_SOURCE_TAG: u64 = 0;
 const SHOP_PRICE_SOURCE_TAG: u64 = 1;
@@ -67,7 +67,7 @@ pub(in crate::run) fn enter(run:&mut Run)->Result<RunTransition,RunError>{
             crate::items::relic_pools::take(&mut staged.state, RelicTier::Shop,
                 crate::items::relic_pools::Selector::Back, crate::items::lifecycle::RelicSource::Shop, &key)?
         };
-        let base = relic_base(relic)?;
+        let base = crate::run::rooms::shop::relic_base(relic)?;
         let price = item_sticker(&mut staged, destination, slot, base)?;
         rows.push((RoomChoiceKind::Relic(relic), Some(price)));
     }
@@ -153,15 +153,6 @@ fn item_sticker(run:&mut Run,destination:(u8,u32,NodeId),slot:u64,base:u32)->Res
     let key=shop_key(destination,SHOP_PRICE_SOURCE_TAG,slot,0);
     let k=run.state.rng.bounded_scoped_checked(RunRngScope::M28ShopPrice,&key,1<<24)? as u64;
     Ok(crate::run::rooms::shop::item_sticker(base,k))
-}
-
-fn relic_base(id:RelicId)->Result<u32,RunError>{
-    match crate::content::Catalog::standard().relic_tier(id).ok_or(RunError::Registry("complete relic tier missing"))? {
-        RelicTier::Common|RelicTier::Shop=>Ok(150),
-        RelicTier::Uncommon=>Ok(250),
-        RelicTier::Rare=>Ok(300),
-        _=>Err(RunError::InvalidAction),
-    }
 }
 
 fn potion_base(id:PotionId)->Result<u32,RunError>{

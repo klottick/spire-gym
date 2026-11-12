@@ -130,6 +130,28 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   the engine. With The Courier a shop keeps bought rows and appends a restock per purchase,
   so more than 512 rows needs at least 498 purchases in one visit. It fails closed with a
   typed `Capacity` fault ([Standard Run API](docs/standard-run-api.md)). No identity change.
+- spire-0kr fixes in the shared shop and reward owners. The Standard rules ID moves to
+  `spire-gym-native-standard-rules-v5`; records with v4 fail closed. M9, M10 (and Gym66) and
+  the other legacy profiles are exempt: these paths need Complete item admission, which only
+  the Standard Run and default-off diagnostics use. The m27 diagnostic Act 4 shop
+  (`complete_act4_run`) also restocks in place now; it has no rules ID. Combat-v1 has no shop.
+  No observation, action or descriptor layout changes; fingerprints are unchanged.
+  - With The Courier, a bought card, relic or potion is restocked in its own row, as in the
+    original's 13 fixed item slots. The restock takes a new choice ID at the bought row's
+    index. The shop no longer keeps the bought row as `claimed` and appends the restock.
+    Restock identities, prices and RNG draws are unchanged. After a Courier purchase, only
+    the row order differs: the restock sits at the bought row's index, not at the end, and so
+    do the later shop action candidates. The row count also differs. A shop now has at most
+    15 rows, and `offers` needs at most 20 (the Library's card board). This replaces the
+    Courier capacity note above. Without The Courier, a bought row stays `claimed` as before.
+  - Circlet, the relic offered when the relic pools are exhausted, is priced from the
+    original's Special-tier base of 400 in a shop, before the usual jitter and discounts.
+    Shop entry and a Courier relic restock used to fault (`InvalidAction`) there. Only paths
+    that used to fault change.
+  - A Circlet reward row while Circlet is already owned stacks Circlet's counter, as the
+    original does. The reward chooser (chests, combat and event rewards, Dig, Calling Bell)
+    used to reject it with `InvalidAction`, although the mask offered it. Only that
+    previously faulting choice changes.
 
 ## 1.0.0 — effective at the merge of PR #103
 

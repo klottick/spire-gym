@@ -231,6 +231,8 @@ impl RunRng {
             let value=self.draw_scoped(scope,semantic);if value<zone{return Ok((value%bound) as usize)}
         }
     }
+    /// Whether a scoped key has been drawn (spire-0kr: the Courier restock key sequence).
+    pub(crate) fn scoped_drawn(&self,scope:RunRngScope,semantic:&[u64])->bool{self.counters.contains_key(&(scope,semantic.to_vec()))}
     /// Test-only counter placement for exhaustion/saturation controls.
     #[cfg(test)]
     pub(crate) fn set_counter_for_test(&mut self,scope:RunRngScope,semantic:&[u64],value:u64){self.counters.insert((scope,semantic.to_vec()),value);}

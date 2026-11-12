@@ -106,6 +106,19 @@ fn relic_rows(run: &Run) -> Vec<&RoomChoiceView> {
     rows(run).iter().filter(|row| matches!(row.kind, RoomChoiceKind::Relic(_))).collect()
 }
 
+/// spire-0kr: buys a row with The Courier owned and returns its restock, which replaces the bought row in place (same index,
+/// fresh choice id, same row count).
+pub(super) fn courier_buy(run: &mut Run, bought: ChoiceId) -> RoomChoiceView {
+    let screen = |run: &Run| run.state.room_loop.as_ref().unwrap().screen.choices.clone();
+    let before = screen(run);
+    let index = before.iter().position(|row| row.id == bought).unwrap();
+    run.step(&GameAction::Choose(bought)).unwrap();
+    let after = screen(run);
+    assert_eq!(after.len(), before.len(), "the Courier restock replaces the bought row");
+    assert!(after[index].id != bought && after[index].status == RoomChoiceStatus::Offered, "restock at the bought index");
+    after[index].clone()
+}
+
 fn choose_row(run: &mut Run, predicate: impl Fn(&RoomChoiceKind) -> bool) {
     let id = rows(run).iter().find(|row| row.status == RoomChoiceStatus::Offered && predicate(&row.kind))
         .unwrap_or_else(|| panic!("offered shop row not found: {:?}", rows(run)))
@@ -359,12 +372,8 @@ fn m28_shop_courier_replacement_prices() {
         let card_row = rows(&card_run).iter().find(|row| matches!(row.kind, RoomChoiceKind::Card { .. })).unwrap().clone();
         let bought = card_id(&card_row);
         let bought_type = Catalog::standard().card(bought).unwrap().card_type;
-        let before_cards = card_rows(&card_run).len();
-        card_run.step(&GameAction::Choose(card_row.id)).unwrap();
-        let after_cards = card_rows(&card_run);
-        assert_eq!(after_cards.len(), before_cards + 1, "{character:?} card restock appended");
-        let replacement = after_cards.last().unwrap();
-        let replacement_id = card_id(replacement);
+        let replacement = courier_buy(&mut card_run, card_row.id);
+        let replacement_id = card_id(&replacement);
         let replacement_definition = Catalog::standard().card(replacement_id).unwrap();
         assert_eq!(replacement_definition.card_type, bought_type, "{character:?} replacement keeps type");
         assert_eq!(replacement_definition.color, card_color(character), "{character:?} colored replacement stays colored");
@@ -372,15 +381,12 @@ fn m28_shop_courier_replacement_prices() {
 
         let mut potion_run = template.clone();
         let potion_row = potion_rows(&potion_run)[0].clone();
-        let before_potions = potion_rows(&potion_run).len();
-        potion_run.step(&GameAction::Choose(potion_row.id)).unwrap();
-        let after_potions = potion_rows(&potion_run);
-        assert_eq!(after_potions.len(), before_potions + 1, "{character:?} potion restock appended");
-        let replacement_potion = potion_id(after_potions.last().unwrap());
+        let replacement = courier_buy(&mut potion_run, potion_row.id);
+        let replacement_potion = potion_id(&replacement);
         assert!(potion_generation::candidates(character, false).unwrap().contains(&replacement_potion));
-        assert!(after_potions.last().unwrap().price.unwrap() > 0);
+        assert!(replacement.price.unwrap() > 0);
 
-        // Pick an offered relic without an equip selector, then confirm the Merchant replacement is appended.
+        // Pick an offered relic without an equip selector, then confirm the Merchant replacement takes its row.
         let mut relic_run = None;
         for seed in 0..64 {
             let candidate = reenter(&template, 50_000 + seed, None);
@@ -391,18 +397,14 @@ fn m28_shop_courier_replacement_prices() {
             });
             if let Some(row) = selectable {
                 let selected_id = row.id;
-                let count = relic_rows(&candidate).len();
-                relic_run = Some((candidate, selected_id, count));
+                relic_run = Some((candidate, selected_id));
                 break;
             }
         }
-        let (mut relic_run, chosen, before_relics) = relic_run.expect("a non-selection, non-discount Merchant offer in 64 seeds");
+        let (mut relic_run, chosen) = relic_run.expect("a non-selection, non-discount Merchant offer in 64 seeds");
         let old_relics = relic_rows(&relic_run).into_iter().map(|row| relic_id(row)).collect::<Vec<_>>();
         let bought_relic = relic_rows(&relic_run).into_iter().find(|row| row.id == chosen).map(|row| relic_id(row)).unwrap();
-        relic_run.step(&GameAction::Choose(chosen)).unwrap();
-        let after_relics = relic_rows(&relic_run);
-        assert_eq!(after_relics.len(), before_relics + 1, "{character:?} relic restock appended");
-        let replacement_relic = relic_id(after_relics.last().unwrap());
+        let replacement_relic = relic_id(&courier_buy(&mut relic_run, chosen));
         assert!(!old_relics.contains(&replacement_relic), "replacement consumes an unoffered pool relic");
         assert!(!matches!(replacement_relic, RelicId::OldCoin | RelicId::SmilingMask | RelicId::MawBank | RelicId::TheCourier));
         assert_ne!(replacement_relic, bought_relic);
@@ -496,9 +498,8 @@ fn m28_shop_courier_replacement_price_bands() {
             let mut colored = template.clone();
             let bought = card_rows(&colored)[0].clone();
             let bought_definition = Catalog::standard().card(card_id(&bought)).unwrap();
-            colored.step(&GameAction::Choose(bought.id)).unwrap();
-            let replacement = *all_card_rows(&colored).last().unwrap();
-            let definition = Catalog::standard().card(card_id(replacement)).unwrap();
+            let replacement = courier_buy(&mut colored, bought.id);
+            let definition = Catalog::standard().card(card_id(&replacement)).unwrap();
             assert_eq!(definition.color, card_color(character), "{character:?} colored replacement");
             assert_eq!(definition.card_type, bought_definition.card_type, "{character:?} colored type");
             price_range(replacement.price.unwrap(), courier_card_price_bounds(definition.rarity, false, membership));
@@ -507,17 +508,15 @@ fn m28_shop_courier_replacement_price_bands() {
             let bought = all_card_rows(&colorless).into_iter().find(|row| {
                 Catalog::standard().card(card_id(row)).unwrap().color == CardColor::Colorless
             }).unwrap().clone();
-            colorless.step(&GameAction::Choose(bought.id)).unwrap();
-            let replacement = *all_card_rows(&colorless).last().unwrap();
-            let definition = Catalog::standard().card(card_id(replacement)).unwrap();
+            let replacement = courier_buy(&mut colorless, bought.id);
+            let definition = Catalog::standard().card(card_id(&replacement)).unwrap();
             assert_eq!(definition.color, CardColor::Colorless, "{character:?} colorless replacement");
             price_range(replacement.price.unwrap(), courier_card_price_bounds(definition.rarity, true, membership));
 
             let mut potion = template.clone();
             let bought = potion_rows(&potion)[0].clone();
-            potion.step(&GameAction::Choose(bought.id)).unwrap();
-            let replacement = *potion_rows(&potion).last().unwrap();
-            let rarity = Catalog::standard().potion_rarity(potion_id(replacement)).unwrap();
+            let replacement = courier_buy(&mut potion, bought.id);
+            let rarity = Catalog::standard().potion_rarity(potion_id(&replacement)).unwrap();
             price_range(replacement.price.unwrap(), courier_potion_price_bounds(rarity, membership));
 
             // Keep the purchase on a non-selector, non-discount relic as in S8's restock path.
@@ -535,9 +534,8 @@ fn m28_shop_courier_replacement_price_bands() {
                 }
             }
             let (mut relic, chosen) = selected.expect("a non-selector, non-discount Merchant offer in 64 seeds");
-            relic.step(&GameAction::Choose(chosen)).unwrap();
-            let replacement = *relic_rows(&relic).last().unwrap();
-            let tier = Catalog::standard().relic_tier(relic_id(replacement)).unwrap();
+            let replacement = courier_buy(&mut relic, chosen);
+            let tier = Catalog::standard().relic_tier(relic_id(&replacement)).unwrap();
             price_range(replacement.price.unwrap(), courier_relic_price_bounds(tier, membership));
         }
     }
@@ -620,11 +618,7 @@ fn m28_shop_courier_relic_skips_excluded() {
         vec![RelicId::DeadBranch, RelicId::OldCoin, RelicId::SmilingMask, RelicId::MawBank, RelicId::TheCourier],
         vec![], vec![],
     ));
-    let before = relic_rows(&run).len();
-    run.step(&GameAction::Choose(chosen)).unwrap();
-    let relics = relic_rows(&run);
-    assert_eq!(relics.len(), before + 1, "Courier restocks a relic after purchase");
-    let replacement = relic_id(relics.last().unwrap());
+    let replacement = relic_id(&courier_buy(&mut run, chosen));
     let expected = match Catalog::standard().relic_tier(replacement).unwrap() {
         RelicTier::Common => RelicId::Anchor,
         RelicTier::Uncommon => RelicId::Kunai,
@@ -660,11 +654,7 @@ fn m28_shop_courier_relic_restock_takes_from_back() {
         vec![RelicId::DeadBranch, RelicId::IncenseBurner],
         vec![], vec![],
     ));
-    let before = relic_rows(&run).len();
-    run.step(&GameAction::Choose(chosen)).unwrap();
-    let relics = relic_rows(&run);
-    assert_eq!(relics.len(), before + 1, "Courier restocks a relic after purchase");
-    let replacement = relic_id(relics.last().unwrap());
+    let replacement = relic_id(&courier_buy(&mut run, chosen));
     let tier = Catalog::standard().relic_tier(replacement).unwrap();
     let pools = run.state.relic_pools.as_ref().unwrap();
     let (front, back, remaining) = match tier {
@@ -742,19 +732,118 @@ fn m28_nested_selection_returns_shop_purge() {
     }
 }
 
-/// spire-3xq F1: with The Courier every purchase keeps its row (`Claimed`) and appends one `Offered` restock, so the shop's
-/// row list grows by one per purchase while the offered stock stays the same size. The original replaces stock in place;
-/// the Standard observation bounds this growth with its `offers` capacity (a typed `Capacity` fault, never a loss).
+/// spire-0kr: with The Courier a bought card, relic or potion is replaced in place by its restock, as in the original's 13
+/// fixed item slots (`ShopScreen` card list index, `StoreRelic`/`StorePotion` wrappers). The shop keeps its 15 rows, no
+/// bought row stays `Claimed`, and the restock takes a fresh choice id at the bought row's index. Restock identities,
+/// prices and RNG keys are unchanged: the pins below are the rows the append engine (main `4880d2d2`) added for the same
+/// purchases, chosen by choice id.
 #[test]
-fn x3q_courier_purchases_keep_claimed_rows_and_append_one_restock_each() {
-    let mut run = shop(Character::Ironclad, 41, supply(100_000, vec![RelicId::TheCourier, RelicId::MembershipCard], None));
-    let offered = |run: &Run| rows(run).iter().filter(|row| row.status == RoomChoiceStatus::Offered).count();
-    let (start, stock) = (rows(&run).len(), offered(&run));
-    assert_eq!(start, 15, "5 class cards, 2 colorless, 3 relics, 3 potions, purge and leave");
-    for bought in 1..=12 {
-        choose_row(&mut run, |kind| matches!(kind, RoomChoiceKind::Card { .. }));
-        assert_eq!(rows(&run).len(), start + bought);
-        assert_eq!(offered(&run), stock);
-        assert_eq!(rows(&run).iter().filter(|row| row.status == RoomChoiceStatus::Claimed).count(), bought);
+fn x0kr_courier_restocks_each_bought_slot_in_place() {
+    type Pin = (u64, u64, &'static str, u32, u32);
+    // (bought id, restock id, restock kind, restock price, gold after) for the 12 purchases of `plan`.
+    const IRONCLAD: [Pin; 12] = [
+        (2, 17, "Card { id: Headbutt, upgrades: 0 }", 18, 99_991), (17, 18, "Card { id: SwordBoomerang, upgrades: 0 }", 19, 99_973),
+        (12, 19, "Potion(FirePotion)", 21, 99_952), (19, 20, "Potion(BloodPotion)", 20, 99_931),
+        (9, 21, "Relic(TheBoot)", 57, 99_871), (21, 22, "Relic(OrnamentalFan)", 102, 99_814),
+        (3, 23, "Card { id: Hemokinesis, upgrades: 0 }", 27, 99_794), (23, 24, "Card { id: BodySlam, upgrades: 0 }", 21, 99_767),
+        (24, 25, "Card { id: Hemokinesis, upgrades: 0 }", 28, 99_746), (13, 26, "Potion(EnergyPotion)", 20, 99_726),
+        (10, 27, "Relic(Shuriken)", 103, 99_665), (4, 28, "Card { id: SeeingRed, upgrades: 0 }", 28, 99_634),
+    ];
+    const WATCHER: [Pin; 12] = [
+        (2, 17, "Card { id: BowlingBash, upgrades: 0 }", 20, 99_991), (17, 18, "Card { id: JustLucky, upgrades: 0 }", 21, 99_971),
+        (12, 19, "Potion(EntropicBrew)", 40, 99_952), (19, 20, "Potion(SwiftPotion)", 21, 99_912),
+        (9, 21, "Relic(TungstenRod)", 120, 99_811), (21, 22, "Relic(Damaru)", 60, 99_691),
+        (3, 23, "Card { id: Conclude, upgrades: 0 }", 28, 99_671), (23, 24, "Card { id: SandsOfTime, upgrades: 0 }", 27, 99_643),
+        (24, 25, "Card { id: Consecrate, upgrades: 0 }", 21, 99_616), (13, 26, "Potion(StrengthPotion)", 20, 99_596),
+        (10, 27, "Relic(MummifiedHand)", 99, 99_538), (4, 28, "Card { id: Protect, upgrades: 0 }", 20, 99_520),
+    ];
+    let card = |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Card { .. });
+    let potion = |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Potion(_));
+    let relic = |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Relic(_));
+    // (row kind, newest id): oldest-id rows are opening stock, newest-id rows are earlier restocks.
+    let plan: [(&dyn Fn(&RoomChoiceKind) -> bool, bool); 12] = [(&card, false), (&card, true), (&potion, false), (&potion, true),
+        (&relic, false), (&relic, true), (&card, false), (&card, true), (&card, true), (&potion, false), (&relic, false), (&card, false)];
+    for (character, seed, pins) in [(Character::Ironclad, 41, IRONCLAD), (Character::Watcher, 7, WATCHER)] {
+        let mut run = shop(character, seed, supply(100_000, vec![RelicId::TheCourier, RelicId::MembershipCard], Some(vec![None; 5])));
+        assert_eq!(rows(&run).len(), 15, "5 class cards, 2 colorless, 3 relics, 3 potions, purge and leave");
+        for ((predicate, newest), (bought, restock, kind, price, gold)) in plan.iter().zip(pins) {
+            let offered = rows(&run).iter().filter(|row| row.status == RoomChoiceStatus::Offered && predicate(&row.kind)).map(|row| row.id);
+            let id = if *newest { offered.max() } else { offered.min() }.unwrap();
+            assert_eq!(id.0, bought, "{character:?}");
+            let index = rows(&run).iter().position(|row| row.id == id).unwrap();
+            let before = rows(&run).to_vec();
+            run.step(&GameAction::Choose(id)).unwrap();
+            let after = rows(&run);
+            assert_eq!(after.len(), 15, "{character:?}: the restock replaces the bought row; the shop never grows");
+            assert_eq!((after[index].id.0, format!("{:?}", after[index].kind).as_str(), after[index].price, after[index].status),
+                (restock, kind, Some(price), RoomChoiceStatus::Offered), "{character:?} bought {bought}");
+            assert!(after.iter().zip(&before).enumerate().filter(|(i, _)| *i != index).all(|(_, (a, b))| a.id == b.id && a.kind == b.kind),
+                "{character:?}: every other row keeps its place");
+            assert!(after.iter().all(|row| row.status == RoomChoiceStatus::Offered), "{character:?}: no bought row stays claimed");
+            assert_eq!(run.state.gold, gold);
+        }
     }
+}
+
+/// spire-0kr keeps every other shop path: without The Courier a bought card, relic or potion row stays `Claimed` and
+/// nothing is restocked (the original removes it; no offered stock remains either way); with The Courier the purge is a
+/// service, not an item slot, so its row is claimed and never restocked.
+#[test]
+fn x0kr_without_the_courier_bought_rows_stay_claimed_and_the_purge_is_never_restocked() {
+    for (relics, restocks) in [(vec![], false), (vec![RelicId::TheCourier], true)] {
+        let mut run = shop(Character::Ironclad, 41, supply(100_000, relics, Some(vec![None; 5])));
+        let opening = rows(&run).to_vec();
+        for predicate in [|kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Card { .. }),
+            |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Relic(_)),
+            |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Potion(_))] {
+            let id = rows(&run).iter().find(|row| row.status == RoomChoiceStatus::Offered && predicate(&row.kind)
+                && !matches!(row.kind, RoomChoiceKind::Relic(RelicId::BottledFlame | RelicId::BottledLightning | RelicId::BottledTornado))).unwrap().id;
+            let index = rows(&run).iter().position(|row| row.id == id).unwrap();
+            run.step(&GameAction::Choose(id)).unwrap();
+            assert_eq!(rows(&run).len(), 15);
+            let row = &rows(&run)[index];
+            if restocks { assert!(row.id != id && row.status == RoomChoiceStatus::Offered) } else { assert_eq!((row.id, row.status), (id, RoomChoiceStatus::Claimed)) }
+        }
+        let purge = rows(&run).iter().find(|row| row.kind == RoomChoiceKind::Purge).unwrap().id;
+        run.step(&GameAction::Choose(purge)).unwrap();
+        let card = run.state.pending.as_ref().unwrap().selection.candidates[0].id;
+        run.step(&GameAction::Select(card)).unwrap();
+        assert_eq!(rows(&run).len(), 15);
+        assert_eq!(rows(&run).iter().find(|row| row.id == purge).unwrap().status, RoomChoiceStatus::Claimed, "the purge is claimed, not restocked");
+        assert_eq!(rows(&run).iter().filter(|row| row.status == RoomChoiceStatus::Claimed).count(), if restocks { 1 } else { 4 });
+        assert!(rows(&run).iter().zip(&opening).all(|(row, open)| restocks || row.id == open.id), "no row moves or appears");
+    }
+}
+
+/// spire-0kr (PM ruling, Circlet): with the Rare pool exhausted the Merchant relic draw falls back to Circlet, as the
+/// original does, and the shop prices it from its Special tier base 400 (original `AbstractRelic.getPrice`), then the usual
+/// jitter and discounts. Shop entry and a Courier relic restock used to fail with `InvalidAction` there.
+#[test]
+fn x0kr_exhausted_relic_pools_offer_circlet_at_its_special_price() {
+    let empty = || Some(relic_pools::explicit_for_test(vec![], vec![], vec![], vec![], vec![]));
+    for (owned, (low, high)) in [(vec![], (380, 420)), (vec![RelicId::TheCourier], (304, 336))] {
+        // Shop entry: every relic slot (two Merchant tiers and the Shop tier) promotes to Circlet.
+        let mut run = shop(Character::Ironclad, 155, supply(100_000, owned.clone(), Some(vec![None; 5])));
+        run.state.relic_pools = empty();
+        rooms::standard::shop::enter(&mut run).unwrap();
+        let relics = relic_rows(&run);
+        assert_eq!(relics.len(), 3);
+        for row in relics {
+            assert_eq!(relic_id(row), RelicId::Circlet);
+            assert!((low..=high).contains(&row.price.unwrap()), "{owned:?}: Circlet price {:?}", row.price);
+        }
+    }
+    // A Courier relic restock from exhausted pools is Circlet too; buying it stacks the Circlet counter.
+    let mut run = shop(Character::Ironclad, 155, supply(100_000, vec![RelicId::TheCourier], Some(vec![None; 5])));
+    run.state.relic_pools = empty();
+    let bought = relic_rows(&run).into_iter().find(|row| !matches!(relic_id(row),
+        RelicId::BottledFlame | RelicId::BottledLightning | RelicId::BottledTornado)).unwrap().id;
+    let restock = courier_buy(&mut run, bought);
+    assert_eq!(restock.kind, RoomChoiceKind::Relic(RelicId::Circlet));
+    assert!((304..=336).contains(&restock.price.unwrap()), "{:?}", restock.price);
+    let again = courier_buy(&mut run, restock.id);
+    assert_eq!(again.kind, RoomChoiceKind::Relic(RelicId::Circlet));
+    courier_buy(&mut run, again.id);
+    assert_eq!(run.state.relics.iter().filter(|relic| **relic == RelicId::Circlet).count(), 1);
+    assert_eq!(run.state.relic_counters.get(&RelicId::Circlet), Some(&2));
 }

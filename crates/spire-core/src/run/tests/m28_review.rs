@@ -144,11 +144,8 @@ fn m28_review_courier_card_restock_previews_eggs() {
         let mut run = diagnostic_shop(character, shop_supply(vec![RelicId::TheCourier, RelicId::MoltenEgg]), rng(0x61)).unwrap();
         let attack = rooms::public(&run).unwrap().choices.into_iter().find(|row| matches!(row.kind,
             RoomChoiceKind::Card { id, .. } if Catalog::standard().card(id).unwrap().card_type == CardType::Attack)).unwrap();
-        let before = rooms::public(&run).unwrap().choices.len();
-        run.step(&GameAction::Choose(attack.id)).unwrap();
-        let rows = rooms::public(&run).unwrap().choices;
-        assert_eq!(rows.len(), before + 1, "{character:?}: Courier appends a card row");
-        let RoomChoiceKind::Card { id, upgrades } = rows.last().unwrap().kind else { panic!("{character:?}: card restock row") };
+        let restock = super::m28_shop::courier_buy(&mut run, attack.id);
+        let RoomChoiceKind::Card { id, upgrades } = restock.kind else { panic!("{character:?}: card restock row") };
         assert_eq!(Catalog::standard().card(id).unwrap().card_type, CardType::Attack, "{character:?}");
         assert_eq!(upgrades, 1, "{character:?} {id:?}: Molten Egg previews the restocked Attack");
     }

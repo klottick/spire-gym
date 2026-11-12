@@ -145,10 +145,9 @@ facts.
   deck included; identities are never reused. A combat that would create more
   (a long or generation-heavy fight) stops with the typed `Unsupported` fault
   "generated card count/runtime boundary". The original game has no such cap.
-- **Courier shop rows:** the Standard `offers` group grows by one row per Courier
-  purchase in a shop visit (the original restocks in place). The dense preset's
-  512 rows hold at least 497 purchases in one visit; beyond that the observation
-  is a typed `Capacity` fault.
+- **Red Circlet duplicates:** the original allows a second Red Circlet only after
+  the Boss relic pool is exhausted. A Standard run cannot exhaust that pool, so a
+  duplicate Red Circlet is unreachable here and is not modelled.
 - **Batching:** public search is capped at 256 workers and keeps a live search's
   first parallel pool until it drops or its worker count changes. Search preflight errors do not identify an
   entry index. A scheduler/bookkeeping panic freezes a batch; a resumed isolate
@@ -158,9 +157,9 @@ facts.
   mask-blind `check_env` acceptance. See [batching](batching.md).
 - **Compact observation (M38e):** its capacities come from measured maxima, not
   engine bounds; a larger state (for example a long generation stall past about
-  40 turns, a deck above 256 cards, or repeated Courier restocks) is a typed
-  `Capacity` fault that freezes the session or slot, never a truncation. Larger
-  capacities cure a row overflow but not a value fault. There is no compact
+  40 turns, or a deck above 256 cards) is a typed `Capacity` fault that freezes
+  the session or slot, never a truncation. Larger capacities cure a row
+  overflow but not a value fault. There is no compact
   Standard combat view, `standard-combat-v1` layout or public-search layout.
 - **Python delivery:** only a source-matched imported extension establishes
   Python delivery. The M35 post-merge receipt does not verify the M36 artifact.

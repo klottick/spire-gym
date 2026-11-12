@@ -275,3 +275,16 @@ fn m28_boss_chest_three_offers() {
     assert_eq!(offers.iter().copied().collect::<std::collections::BTreeSet<_>>().len(), 3);
     assert_eq!(run.state.deck, deck_before, "boss opening does not schedule Cursed Key's ordinary chest curse");
 }
+
+/// spire-0kr (PM ruling): with every relic pool exhausted a second time an ordinary chest offers Circlet again (the Rare
+/// fallback), even when Circlet is owned; the shared reward chooser then stacks it (see
+/// `m28_events_a15::x0kr_a_duplicate_circlet_reward_stacks`).
+#[test]
+fn x0kr_an_exhausted_chest_offers_circlet_while_circlet_is_owned() {
+    let mut run = standard(11);
+    run.state.relics.push(RelicId::Circlet);
+    run.state.relic_counters.insert(RelicId::Circlet, 1);
+    run.state.relic_pools = Some(RelicPools::default());
+    let rows = treasure::open_rows(&mut run.state, &[0xF7]).unwrap();
+    assert!(rows.contains(&RoomChoiceKind::Relic(RelicId::Circlet)), "{rows:?}");
+}

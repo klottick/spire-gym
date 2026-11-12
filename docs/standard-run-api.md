@@ -23,7 +23,7 @@ source contract.
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
 | Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
-| Rules / content | `spire-gym-native-standard-rules-v4` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes in [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
+| Rules / content | `spire-gym-native-standard-rules-v5` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
 | Capacity preset / vocabulary manifest | `standard-default-v1` / `standard-vocab-v1` |
 | Compact observation (M38e, opt-in) | `spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`, fingerprint `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that preset ([below](#compact-observation-m38e)) |
@@ -111,11 +111,10 @@ The descriptor's `semantics` section states the meaning of each rule below and i
   (event, stage, option, index) are the descriptor's `param_semantics`. Fixed identities and numbers of the six
   accepted-handler events are in `event_constants`.
 - **Capacities.** The preset `standard-default-v1` covers every structural engine bound (deck ≤ 999, selection ≤ 1,000, map
-  105 + boss + the A20 second-boss node, present enemies ≤ 9). One group is bounded only by the economy: with The Courier a
-  shop keeps each bought row (claimed) and appends a restock, so `offers` holds 15 rows plus one per purchase in that
-  visit. More than 512 rows needs at least 498 purchases in one visit (roughly 9,500 gold even with Membership Card). The
-  original game restocks in place. Custom capacities may be larger. Exceeding a capacity is a typed `Capacity` fault,
-  never a loss or a truncated row list.
+  105 + boss + the A20 second-boss node, present enemies ≤ 9). `offers` needs at most 20 rows: the Library's card board
+  is the largest screen, and a shop has at most 15 rows (13 item slots, purge and leave). With The Courier a bought card,
+  relic or potion is restocked in its own row, as in the original, so a shop never grows. Custom capacities may be larger.
+  Exceeding a capacity is a typed `Capacity` fault, never a loss or a truncated row list.
 
 ## Actions
 
@@ -667,15 +666,14 @@ pessimistic.
 | powers | 2,048 | 128 | 30 | yes |
 | relics | 256 | 256 | 149 (full relic union) | no |
 | potions | 16 | 16 | slot 5 (positional) | no |
-| offers (= combat_card_offers rows) | 512 | 128 | 20 | yes (repeated Courier restocks) |
+| offers (= combat_card_offers rows) | 512 | 128 | 20 | no (at most 20 rows; a shop at most 15) |
 | selection | 1,024 | 512 | 81 | yes |
 | orbs | 10 | 10 | 10 | no |
 | actions | 2,048 | 576 | 81 | yes (a selection above 574 rows) |
 
-Two edges fail closed rather than fit. Known-draw rows can exceed the physical draw cards by one, because a top and a
+One edge fails closed rather than fit. Known-draw rows can exceed the physical draw cards by one, because a top and a
 bottom fact may name the same card, so a combat with all of its 512 card rows in a fully known draw pile faults as
-`known_draw` (the dense layout has the same coupling at 1,024). With The Courier a shop keeps claimed rows and adds a
-restock per purchase, so about 114 purchases in one shop visit overflow `offers`.
+`known_draw` (the dense layout has the same coupling at 1,024).
 
 Per slot the compact arrays are 136,842 bytes (17.9% of the dense 763,720); native `i64` rows are 280,438 bytes.
 

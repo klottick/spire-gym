@@ -118,31 +118,31 @@ fn m27_courier_potion_and_card_replacement() {
     let mut run = diagnostics::complete_act4_run(Character::Ironclad,
         supply(vec![RelicId::TheCourier], vec![None; 3])).unwrap();
     enter_shop(&mut run);
-    let before_potions = run.decision().unwrap().room.unwrap().choices.iter()
-        .filter(|row| matches!(row.kind, RoomChoiceKind::Potion(_))).count();
-    let potion_id = run.decision().unwrap().room.unwrap().choices.into_iter()
-        .find(|row| row.status == RoomChoiceStatus::Offered && matches!(row.kind, RoomChoiceKind::Potion(_))).unwrap().id;
-    run.step(&GameAction::Choose(potion_id)).unwrap();
+    // spire-0kr: The Courier restocks the bought row in place (fresh id, same index, same row count).
+    let before = run.decision().unwrap().room.unwrap().choices;
+    let potion_index = before.iter()
+        .position(|row| row.status == RoomChoiceStatus::Offered && matches!(row.kind, RoomChoiceKind::Potion(_))).unwrap();
+    run.step(&GameAction::Choose(before[potion_index].id)).unwrap();
     let room = run.decision().unwrap().room.unwrap();
-    let potion_rows = room.choices.iter().filter(|row| matches!(row.kind, RoomChoiceKind::Potion(_))).collect::<Vec<_>>();
-    assert_eq!(potion_rows.len(), before_potions + 1, "The Courier replaces a purchased potion row");
-    let replacement = potion_rows.iter().max_by_key(|row| row.id).unwrap();
+    assert_eq!(room.choices.len(), before.len(), "The Courier replaces a purchased potion row");
+    let replacement = &room.choices[potion_index];
+    assert_ne!(replacement.id, before[potion_index].id);
     let RoomChoiceKind::Potion(id) = replacement.kind else { unreachable!() };
     let potion_replacement_price = replacement.price;
     let expected_replacement_price = Some(match Catalog::standard().potion_rarity(id).unwrap() {
         PotionRarity::Common => 40, PotionRarity::Uncommon => 60, PotionRarity::Rare => 80,
     });
 
-    let before_cards = room.choices.iter().filter(|row| matches!(row.kind, RoomChoiceKind::Card { .. })).count();
-    let card = room.choices.into_iter().find(|row| row.status == RoomChoiceStatus::Offered
+    let card_index = room.choices.iter().position(|row| row.status == RoomChoiceStatus::Offered
         && matches!(row.kind, RoomChoiceKind::Card { .. })).unwrap();
+    let card = room.choices[card_index].clone();
     let RoomChoiceKind::Card { id: purchased, .. } = card.kind else { unreachable!() };
     let purchased_definition = Catalog::standard().card(purchased).unwrap();
     run.step(&GameAction::Choose(card.id)).unwrap();
-    let room = run.decision().unwrap().room.unwrap();
-    let card_rows = room.choices.iter().filter(|row| matches!(row.kind, RoomChoiceKind::Card { .. })).collect::<Vec<_>>();
-    assert_eq!(card_rows.len(), before_cards + 1, "The Courier replaces a purchased card row");
-    let replacement = card_rows.iter().max_by_key(|row| row.id).unwrap();
+    let after = run.decision().unwrap().room.unwrap();
+    assert_eq!(after.choices.len(), room.choices.len(), "The Courier replaces a purchased card row");
+    let replacement = &after.choices[card_index];
+    assert_ne!(replacement.id, card.id);
     let RoomChoiceKind::Card { id: replacement_id, .. } = replacement.kind else { unreachable!() };
     let replacement_definition = Catalog::standard().card(replacement_id).unwrap();
     assert_eq!(replacement_definition.color, purchased_definition.color, "replacement uses the purchased row's accepted color sampler");
