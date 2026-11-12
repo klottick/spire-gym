@@ -69,7 +69,7 @@ fn new_m10_is_opt_in_and_m9_new_descriptor_and_wire_stay_pinned() {
     let m9_record = m9.record().unwrap().unwrap();
     assert_eq!(m9_record.schema_id, "spire-gym-run-replay-v1");
     assert_eq!(m9_record.profile_id, "M9IroncladAct3");
-    assert_eq!(m9_record.rules_id, "spire-gym-native-m9-rules-v2");
+    assert_eq!(m9_record.rules_id, "spire-gym-native-m9-rules-v3");
     assert_eq!(m9_record.content_id, "spire-gym-m9-ironclad-a0-captured-v1");
 
     let (history, reference_history) = histories()[0];
@@ -89,7 +89,7 @@ fn new_m10_is_opt_in_and_m9_new_descriptor_and_wire_stay_pinned() {
         let record = m10.record().unwrap().unwrap();
         assert_eq!(record.schema_id, "spire-gym-run-replay-v2");
         assert_eq!(record.profile_id, "M10IroncladHeart");
-        assert_eq!(record.rules_id, "spire-gym-native-m10-rules-v1");
+        assert_eq!(record.rules_id, "spire-gym-native-m10-rules-v2");
         assert_eq!(record.content_id, "spire-gym-m10-ironclad-a0-captured-v1");
         assert_eq!(record.seed_adapter_id, "spire-gym-run-u64-le-v1");
         assert_eq!(record.reward_id, "spire-gym-floor-key-terminal-reward-v1");

@@ -231,7 +231,7 @@ fn select_bottomdeck(state: &mut State, effect: &Effect) -> Result<(), EffectErr
     let (minimum, maximum) = if upgraded { (0, candidates.len()) } else { (1, 1) };
     crate::combat::effects::begin_selection_range(state, SelectionParent::Card(parent.clone()),
         SelectionSourceZone::Hand, candidates, minimum, maximum, SelectionDisposition::DrawTop, EmptySelection::Continue)?;
-    state.pending_selection.as_mut().expect("Forethought installed a nonempty selection").operation = SelectionOperation::Bottomdeck;
+    crate::combat::effects::set_selection_operation(state,SelectionOperation::Bottomdeck);
     Ok(())
 }
 
@@ -282,7 +282,7 @@ fn select_topdeck(state: &mut State, effect: &Effect) -> Result<(), EffectError>
         _ => {
             crate::combat::effects::begin_selection(state, parent.clone(), candidates, 1,
                 SelectionDisposition::DrawTop, EmptySelection::Continue)?;
-            state.pending_selection.as_mut().expect("Thinking Ahead installed a nonempty selection").operation = SelectionOperation::Topdeck;
+            crate::combat::effects::set_selection_operation(state,SelectionOperation::Topdeck);
             Ok(())
         }
     }

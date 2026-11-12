@@ -89,6 +89,8 @@ pub(super) fn validate_work(state:&State,effect:&Effect)->Result<(),InputError>{
 pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
     match &effect.kind {
         EffectKind::CardOffer{cards,optional,copies,zero_cost}=>{
+            // A won combat opens no choice (`effects::begin_selection_range`, spire-3xq F2-D).
+            if super::enemies::act2::combat_victory_ready(state){return Ok(())}
             let resume=state.phase;
             state.silent.card_offer=Some(PendingCardOffer{cards:cards.clone(),optional:*optional,copies:*copies,
                 zero_cost:*zero_cost,source:effect.source.clone(),resume});

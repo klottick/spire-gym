@@ -741,3 +741,20 @@ fn m28_nested_selection_returns_shop_purge() {
         assert_eq!(purge.status, RoomChoiceStatus::Offered);
     }
 }
+
+/// spire-3xq F1: with The Courier every purchase keeps its row (`Claimed`) and appends one `Offered` restock, so the shop's
+/// row list grows by one per purchase while the offered stock stays the same size. The original replaces stock in place;
+/// the Standard observation bounds this growth with its `offers` capacity (a typed `Capacity` fault, never a loss).
+#[test]
+fn x3q_courier_purchases_keep_claimed_rows_and_append_one_restock_each() {
+    let mut run = shop(Character::Ironclad, 41, supply(100_000, vec![RelicId::TheCourier, RelicId::MembershipCard], None));
+    let offered = |run: &Run| rows(run).iter().filter(|row| row.status == RoomChoiceStatus::Offered).count();
+    let (start, stock) = (rows(&run).len(), offered(&run));
+    assert_eq!(start, 15, "5 class cards, 2 colorless, 3 relics, 3 potions, purge and leave");
+    for bought in 1..=12 {
+        choose_row(&mut run, |kind| matches!(kind, RoomChoiceKind::Card { .. }));
+        assert_eq!(rows(&run).len(), start + bought);
+        assert_eq!(offered(&run), stock);
+        assert_eq!(rows(&run).iter().filter(|row| row.status == RoomChoiceStatus::Claimed).count(), bought);
+    }
+}

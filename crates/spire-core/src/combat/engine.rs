@@ -800,6 +800,21 @@ impl Combat {
     /// Full-run action adapter. Target ids are stable 1-based actor slots for
     /// this encounter; dead actors retain their slot and cannot be selected.
     pub fn step_full(&mut self, action: &CombatAction) -> Result<(), crate::run::RunError> {
+        self.step_full_unchecked(action)?;
+        // An accepted step that stops at a selection has mutated the combat, so the boundary must be the consistent state
+        // `public_full` publishes; otherwise it is a retained Invariant fault, never a later `InvalidAction` for an
+        // action the mask offered (spire-3xq).
+        if self.state.phase==Phase::Selection{
+            if let Err(error)=validate_runtime(&self.state){
+                self.state.attempted_action=Some(action.clone());
+                super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("accepted action reached an inconsistent selection: {error:?}"));
+                return Err(retained_fault(&self.state))
+            }
+        }
+        Ok(())
+    }
+
+    fn step_full_unchecked(&mut self, action: &CombatAction) -> Result<(), crate::run::RunError> {
         if !self.state.full_runtime { return Err(crate::run::RunError::InvalidAction); }
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }
         if let CombatAction::ChooseStance{stance}=action{
@@ -1727,7 +1742,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 || (matches!(&effect.source,Source::Actor(Actor::Enemy(owner)) if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::CorruptHeart)&&enemy.full_powers.iter().any(|power|power.id.0=="beat_of_death"&&power.state.amount==*n)))&&effect.target==Some(Actor::Player))
                 || (effect.source==Source::None&&matches!(&effect.target,Some(Actor::Enemy(owner)) if state.enemies.iter().any(|enemy|&enemy.instance_id==owner&&enemy.life==ActorLife::Active&&enemy.hp>0))
                     &&((state.combust.is_some_and(|power|power.copies>0)&&state.player_full_powers.iter().any(|power|power.id.0=="combust"&&power.state.amount==*n))
-                         ||state.player_full_powers.iter().any(|power|power.id.0=="fire_breathing"&&power.state.amount==*n&&effect.source==Source::None)
+                         // FireBreathingPower snapshots its amount when it queues the hit; a later stack (e.g. Mayhem
+                         // autoplaying Fire Breathing) only raises the live amount (spire-3xq F2-B).
+                         ||state.player_full_powers.iter().any(|power|power.id.0=="fire_breathing"&&(1..=power.state.amount).contains(n)&&effect.source==Source::None)
                          ||(*n==3&&state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::CharonsAshes)))))
                 || (effect.source==Source::Actor(Actor::Player) && matches!(&effect.target,Some(Actor::Enemy(_))))
                 || (matches!(&effect.source,Source::Relic(_))&&matches!(&effect.target,Some(Actor::Player|Actor::Enemy(_)))),
@@ -2086,7 +2103,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             if matches!(effect.source,Source::Potion{id:crate::content::PotionId::EnergyPotion,..}){
                 require(capped,"M20 energy potion retains its exact slot/amount/current owner")?;
             }
-            require(state.full_runtime && (if capped{*n>=0}else{(1..=4).contains(n)})
+            // BerserkPower grants its whole stacked amount at each start of turn; stacks add without a cap and never
+            // shrink, so the queued gain is at most the live amount (spire-3xq F2-A).
+            let berserk=effect.source==Source::Actor(Actor::Player)
+                &&state.player_full_powers.iter().any(|p|p.id.0=="berserk"&&(1..=p.state.amount).contains(n));
+            require(state.full_runtime && (if capped{*n>=0}else{(1..=4).contains(n)||berserk})
                 && effect.target == Some(Actor::Player), "native energy payload bounds/target")?;
             if !capped&&i64::from(state.player.energy) + i64::from(*n) > 999 {
                 return Err(InputError::Unsupported("player energy overflow".into()));
@@ -2110,9 +2131,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     | (crate::content::CardId::Shiv, 0 | 1))
                 || (*id,*upgrades)==(crate::content::CardId::Necronomicurse,0)
                     &&super::cards::curses::sourced_from(state,&effect.source,crate::content::CardId::Necronomicurse);
-            require(state.full_runtime && supported && state.card_ids_issued.len() < 999
-                && effect.target == Some(Actor::Player),
-                "native generated-card support/count/target")?;
+            require(state.full_runtime && supported && effect.target == Some(Actor::Player),
+                "native generated-card support/target")?;
+            super::piles::issued_card_capacity(state)?;
         }
         EffectKind::ExhaustHandCard { instance } => {
             require(state.full_runtime && effect.target.is_none()
@@ -2148,8 +2169,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::CopyCard { source, destination } => {
             require(state.full_runtime
                 && *destination == super::command::CardDestination::Discard
-                && effect.target.is_none() && state.card_ids_issued.len() < 999,
-                "native copy mode/destination/count")?;
+                && effect.target.is_none(),
+                "native copy mode/destination")?;
+            super::piles::issued_card_capacity(state)?;
             require(matches!((&effect.source, &state.in_play),
                 (Source::Card(owner), Some(card)) if owner == source && owner == &card.handle()),
                 "copy source must be the current in-play card")?;
@@ -2344,9 +2366,15 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
     // A lethal ordinary action may run after the parent's finish checkpoint
     // but before its queued child. Terminal cancels continuation, retaining both
     // physical owners for exit; no use or FinishCard is fabricated after Death.
+    // Work queued after the parent's finish checkpoint may open a selection before the queued child plays (Melange's
+    // Scry from a reshuffle ahead of Necronomicon's repeat): the original drains the action queue before the card
+    // queue, so the selection resolves first and the child plays afterwards (spire-3xq F2-E).
+    let selection_deferred_child=state.play_frames.last().filter(|frame|state.phase==Phase::Selection
+        &&frame.parent_finish_checkpoint_done&&state.queued_autoplay.contains_key(&frame.child)&&unique_queued.contains(&frame.child))
+        .map(|frame|frame.child.clone());
     let deferred_child=faulted_deferred_child.or_else(||state.play_frames.last().filter(|frame|
         terminal&&frame.parent_finish_checkpoint_done&&state.queued_autoplay.contains_key(&frame.child))
-        .map(|frame|frame.child.clone()));
+        .map(|frame|frame.child.clone())).or(selection_deferred_child);
     let ownership=match (&state.play_context,&state.in_play){
         (None,None)=>state.play_frames.is_empty()||deferred_child.is_some(),
         (None,Some(_))=>state.play_frames.is_empty(),

@@ -11,7 +11,7 @@ fn corrected_rules_record_keeps_v1_wire_and_observation_identity(){
     let record=prefix();
     assert_eq!(record.schema_id,"spire-gym-run-replay-v1");
     assert_eq!(record.rules_id,RUN_RULES_ID);
-    assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v2");
+    assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v3");
     assert_eq!(RUN_RULES_ID_V1,"spire-gym-native-m9-rules-v1");
     assert_eq!(record.observation_fingerprint.iter().map(|b|format!("{b:02x}")).collect::<String>(),
         "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");

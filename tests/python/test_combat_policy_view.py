@@ -9,7 +9,7 @@ def test_normal_run_public_identities_and_owned_common_sidecar():
     env = RunEnv("ironclad", 0, profile="m10-ironclad-policy", partition="test")
     legacy = env.observation_spec()
     identity = env.environment_spec()
-    assert identity["rules_id"] == "spire-gym-native-m10-rules-v1"
+    assert identity["rules_id"] == "spire-gym-native-m10-rules-v2"
     assert identity["reward_id"] == "spire-gym-floor-key-terminal-reward-v1"
     assert identity["mode"] == "normal_run"
     obs, _ = env.reset(seed=11)

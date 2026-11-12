@@ -67,7 +67,7 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&StateEffect)->Resu
 fn open(state:&mut State,source:&Source,candidates:Vec<CardHandle>,zone:Z,count:usize,operation:O,disposition:D)->Result<(),EffectError>{
     let Source::Card(parent)=source else{unreachable!()};
     crate::combat::effects::begin_selection_range(state,P::Card(parent.clone()),zone,candidates,count,count,disposition,EmptySelection::Continue)?;
-    state.pending_selection.as_mut().unwrap().operation=operation;Ok(())
+    crate::combat::effects::set_selection_operation(state,operation);Ok(())
 }
 fn retrieve(state:&mut State,handle:&CardHandle)->Result<(),InputError>{crate::combat::piles::retrieve_ordinary_from_discard(state,handle).map(|_|())}
 pub(super) fn apply(state:&mut State,effect:&Effect,work:&StateEffect)->Result<(),EffectError>{

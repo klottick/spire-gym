@@ -100,6 +100,36 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   - Diagnostics: `M37_LAYOUT` and `M37_STACK=slab` in `m37_phase_timing`,
     `--observation` in `a20_checks`, `examples/run_vector_phase_timing.py` and
     `examples/speed_check.py`.
+- spire-3xq combat fixes in the shared engine, found by the M38e capacity stress. Rules IDs
+  move to `spire-gym-native-standard-rules-v4`, `spire-gym-native-m10-rules-v2` (also Gym66)
+  and `spire-gym-native-m9-rules-v3`; the engine is shared, so every frozen profile is
+  treated as affected. Records with the old IDs fail closed. Each fix changes only a path
+  that used to fault, so the frozen replay digests, the combat-v1 digest and the Heart pins
+  are unchanged. No observation, action or descriptor layout changes.
+  - Berserk stacked to 5 or more grants its whole amount at the start of each turn, as the
+    original does. The energy check used to reject gains above 4.
+  - A queued Fire Breathing hit keeps the amount it was queued with, as the original's
+    damage snapshot does. It used to fault when another Fire Breathing stacked first (for
+    example through Mayhem).
+  - A won combat opens no player choice. Reptomancer's cleanup queues its victory behind
+    work already queued, so a Gambling Chip discard or a killing card's follow-up choice
+    (Dagger Throw's discard) used to open with no living enemy and fault. One deviation
+    remains: if a Wish choice came up in that window, the original could still pay Wish's
+    gold when its screen opened before the battle ended (frame timing); the engine offers no
+    choice there and is not known to reach that window.
+  - A choice opened between a finished card and its queued repeat is accepted: Melange's
+    Scry (after a reshuffle) resolves first, then Necronomicon's repeat plays, as in the
+    original. It used to fault.
+  - Reaching the 999 card identities a combat can issue is the typed `Unsupported` fault
+    "generated card count/runtime boundary" on every generation path. Card creation through
+    the CreateCard and CopyCard paths (for example enemy status cards or Mark of Pain's Wound)
+    used to report it as `Invariant`. See [delivery](docs/delivery.md#7-known-limits-by-surface).
+  - A step that stops at an inconsistent choice is a retained `Invariant` fault. It used
+    to surface later as `InvalidAction` for an action the mask had offered.
+- Correct the `standard-default-v1` capacity note: `offers` is bounded by purchases, not by
+  the engine. With The Courier a shop keeps bought rows and appends a restock per purchase,
+  so more than 512 rows needs at least 498 purchases in one visit. It fails closed with a
+  typed `Capacity` fault ([Standard Run API](docs/standard-run-api.md)). No identity change.
 
 ## 1.0.0 — effective at the merge of PR #103
 

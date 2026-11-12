@@ -21,7 +21,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
                 }
             }else if candidates.len()>1{
                 crate::combat::effects::begin_selection(state,parent.clone(),candidates,1,SelectionDisposition::Hand,EmptySelection::Continue)?;
-                state.pending_selection.as_mut().unwrap().operation=SelectionOperation::Upgrade;
+                crate::combat::effects::set_selection_operation(state,SelectionOperation::Upgrade);
             }
         },
         IroncladEffect::UpgradeCard{instance}=>{

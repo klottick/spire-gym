@@ -141,6 +141,14 @@ facts.
   they are not portable or public-information planning inputs.
 - **`standard-combat-v1`:** ends at the engine's combat terminal; Run settlement
   effects do not apply there.
+- **Card identities per combat:** a combat issues at most 999 card identities,
+  deck included; identities are never reused. A combat that would create more
+  (a long or generation-heavy fight) stops with the typed `Unsupported` fault
+  "generated card count/runtime boundary". The original game has no such cap.
+- **Courier shop rows:** the Standard `offers` group grows by one row per Courier
+  purchase in a shop visit (the original restocks in place). The dense preset's
+  512 rows hold at least 497 purchases in one visit; beyond that the observation
+  is a typed `Capacity` fault.
 - **Batching:** public search is capped at 256 workers and keeps a live search's
   first parallel pool until it drops or its worker count changes. Search preflight errors do not identify an
   entry index. A scheduler/bookkeeping panic freezes a batch; a resumed isolate

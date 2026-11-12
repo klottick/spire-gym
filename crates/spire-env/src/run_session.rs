@@ -45,9 +45,9 @@ pub const RUN_CONTENT_ID_M17:&str="spire-gym-m17-defect-a0-act1-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M15: &str = "spire-gym-m15-silent-heart-replay-v1";
 pub const RUN_SEED_ADAPTER_ID: &str = "spire-gym-run-u64-le-v1";
 pub const RUN_RULES_ID_V1: &str = "spire-gym-native-m9-rules-v1";
-pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v2";
+pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v3";
 pub(crate) const RUN_CONTENT_ID: &str = "spire-gym-m9-ironclad-a0-captured-v1";
-pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v1";
+pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v2";
 pub const RUN_CONTENT_ID_M10: &str = "spire-gym-m10-ironclad-a0-captured-v1";
 pub const RUN_RULES_ID_M12: &str = "spire-gym-native-m12-rules-v1";
 pub const RUN_CONTENT_ID_M12: &str = "spire-gym-m12-silent-a0-act1-captured-v1";
@@ -61,7 +61,9 @@ pub(crate) const RUN_REWARD_ID: &str = "spire-gym-floor-key-terminal-reward-v1";
 pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
 /// v2 since M34s-a: G-a4 (autoplay free-play lifecycle) and R-a1 (Secret Technique/Weapon candidate order) change Standard gameplay.
 /// v3 since M34s-b: I1-c (grid order of combat-local copies) and R1-b (Stasis roll mapping by card id and pile position).
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v3";
+/// v4 since spire-3xq (shared combat rules, also M9 v3 and M10 v2): Berserk and Fire Breathing amounts, no selection in a
+/// won combat, a selection ahead of a queued autoplay repeat, the 999-identity bound typed `Unsupported`.
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v4";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
