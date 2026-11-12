@@ -180,6 +180,25 @@ impl RunRng {
     pub fn draw(&mut self, scope:RunRngScope)->u64 { self.draw_scoped(scope,&[]) }
     pub fn draw_scoped(&mut self, scope:RunRngScope, semantic:&[u64])->u64 {
         let counter=self.counters.entry((scope,semantic.to_vec())).or_insert(0);
+        let current=*counter; *counter=counter.saturating_add(1);
+        // M38b: the HMAC reads the message in parts, in this order (the bytes `draw_message` builds; a test compares them).
+        let (partition,ordinal)=(self.partition,self.ordinal);
+        let digest=crate::combat::rng::hmac_sha256_parts(&self.root,|part|{
+            part(RUN_RNG_LABEL); part(partition.as_str().as_bytes()); part(&[0]);
+            part(&ordinal.to_be_bytes()); part(&[0]);
+            part(scope.as_str().as_bytes()); part(&[0]);
+            if !semantic.is_empty() {
+                part(b"semantic-v1\0");
+                part(&(semantic.len() as u64).to_be_bytes());
+                for value in semantic { part(&value.to_be_bytes()); }
+            }
+            part(&current.to_be_bytes());
+        });
+        u64::from_be_bytes(digest[..8].try_into().unwrap())
+    }
+    /// The pre-M38b message of a draw (test reference for `draw_scoped`).
+    #[cfg(test)]
+    pub(crate) fn draw_message(&self,scope:RunRngScope,semantic:&[u64],counter:u64)->Vec<u8>{
         let mut message=RUN_RNG_LABEL.to_vec();
         message.extend_from_slice(self.partition.as_str().as_bytes()); message.push(0);
         message.extend_from_slice(&self.ordinal.to_be_bytes()); message.push(0);
@@ -189,8 +208,8 @@ impl RunRng {
             message.extend_from_slice(&(semantic.len() as u64).to_be_bytes());
             for value in semantic { message.extend_from_slice(&value.to_be_bytes()); }
         }
-        message.extend_from_slice(&counter.to_be_bytes()); *counter=counter.saturating_add(1);
-        u64::from_be_bytes(hmac_sha256(&self.root,&message)[..8].try_into().unwrap())
+        message.extend_from_slice(&counter.to_be_bytes());
+        message
     }
     pub fn bounded(&mut self,scope:RunRngScope,bound:u64)->usize {
         assert!(bound>0,"bounded selection requires a nonzero domain");
@@ -291,5 +310,30 @@ mod m22_capture_tests{
         r.step(&GameAction::Choose(id)).unwrap();assert_eq!(r.state.rng,expected);let screen=r.decision().unwrap().room.unwrap();assert!(screen.choices.iter().any(|c|c.kind==RoomChoiceKind::Relic(data::CHEST_RELICS[index])));
         let before=r.clone();assert_eq!(r.decision().unwrap().room.unwrap(),screen);assert_eq!(r.decision().unwrap().room.unwrap(),screen);assert!(r.step(&GameAction::Choose(id)).is_err());assert_eq!(r,before);
         let proceed=screen.choices.iter().find(|c|c.kind==RoomChoiceKind::Proceed).unwrap().id;r.step(&GameAction::Choose(proceed)).unwrap();assert_eq!(r.state.rng,expected);
+    }
+}
+
+/// M38b fix 5: `draw_scoped` feeds the HMAC exactly the pre-M38b message bytes, and its counters advance as before.
+#[cfg(test)]
+mod m38b_draw_message_tests {
+    use super::*;
+    #[test]
+    fn streamed_draw_matches_built_message() {
+        let mut rng = RunRng::new([7; 32], Partition::Test, 3);
+        let reference = rng.clone();
+        let scopes = [RunRngScope::MapTopology, RunRngScope::M28CardRarity, RunRngScope::NeowCategory0];
+        let semantics: [&[u64]; 4] = [&[], &[0], &[1, u64::MAX], &[5, 6, 7, 8, 9]];
+        let mut counters = BTreeMap::new();
+        for round in 0..3 {
+            for scope in scopes {
+                for semantic in semantics {
+                    let counter = counters.entry((scope, semantic.to_vec())).or_insert(0_u64);
+                    let expected = u64::from_be_bytes(hmac_sha256(&reference.root, &reference.draw_message(scope, semantic, *counter))[..8].try_into().unwrap());
+                    *counter += 1;
+                    assert_eq!(rng.draw_scoped(scope, semantic), expected, "round {round} {scope:?} {semantic:?}");
+                }
+            }
+        }
+        assert_eq!(rng.counters, counters);
     }
 }

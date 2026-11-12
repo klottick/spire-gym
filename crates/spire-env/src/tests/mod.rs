@@ -23,6 +23,7 @@ mod m34s_recipes;
 mod m35_batch_unit;
 mod m35_r2;
 mod m35_batch_faults;
+mod m38b_sticky;
 mod m35_step_many;
 mod m36_workers;
 mod m36_freeze;

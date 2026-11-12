@@ -43,7 +43,28 @@ fn vocabularies() -> Value {
 }
 fn vocab() -> &'static Value { static V: OnceLock<Value> = OnceLock::new(); V.get_or_init(vocabularies) }
 
+/// M38b: per family, the first row of every name and whether the family is open, built once. It replaces a linear
+/// search over the family rows with the same result (`named_linear` in the tests checks every identity).
+type NamedIndex = std::collections::HashMap<&'static str, (std::collections::HashMap<&'static str, usize>, bool)>;
+fn named_index() -> &'static NamedIndex {
+    static I: OnceLock<NamedIndex> = OnceLock::new();
+    I.get_or_init(|| {
+        let open = standard_vocab_manifest()["open_families"].as_array();
+        vocab().as_object().into_iter().flatten().filter_map(|(key, rows)| rows.as_array().map(|rows| {
+            let mut first = std::collections::HashMap::with_capacity(rows.len());
+            for (index, row) in rows.iter().enumerate() { if let Some(name) = row.as_str() { first.entry(name).or_insert(index); } }
+            (key.as_str(), (first, open.is_some_and(|f| f.iter().any(|k| k == key.as_str()))))
+        })).collect()
+    })
+}
 fn named(key: &str, name: &str) -> Result<i64, RunSessionError> {
+    named_index().get(key)
+        .and_then(|(rows, open)| rows.get(name).copied().filter(|index| *index > 0 || !open))
+        .map(|index| index as i64)
+        .ok_or(RunSessionError::Input("unregistered Standard public identity"))
+}
+#[cfg(test)]
+fn named_linear(key: &str, name: &str) -> Result<i64, RunSessionError> {
     vocab()[key].as_array()
         .and_then(|rows| rows.iter().position(|row| row.as_str() == Some(name)))
         .filter(|index| *index > 0 || !standard_vocab_manifest()["open_families"].as_array().is_some_and(|f| f.iter().any(|k| k == key)))
@@ -62,7 +83,10 @@ pub(crate) fn room(kind: RoomViewKind) -> Result<i64, RunSessionError> { named("
 pub(crate) fn choice(kind: &RoomChoiceKind) -> Result<i64, RunSessionError> { named("choice", choice_name(kind)) }
 pub(crate) fn verb(name: &str) -> Result<i64, RunSessionError> { named("verb", name) }
 pub(crate) fn intent(name: &str) -> Result<i64, RunSessionError> {
-    intent_family().position(|n| n == name).map(|i| i as i64 + 1).ok_or(RunSessionError::Input("unregistered public intent"))
+    // M38b: the first position of each name, built once (the same result as a search of `intent_family`).
+    static I: OnceLock<std::collections::HashMap<&'static str, usize>> = OnceLock::new();
+    let index = I.get_or_init(|| { let mut m = std::collections::HashMap::new(); for (i, n) in intent_family().enumerate() { m.entry(n).or_insert(i); } m });
+    index.get(name).map(|i| *i as i64 + 1).ok_or(RunSessionError::Input("unregistered public intent"))
 }
 pub(crate) fn intent_category(category: IntentCategory) -> Result<i64, RunSessionError> { named("intent_category", category.as_str()) }
 pub(crate) fn profile(profile: RoomScenario) -> Result<i64, RunSessionError> {
@@ -277,3 +301,26 @@ pub fn standard_run_observation_spec(caps: &RunCapacities) -> Result<RunObservat
 
 pub(crate) fn neow_reward(reward: NeowReward) -> i64 { v1::reward(reward) }
 pub(crate) fn neow_drawback(drawback: Option<NeowDrawback>) -> i64 { drawback.map(v1::drawback).unwrap_or(0) }
+
+/// M38b fix 5: the indexed lookups return exactly what the linear searches returned, for every row of every family
+/// (including duplicates, padding and open-family row 0) and for names that are not registered.
+#[cfg(test)]
+mod m38b_lookup_tests {
+    use super::*;
+    #[test]
+    fn indexed_vocabulary_lookups_match_linear_search() {
+        let mut checked = 0;
+        let keys = vocab().as_object().unwrap().keys().cloned().chain(["missing_family".to_owned()]).collect::<Vec<_>>();
+        for key in &keys {
+            let mut names = vocab()[key.as_str()].as_array().into_iter().flatten().filter_map(|r| r.as_str().map(str::to_owned)).collect::<Vec<_>>();
+            names.extend(["", "padding", "unknown", "not-a-registered-name", "Strike"].map(str::to_owned));
+            for name in &names { assert_eq!(named(key, name), named_linear(key, name), "{key}/{name}"); checked += 1; }
+        }
+        assert!(checked > 1_000, "{checked}");
+        for (i, name) in intent_family().enumerate() {
+            let linear = intent_family().position(|n| n == name).map(|i| i as i64 + 1);
+            assert_eq!(intent(name).ok(), linear, "intent {i} {name}");
+        }
+        assert!(intent("not-an-intent").is_err());
+    }
+}

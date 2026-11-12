@@ -25,6 +25,8 @@ create_exception!(_native, BatchFaultError, RunFaultError);
 /// The session-specific parts of packaging (Run boundaries carry a terminal; combat boundaries carry their info JSON).
 pub(crate) trait Transport: BatchSession {
     const COMBAT: bool;
+    /// M38b: whether steps encode straight into the stacked columns (Standard Run batches).
+    fn slab(profile: Option<RunProfile>) -> bool;
     fn observation(b: &Self::Boundary) -> &RunObservation;
     /// Move the boundary's observation out for stacking (M37b), leaving an empty one.
     fn take_observation(b: &mut Self::Boundary) -> RunObservation;
@@ -36,6 +38,7 @@ pub(crate) trait Transport: BatchSession {
 }
 impl Transport for RunSession {
     const COMBAT: bool = false;
+    fn slab(profile: Option<RunProfile>) -> bool { profile == Some(RunProfile::Standard) }
     fn observation(b: &RunBoundary) -> &RunObservation { &b.observation }
     fn take_observation(b: &mut RunBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &RunBoundary) -> RunDecisionToken { b.token }
@@ -56,6 +59,7 @@ impl Transport for RunSession {
 }
 impl Transport for CombatTrainingSession {
     const COMBAT: bool = true;
+    fn slab(_: Option<RunProfile>) -> bool { false }
     fn observation(b: &CombatPolicyBoundary) -> &RunObservation { &b.observation }
     fn take_observation(b: &mut CombatPolicyBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &CombatPolicyBoundary) -> RunDecisionToken { b.token }
@@ -67,19 +71,22 @@ impl Transport for CombatTrainingSession {
 
 fn empty_observation() -> RunObservation { RunObservation { groups: Vec::new(), action_mask: Vec::new() } }
 /// The stacked `obs` and `final_obs` columns of one packaged result (M37b: built outside the GIL on the batch's workers).
-struct Columns { obs: Vec<stacking::Stacked>, final_obs: Option<Vec<stacking::Stacked>> }
-fn stacked<'py>(py: Python<'py>, columns: Vec<stacking::Stacked>) -> PyResult<Bound<'py, PyDict>> {
+/// `pooled`: the `obs` columns come from the batch's column pool and return to it (M38b).
+struct Columns { obs: Vec<stacking::Stacked>, final_obs: Option<Vec<stacking::Stacked>>, pooled: bool }
+fn stacked<'py>(py: Python<'py>, columns: Vec<stacking::Stacked>, pool: Option<&Arc<stacking::ColumnPool>>) -> PyResult<Bound<'py, PyDict>> {
     let out = PyDict::new(py);
     for tensor in columns {
-        match tensor.column {
-            Column::I64(v) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
-            Column::I8(v) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
+        match (tensor.column, pool) {
+            (Column::I64(v), Some(pool)) => out.set_item(tensor.key, numeric::pooled_array(py, v, &tensor.shape, pool, Column::I64)?)?,
+            (Column::I8(v), Some(pool)) => out.set_item(tensor.key, numeric::pooled_array(py, v, &tensor.shape, pool, Column::I8)?)?,
+            (Column::I64(v), None) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
+            (Column::I8(v), None) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
         }
     }
     Ok(out)
 }
 fn stacked_rows<'py>(py: Python<'py>, rows: &[&RunObservation]) -> PyResult<Bound<'py, PyDict>> {
-    stacked(py, stacking::stack(rows).map_err(RunFaultError::new_err)?)
+    stacked(py, stacking::stack(rows).map_err(RunFaultError::new_err)?, None)
 }
 fn tokens<'py>(py: Python<'py>, tokens: impl Iterator<Item = RunDecisionToken>, count: usize) -> PyResult<Bound<'py, PyAny>> {
     numeric::array(py, tokens.flat_map(<[u64; 2]>::from).collect(), &[count, 2])
@@ -219,7 +226,9 @@ impl<S: BatchSession> State<S> {
 
 /// Lock order (final review c1 finding 3): every method takes the non-blocking lease before the mutex, so no thread ever
 /// waits on the mutex while holding the GIL, and the mutex is never held across Python code (packaging works on copies).
-struct Core<S: BatchSession> { state: Mutex<State<S>>, busy: AtomicBool, num_envs: usize, profile: Option<RunProfile> }
+struct Core<S: BatchSession> {
+    state: Mutex<State<S>>, busy: AtomicBool, num_envs: usize, profile: Option<RunProfile>, pool: Arc<stacking::ColumnPool>,
+}
 struct Lease<'a>(&'a AtomicBool);
 impl Drop for Lease<'_> { fn drop(&mut self) { self.0.store(false, Ordering::Release); } }
 
@@ -227,7 +236,7 @@ impl<S: Transport> Core<S> {
     fn new(batch: SessionBatch<S>, profile: Option<RunProfile>) -> Self {
         let num_envs = batch.len();
         Self { state: Mutex::new(State { batch, returns: Returns::new(num_envs), completed: Vec::new(), retired: Vec::new() }),
-            busy: AtomicBool::new(false), num_envs, profile }
+            busy: AtomicBool::new(false), num_envs, profile, pool: Arc::default() }
     }
     fn begin(&self) -> PyResult<Lease<'_>> {
         self.busy.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -271,16 +280,48 @@ impl<S: Transport> Core<S> {
             .map_err(RunFaultError::new_err);
         let obs = stack(obs)?;
         let final_obs = if finals { Some(stack(final_obs)?) } else { None };
-        Ok(Columns { obs, final_obs })
+        Ok(Columns { obs, final_obs, pooled: false })
+    }
+    /// M38b: [`Self::columns`] for a step that encoded into `slab`. Rows encoded into their chunks (no fault, and an
+    /// observation without groups) are already in place; every other row is copied as [`Self::columns`] copies it.
+    /// `final_obs` is stacked exactly as there, with the batch's zero template for rows without a final boundary.
+    fn slab_columns(batch: &SessionBatch<S>, slab: stacking::Slab<'_>, rows: &mut [Option<SlotRow<S::Boundary>>]) -> PyResult<Columns> {
+        let zero = S::observation(batch.zero_boundary().ok_or_else(|| RunStateError::new_err("no published batch layout"))?);
+        let finals = rows.iter().any(|r| r.as_ref().is_some_and(|r| r.final_boundary.is_some()));
+        let mut fill = Vec::with_capacity(rows.len());
+        let mut final_obs = Vec::with_capacity(if finals { rows.len() } else { 0 });
+        for row in rows.iter_mut() {
+            match row {
+                Some(r) => {
+                    let encoded = r.fault.is_none() && S::observation(&r.boundary).groups.is_empty();
+                    fill.push(if encoded { None } else { Some(stacking::SlotSource::Owned(S::take_observation(&mut r.boundary))) });
+                    if finals {
+                        final_obs.push(match &mut r.final_boundary {
+                            Some(b) => stacking::SlotSource::Owned(S::take_observation(b)),
+                            None => stacking::SlotSource::Shared(zero),
+                        });
+                    }
+                }
+                None => {
+                    fill.push(Some(stacking::SlotSource::Shared(zero)));
+                    if finals { final_obs.push(stacking::SlotSource::Shared(zero)); }
+                }
+            }
+        }
+        let obs = slab.finish(fill, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).map_err(RunFaultError::new_err)?;
+        let final_obs = if finals {
+            Some(stacking::stack_slots(final_obs, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).map_err(RunFaultError::new_err)?)
+        } else { None };
+        Ok(Columns { obs, final_obs, pooled: true })
     }
     /// The raw batch dict (binding-api-v1). `None` rows (recovery) are zero rows with `recovered` false. `columns` holds
     /// the rows' stacked observations (`Core::columns`), which no longer sit in `rows`.
     fn package<'py>(&self, py: Python<'py>, returns: &Returns, columns: Columns, rows: &[Option<SlotRow<S::Boundary>>], recovered: bool)
         -> PyResult<Bound<'py, PyDict>> {
         let count = rows.len();
-        let Columns { obs, final_obs } = columns;
+        let Columns { obs, final_obs, pooled } = columns;
         let out = PyDict::new(py);
-        out.set_item("obs", stacked(py, obs)?)?;
+        out.set_item("obs", stacked(py, obs, pooled.then_some(&self.pool))?)?;
         out.set_item("tokens", tokens(py, rows.iter().map(|r| r.as_ref().map_or(RunDecisionToken::from([0_u64, 0]), |r| S::token(&r.boundary))), count)?)?;
         let column = |f: &dyn Fn(&SlotRow<S::Boundary>) -> bool| rows.iter().map(|r| r.as_ref().is_some_and(f)).collect::<Vec<_>>();
         out.set_item("rewards", numeric::array(py, rows.iter().map(|r| r.as_ref().map_or(0, |r| r.reward)).collect(), &[count])?)?;
@@ -309,7 +350,7 @@ impl<S: Transport> Core<S> {
         out.set_item("info", infos)?;
         let final_mask = column(&|r| r.final_boundary.is_some());
         if let Some(final_obs) = final_obs {
-            out.set_item("final_obs", stacked(py, final_obs)?)?;
+            out.set_item("final_obs", stacked(py, final_obs, None)?)?;
         } else {
             out.set_item("final_obs", py.None())?;
         }
@@ -320,12 +361,16 @@ impl<S: Transport> Core<S> {
     }
     /// Package and deliver; a failed export freezes the batch (every committed slot recoverable) and the caller's own
     /// exception propagates unchanged.
-    fn deliver<'py, T>(&self, py: Python<'py>, rows: Vec<SlotRow<S::Boundary>>, package: impl FnOnce(Bound<'py, PyDict>) -> PyResult<T>) -> PyResult<T> {
+    fn deliver<'py, T>(&self, py: Python<'py>, rows: Vec<SlotRow<S::Boundary>>, slab: Option<stacking::Slab<'_>>,
+        package: impl FnOnce(Bound<'py, PyDict>) -> PyResult<T>) -> PyResult<T> {
         let mut rows = rows.into_iter().map(Some).collect::<Vec<_>>();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let (returns, columns) = py.detach(|| {
                 let state = self.lock();
-                (state.returns.clone(), Self::columns(&state.batch, None, &mut rows))
+                (state.returns.clone(), match slab {
+                    Some(slab) => Self::slab_columns(&state.batch, slab, &mut rows),
+                    None => Self::columns(&state.batch, None, &mut rows),
+                })
             });
             let raw = self.package(py, &returns, columns?, &rows, false)?;
             package(raw)
@@ -347,7 +392,7 @@ impl<S: Transport> Core<S> {
             }
             result
         }).map_err(|e| self.error(py, e))?;
-        self.deliver(py, rows, package)
+        self.deliver(py, rows, None, package)
     }
     fn step<'py, T>(&self, py: Python<'py>, actions: &Bound<'py, PyAny>, tokens: &Bound<'py, PyAny>,
         package: impl FnOnce(Bound<'py, PyDict>) -> PyResult<T>) -> PyResult<T> {
@@ -356,17 +401,27 @@ impl<S: Transport> Core<S> {
             .map_err(|e| if S::COMBAT { e } else { RunInputError::new_err(e.value(py).to_string()) })?;
         let tokens = tokens.into_iter().map(RunDecisionToken::from).collect::<Vec<_>>();
         let indices = actions.into_iter().map(RunActionIndex).collect::<Vec<_>>();
-        let rows = py.detach(|| {
+        let (rows, slab) = py.detach(|| {
             let mut state = self.lock();
-            let result = state.batch.step(&tokens, &indices);
+            // M38b: Standard steps encode into columns allocated (or pooled) up front; without a layout yet, or if the
+            // columns cannot be allocated, the step runs as before and stacking reports any allocation failure.
+            let mut slab = match state.batch.zero_boundary() {
+                Some(zero) if S::slab(self.profile) => stacking::Slab::new(S::observation(zero), self.num_envs, &self.pool).ok(),
+                _ => None,
+            };
+            let result = match &mut slab {
+                Some(slab) => state.batch.step_into(&tokens, &indices, slab.targets()),
+                None => state.batch.step(&tokens, &indices),
+            };
             match &result {
                 Ok(rows) => for (slot, row) in rows.iter().enumerate() { state.returns.apply(slot, row, false); },
                 Err(SessionBatchError::Fault(fault)) => { let fault = fault.clone(); state.note_recoverable(&fault); }
                 Err(_) => {}
             }
-            result
-        }).map_err(|e| self.error(py, e))?;
-        self.deliver(py, rows, package)
+            (result, slab)
+        });
+        let rows = rows.map_err(|e| self.error(py, e))?;
+        self.deliver(py, rows, slab, package)
     }
     fn recover_committed<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
         let _lease = self.begin()?;
@@ -478,7 +533,9 @@ impl<S: Transport> Core<S> {
     }
     fn close(&self, py: Python<'_>) -> PyResult<()> {
         let _lease = self.begin()?;
-        py.detach(|| self.lock().batch.close()).map_err(|e| self.error(py, e))
+        let result = py.detach(|| self.lock().batch.close()).map_err(|e| self.error(py, e));
+        self.pool.clear();
+        result
     }
 }
 

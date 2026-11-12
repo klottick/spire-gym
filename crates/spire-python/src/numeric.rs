@@ -10,6 +10,30 @@ pub(crate) fn array<'py, T: Element>(py: Python<'py>, values: Vec<T>, shape: &[u
     Ok(PyArray1::from_vec(py, values).reshape(IxDyn(shape))?.into_any())
 }
 
+/// M38b fix 3(a): the owner of a pooled column's memory. When NumPy drops the last array that uses it, the buffer goes
+/// back to its batch's [`crate::stacking::ColumnPool`]. Not exported from the module.
+#[pyclass(frozen, module = "spire_lab._native")]
+pub(crate) struct PooledColumn { column: Option<crate::stacking::Column>, pool: std::sync::Arc<crate::stacking::ColumnPool> }
+impl Drop for PooledColumn {
+    fn drop(&mut self) { if let Some(column) = self.column.take() { self.pool.put(column); } }
+}
+/// [`array`]'s result (the same 1-D owner array reshaped, so dtype, shape, strides and flags match) over a column whose
+/// memory returns to `pool` when released. Empty columns use [`array`].
+pub(crate) fn pooled_array<'py, T: Element>(py: Python<'py>, values: Vec<T>, shape: &[usize], pool: &std::sync::Arc<crate::stacking::ColumnPool>,
+    wrap: fn(Vec<T>) -> crate::stacking::Column) -> PyResult<Bound<'py, PyAny>> {
+    if values.is_empty() { return array(py, values, shape) }
+    let (len, data) = (values.len(), values.as_ptr());
+    // Moving the Vec into the owner does not move its heap buffer, so `data` stays valid while the owner lives.
+    let owner = Bound::new(py, PooledColumn { column: Some(wrap(values)), pool: pool.clone() })?;
+    // SAFETY: `data` points to `len` initialized elements owned by `owner`, which becomes the array's base object and
+    // is neither mutated nor reallocated until it is dropped.
+    let flat = unsafe {
+        let view = rust_numpy::ndarray::ArrayView1::from_shape_ptr(len, data);
+        PyArray1::<T>::borrow_from_array(&view, owner.into_any())
+    };
+    Ok(flat.reshape(IxDyn(shape))?.into_any())
+}
+
 fn input_values<T: Element + Copy>(value: &Bound<'_, PyAny>, shape: &[usize]) -> PyResult<Vec<T>> {
     let py = value.py();
     let array = value.cast::<PyArrayDyn<T>>()

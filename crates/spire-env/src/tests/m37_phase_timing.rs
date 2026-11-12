@@ -230,6 +230,7 @@ impl BatchSession for TimedSession {
     fn batch_is_terminal(&self) -> bool { self.inner.batch_is_terminal() }
     fn batch_fresh(&self) -> Result<Self, RunSessionError> { Ok(Self { inner: self.inner.batch_fresh()?, clock: self.clock.clone() }) }
     fn batch_zeroed(boundary: &RunBoundary) -> Result<RunBoundary, RunSessionError> { RunSession::batch_zeroed(boundary) }
+    fn batch_observation_mut(boundary: &mut RunBoundary) -> &mut RunObservation { &mut boundary.observation }
 }
 
 /// The copy `spire-python`'s `stacking::stack` makes per call: each group's values, known flags and occupancy, then the

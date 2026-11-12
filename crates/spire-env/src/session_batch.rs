@@ -14,7 +14,7 @@ use spire_core::run::RewardItem;
 
 use crate::{
     CombatPolicyBoundary, CombatTrainingCatalog, CombatTrainingSession, EnvError, RunActionIndex, RunBoundary,
-    RunDecisionToken, RunEpisodeRecord, RunObservation, RunSession, RunSessionError as Error,
+    ObservationTarget, RunDecisionToken, RunEpisodeRecord, RunObservation, RunSession, RunSessionError as Error,
     workers::Scheduler,
 };
 
@@ -140,6 +140,20 @@ pub trait BatchSession: sealed::Sealed + Send + Sized {
     fn batch_fresh(&self) -> Result<Self, Error>;
     /// The fault row's boundary: `boundary`'s layout with every value, known flag, occupancy and mask entry zero.
     fn batch_zeroed(boundary: &Self::Boundary) -> Result<Self::Boundary, Error>;
+    /// The boundary's observation.
+    fn batch_observation_mut(boundary: &mut Self::Boundary) -> &mut RunObservation;
+    /// M38b: `batch_reset` with the observation written into `target` where the session supports it (Standard Run
+    /// sessions); the boundary's observation then has no groups. Others ignore the target.
+    fn batch_reset_into(&mut self, seed: Option<u64>, entry: Option<&str>, target: Option<&mut ObservationTarget<'_>>) -> Result<Self::Boundary, Error> {
+        let _ = target;
+        self.batch_reset(seed, entry)
+    }
+    /// M38b: `batch_step`, with the observation written as in [`BatchSession::batch_reset_into`].
+    fn batch_step_into(&mut self, token: RunDecisionToken, index: RunActionIndex, target: Option<&mut ObservationTarget<'_>>)
+        -> Result<BatchStep<Self::Boundary>, BatchStepFailure> {
+        let _ = target;
+        self.batch_step(token, index)
+    }
 }
 
 fn zeroed_observation(o: &RunObservation) -> Result<RunObservation, Error> {
@@ -165,13 +179,21 @@ impl BatchSession for RunSession {
         if entry.is_some() { return Err(Error::Input("Run batches take no catalog entry")) }
         Ok(())
     }
-    fn batch_reset(&mut self, seed: Option<u64>, _: Option<&str>) -> Result<RunBoundary, Error> { self.reset(seed) }
+    fn batch_reset(&mut self, seed: Option<u64>, entry: Option<&str>) -> Result<RunBoundary, Error> { self.batch_reset_into(seed, entry, None) }
     fn batch_preflight_step(&self, token: RunDecisionToken, index: RunActionIndex) -> Result<(), Error> { self.preflight_step(token, index) }
     fn batch_step(&mut self, token: RunDecisionToken, index: RunActionIndex) -> Result<BatchStep<RunBoundary>, BatchStepFailure> {
-        self.step_with_status(token, index)
+        self.batch_step_into(token, index, None)
+    }
+    fn batch_reset_into(&mut self, seed: Option<u64>, _: Option<&str>, target: Option<&mut ObservationTarget<'_>>) -> Result<RunBoundary, Error> {
+        self.reset_into(seed, target)
+    }
+    fn batch_step_into(&mut self, token: RunDecisionToken, index: RunActionIndex, target: Option<&mut ObservationTarget<'_>>)
+        -> Result<BatchStep<RunBoundary>, BatchStepFailure> {
+        self.step_with_status_into(token, index, target)
             .map(|s| BatchStep { boundary: s.boundary, reward: s.reward, reward_events: s.reward_events, terminated: s.terminated, truncated: s.truncated })
             .map_err(|f| BatchStepFailure { error: f.error, committed: f.committed })
     }
+    fn batch_observation_mut(b: &mut RunBoundary) -> &mut RunObservation { &mut b.observation }
     fn batch_publication_serial(&self) -> u64 { self.publication_serial() }
     fn batch_retain_error(&mut self, error: Error, committed: bool) -> Error { self.retain_batch_error(error, committed) }
     fn batch_retain_panic(&mut self, committed: bool) -> Error { self.retain_batch_panic(committed) }
@@ -215,6 +237,7 @@ impl BatchSession for CombatTrainingSession {
     fn batch_zeroed(b: &CombatPolicyBoundary) -> Result<CombatPolicyBoundary, Error> {
         Ok(CombatPolicyBoundary { observation: zeroed_observation(&b.observation)?, token: RunDecisionToken([0, 0]), info: json!({}) })
     }
+    fn batch_observation_mut(b: &mut CombatPolicyBoundary) -> &mut RunObservation { &mut b.observation }
 }
 
 /// A slot's last committed result (design §3.3, N4): only the non-boundary parts, except a boundary that is no longer the
@@ -275,8 +298,8 @@ fn fault_row(fault: &JobFault) -> SlotFaultRow {
     SlotFaultRow { stage: fault.stage, message: crate::RunRecordError::from_error(&fault.error).message, committed: fault.committed }
 }
 /// Reset a slot (records its finished episode first). Errors and panics are retained by the session.
-fn reset_slot<S: BatchSession>(session: &mut S, seed: Option<u64>, entry: Option<&str>, operation: BatchFaultStage, inject: Option<TestInject>)
-    -> Result<(S::Boundary, Option<S::Record>), (JobFault, Option<S::Record>)> {
+fn reset_slot<S: BatchSession>(session: &mut S, seed: Option<u64>, entry: Option<&str>, operation: BatchFaultStage, inject: Option<TestInject>,
+    target: Option<&mut ObservationTarget<'_>>) -> Result<(S::Boundary, Option<S::Record>), (JobFault, Option<S::Record>)> {
     let finished = match session.batch_record() {
         Ok(record) => record,
         Err(error) => { let error = session.batch_retain_error(error, false); return Err((JobFault { stage: operation, error, committed: false }, None)) }
@@ -290,7 +313,7 @@ fn reset_slot<S: BatchSession>(session: &mut S, seed: Option<u64>, entry: Option
     match catch_unwind(AssertUnwindSafe(|| {
         #[cfg(test)]
         if inject == Some(TestInject::ResetPanic) { panic!("TEST-ONLY injected reset panic") }
-        session.batch_reset(seed, entry)
+        session.batch_reset_into(seed, entry, target)
     })) {
         Ok(Ok(boundary)) => Ok((boundary, finished)),
         Ok(Err(error)) => { let error = session.batch_retain_error(error, false); Err((JobFault { stage: operation, error, committed: false }, finished)) }
@@ -478,7 +501,7 @@ impl<S: BatchSession> SessionBatch<S> {
         for (slot, job) in jobs.iter_mut().enumerate() { if let ResetJob::Reset { inject, .. } = job { *inject = self.inject_for(slot); } }
         let mut rows = Self::setup(crate::error::reserved(count))?;
         let mut statuses = Self::setup(crate::error::reserved(count))?;
-        let results = Self::setup(self.scheduler.map_mut(&mut self.sessions, jobs, |_, session, job| match job {
+        let results = Self::setup(self.scheduler.map_mut_sticky(&mut self.sessions, jobs, |_, session, job| match job {
             ResetJob::Keep => Done::<S>::Kept(session.batch_decision()),
             ResetJob::KeepIsolated => Done::KeptIsolated,
             ResetJob::Reset { seed, entry, replace, inject } => {
@@ -488,7 +511,7 @@ impl<S: BatchSession> SessionBatch<S> {
                         Err(error) => return Done::Fault(JobFault { stage: BatchFaultStage::Reset, error, committed: false }, None),
                     }
                 } else { None };
-                match (reset_slot(session, seed, entry.as_deref(), BatchFaultStage::Reset, inject), retired) {
+                match (reset_slot(session, seed, entry.as_deref(), BatchFaultStage::Reset, inject, None), retired) {
                     (Ok((boundary, _)), Some(old)) => Done::Reset { boundary, finished: None, retired: Some(old) },
                     (Ok((boundary, finished)), None) => Done::Reset { boundary, finished, retired: None },
                     (Err((fault, _)), Some(old)) => Done::FaultRetired { fault, retired: old },
@@ -539,7 +562,19 @@ impl<S: BatchSession> SessionBatch<S> {
     /// One action per slot (design §3.2). Isolated slots and NEXT_STEP pending slots ignore their action and token.
     pub fn step(&mut self, tokens: &[RunDecisionToken], indices: &[RunActionIndex]) -> Result<Vec<SlotRow<S::Boundary>>, SessionBatchError> {
         self.usable()?;
-        self.guarded(BatchOperation::Step, |batch| batch.step_inner(tokens, indices))
+        self.guarded(BatchOperation::Step, |batch| batch.step_inner(tokens, indices, None))
+    }
+    /// M38b: [`Self::step`] with one [`ObservationTarget`] per slot (the binding's stacked columns). A row whose boundary
+    /// observation has no groups was encoded into its slot's target, which is then initialized; every other row (faults,
+    /// isolated slots, sessions that do not support targets) carries its observation as before, and its target may be
+    /// unwritten or partly written. A SAME_STEP final boundary is always owned. Same results, statuses and order as
+    /// [`Self::step`].
+    #[doc(hidden)]
+    pub fn step_into(&mut self, tokens: &[RunDecisionToken], indices: &[RunActionIndex], targets: Vec<ObservationTarget<'_>>)
+        -> Result<Vec<SlotRow<S::Boundary>>, SessionBatchError> {
+        self.usable()?;
+        if targets.len() != self.sessions.len() { return Err(Self::input(None, Error::Input("observation target count does not match batch size"))) }
+        self.guarded(BatchOperation::Step, |batch| batch.step_inner(tokens, indices, Some(targets)))
     }
     /// Design §3.3 "Panics": a panic outside the per-slot jobs (scheduler, record reads, post-join application) freezes the
     /// batch, and every slot's status is computed from its publication serial (changed: committed, not recoverable).
@@ -566,7 +601,8 @@ impl<S: BatchSession> SessionBatch<S> {
             }
         }
     }
-    fn step_inner(&mut self, tokens: &[RunDecisionToken], indices: &[RunActionIndex]) -> Result<Vec<SlotRow<S::Boundary>>, SessionBatchError> {
+    fn step_inner(&mut self, tokens: &[RunDecisionToken], indices: &[RunActionIndex], targets: Option<Vec<ObservationTarget<'_>>>)
+        -> Result<Vec<SlotRow<S::Boundary>>, SessionBatchError> {
         if !self.started { return Err(Self::input(None, Error::NotReset)) }
         let count = self.sessions.len();
         if tokens.len() != count || indices.len() != count {
@@ -589,9 +625,19 @@ impl<S: BatchSession> SessionBatch<S> {
         let same_step = self.config.autoreset == AutoresetMode::SameStep;
         let mut rows = Self::setup(crate::error::reserved(count))?;
         let mut statuses = Self::setup(crate::error::reserved(count))?;
-        let results = Self::setup(self.scheduler.map_mut(&mut self.sessions, jobs, |_, session, job| match job {
+        // M38b: a SAME_STEP terminal written into a target is copied out (with the template's layout) before its reset
+        // reuses the target.
+        let layout = match (&targets, &mut self.template) {
+            (Some(_), Some(template)) => Some(S::batch_observation_mut(template).owned().map_err(|e| Self::input(None, e))?),
+            _ => None,
+        };
+        let jobs = match targets {
+            Some(targets) => jobs.into_iter().zip(targets.into_iter().map(Some)).collect::<Vec<_>>(),
+            None => jobs.into_iter().map(|job| (job, None)).collect(),
+        };
+        let results = Self::setup(self.scheduler.map_mut_sticky(&mut self.sessions, jobs, |_, session, (job, mut target)| match job {
             StepJob::Skip => Done::<S>::Skipped,
-            StepJob::Autoreset { entry, inject } => match reset_slot(session, None, entry.as_deref(), BatchFaultStage::Autoreset, inject) {
+            StepJob::Autoreset { entry, inject } => match reset_slot(session, None, entry.as_deref(), BatchFaultStage::Autoreset, inject, target.as_mut()) {
                 Ok((boundary, finished)) => Done::Autoreset { boundary, finished },
                 Err((fault, finished)) => Done::Fault(fault, finished),
             },
@@ -605,7 +651,7 @@ impl<S: BatchSession> SessionBatch<S> {
                 let stepped = catch_unwind(AssertUnwindSafe(|| {
                     #[cfg(test)]
                     if inject == Some(TestInject::StepPanic) { panic!("TEST-ONLY injected step panic") }
-                    let result = session.batch_step(token, index);
+                    let result = session.batch_step_into(token, index, target.as_mut());
                     #[cfg(test)]
                     if inject == Some(TestInject::StepPanicAfterCommit) { panic!("TEST-ONLY injected panic after commit") }
                     #[cfg(test)]
@@ -615,8 +661,27 @@ impl<S: BatchSession> SessionBatch<S> {
                     result
                 }));
                 let reset_inject = inject.filter(|i| is_reset_inject(*i));
+                let stepped = match stepped {
+                    Ok(Ok(mut step)) if same_step && step.terminated => {
+                        let observation = S::batch_observation_mut(&mut step.boundary);
+                        if observation.groups.is_empty() {
+                            // Unreachable failures for a target built from the template; reported like a failed post-step
+                            // encoding.
+                            let encoding = || Error::DeliveryFault("post-step Run encoding failed");
+                            match (&target, &layout) {
+                                (Some(t), Some(layout)) => match t.materialize(layout) {
+                                    Some(Ok(owned)) => { *observation = owned; Ok(Ok(step)) }
+                                    Some(Err(error)) => Ok(Err(BatchStepFailure { error, committed: true })),
+                                    None => Ok(Err(BatchStepFailure { error: encoding(), committed: true })),
+                                },
+                                _ => Ok(Err(BatchStepFailure { error: encoding(), committed: true })),
+                            }
+                        } else { Ok(Ok(step)) }
+                    }
+                    other => other,
+                };
                 match stepped {
-                    Ok(Ok(step)) if same_step && step.terminated => match reset_slot(session, None, entry.as_deref(), BatchFaultStage::Autoreset, reset_inject) {
+                    Ok(Ok(step)) if same_step && step.terminated => match reset_slot(session, None, entry.as_deref(), BatchFaultStage::Autoreset, reset_inject, target.as_mut()) {
                         Ok((reset, finished)) => Done::SameStep { step, reset, finished },
                         // The composite is stage `autoreset` even when the reset panicked (the panic stays in the error text).
                         Err((mut fault, finished)) => { fault.committed = true; fault.stage = BatchFaultStage::Autoreset; Done::SameStepFault { step, finished, fault } }

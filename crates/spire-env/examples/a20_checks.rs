@@ -7,7 +7,11 @@
 //! requested worker count; `M` records process RSS and runs a 256-slot reset plus 50
 //! batch calls. RSS values are KiB, or `"unavailable"` off Linux.
 //!
-//! Usage: `a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke]`.
+//! Usage: `a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]`.
+//!
+//! `--speed-check` (M38b, spire-qu9.3) runs only a short fixed diagnostic: phase `B` at 64 slots for 200 calls at 1 and
+//! 16 workers, twice each, and writes `spire-gym-speed-check-v1` JSON (`identity`, `runs`, and `best` slot steps/s per
+//! worker count). It is a record for build packets, not a test: it has no threshold and never fails on speed.
 use serde_json::{json, Value};
 use spire_core::{combat::rng::Partition, content::Character};
 use spire_env::{
@@ -48,19 +52,21 @@ struct Options {
     batch_steps: usize,
     workers: [usize; 3],
     out: Option<PathBuf>,
+    speed_check: bool,
 }
 
 fn usage() -> &'static str {
-    "usage: a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke]"
+    "usage: a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]"
 }
 
 fn parse_args() -> Result<Options, String> {
-    let mut options = Options { seeds: DEFAULT_SEEDS, batch_steps: DEFAULT_BATCH_STEPS, workers: [1, 4, 16], out: None };
+    let mut options = Options { seeds: DEFAULT_SEEDS, batch_steps: DEFAULT_BATCH_STEPS, workers: [1, 4, 16], out: None, speed_check: false };
     let mut smoke = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--smoke" => smoke = true,
+            "--speed-check" => options.speed_check = true,
             "--seeds" => options.seeds = args.next().ok_or_else(|| usage().to_owned())?.parse().map_err(|_| "--seeds must be a positive integer".to_owned())?,
             "--batch-steps" => options.batch_steps = args.next().ok_or_else(|| usage().to_owned())?.parse().map_err(|_| "--batch-steps must be a positive integer".to_owned())?,
             "--workers" => {
@@ -229,7 +235,28 @@ fn identity() -> Result<Value, String> {
     )
 }
 
+/// M38b `--speed-check`: the fixed diagnostic run (see the module docs).
+fn speed_check() -> Result<Value, String> {
+    let mut maxima = BTreeMap::new();
+    let mut runs = Vec::new();
+    let mut best = serde_json::Map::new();
+    for workers in [1, 16] {
+        for repeat in 0..2 {
+            let mut run = batch_phase(64, 200, workers, &mut maxima)?;
+            run.as_object_mut().expect("batch phase object").remove("rss_after_budget");
+            run["repeat"] = json!(repeat);
+            let rate = run["slot_steps_per_second"].as_f64().unwrap_or(0.0);
+            let key = format!("workers_{workers}");
+            if best.get(&key).and_then(Value::as_f64).is_none_or(|b| rate > b) { best.insert(key, json!(rate)); }
+            runs.push(run);
+        }
+    }
+    Ok(json!({"schema_id": "spire-gym-speed-check-v1", "identity": identity()?, "slots": 64, "ascension": 20,
+        "record_replay": true, "autoreset": "next_step", "batch_calls": 200, "runs": runs, "best": best}))
+}
+
 fn execute(options: Options) -> Result<Value, String> {
+    if options.speed_check { return speed_check() }
     let mut maxima = BTreeMap::new();
     let s = run_single(options.seeds, &mut maxima)?;
     let memory_after_s = rss();
@@ -259,8 +286,12 @@ fn main() {
     let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
         let options = parse_args()?;
         let value = execute(options.clone())?;
-        let summary = format!("a20_checks: S {} episodes / {} actions; B {} worker configurations; C {} capacity groups",
-            value["S"]["episodes"], value["S"]["accepted_actions"], value["B"].as_array().map_or(0, Vec::len), value["capacity"].as_array().map_or(0, Vec::len));
+        let summary = if options.speed_check {
+            format!("a20_checks --speed-check: best slot steps/s {}", value["best"])
+        } else {
+            format!("a20_checks: S {} episodes / {} actions; B {} worker configurations; C {} capacity groups",
+                value["S"]["episodes"], value["S"]["accepted_actions"], value["B"].as_array().map_or(0, Vec::len), value["capacity"].as_array().map_or(0, Vec::len))
+        };
         if let Some(path) = options.out {
                 let text = serde_json::to_string_pretty(&value).expect("JSON value serializes");
             fs::write(path, format!("{text}\n")).map_err(|error| format!("write JSON output: {error}"))?;

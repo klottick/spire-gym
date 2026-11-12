@@ -7,18 +7,28 @@ use spire_core::combat::public_ids::{PUBLIC_INTENTS,PUBLIC_POWERS};
 
 fn padded(names:&[&str])->Value{json!(std::iter::once("padding").chain(names.iter().copied()).collect::<Vec<_>>())}
 fn index(table:&[&str],name:&str)->Option<i64>{table.iter().position(|value|*value==name).map(|index|index as i64+1)}
+/// M38b: [`index`] over `PUBLIC_POWERS`, built once (first position of each name).
+fn power_index(name:&str)->Option<i64>{
+    static I:std::sync::OnceLock<std::collections::HashMap<&'static str,i64>>=std::sync::OnceLock::new();
+    I.get_or_init(||{let mut m=std::collections::HashMap::new();for (i,n) in PUBLIC_POWERS.iter().enumerate(){m.entry(*n).or_insert(i as i64+1);}m}).get(name).copied()
+}
 /// Padded power vocabulary: row 0 is padding, row i+1 is `PUBLIC_POWERS[i]`.
 pub(crate) fn powers()->Value{padded(PUBLIC_POWERS)}
 /// Padded intent vocabulary: row 0 is padding, row i+1 is `PUBLIC_INTENTS[i]`.
 pub(crate) fn intents()->Value{padded(PUBLIC_INTENTS)}
 /// Replace a descriptor's power and intent vocabularies with the shared tables.
 pub(crate) fn install(vocab:&mut Value){vocab["power"]=powers();vocab["intent"]=intents();}
-pub(crate) fn power(name:&str)->Result<i64,RunSessionError>{index(PUBLIC_POWERS,name).ok_or(RunSessionError::Input("unregistered public power"))}
+pub(crate) fn power(name:&str)->Result<i64,RunSessionError>{power_index(name).ok_or(RunSessionError::Input("unregistered public power"))}
 pub(crate) fn intent(name:&str)->Result<i64,RunSessionError>{index(PUBLIC_INTENTS,name).ok_or(RunSessionError::Input("unregistered public intent"))}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// M38b fix 5: the indexed power lookup equals the linear search for every power and for unknown names.
+    #[test]
+    fn m38b_power_index_matches_linear_search(){
+        for name in PUBLIC_POWERS.iter().copied().chain(["","padding","not-a-power"]){assert_eq!(power_index(name),index(PUBLIC_POWERS,name),"{name}");}
+    }
     use crate::{RunAct1BossTarget as A1,RunAct2BossTarget as A2,RunAct3BossTarget as A3,RunActionIndex,RunBossHistory as H,RunCapacities,RunObservation,RunSession,RunSessionConfig};
     use spire_core::{combat::{rng::Partition,FullIntentId,FullPowerId,FullPowerView},content::Character,run::PublicDecision};
     type Encoder=fn(&PublicDecision,&RunCapacities)->Result<RunObservation,RunSessionError>;

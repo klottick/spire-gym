@@ -128,9 +128,14 @@ fn validate_field(field: &str) -> Result<(), RngError> {
 }
 
 pub(crate) fn hmac_sha256(key: &[u8], message: &[u8]) -> [u8; 32] {
+    hmac_sha256_parts(key, |mac| mac(message))
+}
+/// M38b: HMAC-SHA256 of the concatenation of the parts `write` feeds in order (the same digest as [`hmac_sha256`] over
+/// the concatenated message, without building it).
+pub(crate) fn hmac_sha256_parts(key: &[u8], write: impl FnOnce(&mut dyn FnMut(&[u8]))) -> [u8; 32] {
     // HMAC accepts keys of every length; this constructor cannot reject one.
     let mut mac = Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key length");
-    mac.update(message);
+    write(&mut |part| mac.update(part));
     mac.finalize().into_bytes().into()
 }
 
