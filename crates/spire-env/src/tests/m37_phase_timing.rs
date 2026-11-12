@@ -17,8 +17,12 @@
 //!
 //! Environment: `M37_PART` (`scalar`, `batch` or `all`; default `all`), `M37_SEEDS` (seeds per character, default 256),
 //! `M37_SLOTS` (default 64), `M37_BATCH_STEPS` (default 100), `M37_WORKERS` (default `1,4,16`), `M37_RECORD`
-//! (`on`, `off` or `both`; default `both`), `M37_STACK` (`off` skips the stacking copy) and `M37_OUT` (JSON path;
-//! otherwise JSON on stdout).
+//! (`on`, `off` or `both`; default `both`), `M37_STACK` (`off` skips the stacking copy; M38a: `parallel` and
+//! `parallel-reuse` stack as the M37b binding does instead, see `stack_parallel`; `serial` is the default),
+//! `M37_EARLY_DROP` (M38a: `1` drops the previous rows after choosing actions and before the next call, halving the live
+//! observations during a call; the default keeps them until the call returns, as callers do), `M37_CAPACITIES` (M38a:
+//! `compact` gives the batch the smaller capacities of `m38_scaling`, a different shape and fingerprint, only to size the
+//! effect of fewer observation bytes; default `standard-default-v1`) and `M37_OUT` (JSON path; otherwise JSON on stdout).
 use crate::run_observation::{encode_run_standard, StandardContext};
 use crate::run_session::{checked_reward_items, create_run, RunProfile};
 use crate::session_batch::{sealed::Sealed, BatchSession, BatchStep, BatchStepFailure};
@@ -251,11 +255,71 @@ fn stack_columns(rows: &[&RunObservation]) -> usize {
     columns.len() + mask.len()
 }
 
-fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking: bool) -> Value {
+/// M38a: the M37b binding's stacking (`spire-python` `stacking::stack_slots`): one `[B, ...]` column per tensor, each
+/// slot's rows copied into its chunk on the batch's workers (`SessionBatch::map_jobs`). Without `reuse` it reserves new
+/// columns every call, as the binding does, and returns them for the caller to drop (Python frees returned arrays on the
+/// calling thread). With `reuse` it copies into the same columns every call, the effect caller-supplied output buffers
+/// would have.
+#[derive(Default)]
+struct StackColumns { wide: Vec<Vec<i64>>, narrow: Vec<Vec<i8>> }
+fn narrow_parts(o: &RunObservation) -> Vec<&[i8]> {
+    let mut parts = Vec::new();
+    for g in &o.groups { parts.push(&g.known[..]); if let Some(occupied) = &g.occupied { parts.push(&occupied[..]) } }
+    parts.push(&o.action_mask[..]);
+    parts
+}
+fn stack_parallel<S: BatchSession>(batch: &SessionBatch<S>, rows: &[&RunObservation], reuse: Option<&mut StackColumns>) -> Option<StackColumns> {
+    use std::mem::MaybeUninit;
+    let count = rows.len();
+    let wide_widths = rows[0].groups.iter().map(|g| g.values.len()).collect::<Vec<_>>();
+    let narrow_widths = narrow_parts(rows[0]).iter().map(|p| p.len()).collect::<Vec<_>>();
+    // Every row must have row 0's layout: the copies below zip over it, and `set_len` relies on every chunk being written.
+    for o in rows {
+        assert!(o.groups.iter().map(|g| g.values.len()).eq(wide_widths.iter().copied()), "stacked rows disagree in layout");
+        assert!(narrow_parts(o).iter().map(|p| p.len()).eq(narrow_widths.iter().copied()), "stacked rows disagree in layout");
+    }
+    let mut fresh = StackColumns::default();
+    let reused = reuse.is_some();
+    let columns = reuse.unwrap_or(&mut fresh);
+    if columns.wide.is_empty() {
+        columns.wide = wide_widths.iter().map(|w| Vec::with_capacity(w * count)).collect();
+        columns.narrow = narrow_widths.iter().map(|w| Vec::with_capacity(w * count)).collect();
+    }
+    columns.wide.iter_mut().for_each(Vec::clear);
+    columns.narrow.iter_mut().for_each(Vec::clear);
+    type Job<'a> = (&'a RunObservation, Vec<&'a mut [MaybeUninit<i64>]>, Vec<&'a mut [MaybeUninit<i8>]>);
+    let mut jobs = rows.iter().map(|o| (*o, Vec::new(), Vec::new())).collect::<Vec<Job<'_>>>();
+    for (column, &w) in columns.wide.iter_mut().zip(&wide_widths) {
+        let spare = &mut column.spare_capacity_mut()[..w * count];
+        if w == 0 { jobs.iter_mut().for_each(|j| j.1.push(&mut [])) } else { for (job, chunk) in jobs.iter_mut().zip(spare.chunks_exact_mut(w)) { job.1.push(chunk) } }
+    }
+    for (column, &w) in columns.narrow.iter_mut().zip(&narrow_widths) {
+        let spare = &mut column.spare_capacity_mut()[..w * count];
+        if w == 0 { jobs.iter_mut().for_each(|j| j.2.push(&mut [])) } else { for (job, chunk) in jobs.iter_mut().zip(spare.chunks_exact_mut(w)) { job.2.push(chunk) } }
+    }
+    batch.map_jobs(jobs, |(o, wide, narrow)| {
+        for (target, g) in wide.into_iter().zip(&o.groups) { for (t, v) in target.iter_mut().zip(&g.values) { t.write(*v); } }
+        for (target, part) in narrow.into_iter().zip(narrow_parts(o)) { for (t, v) in target.iter_mut().zip(part) { t.write(*v); } }
+    }).unwrap();
+    // SAFETY: `map_jobs` returned only after every job ran, and each job wrote its whole chunk of every column; the
+    // chunks partition the first `width * count` reserved elements.
+    for (column, &w) in columns.wide.iter_mut().zip(&wide_widths) { unsafe { column.set_len(w * count) } }
+    for (column, &w) in columns.narrow.iter_mut().zip(&narrow_widths) { unsafe { column.set_len(w * count) } }
+    black_box(&columns);
+    if reused { None } else { Some(fresh) }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Stacking { Off, Serial, Parallel, ParallelReuse }
+
+fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking: Stacking) -> Value {
+    let compact = std::env::var("M37_CAPACITIES").as_deref() == Ok("compact");
+    let early_drop = std::env::var("M37_EARLY_DROP").as_deref() == Ok("1");
     let clocks = (0..slots).map(|_| Arc::new(JobClock::default())).collect::<Vec<_>>();
     let sessions = (0..slots).map(|slot| {
         let mut config = StandardRunConfig::new(CHARACTERS[(slot / (slots / 4).max(1)) % 4], 20, Partition::Test);
         config.record_replay = record;
+        if compact { config.capacities = super::m38_scaling::compact_capacities() }
         TimedSession { inner: RunSession::new_standard(config).unwrap(), clock: clocks[slot].clone() }
     }).collect::<Vec<_>>();
     let config = BatchConfig { workers, autoreset: AutoresetMode::NextStep, fault_policy: FaultPolicy::Freeze };
@@ -268,12 +332,20 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
     let (mut step_jobs, mut step_ns, mut reset_jobs, mut reset_ns, mut max_reset_ns) = (0u64, 0u64, 0u64, 0u64, 0u64);
     let mut call_max_job = 0u64;
     let mut drop_rows = 0u64;
+    let (mut stack_drop, mut reused_columns) = (0u64, StackColumns::default());
     let mut threads_seen = BTreeSet::new();
+    // The worker that ran each slot's last job, step or autoreset (0 before the first), to count slots that change worker.
+    let (mut last_thread, mut moved, mut compared) = (vec![0u64; slots], 0u64, 0u64);
     for tick in 0..steps {
         let actions = rows.iter().enumerate().map(|(slot, row)| {
             if row.boundary.terminal.is_some() { RunActionIndex(0) }
             else { RunActionIndex(crate::tests::m35_r2::r1(seeds[slot].unwrap(), tick as u64, &row.boundary.observation.action_mask) as i64) }
         }).collect::<Vec<_>>();
+        if early_drop {
+            let drop_start = now_ns();
+            drop(std::mem::take(&mut rows));
+            drop_rows += now_ns() - drop_start;
+        }
         let call_start = now_ns();
         let next = batch.step(&tokens, &actions).unwrap();
         let call_end = now_ns();
@@ -284,9 +356,12 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
         let (mut first, mut last) = (u64::MAX, 0u64);
         let mut per_thread: BTreeMap<u64, u64> = BTreeMap::new();
         let mut longest = 0u64;
-        for clock in &clocks {
+        for (slot, clock) in clocks.iter().enumerate() {
             let (start, end) = (clock.start.load(Ordering::Relaxed), clock.end.load(Ordering::Relaxed));
             if start < call_start { continue }
+            let worker = clock.thread.load(Ordering::Relaxed);
+            if last_thread[slot] != 0 { compared += 1; if worker != last_thread[slot] { moved += 1 } }
+            last_thread[slot] = worker;
             let duration = end - start;
             first = first.min(start);
             last = last.max(end);
@@ -304,11 +379,18 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
         busy_sum += per_thread.values().sum::<u64>();
         critical += per_thread.values().copied().max().unwrap_or(0);
         call_max_job += longest;
-        if stacking {
+        if stacking != Stacking::Off {
             let stack_start = now_ns();
             let observations = rows.iter().map(|row| &row.boundary.observation).collect::<Vec<_>>();
-            black_box(stack_columns(&observations));
+            let columns = match stacking {
+                Stacking::Serial => { black_box(stack_columns(&observations)); None }
+                Stacking::Parallel => stack_parallel(&batch, &observations, None),
+                _ => stack_parallel(&batch, &observations, Some(&mut reused_columns)),
+            };
             stack += now_ns() - stack_start;
+            let drop_start = now_ns();
+            drop(columns);
+            stack_drop += now_ns() - drop_start;
         }
         tokens.clear();
         tokens.extend(rows.iter().map(|row| row.boundary.token));
@@ -316,7 +398,11 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
     let record_ns = clocks.iter().map(|c| c.record_export_ns.load(Ordering::Relaxed)).sum::<u64>() - before_record_ns;
     let ms = |ns: u64| ns as f64 / 1e6;
     let slot_steps = (slots * steps) as f64;
-    json!({"slots": slots, "workers": workers, "record_replay": record, "stacking": stacking, "batch_calls": steps, "slot_steps": slot_steps,
+    json!({"slots": slots, "workers": workers, "record_replay": record, "stacking": stacking != Stacking::Off,
+        "stack_mode": match stacking { Stacking::Off => "off", Stacking::Serial => "serial", Stacking::Parallel => "parallel", Stacking::ParallelReuse => "parallel-reuse" },
+        "capacities": if compact { "compact" } else { "standard-default-v1" },
+        "observation_bytes": observation_bytes(&rows[0].boundary.observation), "early_drop": early_drop, "batch_calls": steps,
+        "slot_moved_fraction": moved as f64 / compared.max(1) as f64, "slot_steps": slot_steps,
         "worker_threads_seen": threads_seen.len(),
         "slot_steps_per_second_step_only": slot_steps / (wall as f64 / 1e9),
         "slot_steps_per_second_with_stacking": slot_steps / ((wall + stack) as f64 / 1e9),
@@ -326,7 +412,8 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
         "step_jobs": step_jobs, "step_job_mean_us": step_ns as f64 / 1e3 / step_jobs.max(1) as f64,
         "reset_jobs": reset_jobs, "reset_job_mean_us": reset_ns as f64 / 1e3 / reset_jobs.max(1) as f64, "reset_job_max_us": max_reset_ns as f64 / 1e3,
         "reset_job_total_ms": ms(reset_ns), "record_export_in_autoreset_ms": ms(record_ns),
-        "drop_previous_rows_ms": ms(drop_rows), "stack_copy_ms": ms(stack), "stack_copy_us_per_call": stack as f64 / 1e3 / steps as f64})
+        "drop_previous_rows_ms": ms(drop_rows), "stack_copy_ms": ms(stack), "stack_copy_us_per_call": stack as f64 / 1e3 / steps as f64,
+        "stack_drop_ms": ms(stack_drop), "stack_drop_us_per_call": stack_drop as f64 / 1e3 / steps as f64})
 }
 
 #[test]
@@ -351,7 +438,11 @@ fn m37_phase_timing() {
     }
     if part == "batch" || part == "all" {
         let mut runs = Vec::new();
-        let stacking = std::env::var("M37_STACK").as_deref() != Ok("off");
+        let stacking = match std::env::var("M37_STACK").as_deref() {
+            Ok("off") => Stacking::Off, Ok("parallel") => Stacking::Parallel, Ok("parallel-reuse") => Stacking::ParallelReuse,
+            Ok("serial") | Err(_) => Stacking::Serial,
+            Ok(other) => panic!("M37_STACK must be off, serial, parallel or parallel-reuse, not {other}"),
+        };
         for &record in records { for &w in &workers { runs.push(batch_part(slots, steps, w, record, stacking)) } }
         out["batch"] = Value::Array(runs);
     }
