@@ -135,7 +135,7 @@ fn frozen_identities() {
 pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("standard.observation_schema", "spire-gym-standard-run-observation-v1"),
     ("standard.observation_fingerprint", "bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae"),
-    ("standard.rules", "spire-gym-native-standard-rules-v4"),
+    ("standard.rules", "spire-gym-native-standard-rules-v5"),
     ("standard.content", "spire-gym-standard-content-v1"),
     ("standard.record", "spire-gym-standard-run-replay-v1"),
     ("standard.reward", "spire-gym-floor-key-terminal-reward-v1"),

@@ -824,7 +824,8 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
             crate::items::on_hook(&mut run.state,crate::combat::Hook::ChestOpenedAfter{boss:false})?;
         }
         RoomChoiceKind::Relic(relic)=>{
-            if run.state.relics.contains(&relic){return Err(RunError::InvalidAction)}
+            // A duplicate Circlet stacks its counter in the Complete lifecycle, as the original's obtain does (spire-0kr).
+            if run.state.relics.contains(&relic)&&!(relic==RelicId::Circlet&&run.state.item_admission==ItemAdmission::Complete){return Err(RunError::InvalidAction)}
             let node_kind=run.state.map.as_ref().and_then(|map|map.current.and_then(|node|map.nodes.iter().find(|candidate|candidate.id==node))).map(|node|node.kind);
             let source=if screen.kind==RoomViewKind::Treasure{crate::items::lifecycle::RelicSource::Chest}else if node_kind==Some(MapNodeKind::Elite){crate::items::lifecycle::RelicSource::Elite}else{crate::items::lifecycle::RelicSource::Reward};
             if run.state.item_admission==ItemAdmission::Complete{

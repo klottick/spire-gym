@@ -63,7 +63,9 @@ pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
 /// v3 since M34s-b: I1-c (grid order of combat-local copies) and R1-b (Stasis roll mapping by card id and pile position).
 /// v4 since spire-3xq (shared combat rules, also M9 v3 and M10 v2): Berserk and Fire Breathing amounts, no selection in a
 /// won combat, a selection ahead of a queued autoplay repeat, the 999-identity bound typed `Unsupported`.
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v4";
+/// v5 since spire-0kr: The Courier restocks a bought shop row in place, a shop prices Circlet at its Special base 400 and a
+/// duplicate Circlet reward stacks (Standard only; M9/M10 shops have no restock and never reach these paths).
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v5";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.

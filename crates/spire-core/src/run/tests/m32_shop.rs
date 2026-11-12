@@ -127,17 +127,19 @@ fn m32_a16_courier_restock_no_markup() {
             |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Relic(_)),
             |kind: &RoomChoiceKind| matches!(kind, RoomChoiceKind::Potion(_)),
         ] {
-            for run in &mut runs {
+            // spire-0kr: the restock replaces the bought row in place.
+            let [a15, a16] = runs.each_mut().map(|run| {
                 run.state.gold = 999;
                 run.state.potions.iter_mut().for_each(|slot| *slot = None);
-                let row = room(run).choices.into_iter().find(|row| pick(&row.kind) && row.status == RoomChoiceStatus::Offered).unwrap();
-                click(run, row.id);
-            }
-            let [a15, a16] = &runs;
-            let rows15: Vec<_> = priced(a15).into_iter().filter(|(kind, _)| pick(kind)).collect();
-            let rows16: Vec<_> = priced(a16).into_iter().filter(|(kind, _)| pick(kind)).collect();
-            assert_eq!(rows15.last().map(|row| &row.0), rows16.last().map(|row| &row.0), "{character:?}: same restock");
-            assert_eq!(rows15.last().map(|row| row.1), rows16.last().map(|row| row.1), "{character:?}: restock priced as at A15");
+                let index = room(run).choices.iter().position(|row| pick(&row.kind) && row.status == RoomChoiceStatus::Offered).unwrap();
+                let bought = room(run).choices[index].id;
+                click(run, bought);
+                let restock = room(run).choices[index].clone();
+                assert_ne!(restock.id, bought, "{character:?}: restock in place");
+                (restock.kind, restock.price)
+            });
+            assert_eq!(a15.0, a16.0, "{character:?}: same restock");
+            assert_eq!(a15.1, a16.1, "{character:?}: restock priced as at A15");
         }
     }
 }

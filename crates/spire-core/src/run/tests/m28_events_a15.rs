@@ -543,3 +543,25 @@ fn m28_a15_m28f_secret_portal_enter_unsupported_and_leave() {
         assert_eq!(view(&run).kind, RoomViewKind::Map, "A{ascension}: Leave remains available");
     }
 }
+
+/// spire-0kr (PM ruling): a Circlet reward row while Circlet is already owned stacks Circlet's counter, as the original's
+/// obtain does. The shared reward chooser used to reject it with `InvalidAction` although the mask offered it. Cursed
+/// Tome offers a literal Circlet once all three books are owned.
+#[test]
+fn x0kr_a_duplicate_circlet_reward_stacks() {
+    let mut run = entered(EventId::CursedTome, 2, 0, 80, |run, _| {
+        run.state.hp = 80;
+        run.state.max_hp = 80;
+        run.state.relics.extend([RelicId::Necronomicon, RelicId::Enchiridion, RelicId::NilrysCodex, RelicId::Circlet]);
+        run.state.relic_counters.insert(RelicId::Circlet, 1);
+    });
+    let relics = run.state.relics.clone();
+    for stage in 0..=4 { choose(&mut run, stage, 0); }
+    assert_eq!(view(&run).kind, RoomViewKind::Rewards);
+    let circlet = row(&run, &RoomChoiceKind::Relic(RelicId::Circlet));
+    assert_eq!(circlet.status, RoomChoiceStatus::Offered);
+    run.step(&GameAction::Choose(circlet.id)).unwrap();
+    assert_eq!(run.state.relics, relics, "a second Circlet is not a second relic");
+    assert_eq!(run.state.relic_counters.get(&RelicId::Circlet), Some(&2));
+    assert_eq!(row(&run, &RoomChoiceKind::Relic(RelicId::Circlet)).status, RoomChoiceStatus::Claimed);
+}

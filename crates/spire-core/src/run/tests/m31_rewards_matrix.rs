@@ -399,11 +399,10 @@ fn m31_shop_courier_restock_shop_thresholds() {
     let draw = run.state.rng.clone().bounded_scoped_checked(RunRngScope::M28ShopStock, &key, 100).unwrap() as u64;
     let expected = hand_rarity(draw, start_offset, SHOP, 1);
     if expected == hand_rarity(draw, start_offset, (3, 37), 1) { continue; }
+    let index = screen.choices.iter().position(|row| row.id == purchased.id).unwrap();
     click(&mut run, purchased.id);
-    let rows = room(&run).choices;
-    let restocked = rows.iter().filter_map(|row| match row.kind {
-        RoomChoiceKind::Card { id, .. } if row.id != purchased.id => Some(id), _ => None,
-    }).last().unwrap();
+    // spire-0kr: the restock replaces the bought row in place and keeps the first restock key (row index 7).
+    let RoomChoiceKind::Card { id: restocked, .. } = room(&run).choices[index].kind else { panic!("card restock in place") };
     assert_eq!(Catalog::standard().card(restocked).unwrap().card_type, CardType::Attack, "Courier keeps the purchased type");
     assert_eq!(Catalog::standard().card(restocked).unwrap().rarity, expected, "restock uses the ShopRoom 9/37 threshold");
     assert_eq!(run.state.card_rarity_offset, Some(start_offset), "Courier reads the offset without changing it");

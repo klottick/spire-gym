@@ -191,7 +191,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
                 .filter(|choice|choice.status==RoomChoiceStatus::Offered).map(|choice|&mut choice.kind));
             // The Courier restocks before any equip continuation replaces the shop screen.
             if complete_courier_shop(&staged) {
-                restock_courier_relic(&mut staged)?;
+                restock_courier_relic(&mut staged,id)?;
             }
             let transition=crate::items::lifecycle::after_obtain(&mut staged,id,relic,obtained)?;
             *run=staged;
@@ -210,9 +210,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
                     .find(|choice|choice.id==id).ok_or(RunError::InvalidAction)?.status=RoomChoiceStatus::Claimed;
                 crate::items::dispatch::run_event(&mut staged.state,&mut crate::items::dispatch::RunItemEvent::ShopPurchase)?;
                 if complete_courier_shop(&staged){
-                    let row_index=staged.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.choices.iter()
-                        .filter(|choice|matches!(choice.kind,RoomChoiceKind::Potion(_))).count() as u64;
-                    restock_courier_potion(&mut staged,row_index)?;
+                    restock_courier_potion(&mut staged,id)?;
                 }
                 *run=staged;
                 return Ok(empty_transition())
@@ -225,9 +223,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
                     .find(|choice|choice.id==id).ok_or(RunError::InvalidAction)?.status=RoomChoiceStatus::Claimed;
                 crate::items::dispatch::run_event(&mut staged.state,&mut crate::items::dispatch::RunItemEvent::ShopPurchase)?;
                 if complete_courier_shop(&staged){
-                    let row_index=staged.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.choices.iter()
-                        .filter(|choice|matches!(choice.kind,RoomChoiceKind::Card{..})).count() as u64;
-                    restock_courier_card(&mut staged,card,row_index)?;
+                    restock_courier_card(&mut staged,card,id)?;
                 }
                 *run=staged;
                 return Ok(empty_transition())
@@ -284,10 +280,14 @@ fn courier_law(run:&Run)->CourierLaw{
         item_jitter:Some(crate::run::RunRngScope::M28ShopPrice),colourless:true}
 }
 
-pub(in crate::run) fn append_shop_row(run:&mut Run,kind:RoomChoiceKind,price:u32)->Result<(),RunError>{
+/// A Courier restock replaces the bought row in place, as the original keeps its 13 item slots (spire-0kr). The restock
+/// takes a fresh choice id; the shop's row count never grows.
+fn replace_shop_row(run:&mut Run,bought:ChoiceId,kind:RoomChoiceKind,price:u32)->Result<(),RunError>{
     let mut replacement=view(&mut run.next_choice,RoomViewKind::Shop,vec![(kind,Some(price))])?;
     let choice=replacement.choices.pop().ok_or(RunError::InvalidAction)?;
-    run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen.choices.push(choice);
+    let row=run.state.room_loop.as_mut().ok_or(RunError::InvalidAction)?.screen.choices.iter_mut()
+        .find(|row|row.id==bought).ok_or(RunError::InvalidAction)?;
+    *row=choice;
     Ok(())
 }
 
@@ -334,10 +334,12 @@ pub(in crate::run) fn item_sticker(base:u32,k:u64)->u32{libgdx_round((base as f3
 pub(in crate::run) fn card_base(rarity:CardRarity)->Result<u32,RunError>{
     match rarity{CardRarity::Common=>Ok(50),CardRarity::Uncommon=>Ok(75),CardRarity::Rare=>Ok(150),_=>Err(RunError::InvalidAction)}
 }
-fn relic_base(relic:RelicId)->Result<u32,RunError>{
+/// Relic base price by tier (economy research :167). Special is Circlet, the exhausted-pool fallback, at the original's
+/// Special base 400 (spire-0kr).
+pub(in crate::run) fn relic_base(relic:RelicId)->Result<u32,RunError>{
     match crate::content::Catalog::standard().relic_tier(relic).ok_or(RunError::Registry("complete relic tier missing"))? {
         crate::content::RelicTier::Common=>Ok(150),crate::content::RelicTier::Uncommon=>Ok(250),crate::content::RelicTier::Rare=>Ok(300),
-        crate::content::RelicTier::Shop=>Ok(150),_=>Err(RunError::InvalidAction),
+        crate::content::RelicTier::Shop=>Ok(150),crate::content::RelicTier::Special=>Ok(400),_=>Err(RunError::InvalidAction),
     }
 }
 fn shop_price_event(run:&mut Run,base:u32)->Result<u32,RunError>{
@@ -437,21 +439,36 @@ fn shop_node_key(run:&Run,row_index:u64,source_tag:u64)->Result<[u64;5],RunError
     Ok([u64::from(run.state.act),u64::from(run.state.floor),node.0,row_index,source_tag])
 }
 
-fn restock_courier_potion(run:&mut Run,row_index:u64)->Result<(),RunError>{
-    let key=shop_node_key(run,row_index,COMPLETE_COURIER_POTION_SOURCE_TAG)?;
-    let (potion,price)=courier_potion(run,&key,courier_law(run))?;
-    append_shop_row(run,RoomChoiceKind::Potion(potion),price)
+/// The key of the next card or potion restock in this shop: the first unused index from the shop's row count of that kind.
+/// Each restock's first draw is on its own key, so restock `k` of the visit reads index `rows + k`, the row count the
+/// former appending shop had at that purchase (spire-0kr keeps every restock identity and price).
+fn restock_key(run:&Run,scope:crate::run::RunRngScope,kind:fn(&RoomChoiceKind)->bool,source_tag:u64)->Result<[u64;5],RunError>{
+    let rows=run.state.room_loop.as_ref().ok_or(RunError::InvalidAction)?.screen.choices.iter().filter(|choice|kind(&choice.kind)).count() as u64;
+    let mut row_index=rows;
+    loop{
+        let key=shop_node_key(run,row_index,source_tag)?;
+        if !run.state.rng.scoped_drawn(scope,&key){return Ok(key)}
+        row_index=row_index.checked_add(1).ok_or(RunError::Unsupported("Courier restock key exhausted"))?;
+    }
 }
 
-fn restock_courier_card(run:&mut Run,purchased:crate::content::CardId,row_index:u64)->Result<(),RunError>{
-    let key=shop_node_key(run,row_index,COMPLETE_COURIER_CARD_SOURCE_TAG)?;
-    let (card,price)=courier_card(run,purchased,&key,courier_law(run))?;
+fn restock_courier_potion(run:&mut Run,bought:ChoiceId)->Result<(),RunError>{
+    let law=courier_law(run);
+    let key=restock_key(run,law.potion,|kind|matches!(kind,RoomChoiceKind::Potion(_)),COMPLETE_COURIER_POTION_SOURCE_TAG)?;
+    let (potion,price)=courier_potion(run,&key,law)?;
+    replace_shop_row(run,bought,RoomChoiceKind::Potion(potion),price)
+}
+
+fn restock_courier_card(run:&mut Run,purchased:crate::content::CardId,bought:ChoiceId)->Result<(),RunError>{
+    let law=courier_law(run);
+    let key=restock_key(run,law.card,|kind|matches!(kind,RoomChoiceKind::Card{..}),COMPLETE_COURIER_CARD_SOURCE_TAG)?;
+    let (card,price)=courier_card(run,purchased,&key,law)?;
     let upgrades=super::standard::rewards::preview_upgrades(&run.state,card,0);
-    append_shop_row(run,RoomChoiceKind::Card{id:card,upgrades},price)
+    replace_shop_row(run,bought,RoomChoiceKind::Card{id:card,upgrades},price)
 }
 
-fn restock_courier_relic(run:&mut Run)->Result<(),RunError>{
+fn restock_courier_relic(run:&mut Run,bought:ChoiceId)->Result<(),RunError>{
     let key=shop_node_key(run,0,COMPLETE_COURIER_RELIC_SOURCE_TAG)?;
     let (relic,price)=courier_relic(run,&key,courier_law(run))?;
-    append_shop_row(run,RoomChoiceKind::Relic(relic),price)
+    replace_shop_row(run,bought,RoomChoiceKind::Relic(relic),price)
 }

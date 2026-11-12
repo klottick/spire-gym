@@ -194,9 +194,9 @@ fn x3q_dagger_throw_killing_the_reptomancer_wins_without_a_discard_choice() {
     assert_eq!(r.boundary.info["terminal_reason"], "victory");
 }
 
-/// F1: The Courier keeps claimed shop rows and appends a restock per purchase, so a shop's rows are bounded only by the
-/// purchases made in one visit (more than 512 needs at least 498). The dense preset then fails closed with a typed
-/// `Capacity` fault for `offers`; it never truncates the row list.
+/// F1: a room screen with more rows than the dense `offers` capacity fails closed with a typed `Capacity` fault; it never
+/// truncates the row list. Since spire-0kr The Courier restocks in place, so a shop holds at most 15 rows; this synthetic
+/// 513-row screen keeps the encoder's fail-closed path covered.
 #[test]
 fn x3q_more_shop_rows_than_the_dense_offers_capacity_is_a_typed_capacity_fault() {
     use spire_core::run::{ChoiceId, CreationProfile, RoomChoiceKind, RoomChoiceStatus, RoomChoiceView, RoomScenario, RoomView, RoomViewKind, Run, RunConfig, RunRng};
