@@ -7,8 +7,63 @@ scaffold is not implemented coverage or a passing test. No gameplay
 optimizations, new dependencies or original-runtime fidelity claims accompany
 those measurements.
 
-For where this time goes (perf profiles, a phase-timing harness, and the ranked fixes
-proposed for M37b), see [profiling](profiling.md).
+For where this time goes (perf profiles, a phase-timing harness, the ranked fixes and what
+M37b and M38b changed), see [profiling](profiling.md).
+
+## A20 Standard checks after M38b — 2026-11-12
+
+M38b changed how batch observations reach Python, how batch slots are spread over workers, and a
+few encoder costs. Nothing observable changed
+([profiling](profiling.md#after-m38b)). "Before" is base `fc12db1e` (v1.0.0 code plus the M37a
+and M38a harness); "after" is the M38b code. Same host as the sections below, `--release
+--locked --offline`, quiet machine, runs interleaved. `a20_checks` values are the min–max of
+five runs on each side.
+
+| `a20_checks` (`record_replay` on in B and M, as in M36) | Before | After |
+| --- | ---: | ---: |
+| S: scalar, 1,024 episodes, actions/s | 20,055–20,569 | 21,454–22,210 |
+| B: 64 slots, 1 worker, slot steps/s | 12,860–13,064 | 13,379–13,776 |
+| B: 64 slots, 4 workers | 30,099–30,813 | 31,827–33,126 |
+| B: 64 slots, 16 workers | 37,252–38,644 | 40,203–41,913 |
+| B: 256 slots, 16 workers | 28,183–29,079 | 28,843–29,086 |
+| M: VmRSS after the 256-slot phase, KiB | 563,664–673,304 | 573,696–623,008 |
+
+Python (`examples/run_vector_phase_timing.py`, 64 slots, A20, 1,000 calls, `record_replay` off;
+three runs, two for the facade and example loops), ms per call:
+
+| Workers | Loop | Before | After |
+| ---: | --- | ---: | ---: |
+| 1 | `NativeRunBatch.step` | 8.09 | 4.60–5.00 |
+| 16 | `NativeRunBatch.step` | 4.90–5.03 | 1.25–1.31 |
+| 1 | `RunVectorEnv.step` | 8.15–8.16 | 4.66–4.68 |
+| 16 | `RunVectorEnv.step` | 5.15–5.16 | 1.29–1.33 |
+
+The example loop (per-slot Python policy plus `RunVectorEnv.step`) went from 7.5k to 12.7k slot
+steps/s at 1 worker and from 11.3k–11.5k to 37.5k–38.5k at 16 workers. The native phase-harness
+curve and its recording-on rows are in [profiling](profiling.md#after-m38b).
+
+**For Python callers.** Returned arrays are still new on every call. Their memory goes back to
+the batch for reuse when NumPy releases them, so releasing the previous `obs` before the next
+`step` (for example, by keeping only the features and mask the policy needs) lets that call
+reuse it. Measured that way, a 16-worker step took 0.71–0.84 ms instead of 1.25–1.31 ms. The
+glibc no-trim environment that helped the base binding (about 25% at 16 workers) makes no
+measurable difference now; it is not needed.
+
+**Speed check for build records.** Two short, fixed, deterministic runs with JSON output and no
+thresholds; compare them only with earlier runs on the same host:
+
+```sh
+cargo run --release --locked --offline -p spire-env --example a20_checks -- --speed-check --out speed-native.json
+python examples/speed_check.py --out speed-python.json
+```
+
+The native run steps 64 A20 slots (`record_replay` on) for 200 calls at 1 and 16 workers, twice
+each, and took about 3 s here. The Python run steps `RunVectorEnv` over 64 A20 slots
+(`record_replay` off) for 300 calls at 1 and 16 workers, twice each, and took about 5 s. Each JSON
+has a `runs` list and a `best` object: `best.workers_1` and `best.workers_16` are the higher of
+the two repeats, in slot steps/s. Here `best` was about 13.9k and 41.7k for the native run and
+about 13.7k and 45.7k for the Python run. Check
+`_native.__file__` and `build_info()` (both printed in the JSON) before comparing Python runs.
 
 ## A20 Standard checks after M37b — 2026-11-11
 

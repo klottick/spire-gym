@@ -795,6 +795,7 @@ fn publish(
     config: &RunSessionConfig,
     token: RunDecisionToken,
     encoder:Option<RunEncoder>,
+    target:Option<&mut crate::ObservationTarget<'_>>,
 ) -> Result<(RunBoundary, Vec<GameAction>, bool, bool, bool), RunSessionError> {
     let decision = run.decision().map_err(RunSessionError::Core)?;
     check_boundary(profile, &decision)?;
@@ -827,8 +828,8 @@ fn publish(
             RunProfile::M23WatcherAct2 => crate::encode_run_m23(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M24WatcherAct3 => crate::encode_run_m24(&decision, map.as_ref(), &config.capacities)?,
         RunProfile::M25WatcherHeart => crate::encode_run_m25(&decision, map.as_ref(), &config.capacities)?,
-        RunProfile::Standard => crate::run_observation::encode_run_standard(&decision, map.as_ref(), &config.capacities,
-            crate::run_observation::StandardContext{ascension:run.ascension(),run_selection:run.room_selection_operation()})?,
+        RunProfile::Standard => crate::run_observation::encode_run_standard_into(&decision, map.as_ref(), &config.capacities,
+            crate::run_observation::StandardContext{ascension:run.ascension(),run_selection:run.room_selection_operation()},target)?,
     }
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1|RunProfile::M22WatcherAct1)
@@ -1198,9 +1199,13 @@ impl RunSession{
         self.profile.observation_spec(&self.config.capacities)
     }
     fn publish_current(&self,serial:u64)->Result<(RunBoundary,Vec<GameAction>,bool,bool,bool),RunSessionError>{
+        self.publish_current_into(serial,None)
+    }
+    /// M38b: a Standard publication encodes into `target` when it fits (see [`crate::ObservationTarget`]).
+    fn publish_current_into(&self,serial:u64,target:Option<&mut crate::ObservationTarget<'_>>)->Result<(RunBoundary,Vec<GameAction>,bool,bool,bool),RunSessionError>{
         let encoder:Option<RunEncoder>=None;
         #[cfg(test)] let encoder=if self.m20_diagnostic.is_some(){Some(crate::run_observation::encode_run_m20_diagnostic as RunEncoder)}else{encoder};
-        publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial]),encoder)
+        publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial]),encoder,target)
     }
     /// The profile's spec fingerprint for this session's capacities (what `new_record` stamps); built once, then reused.
     fn profile_fingerprint(&self)->Result<[u8;32],RunSessionError>{
@@ -1226,10 +1231,14 @@ impl RunSession{
         Ok((seed,ordinal,serial))
     }
     pub fn reset(&mut self,seed:Option<u64>)->Result<RunBoundary,RunSessionError>{
-        let (seed,ordinal,serial)=self.preflight_reset(seed)?;
-        self.start_episode(seed,ordinal,serial)
+        self.reset_into(seed,None)
     }
-    fn start_episode(&mut self,seed:u64,ordinal:u64,serial:u64)->Result<RunBoundary,RunSessionError>{
+    /// M38b: [`Self::reset`] with the published observation written into `target` when it fits.
+    pub(crate) fn reset_into(&mut self,seed:Option<u64>,target:Option<&mut crate::ObservationTarget<'_>>)->Result<RunBoundary,RunSessionError>{
+        let (seed,ordinal,serial)=self.preflight_reset(seed)?;
+        self.start_episode(seed,ordinal,serial,target)
+    }
+    fn start_episode(&mut self,seed:u64,ordinal:u64,serial:u64,target:Option<&mut crate::ObservationTarget<'_>>)->Result<RunBoundary,RunSessionError>{
         #[cfg(test)] if self.test_reset_panic==Some(TestResetPanic::BeforeMutation){self.test_reset_panic=None;panic!("TEST-ONLY injected reset worker panic before mutation");}
         #[cfg(test)] {self.m20_diagnostic=None;}
         // Healthy reset intentionally abandons the old episode, never a fault.
@@ -1241,7 +1250,7 @@ impl RunSession{
         let run=match create_run(self.profile,&self.config,seed,ordinal){Ok(run)=>run,Err(error)=>{self.run=None;return Err(self.freeze(error.clone(),error,None,false,false))}};
         self.run=Some(run);self.serial=serial;
         #[cfg(test)] if self.test_reset_panic==Some(TestResetPanic::AfterStartup){self.test_reset_panic=None;panic!("TEST-ONLY injected reset worker panic after startup");}
-        let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current(serial){
+        let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current_into(serial,target){
             Ok(result)=>result,Err(error)=>return Err(self.freeze(error.clone(),error,None,false,false)),
         };
         self.published=Some(Published{token:boundary.token,terminal:boundary.terminal,observation:None});self.actions=actions;self.at_m12_cutoff=at_m12_cutoff;self.at_m13_cutoff=at_m13_cutoff;self.at_m14_cutoff=at_m14_cutoff;Ok(boundary)
@@ -1270,6 +1279,10 @@ impl RunSession{
         self.step_with_status(token,index).map_err(|failure|failure.error)
     }
     pub(crate) fn step_with_status(&mut self,token:RunDecisionToken,index:RunActionIndex)->Result<RunStepResult,RunSessionStepFailure>{
+        self.step_with_status_into(token,index,None)
+    }
+    /// M38b: [`Self::step_with_status`] with the published observation written into `target` when it fits.
+    pub(crate) fn step_with_status_into(&mut self,token:RunDecisionToken,index:RunActionIndex,target:Option<&mut crate::ObservationTarget<'_>>)->Result<RunStepResult,RunSessionStepFailure>{
         let (index,serial)=self.step_preflight(token,index).map_err(|error|RunSessionStepFailure{error,committed:false})?;
         let action=self.actions[index].clone();
         if let Some(record)=&mut self.record{if record.steps.try_reserve(1).is_err(){
@@ -1295,7 +1308,7 @@ impl RunSession{
             let error=RunSessionError::DeliveryFault(REWARD_ITEMS_FAULT);
             let error=self.freeze(error.clone(),error,Some(action),true,true);return Err(RunSessionStepFailure{error,committed:true})
         };
-        let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current(serial){
+        let (boundary,actions,at_m12_cutoff,at_m13_cutoff,at_m14_cutoff)=match self.publish_current_into(serial,target){
             Ok(result)=>result,
             Err(error)=>{
                 let returned=if matches!(error,RunSessionError::UnsupportedBoundary(_)){error.clone()}else{RunSessionError::DeliveryFault("post-step Run encoding failed")};
@@ -1376,7 +1389,7 @@ impl RunSession{
         let profile=crate::run_replay::validate_record(record)?;
         if steps>record.steps.len(){return Err(RunSessionError::Input("replay-to-decision step is past the end of the record"))}
         let mut session=Self::with_profile(RunSessionConfig{capacities,..record.config.clone()},profile)?;
-        session.start_episode(record.seed,record.ordinal,1)?;
+        session.start_episode(record.seed,record.ordinal,1,None)?;
         for step in &record.steps[..steps]{
             let index=session.actions.iter().position(|a|a==&step.action).ok_or(RunSessionError::IncompatibleReplay("Run action not currently offered"))?;
             let token=session.published.as_ref().ok_or(RunSessionError::NotReset)?.token;

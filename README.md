@@ -100,30 +100,28 @@ strategy.
 
 ## Speed
 
-Measured on 2026-11-11 on an AMD Ryzen 9 9950X (16 cores, Linux, release build), with the
-M37b speedups applied. Workload: Standard A20, all four characters, random legal actions.
-The v1.0.0 figures from the same host are shown for comparison.
+Measured on 2026-11-12 on an AMD Ryzen 9 9950X (16 cores, Linux, release build), with the
+M37b and M38b speedups applied. Workload: Standard A20, all four characters, random legal
+actions. The v1.0.0 figures from the same host are shown for comparison.
 
-| Path | `record_replay` | v1.0.0 | After M37b |
+| Path | `record_replay` | v1.0.0 | After M38b |
 | --- | --- | --- | --- |
-| Native scalar (`a20_checks`), actions/s, observation read included | off | about 11.0k | about 20.4k |
-| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers, slot steps/s | on | about 5.2k / 11.1k / 12.1k | about 12.9k / 31.0k / 37.9k |
-| Native batch (profiling harness, a test build about 8% slower), 64 slots, 1 / 4 / 16 workers, slot steps/s | off | about 6.3k / 14.8k / 19.6k | about 12.6k / 30.5k / 45.3k |
-| Python `RunVectorEnv`, 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 8.8k | about 7.4k / 11.5k |
-| Python `NativeRunBatch.step` alone (no Gymnasium facade), 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 9.1k | about 7.1k / 12k–15k |
+| Native scalar (`a20_checks`), actions/s, observation read included | off | about 11.0k | about 22k |
+| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers, slot steps/s | on | about 5.2k / 11.1k / 12.1k | about 13.4k / 32.6k / 41.3k |
+| Native batch (profiling harness, a test build about 8% slower), 64 slots, 1 / 4 / 16 workers, slot steps/s | off | about 6.3k / 14.8k / 19.6k | about 13.7k / 34.8k / 54.0k |
+| Python `RunVectorEnv` loop with a per-slot Python policy, 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 8.6k | about 12.7k / 38.0k |
+| Python `NativeRunBatch.step` alone (no Gymnasium facade), 64 slots, 1 / 16 workers, ms per call | off | about 13.6 / 6.6 | about 4.6 / 1.3 |
 
-The 16-worker Python figure varies with allocator state within a process; see
-[performance](docs/performance.md#a20-standard-checks-after-m37b--2026-11-11).
+See [performance](docs/performance.md#a20-standard-checks-after-m38b--2026-11-12) for ranges and
+the short speed check used in build records.
 
 **Where the time goes now.**
-- Rules work and encoding the 764 KB dense observation take most of a step. Legal-action
-  enumeration no longer clones the combat state for each card, and the session no longer
-  copies each observation.
-- At 16 workers batch steps are still partly memory-bound. Every step writes a fresh
-  dense observation, and the Python binding copies the rows into the stacked arrays (on
-  the batch's workers, with the GIL released).
-- Recording replays no longer rebuilds the observation-spec fingerprint at every reset
-  and record export.
+- Rules work and encoding the 764 KB dense observation take most of a step.
+- A Standard batch step encodes each observation straight into the arrays it returns to
+  Python, on the batch's workers, and reuses the memory of arrays Python has released.
+- Native batch callers that keep the previous call's rows until the next step hold about
+  twice the observation memory; dropping them first is faster
+  ([batching](docs/batching.md#slots-seeds-and-workers)).
 
 These figures are diagnostic, not targets or guarantees. Results vary by host and run.
 For the method and the remaining options, see [profiling](docs/profiling.md) and

@@ -64,6 +64,42 @@ impl Scheduler {
         }
         Ok(results)
     }
+    /// M38b fix 4: [`Self::map_mut`] with a home range per worker. With `w` workers and `n` slots, worker `i` first runs
+    /// the slots `i*n/w .. (i+1)*n/w` in order, so a slot's Run and session state normally stay with one worker thread
+    /// between calls; a worker that finishes its range then takes the still unclaimed slots of the other ranges, so one
+    /// long job (a combat setup, an autoreset) does not hold up the call. Every job runs exactly once, results keep slot
+    /// order and never depend on which worker ran them, and a panic escaping `f` reaches the caller after every worker
+    /// returns, as with `map_mut`.
+    pub(crate) fn map_mut_sticky<T:Send,J:Send,R:Send>(&self, values:&mut [T], jobs:Vec<J>,
+        f:impl Fn(usize,&mut T,J)->R+Send+Sync) -> Result<Vec<R>,EnvError> {
+        use std::sync::{Mutex,atomic::{AtomicUsize,Ordering}};
+        let Self::Parallel(pool) = self else { return self.map_mut(values, jobs, f) };
+        assert_eq!(values.len(),jobs.len());
+        let count=values.len();
+        let workers=pool.current_num_threads().clamp(1,count.max(1));
+        let mut cells=reserved(count)?;
+        cells.extend(values.iter_mut().zip(jobs).map(|(value,job)|Mutex::new((value,Some(job),None::<R>))));
+        let bound=|range:usize|(range*count/workers,(range+1)*count/workers);
+        let next=(0..workers).map(|range|AtomicUsize::new(bound(range).0)).collect::<Vec<_>>();
+        pool.broadcast(|ctx| {
+            let home=ctx.index();
+            if home>=workers { return }
+            for offset in 0..workers {
+                let range=(home+offset)%workers;
+                loop {
+                    let slot=next[range].fetch_add(1,Ordering::Relaxed);
+                    if slot>=bound(range).1 { break }
+                    let mut cell=cells[slot].lock().unwrap_or_else(|p|p.into_inner());
+                    let (value,job,out)=&mut *cell;
+                    let job=job.take().expect("each slot is claimed once");
+                    *out=Some(f(slot,value,job));
+                }
+            }
+        });
+        let mut results=reserved(count)?;
+        for cell in cells { results.push(cell.into_inner().unwrap_or_else(|p|p.into_inner()).2.expect("every slot ran")); }
+        Ok(results)
+    }
     pub(crate) fn slots<T:Send,R:Send>(&self, slots:&mut [Slot], jobs:Vec<T>,
         f:impl Fn(usize,&mut Slot,T)->R+Send+Sync) -> Result<Vec<R>,EnvError> {
         assert_eq!(slots.len(),jobs.len());

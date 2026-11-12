@@ -32,6 +32,36 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   [parallel scaling](docs/profiling.md#m38a-parallel-scaling) report. These are test and
   example diagnostics only. No engine, binding, gameplay, identity, fingerprint, observation
   or API change.
+- M38b internal performance work, with no contract change. Gameplay, RNG use, IDs, rules
+  IDs, fingerprints, observations, masks, records, replay bytes and the bytes, dtypes and
+  shapes of every returned array are unchanged; the freeze tests, frozen replay, traversal and
+  fuzz hashes match M38a, and a packaging differential compares the Python batch outputs with
+  the previous binding call by call. See [performance](docs/performance.md) and
+  [profiling](docs/profiling.md#after-m38b) for the numbers.
+  - A Standard `NativeRunBatch.step` encodes each slot's observation straight into its rows
+    of the returned stacked arrays on the batch's workers, instead of encoding per-slot rows
+    and copying them. Fault rows, isolated slots and other profiles are filled as before.
+  - The batch keeps a bounded pool of observation array buffers. When NumPy releases a
+    returned `obs` array, its memory goes back to the pool and the next step reuses it, so a
+    batch may hold up to two calls' observation memory between calls. Each call still
+    returns new arrays that share no memory with any array still alive; `close()` empties the
+    pool. Arrays released later, after `close()` or after the batch object is freed, still
+    return to it within the same bound, and the pool is freed only when the last array from
+    that batch has been released. The owner object behind those arrays (`a.base.base`) is now an internal
+    `PooledColumn` instead of rust-numpy's `PySliceContainer`.
+  - Run and combat-training batches give each worker a home range of slots, so a slot normally
+    stays on the same worker thread between calls; idle workers then take unclaimed slots from
+    other ranges ([batching](docs/batching.md#slots-seeds-and-workers)).
+  - The Standard encoder looks vocabulary identities up in tables built once, builds its
+    group layout once per capacities and worker thread, and pre-sizes card rows; Run RNG
+    draws feed their HMAC input without building a message buffer (same bytes).
+  - Two internal, `#[doc(hidden)]` additive Rust items support this:
+    `spire_env::ObservationTarget` and `SessionBatch::step_into`. They are not part of the
+    documented API and add no Python names.
+  - The `a20_checks` example gains `--speed-check`, and `examples/speed_check.py` is new: short
+    fixed diagnostic runs with JSON output for build records. They have no thresholds.
+  - [Batching](docs/batching.md#slots-seeds-and-workers) now advises native callers to copy
+    what they need and drop the previous rows before the next step.
 
 ## 1.0.0 — effective at the merge of PR #103
 

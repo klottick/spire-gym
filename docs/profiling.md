@@ -844,6 +844,77 @@ uv run --locked --no-sync python examples/run_vector_phase_timing.py --loops bin
 - The raw JSON, counter output and perf summaries are kept with the M38a evidence, outside the
   repository; raw `perf.data` files are not.
 
+## After M38b
+
+M38b (Bead `spire-qu9.2`) made the M38a phase-2 fixes on 2026-11-12. Nothing observable
+changed: gameplay, RNG use, IDs, rules IDs, fingerprints, observations, masks, records, replay
+bytes, and the bytes, dtypes, shapes and flags of every returned array are the same. A packaging
+differential compares the Python batch outputs of the old and new bindings call by call. It
+covers four characters, A0 and A20, 1 to 16 workers, every autoreset mode, masked resets,
+capacity faults under both fault policies, `recover_committed`, recording on and off, and reused
+memory that the caller has scribbled over. Every call matched.
+
+- **Fix 1, encode into the stacked arrays.** A Standard `NativeRunBatch.step` hands each slot's
+  rows of the new stacked `obs` arrays to that slot's step job. The job zero-fills them and
+  encodes the observation straight into them. There are no per-slot rows and no stacking copy.
+  Rows that were not encoded there (faults, isolated slots, other profiles) are copied in as
+  before. A SAME_STEP terminal observation is copied out before the reset reuses the rows.
+- **Fix 3(a), reuse the output memory.** When NumPy releases a returned `obs` array, its buffer
+  returns to a pool owned by the batch, and the next step takes it instead of allocating. The
+  pool holds at most two calls' columns, and `close()` empties it. Arrays released later, after
+  `close()` or after the batch object is freed, still refill it within the same bound, and the
+  pool is freed only when the last array from that batch has been released. A buffer goes back only when no
+  array or view can reach it, so an array held forever is never reused. Fix 3(b), a
+  caller-supplied `out=`, was not added. With the pool, releasing the previous arrays costs
+  0.015 ms, and `out=` would still need the same writes.
+- **Fix 4, home ranges.** Each worker first runs a fixed range of slots, then takes unclaimed
+  slots from the other ranges. Measured negative result: an earlier version with purely static
+  ranges gained on the phase harness (16 workers: 50.1k to 55.7k slot steps/s), but `a20_checks`
+  B64 at 16 workers fell from 37.5k–38.6k to 28.7k–29.4k. When one slot's job was long, the
+  other workers waited for it. With the stealing step, the batch gains at every worker count
+  and in `a20_checks` (below). At 16 workers about 13–20% of slot jobs run outside their home
+  range, against 85% before.
+- **Fix 5, easy wins.** Standard vocabulary lookups use tables built once, and the group layout
+  is built once per capacities and worker thread. Card rows are pre-sized, and Run RNG draws feed
+  their HMAC input in parts instead of building a message buffer. The scalar encode falls from
+  17.6 to 13.7 µs per step (pass 2 of the phase harness). The `RunState` clones on read-only
+  room probes (estimated at up to 1.5 µs) were not changed: no clear site was found without a
+  new profile.
+- **Fix 2(a)** is documentation: [batching](batching.md#slots-seeds-and-workers) tells native
+  callers to drop the previous rows before the next step. **Fix 2(b)**, a native recycle API, is
+  deferred (Bead `spire-qu9.5`). **Fix 6** (lockstep wait) is measured only. With the fix 5
+  build, plain threads still run 155k–165k turns/s without a barrier and 101k–103k with one at
+  16 threads (`m38_component_scaling`, three runs).
+
+**Measured** on the M38a host, base `fc12db1e` against the M38b code, interleaved runs on a
+quiet machine (three runs, two for P4/P5, N1r and N2; five for `a20_checks`). The figures are
+ranges, or medians where stated. Python: `run_vector_phase_timing.py`, 64 slots, A20, 1,000
+calls, `record_replay` off. Native: `m37_phase_timing`, 64 slots, NextStep, no stacking.
+
+| Measure | Before | After |
+| --- | ---: | ---: |
+| Python `NativeRunBatch.step`, 1 worker, ms/call | 8.09 | 4.60–5.00 |
+| Python `NativeRunBatch.step`, 16 workers, ms/call | 4.90–5.03 | 1.25–1.31 |
+| Releasing the previous arrays, 16 workers, ms/call | 0.98–1.05 | 0.015 |
+| Python `RunVectorEnv.step`, 1 / 16 workers, ms/call | 8.15 / 5.16 | 4.67 / 1.31 |
+| `run_vector_rollout.py`-style loop, 1 / 16 workers, slot steps/s | 7.5k / 11.4k | 12.7k / 38.0k |
+| Native batch, `record_replay` off, 1 / 4 / 8 / 16 / 32 workers, median slot steps/s | 12.7k / 33.4k / 43.7k / 49.9k / 44.5k | 13.7k / 34.8k / 48.3k / 54.0k / 45.7k |
+| Native batch, rows dropped early, 16 / 32 workers, median | 66.4k / 92.3k | 88.1k / 97.4k |
+| Native batch, `record_replay` on, 1 / 16 workers, median | 12.8k / 48.3k | 13.6k / 52.7k |
+| Native batch, 128 slots, 16 workers, median | 38.1k | 38.6k |
+
+With the pool, the glibc no-trim environment no longer matters. The base binding gained about 25%
+from it at 16 workers (4.98–5.00 to 3.82–3.86 ms per call). A development build with fixes 1, 3(a)
+and 5 measured 1.49–1.51 ms per call with it and 1.51–1.58 without. A Python caller that drops the previous `obs` before the next step
+gets about 0.71–0.84 ms per call at 16 workers (about 4.42 at 1 worker). The released arrays
+then feed the pool for the next call.
+
+**Remaining limits.** The dense observation is still about 764 KB per slot, written in full every
+step. At 16 workers the native batch still gains about 1.6 times when callers drop rows early,
+and the per-call barrier remains. The opt-in compact observation (Bead `spire-qu9.4`) is
+the next step, and a native recycle API is deferred to `spire-qu9.5`. Raw JSON and receipts are
+kept with the M38b evidence, outside the repository.
+
 ## Reproduce
 
 ```sh

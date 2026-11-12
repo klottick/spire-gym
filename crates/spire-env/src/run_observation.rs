@@ -57,17 +57,90 @@ fn intent_hits(name:&str)->Option<i64>{match name{
     "shield_bash"|"shield_smash"|"heart_echo"=>Some(1),
     "spear_burn_strike"=>Some(2),"spear_skewer"=>Some(3),"heart_blood_shots"=>Some(12),_=>None,
 }}
-impl RunFeatureGroup{
+/// M38b: the encoder writes through borrowed group slices, into an owned [`RunObservation`] or a batch slot's chunks of
+/// the stacked columns ([`ObservationTarget`]); both start all zero, so the bytes are the same.
+struct GroupOut<'a>{key:&'static str,cols:usize,rows:usize,values:&'a mut [i64],known:&'a mut [i8],occupied:Option<&'a mut [i8]>}
+impl GroupOut<'_>{
     fn row(&mut self,index:usize,values:&[Option<i64>])->Result<(),RunSessionError>{
-        let cols=*self.shape.last().unwrap();let rows=if self.occupied.is_some(){self.shape[0]}else{1};
-        capacity(self.key,index+1,rows)?;
+        let cols=self.cols;
+        capacity(self.key,index+1,self.rows)?;
         if values.len()!=cols{return Err(RunSessionError::Input("internal Run column mismatch"))}
         for (column,value) in values.iter().enumerate(){if let Some(value)=value{self.values[index*cols+column]=*value;self.known[index*cols+column]=1;}}
         if let Some(occupied)=&mut self.occupied{occupied[index]=1;}Ok(())
     }
 }
+struct ObservationOut<'a>{groups:Vec<GroupOut<'a>>,action_mask:&'a mut [i8]}
+impl<'a> ObservationOut<'a>{
+    fn group_mut(&mut self,key:&str)->&mut GroupOut<'a>{self.groups.iter_mut().find(|g|g.key==key).expect("declared Run group")}
+    fn owned(o:&'a mut RunObservation)->Self{
+        let groups=o.groups.iter_mut().map(|g|{let cols=*g.shape.last().unwrap();let rows=if g.occupied.is_some(){g.shape[0]}else{1};
+            GroupOut{key:g.key,cols,rows,values:&mut g.values,known:&mut g.known,occupied:g.occupied.as_deref_mut()}}).collect();
+        Self{groups,action_mask:&mut o.action_mask}
+    }
+}
+/// M38b: one batch slot's chunks of the stacked observation columns, in the binding's tensor order: per group its values
+/// (`wide`), then its known flags and, for row groups, its occupancy (`narrow`); `action_mask` is the last narrow chunk.
+/// A Standard publication handed a target that fits its layout zero-fills the chunks, encodes into them and returns an
+/// observation with no groups; any other publication leaves the target untouched and returns its owned observation.
+/// `initialized` is set once every chunk element has been written (the zero fill), so the owner may then read them.
+#[doc(hidden)]
+pub struct ObservationTarget<'a>{
+    wide:Vec<&'a mut [std::mem::MaybeUninit<i64>]>,narrow:Vec<&'a mut [std::mem::MaybeUninit<i8>]>,
+    initialized:&'a std::sync::atomic::AtomicBool,
+}
+impl<'a> ObservationTarget<'a>{
+    pub fn new(wide:Vec<&'a mut [std::mem::MaybeUninit<i64>]>,narrow:Vec<&'a mut [std::mem::MaybeUninit<i8>]>,initialized:&'a std::sync::atomic::AtomicBool)->Self{
+        Self{wide,narrow,initialized}
+    }
+    fn is_initialized(&self)->bool{self.initialized.load(std::sync::atomic::Ordering::Acquire)}
+    /// The layout check and zero fill; `None` (target untouched) when the chunks do not match `specs`.
+    fn view(&mut self,specs:&[GroupLayout],actions:usize)->Option<ObservationOut<'_>>{
+        let occupied=specs.iter().filter(|s|s.3).count();
+        if self.wide.len()!=specs.len()||self.narrow.len()!=specs.len()+occupied+1{return None}
+        let mut narrow=self.narrow.iter();
+        for (spec,wide) in specs.iter().zip(&self.wide){
+            let (_,cols,rows,has_rows)=*spec;
+            if wide.len()!=rows*cols||narrow.next()?.len()!=rows*cols||(has_rows&&narrow.next()?.len()!=rows){return None}
+        }
+        if narrow.next()?.len()!=actions{return None}
+        fn zeroed<T:Copy+Default>(chunk:&mut [std::mem::MaybeUninit<T>])->&mut [T]{
+            for v in chunk.iter_mut(){v.write(T::default());}
+            // SAFETY: every element was written just above, and `T` is a plain integer.
+            unsafe{std::slice::from_raw_parts_mut(chunk.as_mut_ptr().cast::<T>(),chunk.len())}
+        }
+        let mut wide=self.wide.iter_mut();let mut narrow=self.narrow.iter_mut();
+        let mut groups=Vec::with_capacity(specs.len());
+        for &(key,cols,rows,has_rows) in specs{
+            let values=zeroed(wide.next()?);let known=zeroed(narrow.next()?);
+            let occupied=if has_rows{Some(zeroed(narrow.next()?))}else{None};
+            groups.push(GroupOut{key,cols,rows:if has_rows{rows}else{1},values,known,occupied});
+        }
+        let action_mask=zeroed(narrow.next()?);
+        self.initialized.store(true,std::sync::atomic::Ordering::Release);
+        Some(ObservationOut{groups,action_mask})
+    }
+    /// The chunks as an owned observation with `layout`'s groups (a SAME_STEP terminal publication must outlive the reset
+    /// that reuses these chunks). `None` if the target was never written or does not match `layout`.
+    pub(crate) fn materialize(&self,layout:&RunObservation)->Option<Result<RunObservation,RunSessionError>>{
+        if !self.is_initialized(){return None}
+        fn read<T:Copy>(chunk:&[std::mem::MaybeUninit<T>])->&[T]{
+            // SAFETY: `initialized` is only set after the zero fill wrote every element of every chunk.
+            unsafe{std::slice::from_raw_parts(chunk.as_ptr().cast::<T>(),chunk.len())}
+        }
+        let mut o=match layout.owned(){Ok(o)=>o,Err(e)=>return Some(Err(e))};
+        let (mut wide,mut narrow)=(self.wide.iter(),self.narrow.iter());
+        for g in &mut o.groups{
+            let values=read(wide.next()?);let known=read(narrow.next()?);
+            if values.len()!=g.values.len()||known.len()!=g.known.len(){return None}
+            g.values.copy_from_slice(values);g.known.copy_from_slice(known);
+            if let Some(occupied)=&mut g.occupied{let source=read(narrow.next()?);if source.len()!=occupied.len(){return None}occupied.copy_from_slice(source);}
+        }
+        let mask=read(narrow.next()?);if mask.len()!=o.action_mask.len()||wide.next().is_some()||narrow.next().is_some(){return None}
+        o.action_mask.copy_from_slice(mask);
+        Some(Ok(o))
+    }
+}
 impl RunObservation{
-    fn group_mut(&mut self,key:&str)->&mut RunFeatureGroup{self.groups.iter_mut().find(|g|g.key==key).expect("declared Run group")}
     pub(crate) fn owned(&self)->Result<Self,RunSessionError>{
         fn copy<T:Clone>(source:&[T])->Result<Vec<T>,RunSessionError>{let mut v=Vec::new();v.try_reserve_exact(source.len()).map_err(|_|RunSessionError::DeliveryFault("Run output allocation failed"))?;v.extend_from_slice(source);Ok(v)}
         let mut groups=Vec::new();groups.try_reserve_exact(self.groups.len()).map_err(|_|RunSessionError::DeliveryFault("Run output allocation failed"))?;
@@ -140,6 +213,9 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
     encode_run_with_card_encoder(d,map,caps,profile,card_id,None)
 }
 fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>)->Result<RunObservation,RunSessionError>{
+    encode_run_into(d,map,caps,profile,card_id,standard,None)
+}
+fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>,target:Option<&mut ObservationTarget<'_>>)->Result<RunObservation,RunSessionError>{
     if (profile==RunEncodingProfile::Standard)!=standard.is_some(){return Err(RunSessionError::Input("Standard context mismatch"))}
     let extended=profile.extended();
     if !matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard) && d.combat.as_ref().is_some_and(|c|c.stance_choice.is_some()||c.selection.as_ref().is_some_and(|s|matches!(s.operation,spire_core::combat::SelectionOperation::Scry|spire_core::combat::SelectionOperation::MeditateReturn))){return Err(RunSessionError::UnsupportedBoundary("Watcher choice requires M21 observation schema"))}
@@ -184,7 +260,8 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         let edges=map.nodes.iter().try_fold(0usize,|n,row|n.checked_add(row.edges.len())).ok_or(RunSessionError::Input("map edge count overflow"))?;
         capacity("map_edges",edges,caps.map_edges)?;
     }
-    let mut cards:Vec<(&LiveCardView,i64,usize,Option<usize>)>=vec![];
+    // M38b fix 5: sized for every visible card up front (no growth while the rows are collected).
+    let mut cards:Vec<(&LiveCardView,i64,usize,Option<usize>)>=Vec::with_capacity(d.combat.as_ref().map_or(0,|c|c.hand.len()+c.discard.len()+c.exhaust.len()+c.played_powers.len()+c.stasis.len()+c.known_draw.len()+c.selection.as_ref().map_or(0,|s|s.candidates.len())+c.playing_cards.len()));
     if let Some(c)=&d.combat{
         if matches!(profile,RunEncodingProfile::M15|RunEncodingProfile::M20Defect|RunEncodingProfile::Standard) {
             if let Some(offer)=&c.card_offer {
@@ -286,13 +363,24 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     capacity("relics",relics.len(),caps.relics)?;capacity("potions",potions.len(),caps.potions)?;
     let selection_count=if let Some(s)=&d.selection{s.eligible.len()}else{d.combat.as_ref().and_then(|c|c.selection.as_ref()).map_or(0,|s|s.candidates.len())};
     capacity("selection",selection_count,caps.selection)?;
-    let mut o=RunObservation{groups:vec![],action_mask:reserved(caps.actions,0)?};
-    for spec in match profile{RunEncodingProfile::Standard=>schema_standard::groups(caps),RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)}{
-        let cols=spec.fields.split(',').count();let rows=spec.rows.unwrap_or(1);let mut values=reserved(rows*cols,0)?;
+    let (built,cached);
+    let (specs,layout):(&[schema::GroupSpec],&[GroupLayout])=if profile==RunEncodingProfile::Standard{
+        cached=standard_groups(caps);(&cached.0,&cached.1)
+    }else{
+        let specs=match profile{RunEncodingProfile::Standard=>schema_standard::groups(caps),RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)};
+        let layout=group_layout(&specs);built=(specs,layout);(&built.0,&built.1)
+    };
+    let mut owned=None;
+    let mut slab=false;
+    let mut o=match target{
+        Some(t)=>match t.view(layout,caps.actions){Some(o)=>{slab=true;o},None=>ObservationOut::owned(owned.insert(allocate(layout,caps.actions)?))},
+        None=>ObservationOut::owned(owned.insert(allocate(layout,caps.actions)?)),
+    };
+    for (spec,(_,cols,_,_)) in specs.iter().zip(layout){
         // Unavailable references in real rows are -1/known0; all padding remains0.
         let occupied_count=match spec.key{"combat_cards"=>cards.len()+draw_rows.len(),"known_draw"=>d.combat.as_ref().map_or(0,|c|c.known_draw.len()),"actions"=>d.candidates.len(),"offers"=>offers.len(),"selection"=>selection_count,"powers"=>d.combat.as_ref().map_or(0,|c|c.player.powers.len()+c.enemies.iter().map(|e|e.powers.len()).sum::<usize>()),"map_edges"=>map.map_or(0,|m|m.nodes.iter().map(|n|n.edges.len()).sum()),"current_node"=>1,_=>0};
+        let values=&mut o.group_mut(spec.key).values;
         for row in 0..occupied_count{for col in spec.references{values[row*cols+col]=-1;}}
-        o.groups.push(RunFeatureGroup{key:spec.key,shape:spec.rows.map_or_else(||vec![cols],|rows|vec![rows,cols]),values,known:reserved(rows*cols,0)?,occupied:spec.rows.map(|rows|reserved(rows,0)).transpose()?});
     }
     o.group_mut("context").row(0,&[
         Some(schema::character(d.player.character)),None,Some(i64::from(d.act)),Some(i64::from(d.floor)),d.room.as_ref().map(|r|room_id(profile,r.kind)).transpose()?,
@@ -329,7 +417,8 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
     let card_values=|card:&spire_core::combat::LiveCardView,zone:i64,pos:Option<usize>,stasis:Option<usize>|->Result<Vec<Option<i64>>,RunSessionError>{
         let permanent_row=match card.origin{CombatCardRef::Permanent(id)=>Some(number(permanent(d,id.0)?)?),CombatCardRef::CombatLocal(_)=>None};
         let selected=d.combat.as_ref().and_then(|c|c.selection.as_ref()).map(|s|i64::from(s.selected.contains(&card.instance)));
-        let mut values=vec![Some(zone),pos.map(number).transpose()?,Some(card_id(profile,card.id)?),Some(i64::from(card.upgrades)),card.effective_cost.map(i64::from),permanent_row,stasis.map(number).transpose()?,selected];
+        let mut values=Vec::with_capacity(32);
+        values.extend([Some(zone),pos.map(number).transpose()?,Some(card_id(profile,card.id)?),Some(i64::from(card.upgrades)),card.effective_cost.map(i64::from),permanent_row,stasis.map(number).transpose()?,selected]);
         if extended {
             if let Some(public)=&card.values {
                 values.extend([public.base_damage.map(i64::from),public.base_block.map(i64::from),public.magic_number.map(i64::from),public.damage_bonus.map(i64::from),
@@ -354,7 +443,7 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         let mut rows=draw_rows.iter().map(|card|card_values(card,zone,None,None)).collect::<Result<Vec<_>,_>>()?;
         // Canonical card key: the published tuple without zone and zone_position, permanent_row (column 5) last.
         rows.sort_by_key(|values|values[2..5].iter().chain(&values[6..]).chain(&values[5..6]).map(|v|(v.is_some(),v.unwrap_or(0))).collect::<Vec<_>>());
-        let group=o.group_mut("combat_cards");let cols=*group.shape.last().unwrap();
+        let group=o.group_mut("combat_cards");let cols=group.cols;
         for (offset,values) in rows.iter().enumerate(){
             let row=cards.len()+offset;group.row(row,values)?;group.values[row*cols+1]=-1;
         }
@@ -539,6 +628,32 @@ fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&R
         }
         o.group_mut("actions").row(row,&values)?;o.action_mask[row]=1;
     }
+    drop(o);
+    if slab{return Ok(RunObservation{groups:Vec::new(),action_mask:Vec::new()})}
+    Ok(owned.expect("an owned observation unless the target was written"))
+}
+/// A group's (key, columns, rows, row group) as the encoder lays it out.
+type GroupLayout=(&'static str,usize,usize,bool);
+fn group_layout(specs:&[schema::GroupSpec])->Vec<GroupLayout>{
+    specs.iter().map(|spec|(spec.key,spec.fields.split(',').count(),spec.rows.unwrap_or(1),spec.rows.is_some())).collect()
+}
+/// M38b fix 5: the Standard group specification and layout for `caps`, built once per worker thread and capacities
+/// (`schema_standard::groups` is pure in `caps`).
+fn standard_groups(caps:&RunCapacities)->std::rc::Rc<(Vec<schema::GroupSpec>,Vec<GroupLayout>)>{
+    thread_local!{static CACHE:std::cell::RefCell<Option<(RunCapacities,std::rc::Rc<(Vec<schema::GroupSpec>,Vec<GroupLayout>)>)>>=const{std::cell::RefCell::new(None)};}
+    CACHE.with(|cache|{
+        let mut cache=cache.borrow_mut();
+        if let Some((cached,groups))=cache.as_ref() && cached==caps{return groups.clone()}
+        let specs=schema_standard::groups(caps);let layout=group_layout(&specs);
+        let groups=std::rc::Rc::new((specs,layout));*cache=Some((caps.clone(),groups.clone()));groups
+    })
+}
+/// The zero-filled owned layout (the pre-M38b allocation, in the same order).
+fn allocate(layout:&[GroupLayout],actions:usize)->Result<RunObservation,RunSessionError>{
+    let mut o=RunObservation{groups:vec![],action_mask:reserved(actions,0)?};
+    for &(key,cols,rows,has_rows) in layout{
+        o.groups.push(RunFeatureGroup{key,shape:if has_rows{vec![rows,cols]}else{vec![cols]},values:reserved(rows*cols,0)?,known:reserved(rows*cols,0)?,occupied:if has_rows{Some(reserved(rows,0)?)}else{None}});
+    }
     Ok(o)
 }
 
@@ -667,6 +782,10 @@ pub fn encode_run_standard_decision(d:&PublicDecision,map:Option<&PublicMap>,cap
     encode_run_standard(d,map,caps,StandardContext{ascension,run_selection})
 }
 pub(crate) fn encode_run_standard(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext)->Result<RunObservation,RunSessionError>{
+    encode_run_standard_into(d,map,caps,context,None)
+}
+/// M38b: [`encode_run_standard`], written into `target` when it fits (the result then has no groups).
+pub(crate) fn encode_run_standard_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext,target:Option<&mut ObservationTarget<'_>>)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::Standard){return Err(RunSessionError::Input("Standard encoder requires the Standard profile"))}
     // Final review N2: Standard draw rows need a combat that maintains public knowledge; a combat entered without it has an
     // empty draw multiset, which must fail loudly rather than silently drop the rows.
@@ -676,7 +795,7 @@ pub(crate) fn encode_run_standard(d:&PublicDecision,map:Option<&PublicMap>,caps:
     }
     let present=|e:&spire_core::combat::FullEnemyView|e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0);
     if d.combat.as_ref().is_some_and(|c|c.enemies.iter().all(present)){
-        return encode_run_with_card_encoder(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context));
+        return encode_run_into(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target);
     }
     let mut public=d.clone();
     if let Some(c)=public.combat.as_mut(){
@@ -685,7 +804,7 @@ pub(crate) fn encode_run_standard(d:&PublicDecision,map:Option<&PublicMap>,caps:
         let mut flags=keep.iter();c.enemies.retain(|_|*flags.next().unwrap());
         let mut flags=keep.iter();c.targets.retain(|_|*flags.next().unwrap());
     }
-    encode_run_with_card_encoder(&public,map,caps,RunEncodingProfile::Standard,card_id,Some(context))
+    encode_run_into(&public,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target)
 }
 
 pub fn encode_run_m25(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m25::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M25WatcherHeart)}

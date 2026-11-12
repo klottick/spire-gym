@@ -73,9 +73,41 @@ rule for u64 seeds, as checked by `scalar_seed_expansion_shared`, and continues 
 integer seeds.
 
 Run and combat-training batches use a private persistent Rayon pool when their effective worker
-count exceeds one. Worker stacks are 8 MiB. `PublicSearch.step_many` instead uses
+count exceeds one. Worker stacks are 8 MiB. Since M38b, reset and step jobs give each worker
+a home range: with `w` workers and `n` slots, worker `i` first runs slots `i*n/w` to
+`(i+1)*n/w - 1`, so a slot's state normally stays with one worker thread between calls. A worker
+that finishes its range then takes still-unclaimed slots from the other ranges, so one long job,
+such as a combat setup or an autoreset that builds a new Run, does not hold up the call. An
+earlier version without that second step was slower on some trajectories
+([profiling](profiling.md#after-m38b)). Results and fault records still come back in slot order,
+each slot's job still catches its own panic, and results do not depend on the worker count or
+on which worker ran a slot. `PublicSearch.step_many` instead uses
 `Scheduler::shared(workers)`, a lazily created process-wide pool per count; workers=1 is serial
 and touches no pool.
+
+**Keep the live observations small (M38b).** Each returned row owns its observation. A Standard
+observation with the default capacities is about 764 KB, so 64 rows hold about 49 MB. A caller
+that keeps the previous call's rows until the next `step` returns has about 98 MB of
+observations live while the workers encode, more than the host's last-level caches. Native
+callers should copy what they need from the rows (actions, tokens, the few features a policy
+reads) and drop the rows before the next `step`. On the M38a host, at 64 slots with recording
+off, doing that raised the batch from 47.6k–50.7k to 65.1k–84.5k slot steps/s at 16 workers and
+from 43.4k–46.0k to 86.9k–89.5k at 32; at 1 worker the gain is about 3–5%
+([profiling](profiling.md#where-the-16-worker-time-goes)). Nothing else changes: the rows, their
+order and their bytes are the same either way.
+
+**Python output memory (M38b).** `NativeRunBatch.step` (Standard) still returns new arrays on
+every call, with the same bytes, dtypes, shapes and flags as before. When NumPy releases a
+returned `obs` array (no array or view refers to it any more), its memory goes back to a pool
+owned by the batch and a later step reuses it. Memory that any live array can reach is never
+reused. The pool holds at most two calls' observation arrays (about 98 MB at 64 slots) between
+calls. `close()` frees what it holds. Arrays released later, after `close()` or even after the
+batch object itself is freed, still return to the pool, within the same bound, and the pool is
+freed only when the last array from that batch has been released. Releasing the previous `obs` before the next `step`, keeping only
+what the policy needs, lets that step reuse the memory at once; on the M38a host a 16-worker step
+then took 0.71–0.84 ms instead of 1.25–1.31 ms
+([performance](performance.md#a20-standard-checks-after-m38b--2026-11-12)). Keeping arrays alive
+is always safe; it only costs memory and that reuse.
 
 ## Reset and autoreset
 

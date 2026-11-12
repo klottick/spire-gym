@@ -173,17 +173,113 @@ fn recovery_repackages_the_retained_results() {
 fn gil_is_detached_for_native_batch_work() {
     let source = include_str!("../batch.rs");
     let lines = source.lines().collect::<Vec<_>>();
-    let calls = [".batch.reset(", ".batch.step(", ".batch.recover_committed()", ".batch.close()", ".batch.combat_views()", "RunSessionBatch::new_run(",
-        "CombatTrainingBatch::new_combat("];
+    let calls = [".batch.reset(", ".batch.step(", ".batch.step_into(", ".batch.recover_committed()", ".batch.close()", ".batch.combat_views()",
+        "RunSessionBatch::new_run(", "CombatTrainingBatch::new_combat("];
     for call in calls {
         let found = lines.iter().enumerate().filter(|(_, l)| l.contains(call)).collect::<Vec<_>>();
         assert!(!found.is_empty(), "{call} is used");
         for (index, _) in found {
-            let window = &lines[index.saturating_sub(2)..=index];
-            assert!(window.iter().any(|l| l.contains("py.detach(")), "{call} at batch.rs:{} runs with the GIL held", index + 1);
+            // M38b: the call must sit inside the argument of the nearest `py.detach(` before it in the same function: from
+            // that `py.detach(` to the call, more parentheses are opened than closed (the detach call is still open).
+            let start = lines[..=index].iter().rposition(|l| l.contains("py.detach("));
+            let function = lines[..=index].iter().rposition(|l| l.trim_start().starts_with("fn ") || l.contains(" fn "));
+            let detached = start.filter(|s| function.is_none_or(|f| f <= *s)).is_some_and(|s| {
+                let mut text = lines[s..=index].join("\n");
+                text.drain(..text.find("py.detach(").unwrap());
+                let text = &text[..text.rfind(call).unwrap()];
+                text.matches('(').count() > text.matches(')').count()
+            });
+            assert!(detached, "{call} at batch.rs:{} runs with the GIL held", index + 1);
         }
     }
     let run_env = include_str!("../run_env.rs");
     let step_many = run_env.lines().find(|l| l.contains("search.step_many(")).expect("step_many binding");
     assert!(step_many.contains("py.detach("), "step_many runs with the GIL held");
+}
+
+/// M38b fixes 1 and 3(a): a step encoded straight into pooled stacked columns (`SessionBatch::step_into` + `Slab`)
+/// packages exactly what the row path (`SessionBatch::step` + `stack_slots`) packages, call after call: same tensors,
+/// keys, shapes and bytes, same rows, statuses, faults and finals. Two identical batches run side by side over four
+/// characters at A0 and A20, with NEXT_STEP and SAME_STEP autoreset, both fault policies, capacity faults (encode stage,
+/// after commit), recording on and off, and 1 or 4 workers. Returned columns are scribbled on before they go back to the
+/// pool, so reused memory starts dirty.
+#[test]
+fn m38b_slab_step_matches_row_stacking() {
+    use spire_env::{AutoresetMode, FaultPolicy, RunCapacities, SessionBatchError};
+    let characters = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
+    let cases = [
+        (8, 1, AutoresetMode::NextStep, FaultPolicy::Freeze, None, false, 120),
+        (8, 4, AutoresetMode::SameStep, FaultPolicy::Isolate, None, true, 160),
+        (8, 4, AutoresetMode::NextStep, FaultPolicy::Isolate, Some(6), false, 60),
+        (8, 1, AutoresetMode::SameStep, FaultPolicy::Isolate, Some(8), true, 60),
+        (6, 4, AutoresetMode::NextStep, FaultPolicy::Freeze, Some(6), false, 60),
+    ];
+    let pool = stacking::ColumnPool::default();
+    let (mut encoded_rows, mut copied_rows, mut finals, mut faults) = (0, 0, 0, 0);
+    for (case, &(count, workers, autoreset, policy, actions, record, steps)) in cases.iter().enumerate() {
+        let make = || {
+            let configs = (0..count).map(|slot| {
+                let mut c = StandardRunConfig::new(characters[slot % 4], if slot % 2 == 0 { 0 } else { 20 }, Partition::Test);
+                if let Some(actions) = actions { c.capacities = RunCapacities { actions, ..c.capacities.clone() }; }
+                c.record_replay = record;
+                c
+            }).collect::<Vec<_>>();
+            let mut batch = RunSessionBatch::new_run(configs, RunSession::new_standard, BatchConfig { workers, autoreset, fault_policy: policy }).unwrap();
+            let rows = batch.reset(&(0..count as u64).map(|s| Some(7_000 + s)).collect::<Vec<_>>(), &vec![None; count], None).unwrap();
+            (batch, rows)
+        };
+        let ((mut old, mut rows), (mut new, new_rows)) = (make(), make());
+        // Session ids (the first token word) differ between the two batches; serials agree.
+        let mut new_tokens = new_rows.iter().map(|r| r.boundary.token).collect::<Vec<_>>();
+        for step in 0..steps {
+            let tokens = rows.iter().map(|r| r.boundary.token).collect::<Vec<_>>();
+            let actions = rows.iter().enumerate().map(|(slot, r)| {
+                let legal = r.boundary.observation.action_mask.iter().enumerate().filter(|(_, v)| **v != 0).map(|(i, _)| i).collect::<Vec<_>>();
+                RunActionIndex(legal.get((step * 7 + slot * 3) % legal.len().max(1)).copied().unwrap_or(0) as i64)
+            }).collect::<Vec<_>>();
+            let expected = old.step(&tokens, &actions);
+            let layout = new.zero_boundary().unwrap().observation.clone();
+            let mut slab = stacking::Slab::new(&layout, count, &pool).unwrap();
+            let got = new.step_into(&new_tokens, &actions, slab.targets());
+            let (mut expected, mut got) = match (expected, got) {
+                (Ok(e), Ok(g)) => (e, g),
+                (Err(e), Err(g)) => {
+                    assert_eq!(format!("{g:?}"), format!("{e:?}"), "case {case} step {step}: same failure");
+                    if let SessionBatchError::Fault(_) = e {
+                    faults += 1;
+                    let strip = |rows: Vec<Option<SlotRow<RunBoundary>>>| rows.into_iter().map(|r| r.map(|mut r| { r.boundary.token = spire_env::RunDecisionToken::from([0, <[u64; 2]>::from(r.boundary.token)[1]]); r })).collect::<Vec<_>>();
+                    assert_eq!(strip(new.recover_committed().unwrap()), strip(old.recover_committed().unwrap()), "case {case}: recovery");
+                }
+                    break
+                }
+                (e, g) => panic!("case {case} step {step}: {e:?} vs {g:?}"),
+            };
+            let fill = got.iter_mut().map(|r| if r.fault.is_none() && r.boundary.observation.groups.is_empty() { encoded_rows += 1; None }
+                else { copied_rows += 1; Some(stacking::SlotSource::Owned(std::mem::replace(&mut r.boundary.observation, RunObservation { groups: vec![], action_mask: vec![] }))) })
+                .collect::<Vec<_>>();
+            let columns = slab.finish(fill, |jobs| new.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).unwrap();
+            let sources = expected.iter_mut().map(|r| stacking::SlotSource::Owned(r.boundary.observation.clone())).collect::<Vec<_>>();
+            assert_eq!(columns, stacking::stack_slots(sources, |jobs| old.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).unwrap(),
+                "case {case} step {step}: stacked obs");
+            for (slot, (e, g)) in expected.iter().zip(&got).enumerate() {
+                let serial = |t: spire_env::RunDecisionToken| <[u64; 2]>::from(t)[1];
+                assert_eq!((serial(e.boundary.token), e.boundary.terminal, e.reward, &e.reward_events, e.terminated, e.truncated, e.autoreset, &e.fault),
+                    (serial(g.boundary.token), g.boundary.terminal, g.reward, &g.reward_events, g.terminated, g.truncated, g.autoreset, &g.fault),
+                    "case {case} step {step} slot {slot}: row");
+                assert_eq!(e.final_boundary.as_ref().map(|b| (&b.observation, b.terminal, serial(b.token))),
+                    g.final_boundary.as_ref().map(|b| (&b.observation, b.terminal, serial(b.token))), "case {case} step {step} slot {slot}: owned final boundary");
+                faults += usize::from(g.fault.is_some());
+                finals += usize::from(g.final_boundary.is_some());
+            }
+            assert_eq!(old.last_statuses(), new.last_statuses());
+            for c in columns {
+                pool.put(match c.column { Column::I64(mut v) => { v.fill(0x5555); Column::I64(v) } Column::I8(mut v) => { v.fill(0x55); Column::I8(v) } });
+            }
+            new_tokens = got.iter().map(|r| r.boundary.token).collect();
+            rows = expected;
+        }
+    }
+    assert!(pool.pooled_bytes() > 0, "returned columns are pooled");
+    assert!(encoded_rows > 1_000 && copied_rows > 0 && finals > 0 && faults > 0,
+        "paths exercised: encoded {encoded_rows}, copied {copied_rows}, finals {finals}, faults {faults}");
 }
