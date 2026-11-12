@@ -299,6 +299,130 @@ pub fn standard_run_observation_spec(caps: &RunCapacities) -> Result<RunObservat
     Ok(spec)
 }
 
+/// M38e: the opt-in compact layout of the same Standard observation (`spire-gym-standard-run-observation-compact-v1`).
+pub const RUN_OBSERVATION_STANDARD_COMPACT_SCHEMA_ID: &str = "spire-gym-standard-run-observation-compact-v1";
+pub const STANDARD_COMPACT_CAPACITY_PRESET_ID: &str = "standard-compact-v1";
+const COMPACT_DOMAIN: &[u8] = b"spire-gym/run-schema/standard-compact/v1\0";
+
+/// How a Standard Run session lays out its observation. `Dense` (the default) is `spire-gym-standard-run-observation-v1`;
+/// `Compact` is the same groups, columns and semantics with rows limited by the capacities and values in int16/int32.
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum RunObservationLayout { #[default] Dense, Compact }
+impl RunObservationLayout {
+    pub fn as_str(self) -> &'static str { match self { Self::Dense => "dense", Self::Compact => "compact" } }
+}
+
+impl RunCapacities {
+    /// `standard-compact-v1` (M38e): rows sized from measured maxima of supplied, random and strong play (design §3.1).
+    /// A state that exceeds a row is a typed `Capacity` fault, never truncated.
+    pub fn standard_compact() -> Self {
+        Self { map_nodes: 107, map_edges: 128, permanent_cards: 256, combat_cards: 512, enemies: 12, powers: 128,
+            relics: 256, potions: 16, offers: 128, selection: 512, orbs: 10, actions: 576 }
+    }
+}
+
+/// The value dtype of a compact group.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ValueDtype { I16, I32 }
+impl ValueDtype {
+    pub(crate) fn name(self) -> &'static str { match self { Self::I16 => "int16", Self::I32 => "int32" } }
+    pub(crate) fn range(self) -> (i64, i64) {
+        match self { Self::I16 => (i64::from(i16::MIN), i64::from(i16::MAX)), Self::I32 => (i64::from(i32::MIN), i64::from(i32::MAX)) }
+    }
+}
+/// Design §6 (D1: int32 with the encode-time check for the unclamped u32/u64 counters). `None` for a non-Standard group.
+pub(crate) fn compact_dtype(group: &str) -> Option<ValueDtype> {
+    Some(match group {
+        "map_edges" | "current_node" | "potions" | "selection" | "selection_counts" | "actions" | "combat_state" | "known_draw"
+        | "stance_choices" | "combat_card_offers" => ValueDtype::I16,
+        "context" | "player" | "map_nodes" | "permanent_cards" | "combat_cards" | "enemies" | "powers" | "relics" | "orbs"
+        | "offers" | "room_params" => ValueDtype::I32,
+        _ => return None,
+    })
+}
+
+/// `"<group>.<column>"` for every Standard value column (value-fault group names), built once.
+fn value_columns() -> &'static std::collections::HashMap<&'static str, Vec<&'static str>> {
+    static T: OnceLock<std::collections::HashMap<&'static str, Vec<&'static str>>> = OnceLock::new();
+    T.get_or_init(|| groups(&RunCapacities::standard_default()).iter().map(|g| {
+        (g.key, g.fields.split(',').map(|f| &*Box::leak(format!("{}.{f}", g.key).into_boxed_str())).collect())
+    }).collect())
+}
+/// The value-fault name of column `column` of `group` (a Standard group and column index by construction).
+pub(crate) fn value_column(group: &str, column: usize) -> &'static str {
+    value_columns().get(group).and_then(|c| c.get(column)).copied().unwrap_or("standard.value")
+}
+/// The dtype of a compact value-fault group name, or `None` when it is not a Standard value column.
+pub(crate) fn value_fault_dtype(name: &str) -> Option<ValueDtype> {
+    let (group, _) = name.split_once('.')?;
+    value_columns().get(group)?.contains(&name).then_some(())?;
+    compact_dtype(group)
+}
+
+/// Compact capacities: every group 1..=`standard-default-v1`.
+pub(crate) fn validate_compact(c: &RunCapacities) -> Result<(), RunSessionError> {
+    let d = RunCapacities::standard_default();
+    let pairs = [(c.map_nodes, d.map_nodes), (c.map_edges, d.map_edges), (c.permanent_cards, d.permanent_cards), (c.combat_cards, d.combat_cards),
+        (c.enemies, d.enemies), (c.powers, d.powers), (c.relics, d.relics), (c.potions, d.potions), (c.offers, d.offers),
+        (c.selection, d.selection), (c.orbs, d.orbs), (c.actions, d.actions)];
+    if pairs.iter().any(|(v, _)| *v == 0) { return Err(RunSessionError::Input("capacities must be positive")) }
+    if pairs.iter().any(|(v, max)| v > max) { return Err(RunSessionError::Input("compact capacities exceed standard-default-v1")) }
+    validate(c)
+}
+
+/// The compact descriptor at `caps`, built once per thread and capacities (records and sessions ask repeatedly).
+pub(crate) fn compact_spec(caps: &RunCapacities) -> Result<std::rc::Rc<RunObservationSpec>, RunSessionError> {
+    thread_local! { static CACHE: std::cell::RefCell<Option<(RunCapacities, std::rc::Rc<RunObservationSpec>)>> = const { std::cell::RefCell::new(None) }; }
+    if let Some(spec) = CACHE.with(|c| c.borrow().as_ref().filter(|(cached, _)| cached == caps).map(|(_, spec)| spec.clone())) { return Ok(spec) }
+    let spec = std::rc::Rc::new(build_compact_spec(caps)?);
+    CACHE.with(|c| *c.borrow_mut() = Some((caps.clone(), spec.clone())));
+    Ok(spec)
+}
+
+/// The dense Standard fingerprint at `caps`, built once per thread and capacities (`record_observation_layout`).
+pub(crate) fn dense_fingerprint(caps: &RunCapacities) -> Result<[u8; 32], RunSessionError> {
+    thread_local! { static CACHE: std::cell::RefCell<Option<(RunCapacities, [u8; 32])>> = const { std::cell::RefCell::new(None) }; }
+    if let Some(fingerprint) = CACHE.with(|c| c.borrow().as_ref().filter(|(cached, _)| cached == caps).map(|(_, f)| *f)) { return Ok(fingerprint) }
+    let fingerprint = standard_run_observation_spec(caps)?.fingerprint();
+    CACHE.with(|c| *c.borrow_mut() = Some((caps.clone(), fingerprint)));
+    Ok(fingerprint)
+}
+
+/// `spire-gym-standard-run-observation-compact-v1` at `caps`: the dense descriptor at the same capacities with the
+/// compact schema id, value dtypes, bounds clipped to the dtype and the compact semantics keys, over its own domain.
+pub fn standard_compact_run_observation_spec(caps: &RunCapacities) -> Result<RunObservationSpec, RunSessionError> {
+    compact_spec(caps).map(|spec| (*spec).clone())
+}
+fn build_compact_spec(caps: &RunCapacities) -> Result<RunObservationSpec, RunSessionError> {
+    validate_compact(caps)?;
+    let mut spec = standard_run_observation_spec(caps)?;
+    let d = &mut spec.descriptor;
+    d["schema_id"] = json!(RUN_OBSERVATION_STANDARD_COMPACT_SCHEMA_ID);
+    d["semantics"]["capacity_preset"] = json!(STANDARD_COMPACT_CAPACITY_PRESET_ID);
+    d["semantics"]["dense_schema"] = json!(RUN_OBSERVATION_STANDARD_SCHEMA_ID);
+    d["semantics"]["layout"] = json!(format!("the dense {RUN_OBSERVATION_STANDARD_SCHEMA_ID} groups, columns, order and semantics; rows limited by \
+the capacities; values in the tensor dtype; a state that exceeds a capacity or a dtype is a typed Capacity fault, never truncated"));
+    let clip = |v: &Value, (low, high): (i64, i64)| json!(v.as_i64().unwrap_or(if v.as_u64().is_some() { i64::MAX } else { i64::MIN }).clamp(low, high));
+    for tensor in d["tensors"].as_array_mut().expect("descriptor tensors") {
+        if tensor.get("known").is_none() { continue }
+        let dtype = tensor["key"].as_str().and_then(compact_dtype).ok_or(RunSessionError::Input("Standard group without a compact dtype"))?;
+        tensor["dtype"] = json!(dtype.name());
+        for bound in ["low", "high"] {
+            let n = tensor[bound].as_array().map_or(0, Vec::len);
+            for i in 0..n {
+                tensor[bound][i] = clip(&tensor[bound][i], dtype.range());
+                tensor["columns"][i][bound] = clip(&tensor["columns"][i][bound], dtype.range());
+            }
+        }
+    }
+    let mut hash = Sha256::new();
+    hash.update(COMPACT_DOMAIN);
+    hash.update(crate::canonical_json(&spec.descriptor).map_err(|_| RunSessionError::Input("invalid Standard descriptor"))?);
+    spec.fingerprint = hash.finalize().into();
+    Ok(spec)
+}
+
 pub(crate) fn neow_reward(reward: NeowReward) -> i64 { v1::reward(reward) }
 pub(crate) fn neow_drawback(drawback: Option<NeowDrawback>) -> i64 { drawback.map(v1::drawback).unwrap_or(0) }
 

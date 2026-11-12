@@ -193,6 +193,16 @@ is dropped), an isolated slot is `unaffected`, and every other slot is `not_comm
 a slot whose isolate resume is interrupted by such a panic is judged by serials of two different sessions
 and can be reported `unaffected`; the batch is frozen either way.
 
+**Compact observation (M38e).** `NativeRunBatch(..., observation="compact")` and `RunVectorEnv(..., observation="compact")`
+give every slot the opt-in compact Standard layout ([Standard Run API](standard-run-api.md#compact-observation-m38e)):
+the same keys and order with fewer rows and `int16`/`int32` value arrays (137 KB per slot instead of 764 KB). The slots of
+one batch share one layout. A state that does not fit the capacities is a typed fault through the statuses above, never a
+truncation: a step overflow is stage `encode` ("post-step Run encoding failed"), a reset or autoreset overflow stage
+`reset` or `autoreset` with the `Run capacity <group>: <required> > <capacity>` text. Use `fault_policy="isolate"` so the
+other slots continue, `fault_cause(slot)` to read the group (also without recording), and larger `capacities` (each up to
+the `standard-default-v1` value) if a group is too small. An isolate resume keeps the compact layout. Zero rows, `final_obs`
+and recovered rows have the compact dtypes.
+
 `CombatPool`/combat-v1 `CombatFaultError.slots` is informational only. `CombatPool` has no
 `decision()` or `recover_committed()` API, so an informational committed-undelivered status there
 does not imply recovery.

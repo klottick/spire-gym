@@ -63,6 +63,44 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   - [Batching](docs/batching.md#slots-seeds-and-workers) now advises native callers to copy
     what they need and drop the previous rows before the next step.
 
+- M38e: an opt-in compact Standard Run observation. Additive; the dense
+  `spire-gym-standard-run-observation-v1` (`bf8e1d11…`), every default, frozen
+  identity, replay digest and Heart pin are unchanged. See
+  [Standard Run API](docs/standard-run-api.md#compact-observation-m38e).
+  - New schema `spire-gym-standard-run-observation-compact-v1` with its own
+    fingerprint domain, capacity preset `standard-compact-v1` and fingerprint
+    `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that
+    preset; added to the freeze identity table. Same groups, columns and
+    semantics as dense; fewer rows and `int16`/`int32` values (136,842 bytes per
+    slot of arrays instead of 763,720). Its descriptor's `semantics.capacity_preset`
+    is `standard-compact-v1` and it adds two `semantics` keys, `layout` and
+    `dense_schema`; a compact session's `environment_spec()` reports
+    `capacity_preset` `standard-compact-v1` (or `custom`).
+  - Python: keyword `observation="dense"|"compact"` (default `"dense"`) on
+    `NativeRunSession`, `NativeRunBatch`, `RunEnv` and `RunVectorEnv`; methods
+    `fault_cause()` (sessions, `RunEnv`) and `fault_cause(slot)` (batches,
+    `RunVectorEnv`). The `run.py` `Observation` alias gains `int32` and `int16`
+    arrays. No new module-level names.
+  - Rust (`spire-env`): `RunObservationLayout`, `RunSession::new_standard_with_layout`,
+    `RunSession::observation_layout`, `RunSession::fault_cause`,
+    `RunCapacities::standard_compact`, `standard_compact_run_observation_spec`,
+    `RUN_OBSERVATION_STANDARD_COMPACT_SCHEMA_ID`, `STANDARD_COMPACT_CAPACITY_PRESET_ID`,
+    `record_observation_layout` and `encode_run_standard_decision_with_layout`;
+    `RunRecordError::from_error` is now public. Internal, `#[doc(hidden)]`:
+    `ObservationChunk` and `ObservationTarget::typed`.
+  - A compact state that does not fit is a typed `Capacity` fault through the
+    existing paths: a row overflow names the row group; a value outside its dtype
+    names `"<group>.<column>"` with the dtype maximum as `capacity`. The record
+    codec accepts such value-fault groups only in compact records.
+  - `fault_cause()` exists for every layout and profile; it is `None` unless the
+    session froze. Python redacts a core cause as other Python errors do.
+  - Dense speed: native dense is unchanged within noise; the dense Python batch
+    step is about 3–5% slower than after M38b (cause diffuse, likely the
+    encoder's code generation; see [profiling](docs/profiling.md#after-m38e)).
+  - Diagnostics: `M37_LAYOUT` and `M37_STACK=slab` in `m37_phase_timing`,
+    `--observation` in `a20_checks`, `examples/run_vector_phase_timing.py` and
+    `examples/speed_check.py`.
+
 ## 1.0.0 — effective at the merge of PR #103
 
 See the [1.0.0 release notes](docs/releases/v1.0.0.md).

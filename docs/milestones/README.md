@@ -41,3 +41,4 @@ Statuses and merge references below follow the closed Beads records (spire-dxo.2
 | M34s | Search and scenario API | merged | PR #101, e3574ed | [profile](m34s-search-scenario.md) |
 | M35 | Native batching and Python/Gymnasium hardening | merged | PR #102, 09b8fc8 | [profile](m35-batching.md) |
 | M36 | Final verified delivery | merged; released as v1.0.0 | PR named in [CHANGES](../../CHANGES.md); the commit tagged v1.0.0 | [profile](m36-final-delivery.md) |
+| M38e | Opt-in compact Standard observation | source candidate | branch `feat/m38e-compact-observation-20261112` | [profile](m38e-compact-observation.md) |

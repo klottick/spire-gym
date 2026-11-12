@@ -11,7 +11,10 @@ Acts 1–4 and the Heart, using finite Standard content. Rust owns game state an
 rules. `spire-env` provides native Run sessions, observations, actions, replay,
 batching, public search and `standard-combat-v1`. Python bindings transport those
 owners; Gymnasium facades remain thin. Machine-learning models and training
-loops live outside the repository.
+loops live outside the repository. Since M38e, Standard Run sessions and batches
+can opt into a compact observation layout (`observation="compact"`) with the same
+public information in fewer bytes; the dense observation stays the default
+([Standard Run API](standard-run-api.md#compact-observation-m38e)).
 
 Legacy consumer surfaces remain supported under the contract freeze: M9 Run-v1,
 M10 Heart Run-v2, M10 policy Run-v3, Gym66 `ironclad-combat-v1`/`-v2`, their
@@ -145,6 +148,12 @@ facts.
   informational because it has no committed-result recovery API. Tested
   Gymnasium wrappers are a subset, not universal compatibility or unmodified
   mask-blind `check_env` acceptance. See [batching](batching.md).
+- **Compact observation (M38e):** its capacities come from measured maxima, not
+  engine bounds; a larger state (for example a long generation stall past about
+  40 turns, a deck above 256 cards, or repeated Courier restocks) is a typed
+  `Capacity` fault that freezes the session or slot, never a truncation. Larger
+  capacities cure a row overflow but not a value fault. There is no compact
+  Standard combat view, `standard-combat-v1` layout or public-search layout.
 - **Python delivery:** only a source-matched imported extension establishes
   Python delivery. The M35 post-merge receipt does not verify the M36 artifact.
 - **Performance:** single-host diagnostic measurements; capacity maxima are lower
@@ -168,7 +177,10 @@ facade names and signatures, and legacy M9/M10, Gym66 and combat-v1 surfaces use
 consumers. Existing pinned fingerprints include Standard Run
 `bf8e1d11…`, Standard combat view `5d8147e1…`, card metadata `effbb810…`, M9
 `270163f7…`, M10 Heart `dccc7624…`, M10 policy `28d92d89…`, Gym66 views
-`4c73f7de…` and `5ba729fd…`, plus combat-v1 `8fd66d21…`. The complete source
+`4c73f7de…` and `5ba729fd…`, plus combat-v1 `8fd66d21…`. From the M38e merge
+the opt-in compact Standard observation is frozen too: schema
+`spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`
+and fingerprint `633b9424…`. The complete source
 table and replay corpus are asserted by the freeze tests. Batching has no
 standalone version ID. **Gym66 shares the M10 rules ID; combat-v1 has no rules
 ID.**

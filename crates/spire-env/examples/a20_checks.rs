@@ -7,7 +7,8 @@
 //! requested worker count; `M` records process RSS and runs a 256-slot reset plus 50
 //! batch calls. RSS values are KiB, or `"unavailable"` off Linux.
 //!
-//! Usage: `a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]`.
+//! Usage: `a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]
+//! [--observation dense|compact]`.
 //!
 //! `--speed-check` (M38b, spire-qu9.3) runs only a short fixed diagnostic: phase `B` at 64 slots for 200 calls at 1 and
 //! 16 workers, twice each, and writes `spire-gym-speed-check-v1` JSON (`identity`, `runs`, and `best` slot steps/s per
@@ -15,9 +16,9 @@
 use serde_json::{json, Value};
 use spire_core::{combat::rng::Partition, content::Character};
 use spire_env::{
-    standard_run_observation_spec, AutoresetMode, BatchConfig, FaultPolicy, RunActionIndex,
+    standard_compact_run_observation_spec, standard_run_observation_spec, AutoresetMode, BatchConfig, FaultPolicy, RunActionIndex,
     RunBoundary, RunCapacities, RunSession, RunSessionError, SessionBatch, StandardRunConfig,
-    RUN_RULES_ID_STANDARD,
+    RunObservationLayout, RUN_RULES_ID_STANDARD,
 };
 use std::{
     collections::BTreeMap,
@@ -53,20 +54,27 @@ struct Options {
     workers: [usize; 3],
     out: Option<PathBuf>,
     speed_check: bool,
+    observation: RunObservationLayout,
 }
 
 fn usage() -> &'static str {
-    "usage: a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]"
+    "usage: a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check] [--observation dense|compact]"
 }
 
 fn parse_args() -> Result<Options, String> {
-    let mut options = Options { seeds: DEFAULT_SEEDS, batch_steps: DEFAULT_BATCH_STEPS, workers: [1, 4, 16], out: None, speed_check: false };
+    let mut options = Options { seeds: DEFAULT_SEEDS, batch_steps: DEFAULT_BATCH_STEPS, workers: [1, 4, 16], out: None, speed_check: false, observation: RunObservationLayout::Dense };
     let mut smoke = false;
     let mut args = std::env::args().skip(1);
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--smoke" => smoke = true,
             "--speed-check" => options.speed_check = true,
+            "--observation" => options.observation = match args.next().as_deref() {
+                Some("dense") => RunObservationLayout::Dense,
+                Some("compact") => RunObservationLayout::Compact,
+                Some(value) => return Err(format!("--observation must be dense or compact, not {value}")),
+                None => return Err(usage().to_owned()),
+            },
             "--seeds" => options.seeds = args.next().ok_or_else(|| usage().to_owned())?.parse().map_err(|_| "--seeds must be a positive integer".to_owned())?,
             "--batch-steps" => options.batch_steps = args.next().ok_or_else(|| usage().to_owned())?.parse().map_err(|_| "--batch-steps must be a positive integer".to_owned())?,
             "--workers" => {
@@ -88,7 +96,9 @@ fn parse_args() -> Result<Options, String> {
     Ok(options)
 }
 
-fn capacities() -> RunCapacities { RunCapacities::standard_default() }
+fn capacities(observation: RunObservationLayout) -> RunCapacities {
+    if observation == RunObservationLayout::Compact { RunCapacities::standard_compact() } else { RunCapacities::standard_default() }
+}
 
 fn capacity_limits(c: &RunCapacities) -> [usize; 12] {
     [c.map_nodes, c.map_edges, c.permanent_cards, c.combat_cards, c.enemies, c.powers,
@@ -131,7 +141,7 @@ fn occupied(boundary: &RunBoundary, maxima: &mut BTreeMap<String, usize>) {
     record_boundary(boundary, maxima);
 }
 
-fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>) -> Result<Value, String> {
+fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>, observation: RunObservationLayout) -> Result<Value, String> {
     let characters = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
     let mut accepted = 0usize;
     let mut measured = Duration::ZERO;
@@ -141,7 +151,9 @@ fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>) -> Result<Valu
     for character in characters {
         for seed_index in 0..seeds {
             let seed = (character_index(character) << 32) | seed_index as u64;
-            let mut session = RunSession::new_standard(StandardRunConfig::new(character, 20, Partition::Test))
+            let mut config = StandardRunConfig::new(character, 20, Partition::Test);
+            config.capacities = capacities(observation);
+            let mut session = RunSession::new_standard_with_layout(config, observation)
                 .map_err(|error| format!("S create {}/seed {seed}: {error:?}", character_name(character)))?;
             let mut boundary = session.reset(Some(seed)).map_err(|error| format!("S reset {}/seed {seed}: {error:?}", character_name(character)))?;
             occupied(&boundary, maxima);
@@ -174,19 +186,20 @@ fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>) -> Result<Valu
     }))
 }
 
-fn batch_configs(slots: usize) -> Vec<StandardRunConfig> {
+fn batch_configs(slots: usize, observation: RunObservationLayout) -> Vec<StandardRunConfig> {
     let characters = [Character::Ironclad, Character::Silent, Character::Defect, Character::Watcher];
     (0..slots).map(|slot| {
         let mut config = StandardRunConfig::new(characters[(slot / (slots / 4)) % 4], 20, Partition::Test);
+        config.capacities = capacities(observation);
         config.record_replay = true;
         config
     }).collect()
 }
 
-fn batch_phase(slots: usize, steps: usize, workers: usize, maxima: &mut BTreeMap<String, usize>) -> Result<Value, String> {
-    let configs = batch_configs(slots);
+fn batch_phase(slots: usize, steps: usize, workers: usize, maxima: &mut BTreeMap<String, usize>, observation: RunObservationLayout) -> Result<Value, String> {
+    let configs = batch_configs(slots, observation);
     let batch_config = BatchConfig { workers, autoreset: AutoresetMode::NextStep, fault_policy: FaultPolicy::Freeze };
-    let mut batch = SessionBatch::new_run(configs, RunSession::new_standard, batch_config).map_err(|error| format!("batch create: {error:?}"))?;
+    let mut batch = SessionBatch::new_run(configs, |config| RunSession::new_standard_with_layout(config, observation), batch_config).map_err(|error| format!("batch create: {error:?}"))?;
     let seeds = (0..slots).map(|slot| Some(0xA20_0000 + slot as u64)).collect::<Vec<_>>();
     let entries = vec![None; slots];
     let mut rows = batch.reset(&seeds, &entries, None).map_err(|error| format!("batch reset: {error:?}"))?;
@@ -221,28 +234,33 @@ fn batch_phase(slots: usize, steps: usize, workers: usize, maxima: &mut BTreeMap
         "rss_after_budget": rss_after_budget }))
 }
 
-fn identity() -> Result<Value, String> {
+fn identity(observation: RunObservationLayout) -> Result<Value, String> {
     let revision = std::env::var("GIT_REVISION").ok().filter(|value| !value.is_empty()).or_else(|| {
         std::process::Command::new("git").args(["rev-parse", "HEAD"]).output().ok()
             .filter(|output| output.status.success()).map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
     });
-    let fingerprint = standard_run_observation_spec(&capacities()).map(|spec| spec.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>())
-        .map_err(|error| format!("observation spec: {error:?}"));
-    let fingerprint = fingerprint?;
-    Ok(json!({"revision": revision, "rules_id": RUN_RULES_ID_STANDARD,
+    let spec = if observation == RunObservationLayout::Compact {
+        standard_compact_run_observation_spec(&capacities(observation))
+    } else { standard_run_observation_spec(&capacities(observation)) }
+        .map_err(|error| format!("observation spec: {error:?}"))?;
+    let fingerprint = spec.fingerprint().iter().map(|byte| format!("{byte:02x}")).collect::<String>();
+    let mut identity = json!({"revision": revision, "rules_id": RUN_RULES_ID_STANDARD,
         "observation_fingerprint": fingerprint,
-        "host_cpu_count": std::thread::available_parallelism().map(usize::from).ok() })
-    )
+        "host_cpu_count": std::thread::available_parallelism().map(usize::from).ok() });
+    if observation == RunObservationLayout::Compact {
+        identity["observation_schema"] = json!(spec.descriptor()["schema_id"]);
+    }
+    Ok(identity)
 }
 
 /// M38b `--speed-check`: the fixed diagnostic run (see the module docs).
-fn speed_check() -> Result<Value, String> {
+fn speed_check(observation: RunObservationLayout) -> Result<Value, String> {
     let mut maxima = BTreeMap::new();
     let mut runs = Vec::new();
     let mut best = serde_json::Map::new();
     for workers in [1, 16] {
         for repeat in 0..2 {
-            let mut run = batch_phase(64, 200, workers, &mut maxima)?;
+            let mut run = batch_phase(64, 200, workers, &mut maxima, observation)?;
             run.as_object_mut().expect("batch phase object").remove("rss_after_budget");
             run["repeat"] = json!(repeat);
             let rate = run["slot_steps_per_second"].as_f64().unwrap_or(0.0);
@@ -251,33 +269,33 @@ fn speed_check() -> Result<Value, String> {
             runs.push(run);
         }
     }
-    Ok(json!({"schema_id": "spire-gym-speed-check-v1", "identity": identity()?, "slots": 64, "ascension": 20,
+    Ok(json!({"schema_id": "spire-gym-speed-check-v1", "identity": identity(observation)?, "slots": 64, "ascension": 20,
         "record_replay": true, "autoreset": "next_step", "batch_calls": 200, "runs": runs, "best": best}))
 }
 
 fn execute(options: Options) -> Result<Value, String> {
-    if options.speed_check { return speed_check() }
+    if options.speed_check { return speed_check(options.observation) }
     let mut maxima = BTreeMap::new();
-    let s = run_single(options.seeds, &mut maxima)?;
+    let s = run_single(options.seeds, &mut maxima, options.observation)?;
     let memory_after_s = rss();
     let mut batch_runs = Vec::new();
     for workers in options.workers {
-        batch_runs.push(batch_phase(64, options.batch_steps, workers, &mut maxima)?);
+        batch_runs.push(batch_phase(64, options.batch_steps, workers, &mut maxima, options.observation)?);
     }
     let memory_after_b64 = batch_runs.last().expect("three batch worker configurations")["rss_after_budget"].clone();
-    let mut m256 = batch_phase(256, 50, 16, &mut maxima)?;
+    let mut m256 = batch_phase(256, 50, 16, &mut maxima, options.observation)?;
     let memory_after_b256 = m256["rss_after_budget"].clone();
     m256["rss_after_reset_plus_50_steps"] = memory_after_b256.clone();
     m256.as_object_mut().expect("batch phase object").remove("rss_after_budget");
     let before = memory_after_b64["VmRSS_kib"].as_u64();
     let after = memory_after_b256["VmRSS_kib"].as_u64();
     let delta_per_slot = before.zip(after).map(|(a, b)| (b as f64 - a as f64) / 192.0);
-    let limits = capacity_limits(&capacities());
+    let limits = capacity_limits(&capacities(options.observation));
     let capacity_rows = CAPACITY_NAMES.iter().zip(limits).map(|(name, capacity)| {
         let used = maxima.get(*name).copied().unwrap_or(0);
         json!({"group": name, "capacity": capacity, "max_occupied": used, "headroom": capacity.saturating_sub(used)})
     }).collect::<Vec<_>>();
-    Ok(json!({"schema_id":"spire-gym-a20-checks-v1", "identity": identity()?, "S": s, "B": batch_runs,
+    Ok(json!({"schema_id":"spire-gym-a20-checks-v1", "identity": identity(options.observation)?, "S": s, "B": batch_runs,
         "M":{"rss_after_S": memory_after_s, "rss_after_B64": memory_after_b64, "B256": m256,
             "rss_delta_per_added_slot_kib": delta_per_slot}, "capacity": capacity_rows }))
 }

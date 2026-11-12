@@ -439,7 +439,8 @@ pub struct RunCapacityFailure{pub group:String,pub required:usize,pub capacity:u
 pub struct RunRecordError{pub kind:RunRecordErrorKind,pub message:String,pub capacity:Option<RunCapacityFailure>}
 impl RunRecordError{
     pub fn diagnostic_json(&self)->Result<String,RunSessionError>{serde_json::to_string(self).map_err(|_|RunSessionError::DeliveryFault("Run diagnostic export failed"))}
-    pub(crate) fn from_error(error:&RunSessionError)->Self{
+    /// The record form of a session error (kind, message, capacity); M38e: public for `fault_cause()` transports.
+    pub fn from_error(error:&RunSessionError)->Self{
         use RunRecordErrorKind as K;
         let (kind,message,capacity)=match error{
             RunSessionError::Input(s)=>(K::Input,(*s).to_owned(),None),RunSessionError::StaleToken=>(K::StaleToken,"stale token".into(),None),
@@ -482,6 +483,10 @@ pub struct RunSession{
     fault:Option<RunSessionError>,last_step:Option<RunRecordedStep>,closed:bool,at_m12_cutoff:bool,at_m13_cutoff:bool,at_m14_cutoff:bool,
     /// M37b: the profile's observation-spec fingerprint for `config.capacities`, computed once for record headers.
     profile_fingerprint:std::sync::OnceLock<[u8;32]>,
+    /// M38e: the observation layout (dense unless a Standard session opted into compact).
+    layout:crate::RunObservationLayout,
+    /// M38e: the cause the session froze with (the error behind a returned delivery fault), for `fault_cause()`.
+    fault_cause:Option<RunSessionError>,
 }
 /// M34c privileged exact-world checkpoint (design §4.8): an opaque, immutable deep copy of one session's episode (core
 /// Run, config and creation, seed, ordinal, published boundary, action table, record prefix, last step). It reveals the
@@ -791,6 +796,7 @@ fn check_boundary(profile: RunProfile, decision: &PublicDecision) -> Result<(), 
 type RunEncoder=fn(&PublicDecision,Option<&spire_core::run::map::PublicMap>,&RunCapacities)->Result<RunObservation,RunSessionError>;
 fn publish(
     profile: RunProfile,
+    layout: crate::RunObservationLayout,
     run: &Run,
     config: &RunSessionConfig,
     token: RunDecisionToken,
@@ -828,8 +834,8 @@ fn publish(
             RunProfile::M23WatcherAct2 => crate::encode_run_m23(&decision, map.as_ref(), &config.capacities)?,
             RunProfile::M24WatcherAct3 => crate::encode_run_m24(&decision, map.as_ref(), &config.capacities)?,
         RunProfile::M25WatcherHeart => crate::encode_run_m25(&decision, map.as_ref(), &config.capacities)?,
-        RunProfile::Standard => crate::run_observation::encode_run_standard_into(&decision, map.as_ref(), &config.capacities,
-            crate::run_observation::StandardContext{ascension:run.ascension(),run_selection:run.room_selection_operation()},target)?,
+        RunProfile::Standard => crate::run_observation::encode_run_standard_layout_into(&decision, map.as_ref(), &config.capacities,
+            crate::run_observation::StandardContext{ascension:run.ascension(),run_selection:run.room_selection_operation()},layout,target)?,
     }
     };
     let at_m12_cutoff = matches!(profile,RunProfile::M12SilentAct1|RunProfile::M17DefectAct1|RunProfile::M22WatcherAct1)
@@ -984,7 +990,10 @@ impl RunSession{
             descriptor["ascension"]=serde_json::json!(self.config.ascension);
             // Standard creation is caller configuration and player knowledge (design §4.2), unlike captured profiles' fixed Note.
             descriptor["creation"]=self.standard_creation().map(|c|c.to_json()).unwrap_or(serde_json::Value::Null);
-            descriptor["capacity_preset"]=serde_json::json!(if self.config.capacities==RunCapacities::standard_default(){crate::STANDARD_CAPACITY_PRESET_ID}else{"custom"});
+            descriptor["capacity_preset"]=serde_json::json!(match self.layout{
+                crate::RunObservationLayout::Compact=>if self.config.capacities==RunCapacities::standard_compact(){crate::STANDARD_COMPACT_CAPACITY_PRESET_ID}else{"custom"},
+                _=>if self.config.capacities==RunCapacities::standard_default(){crate::STANDARD_CAPACITY_PRESET_ID}else{"custom"},
+            });
             descriptor["vocabulary_manifest"]=serde_json::json!(crate::STANDARD_VOCAB_MANIFEST_ID);
             descriptor["ending"]=serde_json::json!("HeartVictory after the actual Act4 Proceed action; truncated is always false");
         }
@@ -1065,6 +1074,11 @@ impl RunSession{
     pub fn new_m25(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M25WatcherHeart)}
     /// M34b: a Standard session; invalid input is rejected before any Run is built.
     pub fn new_standard(config:StandardRunConfig)->Result<Self,RunSessionError>{Self::with_profile(config.session_config(),RunProfile::Standard)}
+    /// M38e: a Standard session in `layout` (`new_standard` is the dense layout). A compact caller usually sets
+    /// `config.capacities = RunCapacities::standard_compact()`; compact capacities are 1..=`standard-default-v1` per group.
+    pub fn new_standard_with_layout(config:StandardRunConfig,layout:crate::RunObservationLayout)->Result<Self,RunSessionError>{
+        Self::with_profile_layout(config.session_config(),RunProfile::Standard,layout)
+    }
     /// The Standard creation profile, if this is a Standard session.
     pub fn standard_creation(&self)->Option<StandardCreation>{match self.config.boss_history{RunBossHistory::Standard(c) if self.profile==RunProfile::Standard=>Some(c),_=>None}}
     pub fn new_m20(config:RunSessionConfig)->Result<Self,RunSessionError>{Self::with_profile(config,RunProfile::M20DefectHeart)}
@@ -1143,7 +1157,11 @@ impl RunSession{
     /// supplied Run as its first boundary at `seed`/ordinal 0; replay it with the same supplied Run.
     #[cfg(test)]
     pub(crate) fn from_standard_supplied(config:StandardRunConfig,run:Run,seed:u64)->Result<Self,RunSessionError>{
-        let mut s=Self::new_standard(config)?;
+        Self::from_standard_supplied_layout(config,run,seed,crate::RunObservationLayout::Dense)
+    }
+    #[cfg(test)]
+    pub(crate) fn from_standard_supplied_layout(config:StandardRunConfig,run:Run,seed:u64,layout:crate::RunObservationLayout)->Result<Self,RunSessionError>{
+        let mut s=Self::new_standard_with_layout(config,layout)?;
         s.run=Some(run);s.seed=Some(seed);s.serial=1;
         s.record=if s.config.record_replay{Some(new_record(s.profile,&s.config,seed,0,s.profile_fingerprint()?)?)}else{None};
         match s.publish_current(1){Ok((boundary,actions,a,b,c))=>{s.published=Some(boundary.into());s.actions=actions;s.at_m12_cutoff=a;s.at_m13_cutoff=b;s.at_m14_cutoff=c;},Err(error)=>{s.freeze(error.clone(),error,None,false,false);}}
@@ -1185,9 +1203,18 @@ impl RunSession{
         Ok(session)
     }
     fn with_profile(config:RunSessionConfig,profile:RunProfile)->Result<Self,RunSessionError>{
+        Self::with_profile_layout(config,profile,crate::RunObservationLayout::Dense)
+    }
+    /// M38e: a session of `profile` in `layout`; the compact layout exists only for Standard, with capacities
+    /// 1..=`standard-default-v1` per group.
+    pub(crate) fn with_profile_layout(config:RunSessionConfig,profile:RunProfile,layout:crate::RunObservationLayout)->Result<Self,RunSessionError>{
         validate_config(profile,&config)?;
+        if layout==crate::RunObservationLayout::Compact{
+            if profile!=RunProfile::Standard{return Err(RunSessionError::Input("the compact observation layout requires the Standard profile"))}
+            crate::run_schema_standard::validate_compact(&config.capacities)?;
+        }
         let id=allocate_run_session_id()?;
-        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] m25_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false,profile_fingerprint:std::sync::OnceLock::new()})
+        Ok(Self{#[cfg(test)] m22_diagnostic:None,#[cfg(test)] m23_diagnostic:None,#[cfg(test)] m24_diagnostic:None,#[cfg(test)] m25_diagnostic:None,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:None,config,profile,id,serial:0,run:None,published:None,actions:vec![],seed:None,ordinal:0,record:None,fault:None,last_step:None,closed:false,at_m12_cutoff:false,at_m13_cutoff:false,at_m14_cutoff:false,profile_fingerprint:std::sync::OnceLock::new(),layout,fault_cause:None})
     }
     /// The immutable numeric action/observation contract selected by this session.
     pub fn observation_spec(&self)->Result<crate::RunObservationSpec,RunSessionError>{
@@ -1196,8 +1223,14 @@ impl RunSession{
         #[cfg(test)] if let Some(start)=self.m24_diagnostic{return crate::run_schema_m24::diagnostic_spec(&self.config.capacities,start)}
         #[cfg(test)] if let Some(fixture)=self.m25_diagnostic{return crate::run_schema_m25::diagnostic_spec(&self.config.capacities,fixture)}
         #[cfg(test)] if self.m20_diagnostic.is_some(){return crate::run_schema_m20::diagnostic_spec(&self.config.capacities)}
+        if self.layout==crate::RunObservationLayout::Compact{return crate::standard_compact_run_observation_spec(&self.config.capacities)}
         self.profile.observation_spec(&self.config.capacities)
     }
+    /// M38e: this session's observation layout.
+    pub fn observation_layout(&self)->crate::RunObservationLayout{self.layout}
+    /// M38e: the cause of the retained fault (for a step whose encode failed, the `Capacity` behind the returned
+    /// `DeliveryFault`), whether or not the session records; `None` when healthy. Privileged: a core cause is unredacted.
+    pub fn fault_cause(&self)->Option<RunSessionError>{self.fault_cause.clone()}
     fn publish_current(&self,serial:u64)->Result<(RunBoundary,Vec<GameAction>,bool,bool,bool),RunSessionError>{
         self.publish_current_into(serial,None)
     }
@@ -1205,17 +1238,20 @@ impl RunSession{
     fn publish_current_into(&self,serial:u64,target:Option<&mut crate::ObservationTarget<'_>>)->Result<(RunBoundary,Vec<GameAction>,bool,bool,bool),RunSessionError>{
         let encoder:Option<RunEncoder>=None;
         #[cfg(test)] let encoder=if self.m20_diagnostic.is_some(){Some(crate::run_observation::encode_run_m20_diagnostic as RunEncoder)}else{encoder};
-        publish(self.profile,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial]),encoder,target)
+        publish(self.profile,self.layout,self.run.as_ref().unwrap(),&self.config,RunDecisionToken([self.id,serial]),encoder,target)
     }
     /// The profile's spec fingerprint for this session's capacities (what `new_record` stamps); built once, then reused.
     fn profile_fingerprint(&self)->Result<[u8;32],RunSessionError>{
         if let Some(fingerprint)=self.profile_fingerprint.get(){return Ok(*fingerprint)}
-        let fingerprint=self.profile.observation_spec(&self.config.capacities)?.fingerprint();
+        let fingerprint=match self.layout{
+            crate::RunObservationLayout::Compact=>crate::run_schema_standard::compact_spec(&self.config.capacities)?.fingerprint(),
+            _=>self.profile.observation_spec(&self.config.capacities)?.fingerprint(),
+        };
         Ok(*self.profile_fingerprint.get_or_init(||fingerprint))
     }
     fn usable(&self)->Result<(),RunSessionError>{if self.closed{return Err(RunSessionError::Closed)}if let Some(error)=&self.fault{return Err(error.clone())}Ok(())}
     fn freeze(&mut self,error:RunSessionError,cause:RunSessionError,action:Option<GameAction>,committed:bool,gameplay_recorded:bool)->RunSessionError{
-        if self.fault.is_none(){self.fault=Some(error);if let Some(record)=&mut self.record{record.fault=Some(RunRecordedFault{action,committed,gameplay_recorded,error:RunRecordError::from_error(&cause)});}}
+        if self.fault.is_none(){self.fault=Some(error);self.fault_cause=Some(cause.clone());if let Some(record)=&mut self.record{record.fault=Some(RunRecordedFault{action,committed,gameplay_recorded,error:RunRecordError::from_error(&cause)});}}
         self.fault.clone().unwrap()
     }
     /// Pure reset validation shared by single-session reset and RunBatch's
@@ -1325,7 +1361,7 @@ impl RunSession{
     /// M35: whether the published boundary is terminal.
     pub(crate) fn is_terminal(&self)->bool{self.published.as_ref().is_some_and(|b|b.terminal.is_some())}
     /// M35 isolate resume (design §3.3): a new unstarted session with this one's profile and configuration.
-    pub(crate) fn fresh_like(&self)->Result<Self,RunSessionError>{Self::with_profile(self.config.clone(),self.profile)}
+    pub(crate) fn fresh_like(&self)->Result<Self,RunSessionError>{Self::with_profile_layout(self.config.clone(),self.profile,self.layout)}
     pub(crate) fn retain_batch_error(&mut self,error:RunSessionError,committed:bool)->RunSessionError{
         let action=if committed{self.last_step.as_ref().map(|step|step.action.clone())}else{None};
         self.freeze(error.clone(),error,action,committed,committed)
@@ -1357,7 +1393,7 @@ impl RunSession{
     /// so every earlier token is stale. A frozen or closed session cannot restore; a rejected restore changes nothing.
     pub fn exact_restore(&mut self,checkpoint:&ExactCheckpoint)->Result<RunBoundary,RunSessionError>{
         self.usable()?;let source=&checkpoint.state;
-        if source.profile!=self.profile||source.config!=self.config{return Err(RunSessionError::Input("exact checkpoint belongs to another session configuration"))}
+        if source.profile!=self.profile||source.config!=self.config||source.layout!=self.layout{return Err(RunSessionError::Input("exact checkpoint belongs to another session configuration"))}
         let serial=self.serial.checked_add(1).ok_or(RunSessionError::Input("Run decision identity exhausted"))?;
         let restored=source.exact_copy(self.id,serial)?;let returned=restored.decision()?;
         *self=restored;Ok(returned)
@@ -1376,7 +1412,7 @@ impl RunSession{
         let record=match &self.record{Some(r)=>{let mut steps=Vec::new();steps.try_reserve_exact(r.steps.len()).map_err(|_|RunSessionError::DeliveryFault("exact checkpoint allocation failed"))?;steps.extend(r.steps.iter().cloned());Some(RunEpisodeRecord{schema_id:r.schema_id.clone(),profile_id:r.profile_id.clone(),rules_id:r.rules_id.clone(),content_id:r.content_id.clone(),seed_adapter_id:r.seed_adapter_id.clone(),rng_id:r.rng_id.clone(),reward_id:r.reward_id.clone(),observation_fingerprint:r.observation_fingerprint,config:r.config.clone(),seed:r.seed,ordinal:r.ordinal,steps,terminal:r.terminal,fault:r.fault.clone(),closed:r.closed})},None=>None};
         Ok(Self{#[cfg(test)] m22_diagnostic:self.m22_diagnostic,#[cfg(test)] m23_diagnostic:self.m23_diagnostic,#[cfg(test)] m24_diagnostic:self.m24_diagnostic,#[cfg(test)] m25_diagnostic:self.m25_diagnostic,#[cfg(test)] test_reset_panic:None,#[cfg(test)] m20_diagnostic:self.m20_diagnostic.clone(),
             config:self.config.clone(),profile:self.profile,id,serial,run:self.run.clone(),published,actions,seed:self.seed,ordinal:self.ordinal,record,
-            fault:None,last_step:self.last_step.clone(),closed:false,at_m12_cutoff:self.at_m12_cutoff,at_m13_cutoff:self.at_m13_cutoff,at_m14_cutoff:self.at_m14_cutoff,profile_fingerprint:self.profile_fingerprint.clone()})
+            fault:None,last_step:self.last_step.clone(),closed:false,at_m12_cutoff:self.at_m12_cutoff,at_m13_cutoff:self.at_m13_cutoff,at_m14_cutoff:self.at_m14_cutoff,profile_fingerprint:self.profile_fingerprint.clone(),layout:self.layout,fault_cause:None})
     }
     /// M34c replay to a chosen decision (design §4.7): a live session at decision `steps` of `record`, i.e. after its first
     /// `steps` accepted actions. The record is validated as for `replay_run`; the episode starts at the record's seed and
@@ -1386,9 +1422,9 @@ impl RunSession{
     /// recur (a transport or batch delivery fault, or a capacity fault under larger capacities) does not stop the prefix,
     /// as in `replay_run`. Any divergence is `IncompatibleReplay`. The new record holds the prefix and continues from it.
     pub fn from_record(record:&RunEpisodeRecord,steps:usize,capacities:RunCapacities)->Result<Self,RunSessionError>{
-        let profile=crate::run_replay::validate_record(record)?;
+        let (profile,layout)=crate::run_replay::validate_record(record)?;
         if steps>record.steps.len(){return Err(RunSessionError::Input("replay-to-decision step is past the end of the record"))}
-        let mut session=Self::with_profile(RunSessionConfig{capacities,..record.config.clone()},profile)?;
+        let mut session=Self::with_profile_layout(RunSessionConfig{capacities,..record.config.clone()},profile,layout)?;
         session.start_episode(record.seed,record.ordinal,1,None)?;
         for step in &record.steps[..steps]{
             let index=session.actions.iter().position(|a|a==&step.action).ok_or(RunSessionError::IncompatibleReplay("Run action not currently offered"))?;

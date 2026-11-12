@@ -1,9 +1,9 @@
 //! Thin Run transport; native ownership spans attached array/tuple packaging.
-use std::sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}};
+use std::{collections::HashMap,sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}}};
 use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError,PyTypeError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
-use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest};
-use crate::numeric;
+use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RunObservationLayout,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest};
+use crate::{numeric,stacking};
 
 create_exception!(_native,RunInputError,PyValueError);
 create_exception!(_native,RunStateError,PyRuntimeError);
@@ -35,10 +35,10 @@ impl RunProfile{
         Self::M9IroncladAct3=>RUN_OBSERVATION_SCHEMA_ID,
         Self::M10IroncladHeart=>RUN_OBSERVATION_M10_SCHEMA_ID,Self::M10IroncladPolicy=>spire_env::RUN_OBSERVATION_POLICY_SCHEMA_ID,Self::Standard=>spire_env::RUN_OBSERVATION_STANDARD_SCHEMA_ID,
     }}
-    pub(crate) fn new_session(self,config:RunSessionConfig)->Result<RunSession,RunSessionError>{match self{
+    pub(crate) fn new_session(self,config:RunSessionConfig,layout:RunObservationLayout)->Result<RunSession,RunSessionError>{match self{
         Self::M9IroncladAct3=>RunSession::new(config),
         Self::M10IroncladHeart=>RunSession::new_m10(config),Self::M10IroncladPolicy=>RunSession::new_m10_policy(config),
-        Self::Standard=>{let M9BossHistory::Standard(creation)=config.boss_history else{return Err(RunSessionError::Input("Standard requires creation and rejects boss_history"))};RunSession::new_standard(StandardRunConfig{character:config.character,ascension:config.ascension,partition:config.partition,creation,capacities:config.capacities,record_replay:config.record_replay})},
+        Self::Standard=>{let M9BossHistory::Standard(creation)=config.boss_history else{return Err(RunSessionError::Input("Standard requires creation and rejects boss_history"))};RunSession::new_standard_with_layout(StandardRunConfig{character:config.character,ascension:config.ascension,partition:config.partition,creation,capacities:config.capacities,record_replay:config.record_replay},layout)},
     }}
     fn from_record(record:&RunEpisodeRecord)->Result<Self,RunSessionError>{match (record.schema_id.as_str(),record.profile_id.as_str()){
         (RUN_RECORD_SCHEMA_ID,"M9IroncladAct3")=>Ok(Self::M9IroncladAct3),
@@ -52,11 +52,33 @@ impl RunProfile{
         Self::M10IroncladHeart=>spire_env::encode_run_m10(decision,map,caps),Self::M10IroncladPolicy=>spire_env::encode_run_policy(decision,map,caps),Self::Standard=>spire_env::encode_run_standard_decision(decision,map,caps,ascension,selection),
     }}
 }
-pub(crate) fn capacities(v:Option<&Bound<'_,PyAny>>,profile:RunProfile)->PyResult<RunCapacities>{
-    let mut c=match profile{RunProfile::M9IroncladAct3=>RunCapacities::m9_default(),RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy=>RunCapacities::m10_default(),RunProfile::Standard=>RunCapacities::standard_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
+pub(crate) fn capacities(v:Option<&Bound<'_,PyAny>>,profile:RunProfile,layout:RunObservationLayout)->PyResult<RunCapacities>{
+    let mut c=match (profile,layout){(RunProfile::M9IroncladAct3,_)=>RunCapacities::m9_default(),(RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy,_)=>RunCapacities::m10_default(),(RunProfile::Standard,RunObservationLayout::Dense)=>RunCapacities::standard_default(),(RunProfile::Standard,RunObservationLayout::Compact)=>RunCapacities::standard_compact(),_=>RunCapacities::standard_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
     let d=v.cast::<PyDict>().map_err(|_|RunInputError::new_err("capacities must be a dictionary"))?;
     for (key,value) in d.iter(){let target=match label(&key)?.as_str(){"map_nodes"=>&mut c.map_nodes,"map_edges"=>&mut c.map_edges,"permanent_cards"=>&mut c.permanent_cards,"combat_cards"=>&mut c.combat_cards,"enemies"=>&mut c.enemies,"powers"=>&mut c.powers,"relics"=>&mut c.relics,"potions"=>&mut c.potions,"offers"=>&mut c.offers,"selection"=>&mut c.selection,"orbs"=>&mut c.orbs,"actions"=>&mut c.actions,_=>return Err(RunInputError::new_err("unknown capacity"))};*target=integer(&value)?;}
+    if layout==RunObservationLayout::Compact { spire_env::standard_compact_run_observation_spec(&c).map_err(error)?; }
     Ok(c)
+}
+/// The value dtypes of `layout`. Dense (every profile) is an empty map: every value tensor defaults to int64, so no
+/// descriptor is built. Compact dtypes depend only on the group, so they are read once per process from the
+/// `standard-compact-v1` descriptor (review I1: no descriptor build per session, fork or record).
+pub(crate) fn layout_dtypes(layout:RunObservationLayout)->PyResult<stacking::DTypeMap>{
+    if layout!=RunObservationLayout::Compact{return Ok(stacking::DTypeMap::new())}
+    static COMPACT:std::sync::OnceLock<Result<stacking::DTypeMap,&'static str>>=std::sync::OnceLock::new();
+    COMPACT.get_or_init(||{
+        let spec=spire_env::standard_compact_run_observation_spec(&RunCapacities::standard_compact()).map_err(|_|"compact observation descriptor failed")?;
+        let mut result=HashMap::new();
+        for tensor in spec.descriptor()["tensors"].as_array().ok_or("observation descriptor tensors are invalid")?{
+            let key=tensor["key"].as_str().ok_or("observation descriptor tensor has no key")?;
+            let dtype=match tensor["dtype"].as_str(){Some("int64")=>stacking::DType::I64,Some("int32")=>stacking::DType::I32,Some("int16")=>stacking::DType::I16,Some("int8")=>continue,_=>return Err("invalid observation descriptor dtype")};
+            result.insert(key.to_owned(),dtype);
+        }
+        Ok(result)
+    }).clone().map_err(RunFaultError::new_err)
+}
+pub(crate) fn observation_layout(value:&str)->PyResult<RunObservationLayout>{match value{"dense"=>Ok(RunObservationLayout::Dense),"compact"=>Ok(RunObservationLayout::Compact),_=>Err(RunInputError::new_err("observation must be 'dense' or 'compact'"))}}
+pub(crate) fn fault_cause_value<'py>(py:Python<'py>,cause:Option<RunSessionError>)->PyResult<Option<Bound<'py,PyAny>>>{
+    cause.map(|cause|{let record=stacking::fault_cause_record(&cause);numeric::descriptor(py,record.diagnostic_json().map_err(error)?)}).transpose()
 }
 fn creation(py:Python<'_>,value:Option<&Bound<'_,PyAny>>)->PyResult<StandardCreation>{
     let Some(value)=value.filter(|v|!v.is_none()) else{return Ok(StandardCreation::experienced())};
@@ -83,26 +105,32 @@ fn creation(py:Python<'_>,value:Option<&Bound<'_,PyAny>>)->PyResult<StandardCrea
     StandardCreation::from_json_str(&text).map_err(error)
 }
 pub(crate) fn terminal(t:Option<RunTerminal>)->Option<&'static str>{t.map(|t|match t{RunTerminal::Death=>"death",RunTerminal::EmptyDeck=>"empty_deck",RunTerminal::Act3NoKeys=>"act3_no_keys",RunTerminal::HeartVictory=>"heart_victory"})}
-pub(crate) fn observation<'py>(py:Python<'py>,o:RunObservation)->PyResult<Bound<'py,PyDict>>{
+pub(crate) fn observation<'py>(py:Python<'py>,o:RunObservation,dtypes:&stacking::DTypeMap)->PyResult<Bound<'py,PyDict>>{
     let d=PyDict::new(py);
     for g in o.groups{
-        d.set_item(g.key,numeric::array(py,g.values,&g.shape)?)?;
+        let values=match dtypes.get(g.key){
+            Some(stacking::DType::I16)=>numeric::array(py,narrow_values::<i16>(&g.values)?,&g.shape)?,
+            Some(stacking::DType::I32)=>numeric::array(py,narrow_values::<i32>(&g.values)?,&g.shape)?,
+            _=>numeric::array(py,g.values,&g.shape)?,
+        };
+        d.set_item(g.key,values)?;
         d.set_item(format!("{}_known",g.key),numeric::array(py,g.known,&g.shape)?)?;
         if let Some(mask)=g.occupied{let count=mask.len();d.set_item(format!("{}_occupied",g.key),numeric::array(py,mask,&[count])?)?;}
     }
     let count=o.action_mask.len();d.set_item("action_mask",numeric::array(py,o.action_mask,&[count])?)?;Ok(d)
 }
+fn narrow_values<T:TryFrom<i64>>(values:&[i64])->PyResult<Vec<T>>{values.iter().copied().map(T::try_from).collect::<Result<Vec<_>,_>>().map_err(|_|RunFaultError::new_err("observation narrowing failed"))}
 pub(crate) fn specification<'py>(py:Python<'py>,spec:spire_env::RunObservationSpec)->PyResult<Bound<'py,PyAny>>{
     let d=numeric::descriptor(py,spec.descriptor().to_string())?;
     d.set_item("fingerprint",spec.fingerprint().iter().map(|v|format!("{v:02x}")).collect::<String>())?;Ok(d)
 }
 pub(crate) fn policy_boundary<'py>(py:Python<'py>,b:spire_env::CombatPolicyBoundary)->PyResult<Bound<'py,PyDict>>{
-    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation)?)?;
+    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation,&stacking::DTypeMap::new())?)?;
     let t:[u64;2]=b.token.into();d.set_item("token",(t[0],t[1]))?;
     d.set_item("info",numeric::descriptor(py,b.info.to_string())?)?;Ok(d)
 }
-fn boundary<'py>(py:Python<'py>,b:RunBoundary,profile:RunProfile)->PyResult<Bound<'py,PyDict>>{
-    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation)?)?;let token:[u64;2]=b.token.into();d.set_item("token",(token[0],token[1]))?;
+fn boundary<'py>(py:Python<'py>,b:RunBoundary,profile:RunProfile,dtypes:&stacking::DTypeMap)->PyResult<Bound<'py,PyDict>>{
+    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation,dtypes)?)?;let token:[u64;2]=b.token.into();d.set_item("token",(token[0],token[1]))?;
     let info=PyDict::new(py);info.set_item("schema_id",profile.schema_id())?;info.set_item("terminal_reason",terminal(b.terminal))?;d.set_item("info",info)?;Ok(d)
 }
 pub(crate) fn reward_events<'py>(py:Python<'py>,items:&[spire_core::run::RewardItem])->PyResult<Bound<'py,PyList>>{
@@ -136,12 +164,12 @@ impl NativePublicSearch{
     fn __reduce__(&self)->PyResult<()>{Err(PyTypeError::new_err("PublicSearch is in-memory only and cannot be pickled"))}
     #[pyo3(signature=(sample=None))]
     fn branch(&mut self,sample:Option<&Bound<'_,PyAny>>)->PyResult<u64>{let sample=sample.filter(|v|!v.is_none()).map(integer::<u64>).transpose()?;self.inner.as_mut().ok_or_else(search_error)?.branch(sample).map(|b|b.0).map_err(error)}
-    fn decision<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>)->PyResult<Bound<'py,PyDict>>{let b=BranchId(integer(branch)?);let d=self.inner.as_ref().ok_or_else(search_error)?.decision(b).map_err(error)?;let out=PyDict::new(py);out.set_item("obs",observation(py,d.observation)?)?;let t:[u64;2]=d.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("info",numeric::descriptor(py,d.info.to_string())?)?;Ok(out)}
+    fn decision<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>)->PyResult<Bound<'py,PyDict>>{let b=BranchId(integer(branch)?);let d=self.inner.as_ref().ok_or_else(search_error)?.decision(b).map_err(error)?;let out=PyDict::new(py);out.set_item("obs",observation(py,d.observation,&stacking::DTypeMap::new())?)?;let t:[u64;2]=d.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("info",numeric::descriptor(py,d.info.to_string())?)?;Ok(out)}
     #[pyo3(signature=(branch,token,action,view="full".to_owned()))]
     fn step<'py>(&mut self,py:Python<'py>,branch:&Bound<'_,PyAny>,token:&Bound<'_,PyAny>,action:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]view:String)->PyResult<Bound<'py,PyDict>>{
         let view=match view.as_str(){"full"=>BranchView::Full,"mask"=>BranchView::Mask,_=>return Err(RunInputError::new_err("view must be 'full' or 'mask'"))};
         let result=self.inner.as_mut().ok_or_else(search_error)?.step(BranchId(integer(branch)?),crate::run_env::token(token)?,RunActionIndex(integer(action)?),view).map_err(error)?;
-        let out=PyDict::new(py);let obs=match result.observation{Some(o)=>Some(observation(py,o)?),None=>None};out.set_item("obs",obs)?;let count=result.action_mask.len();out.set_item("action_mask",numeric::array(py,result.action_mask,&[count])?)?;let t:[u64;2]=result.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("reward",result.reward)?;out.set_item("terminated",result.terminated)?;out.set_item("truncated",result.truncated)?;out.set_item("info",numeric::descriptor(py,result.info.to_string())?)?;Ok(out)
+        let out=PyDict::new(py);let obs=match result.observation{Some(o)=>Some(observation(py,o,&stacking::DTypeMap::new())?),None=>None};out.set_item("obs",obs)?;let count=result.action_mask.len();out.set_item("action_mask",numeric::array(py,result.action_mask,&[count])?)?;let t:[u64;2]=result.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("reward",result.reward)?;out.set_item("terminated",result.terminated)?;out.set_item("truncated",result.truncated)?;out.set_item("info",numeric::descriptor(py,result.info.to_string())?)?;Ok(out)
     }
     fn fork(&mut self,branch:&Bound<'_,PyAny>)->PyResult<u64>{self.inner.as_mut().ok_or_else(search_error)?.fork(BranchId(integer(branch)?)).map(|b|b.0).map_err(error)}
     fn actions(&self,branch:&Bound<'_,PyAny>)->PyResult<Vec<i64>>{self.inner.as_ref().ok_or_else(search_error)?.actions(BranchId(integer(branch)?)).map_err(error)}
@@ -200,14 +228,14 @@ pub(crate) fn session_config(py:Python<'_>,profile:RunProfile,character:&Bound<'
     Ok(RunSessionConfig{character,ascension:integer(ascension)?,partition,boss_history,capacities,record_replay})
 }
 #[pyclass(frozen,module="spire_lab._native")]
-pub(crate) struct NativeRunSession{session:Mutex<RunSession>,profile:RunProfile,busy:AtomicBool,episode_return:AtomicI64}
+pub(crate) struct NativeRunSession{session:Mutex<RunSession>,profile:RunProfile,dtypes:stacking::DTypeMap,busy:AtomicBool,episode_return:AtomicI64}
 struct Lease<'a>(&'a NativeRunSession);
 impl Drop for Lease<'_>{fn drop(&mut self){self.0.busy.store(false,Ordering::Release);}}
 impl NativeRunSession{
-    fn wrap(session:RunSession,profile:RunProfile,episode_return:i64)->Self{Self{session:Mutex::new(session),profile,busy:AtomicBool::new(false),episode_return:AtomicI64::new(episode_return)}}
+    fn wrap(_py:Python<'_>,session:RunSession,profile:RunProfile,episode_return:i64)->PyResult<Self>{let dtypes=layout_dtypes(session.observation_layout())?;Ok(Self{session:Mutex::new(session),profile,dtypes,busy:AtomicBool::new(false),episode_return:AtomicI64::new(episode_return)})}
     /// Current boundary payload (reset-shaped: effective seed and, on Standard, the creation profile).
     fn current<'py>(&self,py:Python<'py>,b:RunBoundary,effective:Option<u64>,creation:Option<StandardCreation>)->PyResult<Bound<'py,PyDict>>{
-        let raw=boundary(py,b,self.profile)?;raw.set_item("effective_seed",effective)?;
+        let raw=boundary(py,b,self.profile,&self.dtypes)?;raw.set_item("effective_seed",effective)?;
         if let Some(c)=creation{raw.get_item("info")?.unwrap().set_item("creation",numeric::descriptor(py,c.to_json().to_string())?)?;}
         if self.profile==RunProfile::Standard{raw.get_item("info")?.unwrap().set_item("episode_return",self.episode_return.load(Ordering::Acquire))?;}
         Ok(raw)
@@ -218,24 +246,26 @@ impl NativeRunSession{
         let _lease=self.begin()?;let seed=seed.filter(|v|!v.is_none()).map(integer::<u64>).transpose()?;
         let (b,effective,creation)=py.detach(||{let mut s=self.session.lock().unwrap_or_else(|p|p.into_inner());let b=s.reset(seed)?;Ok::<_,RunSessionError>((b,s.effective_seed().expect("successful reset owns seed"),s.standard_creation()))}).map_err(error)?;
         self.episode_return.store(0,Ordering::Release);
-        let result=(||{let raw=boundary(py,b,self.profile)?;raw.set_item("effective_seed",effective)?;if let Some(c)=creation{raw.get_item("info")?.unwrap().set_item("creation",numeric::descriptor(py,c.to_json().to_string())?)?;}package(raw)})();self.deliver(result)
+        let result=(||{let raw=boundary(py,b,self.profile,&self.dtypes)?;raw.set_item("effective_seed",effective)?;if let Some(c)=creation{raw.get_item("info")?.unwrap().set_item("creation",numeric::descriptor(py,c.to_json().to_string())?)?;}package(raw)})();self.deliver(result)
     }
     fn step_transport<'py,T>(&self,py:Python<'py>,index:&Bound<'py,PyAny>,t:&Bound<'py,PyAny>,package:impl FnOnce(Bound<'py,PyDict>)->PyResult<T>)->PyResult<T>{
         let _lease=self.begin()?;let index=RunActionIndex(integer(index)?);let t=token(t)?;
         let step=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).step(t,index)).map_err(error)?;
         let running=self.episode_return.fetch_add(i64::from(step.reward),Ordering::AcqRel)+i64::from(step.reward);
         let heart_victory=step.boundary.terminal==Some(RunTerminal::HeartVictory);
-        let result=(||{let raw=boundary(py,step.boundary,self.profile)?;raw.set_item("reward",step.reward)?;raw.set_item("terminated",step.terminated)?;raw.set_item("truncated",step.truncated)?;if self.profile==RunProfile::Standard{let info=raw.get_item("info")?.unwrap();info.set_item("reward_events",reward_events(py,&step.reward_events)?)?;info.set_item("episode_return",running)?;info.set_item("heart_victory",heart_victory)?;}package(raw)})();self.deliver(result)
+        let result=(||{let raw=boundary(py,step.boundary,self.profile,&self.dtypes)?;raw.set_item("reward",step.reward)?;raw.set_item("terminated",step.terminated)?;raw.set_item("truncated",step.truncated)?;if self.profile==RunProfile::Standard{let info=raw.get_item("info")?.unwrap();info.set_item("reward_events",reward_events(py,&step.reward_events)?)?;info.set_item("episode_return",running)?;info.set_item("heart_victory",heart_victory)?;}package(raw)})();self.deliver(result)
     }
 }
 #[pymethods]
 impl NativeRunSession{
     #[new]
-    #[pyo3(signature=(character,ascension,*,profile="m9-ironclad-act3".to_owned(),partition="train".to_owned(),boss_history=None,creation=None,capacities=None,record_replay=false))]
-    fn new(py:Python<'_>,character:&Bound<'_,PyAny>,ascension:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]profile:String,#[pyo3(from_py_with=label)]partition:String,boss_history:Option<&Bound<'_,PyAny>>,creation:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>,#[pyo3(from_py_with=boolean)]record_replay:bool)->PyResult<Self>{
-        let profile=RunProfile::parse(&profile)?;let capacities=crate::run_env::capacities(capacities,profile)?;
+    #[pyo3(signature=(character,ascension,*,profile="m9-ironclad-act3".to_owned(),partition="train".to_owned(),boss_history=None,creation=None,capacities=None,record_replay=false,observation="dense".to_owned()))]
+    fn new(py:Python<'_>,character:&Bound<'_,PyAny>,ascension:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]profile:String,#[pyo3(from_py_with=label)]partition:String,boss_history:Option<&Bound<'_,PyAny>>,creation:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>,#[pyo3(from_py_with=boolean)]record_replay:bool,#[pyo3(from_py_with=label)]observation:String)->PyResult<Self>{
+        let layout=observation_layout(&observation)?;let profile=RunProfile::parse(&profile)?;
+        if layout==RunObservationLayout::Compact&&profile!=RunProfile::Standard{return Err(RunInputError::new_err("observation='compact' requires the standard profile"))}
+        let capacities=crate::run_env::capacities(capacities,profile,layout)?;
         let cfg=session_config(py,profile,character,ascension,&partition,boss_history,creation,capacities,record_replay)?;
-        let session=py.detach(||profile.new_session(cfg)).map_err(error)?;Ok(Self::wrap(session,profile,0))
+        let session=py.detach(||profile.new_session(cfg,layout)).map_err(error)?;Self::wrap(py,session,profile,0)
     }
     /// Owned current boundary (after fork or from_record the caller reads its first token here).
     fn decision<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyDict>>{
@@ -268,18 +298,18 @@ impl NativeRunSession{
     #[staticmethod]
     fn exact_fork(py:Python<'_>,checkpoint:&Bound<'_,PyExactCheckpoint>)->PyResult<Self>{
         let cp=checkpoint.get();let session=py.detach(||RunSession::exact_fork(&cp.inner)).map_err(error)?;
-        Ok(Self::wrap(session,cp.profile,cp.episode_return))
+        Self::wrap(py,session,cp.profile,cp.episode_return)
     }
     /// Replay to a decision: a live session after the first `steps` accepted actions of `record` (checked as replay()).
     #[staticmethod]
     #[pyo3(signature=(record,steps,capacities=None))]
     fn from_record(py:Python<'_>,record:&Bound<'_,PyBytes>,steps:&Bound<'_,PyAny>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<Self>{
         let steps:usize=integer(steps)?;let bytes=record.as_bytes().to_vec();
-        let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;
-        let caps=crate::run_env::capacities(capacities,profile)?;
+        let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;let layout=spire_env::record_observation_layout(&parsed).map_err(error)?;
+        let caps=crate::run_env::capacities(capacities,profile,layout)?;
         let episode_return=parsed.steps.iter().take(steps).map(|s|i64::from(s.reward)).sum();
         let session=py.detach(move||RunSession::from_record(&parsed,steps,caps)).map_err(error)?;
-        Ok(Self::wrap(session,profile,episode_return))
+        Self::wrap(py,session,profile,episode_return)
     }
     pub(crate) fn observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
         specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).observation_spec().map_err(error)?)
@@ -309,6 +339,9 @@ impl NativeRunSession{
         let _lease=self.begin()?;let bytes=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).record()?.map(|r|r.to_json()).transpose()).map_err(error)?;
         Ok(bytes.map_or_else(||py.None().into_bound(py),|v|PyBytes::new(py,&v).into_any()))
     }
+    fn fault_cause<'py>(&self,py:Python<'py>)->PyResult<Option<Bound<'py,PyAny>>>{
+        let _lease=self.begin()?;let cause=self.session.lock().unwrap_or_else(|p|p.into_inner()).fault_cause();fault_cause_value(py,cause)
+    }
     fn reproduction<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyDict>>{
         let _lease=self.begin()?;let r=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).reproduction()).map_err(error)?;
         reproduction(py,r)
@@ -317,9 +350,9 @@ impl NativeRunSession{
     #[staticmethod]
     #[pyo3(signature=(record,capacities=None))]
     fn replay<'py>(py:Python<'py>,record:&Bound<'py,PyBytes>,capacities:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{
-        let bytes=record.as_bytes().to_vec();let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;let ascension=parsed.config.ascension;
-        let caps=crate::run_env::capacities(capacities,profile)?;let export_caps=caps.clone();let report=py.detach(move||spire_env::replay_run(&parsed,caps)).map_err(error)?;
-        let d=PyDict::new(py);let o=profile.encode(&report.final_decision,report.final_map.as_ref(),&export_caps,ascension,report.final_room_selection).map_err(error)?;d.set_item("obs",observation(py,o)?)?;d.set_item("terminal_reason",terminal(report.final_decision.terminal))?;d.set_item("rewards",report.rewards)?;d.set_item("terminals",report.terminals.into_iter().map(terminal).collect::<Vec<_>>())?;d.set_item("accepted_count",report.accepted_count)?;
+        let bytes=record.as_bytes().to_vec();let parsed=RunEpisodeRecord::from_json(&bytes).map_err(error)?;let profile=RunProfile::from_record(&parsed).map_err(error)?;let layout=spire_env::record_observation_layout(&parsed).map_err(error)?;let ascension=parsed.config.ascension;
+        let caps=crate::run_env::capacities(capacities,profile,layout)?;let export_caps=caps.clone();let dtypes=layout_dtypes(layout)?;let report=py.detach(move||spire_env::replay_run(&parsed,caps)).map_err(error)?;
+        let d=PyDict::new(py);let o=if profile==RunProfile::Standard{spire_env::encode_run_standard_decision_with_layout(&report.final_decision,report.final_map.as_ref(),&export_caps,ascension,report.final_room_selection,layout)}else{profile.encode(&report.final_decision,report.final_map.as_ref(),&export_caps,ascension,report.final_room_selection)}.map_err(error)?;d.set_item("obs",observation(py,o,&dtypes)?)?;d.set_item("terminal_reason",terminal(report.final_decision.terminal))?;d.set_item("rewards",report.rewards)?;d.set_item("terminals",report.terminals.into_iter().map(terminal).collect::<Vec<_>>())?;d.set_item("accepted_count",report.accepted_count)?;
         if let Some(f)=report.reported_fault{d.set_item("reported_fault",numeric::descriptor(py,f.error.diagnostic_json().map_err(error)?)?)?;}else{d.set_item("reported_fault",py.None())?;}
         d.set_item("final_decision_error",report.final_decision_error.map(|_|"native core fault; final obs is the last readable boundary"))?;Ok(d)
     }

@@ -88,6 +88,10 @@ fn frozen_identities() {
         ("standard.belief", PUBLIC_BELIEF_ID.into()),
         ("standard.search", PUBLIC_SEARCH_ID.into()),
         ("standard.knowledge", PUBLIC_KNOWLEDGE_ID.into()),
+        // M38e opt-in compact Standard observation (frozen from the M38e merge)
+        ("standard.compact_observation_schema", RUN_OBSERVATION_STANDARD_COMPACT_SCHEMA_ID.into()),
+        ("standard.compact_observation_fingerprint", fp(standard_compact_run_observation_spec(&RunCapacities::standard_compact()))),
+        ("standard.compact_capacity_preset", STANDARD_COMPACT_CAPACITY_PRESET_ID.into()),
         // Card metadata
         ("card_metadata.schema", CARD_METADATA_SCHEMA_ID.into()),
         ("card_metadata.fingerprint", metadata["fingerprint"].as_str().unwrap().into()),
@@ -148,6 +152,9 @@ pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("standard.belief", "spire-gym-public-belief-v1"),
     ("standard.search", "spire-gym-public-search-v1"),
     ("standard.knowledge", "spire-gym-public-knowledge-v1"),
+    ("standard.compact_observation_schema", "spire-gym-standard-run-observation-compact-v1"),
+    ("standard.compact_observation_fingerprint", "633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d"),
+    ("standard.compact_capacity_preset", "standard-compact-v1"),
     ("card_metadata.schema", "spire-lab-card-metadata-v1"),
     ("card_metadata.fingerprint", "effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406"),
     ("m9.observation_schema", "spire-gym-run-observation-v1"),
