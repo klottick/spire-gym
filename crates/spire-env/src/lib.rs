@@ -59,10 +59,10 @@ pub use run_schema_m12::{m12_run_observation_spec,RUN_OBSERVATION_M12_SCHEMA_ID}
 pub use run_schema_m13::{m13_run_observation_spec,RUN_OBSERVATION_M13_SCHEMA_ID};
 pub use run_schema_m15::{m15_run_observation_spec,RUN_OBSERVATION_M15_SCHEMA_ID};
 pub use run_schema_m14::{m14_run_observation_spec,RUN_OBSERVATION_M14_SCHEMA_ID};
-pub use run_observation::{RunFeatureGroup,RunObservation,ObservationTarget,encode_run,encode_run_m10,encode_run_m12,encode_run_m13,encode_run_m14,encode_run_m15};
+pub use run_observation::{RunFeatureGroup,RunObservation,ObservationTarget,ObservationChunk,encode_run,encode_run_m10,encode_run_m12,encode_run_m13,encode_run_m14,encode_run_m15};
 pub use run_session::{RunSessionError,RunBossHistory,RunAct1BossTarget,RunAct2BossTarget,RunAct3BossTarget,M9BossHistory,RunSessionConfig,RunDecisionToken,RunActionIndex,RunBoundary,RunStepResult,RunRecordedStep,RunRecordedFault,RunRecordError,RunRecordErrorKind,RunCapacityFailure,RunEpisodeRecord,RunReproduction,RunSession,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,RUN_RECORD_SCHEMA_ID_POLICY,RUN_RECORD_SCHEMA_ID_M12,RUN_RECORD_SCHEMA_ID_M13,RUN_RECORD_SCHEMA_ID_M14,RUN_RECORD_SCHEMA_ID_M15,RUN_RULES_ID,RUN_RULES_ID_V1,RUN_RULES_ID_M10,RUN_RULES_ID_M12,RUN_RULES_ID_M13,RUN_RULES_ID_M14,RUN_RULES_ID_M15,RUN_CONTENT_ID_M10,RUN_CONTENT_ID_M12,RUN_CONTENT_ID_M13,RUN_CONTENT_ID_M14,RUN_CONTENT_ID_M15,RUN_SEED_ADAPTER_ID};
 pub use run_batch::{RunBatch,RunBatchError,RunBatchSlotFault};
-pub use run_replay::{RunReplayReport,replay_run};
+pub use run_replay::{RunReplayReport,replay_run,record_observation_layout};
 pub use replay::{ReplayVisit,ReplayVisitKind,replay_observed};
 
 #[cfg(test)]
@@ -119,8 +119,9 @@ pub use run_observation::encode_run_m24;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M24,RUN_RULES_ID_M24,RUN_CONTENT_ID_M24};
 
 mod run_schema_standard;
-pub use run_observation::encode_run_standard_decision;
+pub use run_observation::{encode_run_standard_decision,encode_run_standard_decision_with_layout};
 pub use run_schema_standard::{standard_run_observation_spec,standard_registry_names,standard_vocab_manifest,RUN_OBSERVATION_STANDARD_SCHEMA_ID,STANDARD_VOCAB_MANIFEST_ID,STANDARD_CAPACITY_PRESET_ID};
+pub use run_schema_standard::{standard_compact_run_observation_spec,RunObservationLayout,RUN_OBSERVATION_STANDARD_COMPACT_SCHEMA_ID,STANDARD_COMPACT_CAPACITY_PRESET_ID};
 mod run_schema_m25;
 pub use run_schema_m25::{m25_run_observation_spec,RUN_OBSERVATION_M25_SCHEMA_ID};
 pub use run_observation::encode_run_m25;

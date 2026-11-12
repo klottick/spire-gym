@@ -15,20 +15,21 @@
 //!   serial tail (after the last job ends), per-worker busy time and the critical path. It also times a copy of the
 //!   rows into `[B, ...]` columns in the order of `spire-python`'s `stacking::stack` (the per-call copy before numpy).
 //!
-//! Environment: `M37_PART` (`scalar`, `batch` or `all`; default `all`), `M37_SEEDS` (seeds per character, default 256),
+//! Environment: `M37_PART` (`scalar`, `batch` or `all`; default `all`), `M37_LAYOUT` (`dense` or `compact`; default `dense`), `M37_SEEDS` (seeds per character, default 256),
 //! `M37_SLOTS` (default 64), `M37_BATCH_STEPS` (default 100), `M37_WORKERS` (default `1,4,16`), `M37_RECORD`
-//! (`on`, `off` or `both`; default `both`), `M37_STACK` (`off` skips the stacking copy; M38a: `parallel` and
-//! `parallel-reuse` stack as the M37b binding does instead, see `stack_parallel`; `serial` is the default),
+//! (`on`, `off` or `both`; default `both`), `M37_STACK` (`off` skips stacking; `serial` copies returned rows;
+//! M38a: `parallel` and `parallel-reuse` stack rows as the M37b binding does; `slab` writes through `step_into` into
+//! reusable typed columns, see `stack_parallel`),
 //! `M37_EARLY_DROP` (M38a: `1` drops the previous rows after choosing actions and before the next call, halving the live
 //! observations during a call; the default keeps them until the call returns, as callers do), `M37_CAPACITIES` (M38a:
 //! `compact` gives the batch the smaller capacities of `m38_scaling`, a different shape and fingerprint, only to size the
 //! effect of fewer observation bytes; default `standard-default-v1`) and `M37_OUT` (JSON path; otherwise JSON on stdout).
-use crate::run_observation::{encode_run_standard, StandardContext};
+use crate::run_observation::{encode_run_standard, encode_run_standard_layout_into, ObservationChunk, ObservationTarget, StandardContext};
 use crate::run_session::{checked_reward_items, create_run, RunProfile};
 use crate::session_batch::{sealed::Sealed, BatchSession, BatchStep, BatchStepFailure};
 use crate::{
     AutoresetMode, BatchConfig, FaultPolicy, RunActionIndex, RunBoundary, RunDecisionToken, RunEpisodeRecord, RunObservation,
-    RunSession, RunSessionError, SessionBatch, StandardRunConfig,
+    RunSession, RunSessionError, SessionBatch, StandardRunConfig, RunObservationLayout, RunCapacities, RunObservationSpec,
 };
 use serde_json::{json, Value};
 use spire_core::{combat::rng::Partition, content::Character};
@@ -36,7 +37,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     hint::black_box,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock,
     },
     time::{Duration, Instant},
@@ -82,7 +83,19 @@ impl Phases {
 }
 
 /// Pass 1: the public scalar API, as `a20_checks` S times it (step plus boundary read), plus reset.
-fn scalar_public(seeds: usize) -> (Value, Vec<(usize, String)>) {
+fn selected_layout() -> RunObservationLayout {
+    match std::env::var("M37_LAYOUT").as_deref() {
+        Ok("compact") => RunObservationLayout::Compact,
+        Ok("dense") | Err(_) => RunObservationLayout::Dense,
+        Ok(other) => panic!("M37_LAYOUT must be dense or compact, not {other}"),
+    }
+}
+fn scalar_config(character: Character, layout: RunObservationLayout) -> StandardRunConfig {
+    let mut config = StandardRunConfig::new(character, 20, Partition::Test);
+    if layout == RunObservationLayout::Compact { config.capacities = RunCapacities::standard_compact(); }
+    config
+}
+fn scalar_public(seeds: usize, layout: RunObservationLayout) -> (Value, Vec<(usize, String)>) {
     let mut phases = Phases::default();
     let mut episodes = Vec::new();
     let mut steps = 0u64;
@@ -90,7 +103,7 @@ fn scalar_public(seeds: usize) -> (Value, Vec<(usize, String)>) {
     for character in CHARACTERS {
         for seed_index in 0..seeds {
             let seed = (character_index(character) << 32) | seed_index as u64;
-            let mut session = RunSession::new_standard(StandardRunConfig::new(character, 20, Partition::Test)).unwrap();
+            let mut session = RunSession::new_standard_with_layout(scalar_config(character, layout), layout).unwrap();
             let mut boundary = phases.time("session_reset", || session.reset(Some(seed)).unwrap());
             max_obs_bytes = max_obs_bytes.max(observation_bytes(&boundary.observation));
             let mut length = 0usize;
@@ -110,7 +123,7 @@ fn scalar_public(seeds: usize) -> (Value, Vec<(usize, String)>) {
 }
 
 /// Pass 2: the same trajectories through the session's own steps, one timer per step.
-fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
+fn scalar_decomposed(seeds: usize, expected: &[(usize, String)], layout: RunObservationLayout) -> Value {
     let mut phases = Phases::default();
     let mut steps = 0u64;
     let mut episode = 0usize;
@@ -119,7 +132,7 @@ fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
     for character in CHARACTERS {
         for seed_index in 0..seeds {
             let seed = (character_index(character) << 32) | seed_index as u64;
-            let config = StandardRunConfig::new(character, 20, Partition::Test).session_config();
+            let config = scalar_config(character, layout).session_config();
             let caps = config.capacities.clone();
             let mut run = phases.time("reset_create_run", || create_run(RunProfile::Standard, &config, seed, 0).unwrap());
             let mut length = 0usize;
@@ -130,7 +143,9 @@ fn scalar_decomposed(seeds: usize, expected: &[(usize, String)]) -> Value {
                 let decision = phases.time("core_decision", || run.decision().unwrap());
                 let map = phases.time("core_public_map", || run.public_map());
                 let context = StandardContext { ascension: run.ascension(), run_selection: run.room_selection_operation() };
-                let observation = phases.time("encode_observation", || encode_run_standard(&decision, map.as_ref(), &caps, context).unwrap());
+                let observation = phases.time("encode_observation", || if layout == RunObservationLayout::Dense {
+                    encode_run_standard(&decision, map.as_ref(), &caps, context).unwrap()
+                } else { encode_run_standard_layout_into(&decision, map.as_ref(), &caps, context, layout, None).unwrap() });
                 let actions = phases.time("candidate_actions", || decision.candidates.into_iter().map(|c| c.action).collect::<Vec<_>>());
                 let returned = observation;
                 if steps == 0 && length == 0 {
@@ -206,10 +221,22 @@ impl BatchSession for TimedSession {
         self.stamp(start, KIND_RESET);
         result
     }
+    fn batch_reset_into(&mut self, seed: Option<u64>, entry: Option<&str>, target: Option<&mut ObservationTarget<'_>>) -> Result<RunBoundary, RunSessionError> {
+        let start = now_ns();
+        let result = self.inner.batch_reset_into(seed, entry, target);
+        self.stamp(start, KIND_RESET);
+        result
+    }
     fn batch_preflight_step(&self, token: RunDecisionToken, index: RunActionIndex) -> Result<(), RunSessionError> { self.inner.batch_preflight_step(token, index) }
     fn batch_step(&mut self, token: RunDecisionToken, index: RunActionIndex) -> Result<BatchStep<RunBoundary>, BatchStepFailure> {
         let start = now_ns();
         let result = self.inner.batch_step(token, index);
+        self.stamp(start, KIND_STEP);
+        result
+    }
+    fn batch_step_into(&mut self, token: RunDecisionToken, index: RunActionIndex, target: Option<&mut ObservationTarget<'_>>) -> Result<BatchStep<RunBoundary>, BatchStepFailure> {
+        let start = now_ns();
+        let result = self.inner.batch_step_into(token, index, target);
         self.stamp(start, KIND_STEP);
         result
     }
@@ -311,18 +338,73 @@ fn stack_parallel<S: BatchSession>(batch: &SessionBatch<S>, rows: &[&RunObservat
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Stacking { Off, Serial, Parallel, ParallelReuse }
+enum Stacking { Off, Serial, Parallel, ParallelReuse, Slab }
 
-fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking: Stacking) -> Value {
+enum SlabWide { I64(Vec<std::mem::MaybeUninit<i64>>), I32(Vec<std::mem::MaybeUninit<i32>>), I16(Vec<std::mem::MaybeUninit<i16>>) }
+#[derive(Default)]
+struct SlabColumns { wide: Vec<SlabWide>, narrow: Vec<Vec<std::mem::MaybeUninit<i8>>>, wide_widths: Vec<usize>, narrow_widths: Vec<usize> }
+impl SlabColumns {
+    fn new(spec: &RunObservationSpec, slots: usize) -> Self {
+        let mut out = Self::default();
+        for tensor in spec.descriptor()["tensors"].as_array().expect("descriptor tensors") {
+            let shape = tensor["shape"].as_array().expect("tensor shape");
+            let width = shape.iter().map(|v| v.as_u64().expect("tensor dimension") as usize).product::<usize>();
+            let elements = width * slots;
+            match tensor["dtype"].as_str().expect("tensor dtype") {
+                "int8" => { out.narrow.push(vec![std::mem::MaybeUninit::uninit(); elements]); out.narrow_widths.push(width); },
+                "int64" => { out.wide.push(SlabWide::I64(vec![std::mem::MaybeUninit::uninit(); elements])); out.wide_widths.push(width); },
+                "int32" => { out.wide.push(SlabWide::I32(vec![std::mem::MaybeUninit::uninit(); elements])); out.wide_widths.push(width); },
+                "int16" => { out.wide.push(SlabWide::I16(vec![std::mem::MaybeUninit::uninit(); elements])); out.wide_widths.push(width); },
+                other => panic!("unsupported slab dtype {other}"),
+            }
+        }
+        out
+    }
+    fn bytes_per_slot(&self, spec: &RunObservationSpec) -> usize {
+        spec.descriptor()["tensors"].as_array().unwrap().iter().map(|tensor| {
+            let width = tensor["shape"].as_array().unwrap().iter().map(|v| v.as_u64().unwrap() as usize).product::<usize>();
+            let item = match tensor["dtype"].as_str().unwrap() { "int8" => 1, "int16" => 2, "int32" => 4, "int64" => 8, _ => unreachable!() };
+            width * item
+        }).sum()
+    }
+    fn targets<'a>(&'a mut self, slots: usize, flags: &'a [AtomicBool]) -> Vec<ObservationTarget<'a>> {
+        struct Parts<'a> { wide: Vec<ObservationChunk<'a>>, narrow: Vec<&'a mut [std::mem::MaybeUninit<i8>]> }
+        let mut parts = (0..slots).map(|_| Parts { wide: Vec::new(), narrow: Vec::new() }).collect::<Vec<_>>();
+        for (column, &width) in self.wide.iter_mut().zip(&self.wide_widths) {
+            match column {
+                SlabWide::I64(values) => for (part, chunk) in parts.iter_mut().zip(values.chunks_exact_mut(width)) { part.wide.push(ObservationChunk::I64(chunk)); },
+                SlabWide::I32(values) => for (part, chunk) in parts.iter_mut().zip(values.chunks_exact_mut(width)) { part.wide.push(ObservationChunk::I32(chunk)); },
+                SlabWide::I16(values) => for (part, chunk) in parts.iter_mut().zip(values.chunks_exact_mut(width)) { part.wide.push(ObservationChunk::I16(chunk)); },
+            }
+        }
+        for (column, &width) in self.narrow.iter_mut().zip(&self.narrow_widths) {
+            for (part, chunk) in parts.iter_mut().zip(column.chunks_exact_mut(width)) { part.narrow.push(chunk); }
+        }
+        parts.into_iter().zip(flags).map(|(part, flag)| ObservationTarget::typed(part.wide, part.narrow, flag)).collect()
+    }
+    fn action_mask(&self, slot: usize) -> Vec<i8> {
+        let mask = self.narrow.last().expect("action mask column");
+        let width = self.narrow_widths.last().copied().expect("action mask width");
+        // SAFETY: step_into initializes the complete action-mask chunk for every successfully encoded slot.
+        mask[slot * width..(slot + 1) * width].iter().map(|value| unsafe { *value.assume_init_ref() }).collect()
+    }
+}
+
+fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking: Stacking, layout: RunObservationLayout) -> Value {
     let compact = std::env::var("M37_CAPACITIES").as_deref() == Ok("compact");
+    assert!(!(layout == RunObservationLayout::Compact && compact), "M37_LAYOUT=compact cannot be combined with M37_CAPACITIES=compact");
     let early_drop = std::env::var("M37_EARLY_DROP").as_deref() == Ok("1");
     let clocks = (0..slots).map(|_| Arc::new(JobClock::default())).collect::<Vec<_>>();
     let sessions = (0..slots).map(|slot| {
         let mut config = StandardRunConfig::new(CHARACTERS[(slot / (slots / 4).max(1)) % 4], 20, Partition::Test);
         config.record_replay = record;
-        if compact { config.capacities = super::m38_scaling::compact_capacities() }
-        TimedSession { inner: RunSession::new_standard(config).unwrap(), clock: clocks[slot].clone() }
+        if layout == RunObservationLayout::Compact { config.capacities = RunCapacities::standard_compact(); }
+        else if compact { config.capacities = super::m38_scaling::compact_capacities() }
+        TimedSession { inner: RunSession::new_standard_with_layout(config, layout).unwrap(), clock: clocks[slot].clone() }
     }).collect::<Vec<_>>();
+    let spec = sessions[0].inner.observation_spec().unwrap();
+    let mut slab = (stacking == Stacking::Slab).then(|| SlabColumns::new(&spec, slots));
+    let slab_bytes = slab.as_ref().map_or(0, |s| s.bytes_per_slot(&spec));
     let config = BatchConfig { workers, autoreset: AutoresetMode::NextStep, fault_policy: FaultPolicy::Freeze };
     let mut batch = SessionBatch::from_sessions(sessions, vec![None; slots], config).unwrap();
     let seeds = (0..slots).map(|slot| Some(0xA20_0000 + slot as u64)).collect::<Vec<_>>();
@@ -333,14 +415,19 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
     let (mut step_jobs, mut step_ns, mut reset_jobs, mut reset_ns, mut max_reset_ns) = (0u64, 0u64, 0u64, 0u64, 0u64);
     let mut call_max_job = 0u64;
     let mut drop_rows = 0u64;
-    let (mut stack_drop, mut reused_columns) = (0u64, StackColumns::default());
+    let (mut stack_drop, mut reused_columns, mut owned_observation_rows) = (0u64, StackColumns::default(), 0u64);
     let mut threads_seen = BTreeSet::new();
     // The worker that ran each slot's last job, step or autoreset (0 before the first), to count slots that change worker.
     let (mut last_thread, mut moved, mut compared) = (vec![0u64; slots], 0u64, 0u64);
     for tick in 0..steps {
         let actions = rows.iter().enumerate().map(|(slot, row)| {
             if row.boundary.terminal.is_some() { RunActionIndex(0) }
-            else { RunActionIndex(crate::tests::m35_r2::r1(seeds[slot].unwrap(), tick as u64, &row.boundary.observation.action_mask) as i64) }
+            else {
+                let mask = if let Some(slab) = &slab {
+                    if row.boundary.observation.groups.is_empty() { slab.action_mask(slot) } else { row.boundary.observation.action_mask.clone() }
+                } else { row.boundary.observation.action_mask.clone() };
+                RunActionIndex(crate::tests::m35_r2::r1(seeds[slot].unwrap(), tick as u64, &mask) as i64)
+            }
         }).collect::<Vec<_>>();
         if early_drop {
             let drop_start = now_ns();
@@ -348,7 +435,12 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
             drop_rows += now_ns() - drop_start;
         }
         let call_start = now_ns();
-        let next = batch.step(&tokens, &actions).unwrap();
+        let next = if let Some(slab) = &mut slab {
+            let flags = (0..slots).map(|_| AtomicBool::new(false)).collect::<Vec<_>>();
+            let targets = slab.targets(slots, &flags);
+            batch.step_into(&tokens, &actions, targets).unwrap()
+        } else { batch.step(&tokens, &actions).unwrap() };
+        owned_observation_rows += next.iter().filter(|row| !row.boundary.observation.groups.is_empty()).count() as u64;
         let call_end = now_ns();
         let previous = std::mem::replace(&mut rows, next);
         let drop_start = now_ns();
@@ -380,7 +472,7 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
         busy_sum += per_thread.values().sum::<u64>();
         critical += per_thread.values().copied().max().unwrap_or(0);
         call_max_job += longest;
-        if stacking != Stacking::Off {
+        if stacking != Stacking::Off && stacking != Stacking::Slab {
             let stack_start = now_ns();
             let observations = rows.iter().map(|row| &row.boundary.observation).collect::<Vec<_>>();
             let columns = match stacking {
@@ -400,9 +492,11 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
     let ms = |ns: u64| ns as f64 / 1e6;
     let slot_steps = (slots * steps) as f64;
     json!({"slots": slots, "workers": workers, "record_replay": record, "stacking": stacking != Stacking::Off,
-        "stack_mode": match stacking { Stacking::Off => "off", Stacking::Serial => "serial", Stacking::Parallel => "parallel", Stacking::ParallelReuse => "parallel-reuse" },
-        "capacities": if compact { "compact" } else { "standard-default-v1" },
-        "observation_bytes": observation_bytes(&rows[0].boundary.observation), "early_drop": early_drop, "batch_calls": steps,
+        "stack_mode": match stacking { Stacking::Off => "off", Stacking::Serial => "serial", Stacking::Parallel => "parallel", Stacking::ParallelReuse => "parallel-reuse", Stacking::Slab => "slab" },
+        "layout": layout.as_str(),
+        "capacities": if layout == RunObservationLayout::Compact { "standard-compact-v1" } else if compact { "compact" } else { "standard-default-v1" },
+        "observation_bytes": slab_bytes.max(if stacking == Stacking::Slab { 0 } else { observation_bytes(&rows[0].boundary.observation) }),
+        "owned_observation_rows": owned_observation_rows, "early_drop": early_drop, "batch_calls": steps,
         "slot_moved_fraction": moved as f64 / compared.max(1) as f64, "slot_steps": slot_steps,
         "worker_threads_seen": threads_seen.len(),
         "slot_steps_per_second_step_only": slot_steps / (wall as f64 / 1e9),
@@ -421,6 +515,9 @@ fn batch_part(slots: usize, steps: usize, workers: usize, record: bool, stacking
 #[ignore]
 fn m37_phase_timing() {
     let part = std::env::var("M37_PART").unwrap_or_else(|_| "all".to_owned());
+    let layout = selected_layout();
+    assert!(!(layout == RunObservationLayout::Compact && std::env::var("M37_CAPACITIES").as_deref() == Ok("compact")),
+        "M37_LAYOUT=compact cannot be combined with M37_CAPACITIES=compact");
     let seeds = env_usize("M37_SEEDS", 256);
     let slots = env_usize("M37_SLOTS", 64);
     let steps = env_usize("M37_BATCH_STEPS", 100);
@@ -429,22 +526,22 @@ fn m37_phase_timing() {
     let records: &[bool] = match std::env::var("M37_RECORD").as_deref().unwrap_or("both") { "on" => &[true], "off" => &[false], _ => &[true, false] };
     epoch();
     let mut out = json!({"schema_id": "spire-gym-m37-phase-timing-v1", "rules_id": crate::RUN_RULES_ID_STANDARD,
-        "parameters": {"part": part, "seeds_per_character": seeds, "slots": slots, "batch_steps": steps, "workers": workers, "record_replay": records},
+        "parameters": {"part": part, "layout": layout.as_str(), "seeds_per_character": seeds, "slots": slots, "batch_steps": steps, "workers": workers, "record_replay": records},
         "host_cpu_count": std::thread::available_parallelism().map(usize::from).ok(), "debug_assertions": cfg!(debug_assertions)});
     if part == "scalar" || part == "all" {
         let wall = Instant::now();
-        let (public, episodes) = scalar_public(seeds);
-        let decomposed = scalar_decomposed(seeds, &episodes);
+        let (public, episodes) = scalar_public(seeds, layout);
+        let decomposed = scalar_decomposed(seeds, &episodes, layout);
         out["scalar"] = json!({"public": public, "decomposed": decomposed, "wall_seconds": wall.elapsed().as_secs_f64()});
     }
     if part == "batch" || part == "all" {
         let mut runs = Vec::new();
         let stacking = match std::env::var("M37_STACK").as_deref() {
-            Ok("off") => Stacking::Off, Ok("parallel") => Stacking::Parallel, Ok("parallel-reuse") => Stacking::ParallelReuse,
+            Ok("off") => Stacking::Off, Ok("parallel") => Stacking::Parallel, Ok("parallel-reuse") => Stacking::ParallelReuse, Ok("slab") => Stacking::Slab,
             Ok("serial") | Err(_) => Stacking::Serial,
-            Ok(other) => panic!("M37_STACK must be off, serial, parallel or parallel-reuse, not {other}"),
+            Ok(other) => panic!("M37_STACK must be off, serial, parallel, parallel-reuse or slab, not {other}"),
         };
-        for &record in records { for &w in &workers { runs.push(batch_part(slots, steps, w, record, stacking)) } }
+        for &record in records { for &w in &workers { runs.push(batch_part(slots, steps, w, record, stacking, layout)) } }
         out["batch"] = Value::Array(runs);
     }
     let text = serde_json::to_string_pretty(&out).unwrap();

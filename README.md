@@ -102,21 +102,25 @@ strategy.
 
 Measured on 2026-11-12 on an AMD Ryzen 9 9950X (16 cores, Linux, release build), with the
 M37b and M38b speedups applied. Workload: Standard A20, all four characters, random legal
-actions. The v1.0.0 figures from the same host are shown for comparison.
+actions. The v1.0.0 figures from the same host are shown for comparison. The last column uses
+the opt-in compact observation from M38e (`observation="compact"`), with the same information
+in 137 KB per slot instead of 764 KB.
 
-| Path | `record_replay` | v1.0.0 | After M38b |
-| --- | --- | --- | --- |
-| Native scalar (`a20_checks`), actions/s, observation read included | off | about 11.0k | about 22k |
-| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers, slot steps/s | on | about 5.2k / 11.1k / 12.1k | about 13.4k / 32.6k / 41.3k |
-| Native batch (profiling harness, a test build about 8% slower), 64 slots, 1 / 4 / 16 workers, slot steps/s | off | about 6.3k / 14.8k / 19.6k | about 13.7k / 34.8k / 54.0k |
-| Python `RunVectorEnv` loop with a per-slot Python policy, 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 8.6k | about 12.7k / 38.0k |
-| Python `NativeRunBatch.step` alone (no Gymnasium facade), 64 slots, 1 / 16 workers, ms per call | off | about 13.6 / 6.6 | about 4.6 / 1.3 |
+| Path | `record_replay` | v1.0.0 | After M38b | M38e compact |
+| --- | --- | --- | --- | --- |
+| Native scalar (`a20_checks`), actions/s, observation read included | off | about 11.0k | about 22k | about 23k |
+| Native batch (`a20_checks`), 64 slots, 1 / 4 / 16 workers, slot steps/s | on | about 5.2k / 11.1k / 12.1k | about 13.4k / 32.6k / 41.3k | about 17.6k / 54.5k / 92.5k |
+| Native batch (profiling harness, a test build about 8% slower), 64 slots, 1 / 4 / 16 workers, slot steps/s | off | about 6.3k / 14.8k / 19.6k | about 13.7k / 34.8k / 54.0k | about 17.8k / 59.9k / 138k |
+| Python `RunVectorEnv` loop with a per-slot Python policy, 64 slots, 1 / 16 workers, slot steps/s | off | about 4.6k / 8.6k | about 12.7k / 38.0k | about 19k / 104k |
+| Python `NativeRunBatch.step` alone (no Gymnasium facade), 64 slots, 1 / 16 workers, ms per call | off | about 13.6 / 6.6 | about 4.6 / 1.3 | about 3.3 / 0.58 |
 
-See [performance](docs/performance.md#a20-standard-checks-after-m38b--2026-11-12) for ranges and
+See [performance](docs/performance.md#a20-standard-checks-after-m38e--2026-11-12) for ranges and
 the short speed check used in build records.
 
 **Where the time goes now.**
-- Rules work and encoding the 764 KB dense observation take most of a step.
+- Rules work and encoding the 764 KB dense observation take most of a step. The opt-in
+  compact observation writes 137 KB; it fails closed with a typed fault if a state exceeds its
+  measured capacities ([Standard Run API](docs/standard-run-api.md#compact-observation-m38e)).
 - A Standard batch step encodes each observation straight into the arrays it returns to
   Python, on the batch's workers, and reuses the memory of arrays Python has released.
 - Native batch callers that keep the previous call's rows until the next step hold about

@@ -26,6 +26,7 @@ source contract.
 | Rules / content | `spire-gym-native-standard-rules-v3` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
 | Capacity preset / vocabulary manifest | `standard-default-v1` / `standard-vocab-v1` |
+| Compact observation (M38e, opt-in) | `spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`, fingerprint `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that preset ([below](#compact-observation-m38e)) |
 
 A record replays only under the same identities. A gameplay change bumps the rules id in the same change.
 
@@ -147,6 +148,13 @@ a closed session (`Closed`) change nothing. An operational problem (a core fault
 session: the error is retained, the record notes whether the step committed and was recorded, no reward is added and no
 terminal is set. Nothing is retried. A frozen session cannot step, reset or restore. Python maps these errors to
 `RunInputError`, `RunStateError`, `RunFaultError` and `RunUnsupportedBoundaryError`.
+
+M38e: `fault_cause()` returns the cause a session froze with, whether or not it records: for a step whose post-step encode
+failed, the `Capacity` fault behind the returned `DeliveryFault("post-step Run encoding failed")`. It is `None` while the
+session is healthy, and a forked or fresh session has none. Rust `RunSession::fault_cause()` returns the full
+`RunSessionError` (privileged). Python `NativeRunSession.fault_cause()`, `NativeRunBatch.fault_cause(slot)`,
+`RunEnv.fault_cause()` and `RunVectorEnv.fault_cause(slot)` return `None` or `{"kind", "message", "capacity"}` in the
+record-error shape; a core cause keeps the redacted message `native Run fault; inspect privileged reproduction`.
 
 ## Seeding
 
@@ -604,6 +612,108 @@ branching and tactical starts:
 - **Hidden state.** Public is player knowledge (above). An M34s belief model resamples exactly the complement.
 - **Names.** `exact_*` is reserved for exact-world tools. Public-information operations use other names.
 - **Combat view.** The Standard combat view (above) is the observation of every Standard combat session and branch.
+
+## Compact observation (M38e)
+
+An opt-in second encoding of the same public observation with fewer bytes. The dense
+`spire-gym-standard-run-observation-v1` stays the default and is unchanged.
+
+**What is the same.** The groups, columns, column order, vocabularies, `semantics`, references, the padding rule
+(value 0, known 0, occupied 0), the unknown-reference rule (−1, known 0), row order and the action index (= core candidate
+index). `known`, `_occupied` and `action_mask` stay `int8`.
+
+**What differs.**
+- Rows are limited by the capacities. The preset is `standard-compact-v1` (table below). `known_draw` rows are sized by
+  `combat_cards` and `combat_card_offers` rows by `offers`, as in the dense layout. The action space is
+  `Discrete(actions)`.
+- Values are `int16` or `int32` per group (table below). Each column's `low`/`high` is the dense domain clipped to the
+  dtype.
+- Identity: schema `spire-gym-standard-run-observation-compact-v1`, its own fingerprint domain, `semantics.capacity_preset`
+  `standard-compact-v1`, and two extra semantics keys, `layout` and `dense_schema`. At the same capacities the compact
+  descriptor differs from the dense one only in these keys, the value dtypes and the clipped bounds.
+
+**Equivalence.** Whenever compact encodes, casting its values to `int64` and zero-padding its rows to the dense
+capacities gives the dense observation of the same boundary, byte for byte. Neither layout adds or drops a public fact.
+
+**Opting in.**
+- Python: `RunEnv(..., observation="compact")`, `RunVectorEnv(..., observation="compact")`,
+  `NativeRunSession(..., observation="compact")` and `NativeRunBatch(..., observation="compact")`. The default is
+  `"dense"`. `"compact"` with a non-Standard profile, or any other value, is `RunInputError`. `capacities=None` means
+  `standard-compact-v1`; a dict overrides groups of that preset, each 1 up to the `standard-default-v1` value.
+  `observation_spec()` and the spaces carry the compact dtypes.
+- Rust: `RunSession::new_standard_with_layout(config, RunObservationLayout::Compact)`, usually with
+  `config.capacities = RunCapacities::standard_compact()` (`StandardRunConfig::new` keeps the dense preset; compact at
+  the dense capacities is valid). `observation_layout()`, `standard_compact_run_observation_spec(&caps)`,
+  `record_observation_layout(&record)` and `encode_run_standard_decision_with_layout`. A native compact `RunObservation`
+  has the compact shapes with values stored as `i64` (every value was range-checked when encoded); the descriptor dtype is
+  the dtype of array transports.
+
+**Capacities (`standard-compact-v1`).** Sized from measured maxima: the 8 supplied Heart routes and the 84-route
+A0–A20 supplied sweep, supplied full-length fights, 1,200 random runs per character at A0/A10/A20, and stress and
+strong-play fights. The strong-play fights used realistic 20–30-card generation builds against the Heart, Awakened One and
+Time Eater, at 999/999 HP with a greedy "play every playable card" policy for up to 40 turns, so their fight lengths are
+pessimistic.
+
+| Group | Dense | Compact | Largest measured | Overflow possible? |
+| --- | ---: | ---: | --- | --- |
+| map_nodes | 107 | 107 | 76 | no |
+| map_edges | 742 | 128 | 88 (generator ≤ 90) | no |
+| permanent_cards | 1,024 | 256 | 20 (supplied/random), 18 (strong play) | yes, a deck above 256 |
+| combat_cards (= known_draw rows) | 1,024 | 512 | 403 (one strong-play fight at turn 30; others 72–176) | yes |
+| enemies | 12 | 12 | 5 | no |
+| powers | 2,048 | 128 | 30 | yes |
+| relics | 256 | 256 | 149 (full relic union) | no |
+| potions | 16 | 16 | slot 5 (positional) | no |
+| offers (= combat_card_offers rows) | 512 | 128 | 20 | yes (repeated Courier restocks) |
+| selection | 1,024 | 512 | 81 | yes |
+| orbs | 10 | 10 | 10 | no |
+| actions | 2,048 | 576 | 81 | yes (a selection above 574 rows) |
+
+Two edges fail closed rather than fit. Known-draw rows can exceed the physical draw cards by one, because a top and a
+bottom fact may name the same card, so a combat with all of its 512 card rows in a fully known draw pile faults as
+`known_draw` (the dense layout has the same coupling at 1,024). With The Courier a shop keeps claimed rows and adds a
+restock per purchase, so about 114 purchases in one shop visit overflow `offers`.
+
+Per slot the compact arrays are 136,842 bytes (17.9% of the dense 763,720); native `i64` rows are 280,438 bytes.
+
+**Dtypes.** `int16`: `map_edges`, `current_node`, `potions`, `selection`, `selection_counts`, `actions`, `combat_state`,
+`known_draw`, `stance_choices`, `combat_card_offers` (vocabulary and row indices, flags, small enums and bounded counts).
+`int32`: `context`, `player`, `map_nodes`, `permanent_cards`, `combat_cards`, `enemies`, `powers`, `relics`, `orbs`,
+`offers`, `room_params`. Six of the `int32` groups hold counters the engine does not clamp (floor, combats entered and
+settled, gold, turn, card and offer upgrades, offer prices and amounts). Reaching 2^31 would take on the order of 10^6 to
+10^9 accepted actions in one episode; the encoder checks every value against its dtype, so a value that did not fit would
+be a typed fault, never a wrapped value.
+
+**When a state does not fit.** Nothing is truncated or dropped; the encode fails closed through the existing paths:
+- A row overflow is `Capacity { group, required, capacity }` with the row group. `known_draw` and `combat_card_offers` are
+  sized by the `combat_cards` and `offers` capacities and reported under their own names; `combat_cards` is checked
+  first, so it usually fires before `known_draw`.
+- A value outside its dtype is `Capacity { group: "<group>.<column>", required: |value|, capacity: the dtype maximum }`
+  (for example `player.gold`). It is only reachable if an unclamped counter passes `int32`.
+
+| Operation | Returned / retained error | Record fault | Batch slot |
+| --- | --- | --- | --- |
+| A step that commits, then overflows | `DeliveryFault("post-step Run encoding failed")`; Python `RunFaultError` with that text | `committed: true`, `kind: Capacity` with the group | stage `encode`, "post-step Run encoding failed" |
+| A reset or autoreset that overflows | `Capacity` itself; Python `RunFaultError("Run capacity <group>: <required> > <capacity>")` | `committed: false`, same capacity object | stage `reset` / `autoreset`; native message "Run capacity exceeded", Python message the `RunFaultError` text |
+
+With `record_replay=False` the group is still available from `fault_cause()`. A row overflow does not recur when the
+record is replayed or restored under larger capacities (up to `standard-default-v1`); a value fault recurs at any
+capacities. For training, use `fault_policy="isolate"` so one slot's overflow does not stop its peers, read
+`fault_cause(slot)`, and pass larger `capacities` if needed.
+
+**Records.** The record schema and fields are unchanged. A record names its layout only through
+`observation_fingerprint` (distinct domain and schema id, so the two fingerprints cannot collide), so a compact record
+replays, restores (`from_record`) and exports compact observations; an older binary rejects it with
+`IncompatibleReplay`. A compact and a dense record of the same seed and actions differ only in `observation_fingerprint`
+and `config.capacities`. The record codec accepts a value-fault group only in a compact record.
+
+**Checkpoints and batches.** An exact checkpoint, `exact_fork` and an isolate resume keep the layout. `exact_restore` of a
+checkpoint from a session of the other layout is `Input` and changes nothing. A batch's slots share one layout (the
+existing one-descriptor rule).
+
+**Views.** `combat_view()`, `public_root()` and `public_search()` of a compact session are the dense-dtype Standard combat
+view at the session's capacities, exactly what any custom-capacity session gets: its fingerprint is that of the view at
+those capacities, not `5d8147e1…`. There is no compact combat view, `standard-combat-v1` or tactical-start layout.
 
 ## Limits
 

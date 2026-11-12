@@ -2,7 +2,7 @@
 
 Usage: python examples/run_vector_phase_timing.py [--slots 64] [--ascension 20]
        [--workers 1] [--steps 2000] [--seed 7] [--loops example,facade,binding]
-       [--drop-before-step] [--out PATH]
+       [--drop-before-step] [--observation dense|compact] [--out PATH]
 
 Three loops over the same mixed-character batch, each with its own batch:
 
@@ -45,6 +45,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--workers", type=int, default=1)
     result.add_argument("--steps", type=int, default=2000, help="vector step calls per loop")
     result.add_argument("--seed", type=int, default=7)
+    result.add_argument("--observation", choices=("dense", "compact"), default="dense")
     result.add_argument("--loops", default="example,facade,binding",
                         help="comma-separated loops to run, in this order (M38a)")
     result.add_argument("--drop-before-step", action="store_true",
@@ -69,7 +70,7 @@ def summary(name: str, steps: int, slots: int, timers: dict[str, float]) -> dict
 
 
 def example_loop(configs, args) -> dict:
-    env = RunVectorEnv(configs, profile="standard", workers=args.workers, autoreset_mode="next_step")
+    env = RunVectorEnv(configs, profile="standard", workers=args.workers, autoreset_mode="next_step", observation=args.observation)
     rng = np.random.default_rng(args.seed)
     timers = {"policy": 0.0, "step": 0.0}
     try:
@@ -95,7 +96,7 @@ def example_loop(configs, args) -> dict:
 
 
 def facade_loop(configs, args) -> dict:
-    env = RunVectorEnv(configs, profile="standard", workers=args.workers, autoreset_mode="next_step")
+    env = RunVectorEnv(configs, profile="standard", workers=args.workers, autoreset_mode="next_step", observation=args.observation)
     rng = np.random.default_rng(args.seed)
     timers = {"policy": 0.0, "step": 0.0}
     try:
@@ -113,7 +114,7 @@ def facade_loop(configs, args) -> dict:
 
 
 def binding_loop(configs, args) -> dict:
-    batch = _native.NativeRunBatch(configs, profile="standard", workers=args.workers, autoreset="next_step")
+    batch = _native.NativeRunBatch(configs, profile="standard", workers=args.workers, autoreset="next_step", observation=args.observation)
     rng = np.random.default_rng(args.seed)
     timers = {"policy": 0.0, "step": 0.0}
     free_previous = 0.0
@@ -158,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         parser().error("--loops takes a comma-separated subset of example, facade and binding")
     loops = [runners[name](configs, args) for name in names]
     result = {"schema_id": "spire-gym-m37-python-phase-timing-v1", "native_file": _native.__file__,
-              "build_info": _native.build_info(), "slots": args.slots, "ascension": args.ascension,
+              "build_info": _native.build_info(), "observation": args.observation, "slots": args.slots, "ascension": args.ascension,
               "workers": args.workers, "steps": args.steps, "seed": args.seed, "loops": loops}
     text = json.dumps(result, indent=2, sort_keys=True)
     print(text)

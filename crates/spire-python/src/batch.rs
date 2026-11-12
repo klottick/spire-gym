@@ -10,7 +10,7 @@ use spire_core::run::{RewardItem, RunTerminal};
 use spire_env::{
     AutoresetMode, BatchConfig, BatchFault, BatchFaultStage, BatchOperation, BatchSession, BranchStepOutcome,
     CombatPolicyBoundary, CombatTrainingCatalog, CombatTrainingSession, CompletedRecord, FaultPolicy, InputReason,
-    RetiredFault, RunActionIndex, RunBoundary, RunDecisionToken, RunObservation, RunSession, RunSessionError, SessionBatch,
+    RetiredFault, RunActionIndex, RunBoundary, RunDecisionToken, RunObservation, RunObservationLayout, RunSession, RunSessionError, SessionBatch,
     SessionBatchError, SlotDelivery, SlotReport, SlotRow,
 };
 
@@ -76,12 +76,18 @@ struct Columns { obs: Vec<stacking::Stacked>, final_obs: Option<Vec<stacking::St
 fn stacked<'py>(py: Python<'py>, columns: Vec<stacking::Stacked>, pool: Option<&Arc<stacking::ColumnPool>>) -> PyResult<Bound<'py, PyDict>> {
     let out = PyDict::new(py);
     for tensor in columns {
-        match (tensor.column, pool) {
-            (Column::I64(v), Some(pool)) => out.set_item(tensor.key, numeric::pooled_array(py, v, &tensor.shape, pool, Column::I64)?)?,
-            (Column::I8(v), Some(pool)) => out.set_item(tensor.key, numeric::pooled_array(py, v, &tensor.shape, pool, Column::I8)?)?,
-            (Column::I64(v), None) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
-            (Column::I8(v), None) => out.set_item(tensor.key, numeric::array(py, v, &tensor.shape)?)?,
-        }
+        if let Some(buffer)=tensor.typed { match (buffer,pool) {
+            (stacking::Buffer::I32(v),Some(pool))=>out.set_item(tensor.key,numeric::pooled_array(py,v,&tensor.shape,pool,stacking::Buffer::I32)?)?,
+            (stacking::Buffer::I16(v),Some(pool))=>out.set_item(tensor.key,numeric::pooled_array(py,v,&tensor.shape,pool,stacking::Buffer::I16)?)?,
+            (stacking::Buffer::I32(v),None)=>out.set_item(tensor.key,numeric::array(py,v,&tensor.shape)?)?,
+            (stacking::Buffer::I16(v),None)=>out.set_item(tensor.key,numeric::array(py,v,&tensor.shape)?)?,
+            _=>return Err(RunFaultError::new_err("invalid typed observation column")),
+        }} else { match (tensor.column,pool) {
+            (Column::I64(v),Some(pool))=>out.set_item(tensor.key,numeric::pooled_array(py,v,&tensor.shape,pool,stacking::Buffer::I64)?)?,
+            (Column::I8(v),Some(pool))=>out.set_item(tensor.key,numeric::pooled_array(py,v,&tensor.shape,pool,stacking::Buffer::I8)?)?,
+            (Column::I64(v),None)=>out.set_item(tensor.key,numeric::array(py,v,&tensor.shape)?)?,
+            (Column::I8(v),None)=>out.set_item(tensor.key,numeric::array(py,v,&tensor.shape)?)?,
+        }}
     }
     Ok(out)
 }
@@ -227,16 +233,16 @@ impl<S: BatchSession> State<S> {
 /// Lock order (final review c1 finding 3): every method takes the non-blocking lease before the mutex, so no thread ever
 /// waits on the mutex while holding the GIL, and the mutex is never held across Python code (packaging works on copies).
 struct Core<S: BatchSession> {
-    state: Mutex<State<S>>, busy: AtomicBool, num_envs: usize, profile: Option<RunProfile>, pool: Arc<stacking::ColumnPool>,
+    state: Mutex<State<S>>, busy: AtomicBool, num_envs: usize, profile: Option<RunProfile>, pool: Arc<stacking::ColumnPool>, dtypes: stacking::DTypeMap,
 }
 struct Lease<'a>(&'a AtomicBool);
 impl Drop for Lease<'_> { fn drop(&mut self) { self.0.store(false, Ordering::Release); } }
 
 impl<S: Transport> Core<S> {
-    fn new(batch: SessionBatch<S>, profile: Option<RunProfile>) -> Self {
+    fn new(batch: SessionBatch<S>, profile: Option<RunProfile>, dtypes: stacking::DTypeMap) -> Self {
         let num_envs = batch.len();
         Self { state: Mutex::new(State { batch, returns: Returns::new(num_envs), completed: Vec::new(), retired: Vec::new() }),
-            busy: AtomicBool::new(false), num_envs, profile, pool: Arc::default() }
+            busy: AtomicBool::new(false), num_envs, profile, pool: Arc::default(), dtypes }
     }
     fn begin(&self) -> PyResult<Lease<'_>> {
         self.busy.compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
@@ -249,7 +255,7 @@ impl<S: Transport> Core<S> {
     /// The stacked observation columns of `rows` (run without the GIL). Each row's observations move into the copy jobs,
     /// which run on the batch's workers and drop them; `None` rows (recovery) and rows without a final boundary read the
     /// zero layout.
-    fn columns(batch: &SessionBatch<S>, zero: Option<&S::Boundary>, rows: &mut [Option<SlotRow<S::Boundary>>]) -> PyResult<Columns> {
+    fn columns(batch: &SessionBatch<S>, zero: Option<&S::Boundary>, rows: &mut [Option<SlotRow<S::Boundary>>], dtypes:&stacking::DTypeMap) -> PyResult<Columns> {
         let zeroed;
         let zero = match rows.iter().flatten().next() {
             Some(row) => { zeroed = S::batch_zeroed(&row.boundary).map_err(run_env::error)?; &zeroed }
@@ -276,7 +282,7 @@ impl<S: Transport> Core<S> {
                 }
             }
         }
-        let stack = |sources| stacking::stack_slots(sources, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ()))
+        let stack = |sources| stacking::stack_slots_with_dtypes(sources,dtypes, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ()))
             .map_err(RunFaultError::new_err);
         let obs = stack(obs)?;
         let final_obs = if finals { Some(stack(final_obs)?) } else { None };
@@ -285,7 +291,7 @@ impl<S: Transport> Core<S> {
     /// M38b: [`Self::columns`] for a step that encoded into `slab`. Rows encoded into their chunks (no fault, and an
     /// observation without groups) are already in place; every other row is copied as [`Self::columns`] copies it.
     /// `final_obs` is stacked exactly as there, with the batch's zero template for rows without a final boundary.
-    fn slab_columns(batch: &SessionBatch<S>, slab: stacking::Slab<'_>, rows: &mut [Option<SlotRow<S::Boundary>>]) -> PyResult<Columns> {
+    fn slab_columns(batch: &SessionBatch<S>, slab: stacking::Slab<'_>, rows: &mut [Option<SlotRow<S::Boundary>>], dtypes:&stacking::DTypeMap) -> PyResult<Columns> {
         let zero = S::observation(batch.zero_boundary().ok_or_else(|| RunStateError::new_err("no published batch layout"))?);
         let finals = rows.iter().any(|r| r.as_ref().is_some_and(|r| r.final_boundary.is_some()));
         let mut fill = Vec::with_capacity(rows.len());
@@ -310,7 +316,7 @@ impl<S: Transport> Core<S> {
         }
         let obs = slab.finish(fill, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).map_err(RunFaultError::new_err)?;
         let final_obs = if finals {
-            Some(stacking::stack_slots(final_obs, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).map_err(RunFaultError::new_err)?)
+            Some(stacking::stack_slots_with_dtypes(final_obs,dtypes, |jobs| batch.map_jobs(jobs, stacking::SlotCopy::run).map(|_| ())).map_err(RunFaultError::new_err)?)
         } else { None };
         Ok(Columns { obs, final_obs, pooled: true })
     }
@@ -368,8 +374,8 @@ impl<S: Transport> Core<S> {
             let (returns, columns) = py.detach(|| {
                 let state = self.lock();
                 (state.returns.clone(), match slab {
-                    Some(slab) => Self::slab_columns(&state.batch, slab, &mut rows),
-                    None => Self::columns(&state.batch, None, &mut rows),
+            Some(slab) => Self::slab_columns(&state.batch, slab, &mut rows,&self.dtypes),
+                    None => Self::columns(&state.batch, None, &mut rows,&self.dtypes),
                 })
             });
             let raw = self.package(py, &returns, columns?, &rows, false)?;
@@ -406,7 +412,7 @@ impl<S: Transport> Core<S> {
             // M38b: Standard steps encode into columns allocated (or pooled) up front; without a layout yet, or if the
             // columns cannot be allocated, the step runs as before and stacking reports any allocation failure.
             let mut slab = match state.batch.zero_boundary() {
-                Some(zero) if S::slab(self.profile) => stacking::Slab::new(S::observation(zero), self.num_envs, &self.pool).ok(),
+                Some(zero) if S::slab(self.profile) => stacking::Slab::new_with_dtypes(S::observation(zero), self.num_envs, &self.pool,&self.dtypes).ok(),
                 _ => None,
             };
             let result = match &mut slab {
@@ -431,7 +437,7 @@ impl<S: Transport> Core<S> {
         });
         let mut rows = rows.map_err(|e| self.error(py, e))?;
         let target = &mut rows;
-        let columns = py.detach(move || Self::columns(&self.lock().batch, zero.as_ref(), target))?;
+        let columns = py.detach(move || Self::columns(&self.lock().batch, zero.as_ref(), target,&self.dtypes))?;
         self.package(py, &returns, columns, &rows, true)
     }
     fn committed_result<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> {
@@ -444,7 +450,7 @@ impl<S: Transport> Core<S> {
         let row = row.map_err(|e| self.error(py, e))?;
         let (running, last_final) = (running.unwrap_or(0), last_final.unwrap_or(0));
         let out = PyDict::new(py);
-        out.set_item("obs", run_env::observation(py, S::observation(&row.boundary).clone())?)?;
+        out.set_item("obs", run_env::observation(py, S::observation(&row.boundary).clone(),&self.dtypes)?)?;
         let token: [u64; 2] = S::token(&row.boundary).into();
         out.set_item("token", (token[0], token[1]))?;
         out.set_item("reward", row.reward)?; out.set_item("terminated", row.terminated)?; out.set_item("truncated", row.truncated)?;
@@ -452,7 +458,7 @@ impl<S: Transport> Core<S> {
         out.set_item("info", S::info(py, self.profile, &row.boundary, &row.reward_events, running)?)?;
         match &row.final_boundary {
             Some(b) => {
-                out.set_item("final_obs", run_env::observation(py, S::observation(b).clone())?)?;
+                out.set_item("final_obs", run_env::observation(py, S::observation(b).clone(),&self.dtypes)?)?;
                 out.set_item("final_info", S::info(py, self.profile, b, &row.reward_events, last_final)?)?;
             }
             None => { out.set_item("final_obs", py.None())?; out.set_item("final_info", py.None())?; }
@@ -465,7 +471,7 @@ impl<S: Transport> Core<S> {
         let (b, running) = { let state = self.lock(); (state.batch.decision(slot), state.returns.running.get(slot).copied().unwrap_or(0)) };
         let b = b.map_err(|e| self.error(py, e))?;
         let out = PyDict::new(py);
-        out.set_item("obs", run_env::observation(py, S::observation(&b).clone())?)?;
+        out.set_item("obs", run_env::observation(py, S::observation(&b).clone(),&self.dtypes)?)?;
         let token: [u64; 2] = S::token(&b).into();
         out.set_item("token", (token[0], token[1]))?;
         out.set_item("info", S::info(py, self.profile, &b, &[], running)?)?;
@@ -561,16 +567,19 @@ pub(crate) struct NativeRunBatch { core: Core<RunSession> }
 #[pymethods]
 impl NativeRunBatch {
     #[new]
-    #[pyo3(signature=(configs, *, profile="standard".to_owned(), capacities=None, workers=None, autoreset="next_step".to_owned(), fault_policy="freeze".to_owned()))]
+    #[pyo3(signature=(configs, *, profile="standard".to_owned(), capacities=None, workers=None, autoreset="next_step".to_owned(), fault_policy="freeze".to_owned(), observation="dense".to_owned()))]
     fn new(py: Python<'_>, configs: &Bound<'_, PyAny>, #[pyo3(from_py_with = label)] profile: String, capacities: Option<&Bound<'_, PyAny>>,
-        workers: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] autoreset: String, #[pyo3(from_py_with = label)] fault_policy: String) -> PyResult<Self> {
-        let profile = RunProfile::parse(&profile)?;
+        workers: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] autoreset: String, #[pyo3(from_py_with = label)] fault_policy: String,
+        #[pyo3(from_py_with = label)] observation: String) -> PyResult<Self> {
+        let layout=run_env::observation_layout(&observation)?;let profile = RunProfile::parse(&profile)?;
+        if layout==RunObservationLayout::Compact&&profile!=RunProfile::Standard{return Err(RunInputError::new_err("observation='compact' requires the standard profile"))}
         let config = batch_config(&run_env::one_worker(py, workers), &autoreset, &fault_policy)?;
-        let caps = run_env::capacities(capacities, profile)?;
+        let caps = run_env::capacities(capacities, profile,layout)?;
         let list = configs.cast::<PyList>().map_err(|_| RunInputError::new_err("configs must be a list of dictionaries"))?;
         let configs = list.iter().map(|item| run_config(py, profile, &item, &caps)).collect::<PyResult<Vec<_>>>()?;
-        let batch = py.detach(|| spire_env::RunSessionBatch::new_run(configs, |c| profile.new_session(c), config)).map_err(|e| batch_error(py, e, false))?;
-        Ok(Self { core: Core::new(batch, Some(profile)) })
+        let batch = py.detach(|| spire_env::RunSessionBatch::new_run(configs, |c| profile.new_session(c,layout), config)).map_err(|e| batch_error(py, e, false))?;
+        let dtypes=run_env::layout_dtypes(layout)?;
+        Ok(Self { core: Core::new(batch, Some(profile),dtypes) })
     }
     #[getter]
     fn num_envs(&self) -> usize { self.core.num_envs }
@@ -619,6 +628,10 @@ impl NativeRunBatch {
         let r = r.ok_or_else(|| slot_error(py, RunSessionError::Input("batch slot index out of range"), Some(slot)))?.map_err(run_env::error)?;
         run_env::reproduction(py, r)
     }
+    fn fault_cause<'py>(&self,py:Python<'py>,slot:&Bound<'py,PyAny>)->PyResult<Option<Bound<'py,PyAny>>>{
+        let _lease=self.core.begin()?;let slot=integer::<usize>(slot)?;let cause={let state=self.core.lock();state.batch.session(slot).map(RunSession::fault_cause)};
+        let Some(cause)=cause else{return Err(RunInputError::new_err("batch slot index out of range"))};run_env::fault_cause_value(py,cause)
+    }
     fn take_completed_records<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> { self.core.take_completed_records(py) }
     fn take_fault_records<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> { self.core.take_fault_records(py) }
     fn diagnostics<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> { self.core.diagnostics(py) }
@@ -666,7 +679,7 @@ impl NativeCombatTrainingBatch {
         let catalog = Arc::new(catalog);
         let batch = py.detach(|| spire_env::CombatTrainingBatch::new_combat(catalog.clone(), partition, num_envs, defaults, config))
             .map_err(|e| batch_error(py, e, true))?;
-        Ok(Self { core: Core::new(batch, None), catalog })
+        Ok(Self { core: Core::new(batch, None,stacking::DTypeMap::new()), catalog })
     }
     #[getter]
     fn num_envs(&self) -> usize { self.core.num_envs }

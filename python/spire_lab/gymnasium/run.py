@@ -17,7 +17,7 @@ from .spaces import spaces_from_spec
 if TYPE_CHECKING:
     from spire_lab._native import CombatPolicyPayload, RunResetPayload, RunStepPayload
 
-Observation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
+Observation = dict[str, NDArray[np.int64] | NDArray[np.int32] | NDArray[np.int16] | NDArray[np.int8]]
 RunProfile = Literal[
     "m9-ironclad-act3", "m10-ironclad-heart", "m10-ironclad-policy", "standard"
 ]
@@ -41,6 +41,7 @@ class RunEnv(gym.Env[Observation, int]):
         creation: dict[str, Any] | None = None,
         capacities: dict[str, int] | None = None,
         record_replay: bool = False,
+        observation: str = "dense",
     ) -> None:
         self._attach(
             _native.NativeRunSession(
@@ -52,6 +53,7 @@ class RunEnv(gym.Env[Observation, int]):
                 creation=creation,
                 capacities=capacities,
                 record_replay=record_replay,
+                observation=observation,
             )
         )
 
@@ -162,6 +164,11 @@ class RunEnv(gym.Env[Observation, int]):
         """Privileged semantic record: never observation or ordinary info."""
         with self._guard:
             return self._session.record()
+
+    def fault_cause(self) -> dict[str, Any] | None:
+        """Structured cause retained when the native Run session freezes."""
+        with self._guard:
+            return self._session.fault_cause()
 
     def reproduction(self):
         """Privileged retained fault/record metadata, including after close."""

@@ -1,6 +1,6 @@
 """Short fixed Python speed check for build records (M38b, spire-qu9.3; no thresholds).
 
-Usage: python examples/speed_check.py [--steps 300] [--out PATH]
+Usage: python examples/speed_check.py [--steps 300] [--observation dense|compact] [--out PATH]
 
 Times ``RunVectorEnv.step`` over 64 Standard A20 slots (16 per character), NEXT_STEP
 autoreset and ``record_replay`` off, at 1 and 16 workers, twice each. Actions are a
@@ -31,13 +31,14 @@ SEED = 7
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     result.add_argument("--steps", type=int, default=300, help="vector step calls per run")
+    result.add_argument("--observation", choices=("dense", "compact"), default="dense")
     result.add_argument("--out", help="write the JSON here as well as to stdout")
     return result
 
 
-def run(workers: int, steps: int, repeat: int) -> dict:
+def run(workers: int, steps: int, repeat: int, observation: str) -> dict:
     configs = [{"character": CHARACTERS[slot // (SLOTS // 4)], "ascension": 20} for slot in range(SLOTS)]
-    env = RunVectorEnv(configs, profile="standard", workers=workers, autoreset_mode="next_step")
+    env = RunVectorEnv(configs, profile="standard", workers=workers, autoreset_mode="next_step", observation=observation)
     rng = np.random.default_rng(SEED)
     timed = 0.0
     try:
@@ -59,10 +60,10 @@ def main() -> None:
     args = parser().parse_args()
     if args.steps <= 0:
         raise SystemExit("--steps must be positive")
-    runs = [run(workers, args.steps, repeat) for workers in (1, 16) for repeat in range(2)]
+    runs = [run(workers, args.steps, repeat, args.observation) for workers in (1, 16) for repeat in range(2)]
     best = {f"workers_{w}": max(r["slot_steps_per_second"] for r in runs if r["workers"] == w) for w in (1, 16)}
     result = {"schema_id": "spire-gym-speed-check-python-v1", "native_file": _native.__file__,
-              "build_info": _native.build_info(), "slots": SLOTS, "ascension": 20, "record_replay": False,
+              "build_info": _native.build_info(), "observation": args.observation, "slots": SLOTS, "ascension": 20, "record_replay": False,
               "autoreset": "next_step", "seed": SEED, "runs": runs, "best": best}
     text = json.dumps(result, indent=2, sort_keys=True)
     print(text)

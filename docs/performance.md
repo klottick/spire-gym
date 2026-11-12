@@ -8,7 +8,33 @@ optimizations, new dependencies or original-runtime fidelity claims accompany
 those measurements.
 
 For where this time goes (perf profiles, a phase-timing harness, the ranked fixes and what
-M37b and M38b changed), see [profiling](profiling.md).
+M37b, M38b and M38e changed), see [profiling](profiling.md).
+
+## A20 Standard checks after M38e — 2026-11-12
+
+M38e adds the opt-in compact Standard observation
+([Standard Run API](standard-run-api.md#compact-observation-m38e)); the dense observation is unchanged and stays the
+default. "Base" is `aafb80ea` (M38b); "dense" and "compact" are the M38e code with `--observation dense` (the default)
+and `--observation compact`. Same host and method as below; five runs for base and dense, three for compact; min–max.
+
+| `a20_checks` (`record_replay` on in B and M) | Base | Dense | Compact |
+| --- | ---: | ---: | ---: |
+| S: scalar, 1,024 episodes, actions/s | 21,600–22,213 | 21,604–22,019 | 22,881–23,370 |
+| B: 64 slots, 1 worker, slot steps/s | 12,663–13,148 | 12,273–13,179 | 17,547–17,763 |
+| B: 64 slots, 4 workers | 28,820–32,411 | 30,414–32,175 | 51,245–54,531 |
+| B: 64 slots, 16 workers | 37,768–40,161 | 37,919–41,037 | 90,656–93,539 |
+| B: 256 slots, 16 workers | 28,002–28,857 | 28,372–28,932 | 55,435–59,465 |
+| M: VmRSS after the 256-slot phase, KiB | 590,408–643,656 | 584,220–753,472 | 259,976–282,540 |
+
+Python (`examples/run_vector_phase_timing.py`, 64 slots, A20, 1,000 calls, `record_replay` off; three runs), ms per
+call: `NativeRunBatch.step` dense 4.74–4.99 at 1 worker and 1.30–1.43 at 16 workers, compact 3.26–3.28 and 0.58–0.59;
+`RunVectorEnv.step` dense 4.82–5.02 and 1.36–1.42, compact 3.34–3.83 and 0.61–0.63. More rows, including the native
+batch curve, are in [profiling](profiling.md#after-m38e).
+
+**Dense.** Native dense speed is unchanged within noise (the table above). The dense Python batch step is about 3–5%
+slower than after M38b (`speed_check.py` 3.3–3.8% fewer slot steps/s; `NativeRunBatch.step` 2.6–5.7% slower); the
+cause is diffuse, in the engine's encoder code generation, not in any one function
+([profiling](profiling.md#after-m38e)).
 
 ## A20 Standard checks after M38b — 2026-11-12
 

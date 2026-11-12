@@ -915,6 +915,52 @@ and the per-call barrier remains. The opt-in compact observation (Bead `spire-qu
 the next step, and a native recycle API is deferred to `spire-qu9.5`. Raw JSON and receipts are
 kept with the M38b evidence, outside the repository.
 
+## After M38e
+
+M38e (Bead `spire-qu9.6`) adds the opt-in compact Standard observation
+([Standard Run API](standard-run-api.md#compact-observation-m38e)): the same public information with fewer rows
+and `int16`/`int32` values, 136,842 bytes of arrays per slot instead of 763,720. Native rows stay `i64` (280,438 bytes
+per slot); the Python batch encodes straight into typed arrays.
+
+**Measured** on the M38a host, 2026-11-12, base `aafb80ea` against the M38e candidate, interleaved runs on a quiet
+machine (three runs; two for N2 and P2; five for dense `a20_checks`). Medians unless a range is given. Native:
+`m37_phase_timing`, 64 slots, A20, NextStep, `record_replay` off, no stacking unless stated. Python:
+`run_vector_phase_timing.py`, 64 slots, A20, 1,000 calls, `record_replay` off. The "Compact ÷ dense" column is the
+median of per-run paired ratios (each compact run divided by the dense run of the same round), so it can differ a little
+from the ratio of the medians shown beside it.
+
+| Measure | Dense (candidate) | Compact | Compact ÷ dense |
+| --- | ---: | ---: | ---: |
+| Native batch, rows kept, 1 / 4 / 8 / 16 / 32 workers, slot steps/s | 13.5k / 35.1k / 42.8k / 52.0k / 47.1k | 17.8k / 59.9k / 93.2k / 137.7k / 143.1k | 2.65× at 16, 3.06× at 32 |
+| Native batch, rows dropped early, 16 / 32 workers | 90.3k / 93.2k | 143.1k / 157.1k | 1.49× / 1.70× |
+| Native batch into typed stacked columns (`M37_STACK=slab`, as the binding), 1 / 16 / 32 workers | 14.0k / 81.3k / 91.4k | 21.1k / 131.1k / 131.2k | 1.50× / 1.61× / 1.36× |
+| Native batch, 128 / 256 slots, 16 workers | 37.9k / 33.5k | 123.3k / 88.0k | 3.25× / 2.62× |
+| `a20_checks` B64 (`record_replay` on), 1 / 4 / 16 workers | 12.8k / 31.7k / 39.1k | 17.6k / 54.5k / 92.5k | 1.38× / 1.72× / 2.37× |
+| `a20_checks` 256 slots, RSS | 647 MB | 267 MB | |
+| Python `NativeRunBatch.step`, 1 / 16 workers, ms/call | 4.83 / 1.34 | 3.26 / 0.58 | 0.68 / 0.43 |
+| Python `RunVectorEnv.step`, 1 / 16 workers, ms/call | 4.82 / 1.40 | 3.36 / 0.62 | |
+| Python, drop the previous `obs` first, 16 workers, ms/call | 0.76–1.03 | 0.56–0.58 | |
+| Speed checks, 1 / 16 workers, slot steps/s: native (`a20_checks --speed-check`) | 13.1k / 39.8k | 17.9k / 92.1k | 1.36× / 2.31× |
+| Speed checks, 1 / 16 workers, slot steps/s: Python (`speed_check.py`) | 13.3k / 46.8k | 19.5k / 106.8k | 1.49× / 2.28× |
+
+**Dense.** The dense observation's bytes are unchanged (dense digests, frozen replay and a packaging differential
+equal the base). Native dense speed is unchanged within noise: `a20_checks` B64 at 1 / 4 / 16 workers +0.7% / +1.5% /
+−2.6% (medians against the base), the native speed check −2.4% / +0.1%, the phase harness equal or faster. The dense
+Python batch step is about 3–5% slower than after M38b: `speed_check.py` 3.3% / 3.8% fewer slot steps/s at 1 / 16
+workers and `NativeRunBatch.step` 5.7% / 2.6% slower (medians of four alternating runs with `OPENBLAS_NUM_THREADS=1`,
+three valid runs for the base binding loop; without it 4.2% / 4.1% and 3.5%). The dense scalar
+`NativeRunSession.step` is 0.2–1.1% slower (1,500 steps, 4 characters × A0/A20, two sweeps), and session
+construction, `exact_fork` and `from_record` are at the base within noise. A bisect puts it in the engine, not the binding: the M38b binding built on the
+M38e engine is as slow. A profile shows no hotspot (the encoder's own time is equal or lower; one helper lost its
+inlining), so the cause is diffuse, likely the encoder's code generation now that it also writes typed values. A
+dense-only writer is a possible follow-up.
+
+**Reading.** At 16 workers compact roughly halves to thirds the per-step cost wherever the dense observation's bytes
+dominated: the native batch with rows kept, larger batches and the Python step. Where M38b had already removed most of
+the memory pressure (rows dropped early, or encoded straight into reused stacked columns), the gain is smaller, about
+1.4–1.7 times. Compact also cuts the batch's memory: 256 slots use about 267 MB instead of 647 MB. At one worker the
+gain is 1.4–1.5 times, the cost of writing fewer bytes. The encode's own work (rules and public view) is unchanged.
+
 ## Reproduce
 
 ```sh

@@ -20,7 +20,8 @@ class RunVectorEnv(gym.vector.VectorEnv):
     metadata = {"render_modes": []}
 
     def __init__(self, configs, *, profile="standard", workers=1,
-                 autoreset_mode="next_step", fault_policy="freeze", capacities=None):
+                 autoreset_mode="next_step", fault_policy="freeze", capacities=None,
+                 observation="dense"):
         modes = {"disabled": gym.vector.AutoresetMode.DISABLED,
                  "next_step": gym.vector.AutoresetMode.NEXT_STEP,
                  "same_step": gym.vector.AutoresetMode.SAME_STEP}
@@ -32,6 +33,7 @@ class RunVectorEnv(gym.vector.VectorEnv):
         self._batch = _native.NativeRunBatch(
             list(configs), profile=profile, capacities=capacities, workers=workers,
             autoreset=autoreset_mode, fault_policy=fault_policy,
+            observation=observation,
         )
         self.num_envs = self._batch.num_envs
         self.closed = False
@@ -47,6 +49,11 @@ class RunVectorEnv(gym.vector.VectorEnv):
 
     def environment_spec(self):
         return self._batch.environment_spec()
+
+    def fault_cause(self, slot: int):
+        """Structured native Run cause retained for a frozen or isolated slot."""
+        with self._guard:
+            return self._batch.fault_cause(slot)
 
     def reset(self, *, seed=None, options=None):
         with self._guard:
