@@ -25,6 +25,13 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   - Two internal, `#[doc(hidden)]` additive Rust methods support this: `Run::step_offered`
     and `SessionBatch::map_jobs`. They are not part of the documented API and add no
     Python names.
+- Add M38a scaling diagnostics: the ignored `m38_component_scaling` test, `M37_CAPACITIES`,
+  `M37_STACK=parallel|parallel-reuse` and `M37_EARLY_DROP` in `m37_phase_timing`, the
+  `--loops` and `--drop-before-step` options and a release timer in
+  `examples/run_vector_phase_timing.py`, and a
+  [parallel scaling](docs/profiling.md#m38a-parallel-scaling) report. These are test and
+  example diagnostics only. No engine, binding, gameplay, identity, fingerprint, observation
+  or API change.
 
 ## 1.0.0 — effective at the merge of PR #103
 

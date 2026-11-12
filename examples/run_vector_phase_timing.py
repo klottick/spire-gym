@@ -1,7 +1,8 @@
 """Time the Python side of a Standard Run vector step (M37a diagnostic; no thresholds).
 
 Usage: python examples/run_vector_phase_timing.py [--slots 64] [--ascension 20]
-       [--workers 1] [--steps 2000] [--seed 7] [--out PATH]
+       [--workers 1] [--steps 2000] [--seed 7] [--loops example,facade,binding]
+       [--drop-before-step] [--out PATH]
 
 Three loops over the same mixed-character batch, each with its own batch:
 
@@ -11,6 +12,10 @@ Three loops over the same mixed-character batch, each with its own batch:
   outside the timer.
 - ``binding``: ``_native.NativeRunBatch.step`` alone (native batch step plus the
   binding's packaging into NumPy arrays and info dicts), with no Gymnasium facade.
+  Its ``step`` time includes releasing the previous call's arrays, which it also
+  reports alone as ``free_previous_ms_per_call`` (M38a). With ``--drop-before-step``
+  it releases them before the call instead of after it, so only one call's arrays
+  are alive while the batch steps.
 
 ``facade - binding`` is the Gymnasium facade's per-call cost. ``binding`` minus the
 native batch step from ``m37_phase_timing`` (same slots and workers, record off)
@@ -40,6 +45,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--workers", type=int, default=1)
     result.add_argument("--steps", type=int, default=2000, help="vector step calls per loop")
     result.add_argument("--seed", type=int, default=7)
+    result.add_argument("--loops", default="example,facade,binding",
+                        help="comma-separated loops to run, in this order (M38a)")
+    result.add_argument("--drop-before-step", action="store_true",
+                        help="binding loop: release the previous arrays before each step (M38a)")
     result.add_argument("--out", help="write the JSON here as well as to stdout")
     return result
 
@@ -107,6 +116,7 @@ def binding_loop(configs, args) -> dict:
     batch = _native.NativeRunBatch(configs, profile="standard", workers=args.workers, autoreset="next_step")
     rng = np.random.default_rng(args.seed)
     timers = {"policy": 0.0, "step": 0.0}
+    free_previous = 0.0
     try:
         raw = batch.reset(seeds=args.seed)
         observation_bytes = sum(value.nbytes for value in raw["obs"].values())
@@ -114,13 +124,23 @@ def binding_loop(configs, args) -> dict:
             start = time.perf_counter()
             actions = vector_choice(rng, raw["obs"]["action_mask"])
             tokens = raw["tokens"]
+            previous, raw = raw, None
             middle = time.perf_counter()
+            if args.drop_before_step:
+                previous = None
+            released = time.perf_counter()
             raw = batch.step(actions, tokens)
+            stepped = time.perf_counter()
+            del previous
+            end = time.perf_counter()
             timers["policy"] += middle - start
-            timers["step"] += time.perf_counter() - middle
+            timers["step"] += end - middle
+            free_previous += (released - middle) + (end - stepped)
     finally:
         batch.close()
     result = summary("binding", args.steps, args.slots, timers)
+    result["free_previous_ms_per_call"] = 1e3 * free_previous / args.steps
+    result["drop_before_step"] = args.drop_before_step
     result["stacked_observation_bytes_per_call"] = observation_bytes
     return result
 
@@ -132,7 +152,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.steps < 1 or args.workers < 1:
         parser().error("--steps and --workers must be positive")
     configs = [{"character": CHARACTERS[slot % 4], "ascension": args.ascension} for slot in range(args.slots)]
-    loops = [example_loop(configs, args), facade_loop(configs, args), binding_loop(configs, args)]
+    runners = {"example": example_loop, "facade": facade_loop, "binding": binding_loop}
+    names = args.loops.split(",")
+    if not names or any(name not in runners for name in names):
+        parser().error("--loops takes a comma-separated subset of example, facade and binding")
+    loops = [runners[name](configs, args) for name in names]
     result = {"schema_id": "spire-gym-m37-python-phase-timing-v1", "native_file": _native.__file__,
               "build_info": _native.build_info(), "slots": args.slots, "ascension": args.ascension,
               "workers": args.workers, "steps": args.steps, "seed": args.seed, "loops": loops}
