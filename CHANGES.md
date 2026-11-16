@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.1.0 — effective at the commit tagged v1.1.0
+
+See the [1.1.0 release notes](docs/releases/v1.1.0.md).
+
+- Set the project and Python package version to `1.1.0`. The version is a value, not a
+  frozen name: the bump leaves the `build_info()` keys, frozen identities, fingerprints and
+  replay digests unchanged. `source_digest` changes, because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs.
 - Add M37a profiling diagnostics: the ignored `m37_phase_timing` test in
   `spire-env`, `examples/run_vector_phase_timing.py`, [profiling](docs/profiling.md) and
   a README Speed section. These are diagnostics and documentation only. No gameplay,

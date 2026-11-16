@@ -1,6 +1,16 @@
 # Work status
 
-## Current snapshot — 2026-11-11, M36 final delivery (v1.0.0)
+## Current snapshot — 2026-11-16, release 1.1.0
+
+- Version 1.1.0 packages the work merged since v1.0.0: the M37a and M38a diagnostics (PRs #106 and #108), the M37b
+  and M38b internal speedups (PRs #107 and #109),
+  the opt-in compact Standard observation from M38e (PR #110), and the spire-3xq combat and spire-0kr shop and reward
+  fixes (PRs #111 and #112). Current rules IDs are Standard v5, M10 (and Gym66) v2 and M9 v3; frozen fingerprints are
+  unchanged. See the [1.1.0 release notes](releases/v1.1.0.md) and [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge; use Beads and
+  the primary session for live state.
+
+## Snapshot — 2026-11-11, M36 final delivery (v1.0.0)
 
 - M36 merged on base 09b8fc81d793ab338bb8346be975ce51ba6ff161 as the commit tagged v1.0.0, the last roadmap milestone. It carries the four-character, A0–A20, Acts 1–4 and Heart target into final delivery; the accepted profiles state their individual limits.
 - M36 adds the supplied from-start Heart acceptance (four characters × A0/A20), the public-search worker cap and pool lifetime, the A20 diagnostic checks, the Run and Standard combat vector examples, Python fault coverage, the versioned contract freeze (identity, replay-digest, Heart and Python-name pins) and version 1.0.0. See the [M36 profile](milestones/m36-final-delivery.md).
@@ -10,6 +20,5 @@
 
 ## Since v1.0.0 — 2026-11-12
 
-- M38e, the opt-in compact Standard observation (`observation="compact"`), is a source candidate on branch
-  `feat/m38e-compact-observation-20261112`. The dense observation, every frozen identity and replay digest are unchanged;
-  see the [M38e profile](milestones/m38e-compact-observation.md).
+- M38e, the opt-in compact Standard observation (`observation="compact"`), merged as PR #110. The dense observation,
+  every frozen identity and replay digest are unchanged; see the [M38e profile](milestones/m38e-compact-observation.md).
