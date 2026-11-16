@@ -35,11 +35,7 @@ pub struct StaticCardFace {
 /// The face of `id` at `upgrades` through the complete (M26) constructor.
 pub fn static_card_face(id: CardId, upgrades: u32) -> Result<StaticCardFace, InputError> {
     let card = complete_live_card(id, CardInstanceId(1), upgrades)?;
-    let color = Catalog::standard().card(id).ok_or_else(|| InputError::Unsupported("card without catalog row".into()))?.color;
-    let state = probe_state(match color {
-        CardColor::Green => Character::Silent, CardColor::Blue => Character::Defect,
-        CardColor::Purple => Character::Watcher, _ => Character::Ironclad,
-    })?;
+    let state = probe_state(probe_character(id)?)?;
     let target = if cards::payload_with_wrist_blade(&state, &card, None).is_ok() { StaticTarget::Untargeted }
         else if cards::payload_with_wrist_blade(&state, &card, Some(1)).is_ok() { StaticTarget::Enemy }
         else { StaticTarget::Unresolved };
@@ -60,6 +56,32 @@ pub fn static_card_face(id: CardId, upgrades: u32) -> Result<StaticCardFace, Inp
         base_damage: values.as_ref().and_then(|values| values.base_damage).or(local.base_damage),
         base_block: values.as_ref().and_then(|values| values.base_block).or(local.base_block),
         magic_number: values.as_ref().and_then(|values| values.magic_number).or(local.magic_number) })
+}
+
+/// Printed energy cost of a physical card kind (spire-d8g D2): the cost its payload owner names in the neutral
+/// probe state, upgraded face when upgraded. Card costs depend on the kind and its upgrade only, never on the live
+/// state or a target (Searing Blow, the one card upgraded past 1, costs 2 at every level), so the table is built
+/// once for the complete union at upgrades 0 and 1. `None` for unplayable kinds and Wish's choice-only options.
+/// Combat-local changes (temporary, rolled or modified costs, Infernal Blade) apply on top in `card_state`.
+pub(crate) fn face_cost(id: CardId, upgrades: u32) -> Option<i32> {
+    static TABLE: std::sync::OnceLock<std::collections::HashMap<(CardId, bool), i32>> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| {
+        let states = Character::ALL.map(|character| (character, probe_state(character).expect("static probe state")));
+        CardId::ALL.iter().flat_map(|&id| [0, 1].map(|upgrades| (id, upgrades))).filter_map(|(id, upgrades)| {
+            let card = complete_live_card(id, CardInstanceId(1), upgrades).ok()?;
+            let character = probe_character(id).ok()?;
+            let state = &states.iter().find(|(owner, _)| *owner == character)?.1;
+            cards::probed_cost(state, &card).map(|cost| ((id, upgrades > 0), cost))
+        }).collect()
+    }).get(&(id, upgrades > 0)).copied()
+}
+
+fn probe_character(id: CardId) -> Result<Character, InputError> {
+    let color = Catalog::standard().card(id).ok_or_else(|| InputError::Unsupported("card without catalog row".into()))?.color;
+    Ok(match color {
+        CardColor::Green => Character::Silent, CardColor::Blue => Character::Defect,
+        CardColor::Purple => Character::Watcher, _ => Character::Ironclad,
+    })
 }
 
 fn probe_state(character: Character) -> Result<State, InputError> {

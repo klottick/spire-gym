@@ -255,7 +255,8 @@ pub(in crate::run) fn select(run:&mut Run,id:SelectionId)->Result<RunTransition,
             EventSelectOp::Upgrade=>mutations::upgrade_card(&mut staged.state,card.instance)?,
             EventSelectOp::Transform=>{
                 let key=[u64::from(staged.state.act),u64::from(staged.state.floor),node.0,catalog_index(event),u64::from(stage),0x7F,slot as u64];
-                mutations::transform_card(&mut staged.state,card.instance,false,&key)?;
+                // The transform's obtain is a ShowCardAndObtainEffect: Omamori can negate a transformed curse (spire-d8g E1).
+                mutations::transform_card_or_negated(&mut staged.state,card.instance,false,&key)?;
             }
             // Duplicator's copy is a ShowCardAndObtainEffect: Omamori can negate a copied curse.
             EventSelectOp::Duplicate=>{mutations::duplicate_card_or_negated(&mut staged.state,card.instance)?;}

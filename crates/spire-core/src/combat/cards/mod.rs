@@ -345,8 +345,13 @@ pub(crate) fn initialize_complete(card:&mut LiveCard)->Result<(),InputError>{
     Ok(())
 }
 
-/// Obtain price from the same read-only payload producer as actual play, not a second table.
-pub(super) fn base_cost(state:&State,card:&LiveCard)->Option<i32>{
+/// A card's printed cost, upgraded face when upgraded: its kind and upgrade only, never the live state or a
+/// target (spire-d8g D2; it used to be priced by a target-validated payload, which fails with nothing targetable).
+/// The static face owner prices it once through the same read-only payload producers as actual play.
+pub(super) fn base_cost(_state:&State,card:&LiveCard)->Option<i32>{super::card_faces::face_cost(card.id,card.upgrades)}
+
+/// The cost the payload producers name for `card` in `state` (any target): the static face probe's price.
+pub(super) fn probed_cost(state:&State,card:&LiveCard)->Option<i32>{
     if let Some(cost)=starting_cost(card.id,card.upgrades){return Some(cost)}
     if matches!(card.id,crate::content::CardId::Dazed|crate::content::CardId::Burn|crate::content::CardId::Wound|crate::content::CardId::Parasite|crate::content::CardId::Void|crate::content::CardId::Regret|crate::content::CardId::Clumsy|crate::content::CardId::CurseOfTheBell|crate::content::CardId::Decay|crate::content::CardId::Doubt|crate::content::CardId::Injury|crate::content::CardId::Necronomicurse|crate::content::CardId::Normality|crate::content::CardId::Pain|crate::content::CardId::Shame|crate::content::CardId::Writhe|crate::content::CardId::AscendersBane){return None}
     payload(state,card,None).ok().or_else(||state.enemies.iter().enumerate().find_map(|(i,_)|payload(state,card,Some(i as u64+1)).ok())).map(|(cost,_)|cost)

@@ -127,8 +127,11 @@ pub(in crate::combat) fn discard_cancelled_queued_card(state:&mut State,child:&c
     dispose_unplayed(state,card,FinishDisposition::Natural)
 }
 
-fn dispose_unplayed(state:&mut State,card:OwnedCard,disposition:FinishDisposition)->Result<(),EffectError>{
-    super::super::super::piles::finish_owned_card(state,card,disposition,true)?;
+/// A cancelled card-queue item retires through the use-card cleanup without its use (the original's early end:
+/// `UseCardAction` with `dontTriggerOnUseCard`): purge cards vanish, a Power leaves the piles, an exhaust card
+/// exhausts (Strange Spoon may save it), others are discarded (spire-d8g D3).
+pub(in crate::combat) fn dispose_unplayed(state:&mut State,card:OwnedCard,disposition:FinishDisposition)->Result<(),EffectError>{
+    super::super::super::piles::finish_played_card(state,card,disposition)?;
     Ok(())
 }
 
@@ -242,7 +245,8 @@ fn finish_suppressed(state:&mut State,source:&crate::combat::Source)->Result<(),
     let child=state.in_play.take().unwrap();
     let disposition=state.play_context.as_ref().filter(|context|context.card==*owner)
         .map_or_else(||state.play_frames.last().filter(|frame|frame.child==*owner).map_or(FinishDisposition::Natural,|frame|frame.disposition),|context|context.disposition);
-    super::super::super::piles::finish_owned_card(state,child,disposition,true)?;
+    // A queued card that fails canUse is retired by the same use-card cleanup (lane D Q8; spire-d8g D3).
+    dispose_unplayed(state,child,disposition)?;
     resume_parent(state,owner)?;
     Ok(())
 }

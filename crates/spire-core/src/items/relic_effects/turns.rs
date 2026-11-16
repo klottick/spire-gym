@@ -241,14 +241,21 @@ pub(crate) fn run_event(id: RelicId, state: &mut RunState, event: &mut RunItemEv
     }
 
     match (id, event) {
+        // endBattle runs Meat on the Bone before the player's victory callbacks, on a victory and a Smoke
+        // Bomb escape alike (spire-d8g D1/D4). Its threshold reads the HP before the combat's victory
+        // heals (Burning/Black Blood, Self Repair); the heals commute, so only that input differs.
         (RelicId::MeatOnTheBone, RunItemEvent::CombatSettled { outcome })
-            if *outcome == Outcome::Victory && state.hp > 0 && state.max_hp > 0 && state.hp <= state.max_hp / 2 =>
+            if matches!(outcome, Outcome::Victory | Outcome::Escaped) && state.hp > 0 && state.max_hp > 0 =>
         {
-            let amount = crate::items::victory_heal_amount(state, 12).max(0) as u32;
-            state.hp = state.hp.saturating_add(amount).min(state.max_hp);
+            let before = state.last_combat_checkpoint.as_ref().map(|checkpoint| checkpoint.hp_before_healing)
+                .ok_or(RunError::InvalidAction)?;
+            if before > 0 && before <= state.max_hp / 2 {
+                let amount = crate::items::victory_heal_amount(state, 12).max(0) as u32;
+                state.hp = state.hp.saturating_add(amount).min(state.max_hp);
+            }
         }
         (RelicId::FaceOfCleric, RunItemEvent::CombatSettled { outcome })
-            if *outcome == Outcome::Victory && state.hp > 0 =>
+            if matches!(outcome, Outcome::Victory | Outcome::Escaped) && state.hp > 0 =>
         {
             let max_hp = state.max_hp.checked_add(1).filter(|max_hp| *max_hp <= 999)
                 .ok_or(RunError::Unsupported("maximum HP overflow"))?;

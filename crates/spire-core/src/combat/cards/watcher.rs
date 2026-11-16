@@ -200,7 +200,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Omniscience autoplay lost card parent".into()).into())};
             if *cancelled{
                 let card=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience original absent".into()))?;
-                super::super::piles::finish_owned_card(state,card,super::super::model::FinishDisposition::Exhaust,true)?;
+                super::ironclad::autoplay::dispose_unplayed(state,card,super::super::model::FinishDisposition::Exhaust)?;
                 super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
                 let actor=omniscience_random_target(state,child)?;
@@ -227,7 +227,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Omniscience repeat lost selected-card parent".into()).into())};
             if *cancelled{
                 let copy=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience repeat copy absent".into()))?;
-                super::super::piles::finish_owned_card(state,copy,super::super::model::FinishDisposition::Purge,true)?;
+                super::ironclad::autoplay::dispose_unplayed(state,copy,super::super::model::FinishDisposition::Purge)?;
                 super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
                 let target=omniscience_random_target(state,child)?;
