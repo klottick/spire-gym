@@ -5,7 +5,126 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- spire-d8g fixes in the shared engine, found by the 2026-11-16 stress campaign. Rules IDs move to
+  `spire-gym-native-standard-rules-v6`, `spire-gym-native-m10-rules-v3` (also Gym66) and
+  `spire-gym-native-m9-rules-v4`; the engine is shared, so every frozen profile is treated as
+  affected. Records with the old IDs fail closed. No observation, action or descriptor layout
+  changes; fingerprints are unchanged.
+  - A Smoke Bomb escape runs the victory effects, as the original does: its escape ends through
+    the end-of-battle routine, which runs Meat on the Bone and then the player's victory callbacks.
+    Burning Blood heals 6, Black Blood 12, Meat on the Bone 12 at or below half HP, Face of Cleric
+    grants 1 Max HP, and Self Repair heals (it already did). Rewards stay suppressed.
+    **Disclosure:** the M27 rule "G9: victory relics do not fire on Escaped" was wrong; its tests
+    (`m27_smoke_bomb_rules_and_settlement`, `m27_g9_escape_skips_victory_relics`, now
+    `m27_g9_escape_runs_victory_relics`, `m27_meat_on_the_bone_boundary` and
+    `m27_face_of_cleric_boundary`) are amended. The diagnostics combat validator already
+    expected the heal and faulted (`Invariant("victory healing")`).
+  - Meat on the Bone checks its half-HP threshold on the HP before the victory heals (Burning or
+    Black Blood, Self Repair) and before Face of Cleric's Max HP, as the original runs it first.
+    An Ironclad winning at 40/80 now ends at 58 (it ended at 46). Only the threshold input changes.
+  - A card's base cost no longer depends on a target. It used to come from a target-validated
+    payload, so with no enemy targetable (Awakened One's rebirth window) Infernal Blade faulted
+    (`Unsupported("Infernal Blade generated attack cost unavailable")`). A differential over every
+    card kind at upgrades 0 and 1 (Searing Blow at every level), each character's combat, and
+    every base-cost read in the workspace and diagnostics test suites shows no value change
+    wherever the old derivation priced a card.
+  - Every effect that reads a card's cost now sees it in a no-target window, as the original does,
+    where costs are static card fields. Such a window has no targetable enemy, for example a won
+    combat's final boundary or Awakened One's rebirth. Observations show the cost there (the
+    displayed `effective_cost` is known instead of unknown; the layout does not change), and the
+    cost-reading effects act on it: Snecko Eye and Confusion, Snecko Oil, Mummified Hand,
+    Forethought, Madness, Enlightenment, Bullet Time, Setup, Establishment, Sands of Time,
+    Nightmare, Recycle, Liquid Memories, the end-of-turn reset of temporary costs, and the cost
+    rebase on an in-combat upgrade (Apotheosis, Armaments+). The cost also orders same-card copies
+    in a draw-pile choice grid opened in such a window. Draw-pile knowledge views of Watcher's
+    Evaluate, Wish and Reach Heaven also now show their cost, with targetable enemies too; that is
+    observation only. **Release note:** in no-target windows these cost-reading
+    effects can now behave differently from v1.1.0, matching the original. A Confusion roll on a
+    drawn card, for example, now changes its cost and advances the card RNG. The displayed cost is
+    the only cause of the re-pins: the Heart pins Ironclad-A20, Silent-A0, Silent-A20 and
+    Watcher-A20, whose steps, terminal and return are unchanged, and six of the eight M35 R4
+    `standard-combat-v1` agreement digests (`tests/fixtures/m35_agreement_digests.json`; R1 is
+    unchanged). With the old cost derivation swapped back in, every one of them reproduces its old
+    pin. The frozen replay digests and the combat-v1 digest are unchanged.
+  - Time Warp's 12th card can be one Distilled Chaos played, directly or through a card it played:
+    a Double Tap, Burst, Echo Form, Amplify or Necronomicon copy, or Havoc's top card. The burst's
+    other queued cards are retired unused, enemies gain 2 Strength and the turn ends once queued
+    work drains, as with card-owned autoplay. It used to fault
+    (`Invariant("Time Warp card decision continuation absent")`). The card order for a copy of
+    Havoc and for Havoc under Distilled Chaos still differs from the original and is tracked as
+    spire-d4h; those cases now complete under the Time Warp rule instead of faulting.
+  - A cancelled queued card (Time Warp's early end: Distilled Chaos, Havoc, Mayhem, Omniscience,
+    repeats) is retired through the played-card cleanup, as the original's use-card cleanup does:
+    a Power leaves the piles instead of going to the discard or exhaust pile, and Strange Spoon
+    rolls for an exhaust card. A queued card that cannot be used (for example Havoc's top card
+    under Normality, or a Status or Curse) is retired the same way.
+  - Exemption, an input-timing interleave that is not modelled: in the original, Distilled Chaos
+    used while Time Warp's 12th card is still queued leaves top-card actions that survive the
+    early end. Potions are offered only at decision boundaries here, so this order cannot occur
+    (see [delivery](docs/delivery.md#7-known-limits-by-surface)).
+  - The Heart's Invincible caps the final damage of a hit. The Boot, which raises an unblocked
+    1–4 to 5, now applies before the cap, as in the original. It used to apply after the cap and
+    overspend Invincible below 0, and the validator then faulted ("Invincible is Heart-owned and
+    bounded by its A0 allowance"). The other defender caps keep their original order: a monster's
+    Intangible applies before The Boot, and the player's Intangible applies first. Changes only a
+    hit against the Heart with The Boot.
+  - Diagnostics only (default-off `m34-diagnostics`): `run::diagnostics::supply_gold`, the stress
+    harness's gold supply, used by the E5 replay test. No other API change.
+  - Omamori can negate a transformed curse. An event transform (Living Wall "Change", Drug Dealer,
+    Transmogrifier) removes the chosen card and obtains the output through the negation-capable
+    owner that Neow and Astrolabe already use: a transformed curse spends an
+    Omamori charge and is not added, and the chosen card stays removed. It used to fault
+    (`Unsupported("a negated card obtain needs an *_or_negated owner")`). Only that previously
+    faulting case changes.
+  - An enemy dies once. As in the original's `die()` guard (`isDying`) and Poison's
+    `currentHealth > 0` check, a Death callback for an enemy whose death already ran does
+    nothing. A poison tick's completion no longer kills again an enemy that another hit killed
+    first (Corpse Explosion's THORNS damage, for example). A Bronze Orb holding a Stasis card
+    used to receive two Death hooks and fault (`Invariant("Stasis return death/custody")`); its
+    card now returns once, to hand or to discard at 10 cards. The guard is global, and a census
+    shows where it fires. In the whole workspace test run, the M28 traversal at A0–A20 (756 runs,
+    uniform, reach and supplied) and the native fuzz smoke, it fired only in the two
+    previously faulting Stasis replays and in its own unit test. The fuzz smoke summary hash and
+    every frozen pin are unchanged.
+  - Tomb of Lord Red Mask's 222 gold with Ectoplasm is blocked entirely, as the original's
+    `gainGold` returns before changing gold; nothing else changes. The event's result check now
+    expects the gain the shared gold owner actually makes. It used to fault
+    (`Invariant("accepted Act3 event mutation frontier changed")`). Only that previously faulting
+    case changes.
+  - A queued repeat waits while an earlier card of the same parent has a selection open. In the
+    original the action queue (the selection) drains before the card queue, so the choice resolves
+    and then the copy plays, and it may open its own choice: Burst's copy of Survivor plays after
+    Survivor's discard choice and then opens its own. Burst's copy of Havoc while Havoc's top card
+    (Survivor) is choosing a discard, and Duplication Potion's copy of Havoc while Havoc's top card
+    (Secret Technique) is choosing a Skill, used to fault at the selection boundary
+    (`Invariant("Burst repeat child/parent ownership")`,
+    `Invariant("Duplication repeat retains its actual card and captured child")`); they now run
+    to completion. One ownership rule now covers the repeats of Burst, Echo Form, Amplify,
+    Necronomicon and Duplication Potion (Double Tap's has no separate check). It is a validator
+    change only: play order is unchanged, so only the previously faulting boundaries change. In
+    those Havoc paths the order still differs from the original, which plays the copy of Havoc
+    before Havoc's top card, so that choice is not yet open when the copy plays. This known
+    difference is tracked as spire-d4h.
+  - Nightmare's delivery can wait behind a start-of-turn selection. Foresight's Scry and Nightmare
+    run in the same pre-draw power pass, in power-list order, both before the turn draw. With
+    Foresight first, its Scry boundary used to fault
+    (`Invariant("Nightmare template identity, owner, reset state, or delivery cursor invalid")`).
+    The engine already ran them in list order. This is a validator change only.
+  - The hand never exceeds 10 cards at end of turn. As in the original, retained cards are restored
+    before the end-of-turn exhaust listeners' bottom-queued work runs: Dead Branch's card, Dark
+    Embrace's draw and Feel No Pain's Block. That work therefore sees the restored hand and the
+    10-card cap, so a card that does not fit goes to discard and a draw stops at 10. The work used
+    to run first, and the restore could make an 11-card hand that faulted at the next draw
+    (`Invariant("hand exceeds cap")`). A census of where the new ordering applies covered the
+    workspace tests, the core diagnostics, the M28 traversal at A0–A20 (756 runs) and the native
+    fuzz smoke. It applied in the two E10 tests (draw and card work) and in one Standard
+    random-episode test, where the only work moved was Feel No Pain's Block, which now lands after
+    the restore and still before the monster turn. It never applied in the traversal or the smoke.
+    The smoke summary hash and every frozen pin are unchanged.
+  - Documented limit (DELIVERY §7, "Maximum HP and counters"): relic and power counters such as
+    Self-Forming Clay's pending Block are bounded at 999, like a Run's maximum HP. Past that the
+    engine stops with a typed `Unsupported` fault, whereas the original has no cap. No engine
+    change.
 
 ## 1.1.0 — effective at the commit tagged v1.1.0
 

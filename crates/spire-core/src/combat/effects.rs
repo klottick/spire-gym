@@ -169,6 +169,14 @@ fn powers_mut<'a>(state: &'a mut State, target: &Actor) -> &'a mut Vec<PowerEntr
     }
 }
 
+/// The original's `isDying`: the enemy's Death callback already ran (or, with `queued`, is queued). An enemy dies
+/// once; `AbstractMonster.die` returns at once for a dying monster (spire-d8g E2).
+fn enemy_dying(state:&State,owner:&super::EnemyHandle,queued:bool)->bool {
+    let death=|hook:Hook,target:Option<&Actor>|hook==Hook::Death&&matches!(target,Some(Actor::Enemy(id)) if id==owner);
+    state.hook_events.iter().any(|event|death(event.hook,event.target.as_ref()))
+        ||queued&&state.pending.iter().any(|queued|matches!(queued.kind,EffectKind::Hook(hook) if death(hook,queued.target.as_ref())))
+}
+
 fn is_enemy_poison_tick(state:&State,effect:&Effect)->bool {
     let (Source::Actor(Actor::Enemy(source)),Some(Actor::Enemy(target)),
         EffectKind::Damage(DamagePayload::PoisonTickHpLoss{owner,amount}))=
@@ -333,7 +341,6 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             // onAttacked. Buffer's zero prevents Discharge, independently of HP.
             if full_runtime&&*target==Actor::Player {super::cards::defect::on_attacked(state,effect,payload,damage.saturating_sub(block_at_entry).max(0));}
             let damage_event_count=state.damage_events_this_combat;
-            if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
             if full_runtime {
                 let normal=matches!(payload,DamagePayload::Fixed(_)|DamagePayload::EnemyMove(_)|DamagePayload::FullEnemyMove(_));
                 if normal&&matches!(target,Actor::Enemy(_))
@@ -369,6 +376,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                     }
                 }
             }
+            // The target's powers run after the attacker's relic modifiers (AbstractMonster.damage: Block, then The
+            // Boot, then attacker powers, then Invincible), so the cap sees the final damage (spire-d8g E5).
+            if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
             let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source);
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
@@ -531,8 +541,10 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         }
         EffectKind::PoisonTickComplete => {
             let Some(Actor::Enemy(owner))=effect.target.as_ref() else { unreachable!("validated Poison completion actor") };
+            // Only a death this tick caused: an owner another hit already killed is dying, and the original's
+            // Poison HP loss skips it (`currentHealth > 0`; spire-d8g E2).
             let died=state.enemies.iter().any(|enemy|&enemy.instance_id==owner
-                &&enemy.life==super::ActorLife::Active&&enemy.hp==0);
+                &&enemy.life==super::ActorLife::Active&&enemy.hp==0)&&!enemy_dying(state,owner,true);
             if died {
                 // The shared HP_LOSS and current-stack reduction are ahead of
                 // this completion marker, so Death and settlement now follow
@@ -1163,6 +1175,8 @@ fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError
         if matches!(callback,Hook::TurnStartedPreDraw|Hook::TurnStarted)&&effect.target==Some(Actor::Player){
             return player_turn_start(state,effect,callback);
         }
+        // `die()` returns at once for a monster that is already dying: its death callbacks run once (spire-d8g E2).
+        if *hook==Hook::Death&&matches!(&effect.target,Some(Actor::Enemy(owner)) if enemy_dying(state,owner,false)){return Ok(())}
         if *hook==Hook::CombatSettled{state.hp_before_healing=Some(state.player.hp);}
         super::hooks::dispatch(state, callback, &effect.source,effect.target.as_ref())?;
         let hp = state.player.hp;

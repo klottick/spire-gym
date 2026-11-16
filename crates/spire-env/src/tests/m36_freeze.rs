@@ -47,13 +47,13 @@ pub(super) struct Pin { pub name: &'static str, pub seed: u64, pub steps: usize,
 /// The 8 from-start Heart routes, asserted inside `m36_heart::m36_heart_acceptance` (I2, Mn5).
 pub(super) const HEART_PINS: &[Pin] = &[
     Pin { name: "Ironclad-A0", seed: 0xb0, steps: 326, terminal: "HeartVictory", ret: 200, digest: "5f31c0cd66674f0f0fca44bf3fb3f176d056c00e2f86570b6d850a680a69e9b8" },
-    Pin { name: "Ironclad-A20", seed: 0xb8, steps: 345, terminal: "HeartVictory", ret: 201, digest: "7121467e9138a6b270a403c2bb7b541dd58379cbf3f32d385238b74a825483ed" },
-    Pin { name: "Silent-A0", seed: 0xb1, steps: 331, terminal: "HeartVictory", ret: 200, digest: "07700971c8d2854c82a90805a4a8b6e76f2ea1ce9b8a24c04415910533428c70" },
-    Pin { name: "Silent-A20", seed: 0xb9, steps: 333, terminal: "HeartVictory", ret: 201, digest: "6485e256ffbcc50a17ca6a69b36122aa0f9c2cebb8b910b6e4d07aa0021ea791" },
+    Pin { name: "Ironclad-A20", seed: 0xb8, steps: 345, terminal: "HeartVictory", ret: 201, digest: "3848afe5c093bd6325fc8d5a2adcd14a86e664ecf7a34139f7ab089106d8cb54" },
+    Pin { name: "Silent-A0", seed: 0xb1, steps: 331, terminal: "HeartVictory", ret: 200, digest: "3b13da0be4868081fa2e52452679a178d88265c4d3e964070d6de654bbb0768b" },
+    Pin { name: "Silent-A20", seed: 0xb9, steps: 333, terminal: "HeartVictory", ret: 201, digest: "67ef446c929a18e7e30cfc6499f7126f5f54dc084df28de7d38f9f7af386096c" },
     Pin { name: "Defect-A0", seed: 0xb2, steps: 309, terminal: "HeartVictory", ret: 200, digest: "70adf7fcf5394c2e26e449ae367a45d14b813050c7499c4ec75e69dbdf757a87" },
     Pin { name: "Defect-A20", seed: 0xba, steps: 329, terminal: "HeartVictory", ret: 201, digest: "645ef434ffcff74f9944fb7737f8b7d991d31a6c161688b63f9963a54975ab00" },
     Pin { name: "Watcher-A0", seed: 0xb3, steps: 351, terminal: "HeartVictory", ret: 200, digest: "5a939bebfb8713da7c29084cf415f7098c21443dcff62e2b09e9e848cb7ec6a9" },
-    Pin { name: "Watcher-A20", seed: 0xbb, steps: 419, terminal: "HeartVictory", ret: 201, digest: "01521e81d75e3d05cbd93beb93cc15dddbd631c28132b41d47bc612089d15907" },
+    Pin { name: "Watcher-A20", seed: 0xbb, steps: 419, terminal: "HeartVictory", ret: 201, digest: "796349df66aeec0477a5941b77a882add4949bea7265fb364805770ee9296735" },
 ];
 
 fn hex(bytes: [u8; 32]) -> String { bytes.iter().map(|b| format!("{b:02x}")).collect() }
@@ -135,7 +135,7 @@ fn frozen_identities() {
 pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("standard.observation_schema", "spire-gym-standard-run-observation-v1"),
     ("standard.observation_fingerprint", "bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae"),
-    ("standard.rules", "spire-gym-native-standard-rules-v5"),
+    ("standard.rules", "spire-gym-native-standard-rules-v6"),
     ("standard.content", "spire-gym-standard-content-v1"),
     ("standard.record", "spire-gym-standard-run-replay-v1"),
     ("standard.reward", "spire-gym-floor-key-terminal-reward-v1"),
@@ -159,12 +159,12 @@ pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("card_metadata.fingerprint", "effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406"),
     ("m9.observation_schema", "spire-gym-run-observation-v1"),
     ("m9.observation_fingerprint", "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),
-    ("m9.rules", "spire-gym-native-m9-rules-v3"),
+    ("m9.rules", "spire-gym-native-m9-rules-v4"),
     ("m9.content", "spire-gym-m9-ironclad-a0-captured-v1"),
     ("m9.record", "spire-gym-run-replay-v1"),
     ("m10.observation_schema", "spire-gym-run-observation-v2"),
     ("m10.observation_fingerprint", "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
-    ("m10.rules", "spire-gym-native-m10-rules-v2"),
+    ("m10.rules", "spire-gym-native-m10-rules-v3"),
     ("m10.content", "spire-gym-m10-ironclad-a0-captured-v1"),
     ("m10.record", "spire-gym-run-replay-v2"),
     ("m10_policy.observation_schema", "spire-gym-run-observation-v3"),

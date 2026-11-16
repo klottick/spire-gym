@@ -85,7 +85,9 @@ pub(in crate::run) fn drive(run:&mut Run)->Result<RunTransition,RunError>{
     }
     let mutation_valid=match kind{
         RoomChoiceKind::FallingLose{..}=>captured(&frame,kind).is_some_and(|card|run.state.deck.iter().all(|c|c.instance!=card.instance)),
-        RoomChoiceKind::TombGold=>frame.gold.checked_add(222)==Some(run.state.gold)&&run.state.relics.contains(&RelicId::RedMask),
+        // gainGold's own blocks apply (Ectoplasm: nothing is gained; spire-d8g E3).
+        RoomChoiceKind::TombGold=>mutations::gold_gain_amount(&run.state,222).ok().and_then(|granted|frame.gold.checked_add(granted))==Some(run.state.gold)
+            &&run.state.relics.contains(&RelicId::RedMask),
         RoomChoiceKind::TombOfferGold=>run.state.gold==0&&run.state.relics.iter().filter(|r|**r==RelicId::RedMask).count()==1,
         _=>false,
     };

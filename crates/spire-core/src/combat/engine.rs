@@ -1837,10 +1837,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     "Distilled Chaos materialized child retains typed potion custody")?,
                 super::PotionEffect::DuplicationRepeat{child,target,energy_on_use,cancelled:_}=>{
                     let parent=match &effect.source{Source::Card(parent)=>parent,_=>return Err(InputError::Invariant("Duplication repeat lost its source card".into()))};
-                    let parent_owned=state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
-                        ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,
-                            super::model::PlayFrameParentOwner::Card(handle) if handle==parent)
-                            &&frame.child==*child&&frame.parent_finish_checkpoint_done);
+                    let parent_owned=queued_repeat_parent_owned(state,parent,child);
                     require(state.full_runtime&&effect.target.is_none()&&*energy_on_use>=-1&&parent_owned
                         &&state.queued_autoplay.contains_key(child)
                         &&target.as_ref().is_none_or(|actor|match actor{Actor::Player=>true,Actor::Enemy(owner)=>state.enemies.iter().any(|enemy|enemy.instance_id==*owner)}),
@@ -2291,7 +2288,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             "Nightmare selection requires its current actual in-play card")?,
         EffectKind::NightmareCopy { owner, installation_id } => require(state.full_runtime
             && effect.source==Source::Actor(Actor::Player)&&effect.target==Some(Actor::Player)
-            &&state.phase==Phase::PlayerStart
+            &&player_start_pass(state)
             &&state.nightmare_templates.iter().any(|pending|pending.owner==*owner
                 &&pending.installation_id==*installation_id
                 &&pending.delivery_turn==state.turn&&pending.delivered<3),
@@ -2335,6 +2332,27 @@ fn validate_exhaust_batch_finish(finish:&super::model::ExhaustBatchFinish,state:
             require((0..=30_012).contains(damage),"exhaust batch damage bounds")
         }
     }
+}
+
+/// The player's start-of-turn pass, or a selection opened inside it: the pre-draw powers run in power-list order, so
+/// an earlier power's selection (Foresight's Scry) suspends a later one's queued work, such as Nightmare's delivery
+/// (lane D Q14, spire-d8g E9).
+pub(in crate::combat) fn player_start_pass(state:&State)->bool{
+    state.phase==Phase::PlayerStart||state.phase==Phase::Selection
+        &&state.pending_selection.as_ref().is_some_and(|selection|selection.resume.phase==Phase::PlayerStart)
+}
+
+/// One ownership rule for a queued repeat (Burst, Echo Form, Amplify, Necronomicon, Duplication): its source card is in
+/// play, or suspended as a play-frame parent after its finish checkpoint. That frame's child is the repeat's own child,
+/// or, while a selection is open and the repeat child still waits in the card queue, an earlier child of the same
+/// parent (Havoc's top card) that opened it: the original drains the action queue before the card queue, so the
+/// selection resolves first and the repeat plays afterwards (spire-d8g E7/E8, as spire-3xq F2-E).
+pub(in crate::combat) fn queued_repeat_parent_owned(state:&State,parent:&CardHandle,child:&CardHandle)->bool{
+    let selection_open=state.phase==Phase::Selection;
+    state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
+        ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,super::model::PlayFrameParentOwner::Card(owner) if owner==parent)
+            &&frame.parent_finish_checkpoint_done
+            &&(frame.child==*child||selection_open&&state.queued_autoplay.contains_key(child)))
 }
 
 fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{

@@ -131,6 +131,7 @@ pub(super) fn validate_pending(state: &State) -> Result<(), InputError> {
     if state.nightmare_templates.is_empty() { return Ok(()); }
     if !state.full_runtime { return Err(InputError::Invariant("legacy combat cannot own Nightmare templates".into())); }
     let mut installations = std::collections::BTreeSet::new();
+    let start_of_turn = crate::combat::engine::player_start_pass(state);
     for pending in &state.nightmare_templates {
         let template = &pending.template;
         let owner_card = state.piles.all(state.in_play.as_ref())
@@ -157,8 +158,7 @@ pub(super) fn validate_pending(state: &State) -> Result<(), InputError> {
             || template.local.temporary_cost != 0 || template.local.infernal_blade_cost_this_turn
             || template.local.temporary_upgrades != 0
             || (pending.delivery_turn == state.turn
-                && (state.phase != super::super::super::Phase::PlayerStart
-                    || !(continuation || current || scheduled_hook))) {
+                && (!start_of_turn || !(continuation || current || scheduled_hook))) {
             return Err(InputError::Invariant("Nightmare template identity, owner, reset state, or delivery cursor invalid".into()));
         }
     }

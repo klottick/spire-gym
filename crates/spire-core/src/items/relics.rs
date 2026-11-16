@@ -170,10 +170,9 @@ pub(super) fn phase(id: RelicId, context: &mut CombatItemContext, phase: super::
                     destination: crate::combat::CardDestination::Hand,
                     upgrades: 0,
                 }),
-                (Hook::CombatSettled, RelicId::BurningBlood) if hp > 0&&!context.owns_relic(RelicId::BlackBlood)
-                    &&!matches!(facts.source,Some(Source::Potion{id:crate::content::PotionId::SmokeBomb,..})) => Some(EffectKind::Heal(6)),
-                (Hook::CombatSettled, RelicId::BlackBlood) if hp>0
-                    &&!matches!(facts.source,Some(Source::Potion{id:crate::content::PotionId::SmokeBomb,..})) => Some(EffectKind::Heal(12)),
+                // onVictory also runs on a Smoke Bomb escape: the original's escape ends through endBattle (spire-d8g D1).
+                (Hook::CombatSettled, RelicId::BurningBlood) if hp > 0&&!context.owns_relic(RelicId::BlackBlood) => Some(EffectKind::Heal(6)),
+                (Hook::CombatSettled, RelicId::BlackBlood) if hp>0 => Some(EffectKind::Heal(12)),
                 _ => None,
             };
             if let Some(kind) = kind {

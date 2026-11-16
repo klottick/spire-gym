@@ -198,7 +198,15 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
     // Keep notification synchronous while placing those children at the tail.
     let exhaust_batch_in_flight=hook==Hook::CardExhausted&&state.pending.iter().any(|effect|
         matches!(effect.kind,EffectKind::ExhaustBatchContinue(_)));
-    if exhaust_batch_in_flight {
+    // At end of turn that top work includes the retained cards' restore (DiscardAtEndOfTurnAction queues
+    // RestoreRetainedCardsAction at the top), so an ethereal card's exhaust children (Dead Branch's card, Dark
+    // Embrace's draw) see the restored hand and its 10-card cap (lane D Q15, spire-d8g E10).
+    let retained_restore_queued=hook==Hook::CardExhausted&&state.pending.iter().any(|effect|
+        matches!(&effect.kind,EffectKind::Watcher(super::cards::watcher::WatcherEffect::RetainRestore{cards,next}) if *next<cards.len()));
+    if retained_restore_queued&&!exhaust_batch_in_flight {
+        for effect in work { super::enemies::act2::bottom(state,effect); }
+        for effect in exhaust_top.into_iter().rev() { state.pending.push_front(effect); }
+    } else if exhaust_batch_in_flight {
         let continuation=state.pending.iter().position(|pending|matches!(pending.kind,EffectKind::ExhaustBatchContinue(_))).unwrap_or(0);
         for effect in exhaust_top.into_iter().rev() {
             state.pending.insert(continuation,effect);

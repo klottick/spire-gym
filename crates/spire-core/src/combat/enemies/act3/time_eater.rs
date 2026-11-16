@@ -51,6 +51,15 @@ pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
     let power=state.enemies[index].full_powers.iter_mut().find(|p|p.id.0=="time_warp").unwrap();
     if !(0..12).contains(&power.state.amount)||state.pending_time_warp.is_some(){return Err(InputError::Invariant("Time Warp counter/request frontier".into()))}
     if power.state.amount<11{power.state.amount+=1;return Ok(())}
+    // A Distilled Chaos card queues no decision continuation: the potion's work ends at the queue bottom, after its
+    // other queued cards (retired below) and any ordinary work, as the original ends the turn once both queues drain
+    // (spire-d8g D3; TimeWarpPower.onAfterUseCard, GameActionManager.callEndTurnEarlySequence). The potion owns the
+    // turn wherever its frame is in the stack: the 12th card can be a repeat copy or Havoc's top card above it.
+    let potion_parent=state.play_frames.iter().any(|frame|matches!(frame.parent_owner,
+        super::super::super::model::PlayFrameParentOwner::Potion{id:crate::content::PotionId::DistilledChaos,..}));
+    if potion_parent&&!state.pending.iter().any(|e|e.kind==EffectKind::Decision){
+        state.pending.push_back(Effect{source:Source::None,target:None,kind:EffectKind::Decision});
+    }
     if !state.pending.iter().any(|e|e.kind==EffectKind::Decision){return Err(InputError::Invariant("Time Warp card decision continuation absent".into()))}
     power.state.amount=0;let owner=state.enemies[index].instance_id.clone();state.pending_time_warp=Some(owner.clone());
     super::super::super::cards::ironclad::autoplay::cancel_pending_card_queue(state);

@@ -115,8 +115,7 @@ pub(in crate::combat) fn validate_work(state:&State,effect:&Effect,work:&SilentE
     }
     if let SilentEffect::BurstRepeat{child,target,energy_on_use,..}=work {
         let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("Burst repeat parent source absent".into()))};
-        let parent_owned=state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
-            ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,crate::combat::model::PlayFrameParentOwner::Card(owner) if owner==parent)&&frame.child==*child&&frame.parent_finish_checkpoint_done);
+        let parent_owned=crate::combat::engine::queued_repeat_parent_owned(state,parent,child);
         let child_skill=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some_and(|card|
             crate::content::Catalog::standard().card(card.id).is_some_and(|definition|definition.card_type==crate::content::CardType::Skill));
         let target_exists=target.as_ref().is_none_or(|actor|match actor{

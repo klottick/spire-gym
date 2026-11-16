@@ -45,9 +45,9 @@ pub const RUN_CONTENT_ID_M17:&str="spire-gym-m17-defect-a0-act1-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M15: &str = "spire-gym-m15-silent-heart-replay-v1";
 pub const RUN_SEED_ADAPTER_ID: &str = "spire-gym-run-u64-le-v1";
 pub const RUN_RULES_ID_V1: &str = "spire-gym-native-m9-rules-v1";
-pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v3";
+pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v4";
 pub(crate) const RUN_CONTENT_ID: &str = "spire-gym-m9-ironclad-a0-captured-v1";
-pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v2";
+pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v3";
 pub const RUN_CONTENT_ID_M10: &str = "spire-gym-m10-ironclad-a0-captured-v1";
 pub const RUN_RULES_ID_M12: &str = "spire-gym-native-m12-rules-v1";
 pub const RUN_CONTENT_ID_M12: &str = "spire-gym-m12-silent-a0-act1-captured-v1";
@@ -65,7 +65,11 @@ pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
 /// won combat, a selection ahead of a queued autoplay repeat, the 999-identity bound typed `Unsupported`.
 /// v5 since spire-0kr: The Courier restocks a bought shop row in place, a shop prices Circlet at its Special base 400 and a
 /// duplicate Circlet reward stacks (Standard only; M9/M10 shops have no restock and never reach these paths).
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v5";
+/// v6 since spire-d8g (shared combat rules, also M9 v4 and M10 v3): victory effects on a Smoke Bomb escape, Meat on the
+/// Bone before the victory heals, static card costs (also in no-target windows), Time Warp and cancelled queued-card
+/// cleanup, Omamori on event transforms, an enemy dies once, Tomb gold with Ectoplasm, The Boot before Invincible,
+/// selection-boundary validators (queued repeats, Nightmare after a start-of-turn Scry) and the end-of-turn retain order.
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v6";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.

@@ -23,7 +23,7 @@ source contract.
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
 | Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
-| Rules / content | `spire-gym-native-standard-rules-v5` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
+| Rules / content | `spire-gym-native-standard-rules-v6` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; v6 for spire-d8g: victory effects on a Smoke Bomb escape; target-independent card costs, so every effect that reads a card's cost also sees it when no enemy is targetable, as in the original (CHANGES lists the effects); Time Warp's 12th card played by Distilled Chaos, directly or through a card it played, and the cleanup of cancelled queued cards; Meat on the Bone's threshold before the victory heals; Omamori on event transforms; an enemy dies once; Tomb of Lord Red Mask's gold with Ectoplasm; The Boot before the Heart's Invincible cap; queued repeats waiting behind an open selection; Nightmare after a start-of-turn Scry; and retained cards restored before end-of-turn exhaust effects; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
 | Capacity preset / vocabulary manifest | `standard-default-v1` / `standard-vocab-v1` |
 | Compact observation (M38e, opt-in) | `spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`, fingerprint `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that preset ([below](#compact-observation-m38e)) |
@@ -272,7 +272,7 @@ owned resources:
   catalog is fingerprinted (`spire-gym/standard-combat-catalog/v1\0`) and returned by `catalog_descriptor()`.
 - **Episode.** `reset(seed, entry_id)` builds the Run from the validated resources and enters through the shared
   `enter_owned`; steps use the shared resolver. The episode ends at the combat's own terminal, before Run settlement:
-  combat-end hooks (Burning Blood, Black Blood, Repair) have applied; settlement effects (Meat on the Bone, Face of Cleric)
+  combat-end hooks (Burning Blood, Black Blood, Repair) have applied, on a Smoke Bomb escape too; settlement effects (Meat on the Bone, Face of Cleric)
   and rewards never apply. `info.terminal_reason` is `victory` (an all-enemies-escaped victory sets
   `info.all_enemies_escaped`), `death` or `escaped` (Smoke Bomb), with `hp_before_healing` and `hp_after_cleanup`. The
   reward is +1, −1 or 0; `truncated` is always false. Faults freeze the session and are never retried.

@@ -76,6 +76,7 @@ mod m28_economy;
 mod m28_review;
 mod m28_event_core;
 mod m28_events_act1;
+mod d8g_findings;
 mod m28_events_shared;
 mod m28_events_a15;
 mod m28_events_act2;

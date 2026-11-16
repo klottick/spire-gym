@@ -288,8 +288,12 @@ fn m27_meat_on_the_bone_boundary() {
     let mut run = run_with_potions(RelicId::MeatOnTheBone, vec![Some(PotionId::SmokeBomb), None, None]);
     lose_player_hp(&mut run, 40);
     escape_cultist(&mut run);
-    assert_eq!(run.state().hp, 40);
-    assert_eq!(run.state().hp, 40, "Escaped is not a Victory relic checkpoint (F3)");
+    // Amended by spire-d8g D1: endBattle runs Meat on the Bone on an escape too (M27 F3 was wrong).
+    assert_eq!(run.state().hp, 52, "Escaped at 40/80 heals 12");
+    let mut above = run_with_potions(RelicId::MeatOnTheBone, vec![Some(PotionId::SmokeBomb), None, None]);
+    lose_player_hp(&mut above, 39);
+    escape_cultist(&mut above);
+    assert_eq!(above.state().hp, 41, "41/80 is above half HP");
 }
 
 #[test]
@@ -696,7 +700,8 @@ fn m27_face_of_cleric_boundary() {
     let mut run = run_with_potions(RelicId::FaceOfCleric, vec![Some(PotionId::SmokeBomb), None, None]);
     lose_player_hp(&mut run, 40);
     escape_cultist(&mut run);
-    assert_eq!((run.state().max_hp, run.state().hp), (80, 40), "Escaped has no Victory max-HP effect (F3)");
+    // Amended by spire-d8g D1: Face of Cleric's onVictory runs on an escape too (M27 F3 was wrong).
+    assert_eq!((run.state().max_hp, run.state().hp), (81, 41), "Escaped grants the Victory max HP");
 }
 
 entry_power_test!(m27_gremlin_visage_player_weak, RelicId::GremlinVisage, "weak", 1, EncounterId::Cultist);

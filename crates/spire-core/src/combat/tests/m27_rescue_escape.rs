@@ -98,7 +98,9 @@ fn m27_smoke_bomb_rules_and_settlement() {
         .expect("Smoke Bomb escapes an ordinary Jaw Worm encounter");
     assert_eq!(run.state().last_combat.as_ref().map(|record| record.outcome),
         Some(crate::combat::Outcome::Escaped));
-    assert_eq!(run.state().hp, 40, "Burning Blood does not heal on Escaped (G9/F3)");
+    // Amended by spire-d8g D1: M27's G9 rule was wrong; the original's escape ends through endBattle,
+    // which runs the player's victory callbacks, so Burning Blood heals 6 on Escaped.
+    assert_eq!(run.state().hp, 46, "Burning Blood heals on Escaped");
     assert_eq!(transition.reward, 0);
     assert_eq!(transition.committed_events.len(), 1, "escape commits only CombatFinished, with no reward rows");
     assert!(run.state().combat.is_none(), "escape settles the training room");
@@ -110,16 +112,18 @@ fn m27_smoke_bomb_rules_and_settlement() {
         "combat-local Kunai state is dropped at settlement");
 }
 
+/// Amended by spire-d8g D1 (was `m27_g9_escape_skips_victory_relics`): M27's G9 rule was wrong. The
+/// original's escape ends through endBattle, which runs Meat on the Bone and the player's victory
+/// callbacks unconditionally; Smoke Bomb only suppresses rewards.
 #[test]
-fn m27_g9_escape_skips_victory_relics() {
-    for relics in [vec![RelicId::BurningBlood], vec![RelicId::BlackBlood],
-        vec![RelicId::MeatOnTheBone], vec![RelicId::FaceOfCleric]] {
+fn m27_g9_escape_runs_victory_relics() {
+    for (relics, expected) in [(vec![RelicId::BurningBlood], (46, 80)), (vec![RelicId::BlackBlood], (52, 80)),
+        (vec![RelicId::MeatOnTheBone], (52, 80)), (vec![RelicId::FaceOfCleric], (41, 81))] {
         let label = format!("{relics:?}");
         let mut run = m27_support::complete_run(Character::Ironclad, relics,
             vec![Some(PotionId::SmokeBomb), None, None], BTreeMap::new(), EncounterId::JawWorm);
         super::m27_state::set_player_hp(run.state_mut_for_test().combat.as_mut().unwrap(), 40);
         run.choose_combat(CombatAction::UsePotion { slot: 0, target: None }).unwrap();
-        assert_eq!(run.state().hp, 40, "{label} does not run its Victory effect on Escaped");
-        assert_eq!(run.state().max_hp, 80, "Face of Cleric does not grant Max HP on Escaped");
+        assert_eq!((run.state().hp, run.state().max_hp), expected, "{label} runs its Victory effect on Escaped");
     }
 }

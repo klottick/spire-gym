@@ -145,6 +145,18 @@ facts.
   deck included; identities are never reused. A combat that would create more
   (a long or generation-heavy fight) stops with the typed `Unsupported` fault
   "generated card count/runtime boundary". The original game has no such cap.
+- **Maximum HP and counters:** a Run's maximum HP is bounded at 999. A Run-side gain (Neow,
+  relics, events) that would exceed it stops with the typed `Unsupported` fault
+  "maximum HP overflow"; Feed above it stops with "Feed maximum HP ceiling
+  exceeded". Relic and power counters such as Self-Forming Clay's pending Block are
+  bounded at 999 too; above that the engine stops with a typed `Unsupported` fault (for
+  Clay, "Self-Forming Clay pending Block exceeded supported bound", after more than 333 HP
+  lost in one turn). The original game has no such caps.
+- **Input timing:** potions are offered only at decision boundaries. The original also
+  lets a potion be used while a played card's use is still queued. One such interleave
+  is not modelled: Distilled Chaos used before Time Warp's 12th card resolves. Its
+  queued top-card actions survive the early end, and a card they play can count toward
+  the reset Time Warp counter.
 - **Red Circlet duplicates:** the original allows a second Red Circlet only after
   the Boss relic pool is exhausted. A Standard run cannot exhaust that pool, so a
   duplicate Red Circlet is unreachable here and is not modelled.

@@ -306,7 +306,13 @@ pub(crate) fn run_event(state: &mut RunState, event: &mut RunItemEvent) -> Resul
     if let RunItemEvent::CombatSettled { outcome } = event {
         RUN_COMBAT_SETTLED_OUTCOMES.with(|log| log.borrow_mut().push(*outcome));
     }
+    // endBattle triggers Meat on the Bone before every other victory callback (spire-d8g D4).
+    let meat_first = matches!(event, RunItemEvent::CombatSettled { .. }) && state.relics.contains(&RelicId::MeatOnTheBone);
+    if meat_first {
+        handle_run(RelicId::MeatOnTheBone, state, event)?;
+    }
     for id in state.relics.clone() {
+        if meat_first && id == RelicId::MeatOnTheBone { continue; }
         handle_run(id, state, event)?;
     }
     Ok(())

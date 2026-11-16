@@ -19,6 +19,11 @@ pub fn supply_hp_and_keys(run: &mut Run, max_hp: u32, keys: bool) {
     if keys { run.state.keys = [true; 3]; }
 }
 
+/// spire-d8g stress supply (lane S s2g): the Run's gold, set before the first boundary. Nothing else changes.
+pub fn supply_gold(run: &mut Run, gold: u32) {
+    run.state.gold = gold;
+}
+
 /// M34b supplied frontier for env traversals (same grade as the M28/M33 constructed lethal hit, never a policy
 /// claim): one fixed hit on every living enemy of the current combat that leaves it at 1 HP, through the shared
 /// resolver (so Invincible, Intangible and Buffer still apply). The policy's next real attack finishes it.

@@ -302,7 +302,7 @@ pub(in crate::run) fn apply(run:&mut Run,outcomes:Vec<Outcome>)->Result<RunTrans
             Outcome::TransformRandom(n)=>{
                 let pool=select_candidates(state,EventSelectOp::Transform).iter().map(|c|c.instance).collect();
                 for (slot,instance) in random_cards(state,pool,n,&key)?.into_iter().enumerate(){
-                    mutations::transform_card(state,instance,false,&[&key[..],&[0xF0,slot as u64]].concat())?;
+                    mutations::transform_card_or_negated(state,instance,false,&[&key[..],&[0xF0,slot as u64]].concat())?;
                 }
             }
             Outcome::UpgradeRandom(n)=>{

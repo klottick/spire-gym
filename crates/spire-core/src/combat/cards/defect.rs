@@ -189,8 +189,7 @@ pub(in crate::combat) fn validate_work(state:&State,effect:&Effect,work:&DefectE
         let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("blue repeat parent source".into()))};
         let retired_parent=state.queued_autoplay.get(child).and_then(|c|c.full()).is_some_and(|copy|
             super::super::piles::owned_full_cards(state).any(|card|super::super::card_state::handle(card.instance)==*parent&&card.id==copy.id&&card.copy_family==copy.copy_family));
-        let owned=retired_parent||state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)||state.play_frames.iter().any(|frame|
-            matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent)&&frame.child==*child&&frame.parent_finish_checkpoint_done);
+        let owned=retired_parent||super::super::engine::queued_repeat_parent_owned(state,parent,child);
         if !state.full_runtime||effect.target.is_some()||!owned||!state.queued_autoplay.contains_key(child)||*energy_on_use< -1
             ||target.as_ref().is_some_and(|target|matches!(target,Actor::Enemy(id) if !state.enemies.iter().any(|e|&e.instance_id==id))) {
             return Err(InputError::Invariant("blue repeat retained custody".into()))
