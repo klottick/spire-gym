@@ -148,6 +148,10 @@ facts.
 - **Red Circlet duplicates:** the original allows a second Red Circlet only after
   the Boss relic pool is exhausted. A Standard run cannot exhaust that pool, so a
   duplicate Red Circlet is unreachable here and is not modelled.
+- **Wish after a won combat:** the engine opens no player choice once a combat is
+  won. In the original, a Wish choice whose screen opened just before the battle
+  ended could still pay Wish's gold (frame timing). The engine is not known to
+  reach that window ([CHANGES](../CHANGES.md), spire-3xq).
 - **Batching:** public search is capped at 256 workers and keeps a live search's
   first parallel pool until it drops or its worker count changes. Search preflight errors do not identify an
   entry index. A scheduler/bookkeeping panic freezes a batch; a resumed isolate
@@ -238,6 +242,8 @@ the post-merge build packet, the PM creates annotated tag `v1.0.0` on the merge
 commit and a GitHub Release; there is no PyPI release. The Release body and
 attached `DELIVERY.md` publish the built wheel and `.so` SHA-256 values and the
 final `source_digest`. These artifact values are not asserted in this handoff.
+Later releases follow the same steps: version `1.1.0` is tagged `v1.1.0` and
+described in its [release notes](releases/v1.1.0.md).
 
 ## 9. Open work and Beads dispositions
 
@@ -260,5 +266,5 @@ metadata fingerprint to `effbb810…`. The consumer does not yet use the Standar
 Run API. Removed names include `NativeIroncladCombatBatch` (no alias) and Rust examples
 `m22_same_choices.rs`, `m23_same_choices.rs`, `m24_same_choices.rs`. Legacy
 M9/M10, Gym66 and combat surfaces remain available under the protocol. See
-[release notes](releases/v1.0.0.md), [CHANGES](../CHANGES.md), and the
+release notes for [v1.0.0](releases/v1.0.0.md) and [v1.1.0](releases/v1.1.0.md), [CHANGES](../CHANGES.md), and the
 [milestone index](milestones/README.md).
