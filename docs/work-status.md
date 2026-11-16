@@ -1,6 +1,15 @@
 # Work status
 
-## Current snapshot — 2026-11-16, release 1.1.0
+## Current snapshot — 2026-11-16, release 1.1.1
+
+- Version 1.1.1 packages the spire-d8g gameplay fixes from the post-1.1.0 stress campaign (PR #114). Current rules IDs
+  are Standard v6, M10 (and Gym66) v3 and M9 v4; frozen fingerprints are unchanged. In windows with no targetable enemy,
+  costs are now shown and cost-reading effects act on them, as in the original. The Havoc card-order difference
+  remains open (spire-d4h). See the [1.1.1 release notes](releases/v1.1.1.md) and [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge; use Beads and
+  the primary session for live state.
+
+## Snapshot — 2026-11-16, release 1.1.0
 
 - Version 1.1.0 packages the work merged since v1.0.0: the M37a and M38a diagnostics (PRs #106 and #108), the M37b
   and M38b internal speedups (PRs #107 and #109),

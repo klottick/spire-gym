@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.1.1 — effective at the commit tagged v1.1.1
+
+See the [1.1.1 release notes](docs/releases/v1.1.1.md).
+
+- Set the project and Python package version to `1.1.1`. The version is a value, not a
+  frozen name: the bump leaves the `build_info()` keys, frozen identities, fingerprints and
+  replay digests unchanged. `source_digest` changes, because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs.
 - spire-d8g fixes in the shared engine, found by the 2026-11-16 stress campaign. Rules IDs move to
   `spire-gym-native-standard-rules-v6`, `spire-gym-native-m10-rules-v3` (also Gym66) and
   `spire-gym-native-m9-rules-v4`; the engine is shared, so every frozen profile is treated as

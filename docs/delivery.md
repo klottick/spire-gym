@@ -152,6 +152,10 @@ facts.
   bounded at 999 too; above that the engine stops with a typed `Unsupported` fault (for
   Clay, "Self-Forming Clay pending Block exceeded supported bound", after more than 333 HP
   lost in one turn). The original game has no such caps.
+- **Havoc card order (open):** when Havoc is copied (Burst, Duplication Potion) or played
+  by Distilled Chaos, the play order still differs from the original. For a copy, the
+  original plays the copy of Havoc before Havoc's top card; the engine plays the top card
+  first. These cases complete without a fault ([CHANGES](../CHANGES.md), spire-d4h).
 - **Input timing:** potions are offered only at decision boundaries. The original also
   lets a potion be used while a played card's use is still queued. One such interleave
   is not modelled: Distilled Chaos used before Time Warp's 12th card resolves. Its
@@ -255,7 +259,8 @@ commit and a GitHub Release; there is no PyPI release. The Release body and
 attached `DELIVERY.md` publish the built wheel and `.so` SHA-256 values and the
 final `source_digest`. These artifact values are not asserted in this handoff.
 Later releases follow the same steps: version `1.1.0` is tagged `v1.1.0` and
-described in its [release notes](releases/v1.1.0.md).
+version `1.1.1` is tagged `v1.1.1`, each described in its release notes
+([1.1.0](releases/v1.1.0.md), [1.1.1](releases/v1.1.1.md)).
 
 ## 9. Open work and Beads dispositions
 
@@ -278,5 +283,5 @@ metadata fingerprint to `effbb810…`. The consumer does not yet use the Standar
 Run API. Removed names include `NativeIroncladCombatBatch` (no alias) and Rust examples
 `m22_same_choices.rs`, `m23_same_choices.rs`, `m24_same_choices.rs`. Legacy
 M9/M10, Gym66 and combat surfaces remain available under the protocol. See
-release notes for [v1.0.0](releases/v1.0.0.md) and [v1.1.0](releases/v1.1.0.md), [CHANGES](../CHANGES.md), and the
+release notes for [v1.0.0](releases/v1.0.0.md), [v1.1.0](releases/v1.1.0.md) and [v1.1.1](releases/v1.1.1.md), [CHANGES](../CHANGES.md), and the
 [milestone index](milestones/README.md).
