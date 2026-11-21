@@ -258,7 +258,12 @@ wherever Shield and Spear is admitted, including Gym66 `ironclad-combat-v1/v2`, 
 
 **Sessions (`standard-combat-v1`).** `CombatTrainingCatalog::standard_from_json` and `CombatTrainingSession::new_standard`
 (Python `NativeStandardCombatSession` and the Gymnasium `StandardCombatEnv`) start one Standard combat per episode from
-owned resources:
+owned resources.
+
+Read the [combat entry resource descriptor](combat-entry-resources.md) before
+constructing a catalog to get per-character relic and potion IDs, counter and
+companion rules, potion slots and entry bounds.
+
 - **Catalog** `{"catalog_schema_id": "spire-gym-standard-combat-catalog-v1", "profile_id": "standard-combat-v1", "entries": [...]}`,
   ≤ 1 MiB, 1–256 entries, unknown fields rejected (hidden state such as `draw_order`, `seed`, `rng` or `hand` is never an
   input; M34s-c adds `bottled_cards`, `position` and recipe entries, [below](#tactical-starts-m34s-c)). Each entry: `id`, `character`, `ascension` (0–20), `encounter` (any row
@@ -268,7 +273,8 @@ owned resources:
   only values the engine runs: Searing Blow up to 73 upgrades, `misc` 0 except Genetic Algorithm 1–999 and Ritual Dagger
   15–3003), `relics` (the
   character's complete relic union, in acquisition order), `relic_counters` and `potions` (the slot count is 3, or 2 from
-  A11, plus 2 with Potion Belt). Resources are already owned: no acquisition effect is applied again. The normalised
+  A11, plus 2 with Potion Belt. Entries without the Belt also accept the two retained extra slots).
+  The entry starts with these resources already owned, so acquisition effects do not repeat. The normalised
   catalog is fingerprinted (`spire-gym/standard-combat-catalog/v1\0`) and returned by `catalog_descriptor()`.
 - **Episode.** `reset(seed, entry_id)` builds the Run from the validated resources and enters through the shared
   `enter_owned`; steps use the shared resolver. The episode ends at the combat's own terminal, before Run settlement:

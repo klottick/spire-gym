@@ -35,6 +35,7 @@ user did not request.
 | Batching | [batching contract](docs/batching.md) |
 | Gym66 and legacy combat training | [combat-training guide](docs/combat-training.md) and [environment guide](docs/combat-environments.md) |
 | Opt-in static card metadata | [card metadata](docs/card-metadata.md) |
+| Owned Standard combat entry resources | [entry resource descriptor](docs/combat-entry-resources.md) |
 | Shared observation vocabulary and descriptor changes | [observation vocabulary](docs/observation-vocabulary.md) |
 | Milestone status and profiles | [milestone index](docs/milestones/README.md) |
 | Mechanics research and source grades | [reference index](data/README.md) and its cited domain guides |

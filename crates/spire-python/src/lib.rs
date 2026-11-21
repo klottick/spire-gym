@@ -76,12 +76,20 @@ fn card_metadata(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
     numeric::descriptor(py, spire_env::card_metadata_descriptor().to_string())
 }
 
+/// Static resource admission for owned Standard combat entries.
+#[cfg(feature = "extension")]
+#[pyfunction]
+fn combat_entry_resources(py: Python<'_>) -> PyResult<Bound<'_, PyAny>> {
+    numeric::descriptor(py, spire_env::combat_entry_resources_descriptor().to_string())
+}
+
 /// The `spire_lab._native` module.
 #[cfg(feature = "extension")]
 #[pymodule]
 fn _native(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(build_info, m)?)?;
     m.add_function(wrap_pyfunction!(card_metadata, m)?)?;
+    m.add_function(wrap_pyfunction!(combat_entry_resources, m)?)?;
     m.add_class::<env::NativeCombatPool>()?;
     m.add_class::<run_env::NativeRunSession>()?;
     m.add_class::<run_env::PyExactCheckpoint>()?;

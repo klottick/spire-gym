@@ -128,42 +128,103 @@ impl CompleteCombatStart{
     /// M27 design §5.3: the same normalization with the item admission as a parameter. Under
     /// `Complete` the supplied relics, potions and counters go through the one complete
     /// validator, and the supplied relic order is kept: it is the acquisition order (§6.1).
-    pub(crate) fn normalized_for(self,character:Character,items:ItemAdmission)->Result<Self,RunError>{self.normalize(character,items,0,false)}
-    /// M34s-a `standard-combat-v1` (design §4.4): owned Standard resources at `ascension`: complete cards and items, the
-    /// ascension's potion base (A11), 1..=999 deck cards (the engine's combat-card bound), and only values the engine's
-    /// numeric surface runs (review M1): Ritual Dagger `misc` 15..=3003 and Searing Blow's damage at most 3003 (the card base
-    /// damage surface, `cards::normal_damage`), Genetic Algorithm `misc` 1..=999 (the Block cap).
-    pub(crate) fn normalized_standard(self,character:Character,ascension:u8)->Result<Self,RunError>{self.normalize(character,ItemAdmission::Complete,ascension,true)}
-    fn normalize(self,character:Character,items:ItemAdmission,ascension:u8,owned:bool)->Result<Self,RunError>{
-        let Self::Supplied(mut resources)=self;
-        let complete_items=items==ItemAdmission::Complete;
-        if resources.hp==0||resources.hp>resources.max_hp||resources.max_hp>999||!(1..=if owned{STANDARD_COMBAT_MAX_DECK}else{128}).contains(&resources.deck.len())||!complete_items&&resources.potions.len()!=3{return Err(RunError::InvalidAction)}
-        let misc_valid=|id:CardId,misc:i32|if owned{match id{
-            CardId::RitualDagger=>(complete_obtain_misc(id)..=CARD_BASE_DAMAGE_MAX).contains(&misc),
-            CardId::GeneticAlgorithm=>(complete_obtain_misc(id)..=999).contains(&misc),
-            _=>misc==0,
-        }}else{misc==complete_obtain_misc(id)};
-        let upgrades_run=|id:CardId,upgrades:u32|!owned||id!=CardId::SearingBlow
-            ||upgrades<=200&&crate::combat::cards::ironclad::rules::reconstructed_searing_damage(upgrades)<=CARD_BASE_DAMAGE_MAX;
-        let mut ids=std::collections::BTreeSet::new();
-        if resources.deck.iter().any(|c|c.instance==0||!ids.insert(c.instance)||!crate::content::complete::supports_permanent(c.id)
-            ||!complete_upgrades_valid(c.id,c.upgrades)||!upgrades_run(c.id,c.upgrades)||!misc_valid(c.id,c.misc)){
-            return Err(RunError::Unsupported("card outside the complete permanent union"))
+    pub(crate) fn normalized_for(self, character: Character, items: ItemAdmission) -> Result<Self, RunError> {
+        self.normalize(character, items, 0, false).map_err(|(error, _)| error)
+    }
+
+    /// Owned Standard resources use the complete unions and bounded numeric surfaces.
+    pub(crate) fn normalized_standard(self, character: Character, ascension: u8) -> Result<Self, (RunError, &'static str)> {
+        self.normalize(character, ItemAdmission::Complete, ascension, true)
+    }
+
+    fn normalize(self, character: Character, items: ItemAdmission, ascension: u8, owned: bool) -> Result<Self, (RunError, &'static str)> {
+        let Self::Supplied(mut resources) = self;
+        let complete_items = items == ItemAdmission::Complete;
+        let invalid = |message| (RunError::InvalidAction, message);
+        if resources.hp == 0 || resources.hp > resources.max_hp {
+            return Err(invalid("hp: must be 1..=max_hp"));
         }
-        if ids.last().is_none_or(|id|*id==u64::MAX){return Err(RunError::Unsupported("permanent identity exhausted"))}
-        let context=crate::items::CombatItemContext::new(resources.relics.clone(),resources.potions.clone()).with_counters(resources.relic_counters.clone()).with_ascension(ascension);
-        let context=complete_heart_context(context,character);
-        let context=if complete_items{context.with_complete_items()}else{context};
-        crate::items::validate_combat_inventory(&context,character)?;
-        resources.deck.sort_by_key(|c|(c.id.as_str(),c.upgrades,c.instance));
-        if !complete_items{resources.relics.sort_by_key(|r|r.as_str());}
+        if resources.max_hp > STANDARD_COMBAT_MAX_HP {
+            return Err(invalid("max_hp: must be at most 999"));
+        }
+        if !(1..=if owned { STANDARD_COMBAT_MAX_DECK } else { 128 }).contains(&resources.deck.len()) {
+            return Err(invalid("deck: requires 1..=999 cards"));
+        }
+        if !complete_items && resources.potions.len() != 3 {
+            return Err(invalid("potions: requires three slots"));
+        }
+        let card_error = |message| (RunError::Unsupported("card outside the complete permanent union"), message);
+        let mut ids = std::collections::BTreeSet::new();
+        for card in &resources.deck {
+            if card.instance == 0 || !ids.insert(card.instance) || !crate::content::complete::supports_permanent(card.id) {
+                return Err(card_error("deck: card outside the complete permanent union"));
+            }
+            let upgrades_valid = if owned {
+                card.upgrades <= standard_combat_upgrade_limit(card.id)
+            } else {
+                complete_upgrades_valid(card.id, card.upgrades)
+            };
+            if !upgrades_valid {
+                return Err(card_error("deck.upgrades: outside the card's bound"));
+            }
+            let misc_valid = if owned {
+                standard_combat_misc_range(card.id).contains(&card.misc)
+            } else {
+                card.misc == complete_obtain_misc(card.id)
+            };
+            if !misc_valid {
+                return Err(card_error("deck.misc: outside the card's bound"));
+            }
+        }
+        if ids.last().is_none_or(|id| *id == u64::MAX) {
+            return Err((RunError::Unsupported("permanent identity exhausted"), "deck: permanent identity exhausted"));
+        }
+        let context = crate::items::CombatItemContext::new(resources.relics.clone(), resources.potions.clone())
+            .with_counters(resources.relic_counters.clone()).with_ascension(ascension);
+        let context = complete_heart_context(context, character);
+        if complete_items {
+            crate::items::validate_complete_inventory_with_diagnostics(&context.with_complete_items(), character)?;
+        } else {
+            crate::items::validate_combat_inventory(&context, character).map_err(|error| (error, "invalid inventory"))?;
+        }
+        resources.deck.sort_by_key(|c| (c.id.as_str(), c.upgrades, c.instance));
+        if !complete_items {
+            resources.relics.sort_by_key(|r| r.as_str());
+        }
         Ok(Self::Supplied(resources))
     }
 }
-/// M34s-a: the engine's combat-card bound (an entry's deck plus entry-generated cards).
-pub const STANDARD_COMBAT_MAX_DECK:usize=999;
-/// M34s-a: the card base-damage surface of `combat::cards::normal_damage` (Ritual Dagger, Searing Blow).
-const CARD_BASE_DAMAGE_MAX:i32=3003;
+
+/// The total combat-card bound, including cards generated at entry.
+pub const STANDARD_COMBAT_MAX_DECK: usize = 999;
+pub const STANDARD_COMBAT_MAX_HP: u32 = 999;
+/// The card base-damage surface (Ritual Dagger and Searing Blow).
+const CARD_BASE_DAMAGE_MAX: i32 = 3003;
+
+/// The Standard combat entry upgrade limit for a permanent card.
+pub fn standard_combat_upgrade_limit(id: CardId) -> u32 {
+    if id == CardId::SearingBlow {
+        // Damage is monotone in this reconstruction range.
+        static LIMIT: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+        *LIMIT.get_or_init(|| (0..=200).rev().find(|&upgrades| {
+            crate::combat::cards::ironclad::rules::reconstructed_searing_damage(upgrades) <= CARD_BASE_DAMAGE_MAX
+        }).expect("base Searing Blow damage fits"))
+    } else {
+        crate::combat::static_card_upgrade_limit(id).expect("only Searing Blow has unbounded complete upgrades")
+    }
+}
+
+/// The Standard combat entry misc range for a permanent card.
+pub fn standard_combat_misc_range(id: CardId) -> std::ops::RangeInclusive<i32> {
+    let minimum = complete_obtain_misc(id);
+    let maximum = match id {
+        CardId::RitualDagger => CARD_BASE_DAMAGE_MAX,
+        CardId::GeneticAlgorithm => 999,
+        _ => minimum,
+    };
+    minimum..=maximum
+}
+
 /// Upgrade limits under complete admission (design §8.1): Searing Blow any count the
 /// `u32` rule represents, curses 0, every other card 0 or 1 where it upgrades.
 pub(crate) fn complete_upgrades_valid(id:CardId,upgrades:u32)->bool{

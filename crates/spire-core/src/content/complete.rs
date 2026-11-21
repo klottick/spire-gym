@@ -50,6 +50,13 @@ pub fn relic_union(character: super::Character) -> Vec<super::RelicId> {
         .collect()
 }
 
+/// The complete owned relic union, including the exhausted boss-pool fallback.
+pub fn entry_relic_union(character: super::Character) -> Vec<super::RelicId> {
+    let mut relics = relic_union(character);
+    relics.push(super::RelicId::RedCirclet);
+    relics
+}
+
 /// Every executable potion row (42).
 pub fn supports_potion(id: super::PotionId) -> bool {
     !matches!(id, super::PotionId::Unknown(_))

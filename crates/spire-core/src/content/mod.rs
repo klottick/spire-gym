@@ -47,6 +47,8 @@ impl Catalog {
         self.starter_relics.iter().find(|(owner, _)| *owner == character).map(|(_, relic)| *relic)
     }
     pub fn cards(&self) -> &'static [CardDefinition] { self.cards }
+    pub fn relics(&self) -> &'static [RelicDefinition] { self.relics }
+    pub fn potions(&self) -> &'static [PotionDefinition] { self.potions }
     pub fn eligibility(&self, id: CardId, producer: ContentProducer, character: Character) -> Result<bool, RegistryError> {
         self.card(id).ok_or(RegistryError::UnknownDefinition)?.eligible_for(producer, character)
     }

@@ -5,7 +5,15 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- M39a (spire-e0l) adds `spire_env::combat_entry_resources_descriptor()` and
+  Python `spire_lab.combat_entry_resources.load()` / `_native.combat_entry_resources()`.
+  The [versioned descriptor](docs/combat-entry-resources.md) publishes relic and
+  potion admission, counter and companion rules, potion-slot counts and bounds
+  for owned Standard combat entries.
+- Standard combat catalog decoding and validation name known fields or
+  resource classes in input errors, including `gold`, `hp`, `max_hp`, `deck`,
+  `deck.upgrades`, `deck.misc`, `relics`, `relic_counters`, `potions` and
+  `burning`. Catalog admission and error classes are unchanged.
 
 ## 1.1.1 — effective at the commit tagged v1.1.1
 
