@@ -87,7 +87,7 @@ fn color(value: CardColor) -> &'static str { match value { CardColor::Red => "re
     CardColor::Purple => "purple", CardColor::Colorless => "colorless", CardColor::Status => "status", CardColor::Curse => "curse", CardColor::Shared => "shared" } }
 fn rarity(value: CardRarity) -> &'static str { match value { CardRarity::Basic => "basic", CardRarity::Common => "common", CardRarity::Uncommon => "uncommon",
     CardRarity::Rare => "rare", CardRarity::Special => "special", CardRarity::Status => "status", CardRarity::Curse => "curse" } }
-fn card_type(value: CardType) -> &'static str { match value { CardType::Attack => "attack", CardType::Skill => "skill", CardType::Power => "power",
+pub(crate) fn card_type(value: CardType) -> &'static str { match value { CardType::Attack => "attack", CardType::Skill => "skill", CardType::Power => "power",
     CardType::Status => "status", CardType::Curse => "curse" } }
 fn tag_name(value: CardTag) -> &'static str { match value { CardTag::Strike => "strike", CardTag::StarterStrike => "starter_strike",
     CardTag::StarterDefend => "starter_defend", CardTag::Healing => "healing" } }

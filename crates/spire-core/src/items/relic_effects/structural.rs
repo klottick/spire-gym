@@ -247,13 +247,14 @@ pub(crate) fn bottle_eligible(bottle: RelicId, card: CardId) -> bool {
     crate::run::mutations::removable(card) && card_type(card).ok().is_some_and(|t| Some(t) == bottle_type(bottle))
 }
 
-fn bottle_type(id: RelicId) -> Option<CardType> {
-    match id {
-        RelicId::BottledFlame => Some(CardType::Attack),
-        RelicId::BottledLightning => Some(CardType::Skill),
-        RelicId::BottledTornado => Some(CardType::Power),
-        _ => None,
-    }
+pub(crate) const BOTTLE_TYPES: [(RelicId, CardType); 3] = [
+    (RelicId::BottledFlame, CardType::Attack),
+    (RelicId::BottledLightning, CardType::Skill),
+    (RelicId::BottledTornado, CardType::Power),
+];
+
+pub(crate) fn bottle_type(id: RelicId) -> Option<CardType> {
+    BOTTLE_TYPES.iter().find(|&&(bottle, _)| bottle == id).map(|&(_, kind)| kind)
 }
 
 fn card_type(id: CardId) -> Result<CardType, RunError> {

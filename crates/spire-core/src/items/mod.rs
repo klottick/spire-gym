@@ -339,8 +339,16 @@ impl CombatItemContext {
 /// `base + 2` with Potion Belt. F6: under complete admission a lost Potion Belt keeps its two slots,
 /// so `base + 2` stays valid without the belt.
 fn valid_potion_capacity(relics: &[RelicId], potions: &[Option<PotionId>], base: usize, complete: bool) -> bool {
-    if relics.contains(&RelicId::PotionBelt) { potions.len() == base + 2 } else { potions.len() == base || complete && potions.len() == base + 2 }
+    let expanded = base + POTION_BELT_EXTRA_SLOTS;
+    if relics.contains(&RelicId::PotionBelt) {
+        potions.len() == expanded
+    } else {
+        potions.len() == base || complete && potions.len() == expanded
+    }
 }
+
+/// Slots added by Potion Belt, which complete inventories keep after losing it.
+pub const POTION_BELT_EXTRA_SLOTS: usize = 2;
 
 fn validate_potion_obtain_input(relics:&[RelicId],potions:&[Option<PotionId>],base:usize,complete:bool,id:PotionId)->Result<(),InputError>{
     if !valid_potion_capacity(relics,potions,base,complete)||potions.iter().flatten().any(|id|crate::content::Catalog::standard().potion(*id).is_none())
@@ -600,38 +608,86 @@ pub(crate) fn validate_combat_inventory(context: &CombatItemContext,character:cr
     Ok(())
 }
 
-/// The domain of each persistent relic counter (design §7.5). `None`: the relic keeps no
-/// persistent counter, so a counter key for it is invalid.
-pub(crate) fn counter_domain(id:RelicId)->Option<std::ops::RangeInclusive<i32>>{
-    Some(match id{
-        RelicId::PenNib|RelicId::Nunchaku|RelicId::InkBottle=>0..=9,
-        RelicId::IncenseBurner=>0..=5,
-        RelicId::HappyFlower|RelicId::Sundial|RelicId::Omamori|RelicId::Matryoshka=>0..=2,
-        RelicId::WingBoots|RelicId::Girya|RelicId::TinyChest=>0..=3,
-        RelicId::Inserter=>-1..=1,
-        RelicId::NeowsLament=>-2..=3,
-        RelicId::Circlet=>1..=i32::MAX,
-        // Used / disabled / armed flags.
-        RelicId::LizardTail|RelicId::MawBank|RelicId::NlothsHungryFace|RelicId::AncientTeaSet=>1..=1,
-        _=>return None,
-    })
+/// Accepted counter values under complete admission, as inclusive intervals.
+pub fn complete_counter_intervals(id: RelicId) -> &'static [std::ops::RangeInclusive<i32>] {
+    match id {
+        RelicId::PenNib | RelicId::Nunchaku | RelicId::InkBottle => &[0..=9],
+        RelicId::IncenseBurner => &[0..=5],
+        RelicId::HappyFlower | RelicId::Sundial | RelicId::Omamori | RelicId::Matryoshka => &[0..=2],
+        RelicId::WingBoots | RelicId::Girya | RelicId::TinyChest => &[0..=3],
+        RelicId::Inserter => &[-1..=1],
+        RelicId::NeowsLament => &[-2..=-2, 1..=3],
+        RelicId::Circlet => &[1..=i32::MAX],
+        RelicId::LizardTail | RelicId::MawBank | RelicId::NlothsHungryFace | RelicId::AncientTeaSet => &[1..=1],
+        _ => &[],
+    }
 }
 
-/// The one complete-inventory validator (design §5.2), reached first from
-/// `validate_combat_inventory` under `complete_items()`.
-pub(crate) fn validate_complete_inventory(context:&CombatItemContext,character:Character)->Result<(),RunError>{
-    if !context.complete_cards(){return Err(RunError::Unsupported("complete items require the complete card capability"))}
-    let union=crate::content::complete::relic_union(character);
-    let mut seen=std::collections::BTreeSet::new();
-    // F7 makes Red Circlet the exhausted Boss fallback, so owned inventory admits it outside ordinary relic unions.
-    if context.relics.iter().any(|id|!(union.contains(id)||*id==RelicId::RedCirclet)||!seen.insert(*id)){return Err(RunError::InvalidAction)}
-    const REPLACEMENTS:[(RelicId,RelicId);4]=[(RelicId::BurningBlood,RelicId::BlackBlood),(RelicId::RingOfTheSnake,RelicId::RingOfTheSerpent),
-        (RelicId::CrackedCore,RelicId::FrozenCore),(RelicId::PureWater,RelicId::HolyWater)];
-    if REPLACEMENTS.iter().any(|(starter,boss)|context.owns_relic(*starter)&&context.owns_relic(*boss)){return Err(RunError::InvalidAction)}
-    let potions=crate::content::complete::potion_union(character);
-    if context.potions.iter().flatten().any(|id|!potions.contains(id))||!context.valid_potion_capacity(){return Err(RunError::InvalidAction)}
-    if context.counters.iter().any(|(id,value)|!context.owns_relic(*id)||!counter_domain(*id).is_some_and(|domain|domain.contains(value))){return Err(RunError::InvalidAction)}
-    if context.owns_relic(RelicId::NeowsLament)&&!matches!(context.counters.get(&RelicId::NeowsLament),Some(1..=3)|Some(-2)){return Err(RunError::InvalidAction)}
+const REQUIRED_COMPLETE_COUNTERS: [RelicId; 1] = [RelicId::NeowsLament];
+
+/// Whether an owned relic requires an explicit counter under complete admission.
+pub fn complete_counter_required(id: RelicId) -> bool {
+    REQUIRED_COMPLETE_COUNTERS.contains(&id)
+}
+
+/// Starter and replacement pairs that cannot coexist in a complete inventory.
+pub const STARTER_REPLACEMENTS: [(RelicId, RelicId); 4] = [
+    (RelicId::BurningBlood, RelicId::BlackBlood),
+    (RelicId::RingOfTheSnake, RelicId::RingOfTheSerpent),
+    (RelicId::CrackedCore, RelicId::FrozenCore),
+    (RelicId::PureWater, RelicId::HolyWater),
+];
+
+/// The one complete-inventory validator, reached from combat inventory validation
+/// under complete item admission.
+pub(crate) fn validate_complete_inventory(context: &CombatItemContext, character: Character) -> Result<(), RunError> {
+    validate_complete_inventory_with_diagnostics(context, character).map_err(|(error, _)| error)
+}
+
+pub(crate) fn validate_complete_inventory_with_diagnostics(
+    context: &CombatItemContext,
+    character: Character,
+) -> Result<(), (RunError, &'static str)> {
+    if !context.complete_cards() {
+        let message = "complete items require the complete card capability";
+        return Err((RunError::Unsupported(message), message));
+    }
+    let invalid = |message| (RunError::InvalidAction, message);
+    let union = crate::content::complete::entry_relic_union(character);
+    let mut seen = std::collections::BTreeSet::new();
+    for id in &context.relics {
+        if !union.contains(id) {
+            return Err(invalid("relics: relic outside the character's Standard relics"));
+        }
+        if !seen.insert(*id) {
+            return Err(invalid("relics: duplicate relic"));
+        }
+    }
+    if STARTER_REPLACEMENTS.iter().any(|(starter, boss)| context.owns_relic(*starter) && context.owns_relic(*boss)) {
+        return Err(invalid("relics: a starter relic with its boss replacement"));
+    }
+    let potions = crate::content::complete::potion_union(character);
+    if context.potions.iter().flatten().any(|id| !potions.contains(id)) {
+        return Err(invalid("potions: potion outside the character's Standard potions"));
+    }
+    if !context.valid_potion_capacity() {
+        return Err(invalid("potions: invalid slot count for ascension and Potion Belt"));
+    }
+    for (id, value) in &context.counters {
+        if !context.owns_relic(*id) {
+            return Err(invalid("relic_counters: counter for a relic that is not owned"));
+        }
+        let intervals = complete_counter_intervals(*id);
+        if intervals.is_empty() {
+            return Err(invalid("relic_counters: relic keeps no counter"));
+        }
+        if !intervals.iter().any(|interval| interval.contains(value)) {
+            return Err(invalid("relic_counters: counter outside the relic's values"));
+        }
+    }
+    if REQUIRED_COMPLETE_COUNTERS.iter().any(|id| context.owns_relic(*id) && !context.counters.contains_key(id)) {
+        return Err(invalid("relic_counters: neows_lament requires a counter"));
+    }
     Ok(())
 }
 

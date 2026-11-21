@@ -67,6 +67,7 @@ fn frozen_identities() {
     let fp = |spec: Result<RunObservationSpec, RunSessionError>| hex(spec.unwrap().fingerprint());
     let standard_caps = RunCapacities::standard_default();
     let metadata = card_metadata_descriptor();
+    let entry_resources = combat_entry_resources_descriptor();
     let actual: Vec<(&str, String)> = vec![
         // Standard family
         ("standard.observation_schema", RUN_OBSERVATION_STANDARD_SCHEMA_ID.into()),
@@ -95,6 +96,8 @@ fn frozen_identities() {
         // Card metadata
         ("card_metadata.schema", CARD_METADATA_SCHEMA_ID.into()),
         ("card_metadata.fingerprint", metadata["fingerprint"].as_str().unwrap().into()),
+        ("entry_resources.schema", COMBAT_ENTRY_RESOURCES_SCHEMA_ID.into()),
+        ("entry_resources.fingerprint", entry_resources["fingerprint"].as_str().unwrap().into()),
         // M9 Run-v1
         ("m9.observation_schema", RUN_OBSERVATION_SCHEMA_ID.into()),
         ("m9.observation_fingerprint", fp(run_observation_spec(&RunCapacities::m9_default()))),
@@ -157,6 +160,8 @@ pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("standard.compact_capacity_preset", "standard-compact-v1"),
     ("card_metadata.schema", "spire-lab-card-metadata-v1"),
     ("card_metadata.fingerprint", "effbb810d345e906f6e20b47bd972e35d72ef48141378d54bd28b54afac5f406"),
+    ("entry_resources.schema", "spire-lab-combat-entry-resources-v1"),
+    ("entry_resources.fingerprint", "4eafca3b0089e15735fb6aef24d594a084030438daa9738a1ac8cf6eab75dc5a"),
     ("m9.observation_schema", "spire-gym-run-observation-v1"),
     ("m9.observation_fingerprint", "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),
     ("m9.rules", "spire-gym-native-m9-rules-v4"),

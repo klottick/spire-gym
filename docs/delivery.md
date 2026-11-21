@@ -212,6 +212,10 @@ table and replay corpus are asserted by the freeze tests. Batching has no
 standalone version ID. **Gym66 shares the M10 rules ID; combat-v1 has no rules
 ID.**
 
+M39a adds the opt-in [combat entry resource descriptor](combat-entry-resources.md)
+with schema `spire-lab-combat-entry-resources-v1` and fingerprint `4eafca3b…`.
+Its identity is pinned alongside the existing frozen contracts.
+
 1. Fix real gameplay bugs globally. **Affected** means every frozen profile
    whose gameplay routes through the changed rules code. Since the engine is
    shared, treat all frozen profiles as affected by default. A review may exempt

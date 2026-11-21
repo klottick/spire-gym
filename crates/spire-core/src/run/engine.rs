@@ -4,7 +4,7 @@ use super::*;
 
 /// The Run's base potion slots (M31 design §6.2; source check §B): 3, or 2 from A11, made at player
 /// construction before Neow. Potion Belt adds two to it.
-pub(crate) fn potion_base_slots(ascension:u8)->usize{if ascension>=11{2}else{3}}
+pub fn potion_base_slots(ascension:u8)->usize{if ascension>=11{2}else{3}}
 
 #[derive(Clone, PartialEq, Eq)] pub struct Run { pub(super) state:RunState, pub(super) candidates:Vec<Candidate>, pub(super) next_choice:u64 }
 impl Run {

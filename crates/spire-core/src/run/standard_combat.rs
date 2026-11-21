@@ -4,7 +4,8 @@
 //! effects never run.
 use super::*;
 use crate::combat::enemies::{EncounterKind, A0_ENCOUNTER_SETUPS};
-use crate::content::{Character, EncounterId, RelicId};
+use crate::content::{CardType, Character, EncounterId, RelicId};
+use crate::items::relic_effects::structural::BOTTLE_TYPES;
 
 /// One owned Standard combat start. Resources are already owned: acquisition effects are not re-applied.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,12 +35,11 @@ impl StandardCombatStart {
     /// PM ruling c0 (6): the bottle links (every owned bottle exactly once: an owned eligible deck instance, no shared card,
     /// or explicitly none).
     pub fn validate_bottled_cards(&self)->Result<(),&'static str>{
-        let bottles=[RelicId::BottledFlame,RelicId::BottledLightning,RelicId::BottledTornado];
-        for bottle in bottles.into_iter().filter(|b|self.resources.relics.contains(b)){
+        for (bottle, _) in BOTTLE_TYPES.into_iter().filter(|(id, _)| self.resources.relics.contains(id)) {
             if self.bottled_cards.iter().filter(|(r,_)|*r==bottle).count()!=1{return Err("bottled_cards: an owned Bottled relic names exactly one bottled deck card")}
         }
         for (i,(relic,instance)) in self.bottled_cards.iter().enumerate(){
-            if !bottles.contains(relic)||!self.resources.relics.contains(relic){return Err("bottled_cards: relic is not an owned Bottled relic")}
+            if standard_combat_bottle_type(*relic).is_none()||!self.resources.relics.contains(relic){return Err("bottled_cards: relic is not an owned Bottled relic")}
             if self.bottled_cards[..i].iter().any(|(r,x)|r==relic||x.is_some()&&x==instance){return Err("bottled_cards: duplicated bottle or card")}
             // `None`: an owned bottle with no card (final review m1: native when no card was eligible at pickup, or the
             // bottled card was later removed, e.g. by Vampires).
@@ -64,20 +64,42 @@ pub fn standard_combat_encounter(encounter:EncounterId)->Option<(u8,EncounterKin
     A0_ENCOUNTER_SETUPS.iter().find(|(id,_,_)|*id==encounter).map(|(_,act,kind)|(*act,*kind))
 }
 
+/// Card type required by an owned bottle's companion link, if any.
+pub fn standard_combat_bottle_type(relic: RelicId) -> Option<CardType> {
+    crate::items::relic_effects::structural::bottle_type(relic)
+}
+
 impl Run {
-    /// Validate and own the resources of one Standard combat (complete card and item admission at `ascension`).
-    pub fn prepare_standard_combat(start:StandardCombatStart,rng:RunRng)->Result<Self,RunError>{
-        if start.ascension>STANDARD_MAX_ASCENSION{return Err(RunError::InvalidAscension(start.ascension))}
-        let (act,kind)=standard_combat_encounter(start.encounter).ok_or(RunError::Unsupported("encounter outside the Standard setup table"))?;
-        if start.burning.is_some()&&kind!=EncounterKind::Elite{return Err(RunError::Unsupported("burning requires an elite encounter"))}
-        start.validate_bottled_cards().map_err(RunError::Unsupported)?;
-        start.validate_position().map_err(|_|RunError::Unsupported("invalid synthetic position"))?;
-        let CompleteCombatStart::Supplied(resources)=CompleteCombatStart::Supplied(start.resources).normalized_standard(start.character,start.ascension)?;
-        let next=resources.deck.iter().map(|c|c.instance).max().unwrap().checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+    /// Validate and own the resources of one Standard combat.
+    pub fn prepare_standard_combat(start: StandardCombatStart, rng: RunRng) -> Result<Self, RunError> {
+        Self::prepare_standard_combat_with_diagnostics(start, rng).map_err(|(error, _)| error)
+    }
+
+    /// Prepare a Standard combat, with a public-input diagnostic on validation errors.
+    pub fn prepare_standard_combat_with_diagnostics(
+        start: StandardCombatStart,
+        rng: RunRng,
+    ) -> Result<Self, (RunError, &'static str)> {
+        let unsupported = |message| (RunError::Unsupported(message), message);
+        if start.ascension > STANDARD_MAX_ASCENSION {
+            return Err((RunError::InvalidAscension(start.ascension), "ascension: outside 0..=20"));
+        }
+        let (act, kind) = standard_combat_encounter(start.encounter)
+            .ok_or_else(|| unsupported("encounter outside the Standard setup table"))?;
+        if start.burning.is_some() && kind != EncounterKind::Elite {
+            return Err(unsupported("burning requires an elite encounter"));
+        }
+        start.validate_bottled_cards().map_err(unsupported)?;
+        start.validate_position().map_err(|_| unsupported("invalid synthetic position"))?;
+        let CompleteCombatStart::Supplied(resources) = CompleteCombatStart::Supplied(start.resources)
+            .normalized_standard(start.character, start.ascension)?;
+        let next = resources.deck.iter().map(|c| c.instance).max().unwrap().checked_add(1)
+            .ok_or_else(|| unsupported("permanent identity exhausted"))?;
         let mut run=Self::from_validated_combat_resources(RunConfig{character:start.character,ascension:start.ascension},resources,rng,next);
         run.state.authored_combat=false;run.state.act=act;run.state.room="StandardCombat";
         run.state.card_admission=CardAdmission::Complete;run.state.item_admission=ItemAdmission::Complete;
-        run.state.relic_pools=Some(crate::items::relic_pools::build(&run.state,&[])?);
+        run.state.relic_pools = Some(crate::items::relic_pools::build(&run.state, &[])
+            .map_err(|error| (error, "invalid Standard combat entry resources"))?);
         run.state.combat_scope=Some(CombatScope{encounter:start.encounter,burning:start.burning});
         run.state.relic_cards=start.bottled_cards.iter().filter_map(|(r,i)|i.map(|i|(*r,i))).collect();
         run.state.combat_position=start.position.map(Box::new);

@@ -16,6 +16,7 @@ NATIVE_CALLABLES = {
     "NativeCombatPool", "NativeCombatTrainingBatch", "NativeIroncladCombatSession", "NativePublicSearch",
     "NativeRunBatch", "NativeRunSession", "NativeStandardCombatSession", "RunBudgetError", "RunFaultError",
     "RunInputError", "RunStateError", "RunUnsupportedBoundaryError", "build_info", "card_metadata",
+    "combat_entry_resources",
 }
 BUILD_INFO_KEYS = {"dirty", "extension", "features", "file_digest", "profile", "revision", "rust_version", "source_digest"}
 
