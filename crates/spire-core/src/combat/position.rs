@@ -241,6 +241,7 @@ fn replace_piles(s: &mut State, p: &PositionPiles, deck: &[crate::run::CardInsta
     s.piles = Default::default();
     s.card_ids_issued = fresh.iter().map(|(_, c)| card_state::handle(c.instance)).collect();
     s.public = super::model::PublicKnowledge { revealed_order: vec![], known_draw: vec![], known_draw_bottom: vec![] };
+    s.public_target_plays.clear();
     let mut take = |s: &mut State, row: &PositionCard| -> Result<OwnedCard, PositionError> {
         if row.generated {
             let instance = super::piles::next_generated_instance(s).map_err(|_| Input("piles: generated card identity exhausted"))?;

@@ -1535,7 +1535,7 @@ impl Combat {
             pending_selection: None, temporary_retain:None,nightmare_templates:vec![],next_nightmare_installation_id:1,hook_events: vec![], attempted_action: None,
              fault_selection: None, player_full_powers: vec![], item_context: None,
               character: super::characters::CharacterState::for_character(crate::content::Character::Ironclad),
-                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default() } }
+                 card_rng: None, replacement_progress: None, actor_slots:BTreeMap::new(),facing:None,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default(),public_target_plays:Default::default() } }
     }
 
     fn build_full(setup: super::model::FullCombatSetup, rng: super::model::CombatRng) -> Self {
@@ -1570,7 +1570,7 @@ impl Combat {
                 hook_events: vec![], attempted_action: None, fault_selection: None,
                 player_full_powers, item_context: None,
                 character,
-                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default() } }
+                   card_rng: Some(setup.card_rng), replacement_progress: None,actor_slots,facing,spawn_ordinals:BTreeMap::new(),spawn_progress:None,stasis:BTreeMap::new(),permanent_gains:vec![],next_permanent_gain:1,played_powers:vec![],played_card_types:vec![],inactive_cards:vec![],play_frames:vec![],play_context:None,queued_autoplay:BTreeMap::new(),pending_time_warp:None,extra_turn_pending:false,damage_events_this_combat:0,silent:Default::default(),combust:None,thief_gold:None,colorless:Default::default(),defect:Default::default(),watcher:Default::default(),knowledge:Default::default(),public_target_plays:Default::default() } }
     }
 
     pub(super) fn refresh_legacy_cache(&mut self) {

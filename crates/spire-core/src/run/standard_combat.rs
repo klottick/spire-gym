@@ -196,6 +196,18 @@ impl Run {
         let GameAction::Combat(crate::combat::CombatAction::SelectCard{instance})=action else{return false};
         self.state.combat.as_ref().is_some_and(|c|c.pick_depends_on_hidden_order(*instance))
     }
+    /// M40a: the action a search branch applies for `action` when it picks among identical unpublished draw-pile copies and
+    /// the pick can be made independent of hidden copy labels (`Combat::identical_pick_rank`); `None` where the branch keeps
+    /// the action (or refuses it, `pick_depends_on_hidden_order`). `origin` is the branch's sample key and `ordinal` the
+    /// number of actions it has accepted, so the research draw is deterministic, separate from every game stream and
+    /// reproduced by replay. Public.
+    pub fn resolve_identical_pick(&self,action:&GameAction,origin:&[u8;32],ordinal:u64)->Option<GameAction>{
+        let GameAction::Combat(crate::combat::CombatAction::SelectCard{instance})=action else{return None};
+        let label=[b"spire-gym-public-search-v1/identical-pick\0".as_slice(),&ordinal.to_be_bytes()].concat();
+        let key=crate::combat::rng::hmac_sha256(origin,&label);
+        let replacement=self.state.combat.as_ref()?.identical_pick_rank(*instance,&key)?;
+        Some(GameAction::Combat(crate::combat::CombatAction::SelectCard{instance:replacement}))
+    }
     /// The heap the live combat's draw knowledge retains (public: a function of the knowledge; final review I2 measurement).
     pub fn public_knowledge_heap_bytes(&self)->Option<usize>{self.state.combat.as_ref()?.draw_knowledge().ok().map(|k|k.heap_bytes())}
     fn stream_identity(&self)->Option<OwnedStreamIdentity>{

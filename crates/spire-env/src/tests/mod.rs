@@ -19,6 +19,7 @@ mod m34s_transplant;
 mod m34s_search;
 mod m34s_search_measure;
 mod m34s_dup_pairs;
+mod m40a_coverage;
 mod m34s_recipes;
 mod m35_batch_unit;
 mod m35_r2;

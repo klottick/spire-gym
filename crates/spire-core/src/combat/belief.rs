@@ -116,11 +116,15 @@ pub(crate) fn sample_draw_classes(knowledge: &DrawKnowledge, rng: &mut impl Unif
 /// autoplay target held across a suspended child play (Havoc, Mayhem, Distilled Chaos), captured but unoffered generated
 /// cards, an Alchemize proposal, and spawn or replacement work in progress.
 fn allow_list(state: &State) -> Result<(), Unsupported> {
-    for effect in state.pending.iter().chain(state.current.iter()) { allow_effect(&effect.kind)?; }
+    for effect in state.pending.iter().chain(state.current.iter()) { allow_effect(state, &effect.kind)?; }
     // A nested child play holding an enemy target: the autoplay paths draw that target at random (Havoc, Mayhem, Distilled
-    // Chaos); a replayed player target (Double Tap, Duplication) is denied too (fail closed; disclosed).
-    if state.play_frames.iter().any(|f| matches!(f.target, Some(Actor::Enemy(_)))) {
-        return Err(Unsupported::DisallowedContinuation("a nested card play holds an enemy target"))
+    // Chaos, Omniscience), so it is denied; a repeat copy of the player's own hand play (Double Tap, Duplication, Echo Form,
+    // Necronomicon, Burst, Amplify) holds the player's public choice and is recorded in `public_target_plays` (M40a). Not
+    // recorded means denied.
+    for frame in &state.play_frames {
+        if matches!(frame.target, Some(Actor::Enemy(_))) && !state.public_target_plays.contains(&frame.child) {
+            return Err(Unsupported::DisallowedContinuation("a nested card play holds an enemy target"))
+        }
     }
     if state.spawn_progress.is_some() || state.replacement_progress.is_some() {
         return Err(Unsupported::DisallowedContinuation("enemy spawn or replacement in progress"))
@@ -131,9 +135,14 @@ fn allow_list(state: &State) -> Result<(), Unsupported> {
     }
     Ok(())
 }
-fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
+fn allow_effect(state: &State, kind: &EffectKind) -> Result<(), Unsupported> {
     use EffectKind::*;
     let deny = |what| Err(Unsupported::DisallowedContinuation(what));
+    // A queued repeat copies the target of the play it repeats: public only when that play was the player's (M40a).
+    let allow_repeat = |child: &CardHandle, target: &Option<Actor>| match target {
+        Some(Actor::Enemy(_)) if !state.public_target_plays.contains(child) => deny("a queued repeat holds a randomly chosen target"),
+        Some(Actor::Enemy(_)) | Some(Actor::Player) | None => Ok(()),
+    };
     let allow_watcher = |work: &super::cards::watcher::WatcherEffect| {
         use super::cards::watcher::WatcherEffect as W;
         match work {
@@ -158,8 +167,8 @@ fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
                 R::Aggregate{..} | R::DoubleEnergy | R::RandomHit{..} | R::Chaos{..} | R::Melter{..}
                 | R::Sunder{..} | R::SunderCheck => Ok(()),
             },
-            D::EssenceOfDarkness{..} | D::GeneticGrowth{..} | D::ClawGrowth | D::SteamWear | D::StreamlineCost
-            | D::Repeat{..} => Ok(()),
+            D::Repeat{child, target, ..} => allow_repeat(child, target),
+            D::EssenceOfDarkness{..} | D::GeneticGrowth{..} | D::ClawGrowth | D::SteamWear | D::StreamlineCost => Ok(()),
         }
     };
     let allow_thief = |work: &super::enemies::act1::thieves::ThiefEffect| {
@@ -223,6 +232,7 @@ fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
             | super::enemies::GuardianEffect::Reset | super::enemies::GuardianEffect::LoseBlock => Ok(()) },
         HexaghostBurn(work) => match work { super::enemies::HexaghostEffect::UpgradeBurns | super::enemies::HexaghostEffect::InsertBurns => Ok(()) },
         Silent(work) => match work {
+            super::cards::SilentEffect::BurstRepeat{child, target, ..} => allow_repeat(child, target),
             super::cards::SilentEffect::FlaskBounce{..} => deny("a Flask of Poison bounce holds a randomly chosen target"),
             super::cards::SilentEffect::DrawContinue(_) | super::cards::SilentEffect::BaneHit{..}
             | super::cards::SilentEffect::FlaskStart{..} | super::cards::SilentEffect::ToolsDiscard{..}
@@ -231,7 +241,7 @@ fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
             | super::cards::SilentEffect::DiscardSpecific{..} | super::cards::SilentEffect::Gamble | super::cards::SilentEffect::Unload
             | super::cards::SilentEffect::Expertise{..} | super::cards::SilentEffect::EscapePlanBlock{..}
             | super::cards::SilentEffect::AttackCountHits{..} | super::cards::SilentEffect::SkillCountHits{..}
-            | super::cards::SilentEffect::SneakyEnergy | super::cards::SilentEffect::BurstRepeat{..}
+            | super::cards::SilentEffect::SneakyEnergy
             | super::cards::SilentEffect::StormOfSteel{..} => Ok(()),
         },
         Colorless(work) => match work {
@@ -247,8 +257,9 @@ fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
         },
         Potion(work) => match work {
             PotionEffect::DistilledChaosTopCard{..} | PotionEffect::DistilledChaosQueuedChild{..} => deny("a queued Distilled Chaos play holds a random target"),
+            PotionEffect::DuplicationRepeat{child, target, ..} => allow_repeat(child, target),
             PotionEffect::UpgradeHand | PotionEffect::RandomizeHandCosts | PotionEffect::GamblersBrewSelectDiscard
-            | PotionEffect::LiquidMemories{..} | PotionEffect::LiquidMemoriesRetrieve{..} | PotionEffect::DuplicationRepeat{..}
+            | PotionEffect::LiquidMemories{..} | PotionEffect::LiquidMemoriesRetrieve{..}
             | PotionEffect::EntropicBrew{..} => Ok(()),
         },
         Relic(work) => match work {
@@ -259,9 +270,10 @@ fn allow_effect(kind: &EffectKind) -> Result<(), Unsupported> {
             use super::cards::IroncladEffect as I;
             match work {
                 I::HavocTop { .. } | I::HavocExtract { .. } | I::HavocQueued { .. } => deny("a queued Havoc play holds a random target"),
+                I::DoubleTapRepeat { child, target, .. } => allow_repeat(child, target),
                 I::UpgradeHand { .. } | I::UpgradeCard { .. } | I::SwordBoomerangHit { .. } | I::DoubleCurrentBlock | I::SpotWeakness { .. }
                 | I::TrueGritRandomExhaust | I::ChooseTrueGritCard | I::ChooseHeadbuttCard | I::ChooseExhumeCard | I::ChooseDualWieldCard
-                | I::WhirlwindRound { .. } | I::WhirlwindSpend | I::DoubleTapRepeat { .. } | I::FinishSuppressed | I::LimitBreakDispatch
+                | I::WhirlwindRound { .. } | I::WhirlwindSpend | I::FinishSuppressed | I::LimitBreakDispatch
                 | I::DropkickDispatch { .. } | I::RampageGrow { .. } | I::ReaperResolve { .. } | I::InfernalBladeGenerate => Ok(()),
             }
         }

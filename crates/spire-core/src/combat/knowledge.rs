@@ -643,6 +643,46 @@ impl Combat {
         let published = |h: &&CardHandle| state.public.known_draw.contains(h) || state.public.known_draw_bottom.contains(h);
         copies.len() >= 2 && !copies.iter().all(published)
     }
+    /// M40a: the replacement for a pick that [`Self::pick_depends_on_hidden_order`] refuses, when the pick can be made
+    /// independent of hidden copy labels: the instance of the class-`C` candidate at a uniformly random rank (from `key`)
+    /// counted by physical draw position, top first. Positions follow the sampled class sequence, never labels, so
+    /// public-equivalent worlds give the same outcome whichever identical candidate was named. `Some` only where that is the
+    /// exact posterior law (every other case keeps the refusal): a single-pick, non-modal draw grid with nothing selected yet;
+    /// draw order not revealed (Frozen Eye keeps its refusal); two or more candidates of the class, none published; the draw
+    /// knowledge representable and, in every component, no known `C` card and exactly one bag entry for `C` holding all the
+    /// candidates' copies, with no partial top-exclusion (the condition under which `remove_chosen` is exact).
+    pub fn identical_pick_rank(&self, instance: u64, key: &[u8; 32]) -> Option<u64> {
+        use super::belief::{ResearchStream, Uniform};
+        let state = &self.state;
+        let selection = state.pending_selection.as_ref()?;
+        if selection.source_zone != SelectionSourceZone::Draw || selection.maximum != 1 || !selection.selected.is_empty()
+            || super::cards::watcher::modal(selection.operation) || super::view::public_rules(state).reveal_draw_order { return None }
+        let class = |h: &CardHandle| state.piles.draw.iter().find(|c| c.handle() == *h).and_then(|c| class_of(state, c));
+        let chosen = super::card_state::handle(CardInstanceId(instance));
+        if !selection.candidates.contains(&chosen) { return None }
+        let target = class(&chosen)?;
+        let mut copies = vec![];
+        for h in &selection.candidates { if class(h) == Some(target) { copies.push(h.clone()); } }
+        let published = |h: &CardHandle| state.public.known_draw.contains(h) || state.public.known_draw_bottom.contains(h);
+        if copies.len() < 2 || copies.iter().any(published) { return None }
+        let knowledge = self.draw_knowledge().ok()?;
+        let index = knowledge.classes.iter().position(|c| *c == target)? as u16;
+        let n = u16::try_from(copies.len()).ok()?;
+        for component in &knowledge.components {
+            let mut holders = component.segments.iter().filter_map(|segment| match segment {
+                Segment::Known(k) => (*k == index).then_some(None),
+                Segment::Bag(entries) => entries.iter().find(|e| e.class == index).map(Some),
+            });
+            let Some(Some(entry)) = holders.next() else { return None };
+            if holders.next().is_some() || entry.count != n || !(entry.excluded == 0 || entry.excluded == entry.count) { return None }
+        }
+        // Physical order is bottom to top: the top copy has the highest index.
+        let position = |h: &CardHandle| state.piles.draw.iter().position(|c| c.handle() == *h);
+        let mut by_depth = copies.iter().map(|h| position(h).map(|p| (std::cmp::Reverse(p), h.clone()))).collect::<Option<Vec<_>>>()?;
+        by_depth.sort();
+        let rank = ResearchStream::new(*key).below(by_depth.len() as u128) as usize;
+        by_depth[rank].1.as_str().parse().ok()
+    }
     /// M34s-a public draw knowledge (design §4.5.1): the exact posterior over the draw pile's class sequence given
     /// public history, in normal form, or `Unrepresentable` (L1). With Frozen Eye the true order is public.
     /// Without maintenance (`maintains_public_knowledge` false) there is no knowledge: always `Unrepresentable`, never stale.
