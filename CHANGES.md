@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.0 — effective at the commit tagged v1.2.0
+
+See the [1.2.0 release notes](docs/releases/v1.2.0.md).
+
+- Set the project and Python package version to `1.2.0`. The version is a value, not a
+  frozen name: the bump leaves the `build_info()` keys, frozen identities, fingerprints and
+  replay digests unchanged. `source_digest` changes, because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs.
 - M39b adds the opt-in `spire-gym-standard-combat-view-compact-v1` layout
   for standalone Standard combat sessions and batches and PublicSearch branch
   views. `observation="compact"` selects `standard-combat-compact-v1`;
