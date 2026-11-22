@@ -17,6 +17,10 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   `pyproject.toml` is a build-digest input, extensions built after this change
   report new `source_digest` and `file_digest` values. Runtime behavior and
   frozen identities are unchanged.
+- spire-lez: the `a20_checks` example adds `S.step_limit_episodes` to its JSON
+  and prints a stderr line for each single-session episode that reaches the
+  20,000-action limit, giving its character, ascension, seed and step count.
+  Diagnostic only; the episodes and other output are unchanged.
 - M39a (spire-e0l) adds `spire_env::combat_entry_resources_descriptor()` and
   Python `spire_lab.combat_entry_resources.load()` / `_native.combat_entry_resources()`.
   The [versioned descriptor](docs/combat-entry-resources.md) publishes relic and

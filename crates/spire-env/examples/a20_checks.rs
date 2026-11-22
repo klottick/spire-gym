@@ -5,7 +5,8 @@
 //! rows (`group`, `capacity`, `max_occupied`, `headroom`). `S` is four characters by
 //! `--seeds`; `B` measures 64 mixed slots for `--batch-steps` batch calls at each
 //! requested worker count; `M` records process RSS and runs a 256-slot reset plus 50
-//! batch calls. RSS values are KiB, or `"unavailable"` off Linux.
+//! batch calls. RSS values are KiB, or `"unavailable"` off Linux. `S.step_limit_episodes` lists every `S` episode
+//! that reached the 20,000-action limit (`character`, `ascension`, `seed`, `steps`); each is also printed to stderr.
 //!
 //! Usage: `a20_checks [--seeds N] [--batch-steps K] [--workers 1,4,16] [--out PATH] [--smoke] [--speed-check]
 //! [--observation dense|compact]`.
@@ -147,6 +148,7 @@ fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>, observation: R
     let mut measured = Duration::ZERO;
     let mut lengths = Vec::new();
     let mut terminals = BTreeMap::<String, usize>::new();
+    let mut capped = Vec::new();
     let wall = Instant::now();
     for character in characters {
         for seed_index in 0..seeds {
@@ -171,6 +173,11 @@ fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>, observation: R
                 occupied(&boundary, maxima);
             }
             lengths.push(length);
+            if boundary.terminal.is_none() {
+                // spire-lez: name every capped episode so it can be replayed and triaged.
+                eprintln!("a20_checks: S step_limit {} A20 seed {seed} after {length} actions", character_name(character));
+                capped.push(json!({"character": character_name(character), "ascension": 20, "seed": seed, "steps": length}));
+            }
             let terminal = boundary.terminal.map_or_else(|| "step_limit".to_owned(), |value| format!("{value:?}"));
             *terminals.entry(terminal).or_default() += 1;
         }
@@ -182,7 +189,7 @@ fn run_single(seeds: usize, maxima: &mut BTreeMap<String, usize>, observation: R
         "wall_seconds": elapsed.as_secs_f64(), "accepted_actions_per_second": accepted as f64 / measured.as_secs_f64().max(f64::MIN_POSITIVE),
         "episodes_per_second": lengths.len() as f64 / elapsed.as_secs_f64().max(f64::MIN_POSITIVE),
         "mean_length": total_length as f64 / lengths.len() as f64, "max_length": lengths.iter().copied().max().unwrap_or(0),
-        "terminal_histogram": terminals,
+        "terminal_histogram": terminals, "step_limit_episodes": capped,
     }))
 }
 
