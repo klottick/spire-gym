@@ -11,7 +11,12 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   pass `capacity_preset="standard-combat-compact-play-v1"` for smaller arrays.
   Both presets support capacity overrides and report typed overflow faults.
   Dense remains the default. See the [Standard combat API](docs/standard-run-api.md#compact-standard-combat-view-m39b).
-
+- The `dev` dependency group adds pytest-xdist 3.8.0 (with execnet 2.1.2) so
+  the full Python suite can run across workers; see
+  [development](docs/development.md#full-python-suite-in-parallel). Because
+  `pyproject.toml` is a build-digest input, extensions built after this change
+  report new `source_digest` and `file_digest` values. Runtime behavior and
+  frozen identities are unchanged.
 - M39a (spire-e0l) adds `spire_env::combat_entry_resources_descriptor()` and
   Python `spire_lab.combat_entry_resources.load()` / `_native.combat_entry_resources()`.
   The [versioned descriptor](docs/combat-entry-resources.md) publishes relic and

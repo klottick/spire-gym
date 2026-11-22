@@ -16,6 +16,7 @@ gymnasium = ["gymnasium==1.4.0"]
 dev = [
     "maturin==1.15.0",
     "pytest==9.1.1",
+    "pytest-xdist==3.8.0",
 ]
 gym-dev = [
     { include-group = "dev" },
