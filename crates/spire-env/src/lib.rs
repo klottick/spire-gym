@@ -94,7 +94,7 @@ pub use run_observation::encode_run_m20;
 pub use run_session::{RUN_RECORD_SCHEMA_ID_M20,RUN_RULES_ID_M20,RUN_CONTENT_ID_M20};
 
 pub use combat_policy::{watcher_combat_observation_spec,encode_watcher_combat};
-pub use combat_policy::{standard_combat_observation_spec,STANDARD_COMBAT_VIEW_ID};
+pub use combat_policy::{standard_combat_observation_spec,standard_compact_combat_observation_spec,StandardCombatCapacityPreset,StandardCombatSessionConfig,STANDARD_COMBAT_VIEW_ID,STANDARD_COMBAT_COMPACT_VIEW_ID};
 
 mod run_schema_m21;
 pub use run_schema_m21::M21_WATCHER_COMBAT_OBSERVATION_SCHEMA_ID;

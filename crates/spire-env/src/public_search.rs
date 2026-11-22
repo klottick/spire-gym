@@ -3,6 +3,7 @@
 //! a [`PublicSearch`] owns that root and every branch world sampled from it with a caller research seed, and holds no
 //! reference to the live session. Branches are observed exactly like `standard-combat-v1` sessions (the Standard
 //! combat view), carry their own tokens from the shared session allocator, and end at the combat's own terminal.
+use crate::{RunObservationLayout, RunObservationSpec, StandardCombatSessionConfig};
 use crate::{RunActionIndex, RunCapacities, RunDecisionToken, RunObservation, RunSessionError as Error};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -84,6 +85,9 @@ pub const SEARCH_HARD_CAPS: SearchLimits = SearchLimits { max_live_branches: 4_0
 /// characters × {A0, A20}, and at standalone starts (`m34s_search_measure`); about 5× headroom. The Run's inline size is
 /// counted separately (the boxed branch record). A measured estimate: the one term of the bound that is not structural.
 pub const BRANCH_RUN_BYTES_ESTIMATE: u64 = 64 * 1024;
+/// 372,632 bytes peak excluding knowledge in the 999-card and high-generation heap probes.
+/// Round two times the sample peak to the next 64 KiB; this estimates the measured envelope.
+const COMPACT_RUN_ESTIMATE: u64 = 768 * 1024;
 /// Bytes one entry of an ordered collection holding a `u64` (and a `value_bytes` value) can take (final review v2 I2): a
 /// B-tree node other than the root holds at least 5 of its 11 slots, so an entry takes at most 11/5 of its slot plus its
 /// share of the node header and child edges; 3 × (8 + `value_bytes`) + 48 bounds that, allocator header included. The
@@ -99,10 +103,15 @@ const BOX_SLOT_BYTES: u64 = 8;
 /// `max_steps_per_branch`, doubled for vector growth), the legal-action table (`caps.actions` actions) and the branch's
 /// entry in the arena's branch map (the branch record is stored in the map's node).
 pub fn branch_retained_bytes_bound(limits: &SearchLimits, caps: &RunCapacities) -> u64 {
-    BRANCH_RUN_BYTES_ESTIMATE + spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP as u64
-        + 2 * limits.max_steps_per_branch * std::mem::size_of::<i64>() as u64 + (caps.actions * std::mem::size_of::<GameAction>()) as u64
+    branch_bytes(limits, caps.actions, BRANCH_RUN_BYTES_ESTIMATE)
+}
+fn branch_bytes(limits: &SearchLimits, legal_width: usize, run_estimate: u64) -> u64 {
+    run_estimate + spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP as u64
+        + 2 * limits.max_steps_per_branch * std::mem::size_of::<i64>() as u64
+        + (legal_width * std::mem::size_of::<GameAction>()) as u64
         + branch_record_bytes() + collection_entry_bytes(BOX_SLOT_BYTES)
 }
+
 /// The whole arena's retained-bytes bound (`spec()["max_retained_bytes"]`; final review v2 I2): the arena and its root (a
 /// Run estimate plus the knowledge cap), the three collections' root nodes, `max_live_branches` live branches, and one
 /// closed-branch entry and one used-sample entry per branch created (at most `max_branches`). Every term except
@@ -113,7 +122,10 @@ pub fn search_retained_bytes_bound(limits: &SearchLimits, caps: &RunCapacities) 
         + limits.max_branches * created_branch_bytes()
 }
 fn search_fixed_bytes() -> u64 {
-    std::mem::size_of::<PublicSearch>() as u64 + BRANCH_RUN_BYTES_ESTIMATE + spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP as u64
+    fixed_bytes(BRANCH_RUN_BYTES_ESTIMATE)
+}
+fn fixed_bytes(run_estimate: u64) -> u64 {
+    std::mem::size_of::<PublicSearch>() as u64 + run_estimate + spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP as u64
         + collection_root_bytes(BOX_SLOT_BYTES) + 2 * collection_root_bytes(0)
 }
 fn created_branch_bytes() -> u64 { 2 * collection_entry_bytes(0) }
@@ -147,7 +159,7 @@ enum Advanced {
     Fault { error: Error, stage: &'static str, committed: bool },
 }
 /// The single-branch step on a world: the shared resolver, then the requested view (`step` and `step_many` both use it).
-fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapacities) -> Advanced {
+fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapacities, layout: RunObservationLayout) -> Advanced {
     if let Err(e) = run.step(action) {
         let committed = matches!(e, spire_core::run::RunError::Faulted(_));
         return Advanced::Fault { error: redacted(e), stage: "step", committed }
@@ -155,7 +167,7 @@ fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapac
     let terminal = run.combat_scope_terminal();
     let reward = terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome));
     let published = match view {
-        BranchView::Full => crate::combat_training::standard_combat_publication(run, caps).map(|(o, info, legal)| {
+        BranchView::Full => crate::combat_training::standard_combat_publication_into(run, caps, layout, None).map(|(o, info, legal)| {
             let mask = o.action_mask.clone();
             (Some(o), mask, info, legal)
         }),
@@ -190,7 +202,9 @@ pub struct PublicSearch { root: PublicRoot, research_root: [u8; 32], limits: Sea
     /// M35 `step_many` workers (execution configuration, not a budget; design §3.6).
     workers: usize,
     /// M36 (spire-dmm M5): the shared pool, taken on the first parallel `step_many` and released when the search drops.
-    pool: Option<crate::workers::Scheduler> }
+    pool: Option<crate::workers::Scheduler>,
+    compact: Option<Box<StandardCombatSessionConfig>>,
+}
 impl std::fmt::Debug for PublicSearch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "PublicSearch {{ root: {:?}, live: {}, created: {}, total_steps: {} }}", self.root, self.branches.len(), self.created, self.total_steps)
@@ -204,7 +218,35 @@ impl PublicSearch {
             return Err(Error::Input("search limits exceed the hard caps"))
         }
         Ok(Self { root, research_root: spire_core::run::research_root(config.research_seed), limits: l, branches: Default::default(), closed: Default::default(),
-            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0, workers: 1, pool: None })
+            used_samples: Default::default(), next_auto: 0, created: 0, total_steps: 0, workers: 1, pool: None, compact: None })
+    }
+    pub fn new_with_combat_layout(root: PublicRoot, config: SearchConfig, observation: StandardCombatSessionConfig) -> Result<Self, Error> {
+        observation.validate()?;
+        let mut search = Self::new(root, config)?;
+        if observation.layout == RunObservationLayout::Compact { search.compact = Some(Box::new(observation)); }
+        Ok(search)
+    }
+
+    pub fn observation_layout(&self) -> RunObservationLayout {
+        if self.compact.is_some() { RunObservationLayout::Compact } else { RunObservationLayout::Dense }
+    }
+
+    fn view_capacities(&self) -> &RunCapacities {
+        self.compact.as_ref().map_or(&self.root.caps, |c| &c.capacities)
+    }
+
+    pub fn action_capacity(&self) -> usize { self.view_capacities().actions }
+
+    pub fn observation_spec(&self) -> Result<RunObservationSpec, Error> {
+        match self.compact.as_ref().and_then(|c| c.capacity_preset) {
+            Some(preset) => crate::standard_compact_combat_observation_spec(self.view_capacities(), preset),
+            None => crate::standard_combat_observation_spec(&self.root.caps),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn zero_observation(&self) -> Result<RunObservation, Error> {
+        crate::run_observation::empty_combat_observation(self.view_capacities())
     }
     /// M35: `step_many` runs on `workers` threads of the shared pool for that count (1: no pool). M36: 1 ≤ `workers` ≤
     /// `MAX_SEARCH_WORKERS`; the search holds its pool from its first parallel `step_many` until it drops or its worker
@@ -241,7 +283,11 @@ impl PublicSearch {
         let k = match sample { Some(k) => k, None => { let mut k = self.next_auto; while self.used_samples.contains(&k) { k = k.checked_add(1).ok_or(Error::Budget("sample index exhausted"))?; } k } };
         let key = spire_core::run::research_sample_key(&self.research_root, &self.root.digest, k);
         let run = self.root.run.belief_sample(&key).map_err(|u| Error::UnsupportedBoundary(u.reason()))?;
-        let legal = run.decision().map_err(redacted)?.candidates.into_iter().map(|c| c.action).collect();
+        let legal = if let Some(config) = &self.compact {
+            crate::combat_training::standard_combat_publication_into(&run, &config.capacities, config.layout, None).map_err(redact)?.2
+        } else {
+            run.decision().map_err(redacted)?.candidates.into_iter().map(|c| c.action).collect()
+        };
         // Final review v3: the sample is recorded only once the branch exists, so a failed creation retains nothing and
         // `used_samples` never outgrows `max_branches`.
         let id = self.insert(Branch { run, origin: key, serial: 0, steps: 0, actions: vec![], legal, status: Status::Live })?;
@@ -260,13 +306,13 @@ impl PublicSearch {
         info["end_reason"] = match status { Status::Truncated => json!("step_limit"), Status::Faulted => json!("fault"), _ => info["terminal_reason"].clone() };
         info
     }
-    /// The branch's current boundary (encoded on demand, owned). A faulted branch shows its last boundary before the
-    /// fault (replayed from its origin and accepted actions; its token is spent).
+    /// Encode the current full boundary on demand. For a faulted branch, replay the accepted prefix (the token is spent).
+    /// That prefix can include a committed action whose full publication failed and can return the same capacity fault.
     pub fn decision(&self, b: BranchId) -> Result<BranchBoundary, Error> {
         let branch = self.get(b)?;
         let replayed;
         let run = if branch.status == Status::Faulted { replayed = self.replay(branch)?; &replayed } else { &branch.run };
-        let (observation, info, _) = crate::combat_training::standard_combat_publication(run, &self.root.caps).map_err(redact)?;
+        let (observation, info, _) = crate::combat_training::standard_combat_publication_into(run, self.view_capacities(), self.observation_layout(), None).map_err(redact)?;
         Ok(BranchBoundary { observation, token: RunDecisionToken([b.0, branch.serial]), info: Self::info(branch.steps, branch.status, info) })
     }
     fn replay(&self, branch: &Branch) -> Result<Run, Error> {
@@ -283,10 +329,10 @@ impl PublicSearch {
     pub fn step(&mut self, b: BranchId, token: RunDecisionToken, index: RunActionIndex, view: BranchView) -> Result<BranchStep, Error> {
         let action = self.preflight(b, token, index)?;
         if self.total_steps >= self.limits.max_total_steps { return Err(Error::Budget("total step limit reached")) }
-        let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
+        let (caps, layout, max_steps) = (self.view_capacities().clone(), self.observation_layout(), self.limits.max_steps_per_branch);
         self.total_steps += 1;
         let branch = self.branches.get_mut(&b.0).unwrap();
-        let advanced = advance(&mut branch.run, &action, view, &caps);
+        let advanced = advance(&mut branch.run, &action, view, &caps, layout);
         match Self::settle(b, branch, index, advanced, max_steps) { BranchStepOutcome::Stepped(step) => Ok(step), BranchStepOutcome::Fault { error, .. } => Err(error) }
     }
     /// The no-effect checks of `step` for one entry; returns the action.
@@ -294,6 +340,9 @@ impl PublicSearch {
         let branch = self.get(b)?;
         match branch.status { Status::Faulted => return Err(Error::BranchFaulted), Status::Terminal | Status::Truncated => return Err(Error::Terminal), Status::Live => {} }
         if token != RunDecisionToken([b.0, branch.serial]) { return Err(Error::StaleToken) }
+        if let Some(config) = &self.compact && branch.legal.len() > config.capacities.actions {
+            return Err(Error::Capacity { group: "actions", required: branch.legal.len(), capacity: config.capacities.actions })
+        }
         let action = usize::try_from(index.0).ok().and_then(|i| branch.legal.get(i)).cloned().ok_or(Error::Input("branch action index is not legal"))?;
         // Final review I1: a sampled world keeps the true labels of identical copies, so a pick that removes a copy chosen
         // by hidden instance order would make the branch depend on hidden state; refused with no effect (fail closed).
@@ -340,14 +389,14 @@ impl PublicSearch {
         }
         if (steps.len() as u64) > self.limits.max_total_steps.saturating_sub(self.total_steps) { return Err(Error::Budget("total step limit reached")) }
         if self.pool.is_none() { self.pool = Some(crate::workers::Scheduler::shared(self.workers).map_err(|_| Error::DeliveryFault("search worker pool unavailable"))?); }
+        let (caps, layout, max_steps) = (self.view_capacities().clone(), self.observation_layout(), self.limits.max_steps_per_branch);
         let scheduler = self.pool.as_ref().expect("the search pool was just taken");
-        let (caps, max_steps) = (self.root.caps.clone(), self.limits.max_steps_per_branch);
         // Disjoint borrows in sorted id order; each job owns its entry's action and touches only its own world.
         let position: std::collections::BTreeMap<u64, usize> = steps.iter().enumerate().map(|(i, s)| (s.branch.0, i)).collect();
         let mut worlds: Vec<(usize, &mut Branch)> = self.branches.iter_mut().filter_map(|(id, b)| position.get(id).map(|i| (*i, &mut **b))).collect();
         let jobs: Vec<GameAction> = worlds.iter().map(|(i, _)| actions[*i].clone()).collect();
         let advanced = scheduler.map_mut(&mut worlds, jobs, |_, (_, branch), action| {
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| advance(&mut branch.run, &action, view, &caps))) {
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| advance(&mut branch.run, &action, view, &caps, layout))) {
                 Ok(advanced) => advanced,
                 Err(_) => Advanced::Fault { error: Error::DeliveryFault(BRANCH_CORE_FAULT), stage: "panic", committed: true },
             }
@@ -389,18 +438,36 @@ impl PublicSearch {
     }
     pub fn spec(&self) -> Value {
         let l = self.limits;
+        let (run_estimate, fixed, legal_width, view_id, fingerprint) = if let Some(config) = &self.compact {
+            (
+                COMPACT_RUN_ESTIMATE,
+                fixed_bytes(COMPACT_RUN_ESTIMATE) + std::mem::size_of::<StandardCombatSessionConfig>() as u64 + 16,
+                2 * RunCapacities::standard_default().actions,
+                crate::STANDARD_COMBAT_COMPACT_VIEW_ID,
+                crate::combat_policy::compact_combat_spec(&config.capacities, config.capacity_preset.expect("validated compact preset"))
+                    .map(|s| s.fingerprint()).unwrap_or([0; 32]),
+            )
+        } else {
+            (
+                BRANCH_RUN_BYTES_ESTIMATE, search_fixed_bytes(), self.root.caps.actions,
+                crate::STANDARD_COMBAT_VIEW_ID,
+                crate::standard_combat_observation_spec(&self.root.caps).map(|s| s.fingerprint()).unwrap_or([0; 32]),
+            )
+        };
+        let branch_bytes = branch_bytes(&l, legal_width, run_estimate);
+        let total = fixed + l.max_live_branches as u64 * branch_bytes + l.max_branches * created_branch_bytes();
         json!({"search_id": PUBLIC_SEARCH_ID, "belief_id": PUBLIC_BELIEF_ID, "knowledge_id": PUBLIC_KNOWLEDGE_ID,
-            "combat_view_id": crate::combat_policy::STANDARD_COMBAT_VIEW_ID,
-            "observation_fingerprint": crate::combat_policy::hex(&crate::standard_combat_observation_spec(&self.root.caps).map(|s| s.fingerprint()).unwrap_or([0; 32])),
+            "combat_view_id": view_id,
+            "observation_fingerprint": crate::combat_policy::hex(&fingerprint),
             "root_digest": crate::combat_policy::hex(&self.root.digest), "horizon": "combat",
             "limits": {"max_live_branches": l.max_live_branches, "max_branches": l.max_branches, "max_steps_per_branch": l.max_steps_per_branch, "max_total_steps": l.max_total_steps},
             "hard_caps": {"max_live_branches": SEARCH_HARD_CAPS.max_live_branches, "max_branches": SEARCH_HARD_CAPS.max_branches, "max_steps_per_branch": SEARCH_HARD_CAPS.max_steps_per_branch, "max_total_steps": SEARCH_HARD_CAPS.max_total_steps},
-            "max_retained_bytes": search_retained_bytes_bound(&l, &self.root.caps),
-            "retained_bytes": {"fixed": search_fixed_bytes(), "per_live_branch": branch_retained_bytes_bound(&l, &self.root.caps),
+            "max_retained_bytes": total,
+            "retained_bytes": {"fixed": fixed, "per_live_branch": branch_bytes,
                 "per_created_branch": created_branch_bytes(), "run_estimate_is_measured": true},
-            "branch_retained_bytes_bound": branch_retained_bytes_bound(&l, &self.root.caps),
-            "branch_retained_bytes": {"run_estimate": BRANCH_RUN_BYTES_ESTIMATE, "knowledge_cap": spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP,
-                "action_history": 2 * l.max_steps_per_branch * std::mem::size_of::<i64>() as u64, "legal_actions": self.root.caps.actions * std::mem::size_of::<GameAction>(),
+            "branch_retained_bytes_bound": branch_bytes,
+            "branch_retained_bytes": {"run_estimate": run_estimate, "knowledge_cap": spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP,
+                "action_history": 2 * l.max_steps_per_branch * std::mem::size_of::<i64>() as u64, "legal_actions": legal_width * std::mem::size_of::<GameAction>(),
                 "branch_entry": branch_record_bytes() + collection_entry_bytes(BOX_SLOT_BYTES)},
             "reward": "combat outcome at the combat's own terminal: victory +1, death -1, escape 0; truncated at max_steps_per_branch (end_reason step_limit)"})
     }
@@ -416,6 +483,18 @@ impl PublicSearch {
     /// TEST-ONLY: the live branch ids, ascending.
     #[cfg(test)]
     pub(crate) fn branches_for_test(&self) -> Vec<BranchId> { self.branches.keys().map(|id| BranchId(*id)).collect() }
+    #[cfg(test)]
+    pub(crate) fn widen_legal_table_for_test(&mut self, branch: BranchId, len: usize) {
+        let legal = &mut self.branches.get_mut(&branch.0).unwrap().legal;
+        legal.resize(len, legal[0].clone());
+    }
+    #[cfg(test)]
+    pub(crate) fn take_run_for_test(&mut self, branch: BranchId) -> Run {
+        self.branches.remove(&branch.0).unwrap().run
+    }
+    #[cfg(test)]
+    pub(crate) fn into_root_run_for_test(self) -> Run { self.root.run }
+
     /// TEST-ONLY: the capacities branches publish with (post-commit publication error, final review M3).
     #[cfg(test)]
     pub(crate) fn root_caps_for_test(&mut self) -> &mut RunCapacities { &mut self.root.caps }

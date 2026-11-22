@@ -78,12 +78,12 @@ class RunEnv(gym.Env[Observation, int]):
         with self._guard:
             return self._session.environment_spec()
 
-    def combat_observation_spec(self) -> dict[str, Any]:
+    def combat_observation_spec(self, *, observation="dense", capacity_preset=None, capacities=None) -> dict[str, Any]:
         """Reusable native combat-policy view, including Standard combat; Run schema stays unchanged."""
         with self._guard:
-            return self._session.combat_observation_spec()
+            return self._session.combat_observation_spec(observation=observation, capacity_preset=capacity_preset, capacities=capacities)
 
-    def combat_view(self) -> CombatPolicyPayload:
+    def combat_view(self, *, observation="dense", capacity_preset=None, capacities=None) -> CombatPolicyPayload:
         """Owned current combat features and visit/routing/exit metadata.
 
         Standard Run profiles expose the same combat view as StandardCombatEnv.
@@ -93,7 +93,7 @@ class RunEnv(gym.Env[Observation, int]):
         last_exit is sticky while resource arrays always describe current state.
         """
         with self._guard:
-            return self._session.combat_view()
+            return self._session.combat_view(observation=observation, capacity_preset=capacity_preset, capacities=capacities)
 
     def public_search(
         self,
@@ -105,6 +105,7 @@ class RunEnv(gym.Env[Observation, int]):
         max_steps_per_branch=None,
         max_total_steps=None,
         workers=1,
+        observation="dense", capacity_preset=None, capacities=None,
     ):
         """Open bounded public-belief search at the current Standard combat decision."""
         from .public_search import open_public_search
@@ -112,7 +113,7 @@ class RunEnv(gym.Env[Observation, int]):
         return open_public_search(
             self, research_seed, limits, max_live_branches=max_live_branches, max_branches=max_branches,
             max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps,
-            workers=workers,
+            workers=workers, observation=observation, capacity_preset=capacity_preset, capacities=capacities,
         )
 
     def _package_reset(

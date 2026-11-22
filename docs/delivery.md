@@ -14,7 +14,9 @@ owners; Gymnasium facades remain thin. Machine-learning models and training
 loops live outside the repository. Since M38e, Standard Run sessions and batches
 can opt into a compact observation layout (`observation="compact"`) with the same
 public information in fewer bytes; the dense observation stays the default
-([Standard Run API](standard-run-api.md#compact-observation-m38e)).
+([Standard Run API](standard-run-api.md#compact-observation-m38e)). Standalone
+Standard combat sessions, batches and PublicSearch offer their own compact
+combat view with two presets. See the [compact combat API](standard-run-api.md#compact-standard-combat-view-m39b).
 
 Legacy consumer surfaces remain supported under the contract freeze: M9 Run-v1,
 M10 Heart Run-v2, M10 policy Run-v3, Gym66 `ironclad-combat-v1`/`-v2`, their
@@ -183,8 +185,12 @@ facts.
   engine bounds; a larger state (for example a long generation stall past about
   40 turns, or a deck above 256 cards) is a typed `Capacity` fault that freezes
   the session or slot, never a truncation. Larger capacities cure a row
-  overflow but not a value fault. There is no compact
-  Standard combat view, `standard-combat-v1` layout or public-search layout.
+  overflow but not a value fault.
+- **Compact Standard combat (M39b):** both presets enforce their row and value
+  limits. The smaller preset has headroom over sampled ordinary and strong play.
+  Compact search requires a fitting full view at branch admission. Mask steps
+  then enforce action width. An isolated combat batch can return typed zero
+  rows on an all-fault first reset. See the [batching contract](batching.md).
 - **Python delivery:** only a source-matched imported extension establishes
   Python delivery. The M35 post-merge receipt does not verify the M36 artifact.
 - **Performance:** single-host diagnostic measurements; capacity maxima are lower
@@ -218,7 +224,11 @@ ID.**
 
 M39a adds the opt-in [combat entry resource descriptor](combat-entry-resources.md)
 with schema `spire-lab-combat-entry-resources-v1` and fingerprint `4eafca3b…`.
-Its identity is pinned alongside the existing frozen contracts.
+Its identity is pinned alongside the existing frozen contracts. M39b pins the
+additive `spire-gym-standard-combat-view-compact-v1` schema, preset
+`standard-combat-compact-v1` at `49cd162a…` and preset
+`standard-combat-compact-play-v1` at `fbfade07…`. Rules and replay identities
+stay at their existing versions.
 
 1. Fix real gameplay bugs globally. **Affected** means every frozen profile
    whose gameplay routes through the changed rules code. Since the engine is

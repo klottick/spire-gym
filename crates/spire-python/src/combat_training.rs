@@ -14,13 +14,14 @@ use pyo3::exceptions::PyTypeError;
 use spire_core::combat::rng::Partition;
 use spire_env::{
     CombatTrainingCatalog, CombatTrainingSession, CombatTrainingStep,
-    InputReason, RunActionIndex, RunSessionError,
+    InputReason, RunActionIndex, RunSessionError, StandardCombatSessionConfig,
 };
 
 use crate::{
-    errors, numeric,
+    errors, numeric, stacking,
     run_env::{
-        error as run_error, integer, label, policy_boundary as boundary,
+        error as run_error, integer, label, policy_boundary_with_dtypes as boundary,
+        combat_observation_config, combat_dtypes, fault_cause_value,
         specification as spec, token, search_limits, public_search, NativePublicSearch,
     },
 };
@@ -115,8 +116,8 @@ fn optional_label(value: Option<&Bound<'_, PyAny>>) -> PyResult<Option<String>> 
         .transpose()
 }
 
-fn step_raw<'py>(py: Python<'py>, value: CombatTrainingStep) -> PyResult<Bound<'py, PyDict>> {
-    let result = boundary(py, value.boundary)?;
+fn step_raw<'py>(py: Python<'py>, value: CombatTrainingStep, dtypes: &stacking::DTypeMap) -> PyResult<Bound<'py, PyDict>> {
+    let result = boundary(py, value.boundary, dtypes)?;
     result.set_item("reward", value.reward)?;
     result.set_item("terminated", value.terminated)?;
     result.set_item("truncated", value.truncated)?;
@@ -140,6 +141,7 @@ impl Drop for SingleLease<'_> {
 struct OwnedCombatSession {
     session: Mutex<CombatTrainingSession>,
     catalog: std::sync::Arc<CombatTrainingCatalog>,
+    dtypes: stacking::DTypeMap,
     busy: AtomicBool,
 }
 
@@ -150,7 +152,9 @@ impl OwnedCombatSession {
         partition: String,
         records: Vec<Vec<u8>>,
         standard: bool,
+        observation: Option<StandardCombatSessionConfig>,
     ) -> PyResult<Self> {
+        let dtypes = combat_dtypes(observation.is_some())?;
         let partition = parse_partition(py, &partition)?;
         let bytes = catalog_bytes(catalog_json)?;
         let catalog = py
@@ -167,16 +171,17 @@ impl OwnedCombatSession {
         let session_catalog = catalog.clone();
         let session = py
             .detach(move || {
-                if standard {
-                    CombatTrainingSession::new_standard_shared(session_catalog, partition)
-                } else {
-                    CombatTrainingSession::new_shared(session_catalog, partition)
+                match observation {
+                    Some(config) => CombatTrainingSession::new_standard_shared_with_config(session_catalog, partition, config),
+                    None if standard => CombatTrainingSession::new_standard_shared(session_catalog, partition),
+                    None => CombatTrainingSession::new_shared(session_catalog, partition),
                 }
             })
             .map_err(|error| run_error(error))?;
         Ok(Self {
             session: Mutex::new(session),
             catalog,
+            dtypes,
             busy: AtomicBool::new(false),
         })
     }
@@ -230,7 +235,7 @@ impl OwnedCombatSession {
             })
             .map_err(|error| run_error(error))?;
         self.deliver(|| {
-            let raw = boundary(py, published)?;
+            let raw = boundary(py, published, &self.dtypes)?;
             raw.set_item("effective_seed", effective_seed)?;
             package(raw)
         })
@@ -258,7 +263,7 @@ impl OwnedCombatSession {
                 })
             })
             .map_err(|error| run_error(error))?;
-        self.deliver(|| package(step_raw(py, step)?))
+        self.deliver(|| package(step_raw(py, step, &self.dtypes)?))
     }
 }
 
@@ -315,7 +320,7 @@ impl OwnedCombatSession {
                 guarded_session(&mut session, |session| session.decision())
             })
             .map_err(|error| run_error(error))?;
-        self.deliver(|| boundary(py, value))
+        self.deliver(|| boundary(py, value, &self.dtypes))
     }
 
     fn _reset_deliver<'py>(
@@ -377,11 +382,11 @@ impl OwnedCombatSession {
         .map_err(|error| run_error(error))
     }
 
-    fn public_search(&self,research_seed:&Bound<'_,PyAny>,live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_branch:&Bound<'_,PyAny>,total:&Bound<'_,PyAny>,workers:&Bound<'_,PyAny>)->PyResult<NativePublicSearch>{
+    fn public_search(&self,research_seed:&Bound<'_,PyAny>,live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_branch:&Bound<'_,PyAny>,total:&Bound<'_,PyAny>,workers:&Bound<'_,PyAny>,observation:Option<StandardCombatSessionConfig>)->PyResult<NativePublicSearch>{
         let limits=search_limits(live,branches,per_branch,total)?;
         let _lease=self.begin()?;
         let root=self.session.lock().unwrap_or_else(|p|p.into_inner()).public_root().map_err(run_error)?;
-        public_search(root,integer(research_seed)?,limits,workers)
+        public_search(root,integer(research_seed)?,limits,workers,observation)
     }
 }
 
@@ -430,10 +435,11 @@ macro_rules! single_combat_methods {
             fn decision<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
                 self.inner.decision(py)
             }
-            #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None))]
+            #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None,observation="dense".to_owned(),capacity_preset=None,capacities=None))]
             #[allow(clippy::too_many_arguments)]
-            fn public_search<'py>(&self,py:Python<'py>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>)->PyResult<NativePublicSearch>{
-                self.inner.public_search(research_seed,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,&crate::run_env::one_worker(py,workers))
+            fn public_search<'py>(&self,py:Python<'py>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>,#[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<NativePublicSearch>{
+                let observation = combat_observation_config(&observation, capacity_preset, capacities, $standard)?;
+                self.inner.public_search(research_seed,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,&crate::run_env::one_worker(py,workers),observation)
             }
             #[pyo3(signature=(package,*,seed=None,entry_id=None))]
             fn _reset_deliver<'py>(
@@ -465,17 +471,24 @@ macro_rules! single_combat_methods {
 }
 single_combat_methods!(NativeIroncladCombatSession, false,
     #[new]
-    #[pyo3(signature=(catalog_json,*,partition="train".to_owned()))]
-    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, #[pyo3(from_py_with = label)] partition: String) -> PyResult<Self> {
-        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, Vec::new(), false)? })
+    #[pyo3(signature=(catalog_json,*,partition="train".to_owned(),observation="dense".to_owned(),capacity_preset=None,capacities=None))]
+    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, #[pyo3(from_py_with = label)] partition: String, #[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>) -> PyResult<Self> {
+        combat_observation_config(&observation,capacity_preset,capacities,false)?;
+        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, Vec::new(), false, None)? })
     }
 );
 single_combat_methods!(NativeStandardCombatSession, true,
     #[new]
-    #[pyo3(signature=(catalog_json,*,records=None,partition="train".to_owned()))]
-    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, records: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] partition: String) -> PyResult<Self> {
+    #[pyo3(signature=(catalog_json,*,records=None,partition="train".to_owned(),observation="dense".to_owned(),capacity_preset=None,capacities=None))]
+    fn new(py: Python<'_>, catalog_json: &Bound<'_, PyAny>, records: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] partition: String, #[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>) -> PyResult<Self> {
+        let observation = combat_observation_config(&observation,capacity_preset,capacities,true)?;
         let records = records_bytes(records)?;
-        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, records, true)? })
+        Ok(Self { inner: OwnedCombatSession::new(py, catalog_json, partition, records, true, observation)? })
+    }
+    fn fault_cause<'py>(&self, py: Python<'py>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        let _lease = self.inner.begin()?;
+        let cause = self.inner.session.lock().unwrap_or_else(|p| p.into_inner()).fault_cause();
+        fault_cause_value(py, cause)
     }
 );
 

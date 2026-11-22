@@ -203,6 +203,18 @@ other slots continue, `fault_cause(slot)` to read the group (also without record
 the `standard-default-v1` value) if a group is too small. An isolate resume keeps the compact layout. Zero rows, `final_obs`
 and recovered rows have the compact dtypes.
 
+**Compact Standard combat (M39b).** The native Standard combat batch and
+`StandardCombatVectorEnv` take the [compact combat selectors](standard-run-api.md#compact-standard-combat-view-m39b).
+Final observations, recovered rows and isolate zero rows use the selected
+descriptor. Isolate can return zero rows even if the first reset faults in
+every slot. A seeded masked resume keeps the preset and overrides. Read the
+original row or value overflow through `fault_cause(slot)`. A replacement
+queues the prior fault for `take_fault_records()`, with a typed
+`fault_cause` and `record=None` for Standard combat. Completed episode
+records stay empty. A committed action whose observation overflowed has no
+recoverable observation. A published SAME_STEP terminal remains recoverable
+if the successor reset fails.
+
 `CombatPool`/combat-v1 `CombatFaultError.slots` is informational only. `CombatPool` has no
 `decision()` or `recover_committed()` API, so an informational committed-undelivered status there
 does not imply recovery.
@@ -250,6 +262,11 @@ values use the lazily shared process pool for that worker count. The Python API 
 `NativePublicSearch.step_many(branches, tokens, actions, *, view="full")`. It returns stacked
 results; `view="mask"` omits encoded observations. Branch handles keep per-branch tokens. Budget
 errors map to `RunBudgetError`; the M34s privacy guarantees continue to apply to every output.
+For compact searches, preflight also validates the current legal table against
+the published action width. A compact Full result includes typed zero tensors
+for faulted branches, including an all-fault batch. Compact Mask returns a
+zero mask of the configured action width on each faulted row. A capacity fault
+adds `capacity` with `group`, `required` and `capacity`.
 
 The public search worker count is bounded to `1..=256`; zero and values above
 256 return `Input("search workers must be 1..=256")` (Python exposes this as

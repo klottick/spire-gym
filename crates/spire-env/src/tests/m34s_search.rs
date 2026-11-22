@@ -250,8 +250,14 @@ fn fork_inherits_step_count() {
 
 #[test]
 fn faulted_branches_are_never_revived() {
+    for config in [StandardCombatSessionConfig::default(), StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play)] {
+        check_faulted_branch_prefix(config);
+    }
+}
+
+fn check_faulted_branch_prefix(config: StandardCombatSessionConfig) {
     let (s, _) = standalone(Character::Silent, 0, "jaw_worm", 9);
-    let mut search = search(s.public_root().unwrap(), 1, WIDE);
+    let mut search = PublicSearch::new_with_combat_layout(s.public_root().unwrap(), SearchConfig { research_seed: 1, limits: WIDE }, config).unwrap();
     let (a, sibling) = (search.branch(None).unwrap(), search.branch(None).unwrap());
     let d = search.decision(a).unwrap();
     let first = aggressive(&d.observation) as i64;
@@ -419,12 +425,18 @@ fn public_root_from_a_branch() {
 /// P7: no output channel carries a seed, key, cursor, pre-roll value, research seed or sample index.
 #[test]
 fn search_outputs_carry_no_hidden_values() {
+    for config in [StandardCombatSessionConfig::default(), StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play)] {
+        check_search_output_channels(config);
+    }
+}
+
+fn check_search_output_channels(config: StandardCombatSessionConfig) {
     const RESEARCH_SEED: u64 = 0x5EED_1234_ABCD_9876;
     const SAMPLE: u64 = 987_654_321_123;
     const LIVE_SEED: u64 = 0x0DDB_A11C_0FFE_E123;
     let (s, _) = standalone(Character::Ironclad, 20, "two_louse", LIVE_SEED);
     let root = s.public_root().unwrap();
-    let mut search = search(root.clone(), RESEARCH_SEED, WIDE);
+    let mut search = PublicSearch::new_with_combat_layout(root.clone(), SearchConfig { research_seed: RESEARCH_SEED, limits: WIDE }, config).unwrap();
     let a = search.branch(Some(SAMPLE)).unwrap();
     let key = spire_core::run::research_sample_key(&spire_core::run::research_root(RESEARCH_SEED), &root.digest(), SAMPLE);
     let forbidden = [RESEARCH_SEED.to_string(), format!("{RESEARCH_SEED:x}"), SAMPLE.to_string(), format!("{SAMPLE:x}"), LIVE_SEED.to_string(),
@@ -495,10 +507,15 @@ fn natural_pairs_have_equal_public_roots_and_identical_branches() {
                 assert_eq!(r1, r2, "{character:?} {id}: seeds {seeds:?} have equal public roots");
                 assert!(r1.same_world(&r2), "{character:?} {id}: seeds {seeds:?}: permanent-only pairs have equal canonical worlds");
                 // P3: identical branches for the same (research_seed, k) and policy seed.
-                for k in 0..3 {
-                    let (mut x, mut y) = (search(r1.clone(), 31, WIDE), search(r2.clone(), 31, WIDE));
-                    let (a, b) = (x.branch(Some(k)).unwrap(), y.branch(Some(k)).unwrap());
-                    assert_eq!(rollout(&mut x, a, 100 + k, BranchView::Full), rollout(&mut y, b, 100 + k, BranchView::Full));
+                for config in [StandardCombatSessionConfig::default(), StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play)] {
+                    let config_for_search = SearchConfig { research_seed: 31, limits: WIDE };
+                    for k in 0..3 {
+                        let mut x = PublicSearch::new_with_combat_layout(r1.clone(), config_for_search, config.clone()).unwrap();
+                        let mut y = PublicSearch::new_with_combat_layout(r2.clone(), config_for_search, config.clone()).unwrap();
+                        let (a, b) = (x.branch(Some(k)).unwrap(), y.branch(Some(k)).unwrap());
+                        assert!(x.decision(a).unwrap().observation == y.decision(b).unwrap().observation);
+                        assert_eq!(rollout(&mut x, a, 100 + k, BranchView::Full), rollout(&mut y, b, 100 + k, BranchView::Full));
+                    }
                 }
                 pairs += 1;
             }
@@ -616,6 +633,90 @@ fn arena_heap_stays_within_the_published_bound() {
         }
     }}
     assert_eq!(checked, 16);
+}
+
+#[test]
+fn compact_arena_heap_stays_within_the_published_bound() {
+    use super::standard_exact_cost::retained_bytes;
+    use super::m39b_compact_combat::{generated_position, standard_catalog};
+    use spire_core::content::{RelicId, complete};
+    let cap = spire_core::combat::knowledge::KNOWLEDGE_BYTES_CAP as u64;
+    let limits = limits(6, 10, 20, 120);
+    let mut large = standard_entry("full", Character::Ironclad, 20, "jaw_worm", None);
+    large["deck"] = json!(vec![json!({"card":"strike","upgrades":0});999]);
+    let relics = complete::relic_union(Character::Ironclad).into_iter().filter(|id| !matches!(id,
+        RelicId::NeowsLament | RelicId::BlackBlood | RelicId::BottledFlame | RelicId::BottledLightning
+        | RelicId::BottledTornado | RelicId::MarkOfPain | RelicId::Toolbox | RelicId::RunicDome
+        | RelicId::GamblingChip | RelicId::SneckoEye | RelicId::Enchiridion | RelicId::NinjaScroll)).map(RelicId::as_str).collect::<Vec<_>>();
+    assert!(relics.len() > 130);
+    large["relics"] = json!(relics);
+    large["potions"] = json!([null,null,null,null]);
+    let mut max_non_knowledge = 0;
+    for (label, entry) in [("999", large), ("generation", generated_position("silent","blade_dance",5,"shiv",880,"discard"))] {
+        let catalog = standard_catalog(vec![entry]);
+        let mut session = CombatTrainingSession::new_standard(catalog, Partition::Test).unwrap();
+        session.reset(Some(13), None).unwrap();
+        let create = || PublicSearch::new_with_combat_layout(session.public_root().unwrap(),
+            SearchConfig { research_seed: 17, limits }, StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Bounds)).unwrap();
+        // Warm thread-local spec/layout allocations outside allocator measurement.
+        let mut warm = create();
+        warm.observation_spec().unwrap();
+        warm.branch(Some(0)).unwrap();
+        drop(warm);
+        let ((mut arena, rolled, fork), heap) = retained_bytes(|| {
+            let mut arena = create();
+            let b = arena.branch(Some(0)).unwrap();
+            if label == "generation" {
+                for _ in 0..5 {
+                    let d = arena.decision(b).unwrap();
+                    let index = legal(&d.observation).into_iter().find(|i| verb(&d.observation,*i).as_deref()==Some("play_card")
+                        && d.observation.group("actions").unwrap().values[i*9+3] == 0).unwrap();
+                    arena.step(b,d.token,RunActionIndex(index as i64),BranchView::Full).unwrap();
+                }
+                let d = arena.decision(b).unwrap();
+                let count = d.observation.group("combat_cards").unwrap().occupied.as_ref().unwrap().iter().filter(|f| **f == 1).count();
+                assert_eq!(count,905);
+            }
+            let fork = arena.fork(b).unwrap();
+            assert!(arena.decision(b).unwrap().observation == arena.decision(fork).unwrap().observation);
+            for sample in 2..10 {
+                if arena.branches_for_test().len()==6 {
+                    let close = arena.branches_for_test().into_iter().find(|id| *id!=b && *id!=fork).unwrap();
+                    arena.close(close).unwrap();
+                }
+                arena.branch(Some(sample)).unwrap();
+            }
+            (arena,b,fork)
+        });
+        let spec=arena.spec();
+        let value=|path:&str| spec.pointer(path).unwrap().as_u64().unwrap();
+        let estimate=value("/branch_retained_bytes/run_estimate");
+        let fixed=value("/retained_bytes/fixed");
+        let branch=value("/retained_bytes/per_live_branch");
+        assert_eq!(branch,["run_estimate","knowledge_cap","action_history","legal_actions","branch_entry"].map(|k| value(&format!("/branch_retained_bytes/{k}"))).iter().sum::<u64>());
+        assert_eq!(value("/max_retained_bytes"),fixed+6*branch+10*value("/retained_bytes/per_created_branch"));
+        let mut actual_knowledge=0;
+        for id in arena.branches_for_test() {
+            let role = if id==rolled {"rolled"} else if id==fork {"fork"} else {"sample"};
+            let run=arena.take_run_for_test(id);
+            let knowledge=run.public_knowledge_heap_bytes().unwrap_or(0) as u64;
+            let (_,delta)=retained_bytes(|| drop(run));
+            let non_knowledge=(-delta) as u64-knowledge;
+            eprintln!("M39B-HEAP {label} {role}: run={} knowledge={knowledge} non_knowledge={non_knowledge}", -delta);
+            assert!(2*non_knowledge<=estimate);
+            max_non_knowledge=max_non_knowledge.max(non_knowledge);
+            actual_knowledge+=knowledge;
+        }
+        let run=arena.into_root_run_for_test();
+        let knowledge=run.public_knowledge_heap_bytes().unwrap_or(0) as u64;
+        let (_,delta)=retained_bytes(||drop(run));
+        let non_knowledge=(-delta) as u64-knowledge;
+        eprintln!("M39B-HEAP {label} root: run={} knowledge={knowledge} non_knowledge={non_knowledge} arena={heap}", -delta);
+        assert!(2*non_knowledge<=estimate);
+        max_non_knowledge=max_non_knowledge.max(non_knowledge);
+        assert!(heap>=0 && heap as u64<=value("/max_retained_bytes")-7*cap+actual_knowledge+knowledge);
+    }
+    eprintln!("M39B-HEAP measured maximum {max_non_knowledge}");
 }
 
 /// Final review v3: a branch creation that fails (here an exhausted session-id allocator) retains nothing: no sample index,

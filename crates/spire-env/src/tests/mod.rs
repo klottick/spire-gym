@@ -33,3 +33,4 @@ mod m38_scaling;
 mod m37b_published;
 mod m38e_compact;
 mod d8g_runs;
+mod m39b_compact_combat;

@@ -20,6 +20,7 @@ source contract.
 | Observation schema | `spire-gym-standard-run-observation-v1` |
 | Observation fingerprint | SHA-256 over the canonical descriptor (`observation_spec()["fingerprint"]`); since M34s-a `bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae` (M34b: `efbc1253544a80c5c4a5b3a63cb8169a215229aaffa4ac2af5402252e195311a`; see [Records](#records-and-semantic-replay)) |
 | Standard combat view | `spire-gym-standard-combat-view-v1`, fingerprint `5d8147e13ded030c7faa501a8202eb2588915c2e1330b30cac5b06afc9f9916e` ([below](#standard-combat-view-and-sessions)) |
+| Compact Standard combat view (M39b, opt-in) | `spire-gym-standard-combat-view-compact-v1`; [preset fingerprints](#compact-standard-combat-view-m39b) |
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
 | Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
@@ -289,6 +290,49 @@ companion rules, potion slots and entry bounds.
 - The Ironclad Gym66 surfaces reject `standard-combat-v1` catalogs (and `new_standard` rejects Gym66 catalogs) with
   `UnsupportedBoundary` (Python `RunUnsupportedBoundaryError`).
 
+### Compact Standard combat view (M39b)
+
+Set `observation="compact"` on `NativeStandardCombatSession`,
+`StandardCombatEnv`, `NativeCombatTrainingBatch(kind="standard")`, or
+`StandardCombatVectorEnv`. Supported Python `public_search(...)` factories
+take the same keywords, including searches rooted at a Standard `RunEnv` and
+nested searches rooted at a `PublicBranch`. Each arena selects its own branch
+layout and exposes it through `observation_spec()`. A fork inherits its arena's
+layout. Root digest, sample keys and action indices are independent of layout.
+
+| Preset | Array bytes per slot | Fingerprint at preset widths |
+| --- | ---: | --- |
+| Dense (default layout) | 644,378 | `5d8147e13ded030c7faa501a8202eb2588915c2e1330b30cac5b06afc9f9916e` |
+| `standard-combat-compact-v1` (default compact preset) | 229,926 | `49cd162afb9710bc6a27ed78eb6ef6dd84af83ae20317e0fffb106b5963ec3e8` |
+| `standard-combat-compact-play-v1` | 143,313 | `fbfade07003bd64ad6071243ec3a52e23413c88c5758ca702a515945935439ae` |
+
+The compact schema uses the fingerprint domain
+`spire-gym/combat-view/standard/compact/v1\0`. Widen each value array to the
+dense dtype and zero-pad row axes to recover the dense observation. Columns,
+vocabularies, row order, known and occupied flags, and legal action indices
+have their dense meanings. Optional `capacities` override
+`permanent_cards`, `combat_cards`, `enemies`, `powers`, `relics`, `potions`,
+`orbs`, `offers`, `selection` and `actions`, each from 1 through its dense
+width. `combat_cards` also sizes `known_draw`; `offers` sizes
+`combat_card_offers`. Pass `capacity_preset` and `capacities` with compact
+selection. Legacy combat selectors and the Run combat projection reject
+compact selection with `RunInputError`.
+
+In Rust, construct a `StandardCombatSessionConfig::compact(preset)` with
+`StandardCombatCapacityPreset::Bounds` or `Play`, then pass it to
+`CombatTrainingSession::new_standard_with_config`,
+`CombatTrainingBatch::new_standard_with_config`, or
+`PublicSearch::new_with_combat_layout`.
+
+When a row count or value cannot fit, the writer returns a typed `Capacity`
+fault. The cause names the group or column and the required and available
+counts or values. Scalar reset exposes the capacity error. A committed
+standalone step that cannot publish returns a delivery fault, freezes the
+session and retains the original cause for `fault_cause()`. A wider row
+override can resolve a row fault. Value widths follow the selected schema.
+Existing reachable recipes accept Standard Run records as before. Standalone
+Standard combat has no episode recorder or exact checkpoint API.
+
 **Public knowledge (core).** `Combat::draw_knowledge()` is the exact posterior over the draw pile's card-class sequence
 given public history (`spire-gym-public-knowledge-v1`, design §4.5.1), or `Unrepresentable` until the next shuffle when an
 operation leaves the exact model. `Combat::preroll_sets()` holds the values of hidden pre-rolled move numbers (Louse Bite,
@@ -345,6 +389,26 @@ so a research seed equal to a gameplay seed still draws independently.
 
 **Search arena.** `PublicSearch::new(root, SearchConfig{research_seed, limits})` owns its root and every branch. It holds no
 reference to the live session, which may step, reset, restore or close freely.
+
+Compact branch admission validates the sampled world's first full view before
+issuing an ID or consuming a sample or budget. Full and Mask step preflight
+check that the legal table fits the published action width. Either mode
+commits and freezes just that branch if the successor action table overflows.
+Full also checks the other groups and values. Mask can continue through a
+non-action overflow using the returned token and mask, including from a live
+fork. A full `decision()` can then raise `Capacity` without changing the
+branch. A faulted branch's diagnostic view replays its accepted prefix.
+After a committed encode fault, replay can repeat the same `Capacity`;
+`actions()` remains readable and diagnostic reads spend no budget.
+
+The compact arena's retained-memory estimate uses 768 KiB of non-knowledge
+heap per root Run and per live branch Run. The highest sampled Run retained
+372,632 bytes excluding public knowledge, measured across a 999-card start,
+sampled branches, forks and a high-generation rollout. The estimate covers
+that measured envelope plus structural arena accounting. Caller-owned
+outputs, Python wrappers and transient worker or encoder memory are outside
+the retained estimate. The dense arena's fixed accounting includes the new
+optional layout pointer.
 
 | Operation | Effect |
 | --- | --- |
@@ -720,7 +784,9 @@ existing one-descriptor rule).
 
 **Views.** `combat_view()`, `public_root()` and `public_search()` of a compact session are the dense-dtype Standard combat
 view at the session's capacities, exactly what any custom-capacity session gets: its fingerprint is that of the view at
-those capacities, not `5d8147e1…`. There is no compact combat view, `standard-combat-v1` or tactical-start layout.
+those capacities, not `5d8147e1…`. Standalone Standard combat and PublicSearch
+select their compact combat layout independently. See the
+[compact combat view](#compact-standard-combat-view-m39b).
 
 ## Limits
 

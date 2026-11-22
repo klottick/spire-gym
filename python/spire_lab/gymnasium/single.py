@@ -18,7 +18,8 @@ class CombatEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, *, catalog=None, partition="train", render_mode=None,
-                 record_replay=False):
+                 record_replay=False, observation="dense", capacity_preset=None, capacities=None):
+        _common.require_dense_combat(observation, capacity_preset, capacities)
         if render_mode is not None:
             raise _common.input_error("range", "only render_mode=None is supported")
         self.render_mode = None

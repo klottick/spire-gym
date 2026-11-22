@@ -193,7 +193,7 @@ fn value_column_names() {
     assert_eq!(value_column("combat_cards", 0), "combat_cards.zone");
     assert_eq!(value_fault_dtype("player.gold"), Some(ValueDtype::I32));
     assert_eq!(value_fault_dtype("selection.source_row"), Some(ValueDtype::I16));
-    for bad in ["player", "player.", "player.nope", "combat_cards", "known_draw.x", ".gold", ""] { assert_eq!(value_fault_dtype(bad), None, "{bad}") }
+    for bad in ["player", "player.", "player.nope", "combat_cards", "known_draw.x", "combat_context.ascension", ".gold", ""] { assert_eq!(value_fault_dtype(bad), None, "{bad}") }
     let d = standard_compact_run_observation_spec(&RunCapacities::standard_compact()).unwrap().descriptor();
     let mut n = 0;
     for t in d["tensors"].as_array().unwrap().iter().filter(|t| is_value_tensor(t)) {

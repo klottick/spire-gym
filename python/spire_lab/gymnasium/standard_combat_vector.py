@@ -20,7 +20,8 @@ class StandardCombatVectorEnv(gym.vector.VectorEnv):
 
     def __init__(self, entry_catalog: dict[str, Any], num_envs: int, *, records=None,
                  partition="train", entry_ids=None, workers=1,
-                 autoreset_mode="next_step", fault_policy="freeze"):
+                 autoreset_mode="next_step", fault_policy="freeze",
+                 observation="dense", capacity_preset=None, capacities=None):
         if type(num_envs) is not int or not 1 <= num_envs <= 256:
             raise _common.input_error("range", "num_envs must be an integer in 1..=256")
         modes = {"disabled": gym.vector.AutoresetMode.DISABLED,
@@ -35,6 +36,7 @@ class StandardCombatVectorEnv(gym.vector.VectorEnv):
             num_envs, _catalog_json(entry_catalog), kind="standard", records=records,
             partition=partition, entry_ids=entry_ids, workers=workers,
             autoreset=autoreset_mode, fault_policy=fault_policy,
+            observation=observation, capacity_preset=capacity_preset, capacities=capacities,
         )
         self.num_envs = num_envs
         self.closed = False
@@ -86,6 +88,10 @@ class StandardCombatVectorEnv(gym.vector.VectorEnv):
     def diagnostics(self):
         with self._guard:
             return self._batch.diagnostics()
+
+    def fault_cause(self, slot: int):
+        with self._guard:
+            return self._batch.fault_cause(slot)
 
     def take_completed_records(self):
         with self._guard:

@@ -175,8 +175,7 @@ pub fn standard_combat_observation_spec(caps:&RunCapacities)->Result<RunObservat
 /// Encodes the Standard combat view of `d`: room offers and Run-only content are cleared, outside combat the actions,
 /// selection and mask are empty, and the kept groups are exactly the Standard observation's.
 pub(crate) fn encode_standard_combat(d:&PublicDecision,caps:&RunCapacities,ascension:u8,run_selection:Option<spire_core::run::RoomSelectionOperation>,identity:Option<CombatIdentity>)->Result<RunObservation,RunSessionError>{
-    let mut d=d.clone();d.offers.clear();if let Some(room)=d.room.as_mut(){room.choices.clear();}
-    let run_selection=if d.combat.is_none(){d.candidates.clear();d.selection=None;None}else{run_selection};
+    let (d, run_selection) = combat_projection_input(d, run_selection);
     let mut obs=crate::run_observation::encode_run_standard(&d,None,caps,crate::run_observation::StandardContext{ascension,run_selection})?;
     let context=obs.group("context").unwrap();
     let mut values=STANDARD_CONTEXT_FIELDS.iter().map(|f|context.values[context_index(f)]).collect::<Vec<_>>();
@@ -190,4 +189,153 @@ pub(crate) fn encode_standard_combat(d:&PublicDecision,caps:&RunCapacities,ascen
     obs.groups.insert(0,crate::RunFeatureGroup{key:"combat_context",shape:vec![values.len()],values,known,occupied:None});
     Ok(obs)
 }
+fn combat_projection_input(
+    d: &PublicDecision, run_selection: Option<spire_core::run::RoomSelectionOperation>,
+) -> (PublicDecision, Option<spire_core::run::RoomSelectionOperation>) {
+    let mut d = d.clone();
+    d.offers.clear();
+    if let Some(room) = d.room.as_mut() { room.choices.clear(); }
+    if d.combat.is_none() {
+        d.candidates.clear();
+        d.selection = None;
+        (d, None)
+    } else {
+        (d, run_selection)
+    }
+}
+
 pub(crate) fn standard_lifecycle(d:&PublicDecision,checkpoint:Option<&CombatCheckpoint>)->Value{lifecycle_for_view(d,checkpoint,STANDARD_COMBAT_VIEW_ID)}
+
+pub const STANDARD_COMBAT_COMPACT_VIEW_ID: &str = "spire-gym-standard-combat-view-compact-v1";
+const STANDARD_COMBAT_COMPACT_DOMAIN: &[u8] = b"spire-gym/combat-view/standard/compact/v1\0";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StandardCombatCapacityPreset { Bounds, Play }
+
+impl StandardCombatCapacityPreset {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Bounds => "standard-combat-compact-v1",
+            Self::Play => "standard-combat-compact-play-v1",
+        }
+    }
+}
+
+impl RunCapacities {
+    pub fn standard_combat_compact() -> Self {
+        Self { permanent_cards: 999, powers: 128, relics: 160, potions: 5, offers: 3,
+            selection: 999, actions: 1024, ..Self::standard_default() }
+    }
+
+    pub fn standard_combat_compact_play() -> Self {
+        Self { permanent_cards: 96, combat_cards: 832, powers: 64, relics: 32,
+            selection: 192, actions: 192, ..Self::standard_combat_compact() }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StandardCombatSessionConfig {
+    pub layout: crate::RunObservationLayout,
+    pub capacities: RunCapacities,
+    pub capacity_preset: Option<StandardCombatCapacityPreset>,
+}
+
+impl Default for StandardCombatSessionConfig {
+    fn default() -> Self { Self::dense() }
+}
+
+impl StandardCombatSessionConfig {
+    pub fn compact(preset: StandardCombatCapacityPreset) -> Self {
+        let capacities = match preset {
+            StandardCombatCapacityPreset::Bounds => RunCapacities::standard_combat_compact(),
+            StandardCombatCapacityPreset::Play => RunCapacities::standard_combat_compact_play(),
+        };
+        Self { layout: crate::RunObservationLayout::Compact, capacities, capacity_preset: Some(preset) }
+    }
+
+    pub(crate) fn dense() -> Self {
+        Self { layout: crate::RunObservationLayout::Dense, capacities: RunCapacities::standard_default(), capacity_preset: None }
+    }
+
+    /// Validate the layout, preset and overrides without constructing a descriptor.
+    pub fn validate(&self) -> Result<(), RunSessionError> {
+        match (self.layout, self.capacity_preset) {
+            (crate::RunObservationLayout::Compact, Some(_)) => {
+                let dense = RunCapacities::standard_default();
+                if self.capacities.map_nodes != dense.map_nodes || self.capacities.map_edges != dense.map_edges {
+                    return Err(RunSessionError::Input("combat view takes no map capacities"))
+                }
+                crate::run_schema_standard::validate_compact(&self.capacities)
+            }
+            (crate::RunObservationLayout::Dense, None) if self.capacities == RunCapacities::standard_default() => Ok(()),
+            _ => Err(RunSessionError::Input("invalid Standard combat layout or preset configuration")),
+        }
+    }
+}
+
+pub(crate) fn combat_context_group() -> crate::run_schema::GroupSpec {
+    crate::run_schema::GroupSpec {
+        key: "combat_context", rows: None, fields: "character,ascension,act,room_kind,encounter,burning",
+        units: "category,level,act,category,category,flag", references: &[],
+    }
+}
+
+pub(crate) fn combat_groups(caps: &RunCapacities) -> Vec<crate::run_schema::GroupSpec> {
+    std::iter::once(combat_context_group())
+        .chain(crate::run_schema_standard::groups(caps).into_iter().filter(|g| STANDARD_GROUPS.contains(&g.key)))
+        .collect()
+}
+
+pub fn standard_compact_combat_observation_spec(
+    caps: &RunCapacities, preset: StandardCombatCapacityPreset,
+) -> Result<RunObservationSpec, RunSessionError> {
+    compact_combat_spec(caps, preset).map(|spec| (*spec).clone())
+}
+
+pub(crate) fn compact_combat_spec(
+    caps: &RunCapacities, preset: StandardCombatCapacityPreset,
+) -> Result<std::rc::Rc<RunObservationSpec>, RunSessionError> {
+    use std::{cell::RefCell, rc::Rc};
+    type Cache = Option<(RunCapacities, StandardCombatCapacityPreset, Rc<RunObservationSpec>)>;
+    thread_local! { static CACHE: RefCell<Cache> = const { RefCell::new(None) }; }
+    if let Some(spec) = CACHE.with(|cache| cache.borrow().as_ref().filter(|(c, p, _)| c == caps && *p == preset)
+        .map(|(_, _, spec)| spec.clone())) {
+        return Ok(spec)
+    }
+    StandardCombatSessionConfig { layout: crate::RunObservationLayout::Compact, capacities: caps.clone(), capacity_preset: Some(preset) }.validate()?;
+    let mut spec = standard_combat_observation_spec(caps)?;
+    let d = &mut spec.descriptor;
+    d["schema_id"] = json!(STANDARD_COMBAT_COMPACT_VIEW_ID);
+    d["semantics"]["capacity_preset"] = json!(preset.as_str());
+    d["semantics"]["dense_schema"] = json!(STANDARD_COMBAT_VIEW_ID);
+    d["semantics"]["layout"] = json!("dense combat groups, columns and order; capacity or dtype overflow is a typed Capacity fault");
+    crate::run_schema_standard::narrow_compact_descriptor(d)?;
+    let mut h = Sha256::new();
+    h.update(STANDARD_COMBAT_COMPACT_DOMAIN);
+    h.update(crate::canonical_json(d).map_err(|_| RunSessionError::Input("invalid compact Standard combat view descriptor"))?);
+    spec.fingerprint = h.finalize().into();
+    let spec = Rc::new(spec);
+    CACHE.with(|cache| *cache.borrow_mut() = Some((caps.clone(), preset, spec.clone())));
+    Ok(spec)
+}
+
+pub(crate) fn encode_compact_standard_combat(
+    d: &PublicDecision, caps: &RunCapacities, ascension: u8,
+    run_selection: Option<spire_core::run::RoomSelectionOperation>, identity: Option<CombatIdentity>,
+    target: Option<&mut crate::ObservationTarget<'_>>,
+) -> Result<RunObservation, RunSessionError> {
+    use crate::run_observation::{StandardContext, encode_standard_projection};
+    use crate::run_schema_standard::{encounter, room};
+    let (d, run_selection) = combat_projection_input(d, run_selection);
+    let identity = identity.filter(|_| d.combat.is_some());
+    let values = [
+        Some(crate::run_schema::character(d.player.character)),
+        Some(i64::from(ascension)),
+        Some(i64::from(d.act)),
+        d.room.as_ref().map(|r| room(r.kind)).transpose()?,
+        identity.map(|id| encounter(id.encounter)).transpose()?,
+        identity.map(|id| i64::from(id.burning)),
+    ];
+    encode_standard_projection(&d, None, caps, StandardContext { ascension, run_selection },
+        crate::RunObservationLayout::Compact, target, Some(&values))
+}

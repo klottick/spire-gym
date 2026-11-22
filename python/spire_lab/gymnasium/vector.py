@@ -48,7 +48,8 @@ class CombatVectorEnv(gym.vector.VectorEnv):
     metadata = {"render_modes": [], "autoreset_mode": gym.vector.AutoresetMode.SAME_STEP}
 
     def __init__(self, num_envs: int, *, catalog=None, workers=1, partition="train",
-                 render_mode=None, record_replay=False):
+                 render_mode=None, record_replay=False, observation="dense", capacity_preset=None, capacities=None):
+        _common.require_dense_combat(observation, capacity_preset, capacities)
         if render_mode is not None:
             raise _common.input_error("range", "only render_mode=None is supported")
         self.render_mode = None

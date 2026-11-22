@@ -334,7 +334,7 @@ impl ValueDtype {
 /// Design §6 (D1: int32 with the encode-time check for the unclamped u32/u64 counters). `None` for a non-Standard group.
 pub(crate) fn compact_dtype(group: &str) -> Option<ValueDtype> {
     Some(match group {
-        "map_edges" | "current_node" | "potions" | "selection" | "selection_counts" | "actions" | "combat_state" | "known_draw"
+        "combat_context" | "map_edges" | "current_node" | "potions" | "selection" | "selection_counts" | "actions" | "combat_state" | "known_draw"
         | "stance_choices" | "combat_card_offers" => ValueDtype::I16,
         "context" | "player" | "map_nodes" | "permanent_cards" | "combat_cards" | "enemies" | "powers" | "relics" | "orbs"
         | "offers" | "room_params" => ValueDtype::I32,
@@ -351,6 +351,11 @@ fn value_columns() -> &'static std::collections::HashMap<&'static str, Vec<&'sta
 }
 /// The value-fault name of column `column` of `group` (a Standard group and column index by construction).
 pub(crate) fn value_column(group: &str, column: usize) -> &'static str {
+    if group == "combat_context" {
+        const COLUMNS: [&str; 6] = ["combat_context.character", "combat_context.ascension", "combat_context.act",
+            "combat_context.room_kind", "combat_context.encounter", "combat_context.burning"];
+        return COLUMNS[column];
+    }
     value_columns().get(group).and_then(|c| c.get(column)).copied().unwrap_or("standard.value")
 }
 /// The dtype of a compact value-fault group name, or `None` when it is not a Standard value column.
@@ -403,6 +408,16 @@ fn build_compact_spec(caps: &RunCapacities) -> Result<RunObservationSpec, RunSes
     d["semantics"]["dense_schema"] = json!(RUN_OBSERVATION_STANDARD_SCHEMA_ID);
     d["semantics"]["layout"] = json!(format!("the dense {RUN_OBSERVATION_STANDARD_SCHEMA_ID} groups, columns, order and semantics; rows limited by \
 the capacities; values in the tensor dtype; a state that exceeds a capacity or a dtype is a typed Capacity fault, never truncated"));
+    narrow_compact_descriptor(d)?;
+    let mut hash = Sha256::new();
+    hash.update(COMPACT_DOMAIN);
+    hash.update(crate::canonical_json(&spec.descriptor).map_err(|_| RunSessionError::Input("invalid Standard descriptor"))?);
+    spec.fingerprint = hash.finalize().into();
+    Ok(spec)
+}
+
+/// Narrow the value tensors of either Standard projection. Flags keep their existing dtypes.
+pub(crate) fn narrow_compact_descriptor(d: &mut Value) -> Result<(), RunSessionError> {
     let clip = |v: &Value, (low, high): (i64, i64)| json!(v.as_i64().unwrap_or(if v.as_u64().is_some() { i64::MAX } else { i64::MIN }).clamp(low, high));
     for tensor in d["tensors"].as_array_mut().expect("descriptor tensors") {
         if tensor.get("known").is_none() { continue }
@@ -416,11 +431,7 @@ the capacities; values in the tensor dtype; a state that exceeds a capacity or a
             }
         }
     }
-    let mut hash = Sha256::new();
-    hash.update(COMPACT_DOMAIN);
-    hash.update(crate::canonical_json(&spec.descriptor).map_err(|_| RunSessionError::Input("invalid Standard descriptor"))?);
-    spec.fingerprint = hash.finalize().into();
-    Ok(spec)
+    Ok(())
 }
 
 pub(crate) fn neow_reward(reward: NeowReward) -> i64 { v1::reward(reward) }

@@ -22,14 +22,17 @@ pub(crate) struct NativeCombatPool {
 impl NativeCombatPool {
     #[new]
     #[pyo3(signature = (catalog=None, *, num_envs=1, workers=1,
-        partition="train".to_owned(), autoreset="manual".to_owned(), record_replay=false),
-        text_signature = "(catalog=None, *, num_envs=1, workers=1, partition='train', autoreset='manual', record_replay=False)")]
+        partition="train".to_owned(), autoreset="manual".to_owned(), record_replay=false, observation="dense".to_owned(), capacity_preset=None, capacities=None),
+        text_signature = "(catalog=None, *, num_envs=1, workers=1, partition='train', autoreset='manual', record_replay=False, observation='dense', capacity_preset=None, capacities=None)")]
     fn new(py: Python<'_>, catalog: Option<&Bound<'_, PyAny>>,
         #[pyo3(from_py_with = config::size)] num_envs: usize,
         #[pyo3(from_py_with = config::size)] workers: usize,
         #[pyo3(from_py_with = config::label)] partition: String,
         #[pyo3(from_py_with = config::label)] autoreset: String,
-        #[pyo3(from_py_with = config::boolean)] record_replay: bool) -> PyResult<Self> {
+        #[pyo3(from_py_with = config::boolean)] record_replay: bool,
+        #[pyo3(from_py_with = crate::run_env::label)] observation: String,
+        capacity_preset: Option<&Bound<'_, PyAny>>, capacities: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
+        crate::run_env::combat_observation_config(&observation, capacity_preset, capacities, false)?;
         let catalog = Arc::new(config::catalog(catalog)?);
         let batch = num_envs;
         let partition = match partition.as_str() {

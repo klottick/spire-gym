@@ -132,6 +132,8 @@ pub trait BatchSession: sealed::Sealed + Send + Sized {
     fn batch_decision(&self) -> Result<Self::Boundary, Error>;
     fn batch_record(&self) -> Result<Option<Self::Record>, Error>;
     fn batch_fault(&self) -> Option<Error>;
+    fn batch_retired_cause(&self) -> Option<Error> { self.batch_fault() }
+    fn batch_compact_template(&self) -> Result<Option<Self::Boundary>, Error> { Ok(None) }
     fn batch_close(&mut self) -> Result<(), Error>;
     fn batch_fingerprint(&self) -> Result<[u8; 32], Error>;
     /// The current episode's catalog entry (`None` for Run sessions).
@@ -218,8 +220,14 @@ impl BatchSession for CombatTrainingSession {
     fn batch_preflight_fresh(&self, entry: Option<&str>) -> Result<(), Error> { self.shared_catalog().has_entry(entry) }
     fn batch_reset(&mut self, seed: Option<u64>, entry: Option<&str>) -> Result<CombatPolicyBoundary, Error> { self.reset(seed, entry) }
     fn batch_preflight_step(&self, token: RunDecisionToken, index: RunActionIndex) -> Result<(), Error> { self.preflight_step(token, index) }
+    fn batch_reset_into(&mut self, seed: Option<u64>, entry: Option<&str>, target: Option<&mut ObservationTarget<'_>>) -> Result<CombatPolicyBoundary, Error> {
+        self.reset_into(seed, entry, target)
+    }
     fn batch_step(&mut self, token: RunDecisionToken, index: RunActionIndex) -> Result<BatchStep<CombatPolicyBoundary>, BatchStepFailure> {
-        self.step_with_status(token, index)
+        self.batch_step_into(token, index, None)
+    }
+    fn batch_step_into(&mut self, token: RunDecisionToken, index: RunActionIndex, target: Option<&mut ObservationTarget<'_>>) -> Result<BatchStep<CombatPolicyBoundary>, BatchStepFailure> {
+        self.step_with_status_into(token, index, target)
             .map(|s| BatchStep { boundary: s.boundary, reward: s.reward, reward_events: Vec::new(), terminated: s.terminated, truncated: s.truncated })
             .map_err(|f| BatchStepFailure { error: f.error, committed: f.committed })
     }
@@ -230,7 +238,22 @@ impl BatchSession for CombatTrainingSession {
     fn batch_record(&self) -> Result<Option<crate::CombatEpisodeRecord>, Error> { self.record() }
     fn batch_fault(&self) -> Option<Error> { self.retained_fault() }
     fn batch_close(&mut self) -> Result<(), Error> { self.close() }
-    fn batch_fingerprint(&self) -> Result<[u8; 32], Error> { self.observation_spec().map(|s| s.fingerprint()) }
+    fn batch_fingerprint(&self) -> Result<[u8; 32], Error> {
+        match self.compact_preset() {
+            Some(preset) => crate::combat_policy::compact_combat_spec(self.compact_widths(), preset).map(|s| s.fingerprint()),
+            None => self.observation_spec().map(|s| s.fingerprint()),
+        }
+    }
+    fn batch_retired_cause(&self) -> Option<Error> {
+        if self.compact_preset().is_some() { self.fault_cause() } else { self.batch_fault() }
+    }
+    fn batch_compact_template(&self) -> Result<Option<CombatPolicyBoundary>, Error> {
+        if self.compact_preset().is_none() { return Ok(None) }
+        Ok(Some(CombatPolicyBoundary {
+            observation: crate::run_observation::empty_combat_observation(self.compact_widths())?,
+            token: [0_u64, 0].into(), info: json!({}),
+        }))
+    }
     fn batch_current_entry(&self) -> Option<String> { self.current_entry().map(str::to_owned) }
     fn batch_is_terminal(&self) -> bool { self.is_terminal() }
     fn batch_fresh(&self) -> Result<Self, Error> { self.fresh_like() }
@@ -448,7 +471,7 @@ impl<S: BatchSession> SessionBatch<S> {
     /// The replaced session's fault, and its record unless that episode was already queued as completed.
     fn retire(&mut self, slot: usize, old: &S) {
         let record = if self.slots[slot].record_completed { None } else { old.batch_record().ok().flatten() };
-        self.fault_records.push(RetiredFault { slot, error: old.batch_fault(), record });
+        self.fault_records.push(RetiredFault { slot, error: old.batch_retired_cause(), record });
         self.slots[slot].record_completed = false;
     }
     /// Queue a finished episode whose slot then faulted (the session keeps that record, now stamped with the fault).
@@ -497,6 +520,10 @@ impl<S: BatchSession> SessionBatch<S> {
                 session.batch_decision().map_err(|e| Self::input(Some(slot), e))?;
                 jobs.push(ResetJob::Keep);
             }
+        }
+        if !self.started && self.config.fault_policy == FaultPolicy::Isolate {
+            self.template = self.sessions[0].batch_compact_template()
+                .map_err(|_| SessionBatchError::Setup(crate::error::setup("combat batch zero observation allocation failed")))?;
         }
         for (slot, job) in jobs.iter_mut().enumerate() { if let ResetJob::Reset { inject, .. } = job { *inject = self.inject_for(slot); } }
         let mut rows = Self::setup(crate::error::reserved(count))?;
@@ -864,12 +891,29 @@ impl<S: BatchSession> SessionBatch<S> {
 pub type CombatTrainingBatch = SessionBatch<CombatTrainingSession>;
 impl SessionBatch<CombatTrainingSession> {
     /// `num_envs` sessions over one shared catalog (Standard catalogs build `standard-combat-v1` sessions).
+    pub fn new_standard_with_config(
+        catalog: std::sync::Arc<CombatTrainingCatalog>, partition: spire_core::combat::rng::Partition,
+        num_envs: usize, default_entries: Option<Vec<Option<String>>>, config: BatchConfig,
+        observation: crate::StandardCombatSessionConfig,
+    ) -> Result<Self, SessionBatchError> {
+        Self::build_combat(catalog, partition, num_envs, default_entries, config, Some(observation))
+    }
+
     pub fn new_combat(catalog: std::sync::Arc<CombatTrainingCatalog>, partition: spire_core::combat::rng::Partition, num_envs: usize,
         default_entries: Option<Vec<Option<String>>>, config: BatchConfig) -> Result<Self, SessionBatchError> {
+        Self::build_combat(catalog, partition, num_envs, default_entries, config, None)
+    }
+
+    fn build_combat(catalog: std::sync::Arc<CombatTrainingCatalog>, partition: spire_core::combat::rng::Partition, num_envs: usize,
+        default_entries: Option<Vec<Option<String>>>, config: BatchConfig, observation: Option<crate::StandardCombatSessionConfig>) -> Result<Self, SessionBatchError> {
         if !(1..=BATCH_MAX_SLOTS).contains(&num_envs) { return Err(Self::input(None, Error::Input("batch size must be 1..=256 and workers must be positive"))) }
         let mut sessions = Self::setup(crate::error::reserved(num_envs))?;
         for slot in 0..num_envs {
-            let session = if catalog.is_standard() { CombatTrainingSession::new_standard_shared(catalog.clone(), partition) } else { CombatTrainingSession::new_shared(catalog.clone(), partition) };
+            let session = match &observation {
+                Some(observation) => CombatTrainingSession::new_standard_shared_with_config(catalog.clone(), partition, observation.clone()),
+                None if catalog.is_standard() => CombatTrainingSession::new_standard_shared(catalog.clone(), partition),
+                None => CombatTrainingSession::new_shared(catalog.clone(), partition),
+            };
             sessions.push(session.map_err(|e| Self::input(Some(slot), e))?);
         }
         Self::from_sessions(sessions, default_entries.unwrap_or_else(|| vec![None; num_envs]), config)
