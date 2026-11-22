@@ -1,6 +1,6 @@
 //! Standalone full-engine combat owner. Validation is separate from accepted
 //! effects; faults retain the same Run and cannot reset into a fabricated loss.
-use crate::{RunSessionError as Error,RunObservationSpec,RunDecisionToken,RunActionIndex,CombatPolicyBoundary,RunObservation};
+use crate::{RunSessionError as Error,RunObservationSpec,RunDecisionToken,RunActionIndex,CombatPolicyBoundary,RunObservation,StandardCombatCapacityPreset,StandardCombatSessionConfig,RunObservationLayout,ObservationTarget};
 use crate::combat_policy::{encode_combat_policy,lifecycle,hex};
 use spire_core::{run::*,content::*,combat::{rng::Partition,Outcome}};
 use serde::Deserialize;
@@ -125,8 +125,8 @@ let mut support=json!({
 pub struct CombatTrainingStep{pub boundary:CombatPolicyBoundary,pub reward:i32,pub terminated:bool,pub truncated:bool}
 pub struct CombatTrainingSession{
     /// M35 (design §3.1): one shared catalog (entries, records and cached recipe roots) for every session of a batch.
-    catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,partition:Partition,id:u64,serial:u64,ordinal:u64,seed:Option<u64>,entry_id:Option<String>,
-    record:Option<crate::CombatEpisodeRecord>,latest_public:Option<PublicDecision>,run:Option<Run>,published:Option<CombatPolicyBoundary>,actions:Vec<GameAction>,fault:Option<Error>,closed:bool,accepted_steps:u64,last_step_committed:bool,
+    catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,preset:Option<StandardCombatCapacityPreset>,partition:Partition,id:u64,serial:u64,ordinal:u64,seed:Option<u64>,entry_id:Option<String>,
+    record:Option<crate::CombatEpisodeRecord>,latest_public:Option<PublicDecision>,run:Option<Run>,published:Option<CombatPolicyBoundary>,actions:Vec<GameAction>,fault:Option<Error>,encoding_cause:Option<Error>,closed:bool,accepted_steps:u64,last_step_committed:bool,
     /// The current episode's start label (design §4.8): `fresh_start`, `synthetic_position` or `reachable_recipe`.
     start_kind:&'static str,
 }
@@ -153,24 +153,55 @@ impl CombatTrainingSession{
     }
     /// M34s-a `standard-combat-v1` session: Standard capacities and the Standard combat view.
     pub fn new_standard(catalog:CombatTrainingCatalog,partition:Partition)->Result<Self,Error>{Self::new_standard_shared(std::sync::Arc::new(catalog),partition)}
+    pub fn new_standard_with_config(catalog: CombatTrainingCatalog, partition: Partition, config: StandardCombatSessionConfig) -> Result<Self, Error> {
+        Self::new_standard_shared_with_config(std::sync::Arc::new(catalog), partition, config)
+    }
+
+    pub fn new_standard_shared_with_config(catalog: std::sync::Arc<CombatTrainingCatalog>, partition: Partition, config: StandardCombatSessionConfig) -> Result<Self, Error> {
+        config.validate()?;
+        if !catalog.is_standard() {
+            return Err(Error::Input("combat observation configuration requires a Standard combat catalog"))
+        }
+        Self::unstarted_with_preset(catalog, config.capacities, partition, config.capacity_preset)
+    }
+
+    pub fn observation_layout(&self) -> RunObservationLayout {
+        if self.preset.is_some() { RunObservationLayout::Compact } else { RunObservationLayout::Dense }
+    }
+
+    pub fn fault_cause(&self) -> Option<Error> {
+        self.encoding_cause.as_ref().or(self.fault.as_ref()).cloned()
+    }
+
+    fn view_id(&self) -> &'static str {
+        if self.preset.is_some() { crate::STANDARD_COMBAT_COMPACT_VIEW_ID } else { self.catalog.profile.view_id() }
+    }
+
     /// M35: a `standard-combat-v1` session over a shared catalog.
     pub fn new_standard_shared(catalog:std::sync::Arc<CombatTrainingCatalog>,partition:Partition)->Result<Self,Error>{
         if catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("the Standard combat session requires a standard-combat-v1 catalog"))}
         Self::unstarted(catalog,crate::RunCapacities::standard_default(),partition)
     }
     fn unstarted(catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,partition:Partition)->Result<Self,Error>{
+        Self::unstarted_with_preset(catalog,caps,partition,None)
+    }
+
+    fn unstarted_with_preset(catalog:std::sync::Arc<CombatTrainingCatalog>,caps:crate::RunCapacities,partition:Partition,preset:Option<StandardCombatCapacityPreset>)->Result<Self,Error>{
         let id=crate::run_session::allocate_run_session_id()?;
-        Ok(Self{catalog,caps,partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
+        Ok(Self{catalog,caps,preset,partition,id,serial:0,ordinal:0,seed:None,entry_id:None,record:None,latest_public:None,run:None,published:None,actions:vec![],fault:None,encoding_cause:None,closed:false,accepted_steps:0,last_step_committed:false,start_kind:"fresh_start"})
     }
     /// M35 isolate resume (design §3.3): a new unstarted session with this one's catalog, capacities and partition (new
     /// identity, no episode, no fault). The old session is kept by the caller; nothing is copied from its episode.
-    pub(crate) fn fresh_like(&self)->Result<Self,Error>{Self::unstarted(self.catalog.clone(),self.caps.clone(),self.partition)}
+    pub(crate) fn fresh_like(&self)->Result<Self,Error>{Self::unstarted_with_preset(self.catalog.clone(),self.caps.clone(),self.partition,self.preset)}
     /// M35: the shared catalog (batch construction and the shared-`Arc` test).
     pub fn shared_catalog(&self)->&std::sync::Arc<CombatTrainingCatalog>{&self.catalog}
     /// The entry of the current episode (`None` before the first reset).
     pub fn current_entry(&self)->Option<&str>{self.entry_id.as_deref()}
     pub fn observation_spec(&self)->Result<RunObservationSpec,Error>{match self.catalog.profile{
-        CombatTrainingProfile::Standard=>crate::standard_combat_observation_spec(&self.caps),
+        CombatTrainingProfile::Standard=>match self.preset{
+            Some(preset)=>crate::standard_compact_combat_observation_spec(&self.caps,preset),
+            None=>crate::standard_combat_observation_spec(&self.caps),
+        },
         CombatTrainingProfile::V1=>crate::combat_policy_observation_spec(),
         CombatTrainingProfile::V2=>crate::combat_policy_observation_spec_v2(),CombatTrainingProfile::M21=>crate::watcher_combat_observation_spec(&self.caps),
     }}
@@ -178,9 +209,9 @@ impl CombatTrainingSession{
     pub fn environment_spec(&self)->Result<Value,Error>{
         let spec=self.observation_spec()?;
         let support=match self.catalog.profile{CombatTrainingProfile::V1=>combat_training_support(),CombatTrainingProfile::V2=>combat_training_support_v2(),CombatTrainingProfile::M21=>m21_support(),CombatTrainingProfile::Standard=>crate::standard_combat::standard_combat_support()};
-        Ok(json!({"profile_id":self.catalog.profile.id(),"schema_id":self.catalog.profile.view_id(),"observation_fingerprint":hex(&spec.fingerprint()),
+        Ok(json!({"profile_id":self.catalog.profile.id(),"schema_id":self.view_id(),"observation_fingerprint":hex(&spec.fingerprint()),
             "content_id":self.catalog.profile.content_id(),"rules_id":match self.catalog.profile{CombatTrainingProfile::M21=>M21_WATCHER_COMBAT_RULES_ID,CombatTrainingProfile::Standard=>crate::RUN_RULES_ID_STANDARD,_=>crate::RUN_RULES_ID_M10},"reward_id":COMBAT_TRAINING_REWARD_ID,
-            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"seed_adapter_id":crate::RUN_SEED_ADAPTER_ID,"combat_view_id":self.catalog.profile.view_id(),
+            "rng_id":spire_core::combat::rng::RNG_CONTRACT_ID,"seed_adapter_id":crate::RUN_SEED_ADAPTER_ID,"combat_view_id":self.view_id(),
             "mode":"standalone_combat","partition":self.partition.as_str(),"entry_catalog_fingerprint":hex(&self.catalog.fingerprint()),"autoreset":"disabled","seed_domain":"u64; explicit seed resets episode ordinal to zero; implicit reset advances ordinal",
             "support":support}))
     }
@@ -196,7 +227,9 @@ impl CombatTrainingSession{
         if self.catalog.profile!=CombatTrainingProfile::Standard{return Err(Error::UnsupportedBoundary("public roots exist only on the Standard surface"))}
         self.usable()?;self.published.as_ref().ok_or(Error::NotReset)?;
         if self.terminal_outcome().is_some(){return Err(Error::Terminal)}
-        crate::PublicRoot::of(self.run.as_ref().ok_or(Error::NotReset)?,&self.caps)
+        let dense;
+        let caps = if self.preset.is_some() { dense = crate::RunCapacities::standard_default(); &dense } else { &self.caps };
+        crate::PublicRoot::of(self.run.as_ref().ok_or(Error::NotReset)?,caps)
     }
     pub fn preflight_reset(&self,seed:Option<u64>,entry_id:Option<&str>)->Result<(),Error>{
         self.usable()?;self.catalog.entry(entry_id)?;
@@ -204,19 +237,27 @@ impl CombatTrainingSession{
         if seed.is_none()&&self.seed.is_some(){self.ordinal.checked_add(1).ok_or(Error::Input("combat episode ordinal exhausted"))?;}Ok(())
     }
     pub fn reset(&mut self,seed:Option<u64>,entry_id:Option<&str>)->Result<CombatPolicyBoundary,Error>{
+        self.reset_into(seed,entry_id,None)
+    }
+
+    pub(crate) fn reset_into(&mut self,seed:Option<u64>,entry_id:Option<&str>,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
         self.preflight_reset(seed,entry_id)?;
         let (effective,ordinal)=if let Some(seed)=seed{(seed,0)}else if let Some(seed)=self.seed{(seed,self.ordinal+1)}else{
             let mut bytes=[0;8];getrandom::fill(&mut bytes).map_err(|_|Error::Input("combat seed entropy unavailable"))?;(u64::from_le_bytes(bytes),0)
         };
-        self.initialize_episode(effective,ordinal,entry_id)
+        self.initialize_episode_into(effective,ordinal,entry_id,target)
     }
     /// One entry/startup owner for ordinary reset and semantic replay.
     pub(crate) fn initialize_episode(&mut self,effective:u64,ordinal:u64,entry_id:Option<&str>)->Result<CombatPolicyBoundary,Error>{
+        self.initialize_episode_into(effective,ordinal,entry_id,None)
+    }
+
+    fn initialize_episode_into(&mut self,effective:u64,ordinal:u64,entry_id:Option<&str>,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
         self.usable()?;
         self.serial.checked_add(1).ok_or(Error::Input("combat decision serial exhausted"))?;
         let (id,entry)=self.catalog.entry(entry_id)?.clone();
-        if let TrainingEntry::Standard(start)=entry{return self.initialize_standard(effective,ordinal,id,start)}
-        if let TrainingEntry::Recipe(root)=entry{return self.initialize_recipe(effective,ordinal,id,&root)}
+        if let TrainingEntry::Standard(start)=entry{return self.initialize_standard(effective,ordinal,id,start,target)}
+        if let TrainingEntry::Recipe(root)=entry{return self.initialize_recipe(effective,ordinal,id,&root,target)}
         #[cfg(test)]
         INITIALIZER_CALLS.with(|calls|calls.set(calls.get()+1));
         self.record=if self.catalog.profile==CombatTrainingProfile::M21{Some(crate::combat_replay::new_record(&self.catalog,&self.caps,self.partition,effective,ordinal,&id)?)}else{None};
@@ -230,12 +271,12 @@ impl CombatTrainingSession{
         }.map_err(Error::Core)?;
         self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();
         if let Err(e)=self.run.as_mut().unwrap().enter_training_combat(encounter){return Err(self.freeze(Error::Core(e)))}
-        let result=self.publish();result.map_err(|e|self.freeze(e))
+        let result=self.publish(None);result.map_err(|e|self.freeze(e))
     }
     /// M34s-a: the Standard arm's reset: own the resources, enter through `enter_owned`, stop at the combat's terminal.
     /// M34s-c: with a synthetic position the entry is built on a scratch Run: a rejected position changes nothing (the session,
     /// its serial, seed and boundary are untouched); a core fault during entry still freezes the session as before.
-    fn initialize_standard(&mut self,effective:u64,ordinal:u64,id:String,start:StandardCombatStart)->Result<CombatPolicyBoundary,Error>{
+    fn initialize_standard(&mut self,effective:u64,ordinal:u64,id:String,start:StandardCombatStart,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
         let mut root=[0;32];root[..8].copy_from_slice(&effective.to_le_bytes());
         let kind=if start.position.is_some(){"synthetic_position"}else{"fresh_start"};
         start.validate_position().map_err(crate::standard_positions::position_error)?;
@@ -244,30 +285,38 @@ impl CombatTrainingSession{
         if let Err(StandardStartError::Position(p))=entered{return Err(crate::standard_positions::position_error(p))}
         self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;self.start_kind=kind;
         if let Err(StandardStartError::Run(e))=entered{return Err(self.freeze(Error::Core(e)))}
-        let result=self.publish();result.map_err(|e|self.freeze(e))
+        let result=self.publish(target);result.map_err(|e|self.freeze(e))
     }
     /// M34s-c `reachable_recipe` (design §4.8): one world sampled from the recipe's cached public root, keyed by the reset's
     /// seed, partition and ordinal (research purpose `start`); never the record's hidden state.
-    fn initialize_recipe(&mut self,effective:u64,ordinal:u64,id:String,root:&crate::PublicRoot)->Result<CombatPolicyBoundary,Error>{
+    fn initialize_recipe(&mut self,effective:u64,ordinal:u64,id:String,root:&crate::PublicRoot,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
         let run=root.sample_start(effective,self.partition,ordinal)?;
         self.run=Some(run);self.seed=Some(effective);self.ordinal=ordinal;self.entry_id=Some(id);self.accepted_steps=0;self.last_step_committed=false;self.serial+=1;self.published=None;self.latest_public=None;self.actions.clear();self.record=None;self.start_kind="reachable_recipe";
-        let result=self.publish();result.map_err(|e|self.freeze(e))
+        let result=self.publish(target);result.map_err(|e|self.freeze(e))
     }
     /// Standard boundary: the Standard combat view; info carries the entry, start kind and terminal facts, never a seed.
-    fn publish_standard(&mut self)->Result<CombatPolicyBoundary,Error>{
-        let (observation,mut info,actions)=standard_combat_publication(self.run.as_ref().unwrap(),&self.caps)?;
+    fn publish_standard(&mut self,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
+        let (observation,mut info,actions)=standard_combat_publication_into(self.run.as_ref().unwrap(),&self.caps,self.observation_layout(),target)?;
         info["profile_id"]=json!(self.catalog.profile.id());info["entry_id"]=json!(self.entry_id);info["episode_ordinal"]=json!(self.ordinal);
         info["start_kind"]=json!(self.start_kind);
         let boundary=CombatPolicyBoundary{observation,token:[self.id,self.serial].into(),info};
         self.actions=actions;
-        self.published=Some(boundary);self.decision()
+        if self.preset.is_some() {
+            self.published = Some(CombatPolicyBoundary {
+                observation: RunObservation { groups: Vec::new(), action_mask: Vec::new() },
+                token: boundary.token, info: boundary.info.clone(),
+            });
+            Ok(boundary)
+        } else {
+            self.published=Some(boundary);self.decision()
+        }
     }
     fn terminal_outcome(&self)->Option<Outcome>{
         let run=self.run.as_ref().unwrap();
         if self.catalog.profile==CombatTrainingProfile::Standard{run.combat_scope_terminal().map(|t|t.outcome)}else{run.combat_checkpoint().map(|c|c.record.outcome)}
     }
-    fn publish(&mut self)->Result<CombatPolicyBoundary,Error>{
-        if self.catalog.profile==CombatTrainingProfile::Standard{return self.publish_standard()}
+    fn publish(&mut self,target:Option<&mut ObservationTarget<'_>>)->Result<CombatPolicyBoundary,Error>{
+        if self.catalog.profile==CombatTrainingProfile::Standard{return self.publish_standard(target)}
         let d=match self.run.as_ref().unwrap().decision(){Ok(d)=>d,Err(e)=>return Err(Error::Core(e))};
         if self.catalog.profile==CombatTrainingProfile::M21{self.latest_public=Some(d.clone());}
         let cp=self.run.as_ref().unwrap().combat_checkpoint();
@@ -282,7 +331,10 @@ impl CombatTrainingSession{
     }
     pub fn decision(&self)->Result<CombatPolicyBoundary,Error>{
         self.usable()?;let b=self.published.as_ref().ok_or(Error::NotReset)?;
-        Ok(CombatPolicyBoundary{observation:b.observation.owned()?,token:b.token,info:b.info.clone()})
+        let observation = if b.observation.groups.is_empty() {
+            standard_combat_publication_into(self.run.as_ref().unwrap(),&self.caps,self.observation_layout(),None)?.0
+        } else { b.observation.owned()? };
+        Ok(CombatPolicyBoundary{observation,token:b.token,info:b.info.clone()})
     }
     pub fn preflight_step(&self,token:RunDecisionToken,index:RunActionIndex)->Result<(),Error>{
         self.usable()?;let b=self.published.as_ref().ok_or(Error::NotReset)?;
@@ -297,6 +349,10 @@ impl CombatTrainingSession{
     /// M35 (design §3.1): `step` with whether the engine committed the action (the batch's delivery status). Behaviour,
     /// freezing and diagnostics are those of `step`.
     pub(crate) fn step_with_status(&mut self,token:RunDecisionToken,index:RunActionIndex)->Result<CombatTrainingStep,crate::run_session::RunSessionStepFailure>{
+        self.step_with_status_into(token,index,None)
+    }
+
+    pub(crate) fn step_with_status_into(&mut self,token:RunDecisionToken,index:RunActionIndex,target:Option<&mut ObservationTarget<'_>>)->Result<CombatTrainingStep,crate::run_session::RunSessionStepFailure>{
         use crate::run_session::RunSessionStepFailure as Failure;
         self.preflight_step(token,index).map_err(|error|Failure{error,committed:false})?;
         let action=self.actions[index.0 as usize].clone();
@@ -313,10 +369,21 @@ impl CombatTrainingSession{
         // `spire-gym-combat-outcome-reward-v1`: victory +1, death -1, escaped 0 (M34s-a aligns Gym66 to the documented law).
         let reward=outcome.map_or(0,outcome_reward);
         if let Some(record)=&mut self.record{record.steps.push(crate::RunRecordedStep{action:action.clone(),reward,terminal:self.run.as_ref().unwrap().decision().ok().and_then(|d|d.terminal)});record.outcome=self.run.as_ref().unwrap().combat_checkpoint().map(|c|c.record.outcome);}
-        let boundary=self.publish().map_err(|e|Failure{error:self.freeze_action(e,Some(action),true,true),committed:true})?;Ok(CombatTrainingStep{boundary,reward,terminated,truncated:false})
+        let boundary=self.publish(target).map_err(|cause| {
+            let error = if self.preset.is_some() && matches!(cause, Error::Capacity { .. }) {
+                self.encoding_cause = Some(cause);
+                Error::DeliveryFault("post-step combat encoding failed")
+            } else { cause };
+            Failure { error:self.freeze_action(error,Some(action),true,true),committed:true }
+        })?;
+        Ok(CombatTrainingStep{boundary,reward,terminated,truncated:false})
     }
     /// M35: the publication serial (advances only when a boundary is published or an action commits).
     pub(crate) fn publication_serial(&self)->u64{self.serial}
+    pub(crate) fn compact_preset(&self) -> Option<StandardCombatCapacityPreset> { self.preset }
+
+    pub(crate) fn compact_widths(&self) -> &crate::RunCapacities { &self.caps }
+
     /// M35: the retained first fault, if any.
     pub(crate) fn retained_fault(&self)->Option<Error>{self.fault.clone()}
     /// M35: retain a batch job's error as this session's first fault (idempotent: the first fault is kept).
@@ -337,10 +404,17 @@ impl CombatTrainingSession{
 /// settlement-free HP) and its action table (empty at the terminal): shared by `standard-combat-v1` sessions and search
 /// branches (M34s-b), so both publish identically.
 pub(crate) fn standard_combat_publication(run:&Run,caps:&crate::RunCapacities)->Result<(RunObservation,Value,Vec<GameAction>),Error>{
+    standard_combat_publication_into(run,caps,RunObservationLayout::Dense,None)
+}
+
+pub(crate) fn standard_combat_publication_into(run:&Run,caps:&crate::RunCapacities,layout:RunObservationLayout,target:Option<&mut ObservationTarget<'_>>)->Result<(RunObservation,Value,Vec<GameAction>),Error>{
     let d=run.decision().map_err(Error::Core)?;
-    let observation=crate::combat_policy::encode_standard_combat(&d,caps,run.ascension(),run.room_selection_operation(),run.combat_identity())?;
+    let (observation,view_id) = match layout {
+        RunObservationLayout::Dense => (crate::combat_policy::encode_standard_combat(&d,caps,run.ascension(),run.room_selection_operation(),run.combat_identity())?,crate::STANDARD_COMBAT_VIEW_ID),
+        RunObservationLayout::Compact => (crate::combat_policy::encode_compact_standard_combat(&d,caps,run.ascension(),run.room_selection_operation(),run.combat_identity(),target)?,crate::STANDARD_COMBAT_COMPACT_VIEW_ID),
+    };
     let terminal=run.combat_scope_terminal();
-    let mut info=crate::combat_policy::standard_lifecycle(&d,None);
+    let mut info=crate::combat_policy::lifecycle_for_view(&d,None,view_id);
     info["terminal_reason"]=terminal.map(|t|json!(outcome_label(t.outcome))).unwrap_or(Value::Null);
     info["all_enemies_escaped"]=json!(terminal.is_some_and(|t|t.all_enemies_escaped));
     info["hp_before_healing"]=terminal.map(|t|json!(t.hp_before_healing)).unwrap_or(Value::Null);

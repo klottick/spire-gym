@@ -208,11 +208,19 @@ fn step_many_no_cross_branch_leakage() {
 
 #[test]
 fn step_many_privacy_oracle_p3_p4() {
+    for config in [StandardCombatSessionConfig::default(), StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play)] {
+        check_step_many_privacy(config);
+    }
+}
+
+fn check_step_many_privacy(config: StandardCombatSessionConfig) {
     let (root,twin_root)=natural_pair(Character::Silent);
     let (different_session, _) = standalone(Character::Silent, 0, "cultist", 95);
     let different_root = different_session.public_root().unwrap();
     assert_ne!(root.digest(), different_root.digest());
-    let l = limits(16, 32, 300, 8_000); let mut x = search(root.clone(), 4, l); let mut y = search(twin_root, 4, l); let mut z=search(root.clone(),1,l);
+    let l = limits(16, 32, 300, 8_000);
+    let start = |root, workers| PublicSearch::new_with_combat_layout(root, SearchConfig { research_seed: SEED, limits: l }, config.clone()).unwrap().with_workers(workers).unwrap();
+    let (mut x,mut y,mut z)=(start(root.clone(),16),start(twin_root,16),start(root.clone(),1));
     let (a, b, c) = (branch_set(&mut x), branch_set(&mut y), branch_set(&mut z));
     let research = spire_core::run::research_root(SEED);
     let keys = (0..a.len()).map(|i| {
@@ -278,9 +286,15 @@ fn step_many_distribution_p5_workers4() {
 
 #[test]
 fn step_many_output_channels_p7() {
+    for config in [StandardCombatSessionConfig::default(), StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play)] {
+        check_batched_output_channels(config);
+    }
+}
+
+fn check_batched_output_channels(config: StandardCombatSessionConfig) {
     const RESEARCH: u64 = 0x5EED_1234_ABCD_9876; const SAMPLE: u64 = 987_654_321_123; const LIVE: u64 = 0x0DDB_A11C_0FFE_E123;
     let (s, _) = standalone(Character::Ironclad, 20, "two_louse", LIVE); let root = s.public_root().unwrap();
-    let mut q = PublicSearch::new(root.clone(), SearchConfig { research_seed: RESEARCH, limits: WIDE }).unwrap().with_workers(4).unwrap(); let id = q.branch(Some(SAMPLE)).unwrap(); let full_id = q.branch(Some(SAMPLE)).unwrap(); let d = q.decision(id).unwrap();
+    let mut q = PublicSearch::new_with_combat_layout(root.clone(), SearchConfig { research_seed: RESEARCH, limits: WIDE },config).unwrap().with_workers(4).unwrap(); let id = q.branch(Some(SAMPLE)).unwrap(); let full_id = q.branch(Some(SAMPLE)).unwrap(); let d = q.decision(id).unwrap();
     let key = spire_core::run::research_sample_key(&spire_core::run::research_root(RESEARCH), &root.digest(), SAMPLE);
     let forbidden = [RESEARCH.to_string(), format!("{RESEARCH:x}"), SAMPLE.to_string(), format!("{SAMPLE:x}"), LIVE.to_string(), format!("{LIVE:x}"), crate::combat_policy::hex(&key)];
     let legal=d.observation.action_mask.iter().enumerate().filter_map(|(i,m)|(*m!=0).then_some(i)).collect::<Vec<_>>();
@@ -354,4 +368,48 @@ fn step_many_uses_shared_pool() {
     assert_eq!(PublicSearch::new({let (s,_)=standalone(Character::Ironclad,0,"jaw_worm",55);s.public_root().unwrap()},SearchConfig{research_seed:1,limits:WIDE}).unwrap().with_workers(0).err(),Some(RunSessionError::Input("search workers must be 1..=256")) /* M36 amendment (spire-dmm M5): was "search workers must be positive" */);
     let x=crate::workers::Scheduler::shared(4).unwrap(); let y=crate::workers::Scheduler::shared(4).unwrap(); match (x,y) { (crate::workers::Scheduler::Parallel(a),crate::workers::Scheduler::Parallel(b))=>assert!(std::sync::Arc::ptr_eq(&a,&b)), _=>panic!("workers=4 uses a shared pool") }
     let (s,_) = standalone(Character::Ironclad,0,"jaw_worm",56); let root=s.public_root().unwrap(); let l=limits(4,4,30,100); let mut serial=search(root.clone(),1,l); let mut worker=search(root,4,l); let a=serial.branch(None).unwrap(); let b=worker.branch(None).unwrap(); let d=serial.decision(a).unwrap(); let idx=crate::tests::m35_r2::r1(0,0,&d.observation.action_mask); let expected=serial.step(a,d.token,RunActionIndex(idx as i64),BranchView::Mask).unwrap(); let db=worker.decision(b).unwrap(); let got=worker.step_many(&[BranchStepRequest{branch:b,token:db.token,index:RunActionIndex(idx as i64)}],BranchView::Mask).unwrap(); assert_eq!(normalize(got[0].clone()),normalize(BranchStepOutcome::Stepped(expected)));
+}
+
+#[test]
+fn compact_paired_worlds_match_value_and_row_fault_channels() {
+    use crate::run_observation::test_range;
+    let (root, twin) = natural_pair(Character::Silent);
+    let mut compact = StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Bounds);
+    compact.capacities = RunCapacities::standard_default();
+    let mut small = compact.clone();
+    small.capacities.permanent_cards = 6;
+    let config = SearchConfig { research_seed: SEED, limits: WIDE };
+    let (mut x, mut y) = (
+        PublicSearch::new_with_combat_layout(root.clone(), config, small.clone()).unwrap(),
+        PublicSearch::new_with_combat_layout(twin.clone(), config, small).unwrap(),
+    );
+    let row = RunSessionError::Capacity { group:"permanent_cards",required:7,capacity:6 };
+    assert_eq!(x.branch(Some(7)), Err(row.clone()));
+    assert_eq!(y.branch(Some(7)), Err(row));
+    assert_eq!(x.counters(), y.counters());
+
+    let (mut x, mut y) = (
+        PublicSearch::new_with_combat_layout(root, config, compact.clone()).unwrap(),
+        PublicSearch::new_with_combat_layout(twin, config, compact.clone()).unwrap(),
+    );
+    let (xb, yb) = (x.branch(Some(7)).unwrap(), y.branch(Some(7)).unwrap());
+    let a = req(&x, xb, 0);
+    let b = req(&y, yb, 0);
+    let hook = test_range::inflate(compact.capacities, "player", 2, i64::from(i32::MAX), (99, 99));
+    let cause = RunSessionError::Capacity { group:"player.gold",required:2147483746,capacity:2147483647 };
+    let want = vec![BranchStepOutcome::Fault { error: cause.clone(), stage:"encode", committed:true }];
+    let xr = x.step_many(&[a],BranchView::Full).unwrap();
+    let yr = y.step_many(&[b],BranchView::Full).unwrap();
+    assert_eq!(xr, want);
+    assert_eq!(xr, yr);
+    assert!(format!("{xr:?}").contains("player.gold"));
+    assert!(!format!("{xr:?}").contains("instance"));
+    let counters = x.counters();
+    assert_eq!(x.decision(xb).err(), Some(cause.clone()));
+    assert_eq!(y.decision(yb).err(), Some(cause));
+    assert_eq!(x.actions(xb).unwrap(), vec![0]);
+    assert_eq!(y.actions(yb).unwrap(), vec![0]);
+    assert_eq!(x.counters(), counters);
+    assert_eq!(x.counters(), y.counters());
+    drop(hook);
 }

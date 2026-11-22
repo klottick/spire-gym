@@ -97,7 +97,9 @@ class IroncladCombatVectorEnv(gym.vector.VectorEnv):
         workers: int = 1,
         autoreset_mode: str = "disabled",
         fault_policy: str = "freeze",
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> None:
+        _common.require_dense_combat(observation, capacity_preset, capacities)
         if type(num_envs) is not int or not 1 <= num_envs <= 256:
             raise _common.input_error("range", "num_envs must be an integer in 1..=256")
         modes = {"disabled": gym.vector.AutoresetMode.DISABLED,

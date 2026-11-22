@@ -5,6 +5,13 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+- M39b adds the opt-in `spire-gym-standard-combat-view-compact-v1` layout
+  for standalone Standard combat sessions and batches and PublicSearch branch
+  views. `observation="compact"` selects `standard-combat-compact-v1`;
+  pass `capacity_preset="standard-combat-compact-play-v1"` for smaller arrays.
+  Both presets support capacity overrides and report typed overflow faults.
+  Dense remains the default. See the [Standard combat API](docs/standard-run-api.md#compact-standard-combat-view-m39b).
+
 - M39a (spire-e0l) adds `spire_env::combat_entry_resources_descriptor()` and
   Python `spire_lab.combat_entry_resources.load()` / `_native.combat_entry_resources()`.
   The [versioned descriptor](docs/combat-entry-resources.md) publishes relic and

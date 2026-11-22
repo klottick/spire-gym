@@ -16,7 +16,8 @@ class StandardCombatEnv(_CombatEnv):
     """
 
     def __init__(
-        self, entry_catalog: dict[str, Any], *, records=None, partition: str = "train"
+        self, entry_catalog: dict[str, Any], *, records=None, partition: str = "train",
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> None:
         super().__init__(
             entry_catalog,
@@ -24,7 +25,12 @@ class StandardCombatEnv(_CombatEnv):
             native_session_type=_native.NativeStandardCombatSession,
             records=records,
             supports_records=True,
+            observation=observation, capacity_preset=capacity_preset, capacities=capacities,
         )
+
+    def fault_cause(self) -> dict[str, Any] | None:
+        with self._guard:
+            return self._session.fault_cause()
 
     def public_search(
         self,
@@ -36,10 +42,11 @@ class StandardCombatEnv(_CombatEnv):
         max_steps_per_branch=None,
         max_total_steps=None,
         workers=1,
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> PublicSearch:
         """Open bounded public-belief search at the current combat decision."""
         return open_public_search(
             self, research_seed, limits, max_live_branches=max_live_branches, max_branches=max_branches,
             max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps,
-            workers=workers,
+            workers=workers, observation=observation, capacity_preset=capacity_preset, capacities=capacities,
         )

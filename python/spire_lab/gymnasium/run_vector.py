@@ -77,9 +77,9 @@ class RunVectorEnv(gym.vector.VectorEnv):
                                       include_fault=self._fault_active))
             return self._batch._step_deliver(actions, self._tokens, package)
 
-    def combat_views(self):
+    def combat_views(self, *, observation="dense", capacity_preset=None, capacities=None):
         with self._guard:
-            return self._batch.combat_views()
+            return self._batch.combat_views(observation=observation, capacity_preset=capacity_preset, capacities=capacities)
 
     def recover_committed(self):
         with self._guard:

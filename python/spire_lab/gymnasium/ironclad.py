@@ -16,7 +16,7 @@ from spire_lab import _native
 from . import _common
 from .spaces import spaces_from_spec
 
-Observation = dict[str, NDArray[np.int64] | NDArray[np.int8]]
+Observation = dict[str, NDArray[np.int64] | NDArray[np.int32] | NDArray[np.int16] | NDArray[np.int8]]
 
 
 def _catalog_json(entry_catalog: dict[str, Any]) -> str:
@@ -93,13 +93,14 @@ class _CombatEnv(gym.Env[Observation, int]):
         native_session_type,
         records=None,
         supports_records: bool = False,
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> None:
         self.metadata = {"render_modes": []}
         self.render_mode = None
         self._guard = _common.OperationGuard()
         native_options = {"partition": partition}
         if supports_records:
-            native_options["records"] = records
+            native_options.update(records=records, observation=observation, capacity_preset=capacity_preset, capacities=capacities)
         self._session = native_session_type(_catalog_json(entry_catalog), **native_options)
         observations, actions = spaces_from_spec(self.observation_spec())
         self.observation_space = cast(gym.spaces.Space[Observation], observations)
@@ -187,8 +188,10 @@ class IroncladCombatEnv(_CombatEnv):
     """
 
     def __init__(
-        self, entry_catalog: dict[str, Any], *, partition: str = "train"
+        self, entry_catalog: dict[str, Any], *, partition: str = "train",
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> None:
+        _common.require_dense_combat(observation, capacity_preset, capacities)
         super().__init__(
             entry_catalog,
             partition=partition,

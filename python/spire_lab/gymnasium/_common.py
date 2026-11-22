@@ -14,6 +14,15 @@ def input_error(reason, message, *, slot=None):
     return error
 
 
+def require_dense_combat(observation, capacity_preset, capacities):
+    if type(observation) is not str or observation not in ("dense", "compact"):
+        raise _native.RunInputError("observation must be 'dense' or 'compact'")
+    if observation == "compact":
+        raise _native.RunInputError("compact combat observation is unsupported on this surface")
+    if capacity_preset is not None or capacities is not None:
+        raise _native.RunInputError("capacity_preset and capacities require compact combat observation")
+
+
 class OperationGuard:
     """Nonblocking facade lease, including Python packaging after native return."""
 

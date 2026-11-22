@@ -9,7 +9,8 @@ import numpy as np
 
 from spire_lab import _native
 
-from .run import Observation
+from . import _common
+from .run import Observation, RunEnv
 from ._vector import pack_rows
 
 
@@ -68,6 +69,9 @@ class PublicSearch:
 
     def spec(self) -> dict[str, Any]:
         return self._native.spec()
+
+    def observation_spec(self) -> dict[str, Any]:
+        return self._native.observation_spec()
 
     def limits(self) -> dict[str, int]:
         return dict(self.spec()["limits"])
@@ -179,6 +183,7 @@ class PublicBranch:
         max_steps_per_branch=None,
         max_total_steps=None,
         workers=1,
+        observation="dense", capacity_preset=None, capacities=None,
     ) -> PublicSearch:
         if type(research_seed) is not int or not 0 <= research_seed < 2**64:
             raise _native.RunInputError("research_seed must be a nonnegative built-in u64 integer")
@@ -187,12 +192,13 @@ class PublicBranch:
             research_seed,
             **_limits(limits, max_live_branches=max_live_branches, max_branches=max_branches,
                       max_steps_per_branch=max_steps_per_branch, max_total_steps=max_total_steps),
-            workers=workers,
+            workers=workers, observation=observation, capacity_preset=capacity_preset, capacities=capacities,
         )
         return PublicSearch(child)
 
 
-def open_public_search(env, research_seed, limits=None, *, workers=1, **legacy) -> PublicSearch:
+def open_public_search(env, research_seed, limits=None, *, workers=1,
+                       observation="dense", capacity_preset=None, capacities=None, **legacy) -> PublicSearch:
     """Open a search at ``env``'s current Standard combat decision (``RunEnv`` and ``StandardCombatEnv``).
 
     ``limits`` is a mapping of any of the four limit names (missing names take the hard caps); ``None`` with no
@@ -200,7 +206,13 @@ def open_public_search(env, research_seed, limits=None, *, workers=1, **legacy) 
     """
     if type(research_seed) is not int or not 0 <= research_seed < 2**64:
         raise _native.RunInputError("research_seed must be a nonnegative built-in u64 integer")
+    from .standard_combat import StandardCombatEnv
+
+    if not isinstance(env, (RunEnv, StandardCombatEnv)):
+        _common.require_dense_combat(observation, capacity_preset, capacities)
     resolved = _limits(limits, **legacy)
     with env._guard:
-        native = env._session.public_search(research_seed, workers=workers, **resolved)
+        native = env._session.public_search(
+            research_seed, workers=workers, observation=observation, capacity_preset=capacity_preset, capacities=capacities, **resolved
+        )
     return PublicSearch(native)

@@ -42,3 +42,4 @@ Statuses and merge references below follow the closed Beads records (spire-dxo.2
 | M35 | Native batching and Python/Gymnasium hardening | merged | PR #102, 09b8fc8 | [profile](m35-batching.md) |
 | M36 | Final verified delivery | merged; released as v1.0.0 | PR named in [CHANGES](../../CHANGES.md); the commit tagged v1.0.0 | [profile](m36-final-delivery.md) |
 | M38e | Opt-in compact Standard observation | merged; released in v1.1.0 | PR #110, 2814ead | [profile](m38e-compact-observation.md) |
+| M39b | Opt-in compact Standard combat view | candidate | spire-pqs | [profile](m39b-compact-combat-view.md) |

@@ -303,9 +303,9 @@ pub(crate) fn encode_run_with_schema(d:&PublicDecision,map:Option<&PublicMap>,ca
     encode_run_with_card_encoder(d,map,caps,profile,card_id,None)
 }
 fn encode_run_with_card_encoder(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>)->Result<RunObservation,RunSessionError>{
-    encode_run_into(d,map,caps,profile,card_id,standard,None,RunObservationLayout::Dense)
+    encode_run_into(d,map,caps,profile,card_id,standard,None,RunObservationLayout::Dense,None)
 }
-fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>,target:Option<&mut ObservationTarget<'_>>,layout_kind:RunObservationLayout)->Result<RunObservation,RunSessionError>{
+fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,profile:RunEncodingProfile,card_id:fn(RunEncodingProfile,spire_core::content::CardId)->Result<i64,RunSessionError>,standard:Option<StandardContext>,target:Option<&mut ObservationTarget<'_>>,layout_kind:RunObservationLayout,combat_context:Option<&[Option<i64>;6]>)->Result<RunObservation,RunSessionError>{
     if (profile==RunEncodingProfile::Standard)!=standard.is_some(){return Err(RunSessionError::Input("Standard context mismatch"))}
     if layout_kind!=RunObservationLayout::Dense&&profile!=RunEncodingProfile::Standard{return Err(RunSessionError::Input("the compact layout requires the Standard profile"))}
     let extended=profile.extended();
@@ -457,7 +457,7 @@ fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,
     capacity("selection",selection_count,caps.selection)?;
     let (built,cached);
     let (specs,layout):(&[schema::GroupSpec],&[GroupLayout])=if profile==RunEncodingProfile::Standard{
-        cached=standard_groups(caps);(&cached.0,&cached.1)
+        cached=standard_groups(caps,combat_context.is_some());(&cached.0,&cached.1)
     }else{
         let specs=match profile{RunEncodingProfile::Standard=>schema_standard::groups(caps),RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3=>schema_m21::groups(caps),RunEncodingProfile::M25WatcherHeart=>schema_m25::groups(caps),RunEncodingProfile::M21Watcher=>schema_m21::groups(caps),RunEncodingProfile::M9=>schema::groups(caps),RunEncodingProfile::M10|RunEncodingProfile::CombatV2=>schema_m10::groups(caps),RunEncodingProfile::M12=>schema_m12::groups(caps),RunEncodingProfile::M13=>schema_m13::groups(caps),RunEncodingProfile::M14=>schema_m14::groups(caps),RunEncodingProfile::M15=>schema_m15::groups(caps),RunEncodingProfile::M16Defect=>schema_m16::groups(caps),RunEncodingProfile::M17Defect=>schema_m17::groups(caps),RunEncodingProfile::M18Defect=>schema_m18::groups(caps),RunEncodingProfile::M19Defect=>schema_m19::groups(caps),RunEncodingProfile::M20Defect=>schema_m20::groups(caps)};
         let layout=group_layout(&specs);built=(specs,layout);(&built.0,&built.1)
@@ -474,19 +474,23 @@ fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,
         let group=o.group_mut(spec.key);
         for row in 0..occupied_count{for col in spec.references{group.set(row*cols+col,-1)?;}}
     }
-    o.group_mut("context").row(0,&[
-        Some(schema::character(d.player.character)),None,Some(i64::from(d.act)),Some(i64::from(d.floor)),d.room.as_ref().map(|r|room_id(profile,r.kind)).transpose()?,
-        d.room.as_ref().and_then(|r|if let RoomViewKind::Event(e)=r.kind{Some(event_id(profile,e))}else{None}).transpose()?,
-        Some(terminal(d.terminal)),Some(i64::from(d.reward_total)),Some(i64::from(d.player.keys[0])),Some(i64::from(d.player.keys[1])),Some(i64::from(d.player.keys[2])),
-        map.and_then(|m|m.boss).map(|id|encounter_id(profile,id)).transpose()?,map.map(|m|i64::from(m.winged_moves)),Some(number(d.combat_progress.entered)?),Some(number(d.combat_progress.settled)?),
-        d.last_combat.as_ref().map(|c|encounter_id(profile,c.encounter)).transpose()?,d.last_combat.as_ref().map(|c|outcome(c.outcome)),d.content_profile.map(|p|profile_id(profile,p)).transpose()?,
-    ])?;
-    if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M21Watcher){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;context.set(17,1)?;context.known[17]=1;}
-    // PublicDecision has no ascension field. The named fixed-A0 profiles both
-    // fix A0; never infer it for an unknown/unrelated public profile.
-    if matches!(d.content_profile,Some(RoomScenario::M22WatcherAct1|RoomScenario::M23WatcherAct2|RoomScenario::M24WatcherAct3|RoomScenario::M25WatcherHeart)){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;}
-    if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart|RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3)){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;}
-    if let Some(standard)=standard{let context=o.group_mut("context");context.set(1,i64::from(standard.ascension))?;context.known[1]=1;}
+    if let Some(values)=combat_context {
+        o.group_mut("combat_context").row(0,values)?;
+    } else {
+        o.group_mut("context").row(0,&[
+            Some(schema::character(d.player.character)),None,Some(i64::from(d.act)),Some(i64::from(d.floor)),d.room.as_ref().map(|r|room_id(profile,r.kind)).transpose()?,
+            d.room.as_ref().and_then(|r|if let RoomViewKind::Event(e)=r.kind{Some(event_id(profile,e))}else{None}).transpose()?,
+            Some(terminal(d.terminal)),Some(i64::from(d.reward_total)),Some(i64::from(d.player.keys[0])),Some(i64::from(d.player.keys[1])),Some(i64::from(d.player.keys[2])),
+            map.and_then(|m|m.boss).map(|id|encounter_id(profile,id)).transpose()?,map.map(|m|i64::from(m.winged_moves)),Some(number(d.combat_progress.entered)?),Some(number(d.combat_progress.settled)?),
+            d.last_combat.as_ref().map(|c|encounter_id(profile,c.encounter)).transpose()?,d.last_combat.as_ref().map(|c|outcome(c.outcome)),d.content_profile.map(|p|profile_id(profile,p)).transpose()?,
+        ])?;
+        if matches!(profile,RunEncodingProfile::M16Defect|RunEncodingProfile::M21Watcher){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;context.set(17,1)?;context.known[17]=1;}
+        // PublicDecision has no ascension field. The named fixed-A0 profiles both
+        // fix A0; never infer it for an unknown/unrelated public profile.
+        if matches!(d.content_profile,Some(RoomScenario::M22WatcherAct1|RoomScenario::M23WatcherAct2|RoomScenario::M24WatcherAct3|RoomScenario::M25WatcherHeart)){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;}
+        if matches!(d.content_profile,Some(RoomScenario::M9IroncladAct3|RoomScenario::M10IroncladHeart|RoomScenario::M12SilentAct1|RoomScenario::M13SilentAct2|RoomScenario::M14SilentAct3|RoomScenario::M15SilentHeart|RoomScenario::M17DefectAct1|RoomScenario::M18DefectAct2|RoomScenario::M19DefectAct3)){let context=o.group_mut("context");context.set(1,0)?;context.known[1]=1;}
+        if let Some(standard)=standard{let context=o.group_mut("context");context.set(1,i64::from(standard.ascension))?;context.known[1]=1;}
+    }
     let mut player_values=vec![Some(i64::from(d.player.hp)),Some(i64::from(d.player.max_hp)),Some(i64::from(d.player.gold)),None,None,None,None,None,None,None,None,None];
     if matches!(profile,RunEncodingProfile::M21Watcher|RunEncodingProfile::M22WatcherAct1|RunEncodingProfile::M23WatcherAct2|RunEncodingProfile::M24WatcherAct3|RunEncodingProfile::M25WatcherHeart|RunEncodingProfile::Standard){player_values.push(None);}
     o.group_mut("player").row(0,&player_values)?;
@@ -674,7 +678,7 @@ fn encode_run_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,
             }
         }
     }
-    if profile==RunEncodingProfile::Standard{
+    if profile==RunEncodingProfile::Standard && combat_context.is_none(){
         if let Some(params)=&d.room_params{o.group_mut("room_params").row(0,&params.stage.map(|v|v.map(i64::from)))?;}
     }
     for (row,candidate) in d.candidates.iter().enumerate(){
@@ -731,14 +735,25 @@ fn group_layout(specs:&[schema::GroupSpec])->Vec<GroupLayout>{
 }
 /// M38b fix 5: the Standard group specification and layout for `caps`, built once per worker thread and capacities
 /// (`schema_standard::groups` is pure in `caps`).
-fn standard_groups(caps:&RunCapacities)->std::rc::Rc<(Vec<schema::GroupSpec>,Vec<GroupLayout>)>{
-    thread_local!{static CACHE:std::cell::RefCell<Option<(RunCapacities,std::rc::Rc<(Vec<schema::GroupSpec>,Vec<GroupLayout>)>)>>=const{std::cell::RefCell::new(None)};}
-    CACHE.with(|cache|{
+fn standard_groups(caps:&RunCapacities,combat:bool)->std::rc::Rc<(Vec<schema::GroupSpec>,Vec<GroupLayout>)>{
+    use std::{cell::RefCell, rc::Rc};
+    type GroupCache = Option<(RunCapacities, Rc<(Vec<schema::GroupSpec>, Vec<GroupLayout>)>)>;
+    thread_local! {
+        static RUN: RefCell<GroupCache> = const { RefCell::new(None) };
+        static COMBAT: RefCell<GroupCache> = const { RefCell::new(None) };
+    }
+    let cache = if combat { &COMBAT } else { &RUN };
+    cache.with(|cache|{
         let mut cache=cache.borrow_mut();
         if let Some((cached,groups))=cache.as_ref() && cached==caps{return groups.clone()}
-        let specs=schema_standard::groups(caps);let layout=group_layout(&specs);
-        let groups=std::rc::Rc::new((specs,layout));*cache=Some((caps.clone(),groups.clone()));groups
+        let specs=if combat { crate::combat_policy::combat_groups(caps) } else { schema_standard::groups(caps) };
+        let layout=group_layout(&specs);
+        let groups=Rc::new((specs,layout));*cache=Some((caps.clone(),groups.clone()));groups
     })
+}
+
+pub(crate) fn empty_combat_observation(caps:&RunCapacities)->Result<RunObservation,RunSessionError>{
+    allocate(&standard_groups(caps,true).1,caps.actions)
 }
 /// The zero-filled owned layout (the pre-M38b allocation, in the same order).
 fn allocate(layout:&[GroupLayout],actions:usize)->Result<RunObservation,RunSessionError>{
@@ -888,6 +903,10 @@ pub(crate) fn encode_run_standard_into(d:&PublicDecision,map:Option<&PublicMap>,
 /// M38e: [`encode_run_standard_into`] in `layout` (compact: the compact capacities' rows, values checked against the
 /// group dtypes; an owned compact observation holds the values widened to `i64`).
 pub(crate) fn encode_run_standard_layout_into(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext,layout:RunObservationLayout,target:Option<&mut ObservationTarget<'_>>)->Result<RunObservation,RunSessionError>{
+    encode_standard_projection(d,map,caps,context,layout,target,None)
+}
+
+pub(crate) fn encode_standard_projection(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext,layout:RunObservationLayout,target:Option<&mut ObservationTarget<'_>>,combat_context:Option<&[Option<i64>;6]>)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::Standard){return Err(RunSessionError::Input("Standard encoder requires the Standard profile"))}
     // Final review N2: Standard draw rows need a combat that maintains public knowledge; a combat entered without it has an
     // empty draw multiset, which must fail loudly rather than silently drop the rows.
@@ -897,7 +916,7 @@ pub(crate) fn encode_run_standard_layout_into(d:&PublicDecision,map:Option<&Publ
     }
     let present=|e:&spire_core::combat::FullEnemyView|e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0);
     if d.combat.as_ref().is_some_and(|c|c.enemies.iter().all(present)){
-        return encode_run_into(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target,layout);
+        return encode_run_into(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target,layout,combat_context);
     }
     let mut public=d.clone();
     if let Some(c)=public.combat.as_mut(){
@@ -906,7 +925,7 @@ pub(crate) fn encode_run_standard_layout_into(d:&PublicDecision,map:Option<&Publ
         let mut flags=keep.iter();c.enemies.retain(|_|*flags.next().unwrap());
         let mut flags=keep.iter();c.targets.retain(|_|*flags.next().unwrap());
     }
-    encode_run_into(&public,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target,layout)
+    encode_run_into(&public,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target,layout,combat_context)
 }
 
 pub fn encode_run_m25(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities)->Result<RunObservation,RunSessionError>{schema_m25::validate_public_decision(d)?;encode_run_with_schema(d,map,caps,RunEncodingProfile::M25WatcherHeart)}

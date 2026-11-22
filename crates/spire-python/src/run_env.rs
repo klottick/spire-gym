@@ -2,7 +2,7 @@
 use std::{collections::HashMap,sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}}};
 use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError,PyTypeError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
-use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RunObservationLayout,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest};
+use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RunObservationLayout,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest,StandardCombatCapacityPreset,StandardCombatSessionConfig};
 use crate::{numeric,stacking};
 
 create_exception!(_native,RunInputError,PyValueError);
@@ -54,11 +54,59 @@ impl RunProfile{
 }
 pub(crate) fn capacities(v:Option<&Bound<'_,PyAny>>,profile:RunProfile,layout:RunObservationLayout)->PyResult<RunCapacities>{
     let mut c=match (profile,layout){(RunProfile::M9IroncladAct3,_)=>RunCapacities::m9_default(),(RunProfile::M10IroncladHeart|RunProfile::M10IroncladPolicy,_)=>RunCapacities::m10_default(),(RunProfile::Standard,RunObservationLayout::Dense)=>RunCapacities::standard_default(),(RunProfile::Standard,RunObservationLayout::Compact)=>RunCapacities::standard_compact(),_=>RunCapacities::standard_default()};let Some(v)=v.filter(|v|!v.is_none())else{return Ok(c)};
-    let d=v.cast::<PyDict>().map_err(|_|RunInputError::new_err("capacities must be a dictionary"))?;
-    for (key,value) in d.iter(){let target=match label(&key)?.as_str(){"map_nodes"=>&mut c.map_nodes,"map_edges"=>&mut c.map_edges,"permanent_cards"=>&mut c.permanent_cards,"combat_cards"=>&mut c.combat_cards,"enemies"=>&mut c.enemies,"powers"=>&mut c.powers,"relics"=>&mut c.relics,"potions"=>&mut c.potions,"offers"=>&mut c.offers,"selection"=>&mut c.selection,"orbs"=>&mut c.orbs,"actions"=>&mut c.actions,_=>return Err(RunInputError::new_err("unknown capacity"))};*target=integer(&value)?;}
+    apply_capacities(v, &mut c, true)?;
     if layout==RunObservationLayout::Compact { spire_env::standard_compact_run_observation_spec(&c).map_err(error)?; }
     Ok(c)
 }
+fn apply_capacities(v: &Bound<'_, PyAny>, caps: &mut RunCapacities, map: bool) -> PyResult<()> {
+    let d = v.cast::<PyDict>().map_err(|_| RunInputError::new_err("capacities must be a dictionary"))?;
+    for (key, value) in d.iter() {
+        let target = match label(&key)?.as_str() {
+            "map_nodes" if map => &mut caps.map_nodes,
+            "map_edges" if map => &mut caps.map_edges,
+            "permanent_cards" => &mut caps.permanent_cards,
+            "combat_cards" => &mut caps.combat_cards,
+            "enemies" => &mut caps.enemies,
+            "powers" => &mut caps.powers,
+            "relics" => &mut caps.relics,
+            "potions" => &mut caps.potions,
+            "offers" => &mut caps.offers,
+            "selection" => &mut caps.selection,
+            "orbs" => &mut caps.orbs,
+            "actions" => &mut caps.actions,
+            _ => return Err(RunInputError::new_err("unknown capacity")),
+        };
+        *target = integer(&value)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn combat_observation_config(
+    observation: &str, preset: Option<&Bound<'_, PyAny>>, caps: Option<&Bound<'_, PyAny>>,
+    supported: bool,
+) -> PyResult<Option<StandardCombatSessionConfig>> {
+    let preset = preset.filter(|v| !v.is_none());
+    let caps = caps.filter(|v| !v.is_none());
+    if observation_layout(observation)? == RunObservationLayout::Dense {
+        if preset.is_some() || caps.is_some() {
+            return Err(RunInputError::new_err("capacity_preset and capacities require compact combat observation"));
+        }
+        return Ok(None);
+    }
+    if !supported {
+        return Err(RunInputError::new_err("compact combat observation is unsupported on this surface"));
+    }
+    let preset = match preset.map(label).transpose()?.as_deref() {
+        None | Some("standard-combat-compact-v1") => StandardCombatCapacityPreset::Bounds,
+        Some("standard-combat-compact-play-v1") => StandardCombatCapacityPreset::Play,
+        _ => return Err(RunInputError::new_err("unknown compact combat capacity preset")),
+    };
+    let mut config = StandardCombatSessionConfig::compact(preset);
+    if let Some(value) = caps { apply_capacities(value, &mut config.capacities, false)?; }
+    config.validate().map_err(error)?;
+    Ok(Some(config))
+}
+
 /// The value dtypes of `layout`. Dense (every profile) is an empty map: every value tensor defaults to int64, so no
 /// descriptor is built. Compact dtypes depend only on the group, so they are read once per process from the
 /// `standard-compact-v1` descriptor (review I1: no descriptor build per session, fork or record).
@@ -67,14 +115,34 @@ pub(crate) fn layout_dtypes(layout:RunObservationLayout)->PyResult<stacking::DTy
     static COMPACT:std::sync::OnceLock<Result<stacking::DTypeMap,&'static str>>=std::sync::OnceLock::new();
     COMPACT.get_or_init(||{
         let spec=spire_env::standard_compact_run_observation_spec(&RunCapacities::standard_compact()).map_err(|_|"compact observation descriptor failed")?;
-        let mut result=HashMap::new();
-        for tensor in spec.descriptor()["tensors"].as_array().ok_or("observation descriptor tensors are invalid")?{
-            let key=tensor["key"].as_str().ok_or("observation descriptor tensor has no key")?;
-            let dtype=match tensor["dtype"].as_str(){Some("int64")=>stacking::DType::I64,Some("int32")=>stacking::DType::I32,Some("int16")=>stacking::DType::I16,Some("int8")=>continue,_=>return Err("invalid observation descriptor dtype")};
-            result.insert(key.to_owned(),dtype);
-        }
-        Ok(result)
+        descriptor_dtypes(&spec)
     }).clone().map_err(RunFaultError::new_err)
+}
+pub(crate) fn combat_dtypes(compact: bool) -> PyResult<stacking::DTypeMap> {
+    if !compact { return Ok(stacking::DTypeMap::new()); }
+    static COMPACT: std::sync::OnceLock<Result<stacking::DTypeMap, &'static str>> = std::sync::OnceLock::new();
+    COMPACT.get_or_init(|| {
+        let spec = spire_env::standard_compact_combat_observation_spec(
+            &RunCapacities::standard_combat_compact(), StandardCombatCapacityPreset::Bounds,
+        ).map_err(|_| "compact combat observation descriptor failed")?;
+        descriptor_dtypes(&spec)
+    }).clone().map_err(RunFaultError::new_err)
+}
+fn descriptor_dtypes(spec: &spire_env::RunObservationSpec) -> Result<stacking::DTypeMap, &'static str> {
+    let descriptor = spec.descriptor();
+    let mut result = HashMap::new();
+    for tensor in descriptor["tensors"].as_array().ok_or("observation descriptor tensors are invalid")? {
+        let key = tensor["key"].as_str().ok_or("observation descriptor tensor has no key")?;
+        let dtype = match tensor["dtype"].as_str() {
+            Some("int64") => stacking::DType::I64,
+            Some("int32") => stacking::DType::I32,
+            Some("int16") => stacking::DType::I16,
+            Some("int8") => continue,
+            _ => return Err("invalid observation descriptor dtype"),
+        };
+        result.insert(key.to_owned(), dtype);
+    }
+    Ok(result)
 }
 pub(crate) fn observation_layout(value:&str)->PyResult<RunObservationLayout>{match value{"dense"=>Ok(RunObservationLayout::Dense),"compact"=>Ok(RunObservationLayout::Compact),_=>Err(RunInputError::new_err("observation must be 'dense' or 'compact'"))}}
 pub(crate) fn fault_cause_value<'py>(py:Python<'py>,cause:Option<RunSessionError>)->PyResult<Option<Bound<'py,PyAny>>>{
@@ -125,7 +193,10 @@ pub(crate) fn specification<'py>(py:Python<'py>,spec:spire_env::RunObservationSp
     d.set_item("fingerprint",spec.fingerprint().iter().map(|v|format!("{v:02x}")).collect::<String>())?;Ok(d)
 }
 pub(crate) fn policy_boundary<'py>(py:Python<'py>,b:spire_env::CombatPolicyBoundary)->PyResult<Bound<'py,PyDict>>{
-    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation,&stacking::DTypeMap::new())?)?;
+    policy_boundary_with_dtypes(py,b,&stacking::DTypeMap::new())
+}
+pub(crate) fn policy_boundary_with_dtypes<'py>(py:Python<'py>,b:spire_env::CombatPolicyBoundary,dtypes:&stacking::DTypeMap)->PyResult<Bound<'py,PyDict>>{
+    let d=PyDict::new(py);d.set_item("obs",observation(py,b.observation,dtypes)?)?;
     let t:[u64;2]=b.token.into();d.set_item("token",(t[0],t[1]))?;
     d.set_item("info",numeric::descriptor(py,b.info.to_string())?)?;Ok(d)
 }
@@ -150,34 +221,41 @@ pub(crate) fn search_limits(live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_
 fn search_error()->PyErr{RunStateError::new_err("public search is closed")}
 /// `workers=None` is one worker (the M34s default).
 pub(crate) fn one_worker<'py>(py:Python<'py>,workers:Option<&Bound<'py,PyAny>>)->Bound<'py,PyAny>{workers.filter(|w|!w.is_none()).cloned().unwrap_or_else(||1_i64.into_pyobject(py).unwrap().into_any())}
-pub(crate) fn public_search(root:PublicRoot,research_seed:u64,limits:SearchLimits,workers:&Bound<'_,PyAny>)->PyResult<NativePublicSearch>{
+pub(crate) fn public_search(root:PublicRoot,research_seed:u64,limits:SearchLimits,workers:&Bound<'_,PyAny>,observation:Option<StandardCombatSessionConfig>)->PyResult<NativePublicSearch>{
     let workers=integer::<usize>(workers)?;
-    PublicSearch::new(root,SearchConfig{research_seed,limits}).and_then(|s|s.with_workers(workers)).map(|inner|NativePublicSearch{inner:Some(inner)}).map_err(error)
+    let config=SearchConfig{research_seed,limits};
+    let dtypes=combat_dtypes(observation.is_some())?;
+    let search=match observation {
+        Some(observation)=>PublicSearch::new_with_combat_layout(root,config,observation),
+        None=>PublicSearch::new(root,config),
+    };
+    let inner=search.and_then(|s|s.with_workers(workers)).map_err(error)?;
+    Ok(NativePublicSearch{inner:Some(inner),dtypes})
 }
 /// Thread-movable (M35): a search may be created on one Python thread and stepped on another; PyO3's borrow check
 /// still rejects concurrent use of one search.
 #[pyclass(module="spire_lab._native")]
-pub(crate) struct NativePublicSearch{inner:Option<PublicSearch>}
+pub(crate) struct NativePublicSearch{inner:Option<PublicSearch>,dtypes:stacking::DTypeMap}
 #[pymethods]
 impl NativePublicSearch{
     fn __repr__(&self)->String{match &self.inner{Some(s)=>{let c=s.counters();format!("<NativePublicSearch live_branches={} branches_created={} total_steps={}>",c["live_branches"],c["branches_created"],c["total_steps"])},None=>"<NativePublicSearch closed>".to_owned()}}
     fn __reduce__(&self)->PyResult<()>{Err(PyTypeError::new_err("PublicSearch is in-memory only and cannot be pickled"))}
     #[pyo3(signature=(sample=None))]
     fn branch(&mut self,sample:Option<&Bound<'_,PyAny>>)->PyResult<u64>{let sample=sample.filter(|v|!v.is_none()).map(integer::<u64>).transpose()?;self.inner.as_mut().ok_or_else(search_error)?.branch(sample).map(|b|b.0).map_err(error)}
-    fn decision<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>)->PyResult<Bound<'py,PyDict>>{let b=BranchId(integer(branch)?);let d=self.inner.as_ref().ok_or_else(search_error)?.decision(b).map_err(error)?;let out=PyDict::new(py);out.set_item("obs",observation(py,d.observation,&stacking::DTypeMap::new())?)?;let t:[u64;2]=d.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("info",numeric::descriptor(py,d.info.to_string())?)?;Ok(out)}
+    fn decision<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>)->PyResult<Bound<'py,PyDict>>{let b=BranchId(integer(branch)?);let d=self.inner.as_ref().ok_or_else(search_error)?.decision(b).map_err(error)?;let out=PyDict::new(py);out.set_item("obs",observation(py,d.observation,&self.dtypes)?)?;let t:[u64;2]=d.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("info",numeric::descriptor(py,d.info.to_string())?)?;Ok(out)}
     #[pyo3(signature=(branch,token,action,view="full".to_owned()))]
     fn step<'py>(&mut self,py:Python<'py>,branch:&Bound<'_,PyAny>,token:&Bound<'_,PyAny>,action:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]view:String)->PyResult<Bound<'py,PyDict>>{
         let view=match view.as_str(){"full"=>BranchView::Full,"mask"=>BranchView::Mask,_=>return Err(RunInputError::new_err("view must be 'full' or 'mask'"))};
         let result=self.inner.as_mut().ok_or_else(search_error)?.step(BranchId(integer(branch)?),crate::run_env::token(token)?,RunActionIndex(integer(action)?),view).map_err(error)?;
-        let out=PyDict::new(py);let obs=match result.observation{Some(o)=>Some(observation(py,o,&stacking::DTypeMap::new())?),None=>None};out.set_item("obs",obs)?;let count=result.action_mask.len();out.set_item("action_mask",numeric::array(py,result.action_mask,&[count])?)?;let t:[u64;2]=result.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("reward",result.reward)?;out.set_item("terminated",result.terminated)?;out.set_item("truncated",result.truncated)?;out.set_item("info",numeric::descriptor(py,result.info.to_string())?)?;Ok(out)
+        let out=PyDict::new(py);let obs=match result.observation{Some(o)=>Some(observation(py,o,&self.dtypes)?),None=>None};out.set_item("obs",obs)?;let count=result.action_mask.len();out.set_item("action_mask",numeric::array(py,result.action_mask,&[count])?)?;let t:[u64;2]=result.token.into();out.set_item("token",(t[0],t[1]))?;out.set_item("reward",result.reward)?;out.set_item("terminated",result.terminated)?;out.set_item("truncated",result.truncated)?;out.set_item("info",numeric::descriptor(py,result.info.to_string())?)?;Ok(out)
     }
     fn fork(&mut self,branch:&Bound<'_,PyAny>)->PyResult<u64>{self.inner.as_mut().ok_or_else(search_error)?.fork(BranchId(integer(branch)?)).map(|b|b.0).map_err(error)}
     fn actions(&self,branch:&Bound<'_,PyAny>)->PyResult<Vec<i64>>{self.inner.as_ref().ok_or_else(search_error)?.actions(BranchId(integer(branch)?)).map_err(error)}
     #[pyo3(signature=(branch=None))]
     fn close(&mut self,branch:Option<&Bound<'_,PyAny>>)->PyResult<()>{if let Some(branch)=branch{self.inner.as_mut().ok_or_else(search_error)?.close(BranchId(integer(branch)?)).map_err(error)}else{self.inner=None;Ok(())}}
-    #[pyo3(signature=(branch,research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None))]
+    #[pyo3(signature=(branch,research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None,observation="dense".to_owned(),capacity_preset=None,capacities=None))]
     #[allow(clippy::too_many_arguments)]
-    fn public_search<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>)->PyResult<Self>{let root=self.inner.as_ref().ok_or_else(search_error)?.public_root(BranchId(integer(branch)?)).map_err(error)?;public_search(root,integer(research_seed)?,search_limits(max_live_branches,max_branches,max_steps_per_branch,max_total_steps)?,&one_worker(py,workers))}
+    fn public_search<'py>(&self,py:Python<'py>,branch:&Bound<'_,PyAny>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>,#[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<Self>{let observation=combat_observation_config(&observation,capacity_preset,capacities,true)?;let root=self.inner.as_ref().ok_or_else(search_error)?.public_root(BranchId(integer(branch)?)).map_err(error)?;public_search(root,integer(research_seed)?,search_limits(max_live_branches,max_branches,max_steps_per_branch,max_total_steps)?,&one_worker(py,workers),observation)}
     /// M35 batched branch stepping (design §3.6): one action per listed branch, outcomes in input order; the GIL is
     /// released for the native part. Preflight errors change nothing.
     #[pyo3(signature=(branches,tokens,actions,*,view="full".to_owned()))]
@@ -189,7 +267,11 @@ impl NativePublicSearch{
         let requests=ids.iter().zip(tokens).zip(actions).map(|((b,t),a)|BranchStepRequest{branch:*b,token:t.into(),index:RunActionIndex(a)}).collect::<Vec<_>>();
         let search=self.inner.as_mut().ok_or_else(search_error)?;
         let outcomes=py.detach(||search.step_many(&requests,view)).map_err(error)?;
-        crate::batch::branch_outcomes(py,outcomes)
+        let compact = (!self.dtypes.is_empty()).then_some(&*search);
+        crate::batch::branch_outcomes(py,outcomes,view,compact,&self.dtypes)
+    }
+    fn observation_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        specification(py, self.inner.as_ref().ok_or_else(search_error)?.observation_spec().map_err(error)?)
     }
     fn counters<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let v=self.inner.as_ref().ok_or_else(search_error)?.counters();numeric::descriptor(py,v.to_string())}
     fn spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{let v=self.inner.as_ref().ok_or_else(search_error)?.spec();numeric::descriptor(py,v.to_string())}
@@ -273,13 +355,14 @@ impl NativeRunSession{
         let (b,effective,creation)=py.detach(||{let s=self.session.lock().unwrap_or_else(|p|p.into_inner());Ok::<_,RunSessionError>((s.decision()?,s.effective_seed(),s.standard_creation()))}).map_err(error)?;
         self.deliver(self.current(py,b,effective,creation))
     }
-    #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None))]
+    #[pyo3(signature=(research_seed,*,max_live_branches,max_branches,max_steps_per_branch,max_total_steps,workers=None,observation="dense".to_owned(),capacity_preset=None,capacities=None))]
     #[allow(clippy::too_many_arguments)]
-    fn public_search<'py>(&self,py:Python<'py>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>)->PyResult<NativePublicSearch>{
+    fn public_search<'py>(&self,py:Python<'py>,research_seed:&Bound<'_,PyAny>,max_live_branches:&Bound<'_,PyAny>,max_branches:&Bound<'_,PyAny>,max_steps_per_branch:&Bound<'_,PyAny>,max_total_steps:&Bound<'_,PyAny>,workers:Option<&Bound<'py,PyAny>>,#[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<NativePublicSearch>{
+        let observation=combat_observation_config(&observation,capacity_preset,capacities,self.profile==RunProfile::Standard)?;
         let limits=search_limits(max_live_branches,max_branches,max_steps_per_branch,max_total_steps)?;
         let _lease=self.begin()?;
         let root=self.session.lock().unwrap_or_else(|p|p.into_inner()).public_root().map_err(error)?;
-        public_search(root,integer(research_seed)?,limits,&one_worker(py,workers))
+        public_search(root,integer(research_seed)?,limits,&one_worker(py,workers),observation)
     }
     /// M34c privileged exact checkpoint (oracle: restoring replays the same hidden future).
     fn exact_checkpoint(&self,py:Python<'_>)->PyResult<PyExactCheckpoint>{
@@ -318,10 +401,14 @@ impl NativeRunSession{
         let _lease=self.begin()?;let d=self.session.lock().unwrap_or_else(|p|p.into_inner()).environment_spec().map_err(error)?;
         numeric::descriptor(py,d.to_string())
     }
-    fn combat_observation_spec<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyAny>>{
+    #[pyo3(signature=(*,observation="dense".to_owned(),capacity_preset=None,capacities=None))]
+    fn combat_observation_spec<'py>(&self,py:Python<'py>,#[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<Bound<'py,PyAny>>{
+        combat_observation_config(&observation,capacity_preset,capacities,false)?;
         let _lease=self.begin()?;specification(py,self.session.lock().unwrap_or_else(|p|p.into_inner()).combat_observation_spec().map_err(error)?)
     }
-    fn combat_view<'py>(&self,py:Python<'py>)->PyResult<Bound<'py,PyDict>>{
+    #[pyo3(signature=(*,observation="dense".to_owned(),capacity_preset=None,capacities=None))]
+    fn combat_view<'py>(&self,py:Python<'py>,#[pyo3(from_py_with=label)] observation:String,capacity_preset:Option<&Bound<'_,PyAny>>,capacities:Option<&Bound<'_,PyAny>>)->PyResult<Bound<'py,PyDict>>{
+        combat_observation_config(&observation,capacity_preset,capacities,false)?;
         let _lease=self.begin()?;let b=py.detach(||self.session.lock().unwrap_or_else(|p|p.into_inner()).combat_view()).map_err(error)?;
         self.deliver(policy_boundary(py,b))
     }

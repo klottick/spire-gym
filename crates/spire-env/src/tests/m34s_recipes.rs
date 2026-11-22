@@ -193,3 +193,19 @@ fn tactical_start_costs() {
         println!("{id} start (Ironclad A20 Gremlin Nob) reset median {} µs", median(resets));
     }
 }
+
+#[test]
+fn compact_combat_recipe_publication() {
+    let (record, steps, _) = record_into_combat(20261112, 0);
+    let catalog = load(vec![recipe("r", &record, steps)], &[record]).unwrap();
+    let mut dense = CombatTrainingSession::new_standard(catalog.clone(), Partition::Test).unwrap();
+    let d = dense.reset(Some(3), None).unwrap();
+    for preset in [StandardCombatCapacityPreset::Bounds, StandardCombatCapacityPreset::Play] {
+        let mut compact = CombatTrainingSession::new_standard_with_config(catalog.clone(), Partition::Test, StandardCombatSessionConfig::compact(preset)).unwrap();
+        let c = compact.reset(Some(3), None).unwrap();
+        super::m39b_compact_combat::assert_widens(&c.observation, &d.observation);
+        assert_eq!(c.info["start_kind"], "reachable_recipe");
+        assert_eq!(compact.public_root().unwrap().digest(), dense.public_root().unwrap().digest());
+        assert!(compact.record().unwrap().is_none());
+    }
+}

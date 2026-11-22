@@ -8,7 +8,7 @@ use pyo3::{create_exception, prelude::*, types::{PyAny, PyBytes, PyDict, PyInt, 
 use rust_numpy::{PyArrayDyn, PyArrayMethods, PyUntypedArrayMethods};
 use spire_core::run::{RewardItem, RunTerminal};
 use spire_env::{
-    AutoresetMode, BatchConfig, BatchFault, BatchFaultStage, BatchOperation, BatchSession, BranchStepOutcome,
+    AutoresetMode, BatchConfig, BatchFault, BatchFaultStage, BatchOperation, BatchSession, BranchStepOutcome, BranchView, PublicSearch,
     CombatPolicyBoundary, CombatTrainingCatalog, CombatTrainingSession, CompletedRecord, FaultPolicy, InputReason,
     RetiredFault, RunActionIndex, RunBoundary, RunDecisionToken, RunObservation, RunObservationLayout, RunSession, RunSessionError, SessionBatch,
     SessionBatchError, SlotDelivery, SlotReport, SlotRow,
@@ -26,7 +26,7 @@ create_exception!(_native, BatchFaultError, RunFaultError);
 pub(crate) trait Transport: BatchSession {
     const COMBAT: bool;
     /// M38b: whether steps encode straight into the stacked columns (Standard Run batches).
-    fn slab(profile: Option<RunProfile>) -> bool;
+    fn slab(profile: Option<RunProfile>, compact: bool) -> bool;
     fn observation(b: &Self::Boundary) -> &RunObservation;
     /// Move the boundary's observation out for stacking (M37b), leaving an empty one.
     fn take_observation(b: &mut Self::Boundary) -> RunObservation;
@@ -38,7 +38,7 @@ pub(crate) trait Transport: BatchSession {
 }
 impl Transport for RunSession {
     const COMBAT: bool = false;
-    fn slab(profile: Option<RunProfile>) -> bool { profile == Some(RunProfile::Standard) }
+    fn slab(profile: Option<RunProfile>, _: bool) -> bool { profile == Some(RunProfile::Standard) }
     fn observation(b: &RunBoundary) -> &RunObservation { &b.observation }
     fn take_observation(b: &mut RunBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &RunBoundary) -> RunDecisionToken { b.token }
@@ -59,7 +59,7 @@ impl Transport for RunSession {
 }
 impl Transport for CombatTrainingSession {
     const COMBAT: bool = true;
-    fn slab(_: Option<RunProfile>) -> bool { false }
+    fn slab(_: Option<RunProfile>, compact: bool) -> bool { compact }
     fn observation(b: &CombatPolicyBoundary) -> &RunObservation { &b.observation }
     fn take_observation(b: &mut CombatPolicyBoundary) -> RunObservation { std::mem::replace(&mut b.observation, empty_observation()) }
     fn token(b: &CombatPolicyBoundary) -> RunDecisionToken { b.token }
@@ -412,7 +412,7 @@ impl<S: Transport> Core<S> {
             // M38b: Standard steps encode into columns allocated (or pooled) up front; without a layout yet, or if the
             // columns cannot be allocated, the step runs as before and stacking reports any allocation failure.
             let mut slab = match state.batch.zero_boundary() {
-                Some(zero) if S::slab(self.profile) => stacking::Slab::new_with_dtypes(S::observation(zero), self.num_envs, &self.pool,&self.dtypes).ok(),
+                Some(zero) if S::slab(self.profile, !self.dtypes.is_empty()) => stacking::Slab::new_with_dtypes(S::observation(zero), self.num_envs, &self.pool,&self.dtypes).ok(),
                 _ => None,
             };
             let result = match &mut slab {
@@ -519,6 +519,9 @@ impl<S: Transport> Core<S> {
                     Some(record) => d.set_item("record", PyBytes::new(py, &S::record_json(record).map_err(run_env::error)?))?,
                     None => d.set_item("record", py.None())?,
                 }
+                if S::COMBAT && !self.dtypes.is_empty() {
+                    d.set_item("fault_cause", run_env::fault_cause_value(py, r.error.clone())?)?;
+                }
                 out.append(d)?;
             }
             Ok(out)
@@ -605,7 +608,10 @@ impl NativeRunBatch {
     fn committed_result<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> { self.core.committed_result(py, slot) }
     fn recover_committed<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> { self.core.recover_committed(py) }
     /// Every slot's combat view (design §3.2): the scalar `combat_view()` per slot and an `in_combat` mask.
-    fn combat_views<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+    #[pyo3(signature=(*, observation="dense".to_owned(), capacity_preset=None, capacities=None))]
+    fn combat_views<'py>(&self, py: Python<'py>, #[pyo3(from_py_with = label)] observation: String,
+        capacity_preset: Option<&Bound<'_, PyAny>>, capacities: Option<&Bound<'_, PyAny>>) -> PyResult<Bound<'py, PyDict>> {
+        run_env::combat_observation_config(&observation, capacity_preset, capacities, false)?;
         let _lease = self.core.begin()?;
         let (views, in_combat) = py.detach(|| self.core.lock().batch.combat_views()).map_err(|e| batch_error(py, e, false))?;
         let first = views.iter().flatten().next().ok_or_else(|| RunStateError::new_err("no live batch slot"))?;
@@ -655,17 +661,21 @@ pub(crate) struct NativeCombatTrainingBatch { core: Core<CombatTrainingSession>,
 #[pymethods]
 impl NativeCombatTrainingBatch {
     #[new]
-    #[pyo3(signature=(num_envs, catalog_json, *, kind, records=None, partition="train".to_owned(), entry_ids=None, workers=None, autoreset="disabled".to_owned(), fault_policy="freeze".to_owned()))]
+    #[pyo3(signature=(num_envs, catalog_json, *, kind, records=None, partition="train".to_owned(), entry_ids=None, workers=None, autoreset="disabled".to_owned(), fault_policy="freeze".to_owned(), observation="dense".to_owned(), capacity_preset=None, capacities=None))]
     #[allow(clippy::too_many_arguments)]
     fn new(py: Python<'_>, num_envs: &Bound<'_, PyAny>, catalog_json: &Bound<'_, PyAny>, #[pyo3(from_py_with = label)] kind: String,
         records: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] partition: String, entry_ids: Option<&Bound<'_, PyAny>>,
-        workers: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] autoreset: String, #[pyo3(from_py_with = label)] fault_policy: String) -> PyResult<Self> {
+        workers: Option<&Bound<'_, PyAny>>, #[pyo3(from_py_with = label)] autoreset: String, #[pyo3(from_py_with = label)] fault_policy: String,
+        #[pyo3(from_py_with = label)] observation: String,
+        capacity_preset: Option<&Bound<'_, PyAny>>, capacities: Option<&Bound<'_, PyAny>>) -> PyResult<Self> {
         let num_envs = integer::<usize>(num_envs)?;
         if !(1..=spire_env::BATCH_MAX_SLOTS).contains(&num_envs) { return Err(errors::input(py, InputReason::Range, "num_envs must be in 1..=256", None)) }
         let standard = match kind.as_str() {
             "ironclad" => false, "standard" => true,
             _ => return Err(RunInputError::new_err("kind must be 'ironclad' (Gym66) or 'standard' (standard-combat-v1)")),
         };
+        let observation = run_env::combat_observation_config(&observation, capacity_preset, capacities, standard)?;
+        let dtypes = run_env::combat_dtypes(observation.is_some())?;
         let records = crate::combat_training::records_bytes(records)?;
         if !standard && !records.is_empty() {
             return Err(RunInputError::new_err("kind 'ironclad' (Gym66) takes no records; records belong to kind 'standard' (standard-combat-v1)"))
@@ -677,9 +687,13 @@ impl NativeCombatTrainingBatch {
         let catalog = py.detach(|| if standard { CombatTrainingCatalog::standard_from_json_with_records(&bytes, &records) } else { CombatTrainingCatalog::from_json(&bytes) })
             .map_err(run_env::error)?;
         let catalog = Arc::new(catalog);
-        let batch = py.detach(|| spire_env::CombatTrainingBatch::new_combat(catalog.clone(), partition, num_envs, defaults, config))
-            .map_err(|e| batch_error(py, e, true))?;
-        Ok(Self { core: Core::new(batch, None,stacking::DTypeMap::new()), catalog })
+        let batch = py.detach(|| match observation {
+            Some(observation) => spire_env::CombatTrainingBatch::new_standard_with_config(
+                catalog.clone(), partition, num_envs, defaults, config, observation,
+            ),
+            None => spire_env::CombatTrainingBatch::new_combat(catalog.clone(), partition, num_envs, defaults, config),
+        }).map_err(|e| batch_error(py, e, true))?;
+        Ok(Self { core: Core::new(batch, None, dtypes), catalog })
     }
     #[getter]
     fn num_envs(&self) -> usize { self.core.num_envs }
@@ -706,6 +720,12 @@ impl NativeCombatTrainingBatch {
     fn decision<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> { self.core.decision(py, slot) }
     fn committed_result<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyDict>> { self.core.committed_result(py, slot) }
     fn recover_committed<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> { self.core.recover_committed(py) }
+    fn fault_cause<'py>(&self, py: Python<'py>, slot: &Bound<'_, PyAny>) -> PyResult<Option<Bound<'py, PyAny>>> {
+        let _lease = self.core.begin()?;
+        let slot = integer::<usize>(slot)?;
+        let cause = self.core.lock().batch.session(slot).ok_or_else(|| RunInputError::new_err("batch slot index out of range"))?.fault_cause();
+        run_env::fault_cause_value(py, cause)
+    }
     fn record<'py>(&self, py: Python<'py>, slot: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> { self.core.record(py, slot) }
     fn take_completed_records<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> { self.core.take_completed_records(py) }
     fn take_fault_records<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> { self.core.take_fault_records(py) }
@@ -780,21 +800,30 @@ impl NativeCombatTrainingBatch {
 }
 
 /// `NativePublicSearch.step_many` rows (design §3.6): stacked in input order; a faulted entry is a zero row with `fault`.
-pub(crate) fn branch_outcomes<'py>(py: Python<'py>, outcomes: Vec<BranchStepOutcome>) -> PyResult<Bound<'py, PyDict>> {
+pub(crate) fn branch_outcomes<'py>(
+    py: Python<'py>, outcomes: Vec<BranchStepOutcome>, view: BranchView,
+    compact: Option<&PublicSearch>, dtypes: &stacking::DTypeMap,
+) -> PyResult<Bound<'py, PyDict>> {
     let count = outcomes.len();
-    let stepped = outcomes.iter().filter_map(|o| match o { BranchStepOutcome::Stepped(s) => Some(s), _ => None }).collect::<Vec<_>>();
-    let width = stepped.first().map_or(0, |s| s.action_mask.len());
+    let first = outcomes.iter().find_map(|o| match o { BranchStepOutcome::Stepped(s) => Some(s), _ => None });
+    let width = first.map_or_else(|| compact.map_or(0, PublicSearch::action_capacity), |s| s.action_mask.len());
     let out = PyDict::new(py);
-    let full = stepped.first().and_then(|s| s.observation.as_ref());
-    match full {
-        Some(first) => {
-            let zero = <RunSession as BatchSession>::batch_zeroed(&RunBoundary { observation: first.clone(), token: RunDecisionToken::from([0_u64, 0]), terminal: None })
-                .map_err(run_env::error)?;
-            let rows = outcomes.iter().map(|o| match o { BranchStepOutcome::Stepped(s) => s.observation.as_ref().unwrap_or(&zero.observation), _ => &zero.observation })
-                .collect::<Vec<_>>();
-            out.set_item("obs", stacked_rows(py, &rows)?)?;
-        }
-        None => out.set_item("obs", py.None())?,
+    let full = first.and_then(|s| s.observation.as_ref());
+    let zero = match (full, compact, view) {
+        (Some(first), _, _) => Some(<RunSession as BatchSession>::batch_zeroed(&RunBoundary {
+            observation: first.clone(), token: RunDecisionToken::from([0_u64, 0]), terminal: None,
+        }).map_err(run_env::error)?.observation),
+        (None, Some(search), BranchView::Full) => Some(search.zero_observation().map_err(run_env::error)?),
+        _ => None,
+    };
+    if let Some(zero) = &zero {
+        let rows = outcomes.iter().map(|o| match o {
+            BranchStepOutcome::Stepped(s) => s.observation.as_ref().unwrap_or(zero),
+            _ => zero,
+        }).collect::<Vec<_>>();
+        out.set_item("obs", stacked(py, stacking::stack_with_dtypes(&rows, dtypes).map_err(RunFaultError::new_err)?, None)?)?;
+    } else {
+        out.set_item("obs", py.None())?;
     }
     let mut mask = Vec::with_capacity(count * width);
     for o in &outcomes { match o { BranchStepOutcome::Stepped(s) => mask.extend_from_slice(&s.action_mask), _ => mask.extend(std::iter::repeat_n(0_i8, width)) } }
@@ -811,7 +840,17 @@ pub(crate) fn branch_outcomes<'py>(py: Python<'py>, outcomes: Vec<BranchStepOutc
             BranchStepOutcome::Stepped(s) => { infos.append(numeric::descriptor(py, s.info.to_string())?)?; faults.append(py.None())?; }
             BranchStepOutcome::Fault { error, stage, committed } => {
                 infos.append(py.None())?;
-                faults.append(fault_dict(py, stage, &stacking::error_message(error, false), *committed)?)?;
+                let fault = fault_dict(py, stage, &stacking::error_message(error, false), *committed)?;
+                if compact.is_some() {
+                    if let RunSessionError::Capacity { group, required, capacity } = error {
+                        let detail = PyDict::new(py);
+                        detail.set_item("group", group)?;
+                        detail.set_item("required", required)?;
+                        detail.set_item("capacity", capacity)?;
+                        fault.set_item("capacity", detail)?;
+                    }
+                }
+                faults.append(fault)?;
             }
         }
     }
