@@ -18,7 +18,7 @@ const ROOT_DIGEST_DOMAIN: &[u8] = b"spire-gym-public-belief-v1\0root\0";
 /// digest over its Standard combat view and its public knowledge. Opaque: no accessor reveals the Run.
 /// Equality is public-content equality (the digest and the capacities; final review I1): the canonical worlds of
 /// public-equivalent combats may still differ in the labels of identical combat-local copies, which no output depends
-/// on (a branch refuses a pick among identical draw-pile copies, `HIDDEN_ORDER_PICK`).
+/// on (a branch applies a label-free rule to a pick among identical draw-pile copies where it is exact, and refuses the rest, `HIDDEN_ORDER_PICK`).
 #[derive(Clone)]
 pub struct PublicRoot { run: Run, digest: [u8; 32], caps: RunCapacities }
 impl PartialEq for PublicRoot { fn eq(&self, other: &Self) -> bool { self.digest == other.digest && self.caps == other.caps } }
@@ -317,9 +317,12 @@ impl PublicSearch {
     }
     fn replay(&self, branch: &Branch) -> Result<Run, Error> {
         let mut run = self.root.run.belief_sample(&branch.origin).map_err(|u| Error::UnsupportedBoundary(u.reason()))?;
-        for index in &branch.actions {
+        for (ordinal, index) in branch.actions.iter().enumerate() {
             let d = run.decision().map_err(redacted)?;
-            let action = usize::try_from(*index).ok().and_then(|i| d.candidates.get(i)).map(|c| c.action.clone()).ok_or(Error::DeliveryFault("branch replay diverged"))?;
+            let mut action = usize::try_from(*index).ok().and_then(|i| d.candidates.get(i)).map(|c| c.action.clone()).ok_or(Error::DeliveryFault("branch replay diverged"))?;
+            if run.pick_depends_on_hidden_order(&action) {
+                action = run.resolve_identical_pick(&action, &branch.origin, ordinal as u64).ok_or(Error::DeliveryFault("branch replay diverged"))?;
+            }
             run.step(&action).map_err(redacted)?;
         }
         Ok(run)
@@ -346,7 +349,11 @@ impl PublicSearch {
         let action = usize::try_from(index.0).ok().and_then(|i| branch.legal.get(i)).cloned().ok_or(Error::Input("branch action index is not legal"))?;
         // Final review I1: a sampled world keeps the true labels of identical copies, so a pick that removes a copy chosen
         // by hidden instance order would make the branch depend on hidden state; refused with no effect (fail closed).
-        if branch.run.pick_depends_on_hidden_order(&action) { return Err(Error::UnsupportedBoundary(HIDDEN_ORDER_PICK)) }
+        // M40a: where the pick can be made independent of labels (single-pick grid, exchangeable copies, draw order not
+        // revealed) the branch applies the rule; every other such pick keeps the refusal.
+        if branch.run.pick_depends_on_hidden_order(&action) {
+            return branch.run.resolve_identical_pick(&action, &branch.origin, branch.actions.len() as u64).ok_or(Error::UnsupportedBoundary(HIDDEN_ORDER_PICK))
+        }
         Ok(action)
     }
     /// Apply one advanced world to its branch record: serial and step count always advance (the step was attempted); a
@@ -473,6 +480,7 @@ impl PublicSearch {
     }
     /// TEST-ONLY: a branch's world (fault injection and P3 comparisons).
     #[cfg(test)]
+    pub(crate) fn replay_for_test(&self, b: BranchId) -> Result<Run, Error> { self.replay(&self.branches[&b.0]) }
     pub(crate) fn branch_run_for_test(&mut self, b: BranchId) -> &mut Run { &mut self.branches.get_mut(&b.0).unwrap().run }
     /// TEST-ONLY: a branch's key material (its sample key; M35 R8 privacy oracle on the batched path).
     #[cfg(test)]

@@ -1164,3 +1164,111 @@ fn stasis_maps_its_roll_by_position_not_rank() {
     }
     assert!(captured > 0, "some roll takes a Wound");
 }
+
+// ---------- M40a: the label-free pick rule for identical draw-pile copies (`Combat::identical_pick_rank`) ----------
+fn defect_fixture(deck: &[CardId], seed: u8) -> Combat {
+    let mut entry = enemies::setup(EncounterId::Cultist, 1, 0, &mut RunRng::new([seed; 32], rng::Partition::Test, 0), enemies::SetupContext {
+        player: PlayerState { hp: 80, max_hp: 80, block: 0, energy: 3, max_energy: 3, draw_per_turn: 5, powers: vec![] }, player_powers: vec![],
+        character: Character::Defect, cards: vec![permanent_live_card(Defend, CardInstanceId(99), 0)], opening_draw: 0, encounter_visit: 0 }).unwrap();
+    entry.cards = deck.iter().enumerate().map(|(i, id)| complete_live_card(*id, CardInstanceId(i as u64 + 1), 0).unwrap()).collect();
+    entry.opening_draw = 0;
+    let mut items = Some(CombatItemContext::new(vec![], vec![None, None, None]).with_complete_cards().with_complete_items());
+    Combat::enter_with_public_knowledge(entry, &mut items, true).unwrap()
+}
+/// A Seek played from hand over the current draw pile: the single-pick draw selection is open.
+fn secret_weapon_grid(c: &mut Combat) {
+    let weapon = piles::next_generated_instance(&c.state).unwrap().0;
+    c.state.card_ids_issued.insert(handle(weapon));
+    c.state.piles.hand.push(OwnedCard::Full(complete_live_card(Seek, CardInstanceId(weapon), 0).unwrap()));
+    c.state.player.energy = 3;
+    c.step_full(&CombatAction::PlayCard { instance: weapon, target: None }).unwrap();
+    assert_eq!(c.state.phase, Phase::Selection);
+    assert_eq!(c.state.pending_selection.as_ref().unwrap().source_zone, SelectionSourceZone::Draw);
+}
+fn wound_candidates(c: &Combat) -> Vec<u64> {
+    let classes = class_map(&c.state);
+    let selection = c.state.pending_selection.as_ref().unwrap();
+    selection.candidates.iter().map(|h| h.as_str().parse::<u64>().unwrap()).filter(|i| classes[i].id() == Wound).collect()
+}
+#[test]
+fn identical_pick_rank_applies_to_exchangeable_copies_by_position_and_key() {
+    let mut c = defect_fixture(&[Strike; 5], 4);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    let shivs = wound_candidates(&c);
+    assert_eq!(shivs.len(), 2);
+    let mut taken = std::collections::BTreeSet::new();
+    for k in 0..24u8 {
+        let rank = |named: u64| c.identical_pick_rank(named, &[k; 32]);
+        let (a, b) = (rank(shivs[0]), rank(shivs[1]));
+        assert_eq!(a, b, "the replacement does not depend on which identical candidate was named");
+        assert!(shivs.contains(&a.expect("exchangeable copies")));
+        assert_eq!(a, c.identical_pick_rank(shivs[0], &[k; 32]), "deterministic in the key");
+        taken.insert(a.unwrap());
+    }
+    assert_eq!(taken.len(), 2, "both copies are reachable");
+    // A single candidate, or a card with no identical copy, is not a hidden pick.
+    let strike = class_map(&c.state).into_iter().find(|(_, k)| k.id() == Strike).unwrap().0;
+    assert_eq!(c.identical_pick_rank(strike, &[1; 32]), None);
+}
+#[test]
+fn identical_pick_rank_refuses_where_the_copies_are_not_exchangeable() {
+    // A published copy next to a hidden one: the grid forgets the position, but the knowledge keeps two holders.
+    let mut c = defect_fixture(&[Strike; 5], 4);
+    create(&mut c, Wound, 0, CardDestination::Draw);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    let shivs = wound_candidates(&c);
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "separate public segments");
+    // The top-excluded shape of `seek_case`: an old copy in a bag and a later one inserted under an unknown top.
+    let mut c = defect_fixture(&[Strike], 7);
+    create(&mut c, Wound, 0, CardDestination::Draw);
+    let issued = c.state.card_ids_issued.clone();
+    shuffle(&mut c);
+    c.state.card_ids_issued = issued; // the helper's Deep Breath source is not a card of this combat
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    let shivs = wound_candidates(&c);
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "partial top-exclusion");
+    // A published position of the class (written directly, as a Scry would leave it): refused.
+    let mut c = defect_fixture(&[Strike; 5], 4);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    let shivs = wound_candidates(&c);
+    c.state.public.known_draw = vec![handle(shivs[0])];
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "a published copy among the candidates");
+    // Not a draw selection at all.
+    let mut c = defect_fixture(&[Strike], 4);
+    assert_eq!(c.identical_pick_rank(1, &[3; 32]), None);
+}
+#[test]
+fn identical_pick_rank_refuses_under_frozen_eye_and_in_multi_pick_grids() {
+    use crate::content::RelicId;
+    let mut entry = enemies::setup(EncounterId::Cultist, 1, 0, &mut RunRng::new([4; 32], rng::Partition::Test, 0), enemies::SetupContext {
+        player: PlayerState { hp: 80, max_hp: 80, block: 0, energy: 3, max_energy: 3, draw_per_turn: 5, powers: vec![] }, player_powers: vec![],
+        character: Character::Defect, cards: vec![permanent_live_card(Defend, CardInstanceId(99), 0)], opening_draw: 0, encounter_visit: 0 }).unwrap();
+    entry.cards = (1..=5).map(|i| complete_live_card(Strike, CardInstanceId(i), 0).unwrap()).collect();
+    entry.opening_draw = 0;
+    let mut items = Some(CombatItemContext::new(vec![RelicId::FrozenEye], vec![None, None, None]).with_complete_cards().with_complete_items());
+    let mut c = Combat::enter_with_public_knowledge(entry, &mut items, true).unwrap();
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    assert!(view::public_rules(&c.state).reveal_draw_order, "Frozen Eye reveals the draw order");
+    let shivs = wound_candidates(&c);
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "Frozen Eye keeps the refusal");
+    // The same grid without the relic applies the rule; a second pick required (maximum 2) does not.
+    let mut c = defect_fixture(&[Strike; 5], 4);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    create(&mut c, Wound, 0, CardDestination::ShuffledDraw);
+    secret_weapon_grid(&mut c);
+    let shivs = wound_candidates(&c);
+    assert!(c.identical_pick_rank(shivs[0], &[3; 32]).is_some());
+    c.state.pending_selection.as_mut().unwrap().maximum = 2;
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "multi-pick grids keep the refusal");
+    c.state.pending_selection.as_mut().unwrap().maximum = 1;
+    c.state.pending_selection.as_mut().unwrap().selected.push(handle(shivs[1]));
+    assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "a pick after the first keeps the refusal");
+}

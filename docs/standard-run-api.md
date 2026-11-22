@@ -371,8 +371,10 @@ closed or not reset; a captured, policy-v3 or Gym66 surface; hidden intents (Run
 model (L1); a pre-roll without a consistent set; or a continuation outside the allow-list. The allow-list is one exhaustive
 match, nested kinds included, with no wildcard arm. It denies a randomly chosen autoplay target held across a suspended child
 play (Havoc, Mayhem, Distilled Chaos playing Secret Technique or Secret Weapon), a Flask of Poison bounce's chosen target, a
-Defect Chaos holding sampled orb rolls, every nested child play that holds an enemy target (this also
-denies a replayed player target such as Double Tap's: an over-denial), captured but unoffered generated cards, an Alchemize
+Defect Chaos holding sampled orb rolls, every nested child play or queued repeat that holds an enemy target not recorded as
+the player's own choice (M40a: a repeat of a hand play, from Double Tap, Duplication, Burst, Amplify, Echo Form or Necronomicon,
+copies the target the player chose and is a public root; a randomly drawn target, from Havoc, Mayhem, Distilled Chaos or
+Omniscience, and any repeat of such a play stay denied), captured but unoffered generated cards, an Alchemize
 proposal, enemy spawn or replacement work in progress, and a thief's rolled branch before its move roll.
 
 **What a branch re-samples.** Sample `k` of a root uses `key = HMAC-SHA256(research_root, "spire-lab-research-rng-v1\0belief-v1\0sample\0" ‖ digest ‖ k_be)`,
@@ -414,7 +416,7 @@ optional layout pointer.
 | --- | --- |
 | `branch(k)` | A new branch at sample `k` (`None`: the smallest index this search has not used). A repeated `k` gives an identical world |
 | `decision(b)` | The branch's current Standard combat view, token and info (encoded on demand, owned) |
-| `step(b, token, index, Full or Mask)` | One action through the shared resolver; returns the full view or only its legal mask, the reward (victory +1, death −1, escape 0, at the combat's own terminal), `terminated`, `truncated` and info. A pick among identical draw-pile copies is refused (below) |
+| `step(b, token, index, Full or Mask)` | One action through the shared resolver; returns the full view or only its legal mask, the reward (victory +1, death −1, escape 0, at the combat's own terminal), `terminated`, `truncated` and info. A pick among identical draw-pile copies applies the label-free rule where exact and refuses the rest (below) |
 | `fork(b)` | An exact copy of a live branch in its sampled world, with a new id and tokens; it inherits the step count |
 | `actions(b)` | The branch's accepted action indices since its root |
 | `close(b)` | Frees the slot; later use of `b` is `Closed` |
@@ -457,8 +459,15 @@ branch depends on which identical copy a hidden choice (RNG, handle or rank) too
 
 A sampled world keeps the true labels of identical copies. Its canonical arrangement fills each class's sampled positions
 in handle order, so a grid's handle rule would always remove a given copy (for example the topmost) instead of a copy
-drawn from the posterior. A branch therefore refuses, with no effect and the branch still live, a pick among two or more
-same-class grid candidates that are not all published: `UnsupportedBoundary` (`HIDDEN_ORDER_PICK`, Python
+drawn from the posterior. A branch therefore applies a label-free rule where it is exact (M40a): in a single-pick draw
+grid (Secret Weapon, Secret Technique, Omniscience, Seek) with two or more same-class candidates, none published, the
+draw order not revealed (no Frozen Eye) and the draw knowledge exact for the class (every unpublished copy in one bag with
+no partial top-exclusion, the condition of the knowledge's own grid removal), the pick removes a copy chosen uniformly at
+random by pile position from a research stream keyed on the branch's sample key and its accepted-action count. Naming any
+identical candidate gives the same outcome, replay and forks reproduce it, and the choice is independent of labels and of the
+game's streams. Every other pick among two or more same-class grid candidates that are not all published (a two-pick Seek+,
+Frozen Eye, copies in separate public segments or with partial top-exclusion, a mix of published and unpublished copies)
+is refused with no effect and the branch still live: `UnsupportedBoundary` (`HIDDEN_ORDER_PICK`, Python
 `RunUnsupportedBoundaryError`); choose another action. The refusal is conservative: the branch's next view would be equal
 whichever copy is taken, but its later draws would not follow the posterior. `PublicRoot` equality is the digest and
 capacities, the public content: two public-equivalent combats may hold canonical worlds whose copy labels differ, and no
@@ -530,8 +539,9 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
 - **L6** The belief knows more than the view shows. The exact draw knowledge is finer than `known_draw`/`known_draw_bottom`,
   and the consistent sets are not published. Everything the belief uses is public history the player has seen, but a policy
   that reads only the view sees less.
-- The allow-list over-denies replayed player targets (above). Branches refuse picks among identical draw-pile copies
-  (above). M34s itself does not batch branch steps; M35 adds the extension documented below.
+- The allow-list still denies randomly targeted autoplay frames and their repeats (Havoc, Mayhem, Distilled Chaos,
+  Omniscience; above). Branches refuse picks among identical draw-pile copies that the label-free rule does not cover
+  (two-pick Seek+, Frozen Eye, copies in separate public segments or with partial top-exclusion, mixed published copies; above). M34s itself does not batch branch steps; M35 adds the extension documented below.
 
 ## Batched public search (M35)
 

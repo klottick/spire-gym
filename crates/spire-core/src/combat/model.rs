@@ -524,6 +524,11 @@ pub(super) struct State {
     pub watcher:super::cards::watcher::WatcherState,
     /// M34s-a public knowledge (design §4.5); never read by rules and not part of the established Debug output.
     pub knowledge:super::knowledge::KnowledgeTracker,
+    /// M40a: repeat children (Double Tap, Duplication, Burst, Amplify, Echo Form, Necronomicon) whose copied enemy target is
+    /// the player's own choice (the play they copy was a hand play, so its target is a public action). Written only by
+    /// `allocate_repeat`; a nested play or queued repeat holding an enemy target is a public root only if its child is here.
+    /// Fail closed: every random-target child (Havoc, Mayhem, Distilled Chaos, Omniscience) is absent. Not part of Debug.
+    pub public_target_plays:BTreeSet<CardHandle>,
 }
 
 // Keep established Combat Debug output byte-for-byte when this new owner is

@@ -240,3 +240,153 @@ fn hidden_pick_family(name: &str, family: HiddenPickFamily) {
 fn violence_pick_publishes_no_copy_choice() { hidden_pick_family("violence_shivs", violence_shivs) }
 #[test]
 fn stasis_pick_publishes_no_copy_choice() { hidden_pick_family("stasis_wounds", stasis_wounds) }
+
+// ---------- M40a: the branch rule for a pick among identical, exchangeable draw-pile copies ----------
+/// Defect Seek with two Wounds that were both shuffled in (one bag: the copies are exchangeable under public history).
+fn seek_two_hidden_wounds(seed: u64, upgrades: u32) -> (Run, u64, (u64, u64)) {
+    let mut run = start(Character::Defect, "jaw_worm", seed);
+    let c = combat(&mut run);
+    let x = c.diagnostic_create_card(CardId::Wound, 0, CardDestination::ShuffledDraw).unwrap();
+    let y = c.diagnostic_create_card(CardId::Wound, 0, CardDestination::ShuffledDraw).unwrap();
+    let seek = c.diagnostic_create_card(CardId::Seek, upgrades, CardDestination::Hand).unwrap();
+    (run, seek, (x, y))
+}
+/// The indices of the branch's legal `SelectCard` actions that name a Wound.
+fn wound_picks(search: &mut PublicSearch, b: BranchId) -> Vec<usize> {
+    let run = search.branch_run_for_test(b);
+    let d = run.decision().unwrap();
+    let wounds = d.combat.as_ref().unwrap().selection.as_ref().unwrap().candidates.iter().filter(|c| c.id == CardId::Wound).map(|c| c.instance.0).collect::<Vec<_>>();
+    d.candidates.iter().enumerate().filter(|(_, c)| matches!(&c.action, GameAction::Combat(CombatAction::SelectCard { instance }) if wounds.contains(instance))).map(|(i, _)| i).collect()
+}
+#[test]
+fn single_pick_among_exchangeable_identical_copies_is_applied_and_label_free() {
+    for seed in 1..=4u64 {
+        let (a, seek, (x, y)) = seek_two_hidden_wounds(seed, 0);
+        let mut b = a.clone();
+        assert!(combat(&mut b).diagnostic_swap_identical_copies(x, y) || combat(&mut b).diagnostic_swap_identical_copies(y, x), "identical copies");
+        let (mut ga, mut gb) = (a.clone(), b.clone());
+        play(&mut ga, seek);
+        play(&mut gb, seek);
+        let label = format!("two hidden Wounds seed {seed}");
+        assert_eq!(same_public_outputs(&format!("{label} at the grid"), &ga, &gb), 0, "{label}: no pick is refused");
+        // Every identical candidate is the same action: the next public view and the whole branch agree, in both twins.
+        let mut outcomes = vec![];
+        for world in [&ga, &gb] {
+            let mut search = PublicSearch::new(PublicRoot::of(world, &caps()).unwrap(), SearchConfig { research_seed: 5, limits: WIDE }).unwrap();
+            for k in 0..4u64 {
+                let probe = search.branch(Some(k)).unwrap();
+                let picks = wound_picks(&mut search, probe);
+                assert_eq!(picks.len(), 2, "{label}: two identical Wound candidates");
+                let views = picks.iter().map(|i| {
+                    let b = search.branch(Some(k)).unwrap();
+                    let d = search.decision(b).unwrap();
+                    let step = search.step(b, d.token, RunActionIndex(*i as i64), BranchView::Full).expect("the pick is applied");
+                    (step.observation, step.action_mask, step.info)
+                }).collect::<Vec<_>>();
+                assert_eq!(views[0], views[1], "{label} sample {k}: either identical candidate gives one outcome");
+                outcomes.push(views[0].clone());
+            }
+        }
+        assert_eq!(outcomes[..4], outcomes[4..], "{label}: label-swapped twins give the same branch outcomes");
+    }
+}
+#[test]
+fn replay_and_fork_reproduce_the_applied_pick() {
+    let (a, seek, _) = seek_two_hidden_wounds(2, 0);
+    let mut g = a.clone();
+    play(&mut g, seek);
+    let mut search = PublicSearch::new(PublicRoot::of(&g, &caps()).unwrap(), SearchConfig { research_seed: 9, limits: WIDE }).unwrap();
+    let b = search.branch(Some(3)).unwrap();
+    let pick = wound_picks(&mut search, b)[0];
+    let d = search.decision(b).unwrap();
+    let before_fork = search.fork(b).unwrap();
+    let stepped = search.step(b, d.token, RunActionIndex(pick as i64), BranchView::Full).unwrap();
+    let forked = {
+        let d = search.decision(before_fork).unwrap();
+        search.step(before_fork, d.token, RunActionIndex(pick as i64), BranchView::Full).unwrap()
+    };
+    assert_eq!((&stepped.observation, &stepped.action_mask), (&forked.observation, &forked.action_mask), "a fork applies the same rule");
+    let live = search.branch_run_for_test(b).clone();
+    assert_eq!(search.replay_for_test(b).unwrap(), live, "replay reproduces the applied pick");
+}
+#[test]
+fn a_two_pick_grid_still_refuses_with_no_effect() {
+    let (a, seek, _) = seek_two_hidden_wounds(1, 1);
+    let mut g = a.clone();
+    play(&mut g, seek);
+    let mut search = PublicSearch::new(PublicRoot::of(&g, &caps()).unwrap(), SearchConfig { research_seed: 5, limits: WIDE }).unwrap();
+    let b = search.branch(Some(0)).unwrap();
+    let pick = wound_picks(&mut search, b)[0];
+    let d = search.decision(b).unwrap();
+    assert_eq!(search.step(b, d.token, RunActionIndex(pick as i64), BranchView::Full).unwrap_err(), RunSessionError::UnsupportedBoundary(HIDDEN_ORDER_PICK));
+    assert_eq!(search.decision(b).unwrap().token, d.token, "no effect: the branch is live at the same boundary");
+}
+/// The applied pick removes a uniformly random identical copy (by pile position), not the lowest label: across samples the
+/// removed Wound is the upper of the two about half of the time. (Red: a label-indexed pick always removes the same one.)
+#[test]
+fn applied_pick_removes_a_uniformly_random_identical_copy() {
+    let (a, seek, _) = seek_two_hidden_wounds(3, 0);
+    let mut g = a.clone();
+    play(&mut g, seek);
+    let mut search = PublicSearch::new(PublicRoot::of(&g, &caps()).unwrap(), SearchConfig { research_seed: 21, limits: WIDE }).unwrap();
+    let (mut upper, mut lower) = (0, 0);
+    for k in 0..96u64 {
+        let b = search.branch(Some(k)).unwrap();
+        let before = combat(search.branch_run_for_test(b)).diagnostic_draw_classes();
+        let pick = wound_picks(&mut search, b)[0];
+        let d = search.decision(b).unwrap();
+        search.step(b, d.token, RunActionIndex(pick as i64), BranchView::Mask).unwrap();
+        let after = combat(search.branch_run_for_test(b)).diagnostic_draw_classes();
+        let removed = (0..before.len()).filter(|i| { let mut t = before.clone(); t.remove(*i); t == after }).collect::<Vec<_>>();
+        let wound_class = before.iter().flatten().find(|c| before.iter().filter(|x| *x == &Some(**c)).count() == 2).copied().expect("two identical Wounds");
+        let wound_depths = (0..before.len()).filter(|i| before[*i] == Some(wound_class)).collect::<Vec<_>>();
+        let hits = removed.iter().filter(|i| wound_depths.contains(i)).collect::<Vec<_>>();
+        search.close(b).unwrap();
+        if hits.len() != 1 { continue } // identical neighbours: the removal is not distinguishable
+        if *hits[0] == wound_depths[0] { upper += 1 } else { lower += 1 }
+    }
+    assert!(upper >= 20 && lower >= 20, "removal by rank is uniform: upper {upper}, lower {lower}");
+}
+
+/// M39b compact branch views: the applied pick is independent of the published layout. Either identical candidate gives one
+/// compact outcome through `step` and through `step_many`, and the compact outcome widens to the dense one.
+#[test]
+fn applied_pick_is_layout_independent_in_compact_branches() {
+    let (a, seek, _) = seek_two_hidden_wounds(2, 0);
+    let mut g = a.clone();
+    play(&mut g, seek);
+    let root = PublicRoot::of(&g, &caps()).unwrap();
+    let mut config = StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play);
+    config.capacities.combat_cards = 1024;
+    config.capacities.selection = 1024;
+    config.capacities.actions = 256;
+    let mut compact = PublicSearch::new_with_combat_layout(root.clone(), SearchConfig { research_seed: 5, limits: WIDE }, config).unwrap();
+    let mut dense = PublicSearch::new(root, SearchConfig { research_seed: 5, limits: WIDE }).unwrap();
+    for k in 0..4u64 {
+        let probe = compact.branch(Some(k)).unwrap();
+        let picks = wound_picks(&mut compact, probe);
+        assert_eq!(picks.len(), 2, "two identical Wound candidates");
+        let mut outcomes = vec![];
+        for &i in &picks {
+            let b = compact.branch(Some(k)).unwrap();
+            let d = compact.decision(b).unwrap();
+            let stepped = compact.step(b, d.token, RunActionIndex(i as i64), BranchView::Full).expect("the pick is applied in a compact branch");
+            let c = compact.branch(Some(k)).unwrap();
+            let d = compact.decision(c).unwrap();
+            let many = compact.step_many(&[BranchStepRequest { branch: c, token: d.token, index: RunActionIndex(i as i64) }], BranchView::Full).unwrap();
+            let BranchStepOutcome::Stepped(many) = &many[0] else { panic!("step_many faulted") };
+            assert_eq!((&stepped.observation, &stepped.action_mask, &stepped.info), (&many.observation, &many.action_mask, &many.info), "step_many equals step");
+            outcomes.push((stepped.observation.clone(), stepped.action_mask.clone()));
+            compact.close(b).unwrap();
+            compact.close(c).unwrap();
+        }
+        assert_eq!(outcomes[0], outcomes[1], "sample {k}: either identical candidate gives one compact outcome");
+        compact.close(probe).unwrap();
+        // The dense branch of the same sample ends in the same legal mask width and terminal flags.
+        let d = dense.branch(Some(k)).unwrap();
+        let dd = dense.decision(d).unwrap();
+        let dstep = dense.step(d, dd.token, RunActionIndex(picks[0] as i64), BranchView::Mask).expect("dense pick applied");
+        assert_eq!(dstep.action_mask.iter().filter(|m| **m == 1).count(), outcomes[0].1.iter().filter(|m| **m == 1).count(), "same legal actions in both layouts");
+        dense.close(d).unwrap();
+    }
+}

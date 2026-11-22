@@ -397,7 +397,7 @@ fn census_classifies_every_field_and_variant() {
         next_permanent_gain: _ /*B*/, played_powers: _ /*P*/, played_card_types: _ /*P*/, inactive_cards: _ /*P*/,
         play_frames: _ /*C: enemy target denied*/, play_context: _ /*C: with the frames*/, queued_autoplay: _ /*P*/,
         pending_time_warp: _ /*P*/, extra_turn_pending: _ /*P*/, damage_events_this_combat: _ /*P*/, silent, combust: _ /*P*/,
-        thief_gold: _ /*P*/, colorless, defect, watcher, knowledge: _ /*P: public knowledge; its physical bookkeeping is resynchronised*/,
+        thief_gold: _ /*P*/, colorless, defect, watcher, public_target_plays: _ /*B: a function of public play history*/, knowledge: _ /*P: public knowledge; its physical bookkeeping is resynchronised*/,
     } = &combat(&run).state;
     let model::PlayerState { hp: _ /*P*/, max_hp: _ /*P*/, block: _ /*P*/, energy: _ /*P*/, max_energy: _ /*P*/,
         draw_per_turn: _ /*P*/, powers: _ /*P*/ } = player;
@@ -437,4 +437,210 @@ fn census_classifies_every_field_and_variant() {
             free_to_play_once: _, free_play: _, x_cost: _, exhaust_on_finish: _, ethereal: _, innate: _, purge: _, rebound_on_finish: _ } = local; // P/PD
     }
     let model::PublicKnowledge { revealed_order: _, known_draw: _, known_draw_bottom: _ } = &combat(&run).state.public; // P
+}
+
+// ---------- M40a: held nested targets (spire-61l stage 1) ----------
+/// The first legal action matching `want`.
+fn act(run: &mut Run, what: &str, want: impl Fn(&crate::run::GameAction) -> bool) {
+    let a = run.decision().unwrap().candidates.iter().map(|c| c.action.clone()).find(|a| want(a)).unwrap_or_else(|| panic!("no legal action: {what}"));
+    run.step(&a).unwrap_or_else(|e| panic!("{what}: {a:?}: {e:?}"));
+}
+fn play_card(run: &mut Run, what: &str, instance: u64) {
+    act(run, what, |a| matches!(a, crate::run::GameAction::Combat(CombatAction::PlayCard { instance: i, .. }) if *i == instance));
+}
+fn hand_holds(run: &Run, instances: &[u64]) -> bool {
+    let hand = &combat(run).state.piles.hand;
+    instances.iter().all(|i| hand.iter().any(|c| c.full().is_some_and(|f| f.instance.0 == *i)))
+}
+/// Put `count` copies of `id` (fresh instances from 900) into the discard pile, as combat history would.
+fn push_discard(run: &mut Run, id: CardId, count: u64) {
+    let state = &mut combat_mut(run).state;
+    for k in 0..count {
+        let instance = 900 + k;
+        state.card_ids_issued.insert(card_state::handle(CardInstanceId(instance)));
+        state.piles.discard.push(model::OwnedCard::Full(card_state::permanent(id, CardInstanceId(instance), 0)));
+    }
+}
+/// A standalone combat whose opening hand holds `instances` (deck instances are 1-based positions of `cards`).
+fn hand_with(character: Character, encounter: EncounterId, cards: &[CardId], relics: Vec<RelicId>, instances: &[u64]) -> Run {
+    for seed in 0..=255u8 {
+        let run = standalone(character, 20, encounter, cards, relics.clone(), seed);
+        if hand_holds(&run, instances) { return run }
+    }
+    panic!("no seed holds {instances:?} in the opening hand")
+}
+fn dt_deck() -> Vec<CardId> {
+    let mut d = vec![CardId::DoubleTap, CardId::Headbutt];
+    d.extend([CardId::Strike; 8]);
+    d
+}
+/// Double Tap active, Headbutt played at an enemy (first selection), one discard card chosen: the repeat's own selection is
+/// open inside a play frame that holds the player's enemy target.
+fn double_tap_headbutt_repeat_selection() -> Run {
+    let mut run = hand_with(Character::Ironclad, EncounterId::JawWorm, &dt_deck(), vec![], &[1, 2]);
+    push_discard(&mut run, CardId::Strike, 2);
+    play_card(&mut run, "Double Tap", 1);
+    play_card(&mut run, "Headbutt", 2);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the original Headbutt's selection");
+    assert!(combat(&run).state.play_frames.is_empty());
+    act(&mut run, "first pick", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::SelectCard { .. })));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's selection");
+    assert_eq!(combat(&run).state.play_frames.len(), 1);
+    assert!(matches!(combat(&run).state.play_frames[0].target, Some(Actor::Enemy(_))), "the frame holds the player's enemy target");
+    run
+}
+#[test]
+fn m40a_double_tap_repeat_frame_with_the_players_target_is_a_public_root() {
+    let run = double_tap_headbutt_repeat_selection();
+    let base = root(&run);
+    for (what, perturb) in PERTURBATIONS {
+        let mut other = run.clone();
+        if perturb(&mut other).is_none() { continue }
+        assert!(other != run, "{what}: the true worlds differ");
+        assert!(root(&other) == base, "{what}: the root is invariant");
+    }
+    let s = sample(&base, 3);
+    assert!(s.public_root_run().unwrap() == base, "a sample's root is its root");
+}
+fn standalone_with(character: Character, encounter: EncounterId, cards: &[CardId], potions: Vec<Option<crate::content::PotionId>>, seed: u8) -> Run {
+    let start = StandardCombatStart { character, ascension: 20, encounter, burning: None, bottled_cards: vec![], position: None,
+        resources: AuthoredRunStart { hp: 70, max_hp: 80, gold: 50, deck: deck(cards), relics: vec![], potions, relic_counters: Default::default() } };
+    let mut run = Run::prepare_standard_combat(start, RunRng::new([seed; 32], rng::Partition::Test, 0)).unwrap();
+    run.enter_standard_combat().unwrap();
+    run
+}
+fn assert_refused(run: &Run, what: &str) {
+    assert!(matches!(run.public_root_run(), Err(Unsupported::DisallowedContinuation(_))), "{what}: {:?}", run.public_root_run().map(|_| ()));
+}
+fn assert_equal_roots_under_perturbation(run: &Run, what: &str) {
+    let base = root(run);
+    let mut applied = 0;
+    for (name, perturb) in PERTURBATIONS {
+        let mut other = run.clone();
+        if perturb(&mut other).is_none() { continue }
+        assert!(other != *run, "{what}/{name}: the true worlds differ");
+        assert!(root(&other) == base, "{what}/{name}: the root is invariant");
+        applied += 1;
+    }
+    assert!(applied >= 2, "{what}: perturbations applied {applied}");
+}
+
+#[test]
+fn m40a_duplication_repeat_of_an_enemy_targeted_selection_attack_is_a_public_root() {
+    use crate::content::PotionId;
+    let deck = [CardId::DaggerThrow, CardId::Strike, CardId::Strike, CardId::Defend, CardId::Defend, CardId::Strike, CardId::Defend, CardId::Strike, CardId::Defend, CardId::Strike];
+    let mut run = (0..=255u8).map(|seed| standalone_with(Character::Silent, EncounterId::JawWorm, &deck, vec![Some(PotionId::DuplicationPotion), None], seed))
+        .find(|run| hand_holds(run, &[1])).expect("Dagger Throw in the opening hand");
+    act(&mut run, "Duplication potion", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::UsePotion { slot: 0, .. })));
+    play_card(&mut run, "Dagger Throw", 1);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the original's discard selection");
+    assert!(combat(&run).state.play_frames.is_empty());
+    act(&mut run, "first pick", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::SelectCard { .. })));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's discard selection");
+    assert!(matches!(combat(&run).state.play_frames.last().map(|f| &f.target), Some(Some(Actor::Enemy(_)))));
+    assert_equal_roots_under_perturbation(&run, "Duplication + Dagger Throw");
+}
+
+/// Havoc autoplays the top card at a random enemy; Double Tap then queues a repeat of that child. Every boundary on the
+/// way holds the random target, in the frame or in the queued repeat, and stays refused.
+#[test]
+fn m40a_havoc_child_and_its_double_tap_repeat_stay_refused() {
+    let cards = [CardId::Havoc, CardId::DoubleTap, CardId::Headbutt, CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike, CardId::Strike];
+    let mut run = (0..=255u8).map(|seed| standalone(Character::Ironclad, 20, EncounterId::TwoLouse, &cards, vec![], seed))
+        .find(|run| hand_holds(run, &[1, 2]) && combat(run).state.piles.draw.last().is_some_and(|c| c.full().is_some_and(|f| f.id == CardId::Headbutt)))
+        .expect("Havoc and Double Tap in hand, Headbutt on top");
+    push_discard(&mut run, CardId::Strike, 3);
+    play_card(&mut run, "Double Tap", 2);
+    play_card(&mut run, "Havoc", 1);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the Havoc child's own selection");
+    assert!(matches!(combat(&run).state.play_frames.last().map(|f| &f.target), Some(Some(Actor::Enemy(_)))));
+    assert_refused(&run, "(i) first selection: Havoc frame and a pending Double Tap repeat");
+    act(&mut run, "first pick", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::SelectCard { .. })));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's selection");
+    assert_eq!(combat(&run).state.play_frames.len(), 1);
+    assert!(!combat(&run).state.public_target_plays.contains(&combat(&run).state.play_frames[0].child), "random lineage is not recorded");
+    assert_refused(&run, "(iii) second selection: the repeat of a random-target child");
+}
+
+/// A queued repeat holding an enemy target is a public root only when its child is recorded as player-chosen; this is the
+/// boundary with `play_frames` empty (a Melange scry after the parent's frame ended).
+#[test]
+fn m40a_pending_repeat_with_an_enemy_target_is_classified_by_provenance() {
+    let run = selection_root();
+    let state = &combat(&run).state;
+    let enemy = state.enemies[0].instance_id.clone();
+    assert!(state.play_frames.is_empty());
+    let child = card_state::handle(CardInstanceId(777));
+    let kinds = |child: &CardHandle, target: &Option<Actor>| vec![
+        EffectKind::Ironclad(cards::IroncladEffect::DoubleTapRepeat { child: child.clone(), target: target.clone(), energy_on_use: 0, cancelled: false }),
+        EffectKind::Silent(cards::SilentEffect::BurstRepeat { child: child.clone(), target: target.clone(), energy_on_use: 0, cancelled: false }),
+        EffectKind::Potion(PotionEffect::DuplicationRepeat { child: child.clone(), target: target.clone(), energy_on_use: 0, cancelled: false }),
+        EffectKind::Defect(cards::DefectEffect::Repeat { child: child.clone(), target: target.clone(), energy_on_use: 0, cancelled: false }),
+    ];
+    for kind in kinds(&child, &Some(Actor::Enemy(enemy.clone()))) {
+        let mut other = run.clone();
+        combat_mut(&mut other).state.pending.push_back(Effect { source: Source::None, target: None, kind: kind.clone() });
+        assert_refused(&other, &format!("{kind:?} unrecorded"));
+        combat_mut(&mut other).state.public_target_plays.insert(child.clone());
+        assert!(other.public_root_run().is_ok(), "{kind:?} recorded: {:?}", other.public_root_run().map(|_| ()));
+    }
+    for kind in kinds(&child, &None).into_iter().chain(kinds(&child, &Some(Actor::Player))) {
+        let mut other = run.clone();
+        combat_mut(&mut other).state.pending.push_back(Effect { source: Source::None, target: None, kind });
+        assert!(other.public_root_run().is_ok(), "a repeat with no enemy target is public");
+    }
+}
+
+/// Watcher's Just Lucky scries before it deals damage, so the repeat's Scry selection is open while the frame holds the
+/// player's enemy target.
+#[test]
+fn m40a_duplicated_just_lucky_scry_inside_the_repeat_frame_is_a_public_root() {
+    use crate::content::PotionId;
+    let deck = [CardId::JustLucky, CardId::Strike, CardId::Strike, CardId::Defend, CardId::Defend, CardId::Strike, CardId::Defend, CardId::Strike, CardId::Defend, CardId::Strike];
+    let mut run = (0..=255u8).map(|seed| standalone_with(Character::Watcher, EncounterId::TwoLouse, &deck, vec![Some(PotionId::DuplicationPotion), None], seed))
+        .find(|run| hand_holds(run, &[1])).expect("Just Lucky in the opening hand");
+    act(&mut run, "Duplication potion", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::UsePotion { slot: 0, .. })));
+    play_card(&mut run, "Just Lucky", 1);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the original's Scry");
+    assert!(combat(&run).state.play_frames.is_empty());
+    assert!(run.public_root_run().is_ok(), "a hand play's Scry is a root (no frame)");
+    act(&mut run, "confirm the Scry", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::ConfirmSelection)));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's Scry");
+    assert!(matches!(combat(&run).state.play_frames.last().map(|f| &f.target), Some(Some(Actor::Enemy(_)))));
+    assert_equal_roots_under_perturbation(&run, "Duplication + Just Lucky");
+}
+
+/// The shared-repeat sources (Echo Form, Necronomicon) reach a selection inside their repeat frame through the same
+/// `allocate_repeat` provenance write. Headbutt stands in for a selection attack: Echo Form is given as a power (the
+/// character gate does not matter to the resolver) and Necronomicon as the relic with the card priced at 2.
+fn shared_repeat_headbutt_selection(echo: bool) -> Run {
+    let relics = if echo { vec![] } else { vec![RelicId::Necronomicon] };
+    let mut run = hand_with(Character::Ironclad, EncounterId::JawWorm, &dt_deck(), relics, &[2]);
+    push_discard(&mut run, CardId::Strike, 2);
+    {
+        let state = &mut combat_mut(&mut run).state;
+        state.player.energy = 3;
+        if echo {
+            state.player_full_powers.push(model::FullPowerEntry { id: model::FullPowerId("echo_form"),
+                state: model::PowerState { amount: 1, skip_first: false, monster_source_grace: false } });
+        } else {
+            let card = state.piles.hand.iter_mut().filter_map(|c| c.full_mut()).find(|c| c.instance.0 == 2).unwrap();
+            card.local.mutable_combat_cost = Some(2);
+        }
+    }
+    play_card(&mut run, "Headbutt", 2);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the original's selection");
+    act(&mut run, "first pick", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::SelectCard { .. })));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's selection");
+    assert_eq!(combat(&run).state.play_frames.len(), 1);
+    assert!(matches!(combat(&run).state.play_frames[0].target, Some(Actor::Enemy(_))));
+    run
+}
+#[test]
+fn m40a_echo_form_repeat_frame_with_the_players_target_is_a_public_root() {
+    assert_equal_roots_under_perturbation(&shared_repeat_headbutt_selection(true), "Echo Form + Headbutt");
+}
+#[test]
+fn m40a_necronomicon_repeat_frame_with_the_players_target_is_a_public_root() {
+    assert_equal_roots_under_perturbation(&shared_repeat_headbutt_selection(false), "Necronomicon + Headbutt");
 }

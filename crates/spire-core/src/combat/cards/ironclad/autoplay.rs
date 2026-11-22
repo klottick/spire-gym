@@ -382,6 +382,17 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
     }
 }
 
+/// M40a: whether the target a repeat copies from the play of `parent` is the player's own choice. A hand play runs with no
+/// play frame and its target is a public action. A nested play (Havoc, Mayhem, Distilled Chaos, Omniscience child) holds a
+/// target drawn from the card stream, so its repeat does not qualify unless that child is itself recorded; any other
+/// frame shape fails closed.
+fn copied_target_is_public(state:&State,parent:&crate::combat::CardHandle)->bool{
+    match state.play_frames.last(){
+        None=>true,
+        Some(frame)=>frame.child==*parent&&state.public_target_plays.contains(&frame.child),
+    }
+}
+
 /// Capture the physical copy at enqueue. Necronomicon re-applies powers to its copy.
 fn allocate_repeat(state:&mut State,parent:&crate::combat::CardHandle,refresh:bool)->Result<crate::combat::CardHandle,EffectError>{
     let instance=crate::combat::piles::next_generated_instance(state)?;
@@ -389,6 +400,7 @@ fn allocate_repeat(state:&mut State,parent:&crate::combat::CardHandle,refresh:bo
     copied.local.free_play=true;copied.local.purge=true;
     let child=OwnedCard::Full(copied);let handle=child.handle();
     state.card_ids_issued.insert(handle.clone());state.queued_autoplay.insert(handle.clone(),child);
+    if copied_target_is_public(state,parent){state.public_target_plays.insert(handle.clone());}
     if refresh{crate::combat::piles::refresh_queued_values(state,&handle);}
     Ok(handle)
 }

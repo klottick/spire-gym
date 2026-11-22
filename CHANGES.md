@@ -21,6 +21,18 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   and prints a stderr line for each single-session episode that reaches the
   20,000-action limit, giving its character, ascension, seed and step count.
   Diagnostic only; the episodes and other output are unchanged.
+- M40a (spire-61l stage 1) admits more `PublicRoot` and branch cases; no gameplay,
+  observation, action or descriptor layout, rules ID or frozen pin changes. A nested
+  card play or queued repeat whose enemy target is the player's own choice (a repeat
+  from Double Tap, Duplication, Burst, Amplify, Echo Form or Necronomicon of a hand
+  play) is now a supported root; it was refused as "a nested card play holds an enemy
+  target". Randomly targeted autoplay (Havoc, Mayhem, Distilled Chaos, Omniscience)
+  and its repeats stay refused. A branch step that picks among identical unpublished
+  draw-pile copies of a single-pick grid (Secret Weapon, Secret Technique, Omniscience,
+  Seek) now removes a copy chosen by a label-free research draw instead of refusing with
+  `HIDDEN_ORDER_PICK`, where the draw knowledge is exact for the class; two-pick Seek+,
+  Frozen Eye, non-exchangeable copies and mixed published copies keep the refusal. See
+  [standard-run-api](docs/standard-run-api.md) and [M34s](docs/milestones/m34s-search-scenario.md).
 - M39a (spire-e0l) adds `spire_env::combat_entry_resources_descriptor()` and
   Python `spire_lab.combat_entry_resources.load()` / `_native.combat_entry_resources()`.
   The [versioned descriptor](docs/combat-entry-resources.md) publishes relic and
