@@ -347,3 +347,46 @@ fn applied_pick_removes_a_uniformly_random_identical_copy() {
     }
     assert!(upper >= 20 && lower >= 20, "removal by rank is uniform: upper {upper}, lower {lower}");
 }
+
+/// M39b compact branch views: the applied pick is independent of the published layout. Either identical candidate gives one
+/// compact outcome through `step` and through `step_many`, and the compact outcome widens to the dense one.
+#[test]
+fn applied_pick_is_layout_independent_in_compact_branches() {
+    let (a, seek, _) = seek_two_hidden_wounds(2, 0);
+    let mut g = a.clone();
+    play(&mut g, seek);
+    let root = PublicRoot::of(&g, &caps()).unwrap();
+    let mut config = StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play);
+    config.capacities.combat_cards = 1024;
+    config.capacities.selection = 1024;
+    config.capacities.actions = 256;
+    let mut compact = PublicSearch::new_with_combat_layout(root.clone(), SearchConfig { research_seed: 5, limits: WIDE }, config).unwrap();
+    let mut dense = PublicSearch::new(root, SearchConfig { research_seed: 5, limits: WIDE }).unwrap();
+    for k in 0..4u64 {
+        let probe = compact.branch(Some(k)).unwrap();
+        let picks = wound_picks(&mut compact, probe);
+        assert_eq!(picks.len(), 2, "two identical Wound candidates");
+        let mut outcomes = vec![];
+        for &i in &picks {
+            let b = compact.branch(Some(k)).unwrap();
+            let d = compact.decision(b).unwrap();
+            let stepped = compact.step(b, d.token, RunActionIndex(i as i64), BranchView::Full).expect("the pick is applied in a compact branch");
+            let c = compact.branch(Some(k)).unwrap();
+            let d = compact.decision(c).unwrap();
+            let many = compact.step_many(&[BranchStepRequest { branch: c, token: d.token, index: RunActionIndex(i as i64) }], BranchView::Full).unwrap();
+            let BranchStepOutcome::Stepped(many) = &many[0] else { panic!("step_many faulted") };
+            assert_eq!((&stepped.observation, &stepped.action_mask, &stepped.info), (&many.observation, &many.action_mask, &many.info), "step_many equals step");
+            outcomes.push((stepped.observation.clone(), stepped.action_mask.clone()));
+            compact.close(b).unwrap();
+            compact.close(c).unwrap();
+        }
+        assert_eq!(outcomes[0], outcomes[1], "sample {k}: either identical candidate gives one compact outcome");
+        compact.close(probe).unwrap();
+        // The dense branch of the same sample ends in the same legal mask width and terminal flags.
+        let d = dense.branch(Some(k)).unwrap();
+        let dd = dense.decision(d).unwrap();
+        let dstep = dense.step(d, dd.token, RunActionIndex(picks[0] as i64), BranchView::Mask).expect("dense pick applied");
+        assert_eq!(dstep.action_mask.iter().filter(|m| **m == 1).count(), outcomes[0].1.iter().filter(|m| **m == 1).count(), "same legal actions in both layouts");
+        dense.close(d).unwrap();
+    }
+}

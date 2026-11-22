@@ -416,7 +416,7 @@ optional layout pointer.
 | --- | --- |
 | `branch(k)` | A new branch at sample `k` (`None`: the smallest index this search has not used). A repeated `k` gives an identical world |
 | `decision(b)` | The branch's current Standard combat view, token and info (encoded on demand, owned) |
-| `step(b, token, index, Full or Mask)` | One action through the shared resolver; returns the full view or only its legal mask, the reward (victory +1, death −1, escape 0, at the combat's own terminal), `terminated`, `truncated` and info. A pick among identical draw-pile copies is refused (below) |
+| `step(b, token, index, Full or Mask)` | One action through the shared resolver; returns the full view or only its legal mask, the reward (victory +1, death −1, escape 0, at the combat's own terminal), `terminated`, `truncated` and info. A pick among identical draw-pile copies applies the label-free rule where exact and refuses the rest (below) |
 | `fork(b)` | An exact copy of a live branch in its sampled world, with a new id and tokens; it inherits the step count |
 | `actions(b)` | The branch's accepted action indices since its root |
 | `close(b)` | Frees the slot; later use of `b` is `Closed` |
@@ -539,8 +539,9 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
 - **L6** The belief knows more than the view shows. The exact draw knowledge is finer than `known_draw`/`known_draw_bottom`,
   and the consistent sets are not published. Everything the belief uses is public history the player has seen, but a policy
   that reads only the view sees less.
-- The allow-list over-denies replayed player targets (above). Branches refuse picks among identical draw-pile copies
-  (above). M34s itself does not batch branch steps; M35 adds the extension documented below.
+- The allow-list still denies randomly targeted autoplay frames and their repeats (Havoc, Mayhem, Distilled Chaos,
+  Omniscience; above). Branches refuse picks among identical draw-pile copies that the label-free rule does not cover
+  (two-pick Seek+, Frozen Eye, copies in separate public segments or with partial top-exclusion, mixed published copies; above). M34s itself does not batch branch steps; M35 adds the extension documented below.
 
 ## Batched public search (M35)
 

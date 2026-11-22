@@ -609,3 +609,38 @@ fn m40a_duplicated_just_lucky_scry_inside_the_repeat_frame_is_a_public_root() {
     assert!(matches!(combat(&run).state.play_frames.last().map(|f| &f.target), Some(Some(Actor::Enemy(_)))));
     assert_equal_roots_under_perturbation(&run, "Duplication + Just Lucky");
 }
+
+/// The shared-repeat sources (Echo Form, Necronomicon) reach a selection inside their repeat frame through the same
+/// `allocate_repeat` provenance write. Headbutt stands in for a selection attack: Echo Form is given as a power (the
+/// character gate does not matter to the resolver) and Necronomicon as the relic with the card priced at 2.
+fn shared_repeat_headbutt_selection(echo: bool) -> Run {
+    let relics = if echo { vec![] } else { vec![RelicId::Necronomicon] };
+    let mut run = hand_with(Character::Ironclad, EncounterId::JawWorm, &dt_deck(), relics, &[2]);
+    push_discard(&mut run, CardId::Strike, 2);
+    {
+        let state = &mut combat_mut(&mut run).state;
+        state.player.energy = 3;
+        if echo {
+            state.player_full_powers.push(model::FullPowerEntry { id: model::FullPowerId("echo_form"),
+                state: model::PowerState { amount: 1, skip_first: false, monster_source_grace: false } });
+        } else {
+            let card = state.piles.hand.iter_mut().filter_map(|c| c.full_mut()).find(|c| c.instance.0 == 2).unwrap();
+            card.local.mutable_combat_cost = Some(2);
+        }
+    }
+    play_card(&mut run, "Headbutt", 2);
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the original's selection");
+    act(&mut run, "first pick", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::SelectCard { .. })));
+    assert_eq!(combat(&run).state.phase, Phase::Selection, "the repeat's selection");
+    assert_eq!(combat(&run).state.play_frames.len(), 1);
+    assert!(matches!(combat(&run).state.play_frames[0].target, Some(Actor::Enemy(_))));
+    run
+}
+#[test]
+fn m40a_echo_form_repeat_frame_with_the_players_target_is_a_public_root() {
+    assert_equal_roots_under_perturbation(&shared_repeat_headbutt_selection(true), "Echo Form + Headbutt");
+}
+#[test]
+fn m40a_necronomicon_repeat_frame_with_the_players_target_is_a_public_root() {
+    assert_equal_roots_under_perturbation(&shared_repeat_headbutt_selection(false), "Necronomicon + Headbutt");
+}
