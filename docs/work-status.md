@@ -1,6 +1,17 @@
 # Work status
 
-## Current snapshot — 2026-11-16, release 1.1.1
+## Current snapshot — 2026-11-22, release 1.2.0
+
+- Version 1.2.0 packages the work merged since v1.1.1: the M39a combat-entry resource descriptor (PR #116), the
+  spire-d4h card-queue order fix (PR #117), the opt-in compact standalone combat and search branch view from M39b
+  (PR #119), the pytest-xdist dev dependency and `a20_checks` step-cap seeds (PR #118) and the wider `PublicRoot`
+  coverage from M40a (PR #120). Current rules IDs are Standard v7, M10 (and Gym66) v4 and M9 v5; frozen fingerprints
+  are unchanged. Omniscience and Storm queue-order limits remain. See the [1.2.0 release notes](releases/v1.2.0.md) and
+  [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge; use Beads and
+  the primary session for live state.
+
+## Snapshot — 2026-11-16, release 1.1.1
 
 - Version 1.1.1 packages the spire-d8g gameplay fixes from the post-1.1.0 stress campaign (PR #114). Current rules IDs
   are Standard v6, M10 (and Gym66) v3 and M9 v4; frozen fingerprints are unchanged. In windows with no targetable enemy,
