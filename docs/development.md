@@ -205,6 +205,24 @@ uv run --no-sync python -m spire_lab.readiness --require-cuda
 cargo run --locked --offline -q -p spire-cli -- version
 ```
 
+### Full Python suite in parallel
+
+The `dev` group includes pytest-xdist. The legacy comparator in
+`tests/python/combat/test_rust_differential.py` compiles the `spire-core` test
+binary in a session fixture, which takes about a minute when the build is
+cold. Build it first with the same `CARGO_TARGET_DIR`, so the fixture
+becomes a no-op on every worker, then run the suite across workers:
+
+```sh
+cargo test -p spire-core --lib --no-run --locked --offline
+uv run --locked --no-sync python -B -m pytest tests/python -q -n 8 --dist worksteal
+```
+
+`--dist worksteal` balances the few long end-to-end tests (Run from-start,
+M10 from-start and the M35 agreement checks); the longest takes about 35
+seconds and sets the floor, so more than 8 workers does not help. Failure ids
+match a serial run. Plain `pytest` without `-n` still runs serially.
+
 ## Rebuilding after dependency or binding changes
 
 These commands replace the selected Python environment and install the
