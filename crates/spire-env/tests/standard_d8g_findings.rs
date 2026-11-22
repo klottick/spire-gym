@@ -103,19 +103,17 @@ fn r4_replay(name: &str) -> CombatPolicyBoundary {
     replay(&mut s, fixture["seed"].as_u64().unwrap(), &id, &actions)
 }
 
-/// E7: Burst's copy of Havoc waits in the card queue while Havoc's top card (Survivor) has its discard choice open.
-/// The original drains the action queue (the selection) before the card queue, then the copy plays (lane D Q12).
-/// The selection boundary used to reject the suspended parent (`Invariant("Burst repeat child/parent ownership")`).
+/// E7: Preserve the captured Survivor choice under Burst and Havoc. The old
+/// boundary rejected repeat ownership. The copy now plays before Survivor opens its choice.
 #[test]
-fn d8g_e7_burst_repeat_waits_behind_the_parents_top_card_selection() {
+fn d8g_e7_burst_havoc_selection_replay_remains_valid() {
     r4_replay("e7-silent-a0-time-eater");
 }
 
-/// E8: Duplication Potion's copy of Havoc waits while Havoc's top card (Secret Technique) has its draw-pile choice
-/// open; the selection resolves first (lane D Q13). The boundary used to fault with
-/// `Invariant("Duplication repeat retains its actual card and captured child")`.
+/// E8: Preserve the captured Secret Technique choice under Duplication Potion
+/// and Havoc. The old boundary rejected repeat ownership.
 #[test]
-fn d8g_e8_duplication_repeat_waits_behind_the_autoplayed_cards_selection() {
+fn d8g_e8_duplication_havoc_selection_replay_remains_valid() {
     r4_replay("e8-ironclad-a1-reptomancer");
 }
 

@@ -1323,7 +1323,7 @@ impl Combat {
                     }
                     let queued=Effect{source:parent_source.clone(),target:Some(Actor::Player),kind:EffectKind::Watcher(
                         super::cards::watcher::WatcherEffect::OmnisciencePlay{child,energy_on_use:-1,cancelled:false})};
-                    if let Err(error)=super::cards::ironclad::autoplay::queue_after_finish(&mut self.state,&parent_source,queued){
+                    if let Err(error)=super::cards::ironclad::autoplay::queue_immediate_repeat(&mut self.state,&parent_source,queued){
                         super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Omniscience queue insertion failed: {error:?}"));
                         return Err(retained_fault(&self.state))
                     }
@@ -1438,8 +1438,8 @@ impl Combat {
             draw_unknown.sort_by(super::view::canonical_card_order);
             draw_unknown
         }else{vec![]};
-        let playing_cards=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction))
-            .chain(self.state.in_play.iter().map(|card|card.full().map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction)))
+        let playing_cards=self.state.in_play.iter()
+            .map(|card|card.full().map(|live|super::view::live_card_view(&self.state,live)).ok_or(crate::run::RunError::InvalidAction))
             .collect::<Result<Vec<_>,_>>()?;
         let selection_resume_phase=if self.state.phase==Phase::Selection {
             self.state.pending_selection.as_ref().map(|selection|selection.resume.phase)
@@ -1493,11 +1493,10 @@ impl Combat {
         let in_play = self.state.in_play.as_ref().map(|card| card.full().cloned()
             .ok_or(crate::run::RunError::Unsupported("legacy in-play card in full combat exit")))
             .transpose()?;
-        let play_frames=self.state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()).map(|parent|parent.full().cloned().ok_or(crate::run::RunError::Unsupported("legacy autoplay parent in combat exit"))).collect::<Result<Vec<_>,_>>()?;
         let queued_autoplay=self.state.queued_autoplay.values().map(|child|child.full().cloned().ok_or(crate::run::RunError::Unsupported("legacy queued autoplay child in combat exit"))).collect::<Result<Vec<_>,_>>()?;
         Ok(CombatExit { hp: self.state.player.hp, max_hp: self.state.player.max_hp,
             played_powers:export(&self.state.played_powers)?,
-            play_frames,
+            play_frames:vec![],
             queued_autoplay,
             stasis:self.state.stasis.values().map(|card|card.full().cloned().ok_or(crate::run::RunError::InvalidAction)).collect::<Result<Vec<_>,_>>()?,
             block: self.state.player.block, energy: self.state.player.energy, outcome,
@@ -1852,10 +1851,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                         &&(items.m15_profile()
                         ||(items.m20_profile()&&state.silent.source_character==Some(crate::content::Character::Defect))
                         ||items.complete_items()),
-                    // Alchemize remains an actual-Silent producer. Preserve its
-                    // accepted retained card/frame ownership; M20 gains no card source.
-                    Source::Card(owner)=>(items.m15_profile()||items.complete_cards())&&(state.in_play.as_ref().is_some_and(|card|card.handle()==*owner)
-                        ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,super::model::PlayFrameParentOwner::Card(parent) if parent==owner)||frame.child==*owner)),
+                    // Alchemize queues its obtain while the producing card is active.
+                    Source::Card(owner)=>(items.m15_profile()||items.complete_cards())
+                        &&state.in_play.as_ref().is_some_and(|card|card.handle()==*owner),
                     _=>false,
                 }),
             "generated potion obtain retains its accepted Brew source")?,
@@ -2264,10 +2262,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Reaper)),
             "Reaper ordered-hit progress owner/mode/bounds")?,
         EffectKind::FinishCard => require(match &effect.source {
-            Source::Card(id) => state.in_play.as_ref().is_some_and(|card|id==&card.handle())
-                ||state.play_frames.iter().any(|frame|frame.parent.as_ref().is_some_and(|parent|id==&parent.handle())),
+            Source::Card(id) => state.in_play.as_ref().is_some_and(|card|id==&card.handle()),
             _ => false,
-        }, "card continuation requires matching active or suspended play owner")?,
+        }, "card continuation requires matching active owner")?,
         EffectKind::SelectCard { candidates, .. } | EffectKind::SelectCards { candidates, .. } => {
             require(match (&effect.source, &state.in_play) {
                 (Source::Card(parent), Some(card)) => parent == &card.handle(),
@@ -2342,17 +2339,12 @@ pub(in crate::combat) fn player_start_pass(state:&State)->bool{
         &&state.pending_selection.as_ref().is_some_and(|selection|selection.resume.phase==Phase::PlayerStart)
 }
 
-/// One ownership rule for a queued repeat (Burst, Echo Form, Amplify, Necronomicon, Duplication): its source card is in
-/// play, or suspended as a play-frame parent after its finish checkpoint. That frame's child is the repeat's own child,
-/// or, while a selection is open and the repeat child still waits in the card queue, an earlier child of the same
-/// parent (Havoc's top card) that opened it: the original drains the action queue before the card queue, so the
-/// selection resolves first and the repeat plays afterwards (spire-d8g E7/E8, as spire-3xq F2-E).
+/// Copies retain their producer's identity and family while that card moves
+/// through its ordinary zones. The queue keeps the captured copy in custody.
 pub(in crate::combat) fn queued_repeat_parent_owned(state:&State,parent:&CardHandle,child:&CardHandle)->bool{
-    let selection_open=state.phase==Phase::Selection;
-    state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
-        ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,super::model::PlayFrameParentOwner::Card(owner) if owner==parent)
-            &&frame.parent_finish_checkpoint_done
-            &&(frame.child==*child||selection_open&&state.queued_autoplay.contains_key(child)))
+    parent != child && state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some_and(|copy|
+        super::piles::owned_full_cards(state).any(|card|super::card_state::handle(card.instance)==*parent
+            &&card.id==copy.id&&card.copy_family==copy.copy_family))
 }
 
 fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
@@ -2371,57 +2363,25 @@ fn validate_autoplay_runtime(state:&State)->Result<(),InputError>{
     require(unique_queued.len()==queued_refs.len()&&(terminal||unique_queued.len()==state.queued_autoplay.len())
         &&unique_queued.iter().all(|handle|state.queued_autoplay.contains_key(handle)
             &&state.card_ids_issued.contains(handle)) ,"queued autoplay card custody/reference")?;
-    let faulted_deferred_child=state.play_frames.last().filter(|frame|state.fault.is_some()
-        &&state.queued_autoplay.contains_key(&frame.child)&&unique_queued.contains(&frame.child)
-        &&state.current.as_ref().is_some_and(|effect|matches!(&effect.kind,
-            EffectKind::Ironclad(super::cards::IroncladEffect::HavocQueued{child,..}
-                |super::cards::IroncladEffect::DoubleTapRepeat{child,..})
-                |EffectKind::Defect(super::cards::DefectEffect::Repeat{child,..})
-                |EffectKind::Silent(super::cards::SilentEffect::BurstRepeat{child,..})
-                |EffectKind::Watcher(super::cards::watcher::WatcherEffect::OmnisciencePlay{child,..}|super::cards::watcher::WatcherEffect::OmniscienceRepeat{child,..})
-                |EffectKind::Potion(super::PotionEffect::DuplicationRepeat{child,..}) if child==&frame.child)))
-        .map(|frame|frame.child.clone());
-    // A lethal ordinary action may run after the parent's finish checkpoint
-    // but before its queued child. Terminal cancels continuation, retaining both
-    // physical owners for exit; no use or FinishCard is fabricated after Death.
-    // Work queued after the parent's finish checkpoint may open a selection before the queued child plays (Melange's
-    // Scry from a reshuffle ahead of Necronomicon's repeat): the original drains the action queue before the card
-    // queue, so the selection resolves first and the child plays afterwards (spire-3xq F2-E).
-    let selection_deferred_child=state.play_frames.last().filter(|frame|state.phase==Phase::Selection
-        &&frame.parent_finish_checkpoint_done&&state.queued_autoplay.contains_key(&frame.child)&&unique_queued.contains(&frame.child))
-        .map(|frame|frame.child.clone());
-    let deferred_child=faulted_deferred_child.or_else(||state.play_frames.last().filter(|frame|
-        terminal&&frame.parent_finish_checkpoint_done&&state.queued_autoplay.contains_key(&frame.child))
-        .map(|frame|frame.child.clone())).or(selection_deferred_child);
     let ownership=match (&state.play_context,&state.in_play){
-        (None,None)=>state.play_frames.is_empty()||deferred_child.is_some(),
-        (None,Some(_))=>state.play_frames.is_empty(),
-        (Some(context),Some(card))=>state.full_runtime&&context.card==card.handle()&&context.energy_on_use>=-1&&context.paid>=0
-            &&(state.play_frames.is_empty()||state.play_frames.last().is_some_and(|frame|frame.child==card.handle()
-                &&frame.disposition==context.disposition)),
+        (None,_)=>state.play_frames.is_empty(),
+        (Some(context),Some(card))=>state.full_runtime&&context.card==card.handle()&&context.energy_on_use>=-1&&context.paid>=0,
         _=>false,
     };
     require(ownership,"autoplay active owner/context")?;
-    if !state.play_frames.is_empty(){
-        let active_child=state.in_play.as_ref().map(OwnedCard::handle);
-        let queued_child=state.in_play.is_none().then_some(deferred_child).flatten();
-        require(active_child.as_ref().or(queued_child.as_ref())==state.play_frames.last().map(|frame|&frame.child),
-            "autoplay top child owner")?;
-        for (index,frame) in state.play_frames.iter().enumerate(){
-            let parent_matches=match (&frame.parent_owner,&frame.parent,&frame.parent_context){
-                (super::model::PlayFrameParentOwner::Card(handle),Some(parent),Some(parent_context))=>
-                    parent.full().is_some()&&parent_context.card==parent.handle()&&*handle==parent.handle(),
-                (super::model::PlayFrameParentOwner::Card(handle),None,None)=>state.card_ids_issued.contains(handle)
-                    &&super::piles::owned_full_cards(state).any(|card|super::card_state::handle(card.instance)==*handle),
-                (super::model::PlayFrameParentOwner::Potion{slot,id},None,None)=>*id==crate::content::PotionId::DistilledChaos
-                    &&distilled_chaos_use_slot(state,*slot),
-                _=>false,
-            };
-            require(parent_matches&&state.card_ids_issued.contains(&frame.child)&&frame.captured_energy>=-1&&frame.paid>=0
-                &&(index+1==state.play_frames.len()||matches!(&state.play_frames[index+1].parent_owner,
-                    super::model::PlayFrameParentOwner::Card(parent) if *parent==frame.child)),
-                "autoplay frame owner/linkage")?;
-        }
+    require(state.play_frames.len()<=1,"only one card-queue dispatch can be active")?;
+    if let Some(frame)=state.play_frames.last(){
+        let source_owned=match &frame.parent_owner{
+            super::model::PlayFrameParentOwner::Card(handle)=>handle!=&frame.child&&state.card_ids_issued.contains(handle)
+                &&super::piles::owned_full_cards(state).any(|card|super::card_state::handle(card.instance)==*handle),
+            super::model::PlayFrameParentOwner::Potion{slot,id}=>*id==crate::content::PotionId::DistilledChaos
+                &&distilled_chaos_use_slot(state,*slot),
+        };
+        require(source_owned&&state.card_ids_issued.contains(&frame.child)
+            &&state.play_context.as_ref().is_some_and(|context|context.card==frame.child
+                &&context.disposition==frame.disposition&&context.target==frame.target
+                &&context.energy_on_use==frame.captured_energy&&context.paid==frame.paid),
+            "autoplay dispatch source/child linkage")?;
     }
     Ok(())
 }
@@ -2654,14 +2614,14 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
     }
     validate_rng(&state.rng, &state.enemies[0].instance_id, state.full_runtime)?;
     let owned = validate_cards(&state.piles, state.in_play.as_ref(),state.stasis.values().chain(&state.played_powers).chain(&state.inactive_cards)
-        .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values()))?;
+        .chain(state.queued_autoplay.values()))?;
     require(owned.len() == state.card_ids_issued.len()
         && owned.iter().all(|id| state.card_ids_issued.contains(id)), "issued card ownership completeness")?;
     super::cards::validate_silent_nightmare_templates(state)?;
     require(state.played_powers.is_empty()||state.full_runtime&&state.played_powers.iter().all(|card|card.full().is_some_and(|c|crate::content::Catalog::standard().card(c.id).is_some_and(|d|d.card_type==crate::content::CardType::Power))),"resolved Power zone mode/type")?;
     require(state.inactive_cards.is_empty()||state.full_runtime,"inactive card custody runtime")?;
     for card in state.piles.all(state.in_play.as_ref()).chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
-        .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values()) {
+        .chain(state.queued_autoplay.values()) {
         if let Some(live) = card.full() {
             require(state.full_runtime && super::card_state::handle(live.instance) == card.handle(),
                 "full card instance identity/mode")?;

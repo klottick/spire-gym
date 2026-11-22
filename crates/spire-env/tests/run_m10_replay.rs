@@ -79,7 +79,7 @@ fn actual_optional_elixir_confirmation() -> GameAction {
 fn m10_header(record: &mut RunEpisodeRecord) {
     record.schema_id = "spire-gym-run-replay-v2".into();
     record.profile_id = "M10IroncladHeart".into();
-    record.rules_id = "spire-gym-native-m10-rules-v3".into();
+    record.rules_id = "spire-gym-native-m10-rules-v4".into();
     record.content_id = "spire-gym-m10-ironclad-a0-captured-v1".into();
     record.config.capacities = RunCapacities::m10_default();
     record.observation_fingerprint = m10_run_observation_spec(&record.config.capacities)
@@ -102,7 +102,7 @@ fn m10_replay_v2_roundtrips_native_optional_confirm_selection() {
     let wire: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(wire["schema_id"], "spire-gym-run-replay-v2");
     assert_eq!(wire["profile_id"], "M10IroncladHeart");
-    assert_eq!(wire["rules_id"], "spire-gym-native-m10-rules-v3");
+    assert_eq!(wire["rules_id"], "spire-gym-native-m10-rules-v4");
     assert_eq!(wire["content_id"], "spire-gym-m10-ironclad-a0-captured-v1");
     assert_eq!(wire["seed_adapter_id"], "spire-gym-run-u64-le-v1");
     assert_eq!(wire["reward_id"], "spire-gym-floor-key-terminal-reward-v1");
@@ -118,11 +118,11 @@ fn m10_replay_v2_roundtrips_native_optional_confirm_selection() {
         Err(RunSessionError::IncompatibleReplay("Run action not currently offered")),
     );
 
-    // The same new action cannot be hidden under the unchanged M9/v1 identity.
+    // The same new action cannot be hidden under the M9/v1 record schema.
     let mut mislabeled = decoded.clone();
     mislabeled.schema_id = "spire-gym-run-replay-v1".into();
     mislabeled.profile_id = "M9IroncladAct3".into();
-    mislabeled.rules_id = "spire-gym-native-m9-rules-v4".into();
+    mislabeled.rules_id = "spire-gym-native-m9-rules-v5".into();
     mislabeled.content_id = "spire-gym-m9-ironclad-a0-captured-v1".into();
     mislabeled.config.capacities = RunCapacities::m9_default();
     mislabeled.observation_fingerprint = run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint();
@@ -137,7 +137,7 @@ fn m10_replay_v2_roundtrips_native_optional_confirm_selection() {
     let mut m9_wire: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
     m9_wire["schema_id"] = "spire-gym-run-replay-v1".into();
     m9_wire["profile_id"] = "M9IroncladAct3".into();
-    m9_wire["rules_id"] = "spire-gym-native-m9-rules-v4".into();
+    m9_wire["rules_id"] = "spire-gym-native-m9-rules-v5".into();
     m9_wire["content_id"] = "spire-gym-m9-ironclad-a0-captured-v1".into();
     m9_wire["observation_fingerprint"] = serde_json::to_value(run_observation_spec(&RunCapacities::m9_default()).unwrap().fingerprint()).unwrap();
     assert_eq!(
@@ -182,7 +182,7 @@ fn m10_identity_and_fingerprint_preflight_precede_run_creation() {
         Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),
     );
     let mut bad_rules = record.clone();
-    bad_rules.rules_id.push('x');
+    bad_rules.rules_id = "spire-gym-native-m10-rules-v3".into();
     assert_eq!(
         replay_run(&bad_rules, RunCapacities::m10_default()),
         Err(RunSessionError::IncompatibleReplay("Run identity mismatch")),

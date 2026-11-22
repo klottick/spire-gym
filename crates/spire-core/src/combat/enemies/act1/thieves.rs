@@ -323,7 +323,6 @@ fn has_fatal_gold_support(state:&State)->bool {
     state.item_context.as_ref().is_some_and(|items|items.shared_generated_profile()||items.complete_cards())
         ||state.piles.all(state.in_play.as_ref()).chain(&state.played_powers).chain(&state.inactive_cards)
             .chain(state.stasis.values()).chain(state.queued_autoplay.values())
-            .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
             .any(|owned|owned.full().is_some_and(|card|card.id==crate::content::CardId::HandOfGreed
                 // M25 producers admitted at combat entry: Wish (FameAndFortune) and Foreign
                 // Influence (a generated Hand of Greed).

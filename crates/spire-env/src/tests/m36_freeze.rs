@@ -52,7 +52,7 @@ pub(super) const HEART_PINS: &[Pin] = &[
     Pin { name: "Silent-A20", seed: 0xb9, steps: 333, terminal: "HeartVictory", ret: 201, digest: "67ef446c929a18e7e30cfc6499f7126f5f54dc084df28de7d38f9f7af386096c" },
     Pin { name: "Defect-A0", seed: 0xb2, steps: 309, terminal: "HeartVictory", ret: 200, digest: "70adf7fcf5394c2e26e449ae367a45d14b813050c7499c4ec75e69dbdf757a87" },
     Pin { name: "Defect-A20", seed: 0xba, steps: 329, terminal: "HeartVictory", ret: 201, digest: "645ef434ffcff74f9944fb7737f8b7d991d31a6c161688b63f9963a54975ab00" },
-    Pin { name: "Watcher-A0", seed: 0xb3, steps: 351, terminal: "HeartVictory", ret: 200, digest: "5a939bebfb8713da7c29084cf415f7098c21443dcff62e2b09e9e848cb7ec6a9" },
+    Pin { name: "Watcher-A0", seed: 0xb3, steps: 351, terminal: "HeartVictory", ret: 200, digest: "2eb747eaa4f2cf7c02134b5b574c429073f9e2c5ce586b823e3477af07c9102d" },
     Pin { name: "Watcher-A20", seed: 0xbb, steps: 419, terminal: "HeartVictory", ret: 201, digest: "796349df66aeec0477a5941b77a882add4949bea7265fb364805770ee9296735" },
 ];
 
@@ -138,7 +138,7 @@ fn frozen_identities() {
 pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("standard.observation_schema", "spire-gym-standard-run-observation-v1"),
     ("standard.observation_fingerprint", "bf8e1d111bbf2171594231b99d8d6b701244249abfbb90a11e86c4b4a405f7ae"),
-    ("standard.rules", "spire-gym-native-standard-rules-v6"),
+    ("standard.rules", "spire-gym-native-standard-rules-v7"),
     ("standard.content", "spire-gym-standard-content-v1"),
     ("standard.record", "spire-gym-standard-run-replay-v1"),
     ("standard.reward", "spire-gym-floor-key-terminal-reward-v1"),
@@ -164,12 +164,12 @@ pub(super) const FROZEN_IDENTITIES: &[(&str, &str)] = &[
     ("entry_resources.fingerprint", "4eafca3b0089e15735fb6aef24d594a084030438daa9738a1ac8cf6eab75dc5a"),
     ("m9.observation_schema", "spire-gym-run-observation-v1"),
     ("m9.observation_fingerprint", "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c"),
-    ("m9.rules", "spire-gym-native-m9-rules-v4"),
+    ("m9.rules", "spire-gym-native-m9-rules-v5"),
     ("m9.content", "spire-gym-m9-ironclad-a0-captured-v1"),
     ("m9.record", "spire-gym-run-replay-v1"),
     ("m10.observation_schema", "spire-gym-run-observation-v2"),
     ("m10.observation_fingerprint", "dccc7624c45898bc33e3fa682b620fd78ce70fe558d6db7624a888a7ed068c21"),
-    ("m10.rules", "spire-gym-native-m10-rules-v3"),
+    ("m10.rules", "spire-gym-native-m10-rules-v4"),
     ("m10.content", "spire-gym-m10-ironclad-a0-captured-v1"),
     ("m10.record", "spire-gym-run-replay-v2"),
     ("m10_policy.observation_schema", "spire-gym-run-observation-v3"),

@@ -152,10 +152,14 @@ facts.
   bounded at 999 too; above that the engine stops with a typed `Unsupported` fault (for
   Clay, "Self-Forming Clay pending Block exceeded supported bound", after more than 333 HP
   lost in one turn). The original game has no such caps.
-- **Havoc card order (open):** when Havoc is copied (Burst, Duplication Potion) or played
-  by Distilled Chaos, the play order still differs from the original. For a copy, the
-  original plays the copy of Havoc before Havoc's top card; the engine plays the top card
-  first. These cases complete without a fault ([CHANGES](../CHANGES.md), spire-d4h).
+- **Omniscience:** the original appends both selected-card plays behind the
+  cards already waiting. The engine inserts each play ahead of waiting cards.
+  It schedules the second only after the first passes its eligibility check.
+  With other cards queued, such as during Distilled Chaos, this can change
+  which card plays next.
+- **Storm:** the original queues Lightning before the played Power's cleanup
+  action. The engine can run the Power's finish checkpoint before the channel.
+  Ordinary Storm work resolves before the next card-queue entry.
 - **Input timing:** potions are offered only at decision boundaries. The original also
   lets a potion be used while a played card's use is still queued. One such interleave
   is not modelled: Distilled Chaos used before Time Warp's 12th card resolves. Its

@@ -277,9 +277,9 @@ fn disallowed_continuation_root_is_unsupported() {
     // A nested child play holding an enemy target (the autoplay paths draw it at random).
     let mut framed = run.clone();
     let child_card = combat(&run).state.piles.hand[0].clone();
-    combat_mut(&mut framed).state.play_frames.push(model::PlayFrame { parent: None, parent_owner: model::PlayFrameParentOwner::Card(child_card.handle()),
-        parent_context: None, child: child_card.handle(), target: Some(Actor::Enemy(enemy.clone())), resume_phase: Phase::Decision, captured_energy: 0, paid: 0,
-        disposition: model::FinishDisposition::Natural, parent_finish_checkpoint_done: false });
+    combat_mut(&mut framed).state.play_frames.push(model::PlayFrame { parent_owner: model::PlayFrameParentOwner::Card(child_card.handle()),
+        child: child_card.handle(), target: Some(Actor::Enemy(enemy.clone())), resume_phase: Phase::Decision, captured_energy: 0, paid: 0,
+        disposition: model::FinishDisposition::Natural });
     assert!(matches!(framed.public_root_run(), Err(Unsupported::DisallowedContinuation(_))));
     // A thief's rolled branch held before its move roll.
     let thieves = standalone(Character::Ironclad, 0, EncounterId::Looter, MIXED, vec![], 2);

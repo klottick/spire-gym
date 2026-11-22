@@ -16,7 +16,7 @@ fn grow_family(state:&mut State,family:u64,amount:i32)->Result<(),EffectError>{
     // Preflight the complete owned traversal so a retained overflow fault does
     // not leave earlier owners partially incremented.
     for owned in state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
-        .chain(state.in_play.iter()).chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
+        .chain(state.in_play.iter())
         .chain(state.queued_autoplay.values()) {
         if let Some(card)=owned.full().filter(|card|card.copy_family==family){
             card.local.base_damage.unwrap_or(8).checked_add(amount).map(|value|value.max(0))
@@ -25,9 +25,6 @@ fn grow_family(state:&mut State,family:u64,amount:i32)->Result<(),EffectError>{
     }
     for card in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard).chain(&mut state.piles.exhaust){grow(card,family,amount)?;}
     if let Some(card)=state.in_play.as_mut(){grow(card,family,amount)?;}
-    for frame in &mut state.play_frames{
-        if let Some(card)=frame.parent.as_mut(){grow(card,family,amount)?;}
-    }
     // Double Tap's queued child is already an accepted/started repeat owner,
     // unlike an unrelated autoplay card waiting in the draw pile.
     for child in state.queued_autoplay.values_mut(){grow(child,family,amount)?;}

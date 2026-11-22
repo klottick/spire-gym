@@ -187,9 +187,7 @@ pub(in crate::combat) fn validate_work(state:&State,effect:&Effect,work:&DefectE
     }
     if let DefectEffect::Repeat{child,target,energy_on_use,..}=work {
         let Source::Card(parent)=&effect.source else{return Err(InputError::Invariant("blue repeat parent source".into()))};
-        let retired_parent=state.queued_autoplay.get(child).and_then(|c|c.full()).is_some_and(|copy|
-            super::super::piles::owned_full_cards(state).any(|card|super::super::card_state::handle(card.instance)==*parent&&card.id==copy.id&&card.copy_family==copy.copy_family));
-        let owned=retired_parent||super::super::engine::queued_repeat_parent_owned(state,parent,child);
+        let owned=super::super::engine::queued_repeat_parent_owned(state,parent,child);
         if !state.full_runtime||effect.target.is_some()||!owned||!state.queued_autoplay.contains_key(child)||*energy_on_use< -1
             ||target.as_ref().is_some_and(|target|matches!(target,Actor::Enemy(id) if !state.enemies.iter().any(|e|&e.instance_id==id))) {
             return Err(InputError::Invariant("blue repeat retained custody".into()))
@@ -305,9 +303,9 @@ pub(in crate::combat) fn valid_focus_application(state:&State,source:&Source,amo
     }
 }
 
-pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Option<&Actor>)->Result<(),EffectError>{
-    let Source::Card(owner)=source else{return Ok(())};
-    let Some(card)=state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).cloned() else{return Ok(())};
+pub(in crate::combat) fn card_played(state:&mut State,source:&Source){
+    let Source::Card(owner)=source else{return};
+    let Some(card)=state.in_play.as_ref().filter(|c|c.handle()==*owner).and_then(|c|c.full()).cloned() else{return};
     let is_power=crate::content::Catalog::standard().card(card.id).is_some_and(|d|d.card_type==crate::content::CardType::Power);
     // Capture existing listeners before the new Power installs its own effects.
     if is_power {
@@ -324,23 +322,6 @@ pub(in crate::combat) fn card_played(state:&mut State,source:&Source,target:Opti
             }
         }
     }
-    if card.local.purge||state.play_frames.last().is_some_and(|frame|frame.child==*owner&&frame.disposition==super::super::model::FinishDisposition::Purge){return Ok(())}
-    let energy=state.play_context.as_ref().filter(|c|c.card==*owner).map_or(state.player.energy,|c|c.energy_on_use);
-    let echo=state.player_full_powers.iter().find(|p|p.id.0=="echo_form").map_or(0,|p|p.state.amount);
-    let position=i64::try_from(state.silent.played_this_turn.len()).map_err(|_|InputError::Unsupported("Echo turn position exhausted".into()))?;
-    if echo>0&&position-i64::from(state.defect.echo_doubled_this_turn)<=i64::from(echo){
-        let next=state.defect.echo_doubled_this_turn.checked_add(1).ok_or_else(||InputError::Unsupported("Echo counter exhausted".into()))?;
-        super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy,false)?;
-        state.defect.echo_doubled_this_turn=next;
-    }
-    if is_power {
-        if let Some(index)=state.player_full_powers.iter().position(|p|p.id.0=="amplify"&&p.state.amount>0){
-            super::ironclad::autoplay::queue_blue_repeat(state,source,target,energy,false)?;
-            state.player_full_powers[index].state.amount-=1;
-            if state.player_full_powers[index].state.amount==0{state.player_full_powers.remove(index);}
-        }
-    }
-    Ok(())
 }
 
 fn has_orbs(state:&State)->bool{

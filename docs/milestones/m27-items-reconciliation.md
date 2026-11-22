@@ -464,9 +464,10 @@ this is a policy outcome, not a strategy claim. The Run 1 REDs led to D1–D3 ab
   owner. The all-character potion tests and potion-owner inventory are in m27_potion_owner.rs,
   m27_potions.rs and m27_potion_lifecycle.rs.
 - **F9 — Disclosed decision, bound.** Necronomicon repeats the first Attack each turn with paid
-  cost at least 2 (X uses paid energy), free; power duplicators queue before its repeat. Tests:
-  m27_necronomicon_with_duplicators,
-  m27_engine_3_necronomicon_counts_x_and_queues_after_power_duplicates and
+  cost at least 2 (X uses paid energy), free. Power duplicators enqueue before Necronomicon.
+  The spire-d4h correction puts Necronomicon's copy ahead of those waiting
+  copies, so it dispatches first. Tests: m27_necronomicon_with_duplicators,
+  m27_engine_3_necronomicon_counts_x_and_plays_before_power_duplicates and
   m27_necronomicon_pickup_adds_necronomicurse.
 - **F10 — Bound.** Ice Cream adds unspent energy to master energy in each character's recharge
   owner before energized, energized_blue and energy_down; cap 999. Evidence: m27_energy_law_all_characters

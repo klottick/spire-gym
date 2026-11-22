@@ -72,8 +72,9 @@ fn m16_power_callbacks_fault_custody_and_terminal_cancel(){
     combat.state.resolved_effects=99_998;
     assert_eq!(super::super::engine::resolve(&mut combat.state).status,TransitionStatus::Fault);
     assert_eq!(combat.state.character.focus,1);assert_eq!(combat.state.player.energy,2);
-    assert_eq!(combat.state.queued_autoplay.len(),1);assert_eq!(combat.state.play_frames.len(),1);
-    assert!(combat.state.play_frames[0].parent_finish_checkpoint_done);
+    assert_eq!(combat.state.queued_autoplay.len(),1);
+    assert!(combat.state.play_frames.is_empty()&&combat.state.in_play.is_none());
+    assert_eq!(combat.state.played_powers[0].handle(),super::super::card_state::handle(instance));
     super::super::engine::validate_runtime(&combat.state).unwrap();let frozen=combat.clone();
     assert!(combat.step_full(&CombatAction::EndTurn).is_err());assert_eq!(combat,frozen);
     let mut lethal=entered_combat(3,3, |_|{});lethal.state.character=CharacterState::for_character(crate::content::Character::Defect);

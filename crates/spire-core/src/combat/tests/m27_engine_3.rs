@@ -133,7 +133,7 @@ fn m27_engine_3_runic_pyramid_retains_non_ethereal_hand() {
 }
 
 #[test]
-fn m27_engine_3_necronomicon_counts_x_and_queues_after_power_duplicates() {
+fn m27_engine_3_necronomicon_counts_x_and_plays_before_power_duplicates() {
     fn whirlwind_damage(relics: &[RelicId]) -> i32 {
         let mut run = run_with(relics, &[CardId::Whirlwind; 12]);
         set_energy(&mut run, 3);
@@ -164,9 +164,10 @@ fn m27_engine_3_necronomicon_counts_x_and_queues_after_power_duplicates() {
     let finish = state.pending.iter().position(|effect|effect.kind==EffectKind::FinishCard).unwrap();
     let queued = state.pending.iter().skip(finish+1).map(|effect|effect.kind.clone()).collect::<Vec<_>>();
     assert_eq!(queued.len(), 3);
-    let EffectKind::Defect(combat::cards::DefectEffect::Repeat { child: echo, .. }) = &queued[0] else { panic!("Echo copy queues first") };
-    assert!(matches!(queued[1], EffectKind::Ironclad(combat::cards::IroncladEffect::DoubleTapRepeat { .. })));
-    let EffectKind::Defect(combat::cards::DefectEffect::Repeat { child: relic, .. }) = &queued[2] else { panic!("Necronomicon repeat queues after powers") };
-    assert!(echo.as_str().parse::<u64>().unwrap() > relic.as_str().parse::<u64>().unwrap(),
-        "later power insertion is at the front of the post-finish queue");
+    let EffectKind::Defect(combat::cards::DefectEffect::Repeat { child: relic, .. }) = &queued[0] else { panic!("Necronomicon copy dispatches first") };
+    let EffectKind::Defect(combat::cards::DefectEffect::Repeat { child: echo, .. }) = &queued[1] else { panic!("Echo copy dispatches second") };
+    let EffectKind::Ironclad(combat::cards::IroncladEffect::DoubleTapRepeat { child: tap, .. }) = &queued[2] else { panic!("Double Tap copy dispatches third") };
+    let instance=|child:&combat::CardHandle|child.as_str().parse::<u64>().unwrap();
+    assert!(instance(relic)>instance(echo)&&instance(echo)>instance(tap),
+        "the powers enqueue in list order, then the relic enqueues last");
 }

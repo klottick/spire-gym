@@ -241,9 +241,9 @@ fn d8g_d3_retired_exhaust_card_rolls_strange_spoon() {
 
 /// D3, nested: the 12th card is played by a card that Distilled Chaos played (a repeat copy or Havoc's top card), so a
 /// card-owned frame sits above the potion's frame. The turn is still potion-owned: the early end retires the potion's
-/// other queued cards and the turn ends once the card-owned work unwinds. Counter 10: the potion's first card is the
-/// 11th. Draw pile, top first: `top`, then instances 2.. in order; `hand` holds the setup card played first.
-fn time_warp_nested(character: Character, setup: crate::content::CardId, top: &[crate::content::CardId]) -> (super::super::Combat, i32) {
+/// other queued cards and the turn ends once the card-owned work unwinds. The counter is set after the setup play.
+/// Draw pile, top first: `top`, then instances 2.. in order; `hand` holds the setup card played first.
+fn time_warp_nested(character: Character, setup: crate::content::CardId, top: &[crate::content::CardId], counter: i32) -> (super::super::Combat, i32) {
     use super::fuzzfix_b::{arrange, fixture_in, step};
     let filler = if character == Character::Silent { crate::content::CardId::DefendGreen } else { crate::content::CardId::Defend };
     let mut cards = vec![(setup, 0)];
@@ -255,7 +255,7 @@ fn time_warp_nested(character: Character, setup: crate::content::CardId, top: &[
     draw.reverse();
     arrange(&mut combat, &[1], &draw, &[]);
     step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "setup card");
-    combat.state.enemies[0].full_powers.iter_mut().find(|power| power.id.0 == "time_warp").unwrap().state.amount = 10;
+    combat.state.enemies[0].full_powers.iter_mut().find(|power| power.id.0 == "time_warp").unwrap().state.amount = counter;
     let hp = combat.state.enemies[0].hp;
     step(&mut combat, CombatAction::UsePotion { slot: 0, target: None }, "Distilled Chaos into Time Warp");
     assert_eq!(combat.state.turn, 2, "the 12th card ends the turn once");
@@ -285,7 +285,7 @@ fn card_plays(combat: &super::super::Combat, instance: u64) -> usize {
 #[test]
 fn d8g_d3_time_warp_on_a_double_tap_copy_of_a_distilled_chaos_card() {
     use crate::content::CardId::*;
-    let (combat, lost) = time_warp_nested(Character::Ironclad, DoubleTap, &[Strike, Defend, Defend]);
+    let (combat, lost) = time_warp_nested(Character::Ironclad, DoubleTap, &[Strike, Defend, Defend], 10);
     assert_eq!(card_plays(&combat, 2), 1, "the potion's Strike, the 11th card");
     assert_eq!((all_plays(&combat), lost), (3, 12), "Double Tap, the Strike and its copy, the 12th card");
     assert_eq!((card_plays(&combat, 3), card_plays(&combat, 4)), (0, 0), "the potion's other cards are retired unused");
@@ -296,23 +296,101 @@ fn d8g_d3_time_warp_on_a_double_tap_copy_of_a_distilled_chaos_card() {
 #[test]
 fn d8g_d3_time_warp_on_a_burst_copy_of_a_distilled_chaos_card() {
     use crate::content::CardId::*;
-    let (combat, lost) = time_warp_nested(Character::Silent, Burst, &[DefendGreen, StrikeGreen, StrikeGreen]);
+    let (combat, lost) = time_warp_nested(Character::Silent, Burst, &[DefendGreen, StrikeGreen, StrikeGreen], 10);
     assert_eq!(card_plays(&combat, 2), 1, "the potion's Defend, the 11th card");
     assert_eq!((all_plays(&combat), lost), (3, 0), "Burst, the Defend and its copy, the 12th card");
     assert_eq!((card_plays(&combat, 3), card_plays(&combat, 4)), (0, 0), "the potion's Strikes are retired unused");
 }
 
-/// I1 (b): Havoc, played by the potion, is the 11th card and the card it plays is the 12th. Exactly one more card is
-/// used after Havoc and the other two are retired. Which one is used depends on the order of Havoc's top card
-/// against the potion's queued cards: the original appends it behind them, the engine plays it first. That is the
-/// ordering difference tracked as spire-d4h, so this test accepts either.
+/// Distilled Chaos already queued both sibling cards when Havoc appends its top card.
 #[test]
-fn d8g_d3_time_warp_on_havocs_top_card_under_distilled_chaos() {
+fn d4h_time_warp_counts_the_potions_second_card_before_havocs_top_card() {
     use crate::content::CardId::*;
-    let (combat, _) = time_warp_nested(Character::Ironclad, Inflame, &[Havoc, Defend, Defend, Defend]);
-    assert_eq!(card_plays(&combat, 2), 1, "Havoc, the 11th card");
+    let (combat, _) = time_warp_nested(Character::Ironclad, Inflame, &[Havoc, Defend, Defend, Defend], 10);
+    assert_eq!(card_plays(&combat, 2), 1, "Havoc is the 11th card");
     assert_eq!(all_plays(&combat), 3, "Inflame, Havoc and one 12th card");
-    assert_eq!((3..=5).map(|instance| card_plays(&combat, instance)).sum::<usize>(), 1, "one 12th card; two retired");
+    assert_eq!((card_plays(&combat, 3), card_plays(&combat, 4), card_plays(&combat, 5)), (1, 0, 0),
+        "the potion's second card is the 12th; both later cards retire unused");
+    assert!(in_pile(&combat.state.piles.exhaust, 5), "Havoc's retired card still exhausts");
+}
+
+#[test]
+fn d4h_time_warp_can_end_on_havocs_top_card_after_the_potion_frames_unwind() {
+    use crate::content::CardId::*;
+    let (combat, _) = time_warp_nested(Character::Ironclad, Inflame, &[Havoc, Defend, Defend, Defend], 8);
+    assert_eq!(all_plays(&combat), 5, "setup plus the full potion burst and Havoc's child");
+    assert_eq!(card_plays(&combat, 5), 1, "Havoc's child is the 12th card");
+    assert!(in_pile(&combat.state.piles.exhaust, 5));
+}
+
+#[test]
+fn d4h_cleanup_duplication_copy_reshuffles_the_original_havoc() {
+    use super::fuzzfix_b::{arrange, fixture, step};
+    use crate::content::CardId::*;
+    let mut cards = vec![(Havoc, 0), (Defend, 0)];
+    cards.extend([(Strike, 0); 8]);
+    let mut combat = fixture(Character::Ironclad, &cards, vec![RelicId::BurningBlood],
+        vec![Some(PotionId::DuplicationPotion), None, None], 3);
+    arrange(&mut combat, &[1, 3, 4, 5, 6, 7, 8, 9, 10], &[2], &[]);
+    step(&mut combat, CombatAction::UsePotion { slot: 0, target: None }, "Duplication Potion");
+    step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Havoc");
+    assert_eq!(card_plays(&combat, 1), 2, "the copy reshuffles and queues the original Havoc");
+    assert_eq!(all_plays(&combat), 4, "Havoc, copy, Defend, replayed Havoc");
+    assert_eq!(combat.state.player.block, 5);
+    assert!(in_pile(&combat.state.piles.exhaust, 1) && in_pile(&combat.state.piles.exhaust, 2));
+    assert!(combat.state.piles.draw.is_empty() && combat.state.piles.discard.is_empty());
+    assert_eq!(combat.state.piles.hand.len(), 8);
+    assert_eq!(combat.state.inactive_cards.len(), 1, "the temporary copy purges");
+}
+
+#[test]
+fn d4h_cleanup_shrug_it_off_draws_the_original_havoc() {
+    use super::fuzzfix_b::{arrange, fixture, step};
+    use crate::content::CardId::*;
+    let mut cards = vec![(Havoc, 0), (ShrugItOff, 0)];
+    cards.extend([(Strike, 0); 8]);
+    let mut combat = fixture(Character::Ironclad, &cards, vec![RelicId::BurningBlood], vec![None; 3], 3);
+    arrange(&mut combat, &[1, 3, 4, 5, 6, 7, 8, 9, 10], &[2], &[]);
+    step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Havoc plays Shrug It Off");
+    assert!(in_pile(&combat.state.piles.hand, 1), "Shrug It Off draws the finished Havoc from discard");
+    assert_eq!(all_plays(&combat), 2);
+    assert_eq!(combat.state.player.block, 8);
+    assert!(in_pile(&combat.state.piles.exhaust, 2));
+    assert!(combat.state.piles.draw.is_empty() && combat.state.piles.discard.is_empty());
+    assert_eq!(combat.state.piles.hand.len(), 9);
+}
+
+#[test]
+fn d4h_mayhem_plays_its_second_queued_card_before_havocs_top_card() {
+    use super::fuzzfix_b::{arrange, fixture, step};
+    use crate::content::CardId::*;
+    let mut combat = fixture(Character::Ironclad, &[(Mayhem, 0), (Havoc, 0), (Defend, 0), (Strike, 0), (Defend, 0)],
+        vec![], vec![None; 3], 3);
+    arrange(&mut combat, &[1], &[4, 3, 2, 5], &[]);
+    combat.state.player.draw_per_turn = 1;
+    step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Mayhem");
+    combat.state.player_full_powers.iter_mut().find(|power| power.id.0 == "mayhem").unwrap().state.amount = 2;
+    step(&mut combat, CombatAction::EndTurn, "two Mayhem plays");
+    let played: Vec<_> = combat.state.hook_events.iter()
+        .filter(|event| event.hook == super::super::Hook::CardPlayed)
+        .map(|event| event.source.clone()).collect();
+    assert_eq!(played, (1..=4).map(|instance| super::super::Source::Card(handle(instance))).collect::<Vec<_>>());
+    assert!(in_pile(&combat.state.piles.exhaust, 4));
+}
+
+#[test]
+fn d4h_distilled_chaos_plays_its_queued_cards_before_havocs_top_card() {
+    use super::fuzzfix_b::{arrange, fixture, step};
+    use crate::content::CardId::*;
+    let mut combat = fixture(Character::Ironclad, &[(Havoc, 0), (Defend, 0), (Defend, 0), (Strike, 0)],
+        vec![], vec![Some(PotionId::DistilledChaos), None, None], 3);
+    arrange(&mut combat, &[], &[4, 3, 2, 1], &[]);
+    step(&mut combat, CombatAction::UsePotion { slot: 0, target: None }, "Distilled Chaos");
+    let played: Vec<_> = combat.state.hook_events.iter()
+        .filter(|event| event.hook == super::super::Hook::CardPlayed)
+        .map(|event| event.source.clone()).collect();
+    assert_eq!(played, (1..=4).map(|instance| super::super::Source::Card(handle(instance))).collect::<Vec<_>>());
+    assert!(in_pile(&combat.state.piles.exhaust, 4));
 }
 
 /// E2: an enemy dies once. Corpse Explosion's THORNS damage kills a poisoned enemy whose own poison tick is already
@@ -445,11 +523,8 @@ fn d8g_e7_burst_copy_of_survivor_opens_its_discard_after_the_originals() {
     engine::validate_runtime(&combat.state).unwrap();
 }
 
-/// E7: Burst's copy of Havoc is queued while Havoc's top card (Survivor) has its discard choice open. The choice
-/// resolves, then the copy plays the next top card. The selection boundary used to fault with
-/// `Invariant("Burst repeat child/parent ownership")`: the suspended frame's child is the top card, not the copy.
 #[test]
-fn d8g_e7_burst_copy_of_havoc_waits_behind_the_top_cards_selection() {
+fn d4h_burst_copy_of_havoc_plays_before_the_top_cards_selection() {
     use super::super::{engine, Phase};
     use super::fuzzfix_b::{arrange, fixture, step};
     use crate::content::CardId::*;
@@ -460,6 +535,9 @@ fn d8g_e7_burst_copy_of_havoc_waits_behind_the_top_cards_selection() {
     step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Burst");
     step(&mut combat, CombatAction::PlayCard { instance: 2, target: None }, "Havoc plays Survivor");
     assert_eq!((combat.state.phase, combat.state.player.block), (Phase::Selection, 8), "Survivor's choice is open");
+    assert_eq!(combat.state.silent.played_this_turn.iter().filter(|id| **id == Havoc).count(), 2,
+        "the original and its copy have already played at Survivor's decision");
+    assert!(combat.state.queued_autoplay.contains_key(&handle(7)), "the copy already queued the Strike");
     engine::validate_runtime(&combat.state).expect("valid selection boundary");
     choose(&mut combat, 3, "Survivor discards a Strike");
     assert_eq!(combat.state.phase, Phase::Decision);
@@ -471,11 +549,8 @@ fn d8g_e7_burst_copy_of_havoc_waits_behind_the_top_cards_selection() {
     engine::validate_runtime(&combat.state).unwrap();
 }
 
-/// E8, lane D Q13: an autoplayed card keeps its own selection; the queued copy waits for it. Duplication Potion's copy
-/// of Havoc is queued while Havoc's top card (Secret Technique) has its draw-pile choice open. The boundary used to
-/// fault with `Invariant("Duplication repeat retains its actual card and captured child")`.
 #[test]
-fn d8g_e8_duplication_copy_of_havoc_waits_behind_secret_techniques_selection() {
+fn d4h_duplication_copy_of_havoc_plays_before_secret_techniques_selection() {
     use super::super::{engine, Phase};
     use super::fuzzfix_b::{arrange, fixture, step};
     use crate::content::CardId::*;
@@ -486,6 +561,8 @@ fn d8g_e8_duplication_copy_of_havoc_waits_behind_secret_techniques_selection() {
     step(&mut combat, CombatAction::UsePotion { slot: 0, target: None }, "Duplication Potion");
     step(&mut combat, CombatAction::PlayCard { instance: 1, target: None }, "Havoc plays Secret Technique");
     assert_eq!(combat.state.phase, Phase::Selection, "Secret Technique's draw-pile choice is open");
+    assert!(combat.state.queued_autoplay.contains_key(&handle(5)), "the copy already revealed the Strike");
+    assert!(!in_pile(&combat.state.piles.draw, 5));
     engine::validate_runtime(&combat.state).expect("valid selection boundary");
     choose(&mut combat, 4, "Secret Technique takes a Defend");
     assert_eq!(combat.state.phase, Phase::Decision);
