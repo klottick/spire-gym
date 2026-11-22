@@ -31,7 +31,8 @@ fn m16_review_i1_heatsinks_top_draw_precedes_payload_and_both_repeats(){
         let finish=combat.state.pending.iter().position(|e|e.kind==EffectKind::FinishCard).unwrap();
         let repeat=combat.state.pending.iter().position(|e|matches!(e.kind,EffectKind::Defect(DefectEffect::Repeat{..}))).unwrap();
         let storm=combat.state.pending.iter().position(|e|e.kind==EffectKind::Character(CharacterEffect::Channel(OrbKind::Lightning))).unwrap();
-        assert!(finish<repeat&&repeat<storm,"Storm remains bottom work after retained repeats");
+        assert!(finish<repeat&&storm<repeat,
+            "the original's finish and Storm's ordinary channel work both precede card-queue repeats");
         let hand=combat.state.piles.hand.len();
         for _ in 0..32{
             if combat.state.pending.front().is_some_and(|e|matches!(e.kind,EffectKind::ApplyFullPower{id:FullPowerId("focus"),..})){break;}

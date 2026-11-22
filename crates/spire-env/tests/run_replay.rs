@@ -11,7 +11,7 @@ fn corrected_rules_record_keeps_v1_wire_and_observation_identity(){
     let record=prefix();
     assert_eq!(record.schema_id,"spire-gym-run-replay-v1");
     assert_eq!(record.rules_id,RUN_RULES_ID);
-    assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v4");
+    assert_eq!(RUN_RULES_ID,"spire-gym-native-m9-rules-v5");
     assert_eq!(RUN_RULES_ID_V1,"spire-gym-native-m9-rules-v1");
     assert_eq!(record.observation_fingerprint.iter().map(|b|format!("{b:02x}")).collect::<String>(),
         "270163f700c7ca19556898d14c22ca8d641b0ef6f5c757d80d0ca7983989981c");
@@ -22,16 +22,15 @@ fn corrected_rules_record_keeps_v1_wire_and_observation_identity(){
 }
 
 #[test]
-fn explicitly_labelled_legacy_v1_rules_record_fails_identity_preflight(){
-    // This in-memory fixture emulates the old v1 semantic identity. It is not a
-    // saved historical record and does not rewrite or bless an old artifact.
-    let mut legacy_v1_rules_record_fixture=prefix();
-    legacy_v1_rules_record_fixture.rules_id=RUN_RULES_ID_V1.into();
-    // If replay advanced to action execution, this action would fail as unoffered.
-    // Identity mismatch must win at strict preflight before Run construction/step.
-    legacy_v1_rules_record_fixture.steps[0].action=GameAction::Move(NodeId(u64::MAX));
-    assert!(matches!(replay_run(&legacy_v1_rules_record_fixture,RunCapacities::m9_default()),
-        Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))));
+fn previous_rules_records_fail_identity_preflight(){
+    for old_rules in [RUN_RULES_ID_V1, "spire-gym-native-m9-rules-v4"] {
+        let mut record=prefix();
+        record.rules_id=old_rules.into();
+        // This action is unoffered. Identity rejection wins before execution.
+        record.steps[0].action=GameAction::Move(NodeId(u64::MAX));
+        assert!(matches!(replay_run(&record,RunCapacities::m9_default()),
+            Err(RunSessionError::IncompatibleReplay("Run identity mismatch"))));
+    }
 }
 
 #[test]

@@ -391,8 +391,8 @@ fn m10_growth_blood_for_blood_counts_actual_enemy_thorns_hp_loss(){
     c.state.player_full_powers.push(FullPowerEntry{id:FullPowerId("double_tap"),state:PowerState{amount:1,skip_first:false,monster_source_grace:false}});
     play(&mut c,CardId::BloodForBlood,Some(TargetId(1)));
     assert_eq!(c.state.player.hp,294,"both Spiker retaliations cause actual positive THORNS HP loss");
-    assert_eq!(card_state::effective_cost(card(&c,CardId::BloodForBlood),4).unwrap(),4,
-        "parent held in a live play frame and current repeated card are excluded from hand/draw/discard callbacks");
+    assert_eq!(card_state::effective_cost(card(&c,CardId::BloodForBlood),4).unwrap(),3,
+        "the original has entered discard before the repeat takes Thorns damage");
     assert!(c.state.inactive_cards.iter().filter_map(OwnedCard::full).any(|card|card.id==CardId::BloodForBlood
         &&card.copy_provenance==card_state::CopyProvenance::SameInstanceFamily
         &&card.local.combat_cost_reduction==0),"the completed queued limbo child remains unmodified in inactive custody: {:?}",c.state.inactive_cards);

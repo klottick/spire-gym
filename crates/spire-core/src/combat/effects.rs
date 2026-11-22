@@ -595,11 +595,6 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             if let Some(card)=state.in_play.as_ref(){unavailable.insert(card.handle());}
             if let Some(context)=state.play_context.as_ref(){unavailable.insert(context.card.clone());}
             for (owner,card) in &state.queued_autoplay { unavailable.insert(owner.clone());unavailable.insert(card.handle()); }
-            for frame in &state.play_frames {
-                unavailable.insert(frame.child.clone());
-                if let Some(card)=frame.parent.as_ref(){unavailable.insert(card.handle());}
-                if let super::model::PlayFrameParentOwner::Card(owner)=&frame.parent_owner{unavailable.insert(owner.clone());}
-            }
             let candidates=state.piles.hand.iter().filter_map(OwnedCard::full).filter_map(|card|{
                 let base=super::cards::base_cost(state,card)?;
                 let current=super::card_state::effective_cost(card,base).ok()?;
@@ -926,12 +921,13 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             // A completed use ends both waivers, autoplay included (the original clears freeToPlayOnce and isInAutoplay
             // in UseCardAction.update).
             if let Some(live)=state.in_play.as_mut().and_then(OwnedCard::full_mut){live.local.free_to_play_once=false;live.local.free_play=false;}
-            if state.full_runtime&&super::cards::ironclad::autoplay::defer_parent_finish(state,card)?{return Ok(())}
             let disposition=state.play_context.as_ref().filter(|context|context.card==*card)
                 .map_or(super::model::FinishDisposition::Natural,|context|context.disposition);
             let owned=state.in_play.take().ok_or_else(||InputError::Invariant("finished card owner missing".into()))?;
+            // Resolve the disposition and any cleanup callbacks before the
+            // next card-queue entry takes custody of its own child.
             super::piles::finish_played_card(state,owned,disposition)?;
-            if state.full_runtime{super::cards::ironclad::autoplay::resume_parent(state,card)?;}
+            if state.full_runtime{super::cards::ironclad::autoplay::finish_play(state,card)?;}
         }
         EffectKind::Terminal(outcome) => {
             if !state.full_runtime || state.hp_before_healing.is_none() {state.hp_before_healing = Some(state.player.hp);}

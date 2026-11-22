@@ -269,7 +269,7 @@ fn m10_havoc_unplayable_curse_has_no_payload_hook_or_end_turn_trigger_red(){
 }
 
 #[test]
-fn m10_havoc_unsupported_nested_child_fault_keeps_parent_context_and_child_owner_red(){
+fn m10_havoc_unsupported_child_fault_keeps_finished_producer_and_queued_child(){
     let mut combat=with_task7_card(CardId::Havoc,false);
     let havoc=combat.state.piles.hand.iter().find(|owned|owned.handle()==card_state::handle(CardInstanceId(3))).unwrap().clone();
     let child=OwnedCard::Full(card_state::permanent(CardId::Whirlwind,CardInstanceId(78),0));let child_handle=child.handle();
@@ -283,17 +283,17 @@ fn m10_havoc_unsupported_nested_child_fault_keeps_parent_context_and_child_owner
     let result=combat.step_full(&CombatAction::PlayCard{instance:3,target:None});
     assert!(result.is_err(),"an unsupported nested child-use condition remains an honest retained fault");
     assert!(combat.state.fault.as_ref().is_some_and(|fault|fault.kind==FaultKind::Unsupported));
-    let frame=combat.state.play_frames.last().expect("completed parent is retained in the active child frame before child preparation");
-    assert_eq!(frame.parent.as_ref().unwrap().handle(),card_state::handle(CardInstanceId(3)),"parent remains owned while child preparation faults");
-    assert_eq!(frame.parent_context.as_ref().unwrap().card,card_state::handle(CardInstanceId(3)),"parent play context remains owned by the frame");
-    assert_eq!(frame.child,child_handle);
+    assert!(combat.state.play_frames.is_empty()&&combat.state.play_context.is_none());
+    assert!(matches!(combat.state.current.as_ref(),
+        Some(Effect{source:Source::Card(parent),kind:EffectKind::Ironclad(IroncladEffect::HavocQueued{child,..}),..})
+        if *parent==havoc.handle()&&child==&child_handle));
     assert!(combat.state.queued_autoplay.contains_key(&child_handle),"child remains in queued ownership, not dropped into a local variable");
     assert_eq!(combat.state.card_rng.as_ref(),Some(&expected_rng),"an unsupported extracted child is never accepted as a second Havoc use and spends no second target draw");
     assert!(combat.state.card_ids_issued.contains(&child_handle));
-    assert!(!combat.state.piles.all(combat.state.in_play.as_ref()).any(|owned|owned.handle()==havoc.handle()),"parent has exactly one owner in the frame");
-    assert!(engine::validate_runtime(&combat.state).is_ok(),"a well-owned deferred child is a valid retained fault state");
-    let mut dangling=combat.state.clone();dangling.play_frames.last_mut().unwrap().child=card_state::handle(CardInstanceId(999));
-    assert!(engine::validate_runtime(&dangling).is_err(),"fault diagnostic exemption must not admit dangling play-frame references");
+    assert!(combat.state.piles.discard.iter().any(|owned|owned.handle()==havoc.handle()));
+    assert!(engine::validate_runtime(&combat.state).is_ok(),"the retained child and finished producer have distinct custody");
+    let mut dangling=combat.state.clone();dangling.queued_autoplay.remove(&child_handle);
+    assert!(engine::validate_runtime(&dangling).is_err(),"fault diagnostics still require custody of the unstarted child");
 }
 
 #[test]
@@ -345,7 +345,7 @@ fn m10_double_tap_two_charges_decrement_at_card_played_checkpoint_red(){
 }
 
 #[test]
-fn m10_double_tap_headbutt_repeat_owns_parent_through_nested_selection_red(){
+fn m10_double_tap_headbutt_repeat_can_select_the_finished_original(){
     let mut combat=with_task7_card(CardId::DoubleTap,false);
     combat.state.player.energy=3;
     combat.state.card_ids_issued.insert(card_state::handle(CardInstanceId(80)));
@@ -365,8 +365,10 @@ fn m10_double_tap_headbutt_repeat_owns_parent_through_nested_selection_red(){
         if *handle==card_state::handle(CardInstanceId(80))));
     assert_ne!(frame.child,card_state::handle(CardInstanceId(80)),"repeat is a distinct issued card instance");
     let playing=combat.public_full().unwrap().playing_cards;
-    assert_eq!(playing.iter().map(|card|card.id).collect::<Vec<_>>(),vec![CardId::Headbutt,CardId::Headbutt]);
-    assert_ne!(playing[0].instance,playing[1].instance,"public playing owners expose parent and started repeat as distinct issued instances");
+    assert_eq!(playing.len(),1);
+    assert_eq!(playing[0].id,CardId::Headbutt);
+    assert!(combat.state.pending_selection.as_ref().unwrap().candidates.contains(&card_state::handle(CardInstanceId(80))),
+        "the repeat can choose the original Headbutt from discard");
     engine::validate_runtime(&combat.state).unwrap();
 }
 
@@ -569,7 +571,7 @@ fn m10_havoc_nested_selection_keeps_parent_reference_and_started_child_public(){
     assert_eq!(combat.state.phase,Phase::Selection);
     engine::validate_runtime(&combat.state).unwrap();
     let public=combat.public_full().unwrap();
-    assert_eq!(public.playing_cards.iter().map(|card|card.id).collect::<Vec<_>>(),vec![CardId::Havoc,CardId::Armaments]);
+    assert_eq!(public.playing_cards.iter().map(|card|card.id).collect::<Vec<_>>(),vec![CardId::Armaments]);
     assert_eq!(combat.state.play_frames.len(),1);
     let encoded=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||super::differential::encode_checkpoint(&combat)));
     let panic=encoded.expect_err("M9 v1 checkpoint codec rejects active M10 play-frame ownership");
@@ -577,7 +579,7 @@ fn m10_havoc_nested_selection_keeps_parent_reference_and_started_child_public(){
     assert!(message.contains("M9 v1 cannot encode an active or retained M10 autoplay play frame"),"specific v1 ownership boundary: {message}");
     assert!(matches!(&combat.state.play_frames[0].parent_owner,super::super::model::PlayFrameParentOwner::Card(handle)
         if *handle==card_state::handle(CardInstanceId(3))));
-    assert!(!combat.state.piles.discard.iter().any(|owned|owned.handle()==card_state::handle(CardInstanceId(3))),"suspended parent remains in the retained play frame until its child settles");
+    assert!(combat.state.piles.discard.iter().any(|owned|owned.handle()==card_state::handle(CardInstanceId(3))),"Havoc has finished before its child opens selection");
     combat.step_full(&CombatAction::SelectCard{instance:source_cards[0]}).unwrap();
     assert!(combat.state.play_frames.is_empty());
     assert!(combat.state.in_play.is_none());
@@ -604,7 +606,7 @@ fn m10_havoc_recycles_without_draw_callback_and_suppresses_unplayable_status(){
 }
 
 #[test]
-fn m10_terminal_during_autoplay_exports_both_real_play_owners(){
+fn m10_terminal_during_autoplay_exports_finished_producer_and_active_child(){
     let mut combat=with_task7_card(CardId::Havoc,false);
     combat.state.player.hp=6;
     let child=OwnedCard::Full(card_state::permanent(CardId::Offering,CardInstanceId(77),0));
@@ -615,8 +617,8 @@ fn m10_terminal_during_autoplay_exports_both_real_play_owners(){
     assert_eq!(combat.state.play_frames.len(),1);
     let exit=combat.exit().unwrap();
     assert_eq!(exit.in_play.as_ref().unwrap().instance,CardInstanceId(77));
-    assert_eq!(exit.play_frames.iter().map(|card|card.instance).collect::<Vec<_>>(),vec![CardInstanceId(3)]);
-    assert!(exit.play_frames.iter().any(|card|card.instance==CardInstanceId(3)),"Havoc parent remains a real owner in the suspended terminal frame");
+    assert!(exit.play_frames.is_empty());
+    assert!(exit.discard.iter().any(|card|card.instance==CardInstanceId(3)),"finished Havoc stays in its discard zone");
     let owners=exit.hand.iter().chain(&exit.draw).chain(&exit.discard).chain(&exit.exhaust).chain(exit.in_play.iter()).chain(&exit.play_frames).chain(&exit.queued_autoplay).map(|card|card.instance).collect::<std::collections::BTreeSet<_>>();
     assert_eq!(owners,combat.state.card_ids_issued.iter().map(|handle|CardInstanceId(handle.as_str().parse().unwrap())).collect());
 }

@@ -280,7 +280,7 @@ pub(super) fn validate_state(state:&State)->Result<(),InputError>{
         ||!(1..=3).contains(&bomb.remaining)||!matches!(bomb.damage,40|50)||!ids.insert(bomb.id)
         ||!state.card_ids_issued.contains(&bomb.owner)
         ||!state.piles.all(state.in_play.as_ref()).chain(state.stasis.values()).chain(&state.played_powers)
-            .chain(&state.inactive_cards).chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
+            .chain(&state.inactive_cards)
             .chain(state.queued_autoplay.values()).any(|card|card.handle()==bomb.owner
                 &&card.full().is_some_and(|live|live.id==crate::content::CardId::TheBomb))){
         return Err(InputError::Invariant("Bomb timer identity/owner/payload bounds".into()))

@@ -136,7 +136,6 @@ pub(super) fn validate_pending(state: &State) -> Result<(), InputError> {
         let template = &pending.template;
         let owner_card = state.piles.all(state.in_play.as_ref())
             .chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
-            .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref()))
             .chain(state.queued_autoplay.values())
             .any(|card| card.handle() == pending.owner
                 && card.full().is_some_and(|live|live.id==CardId::Nightmare));

@@ -201,7 +201,6 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             if *cancelled{
                 let card=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience original absent".into()))?;
                 super::ironclad::autoplay::dispose_unplayed(state,card,super::super::model::FinishDisposition::Exhaust)?;
-                super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
                 let actor=omniscience_random_target(state,child)?;
                 let playable=super::ironclad::autoplay::queued_child_is_playable(state,child,actor.clone(),*energy_on_use,false)?;
@@ -218,7 +217,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
                 super::ironclad::autoplay::start_queued_child(state,child,actor,false,true,*energy_on_use,
                     super::super::model::PlayFrameParentOwner::Card(parent.clone()))?;
                 if let Some(copy)=repeat{
-                    super::ironclad::autoplay::queue_after_finish(state,&Source::Card(child.clone()),Effect{source:Source::Card(child.clone()),target:Some(Actor::Player),
+                    super::ironclad::autoplay::queue_immediate_repeat(state,&Source::Card(child.clone()),Effect{source:Source::Card(child.clone()),target:Some(Actor::Player),
                         kind:EffectKind::Watcher(WatcherEffect::OmniscienceRepeat{child:copy,energy_on_use:-1,cancelled:false})})?;
                 }
             }
@@ -228,7 +227,6 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             if *cancelled{
                 let copy=state.queued_autoplay.remove(child).ok_or_else(||InputError::Invariant("queued Omniscience repeat copy absent".into()))?;
                 super::ironclad::autoplay::dispose_unplayed(state,copy,super::super::model::FinishDisposition::Purge)?;
-                super::ironclad::autoplay::resume_parent(state,child)?;
             }else{
                 let target=omniscience_random_target(state,child)?;
                 super::ironclad::autoplay::start_queued_child(state,child,target,true,false,*energy_on_use,
@@ -328,22 +326,16 @@ pub(in crate::combat) fn validate(state:&State,effect:&Effect,work:&WatcherEffec
         WatcherEffect::OmnisciencePlay{child,energy_on_use,..}=>{
             let Source::Card(parent)=&effect.source else{return Err(invalid())};
             let queued=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some();
-            let frame=state.play_frames.last().is_some_and(|frame|frame.child==*child&&frame.parent_finish_checkpoint_done
-                &&matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent)
-                &&frame.parent.as_ref().is_some_and(|owner|owner.handle()==*parent&&owner.full().is_some_and(|live|live.id==crate::content::CardId::Omniscience)));
-            if !queued||!frame||*energy_on_use!= -1{return Err(invalid())}
+            let source=super::super::piles::owned_full_cards(state).any(|card|
+                super::super::card_state::handle(card.instance)==*parent&&card.id==crate::content::CardId::Omniscience);
+            if !queued||!source||*energy_on_use!= -1{return Err(invalid())}
         },
         WatcherEffect::OmniscienceRepeat{child,energy_on_use,..}=>{
             let Source::Card(parent)=&effect.source else{return Err(invalid())};
-            let queued=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some_and(|live|live.local.purge&&live.local.free_play);
-            let frame=state.play_frames.last().is_some_and(|frame|frame.child==*child&&frame.parent_finish_checkpoint_done
-                &&matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent)
-                &&frame.parent.as_ref().is_some_and(|owner|owner.handle()==*parent))
-                // A repeat still queued behind its source (a nested Omniscience choice is open) is owned while that
-                // source is in play or suspended as a play-frame parent, as for Burst's repeat.
-                ||state.in_play.as_ref().is_some_and(|card|card.handle()==*parent)
-                ||state.play_frames.iter().any(|frame|matches!(&frame.parent_owner,super::super::model::PlayFrameParentOwner::Card(owner) if owner==parent));
-            if !queued||!frame||*energy_on_use!= -1{return Err(invalid())}
+            let queued=state.queued_autoplay.get(child).and_then(OwnedCard::full).is_some_and(|live|live.local.purge&&live.local.free_play
+                &&super::super::piles::owned_full_cards(state).any(|card|
+                    super::super::card_state::handle(card.instance)==*parent&&card.id==live.id));
+            if !queued||parent==child||*energy_on_use!= -1{return Err(invalid())}
         },
         WatcherEffect::Scry{amount}|WatcherEffect::ScryFromRelic{amount,..}|WatcherEffect::GainMantra{amount}=>if *amount<0{return Err(invalid())},
         WatcherEffect::Meditate{count}=>if !(1..=2).contains(count){return Err(invalid())},

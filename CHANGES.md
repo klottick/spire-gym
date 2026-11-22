@@ -14,6 +14,39 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   resource classes in input errors, including `gold`, `hp`, `max_hp`, `deck`,
   `deck.upgrades`, `deck.misc`, `relics`, `relic_counters`, `potions` and
   `burning`. Catalog admission and error classes are unchanged.
+- spire-d4h fixes copy and top-card autoplay order in the shared combat queue.
+  On-use copies go ahead of previously queued cards. Havoc, Mayhem and Distilled
+  Chaos append their revealed cards in order. A copied Havoc plays before the
+  cards it and its original reveal. During a Distilled Chaos burst, an already
+  queued potion card can therefore be Time Warp's twelfth play, and remaining
+  queued cards retire unused. This can change selection boundaries, when Havoc
+  rolls its next random target, and downstream gameplay.
+- When multiple copy sources fire on the same use, their dispatch order reverses
+  their enqueue order. Player powers enqueue in list order, then Necronomicon
+  enqueues its copy, which plays first. This corrects M27 F9's dispatch order.
+  Ordinary work such as Storm's Lightning resolves before those copies,
+  correcting the dispatch-order assertion in the M16 Heatsinks regression.
+- A card now completes its ordinary cleanup before the next queued card plays.
+  A Havoc copy can reshuffle the finished original when the deck runs out.
+  A card played by Havoc can also draw the original from discard. During a
+  selection, the finished producer appears in its destination zone. A finished
+  Blood for Blood in discard can receive its cost reduction when damage from
+  playing a copy reaches the player.
+- Two ordering limits remain. Omniscience appends both plays in the original,
+  while the engine front-inserts each play and schedules the second after an
+  eligibility check. Storm queues its channel ahead of Power cleanup in the
+  original, and the engine can run the Power's finish checkpoint first.
+  See [Delivery §7](docs/delivery.md#7-known-limits-by-surface).
+- Rules IDs move to `spire-gym-native-standard-rules-v7`,
+  `spire-gym-native-m10-rules-v4` (also Gym66) and
+  `spire-gym-native-m9-rules-v5` under the shared-engine freeze. Earlier rules
+  IDs fail closed. Observation, action and descriptor layouts are unchanged.
+  The Watcher A0 supplied Heart digest changes because Omniscience now
+  exhausts before the card it plays. Five boundaries report the corrected
+  exhaust order. The route keeps its actions, rewards and HeartVictory.
+  The other Heart pins, frozen replay digests, agreement digests and
+  descriptor fingerprints match their existing values. Combat-v1 has no rules ID and its
+  replay digest also matches.
 
 ## 1.1.1 — effective at the commit tagged v1.1.1
 

@@ -75,7 +75,7 @@ pub(super) fn dispatch(state: &mut State, hook: Hook, source: &Source,target:Opt
         super::enemies::act2::chosen_snecko::card_played(state,source)?;
         super::enemies::act3::awakened::card_played(state,source)?;
         super::cards::ironclad::autoplay::card_played(state,source,target,&mut work)?;
-        super::cards::defect::card_played(state,source,target)?;
+        super::cards::defect::card_played(state,source);
         super::cards::silent_power_on_use(state)?;
         super::cards::colorless_power_card_played(state,source)?;
         if let Source::Card(owner)=source{

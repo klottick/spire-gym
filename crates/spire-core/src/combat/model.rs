@@ -453,21 +453,18 @@ pub(super) struct PlayContext {pub card:CardHandle,pub target:Option<Actor>,pub 
 pub(super) enum PlayFrameParentOwner { Card(CardHandle), Potion { slot:usize,id:crate::content::PotionId } }
 
 #[derive(Clone,PartialEq,Eq)]
-pub(super) struct PlayFrame { pub parent:Option<OwnedCard>,pub parent_owner:PlayFrameParentOwner,pub parent_context:Option<PlayContext>,pub child:CardHandle,pub target:Option<Actor>,pub resume_phase:Phase,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition,pub parent_finish_checkpoint_done:bool }
+pub(super) struct PlayFrame { pub parent_owner:PlayFrameParentOwner,pub child:CardHandle,pub target:Option<Actor>,pub resume_phase:Phase,pub captured_energy:i32,pub paid:i32,pub disposition:FinishDisposition }
 
 impl fmt::Debug for PlayFrame {
     fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
         let mut debug=f.debug_struct("PlayFrame");
-        debug.field("parent",&self.parent);
         match &self.parent_owner {
             PlayFrameParentOwner::Card(handle)=>debug.field("parent_handle",handle),
             PlayFrameParentOwner::Potion{..}=>debug.field("parent_handle",&self.parent_owner),
         };
-        debug.field("parent_context",&self.parent_context)
-            .field("child",&self.child).field("target",&self.target).field("resume_phase",&self.resume_phase)
+        debug.field("child",&self.child).field("target",&self.target).field("resume_phase",&self.resume_phase)
             .field("captured_energy",&self.captured_energy).field("paid",&self.paid)
-            .field("disposition",&self.disposition)
-            .field("parent_finish_checkpoint_done",&self.parent_finish_checkpoint_done).finish()
+            .field("disposition",&self.disposition).finish()
     }
 }
 

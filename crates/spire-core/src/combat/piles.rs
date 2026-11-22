@@ -38,7 +38,7 @@ pub(super) fn expire_turn_scoped_costs(state:&mut State){
     });
     let turn_costs=state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
         .chain(state.in_play.iter()).chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
-        .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values())
+        .chain(state.queued_autoplay.values())
         .filter_map(OwnedCard::full).filter(|card|card.local.turn_cost.is_some()).filter_map(|card|{
             let base=super::cards::base_cost(state,card)?;
             let price=super::card_state::combat_price(card,base).ok()?;
@@ -335,7 +335,6 @@ fn find_owned_card_mut<'a>(state:&'a mut State,handle:&CardHandle)->Option<&'a m
     for owned in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard)
         .chain(&mut state.piles.exhaust).chain(state.in_play.iter_mut()).chain(state.stasis.values_mut())
         .chain(&mut state.played_powers).chain(&mut state.inactive_cards)
-        .chain(state.play_frames.iter_mut().filter_map(|frame|frame.parent.as_mut()))
         .chain(state.queued_autoplay.values_mut()){
         if owned.handle()==*handle{return Some(owned)}
     }
@@ -346,7 +345,6 @@ pub(super) fn for_each_owned_card_mut(state:&mut State,mut visit:impl FnMut(&mut
     for owned in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard)
         .chain(&mut state.piles.exhaust).chain(state.in_play.iter_mut()).chain(state.stasis.values_mut())
         .chain(&mut state.played_powers).chain(&mut state.inactive_cards)
-        .chain(state.play_frames.iter_mut().filter_map(|frame|frame.parent.as_mut()))
         .chain(state.queued_autoplay.values_mut()){
         if let Some(card)=owned.full_mut(){visit(card)}
     }
@@ -780,7 +778,7 @@ pub(super) fn draw_action(state:&mut State,effect:&Effect,requested:i32,clear_hi
 pub(super) fn owned_full_cards(state:&State)->impl Iterator<Item=&super::LiveCard>{
     state.piles.hand.iter().chain(&state.piles.draw).chain(&state.piles.discard).chain(&state.piles.exhaust)
         .chain(state.in_play.iter()).chain(state.stasis.values()).chain(&state.played_powers).chain(&state.inactive_cards)
-        .chain(state.play_frames.iter().filter_map(|frame|frame.parent.as_ref())).chain(state.queued_autoplay.values())
+        .chain(state.queued_autoplay.values())
         .filter_map(OwnedCard::full)
 }
 
