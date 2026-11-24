@@ -528,7 +528,13 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
 
 **Limitations.**
 - **L1** The draw knowledge is the exact posterior; roots are Unsupported while it exceeds its bounds (components or the
-  2 MiB byte cap) or after an ambiguous grid pick until the next shuffle.
+  2 MiB byte cap) or after an ambiguous grid pick until knowledge recovers on a full shuffle or an empty pile.
+  Search carries public card-class changes into the branch posterior and coalesces
+  agreeing top and bottom references to the same card, including a grid pick of a unique class.
+  A drawable member can share a historical family with retired purged repeats when
+  no continuation or card rule uses that linkage. Search removes those retired links
+  from the sampled world. Active family dependencies and drawable cards with unpublished
+  purge disposition, such as an Anger copy produced by a purged repeat, still fail closed.
 - **L2** Hidden intents (Runic Dome) are not modelled; such roots are Unsupported.
 - **L3** Sampling only: there is no chance-node enumeration or probability API.
 - **L4** The horizon is the combat: a branch ends at the combat's own terminal (final HP `hp_after_cleanup`, no settlement

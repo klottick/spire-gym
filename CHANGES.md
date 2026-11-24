@@ -5,7 +5,9 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- Standard public search admits more exact draw states after retired repeat copies,
+  public card-class changes and agreeing draw-pile positions. The existing
+  search and replay contracts stay at their current versions.
 
 ## 1.2.2 — effective at the commit tagged v1.2.2
 

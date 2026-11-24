@@ -1272,3 +1272,18 @@ fn identical_pick_rank_refuses_under_frozen_eye_and_in_multi_pick_grids() {
     c.state.pending_selection.as_mut().unwrap().selected.push(handle(shivs[1]));
     assert_eq!(c.identical_pick_rank(shivs[0], &[3; 32]), None, "a pick after the first keeps the refusal");
 }
+
+#[test]
+fn m40b_anchors_grid_removal_keeps_the_other_card() {
+    let mut c = fixture(&[Defend], 7);
+    let original = c.state.piles.draw.last().unwrap().handle();
+    piles::move_draw_card(&mut c.state, &original, CardDestination::Hand, Removal::Grid).unwrap();
+    let anchored = create(&mut c, Wound, 0, CardDestination::Draw);
+    let survivor = create(&mut c, Dazed, 0, CardDestination::Draw);
+    assert_eq!(c.state.public.known_draw, vec![handle(survivor), handle(anchored)]);
+    assert_eq!(c.state.public.known_draw_bottom, vec![handle(anchored)]);
+    let classes = class_map(&c.state);
+    assert_eq!(seek(&mut c, classes[&anchored]), anchored);
+    let law = c.draw_knowledge().unwrap();
+    assert_eq!(expand(&law), BTreeMap::from([(vec![classes[&survivor]], Q::new(1, 1))]));
+}

@@ -199,6 +199,13 @@ refusal, as does anything not recorded (fail closed). The set is bookkeeping der
 `Debug` and `snapshot::compare`. In-branch picks among identical copies: see the I1-d row above (the rule applies where the
 draw knowledge is exact; the refusal remains for two-pick grids, Frozen Eye, non-exchangeable copies and mixed published
 copies). Remaining roots refused: hidden intents (Runic Dome, stage 3), draw knowledge beyond the exact model (stage 2).
+Stage 2 extends exact support to agreeing published top and bottom anchors,
+including unique-class grid removals, and carries synchronized card classes
+into canonical roots and research samples. Draw knowledge can ignore the
+family link to a purged repeat in inactive custody when its only ordinary
+relative is independent of the retired link. The root and sampler detach the
+retired link in their copies. Operative family links, family-dependent card
+kinds and drawable cards with unpublished purge disposition remain guarded.
 
 ## Coverage across M34s (design goals; M34s-c closes the milestone)
 

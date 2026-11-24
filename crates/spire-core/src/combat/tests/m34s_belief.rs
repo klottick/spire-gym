@@ -57,6 +57,7 @@ fn perturb_streams(run: &mut Run) -> Option<()> {
 /// Another arrangement of the unknown draw cards that the public knowledge supports (a swap of two unknown cards).
 fn perturb_draw_order(run: &mut Run) -> Option<()> {
     let c = combat_mut(run);
+    if view::public_rules(&c.state).reveal_draw_order { return None }
     let k = c.draw_knowledge().ok()?;
     let len = c.state.piles.draw.len();
     let known = c.state.public.known_draw.len()..len - c.state.public.known_draw_bottom.len();
@@ -67,7 +68,7 @@ fn perturb_draw_order(run: &mut Run) -> Option<()> {
         trial.swap(a, b);
         let seq = trial.iter().rev().map(|card| knowledge::class_of(&c.state, card).unwrap()).collect::<Vec<_>>();
         let before = c.state.piles.draw.iter().rev().map(|card| knowledge::class_of(&c.state, card).unwrap()).collect::<Vec<_>>();
-        if seq != before && k.supports(&seq) { c.state.piles.draw = trial; knowledge::resync(&mut c.state); return Some(()) }
+        if seq != before && k.supports(&seq) { c.state.piles.draw = trial; knowledge::rebind_draw(&mut c.state, Some(Ok(k))); return Some(()) }
     } }
     None
 }
@@ -643,4 +644,183 @@ fn m40a_echo_form_repeat_frame_with_the_players_target_is_a_public_root() {
 #[test]
 fn m40a_necronomicon_repeat_frame_with_the_players_target_is_a_public_root() {
     assert_equal_roots_under_perturbation(&shared_repeat_headbutt_selection(false), "Necronomicon + Headbutt");
+}
+
+#[test]
+fn m40b_retired_family_is_removed_from_canonical_and_sampled_worlds() {
+    use crate::content::CardId::*;
+    use card_state::CopyProvenance;
+    let mut live = hand_with(Character::Ironclad, EncounterId::JawWorm,
+        &[DoubleTap, Defend, Defend, Defend, Defend], vec![], &[1]);
+    let a = combat_mut(&mut live).diagnostic_create_card(Cleave, 0, CardDestination::Hand).unwrap();
+    let b = combat_mut(&mut live).diagnostic_create_card(Cleave, 0, CardDestination::Discard).unwrap();
+    play_card(&mut live, "Double Tap", 1);
+    play_card(&mut live, "generated Cleave", a);
+    combat_mut(&mut live).diagnostic_apply(EffectKind::Recycle).unwrap();
+
+    let retired = |run: &Run| {
+        let card = combat(run).state.inactive_cards[0].full().unwrap();
+        (card.instance.0, card.copy_family, card.copy_provenance)
+    };
+    let (child, family, provenance) = retired(&live);
+    assert_eq!((family, provenance), (a, CopyProvenance::SameInstanceFamily));
+    let mut twin = live.clone();
+    combat_mut(&mut twin).state.inactive_cards[0].full_mut().unwrap().copy_family = b;
+    assert_ne!(retired(&live), retired(&twin));
+    assert_eq!(live.decision().unwrap().combat, twin.decision().unwrap().combat);
+    let canonical = root(&live);
+    assert!(perturb_draw_order(&mut twin).is_some());
+    assert!(canonical == root(&twin));
+    assert!(root_with(&live, Leak::KeepDrawOrder).unwrap() != root_with(&twin, Leak::KeepDrawOrder).unwrap());
+    let normalized = (child, child, CopyProvenance::StatEquivalent);
+    assert_eq!(retired(&canonical), normalized);
+    for k in 0..8 {
+        let world = sample(&canonical, k);
+        assert!(world == sample(&root(&twin), k));
+        assert_eq!(retired(&world), normalized);
+        assert!(combat(&live).draw_knowledge().unwrap().supports(&combat(&world).true_draw_classes()));
+    }
+    assert_eq!(retired(&live), (child, a, CopyProvenance::SameInstanceFamily));
+}
+
+fn m40b_rekey_fixture() -> Run {
+    use crate::content::CardId::*;
+    let mut run = hand_with(Character::Defect, EncounterId::JawWorm,
+        &[Claw, DefendBlue, DefendBlue, DefendBlue, DefendBlue], vec![], &[1]);
+    let c = combat_mut(&mut run);
+    c.diagnostic_create_card(Claw, 0, CardDestination::Discard).unwrap();
+    c.diagnostic_create_card(Claw, 0, CardDestination::Discard).unwrap();
+    c.diagnostic_create_card(StrikeBlue, 0, CardDestination::Discard).unwrap();
+    c.diagnostic_apply(EffectKind::Recycle).unwrap();
+    run
+}
+
+#[test]
+fn m40b_rekey_posterior_survives_canonicalization_and_sampling() {
+    let mut live = m40b_rekey_fixture();
+    let before = combat(&live).draw_knowledge().unwrap();
+    let mut twin = live.clone();
+    assert!(perturb_draw_order(&mut twin).is_some());
+    play_card(&mut live, "Claw", 1);
+    play_card(&mut twin, "Claw", 1);
+    let after = combat(&live).draw_knowledge().unwrap();
+    assert_ne!(before, after);
+    assert_eq!(after, combat(&twin).draw_knowledge().unwrap());
+    let strike = *after.classes().iter().find(|c| c.id() == CardId::StrikeBlue).unwrap();
+    let claw = *after.classes().iter().find(|c| c.id() == CardId::Claw).unwrap();
+    let expected = (0..3).map(|position| {
+        let mut draw = vec![claw; 3];
+        draw[position] = strike;
+        (draw, (1, 3))
+    }).collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(belief::exact::sampler_distribution(&after), expected);
+    let canonical = root(&live);
+    assert_eq!(combat(&canonical).draw_knowledge(), Ok(after.clone()));
+    assert!(canonical == root(&twin));
+    for k in 0..8 {
+        let world = sample(&canonical, k);
+        assert!(after.supports(&combat(&world).true_draw_classes()));
+    }
+}
+
+#[test]
+fn m40b_rekey_perturbations_preserve_the_synchronized_law() {
+    let mut live = m40b_rekey_fixture();
+    play_card(&mut live, "Claw", 1);
+    let law = combat(&live).draw_knowledge().unwrap();
+    let truth = combat(&live).true_draw_classes();
+    let mut swap = live.clone();
+    assert!(perturb_draw_order(&mut swap).is_some());
+    assert_ne!(combat(&swap).true_draw_classes(), truth);
+    assert_eq!(combat(&swap).draw_knowledge(), Ok(law.clone()));
+    let mut fuzz = live.clone();
+    assert_ne!(combat_mut(&mut fuzz).fuzz_perturb_hidden(3) & 2, 0);
+    assert_ne!(combat(&fuzz).true_draw_classes(), truth);
+    assert_eq!(combat(&fuzz).draw_knowledge(), Ok(law.clone()));
+    let mut labels = live.clone();
+    let c = combat_mut(&mut labels);
+    let (a, b) = c.diagnostic_identical_copies()[0];
+    assert!(c.diagnostic_swap_identical_copies(a, b));
+    assert_eq!(c.draw_knowledge(), Ok(law));
+    assert!(root(&swap) == root(&fuzz));
+    assert!(root(&labels) == root(&live));
+    assert!(root_with(&live, Leak::KeepDrawOrder).unwrap() != root_with(&swap, Leak::KeepDrawOrder).unwrap());
+    assert!(root_with(&live, Leak::KeepStreams).unwrap() != root_with(&fuzz, Leak::KeepStreams).unwrap());
+}
+
+#[test]
+fn m40b_anchors_accept_agreeing_top_and_bottom() {
+    let mut live = standalone(Character::Watcher, 0, EncounterId::JawWorm,
+        &[CardId::DefendPurple; 5], vec![], 2);
+    let c = combat_mut(&mut live);
+    c.diagnostic_create_card(CardId::Insight, 0, CardDestination::Draw).unwrap();
+    assert_eq!(c.state.public.known_draw, c.state.public.known_draw_bottom);
+    let truth = c.true_draw_classes();
+    assert_eq!(truth.len(), 1);
+    let mut twin = live.clone();
+    perturb_streams(&mut twin).unwrap();
+    let canonical = root(&live);
+    assert!(canonical == root(&twin));
+    assert_eq!(combat(&sample(&canonical, 4)).true_draw_classes(), truth);
+}
+
+#[test]
+fn m40b_retired_family_keeps_live_and_family_sensitive_relatives_guarded() {
+    use crate::content::CardId::*;
+    for card in [Cleave, Rampage] {
+        let mut live = hand_with(Character::Ironclad, EncounterId::JawWorm,
+            &[DoubleTap, card, Defend, Defend, Defend], vec![], &[1, 2]);
+        play_card(&mut live, "Double Tap", 1);
+        play_card(&mut live, "permanent attack", 2);
+        combat_mut(&mut live).diagnostic_apply(EffectKind::Recycle).unwrap();
+        assert_eq!(combat(&live).state.inactive_cards.len(), 1);
+        if card == Rampage {
+            assert_eq!(live.public_root_run().err(), Some(Unsupported::UnrepresentableKnowledge));
+        } else {
+            assert!(live.public_root_run().is_ok());
+            let state = &mut combat_mut(&mut live).state;
+            state.piles.hand.push(state.inactive_cards.pop().unwrap());
+            assert_eq!(live.public_root_run().err(), Some(Unsupported::UnrepresentableKnowledge));
+        }
+    }
+}
+
+#[test]
+fn m40b_rekey_preserves_force_field_and_corruption_cost_changes() {
+    use crate::content::CardId::*;
+    for (character, played, affected, filler) in [
+        (Character::Defect, Defragment, ForceField, DefendBlue),
+        (Character::Ironclad, Corruption, ShrugItOff, Defend),
+    ] {
+        let mut live = hand_with(character, EncounterId::JawWorm,
+            &[played, filler, filler, filler, filler], vec![], &[1]);
+        let c = combat_mut(&mut live);
+        c.diagnostic_create_card(affected, 0, CardDestination::Discard).unwrap();
+        c.diagnostic_create_card(Wound, 0, CardDestination::Discard).unwrap();
+        c.diagnostic_apply(EffectKind::Recycle).unwrap();
+        let before = c.draw_knowledge().unwrap();
+        play_card(&mut live, "public power", 1);
+        let after = combat(&live).draw_knowledge().unwrap();
+        assert_ne!(before, after);
+        assert_eq!(combat(&root(&live)).draw_knowledge(), Ok(after));
+    }
+}
+
+#[test]
+fn m40b_anchors_refuse_conflicting_handles_even_when_classes_match() {
+    let mut live = standalone(Character::Watcher, 0, EncounterId::JawWorm,
+        &[CardId::DefendPurple; 5], vec![], 2);
+    let c = combat_mut(&mut live);
+    c.diagnostic_create_card(CardId::Wound, 0, CardDestination::Draw).unwrap();
+    c.diagnostic_create_card(CardId::Wound, 0, CardDestination::Draw).unwrap();
+    let good = c.state.public.known_draw_bottom.clone();
+    c.state.public.known_draw_bottom = vec![c.state.public.known_draw[0].clone()];
+    assert!(c.draw_knowledge().is_ok(), "equal classes cannot detect a corrupt anchor");
+    assert_eq!(live.public_root_run().err(), Some(Unsupported::UnrepresentableKnowledge));
+
+    let c = combat_mut(&mut live);
+    c.state.public.known_draw_bottom = good;
+    c.state.public.known_draw_bottom.push(c.state.public.known_draw[1].clone());
+    c.state.public.known_draw_bottom.push(c.state.public.known_draw[0].clone());
+    assert_eq!(live.public_root_run().err(), Some(Unsupported::UnrepresentableKnowledge));
 }
