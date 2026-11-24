@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.2 — effective at the commit tagged v1.2.2
+
+See the [1.2.2 release notes](docs/releases/v1.2.2.md).
+
+- Set the project and Python package version to `1.2.2`. The version bump
+  changes the build digests because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs. The `build_info()` keys, fingerprints
+  and replay digests remain unchanged.
 - spire-sjh extends typed engine diagnostics to reachable combat arithmetic,
   power, HP and Run resource limits. Cards with bounded calculations remain
   selectable when legal and report the fault on dispatch. FTL retains its

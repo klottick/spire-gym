@@ -1,6 +1,15 @@
 # Work status
 
-## Current snapshot — 2026-11-24, release 1.2.1
+## Current snapshot — 2026-11-24, release 1.2.2
+
+- Version 1.2.2 packages the remaining spire-sjh changes (PR #124). Reachable engine limits report
+  typed bounds, FTL applies large Slow-scaled hits, and Self-Forming Clay accrues pending Block beyond
+  999. Current rules IDs are Standard v9, M10 (and Gym66) v6 and M9 v7. Frozen fingerprints, replay
+  digests and Heart pins are unchanged. See the [1.2.2 release notes](releases/v1.2.2.md) and
+  [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge.
+
+## Snapshot — 2026-11-24, release 1.2.1
 
 - Version 1.2.1 packages the first spire-sjh changes (PR #122). Giant Head's Slow stacks beyond 999,
   legal energy gains cap at 999, and selected engine faults report typed bounds. Current rules IDs are
