@@ -212,3 +212,42 @@ fn sjh_slow_explosive_potion_is_normal_fire_potion_is_thorns() {
     combat.step_full(&CombatAction::UsePotion { slot: 0, target: None }).unwrap();
     assert_eq!(combat.state.outcome, Some(Outcome::Victory));
 }
+
+#[test]
+fn sjh_bound_fixed_cost_still_checks_payment_and_target() {
+    let mut setup = entry(EncounterId::GiantHead);
+    setup.cards = vec![permanent_live_card(CardId::SearingBlow, CardInstanceId(1), 80)];
+    setup.opening_draw = 1;
+    let mut combat = Combat::enter(setup).unwrap();
+    let attack = CombatAction::PlayCard { instance: 1, target: Some(TargetId(1)) };
+    let untargeted = CombatAction::PlayCard { instance: 1, target: None };
+    combat.state.player.energy = 1;
+    let legal = combat.legal_actions_full().unwrap();
+    assert!(!legal.contains(&attack));
+    assert!(!legal.contains(&untargeted));
+    combat.state.player.energy = 2;
+    let legal = combat.legal_actions_full().unwrap();
+    assert!(legal.contains(&attack));
+    assert!(!legal.contains(&untargeted));
+    let error = combat.step_full(&attack).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("card_damage_base", 3_003, 3_492)));
+    assert_eq!(combat.state.player.energy, 0);
+    assert_eq!(combat.state.enemies[0].hp, 500);
+}
+
+#[test]
+fn sjh_max_hp_potion_fault_is_owned_by_selected_action() {
+    use crate::{content::PotionId, items::CombatItemContext};
+    let mut setup = entry(EncounterId::GiantHead);
+    setup.setup.player.max_hp = 998;
+    let mut items = Some(CombatItemContext::new(
+        vec![], vec![Some(PotionId::FruitJuice), None, None],
+    ).with_complete_cards().with_complete_items());
+    let mut combat = Combat::enter_with_item_context(setup, &mut items).unwrap();
+    let action = CombatAction::UsePotion { slot: 0, target: None };
+    assert!(combat.legal_actions_full().unwrap().contains(&action));
+    let error = combat.step_full(&action).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("maximum_hp", 999, 1_003)));
+    assert_eq!(combat.state.player.max_hp, 998);
+    assert_eq!(combat.item_context().unwrap().potions()[0], None);
+}

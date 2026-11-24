@@ -13,7 +13,8 @@ pub(in crate::combat::enemies) fn select_move(id:EnemyId,history:&[FullIntentId]
         },
         EnemyMemory::Transient{..}=>"transient_attack",
         EnemyMemory::Maw{turns,roared}=>{
-            *turns=turns.checked_add(1).filter(|n|*n<i32::MAX as u32).ok_or_else(||InputError::Unsupported("Maw selected-turn counter exhausted".into()))?;
+            *turns = turns.checked_add(1).filter(|n| *n < i32::MAX as u32)
+                .ok_or_else(|| InputError::bound("maw_selected_turn", i128::from(i32::MAX) - 1, i128::from(*turns) + 1))?;
             if !*roared{"maw_roar"}else{
                 let (n,next)=rng::uniform_below(&cursor,100)?;cursor=next;
                 if n<50&&last!=Some("maw_nom"){"maw_nom"}else if matches!(last,Some("maw_nom"|"maw_slam")){"maw_drool"}else{"maw_slam"}

@@ -164,7 +164,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
             }
         },
         WatcherEffect::GainMantra{amount}=>{
-            state.character.mantra_gained=state.character.mantra_gained.checked_add(*amount).ok_or_else(||InputError::Unsupported("Watcher Mantra history int32 exhausted".into()))?;
+            state.character.mantra_gained=state.character.mantra_gained.checked_add(*amount).ok_or_else(||InputError::bound("mantra_gained", i128::from(i32::MAX), i128::from(state.character.mantra_gained) + i128::from(*amount)))?;
             bottom(state,EffectKind::ApplyFullPower{id:FullPowerId("mantra"),amount:*amount});
         },
         WatcherEffect::StanceEnergy{reason}=>{
@@ -455,8 +455,20 @@ pub(in crate::combat) fn restore(state:&mut State,effect:&Effect,cards:&[CardHan
     let sands=retained&&card.id==crate::content::CardId::SandsOfTime;
     if retained{
         match card.id{
-            crate::content::CardId::WindmillStrike=>card.local.base_damage=Some(card.local.base_damage.unwrap().checked_add(if card.upgrades>0{5}else{4}).ok_or_else(||InputError::Unsupported("Watcher retained damage int32 exhausted".into()))?),
-            crate::content::CardId::Perseverance=>card.local.base_block=Some(card.local.base_block.unwrap().checked_add(if card.upgrades>0{3}else{2}).ok_or_else(||InputError::Unsupported("Watcher retained Block int32 exhausted".into()))?),
+            crate::content::CardId::WindmillStrike => {
+                let base = card.local.base_damage.unwrap();
+                let gain = if card.upgrades > 0 { 5 } else { 4 };
+                card.local.base_damage = Some(base.checked_add(gain).ok_or_else(|| InputError::bound(
+                    "windmill_strike_damage", i128::from(i32::MAX), i128::from(base) + i128::from(gain),
+                ))?);
+            }
+            crate::content::CardId::Perseverance => {
+                let base = card.local.base_block.unwrap();
+                let gain = if card.upgrades > 0 { 3 } else { 2 };
+                card.local.base_block = Some(base.checked_add(gain).ok_or_else(|| InputError::bound(
+                    "perseverance_block", i128::from(i32::MAX), i128::from(base) + i128::from(gain),
+                ))?);
+            }
             _=>(),
         }
     }
@@ -632,7 +644,7 @@ pub(in crate::combat) fn meditate(state:&mut State,effect:&Effect,count:usize)->
     crate::combat::effects::set_selection_operation(state,SelectionOperation::MeditateReturn);Ok(())
 }
 pub(in crate::combat) fn construct_mantra(state:&mut State,amount:i32)->Result<EffectKind,InputError>{
-    state.character.mantra_gained=state.character.mantra_gained.checked_add(amount).ok_or_else(||InputError::Unsupported("Watcher Mantra history int32 exhausted".into()))?;
+    state.character.mantra_gained=state.character.mantra_gained.checked_add(amount).ok_or_else(||InputError::bound("mantra_gained", i128::from(i32::MAX), i128::from(state.character.mantra_gained) + i128::from(amount)))?;
     Ok(EffectKind::ApplyFullPower{id:FullPowerId("mantra"),amount})
 }
 pub(in crate::combat) fn capture(state:&mut State,effects:&mut [Effect])->Result<(),EffectError>{

@@ -140,8 +140,7 @@ fn pile_of(state: &State, pile: usize) -> &Vec<OwnedCard> {
 fn upgrade_if_possible(state: &mut State, pile: usize, index: usize) -> Result<(), EffectError> {
     let Some(card) = pile_of(state, pile)[index].full().cloned() else { return Ok(()); };
     if !super::super::ironclad::rules::can_upgrade(card.id, card.upgrades) { return Ok(()); }
-    let upgraded = crate::combat::card_state::upgrade_live_card(state, &card).map_err(|error|
-        InputError::Unsupported(format!("Apotheosis combat upgrade failed: {error:?}")))?;
+    let upgraded = crate::combat::card_state::upgrade_live_card(state, &card).map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("Apotheosis combat upgrade failed: {other:?}"))))?;
     let owned = match pile { 0 => &mut state.piles.hand, 1 => &mut state.piles.draw, 2 => &mut state.piles.discard, _ => &mut state.piles.exhaust };
     if let Some(slot) = owned[index].full_mut() { *slot = upgraded; }
     Ok(())

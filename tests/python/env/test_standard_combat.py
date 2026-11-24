@@ -315,3 +315,18 @@ def test_sjh_generation_bound_is_value_only_in_search_and_isolated_rows():
         assert env.take_fault_records()[0]["fault_cause"]["bound"] == expected
     finally:
         env.close()
+
+
+def test_sjh_held_malaise_reports_bound_only_on_dispatch():
+    row = entry("malaise-limit", character="silent", encounter="giant_head", deck=["malaise"])
+    row["relics"] = ["chemical_x"]
+    row["position"] = {"player": {"energy": 999}}
+    with StandardCombatEnv(catalog(row), partition="test") as env:
+        obs, _ = env.reset(seed=17)
+        assert env.fault_cause() is None
+        action = legal_action(obs, env.observation_spec(), "play_card")
+        expected = {"counter": "malaise_x", "limit": 999, "attempted": 1001}
+        with pytest.raises(_native.RunFaultError) as caught:
+            env.step(action)
+        assert caught.value.bound == expected
+        assert env.fault_cause()["bound"] == expected

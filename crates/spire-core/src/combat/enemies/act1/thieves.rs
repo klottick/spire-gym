@@ -331,7 +331,7 @@ fn has_fatal_gold_support(state:&State)->bool {
 
 pub(in crate::combat) fn gain_gold(state:&mut State,amount:u32)->Result<(),InputError> {
     let gold=state.thief_gold.as_mut().ok_or_else(||InputError::Invariant("Fatal gold custody absent".into()))?;
-    let next=gold.current_gold.checked_add(amount).ok_or_else(||InputError::Unsupported("gold overflow".into()))?;
+    let next=gold.current_gold.checked_add(amount).ok_or_else(||InputError::bound("gold", i128::from(u32::MAX), i128::from(gold.current_gold) + i128::from(amount)))?;
     gold.current_gold=next;gold.initialized=true;Ok(())
 }
 

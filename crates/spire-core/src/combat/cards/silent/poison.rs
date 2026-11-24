@@ -152,8 +152,7 @@ pub(super) fn apply_catalyst(state: &mut State, effect: &Effect) -> Result<(), s
         .map_or(0, |power| power.state.amount);
     if current <= 0 { return Ok(()); }
     let amount = if upgraded {
-        current.checked_mul(2).ok_or_else(|| InputError::Unsupported(
-            "Catalyst Poison application amount overflow".into()))?
+        current.checked_mul(2).ok_or_else(|| InputError::bound("catalyst_poison_amount", i128::from(i32::MAX), i128::from(current) * 2))?
     } else { current };
     let application = Effect { source: effect.source.clone(), target: effect.target.clone(),
         kind: EffectKind::ApplyFullPower { id: FullPowerId("poison"), amount } };

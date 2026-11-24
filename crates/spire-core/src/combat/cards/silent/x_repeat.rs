@@ -33,7 +33,11 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
             let amount = captured_x(state, card)?.checked_add(super::super::chemical_x_bonus(state)?)
                 .and_then(|x|x.checked_add(i32::from(upgraded)))
                 .ok_or(crate::run::RunError::Unsupported("Doppelganger X amount overflow"))?;
-            if amount > 999 { return Err(crate::run::RunError::Unsupported("Doppelganger amount outside supported power surface")); }
+            if amount > 999 {
+                return Err(crate::run::RunError::Bound(crate::combat::EngineBound::new(
+                    "doppelganger_x", 999, i128::from(amount),
+                )));
+            }
             if amount > 0 {
                 effects.push((Some(PayloadTarget::Player), EffectKind::ApplyFullPower {
                     id: FullPowerId("draw_card_next_turn"), amount,
@@ -48,7 +52,11 @@ pub(super) fn payload(state: &State, card: &LiveCard, target: Option<u64>)
             let amount = captured_x(state, card)?.checked_add(super::super::chemical_x_bonus(state)?)
                 .and_then(|x|x.checked_add(i32::from(upgraded)))
                 .ok_or(crate::run::RunError::Unsupported("Malaise X amount overflow"))?;
-            if amount > 999 { return Err(crate::run::RunError::Unsupported("Malaise amount outside supported power surface")); }
+            if amount > 999 {
+                return Err(crate::run::RunError::Bound(crate::combat::EngineBound::new(
+                    "malaise_x", 999, i128::from(amount),
+                )));
+            }
             if amount > 0 {
                 effects.push((Some(PayloadTarget::SelectedEnemy), EffectKind::ApplyFullPower {
                     id: FullPowerId("strength"), amount: -amount,

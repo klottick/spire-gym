@@ -158,6 +158,7 @@ fn accept(run:&mut Run,id:ChoiceId,kind:RoomChoiceKind,list:Vec<Outcome>)->Resul
     match event_exec::apply(&mut staged,list){
         Ok(transition)=>{*run=staged;Ok(transition)}
         Err(RunError::Faulted(fault))=>{*run=staged;Err(RunError::Faulted(fault))}
+        Err(RunError::Bound(bound)) => Err(run.retain_fault(RunFaultKind::Bound(bound), "run.event.standard")),
         Err(_)=>Err(run.retain_fault(RunFaultKind::Invariant("accepted standard event outcome failed"),"run.event.standard")),
     }
 }

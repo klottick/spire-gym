@@ -73,7 +73,7 @@ pub enum SilentEffect {
 
 pub(in crate::combat) fn increment_discard(state: &mut State, notify_cards: bool) -> Result<(), InputError> {
     state.silent.discarded_this_turn=state.silent.discarded_this_turn.checked_add(1).filter(|count|*count<=i32::MAX as u32)
-        .ok_or_else(||InputError::Unsupported("native discard counter exhausted".into()))?;
+        .ok_or_else(||InputError::bound("discarded_this_turn", i128::from(i32::MAX), i128::from(state.silent.discarded_this_turn) + 1))?;
     if notify_cards { super::costs::manual_discard(state)?; }
     Ok(())
 }

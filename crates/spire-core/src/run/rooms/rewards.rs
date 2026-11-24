@@ -754,7 +754,13 @@ pub(super) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,RunError>{
         }
         RoomChoiceKind::Card{id:card,upgrades}=>{
             card_parent(run)?;
-            mutations::obtain_card(&mut run.state,card,upgrades)?;
+            let next_instance = run.state.next_instance;
+            match mutations::obtain_card(&mut run.state,card,upgrades) {
+                Err(RunError::Bound(bound)) if run.state.next_instance != next_instance => {
+                    return Err(run.retain_fault(RunFaultKind::Bound(bound), "run.reward.card"));
+                }
+                result => { result?; }
+            }
             return close_card(run,RoomChoiceStatus::Claimed)
         }
         RoomChoiceKind::SingingBowl=>{

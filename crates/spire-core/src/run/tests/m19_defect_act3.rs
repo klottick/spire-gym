@@ -141,3 +141,24 @@ fn m19_defect_act3_falling_last_instance_and_accepted_mutation_fault(){
     // result-publication failure must retain its one actual removal.
     r.state.room_loop.as_mut().unwrap().act3_event.as_mut().unwrap().accepted=Some((row.id,row.kind));r.next_choice=u64::MAX;let error=rooms::events::act3::drive(&mut r).unwrap_err();assert!(matches!(error,RunError::Faulted(_)));assert_eq!(r.state.deck,vec![twin]);assert!(r.state.room_loop.as_ref().unwrap().act3_event.as_ref().unwrap().mutation_complete);let saved=r.clone();assert_eq!(rooms::events::act3::drive(&mut r),Err(error));assert_eq!(r,saved);
 }
+
+#[test]
+fn sjh_permanent_gain_sync_retains_bound_and_keeps_the_combat_journal() {
+    use crate::combat::{CombatAction, EngineBound};
+    let mut run = act3();
+    run.state.relics.retain(|id| *id != RelicId::NeowsLament);
+    run.state.relic_counters.remove(&RelicId::NeowsLament);
+    run.state.deck = (1..=999).map(|instance| CardInstance {
+        id: CardId::StrikeBlue, instance, upgrades: 0, misc: 0,
+    }).collect();
+    run.state.next_instance = 1000;
+    run.enter_owned(EncounterId::WrithingMass, CombatOrigin::Training { kind: MapNodeKind::Monster }).unwrap();
+    crate::combat::tests::m19_defect_interactions::implant_checkpoint(run.state.combat.as_mut().unwrap());
+    let error = run.step(&GameAction::Combat(CombatAction::EndTurn)).unwrap_err();
+    assert!(matches!(&error, RunError::Faulted(fault) if fault.checkpoint == "run.combat.permanent-gains"));
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("permanent_cards", 999, 1000)));
+    assert_eq!(run.state.deck.len(), 999);
+    assert_eq!(run.state.combat.as_ref().unwrap().permanent_gains().len(), 1);
+    assert_eq!(run.state.active_combat.as_ref().unwrap().applied_gain_ordinal, 0);
+    assert_eq!(run.step(&GameAction::Combat(CombatAction::EndTurn)), Err(error));
+}

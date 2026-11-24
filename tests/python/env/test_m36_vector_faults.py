@@ -200,7 +200,8 @@ def test_standard_combat_vector_isolate_freezes_limit_fault_and_resumes_masked()
         assert info["slot_fault"].tolist() == [True, False]
         fault = info["fault"][0]
         assert fault["stage"] == "step" and fault["committed"] is True
-        assert len(fault["message"]) < 256 and "combat" in fault["message"].lower()
+        assert len(fault["message"]) < 256
+        assert fault["bound"] == {"counter": "maximum_hp", "limit": 999, "attempted": 1002}
         assert env.diagnostics()["isolated"] == [True, False]
 
         for _ in range(2):

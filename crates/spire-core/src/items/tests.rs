@@ -627,7 +627,8 @@ fn native_outside_potion_rejections_preserve_resources_slots_and_retained_fault(
     let mut overflow = run_with_vitals(900, 999);
     overflow.state_mut_for_test().potions[0] = Some(PotionId::FruitJuice);
     let before_overflow = overflow.state().clone();
-    assert_eq!(use_run_potion(overflow.state_mut_for_test(), 0, false, false), Err(RunError::InvalidAction));
+    assert_eq!(use_run_potion(overflow.state_mut_for_test(), 0, false, false),
+        Err(RunError::Bound(crate::combat::EngineBound::new("maximum_hp", 999, 1004))));
     assert_eq!(*overflow.state(), before_overflow, "maxHP bounds reject before healing or slot commit");
 
     let mut active = run_with_vitals(20, 50);
@@ -698,10 +699,10 @@ fn invalid_or_active_run_relic_acquisition_is_nonmutating() {
         Err(RunError::InvalidAction));
     assert_eq!(*active.state(), before, "RunState is not a second inventory owner during combat");
 
-    let mut overflow = run_with_vitals(40, u32::MAX);
+    let mut overflow = run_with_vitals(40, 998);
     let before = overflow.state().clone();
     assert_eq!(crate::items::acquire_relic(overflow.state_mut_for_test(), RelicId::Mango),
-        Err(RunError::Unsupported("maximum HP overflow")));
+        Err(RunError::Bound(crate::combat::EngineBound::new("maximum_hp", 999, 1_012))));
     assert_eq!(*overflow.state(), before, "unrepresentable maxHP increase is transactional");
 }
 

@@ -1191,3 +1191,17 @@ fn m28_drug_dealer_bottled_card_counts_toward_two() {
     let grid: Vec<_> = run.state.pending.as_ref().unwrap().selection.candidates.iter().map(|c| c.card.instance).collect();
     assert!(grid.contains(&bash) && grid.len() == 2, "{grid:?}");
 }
+
+#[test]
+fn sjh_accepted_event_retires_with_the_value_only_gold_bound() {
+    let mut run = at_event(Character::Ironclad, 1, EventId::GoldenShrine, 19);
+    run.state.gold = u32::MAX - 10;
+    let error = event_frame::choose_constructed(&mut run, vec![Outcome::GainGold(100)]).unwrap_err();
+    let RunError::Faulted(fault) = &error else { panic!("expected committed fault: {error:?}") };
+    assert_eq!(fault.checkpoint, "run.event.standard");
+    assert_eq!(error.engine_bound(), Some(crate::combat::EngineBound::new(
+        "gold", i128::from(u32::MAX), i128::from(u32::MAX) + 90,
+    )));
+    assert_eq!(run.state.gold, u32::MAX - 10);
+    assert_eq!(run.step(&GameAction::Confirm), Err(error));
+}

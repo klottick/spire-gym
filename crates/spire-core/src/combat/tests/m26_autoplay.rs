@@ -100,6 +100,21 @@ fn assert_no_fault(combat: &Combat, context: &str) {
 }
 
 #[test]
+fn sjh_mayhem_child_retains_its_damage_bound() {
+    let mut combat = fight(EncounterId::GiantHead, 3, &[(Mayhem, 0), (SearingBlow, 80)]);
+    arrange(&mut combat, &[1], &[2]);
+    for instance in 3..=7 {
+        let filler = card(Defend, instance, 0);
+        combat.state.card_ids_issued.insert(card_state::handle(CardInstanceId(instance)));
+        combat.state.piles.draw.push(OwnedCard::Full(filler));
+    }
+    play(&mut combat, 1, None);
+    let error = combat.step_full(&CombatAction::EndTurn).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("card_damage_base", 3_003, 3_492)));
+    assert_eq!(combat.state.enemies[0].hp, 500);
+}
+
+#[test]
 fn m26_burst_replay_preserves_collect_captured_x() {
     let mut combat = fight_as(Character::Silent, EncounterId::Cultist, 1, &[(Burst, 0), (Collect, 1)]);
     play(&mut combat, 1, None);

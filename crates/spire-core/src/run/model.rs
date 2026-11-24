@@ -51,19 +51,29 @@ pub(crate) enum CombatOrigin { Authored, Training{kind:MapNodeKind}, MapRoom{nod
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunTerminal { HeartVictory, Death, EmptyDeck, Act3NoKeys }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RunFaultKind { UnsupportedBoundary(&'static str), Invariant(&'static str), Combat(Box<crate::combat::CombatFault>) }
+pub enum RunFaultKind { UnsupportedBoundary(&'static str), Invariant(&'static str), Bound(crate::combat::EngineBound), Combat(Box<crate::combat::CombatFault>) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RunFault { pub kind:RunFaultKind, pub checkpoint:&'static str, pub committed_events:Vec<CommittedEvent> }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RunError { InvalidAscension(u8), InvalidAction, Unsupported(&'static str), Registry(&'static str), Terminal, Faulted(RunFault) }
+pub enum RunError { InvalidAscension(u8), InvalidAction, Unsupported(&'static str), Registry(&'static str), Terminal, Bound(crate::combat::EngineBound), Faulted(RunFault) }
 impl RunError {
     /// Extract the public-safe values without copying any retained combat work.
     pub fn engine_bound(&self) -> Option<crate::combat::EngineBound> {
         use crate::combat::FaultKind;
-        let Self::Faulted(fault) = self else { return None };
-        let RunFaultKind::Combat(combat) = &fault.kind else { return None };
+        let fault = match self {
+            Self::Bound(bound) => return Some(*bound),
+            Self::Faulted(fault) => fault,
+            _ => return None,
+        };
+        let combat = match &fault.kind {
+            RunFaultKind::Bound(bound) => return Some(*bound),
+            RunFaultKind::Combat(combat) => combat,
+            _ => return None,
+        };
         match combat.record.kind {
             FaultKind::Bound(bound) => Some(bound),
+            FaultKind::EffectGuard if combat.record.resolved_effects == 100_000 =>
+                Some(crate::combat::EngineBound::new("dispatch_effects", 99_999, 100_000)),
             _ => None,
         }
     }

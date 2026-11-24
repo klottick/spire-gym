@@ -342,3 +342,20 @@ fn m25_w20_awakened_rebirth_mark_and_omega() {
     assert_eq!(hook_count(&combat, Hook::CombatSettled), 0);
     assert!(engine::validate_runtime(&combat.state).is_ok());
 }
+
+#[test]
+fn sjh_power_amount_rejects_before_writing_an_unpublishable_stack() {
+    let mut combat = watcher(entry(EncounterId::GiantHead), &[(WreathOfFlame, 0)], 3);
+    combat.state.player_full_powers.push(FullPowerEntry {
+        id: FullPowerId("vigor"),
+        state: PowerState { amount: 999, skip_first: false, monster_source_grace: false },
+    });
+    let action = CombatAction::PlayCard { instance: 1, target: None };
+    assert!(combat.legal_actions_full().unwrap().contains(&action));
+    let error = combat.step_full(&action).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound {
+        power_id: Some("vigor"),
+        ..EngineBound::new("power_amount", 999, 1_004)
+    }));
+    assert_eq!(combat.state.player_full_powers.iter().find(|p| p.id.0 == "vigor").unwrap().state.amount, 999);
+}

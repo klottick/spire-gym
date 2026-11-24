@@ -341,16 +341,31 @@ fn m10_ironclad_relics_clay_counts_actual_self_card_hp_loss_for_next_turn(){
 }
 
 #[test]
-fn m10_ironclad_relics_clay_pending_gain_overflow_keeps_first_fault_and_counter(){
+fn sjh_clay_accumulates_above_999_and_caps_only_live_block() {
     let mut c=enter(EncounterId::OrbWalker,&[RelicId::SelfFormingClay]);
     c.state.item_context.as_mut().unwrap().set_counter(RelicId::SelfFormingClay,999);
+    let source=Actor::Enemy(c.state.enemies[0].instance_id.clone());
+    c.enqueue_native_effects(vec![Effect{source:Source::Actor(source),target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::Fixed(1))}],None).unwrap();
+    assert_eq!(c.state.item_context.as_ref().unwrap().counter(RelicId::SelfFormingClay),1002);
+    assert_eq!(c.state.player.block,0);
+    c.step_full(&CombatAction::EndTurn).unwrap();
+    assert_eq!(c.state.player.block,999);
+    assert_eq!(c.state.item_context.as_ref().unwrap().counter(RelicId::SelfFormingClay),0);
+}
+
+#[test]
+fn sjh_clay_pending_gain_overflow_keeps_first_fault_and_counter(){
+    let mut c=enter(EncounterId::OrbWalker,&[RelicId::SelfFormingClay]);
+    let pending = i32::MAX - 1;
+    c.state.item_context.as_mut().unwrap().set_counter(RelicId::SelfFormingClay,pending);
     let before=c.state.player.hp;
     let source=Actor::Enemy(c.state.enemies[0].instance_id.clone());
     let result=c.enqueue_native_effects(vec![Effect{source:Source::Actor(source),target:Some(Actor::Player),kind:EffectKind::Damage(DamagePayload::Fixed(3))}],None);
-    assert!(result.is_err(),"unsupported pending gain must retain an operational fault, not wrap or silently cap");
+    let error = result.unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("self_forming_clay_block", 2_147_483_647, 2_147_483_649)));
     assert_eq!(c.state.player.hp,before-3,"the accepted hit is not replayed or rolled back after its callback faults");
-    assert_eq!(c.state.item_context.as_ref().unwrap().counter(RelicId::SelfFormingClay),999,"failed callback leaves the prior pending amount unchanged");
-    assert!(c.state.fault.is_some(),"the callback fault remains owned by the combat");
+    assert_eq!(c.state.item_context.as_ref().unwrap().counter(RelicId::SelfFormingClay),pending,"failed callback leaves the prior pending amount unchanged");
+    assert_eq!(c.step_full(&CombatAction::EndTurn), Err(error));
 }
 
 #[test]

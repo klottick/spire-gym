@@ -406,3 +406,7 @@ PublicSearch branches share the [engine bounds](standard-run-api.md#engine-bound
 contract in both dense and compact layouts. Giant Head's Slow stack count and
 the live energy cap are gameplay values. The remaining typed limits are
 separate from observation capacity and caller-imposed search budgets.
+
+A held card with a bounded damage, Block or X calculation stays in the
+menu when its payment and target are legal. Selecting it can produce a
+committed `RunFaultError` with the bound.

@@ -21,6 +21,7 @@ fn stream(s: &StreamState) -> Value {
 fn actor(a: &Actor) -> &str { match a { Actor::Player=>"player",Actor::Enemy(e)=>e.as_str() } }
 pub(super) fn effect(e: &Effect) -> Value {
     let (kind,payload)=match &e.kind {
+        EffectKind::DeferredBound(_) => panic!("full-runtime bound work is outside combat-v1"),
         EffectKind::OpeningHand{..}=>panic!("M21 opening continuation is unsupported by M9 v1"),
         EffectKind::Watcher(_)=>panic!("M21 Watcher continuation is unsupported by M9 v1"),
         EffectKind::Defect(work)=>("defect",json!({"work":format!("{work:?}")})),

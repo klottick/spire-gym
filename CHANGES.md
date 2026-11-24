@@ -5,7 +5,12 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- spire-sjh extends typed engine diagnostics to reachable combat arithmetic,
+  power, HP and Run resource limits. Cards with bounded calculations remain
+  selectable when legal and report the fault on dispatch. FTL retains its
+  Slow-scaled damage after it leaves the in-play slot. Self-Forming Clay
+  accrues pending Block beyond 999, and Maw and Champ report typed limits on
+  their turn counters. Rules IDs advance to Standard v9, M10/Gym66 v6 and M9 v7.
 
 ## 1.2.1 — effective at the commit tagged v1.2.1
 

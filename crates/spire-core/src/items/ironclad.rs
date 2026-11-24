@@ -39,7 +39,15 @@ pub(super) fn phase(id:RelicId,context:&mut CombatItemContext,phase:super::dispa
 /// positive player HP loss, then Red Skull's threshold.
 pub(super) fn hp_changed(id:RelicId,context:&mut CombatItemContext,hp_lost:i32,hp:i32,max_hp:i32,work:&mut Vec<Effect>)->Result<bool,crate::combat::InputError>{
     match id{
-        RelicId::SelfFormingClay=>{if hp_lost>0{let next=context.counter(CLAY_PENDING).checked_add(3).filter(|next|*next<=999).ok_or_else(||crate::combat::InputError::Unsupported("Self-Forming Clay pending Block exceeded supported bound".into()))?;context.set_counter(CLAY_PENDING,next);}}
+        RelicId::SelfFormingClay => {
+            if hp_lost > 0 {
+                let pending = context.counter(CLAY_PENDING);
+                let next = pending.checked_add(3).ok_or_else(|| crate::combat::InputError::bound(
+                    "self_forming_clay_block", i128::from(i32::MAX), i128::from(pending) + 3,
+                ))?;
+                context.set_counter(CLAY_PENDING, next);
+            }
+        }
         RelicId::RedSkull=>work.extend(on_hp_state(context,hp_lost,hp,max_hp)),
         _=>return Ok(false),
     }

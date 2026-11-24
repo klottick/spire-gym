@@ -237,6 +237,8 @@ fn effect_guard_after_debit_retains_gold_ledger_and_unapplied_hp_damage() {
     assert_eq!(engine::resolve(&mut combat.state).status,TransitionStatus::Fault);
 
     assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::EffectGuard);
+    assert_eq!(engine::retained_fault(&combat.state).engine_bound(),
+        Some(EngineBound::new("dispatch_effects", 99_999, 100_000)));
     assert_eq!(combat.state.current.as_ref().unwrap().kind,
         EffectKind::Damage(DamagePayload::FullEnemyMove(full_intent(EnemyId::Looter, "mug"))));
     assert_eq!((thief_actor::current_gold(&combat.state), memory(&combat, 0).stolen_gold), (Some(4), 15));

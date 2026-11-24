@@ -229,8 +229,7 @@ pub(super) fn insert_generated_with(state: &mut State, mut card: super::card_sta
         && state.player_full_powers.iter().any(|power| power.id.0 == "master_reality")
         && crate::content::Catalog::standard().card(card.id).is_some_and(|row|
             !matches!(row.card_type, crate::content::CardType::Curse | crate::content::CardType::Status)) {
-        card = super::card_state::upgrade_live_card(state, &card).map_err(|error|
-            InputError::Unsupported(format!("Master Reality creation upgrade failed: {error:?}")))?;
+        card = super::card_state::upgrade_live_card(state, &card).map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("Master Reality creation upgrade failed: {other:?}"))))?;
     }
     if card.id == crate::content::CardId::Shiv && card.local.base_damage.is_none() {
         let accuracy = state.player_full_powers.iter()

@@ -231,10 +231,6 @@ fn use_potion_inner(context: &CombatItemContext, slot: usize,
                 return Err(RunError::InvalidAction);
             }
             let amount: i32 = potency(context,slot,5,true);
-            let hp_gain = u32::try_from(amount).map_err(|_| RunError::InvalidAction)?;
-            if facts.max_hp.checked_add(hp_gain).map_or(true, |max_hp| max_hp > 999) {
-                return Err(RunError::InvalidAction);
-            }
             Effect { source: Source::Actor(Actor::Player), target: Some(Actor::Player),
                 kind: EffectKind::IncreaseMaxHpThenHeal(amount) }
         }

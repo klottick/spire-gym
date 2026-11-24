@@ -5,7 +5,9 @@ pub(crate) fn gain_gold(state:&mut RunState,amount:u32)->Result<(),RunError>{
     let mut gaining=crate::items::dispatch::RunItemEvent::GoldGaining{amount};
     crate::items::dispatch::run_event(state,&mut gaining)?;
     let crate::items::dispatch::RunItemEvent::GoldGaining{amount}=gaining else {unreachable!("gold event kept its kind")};
-    state.gold=state.gold.checked_add(amount).ok_or(RunError::Unsupported("gold overflow"))?;
+    state.gold = state.gold.checked_add(amount).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new(
+        "gold", i128::from(u32::MAX), i128::from(state.gold) + i128::from(amount),
+    )))?;
     crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::GoldGained{amount})
 }
 /// The gold `gain_gold(state, amount)` would add after its `GoldGaining` handlers (Ectoplasm blocks it all), read on a
@@ -42,13 +44,19 @@ fn push_card(state:&mut RunState,id:CardId,upgrades:u32,misc:i32)->Result<u64,Ru
 /// Design §6.5: a `CardObtaining` handler (Omamori, complete items only) may negate the obtain;
 /// the card is then not created and `None` is returned.
 fn push_card_or_negated(state:&mut RunState,id:CardId,upgrades:u32,misc:i32,direct:bool)->Result<Option<u64>,RunError>{
-    if state.deck.len()>=999{return Err(RunError::InvalidAction)}
+    if state.deck.len() >= 999 {
+        return Err(RunError::Bound(crate::combat::EngineBound::new(
+            "permanent_cards", 999, state.deck.len() as i128 + 1,
+        )));
+    }
     // M27 card-obtain seam (design §6.5, H0 §2): every obtain path reaches this allocator.
     let mut obtaining=crate::items::dispatch::RunItemEvent::CardObtaining{id,upgrades,negated:false,direct};
     crate::items::dispatch::run_event(state,&mut obtaining)?;
     let crate::items::dispatch::RunItemEvent::CardObtaining{upgrades,negated,..}=obtaining else {unreachable!("obtain event kept its kind")};
     if negated{return Ok(None)}
-    let instance=state.next_instance;let next=instance.checked_add(1).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+    let instance=state.next_instance;let next=instance.checked_add(1).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new(
+        "permanent_card_identity", i128::from(u64::MAX), i128::from(instance) + 1,
+    )))?;
     if instance==0||state.deck.iter().any(|c|c.instance==instance){return Err(RunError::InvalidAction)}
     state.deck.push(CardInstance{misc,id,instance,upgrades});state.next_instance=next;
     crate::items::dispatch::run_event(state,&mut crate::items::dispatch::RunItemEvent::CardObtained{id,instance})?;Ok(Some(instance))
@@ -198,9 +206,16 @@ pub(crate) fn lose_hp(state:&mut RunState,amount:u32,kind:OutOfCombatLoss)->bool
 /// current HP is clamped to it. Parasite, Neow's drawback and events call it.
 pub(crate) fn decrease_max_hp(state:&mut RunState,amount:u32){state.max_hp=state.max_hp.saturating_sub(amount).max(1);state.hp=state.hp.min(state.max_hp);}
 pub(crate) fn increase_max_hp(state:&mut RunState,amount:u32)->Result<(),RunError>{
-    let max=state.max_hp.checked_add(amount).filter(|m|*m<=999).ok_or(RunError::Unsupported("maximum HP overflow"))?;
     if state.max_hp==0||state.hp>state.max_hp||amount>i32::MAX as u32{return Err(RunError::InvalidAction)}
-    state.max_hp=max;heal(state,amount)
+    state.max_hp = max_hp_after_gain(state.max_hp, amount)?;
+    heal(state,amount)
+}
+pub(crate) fn max_hp_after_gain(current: u32, amount: u32) -> Result<u32, RunError> {
+    let attempted = i128::from(current) + i128::from(amount);
+    if attempted > 999 {
+        return Err(RunError::Bound(crate::combat::EngineBound::new("maximum_hp", 999, attempted)));
+    }
+    Ok(attempted as u32)
 }
 pub(super) fn acquire_key(state:&mut RunState,key:Key)->Result<CommittedEvent,RunError>{
     let i=super::reward::key_index(key);if state.keys[i]{return Err(RunError::InvalidAction)}

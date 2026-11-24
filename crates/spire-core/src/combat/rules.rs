@@ -90,7 +90,9 @@ pub(super) fn slow_scaled_normal_damage(
 
 fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,stance_multiplier:f32,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool,check_width:bool)->Result<i32,InputError>{
     let value=full_normal_damage_value(base,strength,weak,weak_multiplier,stance_multiplier,double,receive,signed,check_width)?;
-    if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
+    if !signed && value >= 30_013.0 {
+        return Err(InputError::bound("modified_damage", 30_012, value.floor() as i128));
+    }
     Ok(value.max(0.0).floor() as i32)
 }
 /// M34s-a R-a3: the attacker's damage after give, receive and stance modifiers, before the final floor
@@ -110,7 +112,7 @@ fn full_normal_damage_value(base:i32,strength:i32,weak:bool,weak_multiplier:f32,
     if double { value *= 2.0f32; }
     value *= stance_multiplier;
     for multiplier in receive {value*=multiplier;}
-    if check_width{watcher_final_width(value)?;}
+    if check_width { watcher_final_width(value, "modified_damage")?; }
     Ok(value)
 }
 
@@ -156,13 +158,16 @@ pub(super) fn full_signed_card_block(base:i32,dexterity:i32,frail:bool)->Result<
 }
 pub(super) fn full_watcher_card_block(base:i32,dexterity:i32,frail:bool)->Result<i32,InputError>{full_card_block_pipeline(base,dexterity,frail,true,true)}
 fn full_card_block_pipeline(base:i32,dexterity:i32,frail:bool,signed:bool,check_width:bool)->Result<i32,InputError>{
-    if !signed{bounded(base, 1007, "card Block base")?;}
+    if !signed {
+        if base > 1_007 { return Err(InputError::bound("card_block_base", 1_007, i128::from(base))); }
+        bounded(base, 1007, "card Block base")?;
+    }
     if !(-999..=999).contains(&dexterity) {
         return Err(InputError::Unsupported("Dexterity outside supported native surface".into()));
     }
     let mut value = if signed{base as f32+dexterity as f32}else{(base + dexterity) as f32};
     if frail { value *= 0.75_f32; }
-    if check_width{watcher_final_width(value)?;}
+    if check_width { watcher_final_width(value, "modified_block")?; }
     Ok(value.max(0.0).floor() as i32)
 }
 
@@ -333,8 +338,12 @@ fn stance_damage_multiplier(stance: super::Stance) -> f32 {
     }
 }
 
-fn watcher_final_width(value:f32)->Result<(),InputError>{
+fn watcher_final_width(value:f32,counter: &'static str)->Result<(),InputError>{
     // W-NUM source overflow/conversion remains unclosed. Preserve finite int32
     // gameplay and report exhausted native representation instead of saturation.
-    if !value.is_finite()||value>=2_147_483_648.0_f32{return Err(InputError::Unsupported("Watcher final float exceeds native int32 representation".into()))}Ok(())
+    if !value.is_finite() { return Err(InputError::Invariant("non-finite card calculation".into())); }
+    if value >= 2_147_483_648.0_f32 {
+        return Err(InputError::bound(counter, i128::from(i32::MAX), value.floor() as i128));
+    }
+    Ok(())
 }

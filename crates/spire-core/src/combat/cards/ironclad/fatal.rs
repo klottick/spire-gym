@@ -46,8 +46,10 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Re
             let instance=live.instance;
             if live.origin!=crate::combat::CombatCardRef::Permanent(instance){continue}
             let prior=state.watcher.permanent_upgrades.iter().filter(|entry|entry.instance==instance).count();
-            let upgrades=live.upgrades.checked_add(u32::try_from(prior).map_err(|_|InputError::Unsupported("Lesson Learned prior upgrade count exhausted".into()))?)
-                .ok_or_else(||InputError::Unsupported("Lesson Learned effective upgrade count exhausted".into()))?;
+            let attempted = i128::from(live.upgrades) + prior as i128;
+            let upgrades = u32::try_from(attempted).map_err(|_| InputError::bound(
+                "card_upgrades", i128::from(u32::MAX), attempted,
+            ))?;
             if super::rules::can_upgrade(live.id,upgrades){eligible.push((instance,live.id));}
         }
         eligible.sort_by_key(|(instance,_)|instance.0);
@@ -68,8 +70,9 @@ pub(in crate::combat) fn after_damage(state:&mut State,result:&DamageResult)->Re
         return Ok(super::super::defect::record_misc_growth(state,instance,if upgraded{5}else{3})?);
     }
     let amount=if upgraded{4}else{3};
-    let max=state.player.max_hp.checked_add(amount).filter(|max|*max<=999)
-        .ok_or_else(||InputError::Unsupported("Feed maximum HP ceiling exceeded".into()))?;
+    let attempted = i128::from(state.player.max_hp) + i128::from(amount);
+    if attempted > 999 { return Err(InputError::bound("maximum_hp", 999, attempted).into()); }
+    let max = attempted as i32;
     state.player.max_hp=max;
     super::super::super::effects::ordinary_heal_now(state,result.source.clone(),amount)?;
     Ok(())
