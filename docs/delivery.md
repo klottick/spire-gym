@@ -277,8 +277,10 @@ commit and a GitHub Release; there is no PyPI release. The Release body and
 attached `DELIVERY.md` publish the built wheel and `.so` SHA-256 values and the
 final `source_digest`. These artifact values are not asserted in this handoff.
 Later releases follow the same steps: version `1.1.0` is tagged `v1.1.0` and
-version `1.1.1` is tagged `v1.1.1` and version `1.2.0` is tagged `v1.2.0`, each described in its
-release notes ([1.1.0](releases/v1.1.0.md), [1.1.1](releases/v1.1.1.md), [1.2.0](releases/v1.2.0.md)).
+version `1.1.1` is tagged `v1.1.1`, version `1.2.0` is tagged `v1.2.0`, and
+version `1.2.1` is tagged `v1.2.1`. See the release notes for
+[1.1.0](releases/v1.1.0.md), [1.1.1](releases/v1.1.1.md),
+[1.2.0](releases/v1.2.0.md) and [1.2.1](releases/v1.2.1.md).
 
 ## 9. Open work and Beads dispositions
 
@@ -301,5 +303,7 @@ metadata fingerprint to `effbb810…`. The consumer does not yet use the Standar
 Run API. Removed names include `NativeIroncladCombatBatch` (no alias) and Rust examples
 `m22_same_choices.rs`, `m23_same_choices.rs`, `m24_same_choices.rs`. Legacy
 M9/M10, Gym66 and combat surfaces remain available under the protocol. See
-release notes for [v1.0.0](releases/v1.0.0.md), [v1.1.0](releases/v1.1.0.md), [v1.1.1](releases/v1.1.1.md) and [v1.2.0](releases/v1.2.0.md), [CHANGES](../CHANGES.md), and the
+release notes for [v1.0.0](releases/v1.0.0.md), [v1.1.0](releases/v1.1.0.md),
+[v1.1.1](releases/v1.1.1.md), [v1.2.0](releases/v1.2.0.md) and
+[v1.2.1](releases/v1.2.1.md), along with [CHANGES](../CHANGES.md) and the
 [milestone index](milestones/README.md).
