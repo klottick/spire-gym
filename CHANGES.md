@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.1 — effective at the commit tagged v1.2.1
+
+See the [1.2.1 release notes](docs/releases/v1.2.1.md).
+
+- Set the project and Python package version to `1.2.1`. The version bump
+  leaves the `build_info()` keys, fingerprints and replay digests unchanged.
+  It changes the build digests because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs.
 - spire-sjh fixes Giant Head's Slow and energy gain in the shared combat
   engine. Slow counts completed card plays beyond 999, scales normal damage
   with the original binary32 calculation, and resets at round end. Legal

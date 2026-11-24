@@ -1,6 +1,15 @@
 # Work status
 
-## Current snapshot — 2026-11-22, release 1.2.0
+## Current snapshot — 2026-11-24, release 1.2.1
+
+- Version 1.2.1 packages the first spire-sjh changes (PR #122). Giant Head's Slow stacks beyond 999,
+  legal energy gains cap at 999, and selected engine faults report typed bounds. Current rules IDs are
+  Standard v8, M10 (and Gym66) v5 and M9 v6. Frozen fingerprints, replay digests and Heart pins are
+  unchanged. Other reachable bounds remain open. See the [1.2.1 release notes](releases/v1.2.1.md)
+  and [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge.
+
+## Snapshot — 2026-11-22, release 1.2.0
 
 - Version 1.2.0 packages the work merged since v1.1.1: the M39a combat-entry resource descriptor (PR #116), the
   spire-d4h card-queue order fix (PR #117), the opt-in compact standalone combat and search branch view from M39b
