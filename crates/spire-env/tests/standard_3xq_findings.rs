@@ -2,7 +2,7 @@
 //! public, validated `standard-combat-v1` catalog; each case reproduces the recorded fault (the W5 entry and seed, or a
 //! minimal entry) and asserts the original game's behaviour. F1 pins the dense `offers` capacity's fail-closed edge.
 use serde_json::{json, Value};
-use spire_core::{combat::{rng::Partition, FaultKind}, run::{RunError, RunFaultKind}};
+use spire_core::combat::rng::Partition;
 use spire_env::*;
 
 fn catalog(entry: Value) -> CombatTrainingCatalog {
@@ -55,16 +55,6 @@ fn w5_replay(s: &mut CombatTrainingSession, seed: u64, id: &str, steps: usize) -
     }
     b
 }
-fn combat_fault(e: &RunSessionError) -> Option<(FaultKind, String)> {
-    match e {
-        RunSessionError::Core(RunError::Faulted(f)) => match &f.kind {
-            RunFaultKind::Combat(c) => Some((c.record.kind, c.record.message.clone())),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 /// F2-A: Berserk stacks additively without a cap and grants its whole amount at each start of turn (original
 /// `BerserkPower`). Five or six stacks used to fault the energy validator, which admitted only 1..=4.
 #[test]
@@ -103,21 +93,21 @@ fn x3q_w5_fire_breathing_queued_thorns_keep_their_queued_amount() {
 }
 
 /// F2-C: a combat issues at most 999 card identities (deck included). Reaching that bound is the engine's typed
-/// `Unsupported` boundary on every generation path; the Corrupt Heart's status cards used to report it as `Invariant`.
+/// bound on every generation path; the Corrupt Heart's status cards used to report it as `Invariant`.
 /// (The original has no such cap; this is a documented engine limit.)
 #[test]
-fn x3q_issued_card_bound_is_unsupported_on_the_create_card_path() {
+fn x3q_issued_card_bound_is_typed_on_the_create_card_path() {
     let mut s = session(entry("heart995", "ironclad", "corrupt_heart", cards(&vec!["strike"; 995])));
     let b = s.reset(Some(1), None).unwrap();
     let end = verb_index(&b.observation, "end_turn").unwrap();
     let e = s.step(b.token, RunActionIndex(end as i64)).unwrap_err();
-    assert_eq!(combat_fault(&e), Some((FaultKind::Unsupported, "generated card count/runtime boundary".into())), "{e:?}");
+    assert_eq!(e.engine_bound(), Some(spire_core::combat::EngineBound::new("issued_combat_cards", 999, 1_000)), "{e:?}");
     // Generation through `Generate` (Chrysalis) is the same typed boundary.
     let mut s = session(entry("chrysalis997", "ironclad", "jaw_worm", cards(&vec!["chrysalis"; 997])));
     let b = s.reset(Some(1), None).unwrap();
     let play = verb_index(&b.observation, "play_card").unwrap();
     let e = s.step(b.token, RunActionIndex(play as i64)).unwrap_err();
-    assert_eq!(combat_fault(&e), Some((FaultKind::Unsupported, "generated card count/runtime boundary".into())), "{e:?}");
+    assert_eq!(e.engine_bound(), Some(spire_core::combat::EngineBound::new("issued_combat_cards", 999, 1_000)), "{e:?}");
 }
 
 /// F2-D (W5 m38e_0044, minimised): Neow's Lament leaves every enemy at 1 HP; Mercury Hourglass kills the Reptomancer and a
@@ -209,4 +199,16 @@ fn x3q_more_shop_rows_than_the_dense_offers_capacity_is_a_typed_capacity_fault()
         kind: RoomChoiceKind::Leave, price: None, status: RoomChoiceStatus::Claimed }).collect() });
     assert_eq!(encode_run_standard_decision(&d, None, &caps, 0, None).unwrap_err(),
         RunSessionError::Capacity { group: "offers", required: 513, capacity: 512 });
+}
+
+#[test]
+fn sjh_potion_remains_selectable_at_the_issued_identity_limit() {
+    let mut supplied = entry("full-deck", "silent", "jaw_worm", cards(&vec!["strike_g"; 999]));
+    supplied["potions"] = json!(["cunning_potion", null, null]);
+    let mut session = session(supplied);
+    let boundary = session.reset(Some(7), None).unwrap();
+    let potion = verb_index(&boundary.observation, "use_potion").expect("legal potion at an exhausted allocator");
+    let error = session.step(boundary.token, RunActionIndex(potion as i64)).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(spire_core::combat::EngineBound::new("issued_combat_cards", 999, 1_000)));
+    assert_eq!(session.fault_cause(), Some(error));
 }

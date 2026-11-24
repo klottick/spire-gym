@@ -56,7 +56,13 @@ pub(in crate::combat) fn refresh_actor(enemy:&mut EnemyState,ascension:u8){
 pub(in crate::combat) fn after_card(state:&mut State)->Result<(),InputError>{
     for enemy in state.enemies.iter_mut().filter(|e|e.hp>0&&e.life==super::super::super::ActorLife::Active){
         if let Some(power)=enemy.full_powers.iter_mut().find(|p|p.id.0=="slow"){
-            power.state.amount=power.state.amount.checked_add(1).filter(|n|*n<=999).ok_or_else(||InputError::Unsupported("Slow amount exceeds native bounds".into()))?;
+            let attempted = i128::from(power.state.amount) + 1;
+            power.state.amount = i32::try_from(attempted).map_err(|_| {
+                InputError::Bound(crate::combat::EngineBound {
+                    power_id: Some("slow"),
+                    ..crate::combat::EngineBound::new("slow", i128::from(i32::MAX), attempted)
+                })
+            })?;
         }
     }Ok(())
 }

@@ -227,7 +227,26 @@ pub enum Outcome { Victory, Death, Escaped }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransitionStatus { Decision, Selection, Terminal, Fault }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FaultKind { Unsupported, Invariant, EffectGuard, RngExhausted }
+pub enum FaultKind { Unsupported, Invariant, EffectGuard, RngExhausted, Bound(EngineBound) }
+
+/// Public-safe diagnostics for an attempted gameplay value outside an engine limit.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EngineBound {
+    pub counter: &'static str,
+    pub limit: i128,
+    pub attempted: i128,
+    pub power_id: Option<&'static str>,
+}
+impl EngineBound {
+    pub const fn new(counter: &'static str, limit: i128, attempted: i128) -> Self {
+        Self { counter, limit, attempted, power_id: None }
+    }
+}
+impl std::fmt::Display for EngineBound {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} attempted {} (limit {})", self.counter, self.attempted, self.limit)
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FaultRecord { pub kind: FaultKind, pub message: String, pub resolved_effects: u32 }
 /// Lossless native diagnostics attached to the shared run fault boundary.
@@ -243,7 +262,7 @@ pub struct CombatFault {
     pub spawn_progress:Option<EnemySpawnDiagnostics>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum InputError { Invariant(String), Unsupported(String) }
+pub enum InputError { Invariant(String), Unsupported(String), Bound(EngineBound) }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectError { Invalid(InputError), Random(RngError) }
 

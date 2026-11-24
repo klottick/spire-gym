@@ -427,7 +427,9 @@ fn m11_silent_blade_dance_insertion_fault_retains_first_child_and_unfinished_par
     assert_eq!(combat.state.pending.iter().filter(|effect| matches!(effect.kind,
         EffectKind::CreateCard { id: crate::content::CardId::Shiv, .. })).count(), 2,
         "later Blade Dance children remain queued behind the current fault");
-    assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::Unsupported);
+    assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::Bound(crate::combat::EngineBound::new(
+        "combat_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1,
+    )));
     let frozen = combat.snapshot();
     assert!(combat.step_full(&CombatAction::EndTurn).is_err());
     assert_eq!(combat.snapshot(), frozen, "faulted parent and children are never replayed");

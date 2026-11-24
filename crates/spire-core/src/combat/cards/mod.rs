@@ -728,6 +728,15 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
     // here preserves the shared damage calculator while stacking with double_damage.
     let pen_nib=state.player_full_powers.iter().any(|power|power.id.0=="pen_nib"&&power.state.amount>0);
     if pen_nib { receive.push(2.0f32); }
+    if enemy.full_powers.iter().any(|power| power.id.0 == "slow" && power.state.amount > 0) {
+        return rules::slow_scaled_normal_damage(
+            if signed { base } else { combined_base.max(0) },
+            if signed { strength } else { 0 },
+            weak, state.character.stance,
+            state.player_full_powers.iter().any(|p| p.id.0 == "double_damage" && p.state.amount > 0),
+            receive, signed,
+        ).map_err(|_| crate::run::RunError::Unsupported("invalid Slow-scaled card damage"));
+    }
     // M26 §6.3 S: the stance pipeline runs once a stance or Vigor exists for any character.
     if watcher::active(state)||state.character.stance!=super::characters::Stance::Neutral
         ||state.player_full_powers.iter().any(|p|p.id.0=="vigor"){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,
@@ -749,8 +758,12 @@ pub(super) fn normal_potion_damage(state:&State,base:i32,enemy:&super::model::En
         "vulnerable" if power.state.amount>0=>receive.push(if phrog{1.75f32}else{1.5f32}),
         "slow"=>receive.push(1.0f32+0.1f32*power.state.amount as f32),_=>(),
     }}
-    rules::full_normal_damage_given_received(base,0,false,false,false,receive)
-        .map_err(|_|crate::run::RunError::Unsupported("invalid potion damage"))
+    let damage = if enemy.full_powers.iter().any(|power| power.id.0 == "slow" && power.state.amount > 0) {
+        rules::slow_scaled_normal_damage(base, 0, false, super::Stance::Neutral, false, receive, false)
+    } else {
+        rules::full_normal_damage_given_received(base, 0, false, false, false, receive)
+    };
+    damage.map_err(|_|crate::run::RunError::Unsupported("invalid potion damage"))
 }
 
 fn modified_damage(state:&State,target:u64,base:i32)->Result<i32,crate::run::RunError>{modified_damage_pipeline(state,target,base,false)}

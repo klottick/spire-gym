@@ -84,3 +84,15 @@ fn m19_defect_interactions_dark_dead_capture_does_not_retarget_partner(){
     // target reference is already queued. It must never redirect to Donu.
     effects::apply_effect(&mut c.state,&Effect{source:Source::Actor(Actor::Player),target:Some(Actor::Enemy(owner.clone())),kind:EffectKind::Damage(DamagePayload::Fixed(250))}).unwrap();assert!(!c.state.pending.iter().any(|e|e.target==Some(Actor::Enemy(owner.clone()))&&matches!(e.kind,EffectKind::Damage(_))));assert_eq!(engine::resolve(&mut c.state).status,TransitionStatus::Decision);assert_eq!((c.state.enemies[0].hp,c.state.enemies[1].hp),(0,250));assert_eq!(c.state.outcome,None);assert_eq!(c.state.hook_events.iter().filter(|e|e.hook==Hook::Death).count(),1);assert!(engine::validate_runtime(&c.state).is_ok());
 }
+
+#[test]
+fn sjh_slow_wide_defect_continuations() {
+    for id in [CardId::Melter, CardId::Sunder, CardId::Barrage] {
+        let mut combat = enter(EncounterId::GiantHead, &[id]);
+        combat.state.enemies[0].full_powers.iter_mut()
+            .find(|power| power.id.0 == "slow").unwrap().state.amount = 100_000;
+        combat.state.character.orb_slots = vec![Some(OrbKind::Frost.into()); 3];
+        play(&mut combat, 1, Some(TargetId(1)));
+        assert_eq!(combat.state.outcome, Some(Outcome::Victory), "{id:?}");
+    }
+}

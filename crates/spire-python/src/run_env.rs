@@ -16,9 +16,28 @@ pub(crate) fn integer<T:for<'a,'py> FromPyObject<'a,'py>>(v:&Bound<'_,PyAny>)->P
 }
 pub(crate) fn label(v:&Bound<'_,PyAny>)->PyResult<String>{if !v.is_exact_instance_of::<PyString>(){return Err(RunInputError::new_err("expected string"))}v.extract().map_err(Into::into)}
 pub(crate) fn boolean(v:&Bound<'_,PyAny>)->PyResult<bool>{if !v.is_exact_instance_of::<PyBool>(){return Err(RunInputError::new_err("expected bool"))}v.extract().map_err(Into::into)}
-pub(crate) fn error(e:RunSessionError)->PyErr{match e{
+pub(crate) fn bound_value(py: Python<'_>, bound: spire_core::combat::EngineBound) -> PyResult<Bound<'_, PyDict>> {
+    let value = PyDict::new(py);
+    value.set_item("counter", bound.counter)?;
+    value.set_item("limit", bound.limit)?;
+    value.set_item("attempted", bound.attempted)?;
+    if let Some(power_id) = bound.power_id {
+        value.set_item("power_id", power_id)?;
+    }
+    Ok(value)
+}
+pub(crate) fn error(e:RunSessionError)->PyErr{
+    if let Some(bound) = e.engine_bound() {
+        return Python::attach(|py| {
+            let error = RunFaultError::new_err(bound.to_string());
+            let attach = || error.value(py).setattr("bound", bound_value(py, bound)?);
+            attach().err().unwrap_or(error)
+        });
+    }
+    match e{
     RunSessionError::Input(s)=>RunInputError::new_err(s),RunSessionError::StaleToken=>RunStateError::new_err("stale Run decision token"),RunSessionError::NotReset=>RunStateError::new_err("Run has not been reset"),RunSessionError::Terminal=>RunStateError::new_err("Run is terminal"),RunSessionError::Closed=>RunStateError::new_err("Run is closed"),
     RunSessionError::UnsupportedBoundary(s)=>RunUnsupportedBoundaryError::new_err(s),RunSessionError::DeliveryFault(s)=>RunFaultError::new_err(s),RunSessionError::Capacity{group,required,capacity}=>RunFaultError::new_err(format!("Run capacity {group}: {required} > {capacity}")),RunSessionError::IncompatibleReplay(s)=>RunInputError::new_err(s),RunSessionError::Core(_)=>RunFaultError::new_err("native Run fault; inspect privileged reproduction"),
+    RunSessionError::EngineBound(bound) => RunFaultError::new_err(bound.to_string()),
     RunSessionError::Budget(s)=>RunBudgetError::new_err(s),RunSessionError::BranchFaulted=>RunStateError::new_err("search branch is faulted"),
 }}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
@@ -146,7 +165,14 @@ fn descriptor_dtypes(spec: &spire_env::RunObservationSpec) -> Result<stacking::D
 }
 pub(crate) fn observation_layout(value:&str)->PyResult<RunObservationLayout>{match value{"dense"=>Ok(RunObservationLayout::Dense),"compact"=>Ok(RunObservationLayout::Compact),_=>Err(RunInputError::new_err("observation must be 'dense' or 'compact'"))}}
 pub(crate) fn fault_cause_value<'py>(py:Python<'py>,cause:Option<RunSessionError>)->PyResult<Option<Bound<'py,PyAny>>>{
-    cause.map(|cause|{let record=stacking::fault_cause_record(&cause);numeric::descriptor(py,record.diagnostic_json().map_err(error)?)}).transpose()
+    cause.map(|cause| {
+        let record = stacking::fault_cause_record(&cause);
+        let result = numeric::descriptor(py, record.diagnostic_json().map_err(error)?)?;
+        if let Some(bound) = cause.engine_bound() {
+            result.set_item("bound", bound_value(py, bound)?)?;
+        }
+        Ok(result)
+    }).transpose()
 }
 fn creation(py:Python<'_>,value:Option<&Bound<'_,PyAny>>)->PyResult<StandardCreation>{
     let Some(value)=value.filter(|v|!v.is_none()) else{return Ok(StandardCreation::experienced())};

@@ -77,6 +77,17 @@ pub(super) fn full_normal_damage_given_received_with_weak_multiplier(base:i32,st
 pub(super) fn full_signed_card_damage(base:i32,strength:i32,weak:bool,wrath:bool,double:bool,receive:impl IntoIterator<Item=f32>)->Result<i32,InputError>{
     full_normal_damage_pipeline(base,strength,weak,0.75_f32,if wrath{2.0}else{1.0},double,receive,true,false)
 }
+/// Slow uses Java's saturating float-to-int conversion after all receive modifiers.
+pub(super) fn slow_scaled_normal_damage(
+    base: i32, strength: i32, weak: bool, stance: super::Stance, double: bool,
+    receive: impl IntoIterator<Item = f32>, signed: bool,
+) -> Result<i32, InputError> {
+    let value = full_normal_damage_value(
+        base, strength, weak, 0.75, stance_damage_multiplier(stance), double, receive, signed, false,
+    )?;
+    Ok(value.max(0.0) as i32)
+}
+
 fn full_normal_damage_pipeline(base:i32,strength:i32,weak:bool,weak_multiplier:f32,stance_multiplier:f32,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool,check_width:bool)->Result<i32,InputError>{
     let value=full_normal_damage_value(base,strength,weak,weak_multiplier,stance_multiplier,double,receive,signed,check_width)?;
     if !signed{bounded(value.floor() as i32, 30_012, "full modified damage")?;}
@@ -311,8 +322,15 @@ pub(super) fn full_normal_damage_received_for_stance(base:i32,strength:i32,weak:
     full_card_damage_for_stance(base,strength,weak,if stance==super::Stance::Wrath{stance}else{super::Stance::Neutral},false,receive,false)
 }
 pub(super) fn full_card_damage_for_stance(base:i32,strength:i32,weak:bool,stance:super::Stance,double:bool,receive:impl IntoIterator<Item=f32>,signed:bool)->Result<i32,InputError>{
-    let multiplier=match stance{super::Stance::Wrath=>2.0,super::Stance::Divinity=>3.0,_=>1.0};
-    full_normal_damage_pipeline(base,strength,weak,0.75_f32,multiplier,double,receive,signed,true)
+    full_normal_damage_pipeline(base,strength,weak,0.75_f32,stance_damage_multiplier(stance),double,receive,signed,true)
+}
+
+fn stance_damage_multiplier(stance: super::Stance) -> f32 {
+    match stance {
+        super::Stance::Wrath => 2.0,
+        super::Stance::Divinity => 3.0,
+        _ => 1.0,
+    }
 }
 
 fn watcher_final_width(value:f32)->Result<(),InputError>{

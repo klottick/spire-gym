@@ -336,3 +336,17 @@ These commands identify lanes, not results. Python results count only when the i
 `spire_lab._native.__file__` and build identity receipt match the candidate sources. The
 [development guide](development.md#agent-lane-selection-and-artifact-identity) describes the
 source-digest check and Lane P receipt.
+
+
+## Engine bound faults
+
+When a dispatched action reaches an [engine bound](standard-run-api.md#engine-bounds),
+the affected slot reports stage `step` and `committed=True`. The slot cannot
+recover the attempted step. The failed action stays outside its delivered
+prefix. With freeze, `BatchFaultError.slots` includes the optional `bound`
+dictionary on each affected slot, and the faulted step reports
+`recoverable=False`. With isolate, the failed row's `fault` dictionary
+includes `bound` and successful peers are delivered normally. The same
+bound appears in `fault_cause(slot)` and the retained cause if an explicit
+isolate reset retires the slot. Autoreset does not treat a bound as an
+episode ending.

@@ -90,12 +90,12 @@ pub(super) fn on_energy_recharge(state:&mut State,work:&mut Vec<Effect>)->Result
                 work.push(player(EffectKind::ReduceFullPower{id:power.id,amount:1}));
             }
             "energized"|"energized_blue"=>{
-                super::effects::gain_energy(state,power.state.amount,true)?;
+                super::effects::gain_energy(state, power.state.amount);
                 work.push(player(EffectKind::RemoveFullPower(power.id)));
             }
             "deva_form" if state.watcher.deva_energy_gain>0=>{
                 let gain=state.watcher.deva_energy_gain;
-                super::effects::gain_energy(state,gain,true)?;
+                super::effects::gain_energy(state, gain);
                 state.watcher.deva_energy_gain=gain.checked_add(power.state.amount).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?;
             }
             _=>(),

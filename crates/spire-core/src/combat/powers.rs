@@ -351,7 +351,18 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
 
     if application&&id.0=="rebound"&&previous==0&&*actor==Actor::Player{state.defect.rebound_just_applied=true;}
     if !application && previous == 0 { return Ok(()); }
-    let sum = previous.checked_add(delta).ok_or_else(|| InputError::Invariant("power amount overflow".into()))?;
+    let sum = previous.checked_add(delta).ok_or_else(|| {
+        if id.0 == "slow" {
+            let attempted = i128::from(previous) + i128::from(delta);
+            let limit = if attempted < 0 { i32::MIN } else { i32::MAX };
+            InputError::Bound(super::EngineBound {
+                power_id: Some("slow"),
+                ..super::EngineBound::new("slow", i128::from(limit), attempted)
+            })
+        } else {
+            InputError::Invariant("power amount overflow".into())
+        }
+    })?;
     let next = match id.0 {
         "like_water" if super::cards::watcher::cards_active(state)=>sum.clamp(0,999),
         _ if super::cards::watcher::cards_active(state)&&super::cards::watcher::power_id(id)=>sum.max(0),
@@ -363,7 +374,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
         "wraith_form"=>sum.min(0),
         "next_turn_block"|"draw_card_next_turn"|"blur"|"choked"|"infinite_blades"|"after_image"|"a_thousand_cuts"|"envenom"|"phantasmal"|"double_damage"|"intangible_player"|"tools_of_the_trade"|"burst"=>sum.max(0),
         "buffer"|"repair"|"draw"|"hello_world"|"creative_ai"|"equilibrium"|"rebound"|"bias"|"loop"|"electrodynamics"|"static_discharge"|"storm"|"heatsinks"|"amplify"|"echo_form"|"lock_on"=>sum.max(0),
-        "mode_shift"=>sum.max(0),
+        "mode_shift"|"slow"=>sum.max(0),
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,
         "dexterity" => return Err(InputError::Unsupported("Dexterity outside supported native surface".into())),

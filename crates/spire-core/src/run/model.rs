@@ -56,6 +56,18 @@ pub enum RunFaultKind { UnsupportedBoundary(&'static str), Invariant(&'static st
 pub struct RunFault { pub kind:RunFaultKind, pub checkpoint:&'static str, pub committed_events:Vec<CommittedEvent> }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunError { InvalidAscension(u8), InvalidAction, Unsupported(&'static str), Registry(&'static str), Terminal, Faulted(RunFault) }
+impl RunError {
+    /// Extract the public-safe values without copying any retained combat work.
+    pub fn engine_bound(&self) -> Option<crate::combat::EngineBound> {
+        use crate::combat::FaultKind;
+        let Self::Faulted(fault) = self else { return None };
+        let RunFaultKind::Combat(combat) = &fault.kind else { return None };
+        match combat.record.kind {
+            FaultKind::Bound(bound) => Some(bound),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommittedEvent { FloorEntered { act:u8, floor:u32 }, KeyAcquired(Key), Ended(RunTerminal),
     ActAdvanced{from:u8,to:u8},

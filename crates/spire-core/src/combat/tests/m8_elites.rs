@@ -120,3 +120,95 @@ fn m8_nemesis_potion_and_late_roll_fault_retain_the_actual_power_owner(){
     let mut items=Some(crate::items::CombatItemContext::new(vec![],vec![Some(crate::content::PotionId::FirePotion)]));let mut c=Combat::enter_with_item_context(entry(EncounterId::Nemesis),&mut items).unwrap();c.step_full(&CombatAction::EndTurn).unwrap();c.step_full(&CombatAction::UsePotion{slot:0,target:Some(TargetId(1))}).unwrap();assert_eq!(c.state.enemies[0].hp,184);assert!(c.item_context().unwrap().potions()[0].is_none());
     let mut e=entry(EncounterId::Nemesis);e.setup.enemies[0].intent=FullIntentId::from_name("nemesis_tri");let id=e.setup.enemies[0].ai_rng.id().clone();e.setup.enemies[0].ai_rng=rng::StreamState::new(id,[0;32],1_u128<<64).unwrap();let mut c=Combat::enter(e).unwrap();assert!(c.step_full(&CombatAction::EndTurn).is_err());assert_eq!((c.state.player.hp,amount(&c,0,"intangible")),(282,1));assert!(c.state.enemies[0].full_powers.iter().any(|p|p.id.0=="intangible"&&p.state.skip_first));let frozen=c.snapshot();assert!(c.step_full(&CombatAction::EndTurn).is_err());assert_eq!(c.snapshot(),frozen);
 }
+
+#[test]
+fn sjh_slow_wide_damage_and_round_reset() {
+    let mut setup = entry(EncounterId::GiantHead);
+    setup.cards = vec![
+        permanent_live_card(CardId::Defend, CardInstanceId(1), 0),
+        permanent_live_card(CardId::Strike, CardInstanceId(2), 0),
+    ];
+    setup.opening_draw = 2;
+    let mut combat = Combat::enter(setup).unwrap();
+    let set_slow = |combat: &mut Combat, amount| {
+        combat.state.enemies[0].full_powers.iter_mut()
+            .find(|power| power.id.0 == "slow").unwrap().state.amount = amount;
+    };
+    set_slow(&mut combat, 999);
+    play(&mut combat, 1, false);
+    assert_eq!(amount(&combat, 0, "slow"), 1_000);
+    let mut next_round = combat.clone();
+    next_round.step_full(&CombatAction::EndTurn).unwrap();
+    assert_eq!(amount(&next_round, 0, "slow"), 0);
+    let mut lethal = combat.clone();
+    play(&mut lethal, 2, true);
+    assert_eq!(lethal.state.enemies[0].hp, 0);
+
+    set_slow(&mut combat, 80_000);
+    let enemy = &combat.state.enemies[0];
+    assert_eq!(cards::normal_damage(&combat.state, 6, 0, false, enemy).unwrap(), 48_006);
+    let mut wide = combat.clone();
+    play(&mut wide, 2, true);
+    assert_eq!(wide.state.enemies[0].hp, 0);
+
+    set_slow(&mut combat, i32::MAX);
+    let enemy = &combat.state.enemies[0];
+    assert_eq!(cards::normal_damage(&combat.state, 26, 0, false, enemy).unwrap(), i32::MAX);
+    combat.state.character.stance = Stance::Wrath;
+    let enemy = &combat.state.enemies[0];
+    assert_eq!(cards::normal_damage(&combat.state, 6, 0, false, enemy).unwrap(), i32::MAX);
+    play(&mut combat, 2, true);
+    assert_eq!(combat.state.outcome, Some(Outcome::Victory));
+}
+
+#[test]
+fn sjh_generic_energy_gain_caps_successfully() {
+    let mut combat = Combat::enter(entry(EncounterId::GiantHead)).unwrap();
+    combat.state.player.energy = 998;
+    let gain = Effect {
+        source: Source::Actor(Actor::Player),
+        target: Some(Actor::Player),
+        kind: EffectKind::GainEnergy(2),
+    };
+    effects::apply_effect(&mut combat.state, &gain).unwrap();
+    assert_eq!(combat.state.player.energy, 999);
+    effects::apply_effect(&mut combat.state, &gain).unwrap();
+    assert_eq!(combat.state.player.energy, 999);
+}
+
+#[test]
+fn sjh_slow_and_identity_representation_limits_are_typed() {
+    let mut setup = entry(EncounterId::GiantHead);
+    setup.cards = vec![permanent_live_card(CardId::Defend, CardInstanceId(1), 0)];
+    setup.opening_draw = 1;
+    let mut combat = Combat::enter(setup).unwrap();
+    combat.state.enemies[0].full_powers.iter_mut()
+        .find(|power| power.id.0 == "slow").unwrap().state.amount = i32::MAX;
+    let err = combat.step_full(&CombatAction::PlayCard { instance: 1, target: None }).unwrap_err();
+    assert_eq!(err.engine_bound(), Some(EngineBound {
+        power_id: Some("slow"),
+        ..EngineBound::new("slow", i128::from(i32::MAX), i128::from(i32::MAX) + 1)
+    }));
+    assert_eq!(amount(&combat, 0, "slow"), i32::MAX);
+
+    combat.state.card_ids_issued.insert(CardHandle::parse(&u64::MAX.to_string()).unwrap());
+    assert_eq!(piles::next_generated_instance(&combat.state), Err(InputError::Bound(
+        EngineBound::new("combat_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1),
+    )));
+}
+
+#[test]
+fn sjh_slow_explosive_potion_is_normal_fire_potion_is_thorns() {
+    use crate::{content::PotionId, items::CombatItemContext};
+    let mut items = Some(CombatItemContext::new(
+        vec![], vec![Some(PotionId::ExplosivePotion), Some(PotionId::FirePotion), None],
+    ).with_complete_cards().with_complete_items());
+    let mut combat = Combat::enter_with_item_context(entry(EncounterId::GiantHead), &mut items).unwrap();
+    combat.state.enemies[0].full_powers.iter_mut()
+        .find(|power| power.id.0 == "slow").unwrap().state.amount = 100_000;
+    let starting_hp = combat.state.enemies[0].hp;
+    combat.step_full(&CombatAction::UsePotion { slot: 1, target: Some(TargetId(1)) }).unwrap();
+    assert_eq!(combat.state.enemies[0].hp, starting_hp - 20);
+    combat.step_full(&CombatAction::UsePotion { slot: 0, target: None }).unwrap();
+    assert_eq!(combat.state.outcome, Some(Outcome::Victory));
+}

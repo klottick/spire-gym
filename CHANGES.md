@@ -5,7 +5,22 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- spire-sjh fixes Giant Head's Slow and energy gain in the shared combat
+  engine. Slow counts completed card plays beyond 999, scales normal damage
+  with the original binary32 calculation, and resets at round end. Legal
+  gains at high energy succeed and cap live energy at 999.
+- Native limit faults expose a value-only bound for Slow's signed 32-bit
+  representation, the generated-card request size, the number of issued
+  combat identities, and numeric combat identity exhaustion. Python exposes
+  the bound on the existing RunFaultError and applicable scalar, batch and
+  PublicSearch fault reports. See [engine bounds](docs/standard-run-api.md#engine-bounds).
+  The follow-up spire-sjh work covers other reachable limits, including
+  power and damage arithmetic, maximum HP and permanent Run resource limits.
+- Rules IDs advance to `spire-gym-native-standard-rules-v8`,
+  `spire-gym-native-m10-rules-v5` (including Gym66) and
+  `spire-gym-native-m9-rules-v6`. Older rules IDs fail replay compatibility.
+  Combat-v1 uses its separate legacy combat setup and cannot route through
+  these full-runtime Slow, energy, or generation paths.
 
 ## 1.2.0 — effective at the commit tagged v1.2.0
 

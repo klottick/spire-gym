@@ -141,7 +141,7 @@ fn m21_watcher_replay_actual_core_fault_retains_one_issued_child_and_consumed_po
  assert!(matches!(session.step(boundary.token,RunActionIndex(index as i64)),Err(RunSessionError::Core(spire_core::run::RunError::Faulted(_)))));
  let record=session.record().unwrap().unwrap();let fault=record.fault.as_ref().unwrap();assert!(fault.committed);assert!(!fault.gameplay_recorded);assert_eq!(record.outcome,None);assert!(record.steps.is_empty());assert_eq!(session.diagnostic()["accepted_steps"],1);
  let raw=record.to_json().unwrap();let restored=CombatEpisodeRecord::from_json(&raw).unwrap();let report=replay_m21_combat(&restored,combat_policy_capacities()).unwrap();assert_eq!(report.reported_fault,record.fault);assert_eq!(report.outcome,None);assert_eq!(report.accepted_count,1);
- let source=format!("{core_error:?}");assert!(source.contains("generated card identity exhausted"));assert!(source.contains("next: 1"));
+ let source=format!("{core_error:?}");assert_eq!(core_error.engine_bound(), Some(spire_core::combat::EngineBound::new("combat_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1)));assert!(source.contains("next: 1"));
  let frozen=session.diagnostic();assert!(session.reset(Some(11),Some("case")).is_err());assert_eq!(session.diagnostic(),frozen);
 }
 #[test]

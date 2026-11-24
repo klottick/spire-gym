@@ -106,6 +106,7 @@ fn status_dict<'py>(py: Python<'py>, s: &stacking::SlotStatus) -> PyResult<Bound
     let d = PyDict::new(py);
     d.set_item("status", s.status)?; d.set_item("stage", s.stage)?; d.set_item("committed", s.committed)?;
     d.set_item("recoverable", s.recoverable)?; d.set_item("message", s.message.as_deref())?;
+    if let Some(bound) = s.bound { d.set_item("bound", run_env::bound_value(py, bound)?)?; }
     Ok(d.into_any())
 }
 
@@ -341,7 +342,12 @@ impl<S: Transport> Core<S> {
         for (slot, row) in rows.iter().enumerate() {
             let Some(row) = row else { faults.append(py.None())?; infos.append(PyDict::new(py))?; final_infos.append(py.None())?; continue };
             match &row.fault {
-                Some(f) => { faults.append(fault_dict(py, f.stage.label(), &f.message, f.committed)?)?; infos.append(PyDict::new(py))?; }
+                Some(f) => {
+                    let fault = fault_dict(py, f.stage.label(), &f.message, f.committed)?;
+                    if let Some(bound) = f.bound { fault.set_item("bound", run_env::bound_value(py, bound)?)?; }
+                    faults.append(fault)?;
+                    infos.append(PyDict::new(py))?;
+                }
                 None => {
                     faults.append(py.None())?;
                     infos.append(S::info(py, self.profile, &row.boundary, &row.reward_events, returns.running[slot])?)?;
@@ -519,7 +525,9 @@ impl<S: Transport> Core<S> {
                     Some(record) => d.set_item("record", PyBytes::new(py, &S::record_json(record).map_err(run_env::error)?))?,
                     None => d.set_item("record", py.None())?,
                 }
-                if S::COMBAT && !self.dtypes.is_empty() {
+                if (S::COMBAT && !self.dtypes.is_empty())
+                    || r.error.as_ref().and_then(RunSessionError::engine_bound).is_some()
+                {
                     d.set_item("fault_cause", run_env::fault_cause_value(py, r.error.clone())?)?;
                 }
                 out.append(d)?;
@@ -753,7 +761,9 @@ impl NativeCombatTrainingBatch {
                 }
                 None => {
                     let reports = batch.last_statuses().iter().enumerate().map(|(slot, delivery)| SlotReport { delivery: *delivery,
-                        error: batch.slot_fault(slot).map(|_| RunSessionError::DeliveryFault("slot isolated after a fault")) }).collect::<Vec<_>>();
+                        error: batch.slot_fault(slot).map(|fault| fault.bound.map_or(
+                            RunSessionError::DeliveryFault("slot isolated after a fault"), RunSessionError::EngineBound,
+                        )) }).collect::<Vec<_>>();
                     let first = (0..batch.len()).find_map(|slot| batch.slot_fault(slot).map(|row| {
                         let operation = if row.stage == BatchFaultStage::Reset { "reset" } else { "step" };
                         (operation, Some(slot), gym66_reason(operation, row.stage == BatchFaultStage::Panic))
@@ -841,6 +851,9 @@ pub(crate) fn branch_outcomes<'py>(
             BranchStepOutcome::Fault { error, stage, committed } => {
                 infos.append(py.None())?;
                 let fault = fault_dict(py, stage, &stacking::error_message(error, false), *committed)?;
+                if let Some(bound) = error.engine_bound() {
+                    fault.set_item("bound", run_env::bound_value(py, bound)?)?;
+                }
                 if compact.is_some() {
                     if let RunSessionError::Capacity { group, required, capacity } = error {
                         let detail = PyDict::new(py);

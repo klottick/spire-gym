@@ -425,7 +425,9 @@ fn m11_silent_nightmare_partial_delivery_fault_keeps_cursor_and_first_child() {
 
     assert!(combat.step_full(&CombatAction::EndTurn).is_err(),
         "the second child reaches the actual unsigned identity overflow after one commit");
-    assert_eq!(combat.fault_record().unwrap().kind, FaultKind::Unsupported);
+    assert_eq!(combat.fault_record().unwrap().kind, FaultKind::Bound(crate::combat::EngineBound::new(
+        "combat_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1,
+    )));
     assert_eq!(combat.state.nightmare_templates.len(), 1);
     assert_eq!(combat.state.nightmare_templates[0].delivered, 1,
         "the owner cursor advances exactly with the committed first child");

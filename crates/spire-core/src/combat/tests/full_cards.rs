@@ -911,7 +911,9 @@ fn generated_identity_overflow_retains_current_and_pending_work_without_mutation
     assert_eq!(combat.state.current, Some(attempted.clone()));
     let expected_pending: std::collections::VecDeque<Effect> = vec![queued].into();
     assert_eq!(combat.state.pending, expected_pending);
-    assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::Unsupported);
+    assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::Bound(crate::combat::EngineBound::new(
+        "combat_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1,
+    )));
     let fault = combat.state.fault.clone();
     let resolved = combat.state.resolved_effects;
     super::super::engine::resolve(&mut combat.state);
@@ -921,24 +923,21 @@ fn generated_identity_overflow_retains_current_and_pending_work_without_mutation
 }
 
 #[test]
-fn energy_overflow_retains_effect_and_queue_without_wrapping_or_partial_mutation() {
+fn energy_gain_at_cap_drains_queue_without_wrapping() {
     let mut combat = entered_combat(999, 999, |_| {});
     assert_eq!(combat.public_full().unwrap().player.energy, 999, "fixture is valid");
     let source = Source::Card(super::super::card_state::handle(
         combat.state.piles.hand[0].full().unwrap().instance));
-    let attempted = Effect { source: source.clone(), target: Some(Actor::Player), kind: EffectKind::GainEnergy(1) };
+    let gain = Effect { source: source.clone(), target: Some(Actor::Player), kind: EffectKind::GainEnergy(1) };
     let queued = Effect { source, target: None, kind: EffectKind::Decision };
-    let energy_before = combat.state.player.energy;
     let piles_before = combat.state.piles.clone();
-    combat.state.pending.push_back(attempted.clone());
-    combat.state.pending.push_back(queued.clone());
-    assert_eq!(super::super::engine::resolve(&mut combat.state).status, TransitionStatus::Fault);
-    assert_eq!(combat.state.player.energy, energy_before);
+    combat.state.pending.push_back(gain);
+    combat.state.pending.push_back(queued);
+    assert_eq!(super::super::engine::resolve(&mut combat.state).status, TransitionStatus::Decision);
+    assert_eq!(combat.state.player.energy, 999);
     assert_eq!(combat.state.piles, piles_before);
-    assert_eq!(combat.state.current, Some(attempted));
-    let expected_pending: std::collections::VecDeque<Effect> = vec![queued].into();
-    assert_eq!(combat.state.pending, expected_pending);
-    assert_eq!(combat.state.fault.as_ref().unwrap().kind, FaultKind::Unsupported);
+    assert!(combat.state.current.is_none() && combat.state.pending.is_empty());
+    assert!(combat.state.fault.is_none());
 }
 
 #[test]
