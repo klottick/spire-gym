@@ -86,7 +86,7 @@ pub(super) fn valid_full_powers(powers: &[super::FullPowerEntry]) -> bool {
         else if matches!(p.id.0,"heatsinks"|"bias"|"buffer"|"repair"|"draw"|"hello_world"|"creative_ai"|"equilibrium"|"rebound"){p.state.amount>0}
         else if p.id.0=="mode_shift" {p.state.amount>0}
         else if p.id.0=="poison" {(1..=9_999).contains(&p.state.amount)}
-        else if p.id.0=="slow" {(0..=999).contains(&p.state.amount)}
+        else if p.id.0=="slow" {p.state.amount>=0}
         else if p.id.0=="invincible" {(0..=300).contains(&p.state.amount)}
         else if p.id.0=="no_draw" {p.state.amount==1}
         else if p.id.0=="time_warp" {(0..12).contains(&p.state.amount)}
@@ -1664,6 +1664,24 @@ fn validate_actor(actor: &Actor, state: &State) -> Result<(), InputError> {
     require(match actor { Actor::Player => true, Actor::Enemy(id) => state.enemies.iter().any(|e| &e.instance_id == id) }, "effect actor owner")
 }
 
+/// Captured card and normal potion damage can exceed the ordinary full-runtime ceiling
+/// when the receiving enemy owns Slow. Producer-specific checks still apply.
+pub(super) fn captured_normal_damage_valid(state: &State, target: &Actor, damage: i32) -> bool {
+    damage >= 0 && (damage <= 30_012 || state.full_runtime && matches!(target, Actor::Enemy(owner)
+        if state.enemies.iter().any(|enemy| &enemy.instance_id == owner
+            && enemy.full_powers.iter().any(|power| power.id.0 == "slow" && power.state.amount > 0))))
+}
+
+pub(super) fn wide_slow_damage_valid(state: &State, effect: &Effect, damage: i32) -> bool {
+    damage > 30_012 && effect.target.as_ref().is_some_and(|target| captured_normal_damage_valid(state, target, damage))
+        && match &effect.source {
+            Source::Card(owner) => state.in_play.as_ref().is_some_and(|card| owner == &card.handle()),
+            // Explosive Potion uses a source-less DamageAllEnemiesAction.
+            Source::None => true,
+            _ => false,
+        }
+}
+
 pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), InputError> {
     require(if state.full_runtime { !state.enemies.is_empty() } else { state.enemies.len() == 1 }, "effect enemy count")?;
     match &effect.source {
@@ -1709,7 +1727,11 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             &&state.hook_events.iter().any(|event|matches!(event.hook,Hook::Death|Hook::HalfDeath)&&event.target==Some(Actor::Enemy(owner.clone()))),"Corpse Explosion retains an actual death callback owner")?,
         EffectKind::Damage(DamagePayload::Fixed(n)) => {
             let maximum = if state.full_runtime { 30_012 } else { 1_515 };
-            require((0..=maximum).contains(n)||(state.full_runtime&&*n>=0&&(super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source)||matches!(&effect.source,Source::Relic(_)))), "damage payload bounds/producer")?;
+            require((0..=maximum).contains(n) || state.full_runtime && *n >= 0
+                && (wide_slow_damage_valid(state, effect, *n)
+                    || super::cards::defect::valid_mutable_attack_source(state,&effect.source)
+                    || super::cards::watcher::valid_mutable_attack_source(state,&effect.source)
+                    || matches!(&effect.source,Source::Relic(_))), "damage payload bounds/producer")?;
         }
         EffectKind::Damage(DamagePayload::Orb(n)) => require((0..=1515).contains(n)||super::cards::defect::valid_orb_source(state,&effect.source), "orb payload bounds/producer")?,
         EffectKind::Damage(DamagePayload::HpLoss(n)) =>
@@ -1927,13 +1949,13 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                         "Go for the Eyes continuation amount/target")?;
                 }
                 super::cards::DefectContinuation::BarrageStart { damage } => {
-                    require((0..=30_012).contains(damage)
+                    require(effect.target.as_ref().is_some_and(|target| captured_normal_damage_valid(state, target, *damage))
                         && matches!(effect.target.as_ref(), Some(Actor::Enemy(id))
                             if state.enemies.iter().any(|enemy| &enemy.instance_id == id)),
                         "Barrage start damage/target")?;
                 }
                 super::cards::DefectContinuation::BarrageNext { damage, remaining } => {
-                    require((0..=30_012).contains(damage) && (1..=9).contains(remaining)
+                    require(effect.target.as_ref().is_some_and(|target| captured_normal_damage_valid(state, target, *damage)) && (1..=9).contains(remaining)
                         && matches!(effect.target.as_ref(), Some(Actor::Enemy(id))
                             if state.enemies.iter().any(|enemy| &enemy.instance_id == id)),
                         "Barrage continuation damage/count/target")?;
@@ -2094,9 +2116,20 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         EffectKind::DrawOne=>require(state.full_runtime&&state.piles.hand.len()<10&&!state.piles.draw.is_empty(),"native draw-one membership/cap")?,
         EffectKind::AfterCardDrawn{card}=>require(state.full_runtime&&effect.target==Some(Actor::Player)&&state.piles.hand.iter().any(|c|c.handle()==*card),"native on-draw identity/target")?,
         EffectKind::GainEnergy(n) => {
+            if let Source::Card(owner) = &effect.source {
+                let energy_card = super::piles::owned_full_cards(state).find(|card| {
+                    super::card_state::handle(card.instance) == *owner
+                        && matches!(card.id, crate::content::CardId::Turbo | crate::content::CardId::Sunder)
+                });
+                if let Some(card) = energy_card {
+                    let amount = if card.id == crate::content::CardId::Sunder || card.upgrades > 0 { 3 } else { 2 };
+                    require(*n == amount && state.in_play.as_ref().is_some_and(|card| card.handle() == *owner),
+                        "Turbo or Sunder energy requires its current in-play owner")?;
+                }
+            }
             let capped=super::cards::defect::capped_energy_source(state,&effect.source,*n)||super::cards::watcher::capped_energy_source(state,&effect.source,*n);
-            if matches!(effect.source,Source::Potion{id:crate::content::PotionId::EnergyPotion,..}){
-                require(capped,"M20 energy potion retains its exact slot/amount/current owner")?;
+            if matches!(effect.source, Source::Potion { .. }) {
+                require(capped, "energy potion retains its exact slot, amount and current owner")?;
             }
             // BerserkPower grants its whole stacked amount at each start of turn; stacks add without a cap and never
             // shrink, so the queued gain is at most the live amount (spire-3xq F2-A).
@@ -2104,9 +2137,6 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 &&state.player_full_powers.iter().any(|p|p.id.0=="berserk"&&(1..=p.state.amount).contains(n));
             require(state.full_runtime && (if capped{*n>=0}else{(1..=4).contains(n)||berserk})
                 && effect.target == Some(Actor::Player), "native energy payload bounds/target")?;
-            if !capped&&i64::from(state.player.energy) + i64::from(*n) > 999 {
-                return Err(InputError::Unsupported("player energy overflow".into()));
-            }
         }
         // LoseEnergyAction keeps no card reference: a queued Void loss resolves
         // after a later action moves the drawn Void anywhere it remains owned.
@@ -2128,7 +2158,6 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     &&super::cards::curses::sourced_from(state,&effect.source,crate::content::CardId::Necronomicurse);
             require(state.full_runtime && supported && effect.target == Some(Actor::Player),
                 "native generated-card support/target")?;
-            super::piles::issued_card_capacity(state)?;
         }
         EffectKind::ExhaustHandCard { instance } => {
             require(state.full_runtime && effect.target.is_none()
@@ -2166,7 +2195,6 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 && *destination == super::command::CardDestination::Discard
                 && effect.target.is_none(),
                 "native copy mode/destination")?;
-            super::piles::issued_card_capacity(state)?;
             require(matches!((&effect.source, &state.in_play),
                 (Source::Card(owner), Some(card)) if owner == source && owner == &card.handle()),
                 "copy source must be the current in-play card")?;
@@ -2245,7 +2273,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                     &&pending.kind==EffectKind::FinishCard),
             "Infernal Blade generation requires its owned in-flight card continuation")?,
         EffectKind::Ironclad(super::cards::IroncladEffect::DropkickDispatch{damage}) => require(
-            state.full_runtime && (0..=30_012).contains(damage)
+            state.full_runtime && effect.target.as_ref().is_some_and(|target| captured_normal_damage_valid(state, target, *damage))
                 && matches!((&effect.source,&effect.target,&state.in_play),(Source::Card(owner),Some(Actor::Enemy(target)),Some(card))
                     if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Dropkick)
                         &&state.enemies.iter().any(|enemy|&enemy.instance_id==target&&enemy.life==super::ActorLife::Active&&enemy.hp>0)),
@@ -2257,7 +2285,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             "Rampage post-hit family growth owner/mode/amount")?,
         EffectKind::Ironclad(super::cards::IroncladEffect::ReaperResolve{targets,next,healed}) => require(
             state.full_runtime&&effect.target.is_none()&&*next<=targets.len()&&*healed>=0
-                &&targets.iter().all(|(_,damage)|(0..=30_012).contains(damage))
+                &&targets.iter().all(|(target, damage)| captured_normal_damage_valid(state, &Actor::Enemy(target.clone()), *damage))
                 &&matches!((&effect.source,&state.in_play),(Source::Card(owner),Some(card))
                     if owner==&card.handle()&&card.full().is_some_and(|live|live.id==crate::content::CardId::Reaper)),
             "Reaper ordered-hit progress owner/mode/bounds")?,
@@ -2326,7 +2354,7 @@ fn validate_exhaust_batch_finish(finish:&super::model::ExhaustBatchFinish,state:
         super::model::ExhaustBatchFinish::DamagePerExhaust{target,damage}
         |super::model::ExhaustBatchFinish::DamageAfterBatch{target,damage}=>{
             validate_actor(target,state)?;
-            require((0..=30_012).contains(damage),"exhaust batch damage bounds")
+            require(captured_normal_damage_valid(state, target, *damage),"exhaust batch damage bounds")
         }
     }
 }
@@ -2831,6 +2859,7 @@ pub(super) fn retain_error(state: &mut State, error: EffectError) {
     use super::rng::RngError;
     if state.fault.is_some() { return; }
     let (kind, message) = match error {
+        EffectError::Invalid(InputError::Bound(bound)) => (FaultKind::Bound(bound), bound.to_string()),
         EffectError::Invalid(InputError::Unsupported(message)) => (FaultKind::Unsupported, message),
         EffectError::Invalid(InputError::Invariant(message)) |
         EffectError::Random(RngError::Invalid(message)) => (FaultKind::Invariant, message),

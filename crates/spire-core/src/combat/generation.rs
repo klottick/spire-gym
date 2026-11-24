@@ -116,7 +116,7 @@ pub(super) fn capture(state:&mut State,effects:&mut [Effect])->Result<(),EffectE
 }
 
 pub(super) fn validate(state:&State,effect:&Effect,work:&GenerationWork)->Result<(),InputError>{
-    if !state.full_runtime||effect.target!=Some(Actor::Player)||work.count>999
+    if !state.full_runtime||effect.target!=Some(Actor::Player)
         ||work.next>work.cards.len()||work.cards.len()>work.count as usize
         ||(work.captured&&work.cards.len()!=work.count as usize)
         ||work.offer.is_some_and(|(_,copies)|work.count!=3||!work.unique||!(1..=2).contains(&copies)){
@@ -161,6 +161,11 @@ pub(super) fn validate(state:&State,effect:&Effect,work:&GenerationWork)->Result
 }
 
 pub(super) fn apply(state:&mut State,effect:&Effect,request:&GenerationWork)->Result<(),EffectError>{
+    if request.count > 999 {
+        return Err(InputError::Bound(super::EngineBound::new(
+            "generated_card_request", 999, i128::from(request.count),
+        )).into());
+    }
     let mut work=request.clone();
     let capture_result=capture_one(state,&mut work);
     if let Some(current)=state.current.as_mut(){current.kind=EffectKind::Generate(work.clone());}

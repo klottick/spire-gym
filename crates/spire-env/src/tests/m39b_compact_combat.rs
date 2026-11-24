@@ -707,3 +707,120 @@ fn compact_search_full_widens() {
     let right = child_dense.branch(None).unwrap();
     assert_widens(&child_compact.decision(left).unwrap().observation, &child_dense.decision(right).unwrap().observation);
 }
+
+fn sjh_catalog() -> CombatTrainingCatalog {
+    use serde_json::json;
+    let entry = json!({
+        "id": "head-recycle", "character": "ironclad", "ascension": 0,
+        "encounter": "giant_head", "hp": 80, "max_hp": 80, "gold": 0,
+        "deck": (["finesse", "finesse", "strike", "transmutation"].map(|card| json!({"card": card, "upgrades": 0}))),
+        "relics": ["sundial", "chemical_x"], "potions": [null, null, null]
+    });
+    let bytes = serde_json::to_vec(&json!({
+        "catalog_schema_id": STANDARD_COMBAT_CATALOG_SCHEMA_ID,
+        "profile_id": STANDARD_COMBAT_PROFILE_ID, "entries": [entry]
+    })).unwrap();
+    CombatTrainingCatalog::standard_from_json(&bytes).unwrap()
+}
+
+fn sjh_card_index(run: &spire_core::run::Run, id: spire_core::content::CardId) -> RunActionIndex {
+    use spire_core::{combat::CombatAction, run::GameAction};
+    let decision = run.decision().unwrap();
+    let combat = decision.combat.unwrap();
+    RunActionIndex(decision.candidates.iter().position(|candidate| {
+        let GameAction::Combat(CombatAction::PlayCard { instance, .. }) = candidate.action else { return false };
+        combat.hand.iter().any(|card| card.instance.0 == instance && card.id == id)
+    }).unwrap() as i64)
+}
+
+#[test]
+fn sjh_giant_head_long_turn() {
+    use spire_core::{combat::rng::Partition, content::{CardId, Character}};
+    let catalog = sjh_catalog();
+    let mut dense = CombatTrainingSession::new_standard(catalog.clone(), Partition::Test).unwrap();
+    let mut compact = CombatTrainingSession::new_standard_with_config(
+        catalog, Partition::Test, StandardCombatSessionConfig::compact(StandardCombatCapacityPreset::Play),
+    ).unwrap();
+    dense.reset(Some(7), None).unwrap();
+    compact.reset(Some(7), None).unwrap();
+    let mut run = RunSession::from_standard_supplied(
+        StandardRunConfig::new(Character::Ironclad, 0, Partition::Test),
+        dense.run_for_test().unwrap().clone(), 7,
+    ).unwrap();
+
+    for step in 0..1_606 {
+        let index = sjh_card_index(dense.run_for_test().unwrap(), CardId::Finesse);
+        let dense_token = dense.decision().unwrap().token;
+        let compact_token = compact.decision().unwrap().token;
+        let run_token = run.decision().unwrap().token;
+        dense.step(dense_token, index).unwrap_or_else(|error| panic!("play {step}: {error:?}"));
+        compact.step(compact_token, index).unwrap();
+        run.step(run_token, index).unwrap();
+    }
+    let actual = dense.run_for_test().unwrap().decision().unwrap().combat.unwrap();
+    assert_eq!(actual, compact.run_for_test().unwrap().decision().unwrap().combat.unwrap());
+    assert_eq!(actual, run.run_for_test().unwrap().decision().unwrap().combat.unwrap());
+    assert_eq!(actual.turn, 1);
+    assert_eq!(actual.enemies[0].hp, 500);
+    assert_eq!(actual.enemies[0].powers.iter().find(|power| power.id.0 == "slow").unwrap().amount, 1_606);
+    assert_eq!(actual.player.energy, 999);
+    assert_eq!(actual.player.block, 999);
+}
+
+#[test]
+fn sjh_bound_search_redaction_and_prefix() {
+    use spire_core::{combat::{EngineBound, rng::Partition}, content::{CardId, Character}};
+    let mut session = CombatTrainingSession::new_standard(sjh_catalog(), Partition::Test).unwrap();
+    let mut boundary = session.reset(Some(7), None).unwrap();
+    for _ in 0..1_510 {
+        let index = sjh_card_index(session.run_for_test().unwrap(), CardId::Finesse);
+        boundary = session.step(boundary.token, index).unwrap().boundary;
+    }
+    let limits = SearchLimits { max_live_branches: 3, max_branches: 3, max_steps_per_branch: 4, max_total_steps: 12 };
+    let mut search = PublicSearch::new(session.public_root().unwrap(), SearchConfig { research_seed: 17, limits }).unwrap();
+    let expected = EngineBound::new("generated_card_request", 999, 1_001);
+    let first = search.branch(Some(0)).unwrap();
+    let bad_index = sjh_card_index(search.branch_run_for_test(first), CardId::Transmutation);
+    let token = search.decision(first).unwrap().token;
+    assert_eq!(search.step(first, token, bad_index, BranchView::Full), Err(RunSessionError::EngineBound(expected)));
+    assert!(search.actions(first).unwrap().is_empty());
+    assert_eq!(search.decision(first).unwrap().info["end_reason"], "fault");
+
+    let bad = search.branch(Some(1)).unwrap();
+    let good = search.branch(Some(2)).unwrap();
+    let bad_index = sjh_card_index(search.branch_run_for_test(bad), CardId::Transmutation);
+    let good_index = sjh_card_index(search.branch_run_for_test(good), CardId::Finesse);
+    let requests = [
+        BranchStepRequest { branch: bad, token: search.decision(bad).unwrap().token, index: bad_index },
+        BranchStepRequest { branch: good, token: search.decision(good).unwrap().token, index: good_index },
+    ];
+    let outcomes = search.step_many(&requests, BranchView::Mask).unwrap();
+    assert!(matches!(&outcomes[0], BranchStepOutcome::Fault {
+        error: RunSessionError::EngineBound(bound), stage: "step", committed: true,
+    } if *bound == expected));
+    assert!(matches!(&outcomes[1], BranchStepOutcome::Stepped(_)));
+    assert!(search.actions(bad).unwrap().is_empty());
+    assert_eq!(search.actions(good).unwrap(), [good_index.0]);
+
+    let mut config = StandardRunConfig::new(Character::Ironclad, 0, Partition::Test);
+    config.record_replay = true;
+    let mut run = RunSession::from_standard_supplied(
+        config, session.run_for_test().unwrap().clone(), 7,
+    ).unwrap();
+    let good_index = sjh_card_index(run.run_for_test().unwrap(), CardId::Finesse);
+    run.step(run.decision().unwrap().token, good_index).unwrap();
+    let bad_index = sjh_card_index(run.run_for_test().unwrap(), CardId::Transmutation);
+    let error = run.step(run.decision().unwrap().token, bad_index).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(expected));
+    assert_eq!(run.fault_cause(), Some(error));
+    let record = run.record().unwrap().unwrap();
+    assert_eq!(record.steps.len(), 1);
+    let fault = record.fault.unwrap();
+    assert!(fault.committed);
+    assert!(!fault.gameplay_recorded);
+
+    let bad_index = sjh_card_index(session.run_for_test().unwrap(), CardId::Transmutation);
+    let error = session.step(boundary.token, bad_index).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(expected));
+    assert_eq!(session.fault_cause(), Some(error));
+}

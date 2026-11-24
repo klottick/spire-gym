@@ -112,7 +112,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
                 ||!state.item_context.as_ref().is_some_and(|i|i.consumed_potion_potency(slot,id)==Some(0)) {return Err(InputError::Invariant("stance potion must be consumed once before choice".into()).into())}
             state.watcher.stance_choice=Some(PendingStanceChoice{parent:SelectionParent::Potion{slot,id},options:vec![Stance::Wrath,Stance::Calm],resume_phase:state.phase});state.phase=Phase::Selection;
         },
-        WatcherEffect::PotionEnergy{amount,..}=>super::super::effects::gain_energy(state,*amount,true)?,
+        WatcherEffect::PotionEnergy{amount,..}=>super::super::effects::gain_energy(state, *amount),
         WatcherEffect::CreateRequest{id,count}=>{
             let kind=create_action(state,*id,*count)?;state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Player),kind});
         },
@@ -169,7 +169,7 @@ pub(in crate::combat) fn apply(state:&mut State,effect:&Effect,work:&WatcherEffe
         },
         WatcherEffect::StanceEnergy{reason}=>{
             let amount=match reason{StanceEnergy::CalmExit=>2,StanceEnergy::DivinityEntry=>3,StanceEnergy::VioletLotus=>1};
-            super::super::effects::gain_energy(state,amount,true)?;
+            super::super::effects::gain_energy(state, amount);
         },
         WatcherEffect::ReturnDiscard{card}=>{
             super::super::piles::retrieve_ordinary_from_discard(state,card)?;

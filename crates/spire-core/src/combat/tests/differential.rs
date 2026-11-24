@@ -171,7 +171,7 @@ fn outcome(o: Outcome) -> &'static str { match o {Outcome::Victory=>"victory",Ou
 fn phase(p: Phase) -> &'static str { match p {Phase::Decision=>"decision",Phase::Selection=>"selection",Phase::PlayerAction=>"player_action",
     Phase::EnemyTurn=>"enemy_turn",Phase::RoundEnd=>"round_end",Phase::PlayerStart=>"player_start",Phase::Terminal=>"terminal"} }
 fn fault(f: &FaultRecord) -> Value {
-    let kind=match f.kind {FaultKind::Unsupported=>"unsupported",FaultKind::Invariant=>"invariant",FaultKind::EffectGuard=>"effect_guard",FaultKind::RngExhausted=>"rng_exhausted"};
+    let kind=match f.kind {FaultKind::Unsupported=>"unsupported",FaultKind::Invariant=>"invariant",FaultKind::EffectGuard=>"effect_guard",FaultKind::Bound(_)=>"bound",FaultKind::RngExhausted=>"rng_exhausted"};
     json!({"kind":kind,"resolved_effects":f.resolved_effects})
 }
 fn combat_action(a: &CombatAction) -> Value { match a {
@@ -253,7 +253,7 @@ fn response(request: &Value) -> Value {
     let mut result=json!({"schema":SCHEMA,"case_id":case_id,"entry_error":null,"checkpoints":[]});
     let decoded=decode::request(request);
     let (scenario,actions)=match decoded {Ok(v)=>v,Err(e)=>{result["entry_error"]=json!(e);return result;}};
-    let mut c=match Combat::new(&scenario) {Ok(c)=>c,Err(e)=>{result["entry_error"]=json!(match e {InputError::Invariant(_)=>"invariant",InputError::Unsupported(_)=>"unsupported"});return result;}};
+    let mut c=match Combat::new(&scenario) {Ok(c)=>c,Err(e)=>{result["entry_error"]=json!(match e {InputError::Invariant(_)=>"invariant",InputError::Unsupported(_)=>"unsupported",InputError::Bound(_)=>"bound"});return result;}};
     let mut points=vec![record(&c,0,None)];
     for (i,raw) in actions.iter().enumerate() {
         // Restore a detached safe checkpoint before every action and compare full results.

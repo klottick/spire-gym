@@ -9,6 +9,17 @@ pub enum RunSessionError {
     Budget(&'static str),
     /// M34s-b: the search branch is faulted (never retried or revived).
     BranchFaulted,
+    /// A redacted search fault. Contains no native owner or sampled identities.
+    EngineBound(spire_core::combat::EngineBound),
+}
+impl RunSessionError {
+    pub fn engine_bound(&self) -> Option<spire_core::combat::EngineBound> {
+        match self {
+            Self::Core(error) => error.engine_bound(),
+            Self::EngineBound(bound) => Some(*bound),
+            _ => None,
+        }
+    }
 }
 use spire_core::{combat::rng::Partition,content::Character,run::*};
 use crate::{RunCapacities,RunObservation};
@@ -45,9 +56,9 @@ pub const RUN_CONTENT_ID_M17:&str="spire-gym-m17-defect-a0-act1-captured-v1";
 pub const RUN_RECORD_SCHEMA_ID_M15: &str = "spire-gym-m15-silent-heart-replay-v1";
 pub const RUN_SEED_ADAPTER_ID: &str = "spire-gym-run-u64-le-v1";
 pub const RUN_RULES_ID_V1: &str = "spire-gym-native-m9-rules-v1";
-pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v5";
+pub const RUN_RULES_ID: &str = "spire-gym-native-m9-rules-v6";
 pub(crate) const RUN_CONTENT_ID: &str = "spire-gym-m9-ironclad-a0-captured-v1";
-pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v4";
+pub const RUN_RULES_ID_M10: &str = "spire-gym-native-m10-rules-v5";
 pub const RUN_CONTENT_ID_M10: &str = "spire-gym-m10-ironclad-a0-captured-v1";
 pub const RUN_RULES_ID_M12: &str = "spire-gym-native-m12-rules-v1";
 pub const RUN_CONTENT_ID_M12: &str = "spire-gym-m12-silent-a0-act1-captured-v1";
@@ -69,7 +80,7 @@ pub const RUN_RECORD_SCHEMA_ID_STANDARD:&str="spire-gym-standard-run-replay-v1";
 /// Bone before the victory heals, static card costs (also in no-target windows), Time Warp and cancelled queued-card
 /// cleanup, Omamori on event transforms, an enemy dies once, Tomb gold with Ectoplasm, The Boot before Invincible,
 /// selection-boundary validators (queued repeats, Nightmare after a start-of-turn Scry) and the end-of-turn retain order.
-pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v7";
+pub const RUN_RULES_ID_STANDARD:&str="spire-gym-native-standard-rules-v8";
 pub const RUN_CONTENT_ID_STANDARD:&str="spire-gym-standard-content-v1";
 static SESSION_IDS: crate::identity::PoolIdAllocator = crate::identity::PoolIdAllocator::new(1);
 /// All owners of RunDecisionToken share one checked transport namespace.
@@ -453,6 +464,7 @@ impl RunRecordError{
         let (kind,message,capacity)=match error{
             RunSessionError::Input(s)=>(K::Input,(*s).to_owned(),None),RunSessionError::StaleToken=>(K::StaleToken,"stale token".into(),None),
             RunSessionError::NotReset=>(K::NotReset,"not reset".into(),None),RunSessionError::Terminal=>(K::Terminal,"terminal".into(),None),RunSessionError::Closed=>(K::Closed,"closed".into(),None),
+            RunSessionError::EngineBound(bound) => (K::Core, bound.to_string(), None),
             RunSessionError::Core(e)=>{let message=match e{RunError::Faulted(f)=>format!("{}: {}",f.checkpoint,match &f.kind{RunFaultKind::UnsupportedBoundary(s)|RunFaultKind::Invariant(s)=>*s,RunFaultKind::Combat(_)=>"combat fault (full owner retained in reproduction)"}),_=>format!("{e:?}")};(K::Core,message,None)},
             RunSessionError::Capacity{group,required,capacity}=>(K::Capacity,"Run capacity exceeded".into(),Some(RunCapacityFailure{group:(*group).into(),required:*required,capacity:*capacity})),
             RunSessionError::UnsupportedBoundary(s)=>(K::UnsupportedBoundary,(*s).into(),None),RunSessionError::DeliveryFault(s)=>(K::DeliveryFault,(*s).into(),None),RunSessionError::IncompatibleReplay(s)=>(K::IncompatibleReplay,(*s).into(),None),

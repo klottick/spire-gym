@@ -68,8 +68,7 @@ pub(super) fn apply(state: &mut super::model::State, source: &Source,
             let previous=state.character.stance;
             if previous==next {return Ok(())}
             if previous==Stance::Calm {
-                state.player.energy=state.player.energy.checked_add(2).filter(|n|*n<=999)
-                    .ok_or_else(||super::InputError::Unsupported("stance energy outside supported bounds".into()))?;
+                super::effects::gain_energy(state, 2);
             }
             state.character.stance=next;
             super::effects::refresh_enemy_values(state)?;
@@ -99,7 +98,7 @@ pub(super) fn apply(state: &mut super::model::State, source: &Source,
             }
         }
         CharacterEffect::Lightning{amount}=>lightning(state,source,amount)?,
-        CharacterEffect::OrbEnergy(amount)=>{state.player.energy=state.player.energy.saturating_add(amount).min(999);}
+        CharacterEffect::OrbEnergy(amount) => super::effects::gain_energy(state, amount),
     }
     Ok(())
 }

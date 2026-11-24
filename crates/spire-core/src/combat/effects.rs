@@ -379,7 +379,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             // The target's powers run after the attacker's relic modifiers (AbstractMonster.damage: Block, then The
             // Boot, then attacker powers, then Invincible), so the cap sees the final damage (spire-d8g E5).
             if let Some(quota)=invincible {let permitted=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){quota}else{block_at_entry.saturating_add(quota)};damage=damage.min(permitted);}
-            let wide_mutable_attack=super::cards::defect::valid_mutable_attack_source(state,&effect.source)||super::cards::watcher::valid_mutable_attack_source(state,&effect.source);
+            let wide_fixed_damage = matches!(payload, DamagePayload::Fixed(n) if super::engine::wide_slow_damage_valid(state, effect, *n))
+                || super::cards::defect::valid_mutable_attack_source(state, &effect.source)
+                || super::cards::watcher::valid_mutable_attack_source(state, &effect.source);
             let (hp_before,block_before,next_hp,next_block)={
                 let (hp, block) = match target {
                     Actor::Player => (&mut state.player.hp, &mut state.player.block),
@@ -388,7 +390,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 let hp_before=*hp;let block_before=*block;
                 let (next_hp,next_block)=if matches!(payload,DamagePayload::HpLoss(_)|DamagePayload::PoisonTickHpLoss{..}){
                     ((i64::from(hp_before)-i64::from(damage)).max(0) as i32,*block)
-                }else if full_runtime&&(matches!(payload,DamagePayload::Orb(_))||matches!(payload,DamagePayload::Fixed(_))&&wide_mutable_attack){
+                }else if full_runtime&&(matches!(payload,DamagePayload::Orb(_))||matches!(payload,DamagePayload::Fixed(_))&&wide_fixed_damage){
                     rules::full_wide_hp_and_block_after_damage(hp_before,*block,damage)?
                 }else if full_runtime{rules::full_hp_and_block_after_damage(hp_before,*block,damage)?}
                 else{rules::hp_and_block_after_damage(hp_before,*block,damage)?};
@@ -811,7 +813,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 target: Some(Actor::Player), kind: EffectKind::Heal(*n) });
         }
         EffectKind::GainEnergy(n) => {
-            gain_energy(state,*n,super::cards::defect::capped_energy_source(state,&effect.source,*n)||super::cards::watcher::capped_energy_source(state,&effect.source,*n))?;
+            gain_energy(state, *n);
         }
         EffectKind::LoseEnergy(n)=>{state.player.energy=(state.player.energy-*n).max(0);},
         EffectKind::ApplyPower { id, amount: delta } => {
@@ -1156,11 +1158,9 @@ pub(in crate::combat) fn begin_selection_range(state:&mut State,parent:super::se
     Ok(())
 }
 
-/// Shared gain owner; source-specific producers decide the qualified local cap.
-pub(in crate::combat) fn gain_energy(state:&mut State,amount:i32,capped:bool)->Result<(),InputError>{
-    state.player.energy=if capped{state.player.energy.saturating_add(amount).min(999)}
-        else{state.player.energy.checked_add(amount).filter(|energy|*energy<=999).ok_or_else(||InputError::Unsupported("player energy overflow".into()))?};
-    Ok(())
+/// A legal gain succeeds even when the live energy meter is full.
+pub(in crate::combat) fn gain_energy(state: &mut State, amount: i32) {
+    state.player.energy = state.player.energy.saturating_add(amount).min(999);
 }
 
 fn apply_hook(state:&mut State,effect:&Effect,hook:&Hook)->Result<(),EffectError>{

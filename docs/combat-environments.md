@@ -397,3 +397,12 @@ learner compatibility is promised. Unmodified full `check_env`,
 and are **not claimed**. No checker/sampling monkeypatch, deterministic metadata
 disablement or padded-action acceptance is used. Framework adapters and performance/
 learning milestones require separate scope and verification.
+
+
+## Standalone combat engine bounds
+
+StandardCombatEnv, StandardCombatVectorEnv, NativeCombatTrainingBatch and
+PublicSearch branches share the [engine bounds](standard-run-api.md#engine-bounds)
+contract in both dense and compact layouts. Giant Head's Slow stack count and
+the live energy cap are gameplay values. The remaining typed limits are
+separate from observation capacity and caller-imposed search budgets.

@@ -444,15 +444,30 @@ fn m20_defect_direct_energy_potion_saturates_same_energy_owner_base_and_bark(){
     }
 }
 #[test]
-fn m20_defect_direct_energy_cap_preserves_old_profiles_and_rejects_unowned_work(){
+fn m20_defect_direct_energy_cap_in_earlier_profiles_and_rejects_unowned_work(){
     use crate::content::PotionId;
     let mut old=i1_energy_fixture(CardId::Sunder,0,Some((CardId::Madness,998)),vec![],None,false);
-    let action=CombatAction::PlayCard{instance:10,target:Some(TargetId(1))};let error=old.step_full(&action).expect_err("old Sunder overflow remains frozen");assert_eq!(old.state.player.energy,998);assert_eq!(old.state.enemies[0].hp,0);assert!(matches!(old.state.current,Some(Effect{kind:EffectKind::GainEnergy(3),..})));let retained=old.clone();assert_eq!(old.step_full(&action),Err(error));assert_eq!(old,retained);
-    let mut old=i1_energy_fixture(CardId::DefendBlue,0,None,vec![],Some(PotionId::EnergyPotion),false);let before=old.clone();assert!(old.step_full(&CombatAction::UsePotion{slot:0,target:None}).is_err());assert_eq!(old,before);
+    let action=CombatAction::PlayCard{instance:10,target:Some(TargetId(1))};
+    old.step_full(&action).expect("the shared gain cap also applies to Sunder in the earlier Defect profile");
+    assert_eq!(old.state.player.energy, 999);
+    assert_eq!(old.state.enemies[0].hp, 0);
+    assert!(old.state.current.is_none() && old.state.pending.is_empty());
+    let retained = old.clone();
+    assert!(old.step_full(&action).is_err());
+    assert_eq!(old, retained);
+    let mut old = i1_energy_fixture(CardId::DefendBlue, 0, None, vec![], Some(PotionId::EnergyPotion), false);
+    let mut foreign = old.clone();
+    let potion = CombatAction::UsePotion { slot: 0, target: None };
+    old.step_full(&potion).expect("earlier Energy Potion also succeeds at the shared cap");
+    assert_eq!(old.state.player.energy, 999);
+    assert_eq!(old.item_context().unwrap().potions(), &[None; 3]);
+    let retained = old.clone();
+    assert!(old.step_full(&potion).is_err());
+    assert_eq!(old, retained);
     let mut c=i1_energy_fixture(CardId::DefendBlue,0,None,vec![],Some(PotionId::EnergyPotion),true);
-    for (source,target,amount)in [(Source::None,Some(Actor::Player),2),(Source::Actor(Actor::Player),Some(Actor::Player),2),(Source::Potion{slot:1,id:PotionId::EnergyPotion},Some(Actor::Player),2),(Source::Potion{slot:0,id:PotionId::WeakPotion},Some(Actor::Player),2),(Source::Potion{slot:0,id:PotionId::EnergyPotion},Some(Actor::Player),3),(Source::Potion{slot:0,id:PotionId::EnergyPotion},Some(Actor::Enemy(c.state.enemies[0].instance_id.clone())),2)]{
+    for (source,target,amount)in [(Source::None,Some(Actor::Player),5),(Source::Actor(Actor::Player),Some(Actor::Player),5),(Source::Potion{slot:1,id:PotionId::EnergyPotion},Some(Actor::Player),2),(Source::Potion{slot:0,id:PotionId::WeakPotion},Some(Actor::Player),2),(Source::Potion{slot:0,id:PotionId::EnergyPotion},Some(Actor::Player),3),(Source::Potion{slot:0,id:PotionId::EnergyPotion},Some(Actor::Enemy(c.state.enemies[0].instance_id.clone())),2)]{
         let before=c.clone();assert!(c.enqueue_native_effects(vec![Effect{source,target,kind:EffectKind::GainEnergy(amount)}],None).is_err());assert_eq!(c,before,"forged work cannot mutate before rejection");
     }
     let before=c.clone();assert!(c.enqueue_native_effects(vec![Effect{source:Source::Potion{slot:0,id:PotionId::EnergyPotion},target:Some(Actor::Player),kind:EffectKind::GainEnergy(2)}],None).is_err());assert_eq!(c,before,"an occupied lawful potion source still requires exact consumed-slot capture");
-    let mut foreign=old.clone();let before=foreign.clone();assert!(foreign.enqueue_native_effects(vec![Effect{source:Source::Potion{slot:0,id:PotionId::EnergyPotion},target:Some(Actor::Player),kind:EffectKind::GainEnergy(2)}],None).is_err());assert_eq!(foreign,before);
+    let before=foreign.clone();assert!(foreign.enqueue_native_effects(vec![Effect{source:Source::Potion{slot:0,id:PotionId::EnergyPotion},target:Some(Actor::Player),kind:EffectKind::GainEnergy(2)}],None).is_err());assert_eq!(foreign,before);
 }

@@ -367,6 +367,7 @@ fn split<T>(chunks: &mut [T], width: usize, count: usize) -> Vec<&mut [T]> {
 
 /// The Python-facing message of a session error (the scalar `RunEnv` texts; core faults stay redacted).
 pub(crate) fn error_message(error: &RunSessionError, combat: bool) -> String {
+    if let Some(bound) = error.engine_bound() { return bound.to_string(); }
     match error {
         RunSessionError::Input(s) | RunSessionError::UnsupportedBoundary(s) | RunSessionError::DeliveryFault(s)
         | RunSessionError::IncompatibleReplay(s) | RunSessionError::Budget(s) => (*s).to_owned(),
@@ -377,6 +378,7 @@ pub(crate) fn error_message(error: &RunSessionError, combat: bool) -> String {
         RunSessionError::Capacity { group, required, capacity } => format!("Run capacity {group}: {required} > {capacity}"),
         RunSessionError::Core(_) if combat => "native combat fault; inspect privileged reproduction".to_owned(),
         RunSessionError::Core(_) => "native Run fault; inspect privileged reproduction".to_owned(),
+        RunSessionError::EngineBound(bound) => bound.to_string(),
         RunSessionError::BranchFaulted => "search branch is faulted".to_owned(),
     }
 }
@@ -386,6 +388,7 @@ pub(crate) fn error_message(error: &RunSessionError, combat: bool) -> String {
 pub(crate) struct SlotStatus {
     pub status: &'static str, pub stage: Option<&'static str>, pub committed: Option<bool>, pub recoverable: Option<bool>,
     pub message: Option<String>,
+    pub bound: Option<spire_core::combat::EngineBound>,
 }
 pub(crate) fn slot_status(report: &SlotReport, combat: bool) -> SlotStatus {
     let message = report.error.as_ref().map(|e| error_message(e, combat));
@@ -395,7 +398,8 @@ pub(crate) fn slot_status(report: &SlotReport, combat: bool) -> SlotStatus {
         SlotDelivery::Faulted { stage, committed, .. } => (Some(stage.label()), Some(committed), Some(committed && stage == BatchFaultStage::Autoreset)),
         SlotDelivery::Delivered | SlotDelivery::Unaffected => (None, None, None),
     };
-    SlotStatus { status: report.delivery.label(), stage, committed, recoverable, message }
+    let bound = report.error.as_ref().and_then(RunSessionError::engine_bound);
+    SlotStatus { status: report.delivery.label(), stage, committed, recoverable, message, bound }
 }
 pub(crate) fn fault_cause_record(error: &RunSessionError) -> spire_env::RunRecordError {
     let mut record = spire_env::RunRecordError::from_error(error);

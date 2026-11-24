@@ -168,10 +168,12 @@ pub(super) fn apply_effect(state: &mut State, effect: &Effect) -> Result<(), Eff
 }
 
 /// A combat issues at most 999 card identities (deck included; identities are never reused). Reaching that bound is the
-/// engine's typed `Unsupported` boundary on every generation path (spire-3xq F2-C); the original has no such cap.
-pub(super) fn issued_card_capacity(state: &State) -> Result<(), InputError> {
+/// engine's typed bound on every generation path (spire-3xq F2-C); the original has no such cap.
+fn issued_card_capacity(state: &State) -> Result<(), InputError> {
     if state.card_ids_issued.len() >= 999 {
-        return Err(InputError::Unsupported("generated card count/runtime boundary".into()));
+        return Err(InputError::Bound(super::EngineBound::new(
+            "issued_combat_cards", 999, state.card_ids_issued.len() as i128 + 1,
+        )));
     }
     Ok(())
 }
@@ -188,7 +190,9 @@ pub(super) fn next_generated_instance(state: &State) -> Result<super::CardInstan
         maximum = maximum.max(issued);
     }
     let next = maximum.checked_add(1)
-        .ok_or_else(|| InputError::Unsupported("generated card identity exhausted".into()))?;
+        .ok_or_else(|| InputError::Bound(super::EngineBound::new(
+            "combat_card_identity", i128::from(u64::MAX), i128::from(maximum) + 1,
+        )))?;
     let handle = CardHandle::parse(&next.to_string())?;
     if state.card_ids_issued.contains(&handle) {
         return Err(InputError::Invariant("generated card identity collision".into()));

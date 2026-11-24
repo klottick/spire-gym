@@ -291,11 +291,15 @@ fn finite_stat_artifact_and_energy_potions_drive_real_consumers_with_bark() {
     let mut entry = fixture(EnemyId::JawWorm, 7);
     entry.setup.player.max_energy = 998;
     let mut combat = entered(entry, vec![Some(PotionId::EnergyPotion)]);
-    let before = combat.snapshot();
     let action = CombatAction::UsePotion { slot: 0, target: None };
+    assert!(combat.legal_actions_full().unwrap().contains(&action));
+    combat.step_full(&action).unwrap();
+    let view = combat.public_full().unwrap();
+    assert_eq!((view.player.energy, view.player.max_energy), (999, 998));
     assert!(!combat.legal_actions_full().unwrap().contains(&action));
+    let consumed = combat.snapshot();
     assert_eq!(combat.step_full(&action), Err(RunError::InvalidAction));
-    assert_eq!(combat.snapshot(), before);
+    assert_eq!(combat.snapshot(), consumed);
 }
 
 #[test]

@@ -236,3 +236,82 @@ def test_pre_m34s_standard_record_is_typed_input_error():
     # Rules id v2 (M34s-a) is checked before the fingerprint; both make a pre-M34s record incompatible.
     with pytest.raises(_native.RunInputError, match="Run identity mismatch"):
         _native.NativeRunSession.replay(fixture.read_bytes())
+
+
+def test_sjh_generation_bound_retains_scalar_and_batch_custody():
+    from spire_lab.gymnasium import StandardCombatVectorEnv
+
+    row = entry("generation-bound", encounter="giant_head", deck=["transmutation"])
+    row["relics"] = ["chemical_x"]
+    row["position"] = {"player": {"energy": 999}}
+    value = catalog(row)
+    expected = {"counter": "generated_card_request", "limit": 999, "attempted": 1001}
+    with StandardCombatEnv(value) as env:
+        obs, _ = env.reset(seed=7)
+        action = legal_action(obs, env.observation_spec(), "play_card")
+        with pytest.raises(_native.RunFaultError) as caught:
+            env.step(action)
+        assert caught.value.bound == expected
+        assert env.fault_cause()["bound"] == expected
+
+    env = StandardCombatVectorEnv(value, 1, partition="test", workers=1, fault_policy="freeze")
+    try:
+        obs, _ = env.reset(seed=[7])
+        action = legal_action({key: column[0] for key, column in obs.items()}, env.observation_spec(), "play_card")
+        with pytest.raises(_native.BatchFaultError) as caught:
+            env.step(np.asarray([action], dtype=np.int64))
+        slot = caught.value.slots[0]
+        assert slot["bound"] == expected
+        assert (slot["stage"], slot["committed"], slot["recoverable"]) == ("step", True, False)
+        assert env.fault_cause(0)["bound"] == expected
+    finally:
+        env.close()
+
+
+def test_sjh_generation_bound_is_value_only_in_search_and_isolated_rows():
+    from spire_lab.gymnasium import StandardCombatVectorEnv
+
+    row = entry("search-bound", encounter="giant_head", deck=["transmutation"])
+    row["relics"] = ["chemical_x"]
+    row["position"] = {"player": {"energy": 999}}
+    value = catalog(row)
+    expected = {"counter": "generated_card_request", "limit": 999, "attempted": 1001}
+    with StandardCombatEnv(value) as env:
+        env.reset(seed=7)
+        search = env.public_search(17, max_live_branches=2, max_branches=2,
+                                   max_steps_per_branch=2, max_total_steps=4)
+        try:
+            single = search.branch(0)
+            single_obs, _ = single.decision()
+            action = legal_action(single_obs, search.observation_spec(), "play_card")
+            with pytest.raises(_native.RunFaultError) as caught:
+                single.step(action)
+            assert vars(caught.value) == {"bound": expected}
+            assert single.actions() == []
+
+            bulk = search.branch(1)
+            bulk_obs, _ = bulk.decision()
+            action = legal_action(bulk_obs, search.observation_spec(), "play_card")
+            _, _, terminated, truncated, info = search.step_many([bulk], [action], view="mask")
+            fault = info["fault"][0]
+            assert set(fault) == {"stage", "committed", "message", "bound"}
+            assert fault["bound"] == expected
+            assert fault["stage"] == "step" and fault["committed"]
+            assert not terminated[0] and not truncated[0]
+            assert bulk.actions() == []
+        finally:
+            search.close()
+
+    env = StandardCombatVectorEnv(value, 1, partition="test", workers=1, fault_policy="isolate")
+    try:
+        obs, _ = env.reset(seed=[7])
+        action = legal_action({key: column[0] for key, column in obs.items()}, env.observation_spec(), "play_card")
+        _, rewards, terminated, truncated, info = env.step(np.asarray([action], dtype=np.int64))
+        assert info["fault"][0]["bound"] == expected
+        assert info["fault"][0]["stage"] == "step" and info["fault"][0]["committed"]
+        assert not terminated[0] and not truncated[0] and rewards[0] == 0
+        env.reset(seed=[8])
+        assert env.fault_cause(0) is None
+        assert env.take_fault_records()[0]["fault_cause"]["bound"] == expected
+    finally:
+        env.close()

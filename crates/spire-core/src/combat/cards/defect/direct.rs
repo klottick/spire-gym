@@ -267,9 +267,9 @@ pub(super) fn validate_work(state:&State,effect:&Effect,work:&DirectEffect)->Res
                 _=>false};
             valid_card&&*remaining>0&&effect.target.is_none()
         }
-        DirectEffect::Melter{damage}=>card.id==Melter&&(0..=30_012).contains(damage)
+        DirectEffect::Melter{damage}=>card.id==Melter&&effect.target.as_ref().is_some_and(|target| super::super::super::engine::captured_normal_damage_valid(state, target, *damage))
             &&enemy_target(state,effect,true).is_ok(),
-        DirectEffect::Sunder{damage}=>card.id==Sunder&&(0..=30_012).contains(damage)
+        DirectEffect::Sunder{damage}=>card.id==Sunder&&effect.target.as_ref().is_some_and(|target| super::super::super::engine::captured_normal_damage_valid(state, target, *damage))
             &&enemy_target(state,effect,true).is_ok(),
         DirectEffect::SunderCheck=>card.id==Sunder&&enemy_target(state,effect,false).is_ok(),
     };

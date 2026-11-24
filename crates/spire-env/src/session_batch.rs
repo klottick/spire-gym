@@ -88,7 +88,10 @@ pub enum SessionBatchError {
 
 /// The fault shown on an isolated slot's row (design §3.3).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SlotFaultRow { pub stage: BatchFaultStage, pub message: String, pub committed: bool }
+pub struct SlotFaultRow {
+    pub stage: BatchFaultStage, pub message: String, pub committed: bool,
+    pub bound: Option<spire_core::combat::EngineBound>,
+}
 /// One session step as the batch sees it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BatchStep<B> { pub boundary: B, pub reward: i32, pub reward_events: Vec<RewardItem>, pub terminated: bool, pub truncated: bool }
@@ -318,7 +321,9 @@ fn stage(operation: BatchFaultStage, committed: bool, error: &Error) -> BatchFau
     if committed && !matches!(error, Error::Core(_)) { BatchFaultStage::Encode } else { operation }
 }
 fn fault_row(fault: &JobFault) -> SlotFaultRow {
-    SlotFaultRow { stage: fault.stage, message: crate::RunRecordError::from_error(&fault.error).message, committed: fault.committed }
+    let bound = fault.error.engine_bound();
+    let message = bound.map_or_else(|| crate::RunRecordError::from_error(&fault.error).message, |bound| bound.to_string());
+    SlotFaultRow { stage: fault.stage, message, committed: fault.committed, bound }
 }
 /// Reset a slot (records its finished episode first). Errors and panics are retained by the session.
 fn reset_slot<S: BatchSession>(session: &mut S, seed: Option<u64>, entry: Option<&str>, operation: BatchFaultStage, inject: Option<TestInject>,

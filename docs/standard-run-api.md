@@ -24,7 +24,7 @@ source contract.
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
 | Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
-| Rules / content | `spire-gym-native-standard-rules-v7` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; v6 for spire-d8g: victory effects on a Smoke Bomb escape; target-independent card costs, so every effect that reads a card's cost also sees it when no enemy is targetable, as in the original (CHANGES lists the effects); Time Warp's 12th card played by Distilled Chaos, directly or through a card it played, and the cleanup of cancelled queued cards; Meat on the Bone's threshold before the victory heals; Omamori on event transforms; an enemy dies once; Tomb of Lord Red Mask's gold with Ectoplasm; The Boot before the Heart's Invincible cap; queued repeats waiting behind an open selection; Nightmare after a start-of-turn Scry; and retained cards restored before end-of-turn exhaust effects; v7 for spire-d4h copy and top-card autoplay ordering; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
+| Rules / content | `spire-gym-native-standard-rules-v8` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; v6 for spire-d8g: victory effects on a Smoke Bomb escape; target-independent card costs, so every effect that reads a card's cost also sees it when no enemy is targetable, as in the original (CHANGES lists the effects); Time Warp's 12th card played by Distilled Chaos, directly or through a card it played, and the cleanup of cancelled queued cards; Meat on the Bone's threshold before the victory heals; Omamori on event transforms; an enemy dies once; Tomb of Lord Red Mask's gold with Ectoplasm; The Boot before the Heart's Invincible cap; queued repeats waiting behind an open selection; Nightmare after a start-of-turn Scry; and retained cards restored before end-of-turn exhaust effects; v7 for spire-d4h copy and top-card autoplay ordering; v8 for spire-sjh Slow and energy handling; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
 | Capacity preset / vocabulary manifest | `standard-default-v1` / `standard-vocab-v1` |
 | Compact observation (M38e, opt-in) | `spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`, fingerprint `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that preset ([below](#compact-observation-m38e)) |
@@ -868,3 +868,39 @@ completed 84/84. It is diagnostic coverage, not a normal traversal or routine
 gate. The 2026-10-30 scope rule permits a supplied victory; it supersedes the
 older spire-dxo.21 ACC language that excluded teleports or injected resources
 from full-run success. This section labels the route supplied accordingly.
+
+
+## Engine bounds
+
+Giant Head's Slow counts completed card plays in the current round. Normal
+damage uses the original binary32 multiplier, with a final signed 32-bit
+conversion. Slow resets to zero at round end. Live energy gains succeed at the
+999 cap. There is no 1,000-action limit.
+
+A native engine bound carries a stable counter, the maximum allowed value and
+the value the operation attempted.
+
+| Counter | Limit | Attempt |
+|---|---:|---|
+| `slow` | 2,147,483,647 | A completed play attempts to add a stack above the signed 32-bit maximum |
+| `generated_card_request` | 999 | One generation request exceeds the limit, for example Transmutation with 999 energy and Chemical X requests 1,001 |
+| `issued_combat_cards` | 999 | An operation attempts to issue the 1,000th identity, counting the starting combat deck and all previously issued identities |
+| `combat_card_identity` | 18,446,744,073,709,551,615 | The allocator attempts the next numeric identity above the unsigned 64-bit maximum |
+
+Native Run and standalone combat errors expose the value through
+`engine_bound()`. In Python, an applicable `RunFaultError` has a `bound`
+dictionary. The same optional dictionary appears in `fault_cause()` and
+applicable [batch reports](batching.md#engine-bound-faults). Its keys are
+`counter`, `limit`, `attempted` and, for a power limit, `power_id`. These
+reports use exact Python integers. PublicSearch supplies these same fields
+for single and bulk faults and redacts retained native work and identities.
+
+A bound reached during resolution is a committed fault. The action can
+partially mutate the owner. Replay keeps the last successfully delivered
+prefix and records the attempted fault separately where the session supports
+fault records. A faulted search branch retains its accepted prefix. The
+fault does not deliver a terminal or truncation transition. Explicit reset
+and batch replacement use the existing owner-specific policies.
+
+Other reachable guards, including some power, damage, maximum HP and permanent
+resource limits, are tracked for follow-up under spire-sjh.

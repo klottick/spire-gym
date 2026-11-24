@@ -73,7 +73,9 @@ pub const HIDDEN_ORDER_PICK: &str = "a pick among identical draw-pile copies dep
 /// The class-only error for a core fault or core error inside a root or a branch (final review v3): a core error can carry
 /// the attempted action, whose card instance handle is outside the public information set, so the arena never returns it.
 pub const BRANCH_CORE_FAULT: &str = "search core fault (redacted)";
-fn redacted(_: spire_core::run::RunError) -> Error { Error::DeliveryFault(BRANCH_CORE_FAULT) }
+fn redacted(core: spire_core::run::RunError) -> Error {
+    core.engine_bound().map_or(Error::DeliveryFault(BRANCH_CORE_FAULT), Error::EngineBound)
+}
 /// Redact a core error coming out of a shared publication or session helper.
 fn redact(e: Error) -> Error { match e { Error::Core(core) => redacted(core), e => e } }
 /// Declared search limits (design §4.7), validated against [`SEARCH_HARD_CAPS`].
