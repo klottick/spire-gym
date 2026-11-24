@@ -5,7 +5,7 @@ evaluation environment for external machine-learning tools. One Rust engine owns
 game state and rules. Thin Python/Gymnasium facades expose it. There is no graphical
 client, and no models or training code live here.
 
-**Current release: [v1.2.1](https://github.com/klottick/spire-gym/releases/tag/v1.2.1).**
+**Current release: [v1.2.2](https://github.com/klottick/spire-gym/releases/tag/v1.2.2).**
 The roadmap is complete, and the public contracts are under a
 [versioned freeze](docs/delivery.md#freeze-and-change-protocol).
 
@@ -80,7 +80,7 @@ obs, info = env.reset(seed=7)
 ```
 
 A prebuilt Linux wheel for CPython 3.12 is attached to the
-[v1.2.1 release](https://github.com/klottick/spire-gym/releases/tag/v1.2.1). Check `spire_lab._native.build_info()`
+[v1.2.2 release](https://github.com/klottick/spire-gym/releases/tag/v1.2.2). Check `spire_lab._native.build_info()`
 against the release's published `source_digest`.
 
 ## Examples
@@ -153,7 +153,7 @@ explicit error rather than diverging silently.
 - [Profiling](docs/profiling.md): where the time goes, and the proposed fixes.
 - [Development](docs/development.md): toolchain, build, test lanes and extension identity.
 - [Milestones](docs/milestones/README.md): the M1–M36 history and per-milestone evidence.
-- Release notes for [v1.2.1](docs/releases/v1.2.1.md), [v1.2.0](docs/releases/v1.2.0.md), [v1.1.1](docs/releases/v1.1.1.md), [v1.1.0](docs/releases/v1.1.0.md) and [v1.0.0](docs/releases/v1.0.0.md), and the earlier [README](docs/handoffs/2026-11-11-readme-history.md).
+- Release notes for [v1.2.2](docs/releases/v1.2.2.md), [v1.2.1](docs/releases/v1.2.1.md), [v1.2.0](docs/releases/v1.2.0.md), [v1.1.1](docs/releases/v1.1.1.md), [v1.1.0](docs/releases/v1.1.0.md) and [v1.0.0](docs/releases/v1.0.0.md), and the earlier [README](docs/handoffs/2026-11-11-readme-history.md).
 
 ## Licensing, attribution and trademarks
 
