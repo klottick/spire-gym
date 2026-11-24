@@ -435,6 +435,7 @@ fn grid_published(public: &PublicKnowledge, pre: &[(u64, CardClass)], class: Car
         ([], []) => Ok(Published::No),
         ([i], []) if copies == 1 => Ok(Published::Top(*i)),
         ([], [i]) if copies == 1 => Ok(Published::Bottom(*i)),
+        ([i], [j]) if copies == 1 && i + 1 + j == pre.len() => Ok(Published::Top(*i)),
         _ => Err(Unrepresentable),
     }
 }
@@ -609,12 +610,67 @@ fn insert_v1(out: &mut Acc, w: Ratio, s: &[Segment], c: u16) -> Result<(), Unrep
     out.push(w, head.into_iter().chain(std::iter::once(Segment::Bag(bag))).collect())
 }
 
-/// Fail-closed tie guard (PM item-5 verdicts): an unknown draw card with `purge` or `rebound_on_finish`, a shared live
-/// copy family, or two unknown draw cards of one class with different `m21` values make the knowledge unrepresentable.
+/// Retired repeat links that no future play can use. A queued/active repeat
+/// is still in the owned census and prevents its family from qualifying.
+/// Active frames refer to parent handles, which stay owned after projection.
+fn retired_repeat_links(state: &State) -> std::collections::BTreeSet<u64> {
+    use super::card_state::CopyProvenance;
+    use crate::content::CardId::*;
+
+    let mut candidates = BTreeMap::<_, BTreeMap<_, _>>::new();
+    for card in state.inactive_cards.iter().filter_map(OwnedCard::full) {
+        if card.local.purge && card.copy_provenance == CopyProvenance::SameInstanceFamily
+            && card.origin == CombatCardRef::CombatLocal(card.instance.0)
+            && card.copy_family != card.instance.0
+            && !matches!(card.id, Rampage | GlassKnife | SteamBarrier | Streamline | GeneticAlgorithm | RitualDagger)
+        {
+            candidates.entry(card.copy_family).or_default().insert(card.instance.0, card.id);
+        }
+    }
+    if candidates.is_empty() { return Default::default() }
+    let mut ordinary = BTreeMap::<_, Vec<_>>::new();
+    for card in super::piles::owned_full_cards(state) {
+        if candidates.get(&card.copy_family).is_some_and(|retired| !retired.contains_key(&card.instance.0)) {
+            ordinary.entry(card.copy_family).or_default().push(card);
+        }
+    }
+    let mut links = std::collections::BTreeSet::new();
+    for (family, retired) in candidates {
+        let Some([owner]) = ordinary.get(&family).map(Vec::as_slice) else { continue };
+        if owner.instance.0 == family && !owner.local.purge
+            && owner.copy_provenance != CopyProvenance::SameInstanceFamily
+            && retired.values().all(|id| *id == owner.id)
+        {
+            links.extend(retired.into_keys());
+        }
+    }
+    links
+}
+
+/// Project inert retired metadata out of a cloned belief world. The handles
+/// and their custody remain available for native continuation validation.
+pub(super) fn detach_retired_repeat_links(state: &mut State) {
+    use super::card_state::CopyProvenance;
+    let retired = retired_repeat_links(state);
+    for card in state.inactive_cards.iter_mut().filter_map(OwnedCard::full_mut) {
+        if retired.contains(&card.instance.0) {
+            card.copy_family = card.instance.0;
+            card.copy_provenance = CopyProvenance::StatEquivalent;
+        }
+    }
+}
+
+/// Fail closed on unpublished purge, rebound, or operative family links in
+/// unknown draw cards, and on differing `m21` values within one unknown class.
 fn tie_guard(state: &State) -> bool {
     let known = state.public.known_draw.iter().chain(&state.public.known_draw_bottom).collect::<std::collections::BTreeSet<_>>();
     let mut families: BTreeMap<_, usize> = BTreeMap::new();
-    for card in super::piles::owned_full_cards(state) { *families.entry(card.copy_family).or_insert(0) += 1; }
+    let retired = retired_repeat_links(state);
+    for card in super::piles::owned_full_cards(state) {
+        if !retired.contains(&card.instance.0) {
+            *families.entry(card.copy_family).or_insert(0) += 1;
+        }
+    }
     let mut m21: BTreeMap<CardClass, _> = BTreeMap::new();
     for owned in &state.piles.draw {
         let Some(card) = owned.full() else { return false };
@@ -690,8 +746,7 @@ impl Combat {
         let state = &self.state;
         if !state.knowledge.maintained { return Err(Unrepresentable) }
         let now = draw_classes(state);
-        let mut tracker = state.knowledge.clone();
-        tracker.update(&state.public, now.clone(), PileOp::Sync);
+        let tracker = synced_tracker(state, now.clone());
         if !tie_guard(state) { return Err(Unrepresentable) }
         if super::view::public_rules(state).reveal_draw_order {
             return DrawKnowledge::known(now.ok_or(Unrepresentable)?.into_iter().rev().map(|(_, c)| c))
@@ -834,8 +889,21 @@ pub(in crate::combat) fn set_preroll(state: &mut State, p: &PrerollCandidates, v
     if let Some(entry) = enemy.full_damage_entries.get_mut(&p.intent) { entry.base = value; }
     if let Some(EnemyMemory::Darkling { nip, .. }) = enemy.full_memory.as_mut() { *nip = value; }
 }
-/// Resynchronise the physical bookkeeping with a rearranged draw pile (the knowledge value is unchanged).
-pub(in crate::combat) fn resync(state: &mut State) { state.knowledge.tracked = draw_classes(state); }
+/// Compute the current law while the physical bookkeeping still matches the pile.
+fn synced_tracker(state: &State, now: Option<Vec<(u64, CardClass)>>) -> KnowledgeTracker {
+    let mut tracker = state.knowledge.clone();
+    tracker.update(&state.public, now, PileOp::Sync);
+    tracker
+}
+
+/// Rebind an accepted law, computed before a belief arrangement, to its new physical order.
+/// Frozen Eye publishes the order independently of the retained tracker.
+pub(in crate::combat) fn rebind_draw(state: &mut State, posterior: Option<Result<DrawKnowledge, Unrepresentable>>) {
+    if let Some(posterior) = posterior {
+        state.knowledge.draw = posterior;
+    }
+    state.knowledge.tracked = draw_classes(state);
+}
 
 /// P6: the tracker's fields, classified (b0): `maintained` profile flag, `draw` and `prerolls` public knowledge,
 /// `tracked` physical bookkeeping (excluded from equality; the belief resynchronises it with every arrangement).
@@ -901,6 +969,7 @@ impl Combat {
             let pile = match z { 0 => &mut piles.hand, 1 => &mut piles.draw, _ => &mut piles.discard };
             pile[i].clone()
         };
+        let posterior = synced_tracker(state, draw_classes(state)).draw;
         let (ca, cb) = (take(&mut state.piles, pa), take(&mut state.piles, pb));
         let mut put = |(z, i): (u8, usize), card: OwnedCard| { let pile = match z { 0 => &mut state.piles.hand, 1 => &mut state.piles.draw, _ => &mut state.piles.discard }; pile[i] = card; };
         put(pa, cb);
@@ -908,7 +977,7 @@ impl Combat {
         for known in state.public.known_draw.iter_mut().chain(state.public.known_draw_bottom.iter_mut()) {
             if *known == ha { *known = hb.clone() } else if *known == hb { *known = ha.clone() }
         }
-        resync(state);
+        rebind_draw(state, Some(posterior));
         true
     }
     /// Recheck R1 pairs: advance the hidden card-random stream by `draws` draws (a world with an equal public history and

@@ -313,21 +313,38 @@ fn restream(state: &mut State, rng: &crate::run::RunRng, id: StreamIdentity) -> 
     Ok(())
 }
 
+/// Unite the two public edge lists. A card can be published from both ends at
+/// the same depth, but neither a depth nor a handle may name two anchors.
+fn draw_anchors(state: &State) -> Option<Vec<Option<super::CardHandle>>> {
+    let len = state.piles.draw.len();
+    let mut anchors = vec![None; len];
+    let mut handles = std::collections::BTreeSet::new();
+    let top = state.public.known_draw.iter().enumerate();
+    let bottom = state.public.known_draw_bottom.iter().enumerate()
+        .map(|(offset, handle)| (len.checked_sub(offset + 1).unwrap_or(len), handle));
+    for (depth, handle) in top.chain(bottom) {
+        let slot = anchors.get_mut(depth)?;
+        if slot.as_ref() == Some(handle) { continue }
+        if slot.is_some() || !handles.insert(handle) { return None }
+        *slot = Some(handle.clone());
+    }
+    Some(anchors)
+}
+
 /// The handles of the draw pile rearranged so its classes read `top_to_bottom`: published known cards stay at their
 /// positions; per class, the remaining handles of that class in canonical (handle) order fill that class's remaining
 /// positions top to bottom (design §4.6.2 R1). `None` if the sequence is not an arrangement of the pile's classes.
 fn arrange_draw(state: &mut State, top_to_bottom: &[CardClass]) -> Option<()> {
     let len = state.piles.draw.len();
     if top_to_bottom.len() != len { return None }
-    let known = state.public.known_draw.iter().enumerate().map(|(i, h)| (i, h.clone()))
-        .chain(state.public.known_draw_bottom.iter().enumerate().map(|(i, h)| (len.checked_sub(1 + i).unwrap_or(usize::MAX), h.clone())))
-        .collect::<Vec<_>>();
+    let known = draw_anchors(state)?;
     let mut cards = std::mem::take(&mut state.piles.draw);
     let mut slots: Vec<Option<model::OwnedCard>> = vec![None; len];
-    for (depth, handle) in &known {
+    for (depth, handle) in known.iter().enumerate() {
+        let Some(handle) = handle else { continue };
         let at = cards.iter().position(|c| c.handle() == *handle)?;
-        if *depth >= len || slots[*depth].is_some() { state.piles.draw = cards; return None }
-        slots[*depth] = Some(cards.remove(at));
+        if knowledge::class_of(state, &cards[at]) != Some(top_to_bottom[depth]) { return None }
+        slots[depth] = Some(cards.remove(at));
     }
     // Remaining cards by (class, handle): the canonical order the root keeps and the sample fills from.
     let mut rest = cards.into_iter().map(|c| (knowledge::class_of(state, &c), c)).collect::<Vec<_>>();
@@ -346,13 +363,16 @@ fn arrange_draw(state: &mut State, top_to_bottom: &[CardClass]) -> Option<()> {
 
 /// The canonical draw sequence: known cards at their positions, every other card by (class, handle) top to bottom.
 fn canonical_draw_classes(state: &State) -> Option<Vec<CardClass>> {
-    let len = state.piles.draw.len();
-    let class = |h: &CardHandle| state.piles.draw.iter().find(|c| c.handle() == *h).and_then(|c| knowledge::class_of(state, c));
-    let mut out: Vec<Option<CardClass>> = vec![None; len];
-    for (i, h) in state.public.known_draw.iter().enumerate() { *out.get_mut(i)? = Some(class(h)?); }
-    for (i, h) in state.public.known_draw_bottom.iter().enumerate() { *out.get_mut(len.checked_sub(1 + i)?)? = Some(class(h)?); }
-    let known = state.public.known_draw.iter().chain(&state.public.known_draw_bottom).collect::<std::collections::BTreeSet<_>>();
-    let mut rest = state.piles.draw.iter().filter(|c| !known.contains(&c.handle())).map(|c| knowledge::class_of(state, c)).collect::<Option<Vec<_>>>()?;
+    let anchors = draw_anchors(state)?;
+    let class = |h: &super::CardHandle| state.piles.draw.iter()
+        .find(|c| c.handle() == *h).and_then(|c| knowledge::class_of(state, c));
+    let mut out = Vec::with_capacity(anchors.len());
+    for handle in &anchors {
+        out.push(match handle { Some(handle) => Some(class(handle)?), None => None });
+    }
+    let known = anchors.iter().flatten().collect::<std::collections::BTreeSet<_>>();
+    let mut rest = state.piles.draw.iter().filter(|c| !known.contains(&c.handle()))
+        .map(|c| knowledge::class_of(state, c)).collect::<Option<Vec<_>>>()?;
     rest.sort();
     let mut rest = rest.into_iter();
     for slot in out.iter_mut().filter(|s| s.is_none()) { *slot = rest.next(); }
@@ -377,7 +397,7 @@ impl Combat {
     /// re-derived from the zero Run root at the public identity (cursors zero), each ambiguous pre-roll at its smallest
     /// consistent value. Public-equivalent combats give equal roots.
     pub(crate) fn belief_canonical(&self, id: StreamIdentity) -> Result<Combat, Unsupported> {
-        let (_, prerolls) = self.belief_support()?;
+        let (draw, prerolls) = self.belief_support()?;
         let mut root = self.clone();
         let state = &mut root.state;
         if !leak(Leak::KeepDrawOrder) {
@@ -386,7 +406,7 @@ impl Combat {
         }
         if !leak(Leak::KeepStreams) { restream(state, &crate::run::RunRng::new([0; 32], super::rng::Partition::Test, 0), id)?; }
         for p in &prerolls { if p.values.len() > 1 && !leak(Leak::KeepPreroll) { knowledge::set_preroll(state, p, p.values[0]); } }
-        finish(state)?;
+        finish(state, draw)?;
         Ok(root)
     }
     /// Design §4.6.2: the world of sample `key` from this canonical root: R1 the draw order from the exact knowledge,
@@ -404,15 +424,17 @@ impl Combat {
             let pick = ResearchStream::new(hmac_sha256(key, &label)).below(p.values.len() as u128) as usize;
             knowledge::set_preroll(state, p, p.values[pick]);
         }
-        finish(state)?;
+        finish(state, draw)?;
         Ok(world)
     }
 }
 /// Refresh the intent outputs from the (re)set bases (the engine's own refresh law) and resynchronise the knowledge's
-/// physical bookkeeping with the new arrangement; the knowledge value itself is unchanged.
-fn finish(state: &mut State) -> Result<(), Unsupported> {
+/// physical bookkeeping with the new arrangement and the posterior accepted before it.
+fn finish(state: &mut State, draw: DrawKnowledge) -> Result<(), Unsupported> {
     super::effects::refresh_enemy_values(state).map_err(|_| Unsupported::UnrepresentablePreroll)?;
-    knowledge::resync(state);
+    knowledge::detach_retired_repeat_links(state);
+    let posterior = (!super::view::public_rules(state).reveal_draw_order).then_some(Ok(draw));
+    knowledge::rebind_draw(state, posterior);
     Ok(())
 }
 
@@ -422,6 +444,11 @@ fn finish(state: &mut State) -> Result<(), Unsupported> {
 #[cfg(any(test, feature = "fuzz-diagnostics"))]
 impl Combat {
     pub fn fuzz_perturb_hidden(&mut self, salt: u8) -> u8 {
+        let posterior = if super::view::public_rules(&self.state).reveal_draw_order {
+            None
+        } else {
+            self.draw_knowledge().ok()
+        };
         let state = &mut self.state;
         let mut applied = 0;
         let bump = |s: &super::rng::StreamState| super::rng::StreamState::new(s.id().clone(), [salt | 1; 32], s.word_index().saturating_add(u128::from(salt) + 1)).ok();
@@ -429,7 +456,7 @@ impl Combat {
         if let Some(x) = bump(&state.rng.enemy_ai) { state.rng.enemy_ai = x; }
         state.card_rng = state.card_rng.as_ref().and_then(bump).or(state.card_rng.take());
         for e in &mut state.enemies { e.full_ai_rng = e.full_ai_rng.as_ref().and_then(bump).or(e.full_ai_rng.take()); }
-        if let Ok(k) = knowledge_of(state) {
+        if let Some(k) = posterior {
             let len = state.piles.draw.len();
             let unknown = state.public.known_draw.len()..len.saturating_sub(state.public.known_draw_bottom.len());
             let classes = |d: &[model::OwnedCard], st: &State| d.iter().rev().map(|c| knowledge::class_of(st, c)).collect::<Option<Vec<_>>>();
@@ -438,7 +465,7 @@ impl Combat {
                 let mut trial = state.piles.draw.clone();
                 trial.swap(len - 1 - i, len - 1 - j);
                 if let (Some(seq), Some(before)) = (classes(&trial, state), classes(&state.piles.draw, state)) {
-                    if seq != before && k.supports(&seq) { state.piles.draw = trial; knowledge::resync(state); applied |= 2; break 'swap }
+                    if seq != before && k.supports(&seq) { state.piles.draw = trial; knowledge::rebind_draw(state, Some(Ok(k))); applied |= 2; break 'swap }
                 }
             } }
         }
@@ -452,12 +479,6 @@ impl Combat {
         applied
     }
 }
-#[cfg(any(test, feature = "fuzz-diagnostics"))]
-fn knowledge_of(state: &State) -> Result<DrawKnowledge, Unrepresentable> {
-    if !state.knowledge.maintained { return Err(Unrepresentable) }
-    state.knowledge.draw.clone()
-}
-
 /// Test support: the exact distribution a sampler induces, by enumerating every path of its uniform draws.
 #[cfg(test)]
 pub(crate) mod exact {

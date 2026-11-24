@@ -390,3 +390,52 @@ fn applied_pick_is_layout_independent_in_compact_branches() {
         dense.close(d).unwrap();
     }
 }
+
+#[test]
+fn m40b_retired_family_live_and_branch_enter_the_same_draw_grid() {
+    let mut live = start(Character::Ironclad, "jaw_worm", 22);
+    let c = combat(&mut live);
+    let tap = c.diagnostic_create_card(CardId::DoubleTap, 0, CardDestination::Hand).unwrap();
+    let cleave = c.diagnostic_create_card(CardId::Cleave, 0, CardDestination::Hand).unwrap();
+    let other = c.diagnostic_create_card(CardId::Cleave, 0, CardDestination::Discard).unwrap();
+    let grid = c.diagnostic_create_card(CardId::SecretWeapon, 0, CardDestination::Hand).unwrap();
+    play(&mut live, tap);
+    play(&mut live, cleave);
+    combat(&mut live).diagnostic_apply(EffectKind::Recycle).unwrap();
+
+    let c = combat(&mut live);
+    let pairs = c.diagnostic_identical_copies();
+    assert!(pairs.contains(&(cleave, other)) || pairs.contains(&(other, cleave)));
+    let root = PublicRoot::of(&live, &caps()).expect("retired repeat leaves its original drawable");
+    let mut search = PublicSearch::new(root, SearchConfig { research_seed: 31, limits: WIDE }).unwrap();
+    let branch = search.branch(Some(0)).unwrap();
+    let decision = search.decision(branch).unwrap();
+    let pick = action_index(&live, |a| matches!(a, GameAction::Combat(CombatAction::PlayCard { instance, .. }) if *instance == grid)).unwrap();
+    step(&mut live, pick);
+    search.step(branch, decision.token, RunActionIndex(pick as i64), BranchView::Full).unwrap();
+    assert!(live.decision().unwrap().combat.unwrap().selection.is_some());
+    let live_law = combat(&mut live).draw_knowledge().unwrap();
+    let branch_run = search.branch_run_for_test(branch);
+    assert_eq!(combat(branch_run).draw_knowledge(), Ok(live_law));
+    assert!(combat(&mut live).identical_pick_rank(cleave, &[4; 32]).is_some());
+    assert!(combat(branch_run).identical_pick_rank(cleave, &[4; 32]).is_some());
+    let a = PublicRoot::of(&live, &caps()).unwrap();
+    let b = search.public_root(branch).unwrap();
+    assert_eq!(a, b);
+    assert!(a.same_world(&b));
+}
+
+#[test]
+fn m40b_rekey_draw_classes_are_present_in_the_root_digest_input() {
+    let mut live = start(Character::Defect, "jaw_worm", 22);
+    let c = combat(&mut live);
+    let claw = c.diagnostic_create_card(CardId::Claw, 0, CardDestination::Hand).unwrap();
+    c.diagnostic_create_card(CardId::Claw, 0, CardDestination::Discard).unwrap();
+    c.diagnostic_apply(EffectKind::Recycle).unwrap();
+    play(&mut live, claw);
+    assert!(live.public_knowledge_bytes().is_some());
+    let root = PublicRoot::of(&live, &caps()).expect("root keeps synchronized classes");
+    let mut search = PublicSearch::new(root.clone(), SearchConfig { research_seed: 31, limits: WIDE }).unwrap();
+    let branch = search.branch(Some(0)).unwrap();
+    assert_eq!(search.public_root(branch).unwrap(), root);
+}
