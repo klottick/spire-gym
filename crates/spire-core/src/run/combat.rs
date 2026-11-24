@@ -18,9 +18,15 @@ fn prepare_gains(state:&RunState)->Result<Option<(Vec<CardInstance>,u64,u64)>,Ru
     let mut existing=BTreeSet::new();if state.deck.iter().any(|c|c.instance==0||!existing.insert(c.instance)){return Err(RunError::InvalidAction)}
     let mut mapped=BTreeSet::new();for (gain,id) in journal[..applied].iter().zip(&active.acquired_instances){if !mapped.insert(*id)||!state.deck.iter().any(|c|c.instance==*id&&c.id==gain.id&&c.upgrades==gain.upgrades){return Err(RunError::InvalidAction)}}
     if applied==journal.len(){return Ok(None)}
-    let pending=&journal[applied..];if state.deck.len().checked_add(pending.len()).is_none_or(|n|n>999){return Err(RunError::Unsupported("permanent deck capacity exhausted"))}
-    let count=u64::try_from(pending.len()).map_err(|_|RunError::InvalidAction)?;
-    let next=state.next_instance.checked_add(count).ok_or(RunError::Unsupported("permanent identity exhausted"))?;
+    let pending = &journal[applied..];
+    let attempted = state.deck.len() as i128 + pending.len() as i128;
+    if attempted > 999 {
+        return Err(RunError::Bound(crate::combat::EngineBound::new("permanent_cards", 999, attempted)));
+    }
+    let count = pending.len() as u64;
+    let next = state.next_instance.checked_add(count).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new(
+        "permanent_card_identity", i128::from(u64::MAX), i128::from(state.next_instance) + i128::from(count),
+    )))?;
     let mut cards=Vec::with_capacity(pending.len());for (i,gain) in pending.iter().enumerate(){let instance=state.next_instance+i as u64;if instance==0||existing.contains(&instance){return Err(RunError::InvalidAction)}cards.push(CardInstance{ misc:0,instance,id:gain.id,upgrades:gain.upgrades});}
     Ok(Some((cards,next,journal.last().unwrap().ordinal)))
 }
@@ -65,7 +71,10 @@ fn prepare_card_upgrades(state:&RunState)->Result<Option<(Vec<u64>,u64)>,RunErro
     for upgrade in &journal[applied..]{
         let card=deck.iter_mut().find(|card|card.instance==upgrade.instance.0).ok_or(RunError::InvalidAction)?;
         if card.id==CardId::Parasite||!super::mutations::can_upgrade(state,card){return Err(RunError::InvalidAction)}
-        card.upgrades=card.upgrades.checked_add(1).ok_or(RunError::InvalidAction)?;instances.push(upgrade.instance.0);
+        card.upgrades = card.upgrades.checked_add(1).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new(
+            "card_upgrades", i128::from(u32::MAX), i128::from(card.upgrades) + 1,
+        )))?;
+        instances.push(upgrade.instance.0);
     }
     Ok(Some((instances,journal.last().unwrap().ordinal)))
 }
@@ -184,9 +193,19 @@ impl Run {
             self.state.max_hp=max_hp;
             if let Some(gold)=combat.current_combat_gold(){self.state.gold=gold;}
         }
-        let prepared=match prepare_gains(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
+        let prepared=match prepare_gains(&self.state){Ok(p)=>p,
+            Err(RunError::Bound(bound)) => return Err(self.retain_fault(RunFaultKind::Bound(bound), "run.combat.permanent-gains")),
+            Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent gain synchronization preflight failed"),"run.combat.permanent-gains"))};
         let mutations=match prepare_card_mutations(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent mutation synchronization preflight failed"),"run.combat.permanent-mutations"))};
-        let upgrades=match prepare_card_upgrades(&self.state){Ok(p)=>p,Err(_)=>return Err(self.retain_fault(RunFaultKind::Invariant("permanent upgrade synchronization preflight failed"),"run.combat.permanent-upgrades"))};
+        let upgrades = match prepare_card_upgrades(&self.state) {
+            Ok(prepared) => prepared,
+            Err(RunError::Bound(bound)) => return Err(self.retain_fault(
+                RunFaultKind::Bound(bound), "run.combat.permanent-upgrades",
+            )),
+            Err(_) => return Err(self.retain_fault(
+                RunFaultKind::Invariant("permanent upgrade synchronization preflight failed"), "run.combat.permanent-upgrades",
+            )),
+        };
         if let Some((cards,next,ordinal))=prepared{
             let ids=cards.iter().map(|c|c.instance).collect::<Vec<_>>();self.state.deck.extend(cards);self.state.next_instance=next;
             let active=self.state.active_combat.as_mut().unwrap();active.acquired_instances.extend(ids);active.applied_gain_ordinal=ordinal;
@@ -298,8 +317,12 @@ impl Run {
         if self.state.item_admission==super::ItemAdmission::Complete {
             let mut item_event=crate::items::dispatch::RunItemEvent::CombatSettled{outcome:record.outcome};
             // M27 seam: combat settled
-            if crate::items::dispatch::run_event(&mut self.state,&mut item_event).is_err(){
-                return Err(self.retain_fault(RunFaultKind::Invariant("accepted combat-settled item event failed"),"run.combat.item-settled"));
+            if let Err(error) = crate::items::dispatch::run_event(&mut self.state, &mut item_event) {
+                let kind = match error {
+                    RunError::Bound(bound) => RunFaultKind::Bound(bound),
+                    _ => RunFaultKind::Invariant("accepted combat-settled item event failed"),
+                };
+                return Err(self.retain_fault(kind, "run.combat.item-settled"));
             }
         }
         self.state.active_combat=None;

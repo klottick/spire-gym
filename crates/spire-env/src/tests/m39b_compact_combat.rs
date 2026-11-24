@@ -824,3 +824,29 @@ fn sjh_bound_search_redaction_and_prefix() {
     assert_eq!(error.engine_bound(), Some(expected));
     assert_eq!(session.fault_cause(), Some(error));
 }
+
+#[test]
+fn sjh_held_bound_card_legal_menu() {
+    use serde_json::json;
+    use spire_core::{combat::{EngineBound, rng::Partition}, content::CardId};
+    let value = json!({
+        "catalog_schema_id": STANDARD_COMBAT_CATALOG_SCHEMA_ID,
+        "profile_id": STANDARD_COMBAT_PROFILE_ID,
+        "entries": [{
+            "id": "malaise-bound", "character": "silent", "ascension": 0,
+            "encounter": "giant_head", "hp": 70, "max_hp": 70, "gold": 0,
+            "deck": [{"card":"malaise","upgrades":0}, {"card":"finesse","upgrades":0}],
+            "relics": ["chemical_x"], "potions": [null, null, null],
+            "position": {"player": {"energy": 999}}
+        }]
+    });
+    let catalog = CombatTrainingCatalog::standard_from_json(&serde_json::to_vec(&value).unwrap()).unwrap();
+    let mut session = CombatTrainingSession::new_standard(catalog, Partition::Test).unwrap();
+    let first = session.reset(Some(17), None).unwrap();
+    let finesse = sjh_card_index(session.run_for_test().unwrap(), CardId::Finesse);
+    let next = session.step(first.token, finesse).unwrap().boundary;
+    let malaise = sjh_card_index(session.run_for_test().unwrap(), CardId::Malaise);
+    let error = session.step(next.token, malaise).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("malaise_x", 999, 1_001)));
+    assert_eq!(session.fault_cause(), Some(error));
+}

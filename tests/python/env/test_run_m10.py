@@ -12,13 +12,13 @@ from spire_lab.gymnasium import RunEnv
 M9_RECORD_IDENTITY = (
     "spire-gym-run-replay-v1",
     "M9IroncladAct3",
-    "spire-gym-native-m9-rules-v6",
+    "spire-gym-native-m9-rules-v7",
     "spire-gym-m9-ironclad-a0-captured-v1",
 )
 M10_RECORD_IDENTITY = (
     "spire-gym-run-replay-v2",
     "M10IroncladHeart",
-    "spire-gym-native-m10-rules-v5",
+    "spire-gym-native-m10-rules-v6",
     "spire-gym-m10-ironclad-a0-captured-v1",
 )
 

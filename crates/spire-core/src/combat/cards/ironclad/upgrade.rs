@@ -27,7 +27,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
         IroncladEffect::UpgradeCard{instance}=>{
             let card=state.piles.hand.iter().filter_map(|c|c.full()).find(|c|c.instance==*instance).cloned()
                 .ok_or_else(||InputError::Invariant("upgrade candidate left its captured hand".into()))?;
-            let upgraded=crate::combat::card_state::upgrade_live_card(state,&card).map_err(|error|InputError::Unsupported(format!("owned card upgrade failed: {error:?}")))?;
+            let upgraded=crate::combat::card_state::upgrade_live_card(state,&card).map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("owned card upgrade failed: {other:?}"))))?;
             *state.piles.hand.iter_mut().filter_map(|c|c.full_mut()).find(|c|c.instance==*instance).unwrap()=upgraded;
         },
         IroncladEffect::SwordBoomerangHit{damage}=>{
@@ -40,7 +40,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
             let target=candidates[index as usize].clone();
             let enemy=state.enemies.iter().find(|enemy|enemy.instance_id==target).unwrap();
             let amount=super::modified_damage_for_enemy(state,enemy,*damage)
-                .map_err(|error|InputError::Invariant(format!("Sword Boomerang damage calculation failed: {error:?}")))?;
+                .map_err(|error| InputError::retain_bound(error, |other| InputError::Invariant(format!("Sword Boomerang damage calculation failed: {other:?}"))))?;
             state.pending.push_front(Effect{source:effect.source.clone(),target:Some(Actor::Enemy(target)),kind:EffectKind::Damage(DamagePayload::Fixed(amount))});
         },
         IroncladEffect::DoubleCurrentBlock|IroncladEffect::SpotWeakness{..}|IroncladEffect::TrueGritRandomExhaust

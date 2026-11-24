@@ -24,7 +24,7 @@ source contract.
 | Standard combat sessions | profile `standard-combat-v1`, catalog `spire-gym-standard-combat-catalog-v1`, reward `spire-gym-combat-outcome-reward-v1` |
 | Tactical starts (M34s-c) | position schema `spire-gym-combat-position-v1`; start labels `fresh_start`, `synthetic_position`, `reachable_recipe` (search branches: `branch`) ([below](#tactical-starts-m34s-c)) |
 | Record schema | `spire-gym-standard-run-replay-v1` |
-| Rules / content | `spire-gym-native-standard-rules-v8` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; v6 for spire-d8g: victory effects on a Smoke Bomb escape; target-independent card costs, so every effect that reads a card's cost also sees it when no enemy is targetable, as in the original (CHANGES lists the effects); Time Warp's 12th card played by Distilled Chaos, directly or through a card it played, and the cleanup of cancelled queued cards; Meat on the Bone's threshold before the victory heals; Omamori on event transforms; an enemy dies once; Tomb of Lord Red Mask's gold with Ectoplasm; The Boot before the Heart's Invincible cap; queued repeats waiting behind an open selection; Nightmare after a start-of-turn Scry; and retained cards restored before end-of-turn exhaust effects; v7 for spire-d4h copy and top-card autoplay ordering; v8 for spire-sjh Slow and energy handling; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
+| Rules / content | `spire-gym-native-standard-rules-v9` (v1 until M34s-a; v2 for the autoplay free-play fix G-a4 and the Secret Technique/Weapon candidate order R-a1; v3 in M34s-b for the grid order of combat-local copies, I1-c, and the Stasis roll mapping, R1-b; v4 for the spire-3xq combat fixes; v5 for spire-0kr, The Courier's in-place restock, the Circlet shop price and duplicate-Circlet stacking; v6 for spire-d8g: victory effects on a Smoke Bomb escape; target-independent card costs, so every effect that reads a card's cost also sees it when no enemy is targetable, as in the original (CHANGES lists the effects); Time Warp's 12th card played by Distilled Chaos, directly or through a card it played, and the cleanup of cancelled queued cards; Meat on the Bone's threshold before the victory heals; Omamori on event transforms; an enemy dies once; Tomb of Lord Red Mask's gold with Ectoplasm; The Boot before the Heart's Invincible cap; queued repeats waiting behind an open selection; Nightmare after a start-of-turn Scry; and retained cards restored before end-of-turn exhaust effects; v7 for spire-d4h copy and top-card autoplay ordering; v8 for spire-sjh Slow and energy handling; v9 for deferred bounds and FTL damage; see [CHANGES](../CHANGES.md)) / `spire-gym-standard-content-v1` |
 | Reward / seed adapter / RNG | `spire-gym-floor-key-terminal-reward-v1` / `spire-gym-run-u64-le-v1` / `spire-lab-rng-hmac-sha256-v1` |
 | Capacity preset / vocabulary manifest | `standard-default-v1` / `standard-vocab-v1` |
 | Compact observation (M38e, opt-in) | `spire-gym-standard-run-observation-compact-v1`, preset `standard-compact-v1`, fingerprint `633b9424be5070a2890b01725949447badba919c5c8c5bd798922f8c2d2a2b2d` at that preset ([below](#compact-observation-m38e)) |
@@ -877,7 +877,7 @@ damage uses the original binary32 multiplier, with a final signed 32-bit
 conversion. Slow resets to zero at round end. Live energy gains succeed at the
 999 cap. There is no 1,000-action limit.
 
-A native engine bound carries a stable counter, the maximum allowed value and
+A native engine bound carries a stable counter, the applicable limit and
 the value the operation attempted.
 
 | Counter | Limit | Attempt |
@@ -902,5 +902,33 @@ fault records. A faulted search branch retains its accepted prefix. The
 fault does not deliver a terminal or truncation transition. Explicit reset
 and batch replacement use the existing owner-specific policies.
 
-Other reachable guards, including some power, damage, maximum HP and permanent
-resource limits, are tracked for follow-up under spire-sjh.
+### Additional bounded gameplay counters
+
+| Counter | Boundary |
+|---|---|
+| `doppelganger_x`, `malaise_x` | 999, including upgrade and Chemical X |
+| `power_amount` | 999 on narrow positive stacks, −999 for negative Dexterity, or the relevant signed 32-bit endpoint on arithmetic overflow. The report gives the power ID. |
+| `specimen_poison_transfer` | 9,999, the captured transfer amount |
+| `maximum_hp`, `heal_amount`, `permanent_cards` | 999 |
+| `permanent_card_identity` | 18,446,744,073,709,551,615 for the allocator cursor |
+| `gold`, `damage_events`, `frost_channeled`, `lightning_channeled`, `card_upgrades` | 4,294,967,295 |
+| `card_damage_base` | 0–3,003 for ordinary card base damage, or 2,147,483,647 for signed arithmetic |
+| `card_combined_damage`, `card_block_base` | 10,004 and 1,007 respectively |
+| `modified_damage` | 30,012 on the ordinary pipeline, or 2,147,483,647 on the signed stance pipeline |
+| `modified_block` | 2,147,483,647 on the signed Watcher pipeline |
+| `combat_turn`, `discarded_this_turn`, `deva_energy_gain`, `mantra_amount`, `mantra_gained`, `catalyst_poison_amount`, `snecko_skull_poison_amount`, `rampage_damage`, `windmill_strike_damage`, `perseverance_block` | 2,147,483,647 |
+| `masterful_stab_combat_cost`, `masterful_stab_turn_cost`, `self_forming_clay_block`, `champ_selected_turn` | 2,147,483,647 |
+| `maw_selected_turn` | 2,147,483,646 |
+| `dispatch_effects` | 99,999 executable effects per dispatch. The guard retains attempted ordinal 100,000. |
+
+Costs and targets still determine whether an action can be selected. A
+numeric limit on a card or combat potion is reported after the legal
+action is selected. Outside combat, Fruit Juice can report the maximum HP
+bound while retaining the potion. A staged purchase retains its original
+gold and inventory on a bound. An accepted card reward retains the
+inserted card if Ceramic Fish's later gold grant hits the gold bound.
+The slot's existing committed flag distinguishes these cases.
+
+Self-Forming Clay accrues 3 pending Block per positive HP-loss event. Its
+next-turn payout uses the live Block cap of 999. Maw and Champ can report
+their own selected-turn limits during the enemy intent roll.

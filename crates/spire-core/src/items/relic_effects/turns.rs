@@ -257,8 +257,7 @@ pub(crate) fn run_event(id: RelicId, state: &mut RunState, event: &mut RunItemEv
         (RelicId::FaceOfCleric, RunItemEvent::CombatSettled { outcome })
             if matches!(outcome, Outcome::Victory | Outcome::Escaped) && state.hp > 0 =>
         {
-            let max_hp = state.max_hp.checked_add(1).filter(|max_hp| *max_hp <= 999)
-                .ok_or(RunError::Unsupported("maximum HP overflow"))?;
+            let max_hp = crate::run::mutations::max_hp_after_gain(state.max_hp, 1)?;
             let heal = crate::items::victory_heal_amount(state, 1).max(0) as u32;
             state.max_hp = max_hp;
             state.hp = state.hp.saturating_add(heal).min(max_hp);

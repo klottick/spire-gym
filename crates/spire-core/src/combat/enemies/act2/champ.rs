@@ -4,7 +4,8 @@ use super::*;
 pub(super) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState,context:&EnemyRollContext,ascension:u8)->Result<MoveSelection,super::super::SelectError>{
     let EnemyMemory::Champ{turns,forges,angered}=memory else{return Err(InputError::Invariant("Champ memory absent".into()).into())};
     let owner=context.actors.iter().find(|a|a.owner==context.owner).ok_or_else(||InputError::Invariant("Champ live owner absent".into()))?;
-    let mut turns=turns.checked_add(1).filter(|n|*n<=i32::MAX as u32).ok_or_else(||InputError::Unsupported("Champ turn counter exhausted".into()))?;
+    let mut turns = turns.checked_add(1).filter(|n| *n <= i32::MAX as u32)
+        .ok_or_else(|| InputError::bound("champ_selected_turn", i128::from(i32::MAX), i128::from(*turns) + 1))?;
     let mut forges=*forges;let mut angered=*angered;let mut cursor=stream.clone();let last=history.last().map(|m|m.as_str());
     let stance_cutoff=if ascension>=19{30}else{15};
     let name=if !angered&&owner.hp<owner.max_hp/2{angered=true;"champ_anger"}

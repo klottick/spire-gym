@@ -39,6 +39,35 @@ fn slot(combat: &Combat, species: EnemyId) -> usize {
         .unwrap_or_else(|| panic!("{species:?} absent from encounter"))
 }
 
+#[test]
+fn sjh_champ_turn_limit_reports_the_selected_counter_during_roll_move() {
+    let mut champ = combat_at(EncounterId::Champ, 0);
+    assert!(matches!(champ.state.enemies[0].full_memory, Some(EnemyMemory::Champ { turns: 1, .. })));
+    champ.state.turn = i32::MAX as u32;
+    champ.state.enemies[0].full_memory = Some(EnemyMemory::Champ { turns: i32::MAX as u32, forges: 0, angered: true });
+    assert_roll_move_bound(champ, EngineBound::new("champ_selected_turn", 2_147_483_647, 2_147_483_648));
+}
+
+#[test]
+fn sjh_maw_turn_limit_reports_the_selected_counter_during_roll_move() {
+    let mut maw = combat_at(EncounterId::Maw, 0);
+    assert!(matches!(maw.state.enemies[0].full_memory, Some(EnemyMemory::Maw { turns: 1, .. })));
+    maw.state.turn = i32::MAX as u32 - 1;
+    maw.state.enemies[0].full_memory = Some(EnemyMemory::Maw { turns: i32::MAX as u32 - 1, roared: true });
+    set_current(&mut maw, 0, "maw_drool", &["maw_roar", "maw_drool"]);
+    assert_roll_move_bound(maw, EngineBound::new("maw_selected_turn", 2_147_483_646, 2_147_483_647));
+}
+
+fn assert_roll_move_bound(mut combat: Combat, bound: EngineBound) {
+    let turn = combat.state.turn;
+    let memory = combat.state.enemies[0].full_memory.clone();
+    let error = combat.step_full(&CombatAction::EndTurn).unwrap_err();
+    assert_eq!(combat.state.current.as_ref().unwrap().kind, EffectKind::RollMove);
+    assert_eq!(error.engine_bound(), Some(bound));
+    assert_eq!(combat.state.turn, turn);
+    assert_eq!(combat.state.enemies[0].full_memory, memory);
+}
+
 fn set_current(combat: &mut Combat, at: usize, name: &'static str, history: &[&'static str]) {
     let current = ActorIntentId::Full(FullIntentId::from_name(name));
     let actor = &mut combat.state.enemies[at];

@@ -31,7 +31,11 @@ fn round_hooks(powers: &mut [PowerEntry], actor: Actor, queued: &mut Vec<Effect>
 
 pub(super) fn schedule_next_player_turn(state: &mut State) -> Result<(), InputError> {
     let next = state.turn.checked_add(1).filter(|n| *n <= i32::MAX as u32)
-        .ok_or_else(|| InputError::Unsupported("next turn outside supported numeric surface".into()))?;
+        .ok_or_else(|| if state.full_runtime {
+            InputError::bound("combat_turn", i128::from(i32::MAX), i128::from(state.turn) + 1)
+        } else {
+            InputError::Unsupported("next turn outside supported numeric surface".into())
+        })?;
     state.turn = next;
     state.silent.played_this_turn.clear();
     state.silent.discarded_this_turn=0;
@@ -96,7 +100,7 @@ pub(super) fn on_energy_recharge(state:&mut State,work:&mut Vec<Effect>)->Result
             "deva_form" if state.watcher.deva_energy_gain>0=>{
                 let gain=state.watcher.deva_energy_gain;
                 super::effects::gain_energy(state, gain);
-                state.watcher.deva_energy_gain=gain.checked_add(power.state.amount).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?;
+                state.watcher.deva_energy_gain=gain.checked_add(power.state.amount).ok_or_else(||InputError::bound("deva_energy_gain", i128::from(i32::MAX), i128::from(gain) + i128::from(power.state.amount)))?;
             }
             _=>(),
         }

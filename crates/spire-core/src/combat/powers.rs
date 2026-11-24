@@ -314,8 +314,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
     if application && id.0=="poison" && delta>0
         && state.item_context.as_ref().is_some_and(|items|
             items.owns_relic(crate::content::RelicId::SneckoSkull)) {
-        delta=delta.checked_add(1).ok_or_else(||InputError::Unsupported(
-            "Snecko Skull Poison amount overflow".into()))?;
+        delta = delta.checked_add(1).ok_or_else(|| InputError::bound(
+            "snecko_skull_poison_amount", i128::from(i32::MAX), i128::from(delta) + 1,
+        ))?;
     }
     if *actor==Actor::Player&&id.0=="focus" {
         super::characters::apply_focus(state,delta)?;
@@ -332,7 +333,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
             Some(1)
         }else{
             if current<previous{return Err(InputError::Invariant("Deva Form recharge state is below its growth step".into()))}
-            Some(current.checked_add(1).ok_or_else(||InputError::Unsupported("Deva Form next energy gain exhausted".into()))?)
+            Some(current.checked_add(1).ok_or_else(||InputError::bound("deva_energy_gain", i128::from(i32::MAX), i128::from(current) + 1))?)
         }
     }else{None};
     if *actor==Actor::Player&&id.0=="master_reality"&&super::cards::watcher::cards_active(state){
@@ -341,7 +342,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
     }
     if application&&*actor==Actor::Player&&id.0=="mantra"&&super::cards::watcher::cards_active(state){
         let existed=state.player_full_powers.iter().any(|p|p.id==id);
-        let mut next=if existed&&previous!=-1{previous.checked_add(delta).ok_or_else(||InputError::Unsupported("Watcher Mantra amount int32 exhausted".into()))?}else{delta};
+        let mut next=if existed&&previous!=-1{previous.checked_add(delta).ok_or_else(||InputError::bound("mantra_amount", i128::from(i32::MAX), i128::from(previous) + i128::from(delta)))?}else{delta};
         let threshold=existed&&next>=10;
         if threshold{next=next.wrapping_sub(10);}
         set(state,effect,id,next);
@@ -351,17 +352,13 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
 
     if application&&id.0=="rebound"&&previous==0&&*actor==Actor::Player{state.defect.rebound_just_applied=true;}
     if !application && previous == 0 { return Ok(()); }
+    let power_bound = |limit: i32, attempted: i128| InputError::Bound(super::EngineBound {
+        power_id: Some(id.0),
+        ..super::EngineBound::new(if id.0 == "slow" { "slow" } else { "power_amount" }, i128::from(limit), attempted)
+    });
     let sum = previous.checked_add(delta).ok_or_else(|| {
-        if id.0 == "slow" {
-            let attempted = i128::from(previous) + i128::from(delta);
-            let limit = if attempted < 0 { i32::MIN } else { i32::MAX };
-            InputError::Bound(super::EngineBound {
-                power_id: Some("slow"),
-                ..super::EngineBound::new("slow", i128::from(limit), attempted)
-            })
-        } else {
-            InputError::Invariant("power amount overflow".into())
-        }
+        let attempted = i128::from(previous) + i128::from(delta);
+        power_bound(if attempted < 0 { i32::MIN } else { i32::MAX }, attempted)
     })?;
     let next = match id.0 {
         "like_water" if super::cards::watcher::cards_active(state)=>sum.clamp(0,999),
@@ -377,14 +374,21 @@ fn apply_effect_inner(state: &mut State, effect: &Effect) -> Result<(), InputErr
         "mode_shift"|"slow"=>sum.max(0),
         "confused"|"entangled"=>i32::from(sum>0),
         "dexterity" if (-999..=999).contains(&sum) => sum,
-        "dexterity" => return Err(InputError::Unsupported("Dexterity outside supported native surface".into())),
+        "dexterity" => return Err(power_bound(if sum < 0 { -999 } else { 999 }, i128::from(sum))),
         // A new Poison object caps at 9999. Existing matching-ID stacks add
         // the raw application amount without that constructor clamp.
         "poison" if previous == 0 => sum.clamp(0, 9_999),
         "poison" => sum.max(0),
         _ if sum <= 999 => sum.max(0),
-        _ => return Err(InputError::Unsupported("power outside supported native surface".into())),
+        _ => return Err(power_bound(999, i128::from(sum))),
     };
+    if next > 999 && id.0 != "poison" && !super::engine::valid_full_powers(&[
+        super::FullPowerEntry { id, state: super::PowerState {
+            amount: next, skip_first: false, monster_source_grace: false,
+        }},
+    ]) {
+        return Err(power_bound(999, i128::from(next)));
+    }
     // Combust's card source owns one typed copy per positive application. Its
     // 5/7 amount and copy count are preflighted together before either commits.
     let combust_update=if id.0=="combust" {

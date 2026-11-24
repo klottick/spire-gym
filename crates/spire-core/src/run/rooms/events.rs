@@ -19,7 +19,7 @@ pub(in crate::run) fn prepare_joust(run:&Run,id:ChoiceId)->Result<PreparedJoust,
     if room.screen.kind!=RoomViewKind::Event(EventId::Joust)||room.joust.is_some()||!joust_eligible(&run.state)||run.state.pending.is_some(){return Err(RunError::InvalidAction)}
     let owner_bet=match row.kind{RoomChoiceKind::JoustOwner=>true,RoomChoiceKind::JoustMurderer=>false,_=>return Err(RunError::InvalidAction)};
     let node=run.state.map.as_ref().and_then(|m|m.current).ok_or(RunError::InvalidAction)?;let post_cost=run.state.gold-50;
-    post_cost.checked_add(if owner_bet{250}else{100}).ok_or(RunError::Unsupported("Joust payout overflow"))?;
+    post_cost.checked_add(if owner_bet{250}else{100}).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new("gold", i128::from(u32::MAX), i128::from(post_cost) + if owner_bet { 250 } else { 100 })))?;
     room.joust_visits.checked_add(1).ok_or(RunError::Unsupported("Joust visit exhausted"))?;
     let mut next=run.next_choice;let screen=view(&mut next,RoomViewKind::Event(EventId::Joust),vec![(RoomChoiceKind::JoustContinue,None)])?;
     Ok(PreparedJoust{node,visit:room.joust_visits,owner_bet,post_cost,next,screen})

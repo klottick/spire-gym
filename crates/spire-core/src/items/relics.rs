@@ -218,8 +218,7 @@ pub(super) fn acquire(state: &mut RunState, id: RelicId) -> Result<(), RunError>
         _ => 0,
     };
     if state.hp > state.max_hp { return Err(RunError::InvalidAction); }
-    let max_hp = state.max_hp.checked_add(max_hp_gain).filter(|max|*max<=999)
-        .ok_or(RunError::Unsupported("maximum HP overflow"))?;
+    let max_hp = crate::run::mutations::max_hp_after_gain(state.max_hp, max_hp_gain)?;
     let hp = if state.hp == 0 {
         // increaseMaxHp still raises the ceiling, while the delegated heal
         // returns without reviving a dying creature.

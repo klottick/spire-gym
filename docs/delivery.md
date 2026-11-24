@@ -144,16 +144,13 @@ facts.
 - **`standard-combat-v1`:** ends at the engine's combat terminal; Run settlement
   effects do not apply there.
 - **Card identities per combat:** a combat issues at most 999 card identities,
-  deck included; identities are never reused. A combat that would create more
-  (a long or generation-heavy fight) stops with the typed `Unsupported` fault
-  "generated card count/runtime boundary". The original game has no such cap.
-- **Maximum HP and counters:** a Run's maximum HP is bounded at 999. A Run-side gain (Neow,
-  relics, events) that would exceed it stops with the typed `Unsupported` fault
-  "maximum HP overflow"; Feed above it stops with "Feed maximum HP ceiling
-  exceeded". Relic and power counters such as Self-Forming Clay's pending Block are
-  bounded at 999 too; above that the engine stops with a typed `Unsupported` fault (for
-  Clay, "Self-Forming Clay pending Block exceeded supported bound", after more than 333 HP
-  lost in one turn). The original game has no such caps.
+  including the starting deck and retired cards. An attempt to issue another
+  identity reports the typed `issued_combat_cards` bound.
+- **Maximum HP and counters:** a Run-side maximum HP gain, Feed or Fruit Juice
+  that would exceed 999 reports the typed `maximum_hp` bound. Self-Forming
+  Clay's pending Block can exceed 999. The payout applies the live Block cap
+  of 999, and an accumulation beyond the signed 32-bit range reports
+  `self_forming_clay_block`. See the [engine bound contract](standard-run-api.md#engine-bounds).
 - **Omniscience:** the original appends both selected-card plays behind the
   cards already waiting. The engine inserts each play ahead of waiting cards.
   It schedules the second only after the first passes its eligibility check.

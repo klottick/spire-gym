@@ -874,7 +874,7 @@ fn validate_m15_entropic_brew_outside(state:&RunState,slot:usize,we_meet_again:b
     Ok(())
 }
 pub(crate) fn can_use_run_potion(state:&RunState,slot:usize,turn_ended:bool,we_meet_again:bool)->bool{
-    prepare_run_potion(state,slot,turn_ended,we_meet_again).is_ok()
+    matches!(prepare_run_potion(state,slot,turn_ended,we_meet_again), Ok(_) | Err(RunError::Bound(_)))
         ||(crate::run::rooms::is_m15(state)||crate::run::rooms::is_m20(state)||state.item_admission==crate::run::ItemAdmission::Complete)
             &&!turn_ended&&validate_m15_entropic_brew_outside(state,slot,we_meet_again).is_ok()
 }
@@ -906,9 +906,11 @@ fn prepare_run_potion_inner(state:&RunState,slot:usize,turn_ended:bool,we_meet_a
             }
             crate::combat::EffectKind::IncreaseMaxHpThenHeal(amount) => {
                 let before=hp;
-                max_hp = max_hp.checked_add(*amount as u32)
-                    .filter(|value| *value <= 999)
-                    .ok_or(RunError::Unsupported("maximum HP overflow"))?;
+                let attempted = i128::from(max_hp) + i128::from(*amount);
+                if attempted > 999 {
+                    return Err(RunError::Bound(crate::combat::EngineBound::new("maximum_hp", 999, attempted)));
+                }
+                max_hp = attempted as u32;
                 let heal = ordinary_heal_amount(owned.relics(), *amount).max(0) as u32;
                 if hp > 0 { hp = hp.saturating_add(heal).min(max_hp); }
                 observe_heal(before,hp,&effect.source);

@@ -51,7 +51,7 @@ pub(in crate::run) fn choose(run:&mut Run,id:ChoiceId)->Result<RunTransition,Run
             let card=captured(&frame,&row.kind).ok_or(RunError::InvalidAction)?;if row.price.is_some()||!run.state.deck.contains(&card){return Err(RunError::InvalidAction)}
             if run.state.deck.len()==1{reward::preflight(&run.state,&[CommittedEvent::Ended(RunTerminal::EmptyDeck)])?;}
         },
-        (EventId::TombOfLordRedMask,RoomChoiceKind::TombGold) if frame.has_mask&&row.price.is_none()&&run.state.gold==frame.gold&&run.state.relics.contains(&RelicId::RedMask)=>{run.state.gold.checked_add(222).ok_or(RunError::Unsupported("Tomb gold overflow"))?;},
+        (EventId::TombOfLordRedMask,RoomChoiceKind::TombGold) if frame.has_mask&&row.price.is_none()&&run.state.gold==frame.gold&&run.state.relics.contains(&RelicId::RedMask)=>{run.state.gold.checked_add(222).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new("gold", i128::from(u32::MAX), i128::from(run.state.gold) + 222)))?;},
         (EventId::TombOfLordRedMask,RoomChoiceKind::TombOfferGold) if !frame.has_mask&&row.price==Some(frame.gold)&&run.state.gold==frame.gold&&!run.state.relics.contains(&RelicId::RedMask)=>{
             if run.state.hp>run.state.max_hp||!(1..=999).contains(&run.state.max_hp){return Err(RunError::InvalidAction)}
             if crate::content::Catalog::standard().relic(RelicId::RedMask).is_none(){return Err(RunError::Registry("Red Mask unavailable"))}

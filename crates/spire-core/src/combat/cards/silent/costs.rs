@@ -132,12 +132,12 @@ pub(super) fn actual_draw(state: &mut State, owner: &CardHandle) -> Result<(), I
 fn update_combat_cost(card: &mut LiveCard, delta: i32) -> Result<(), InputError> {
     let old_combat = card.local.mutable_combat_cost.unwrap_or(0);
     let new_combat = old_combat.checked_add(delta)
-        .ok_or_else(|| InputError::Unsupported("Masterful Stab combat-cost arithmetic overflow".into()))?.max(0);
+        .ok_or_else(|| InputError::bound("masterful_stab_combat_cost", i128::from(i32::MAX), i128::from(old_combat) + i128::from(delta)))?.max(0);
     let old_turn = card.local.turn_cost.unwrap_or(old_combat);
     let turn_delta = new_combat.checked_sub(old_combat)
         .ok_or_else(|| InputError::Unsupported("Masterful Stab turn-cost delta overflow".into()))?;
     let new_turn = old_turn.checked_add(turn_delta)
-        .ok_or_else(|| InputError::Unsupported("Masterful Stab turn-cost arithmetic overflow".into()))?.max(0);
+        .ok_or_else(|| InputError::bound("masterful_stab_turn_cost", i128::from(i32::MAX), i128::from(old_turn) + i128::from(turn_delta)))?.max(0);
     card.local.mutable_combat_cost = Some(new_combat);
     card.local.turn_cost = Some(new_turn);
     Ok(())

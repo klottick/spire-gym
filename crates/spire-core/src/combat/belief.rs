@@ -187,7 +187,7 @@ fn allow_effect(state: &State, kind: &EffectKind) -> Result<(), Unsupported> {
         }
     };
     match kind {
-        OpeningHand{..} | ShelledArmorBreak | GainBlock(_) | Heal(_) | IncreaseMaxHpThenHeal(_) | NeowsLament
+        DeferredBound(_) | OpeningHand{..} | ShelledArmorBreak | GainBlock(_) | Heal(_) | IncreaseMaxHpThenHeal(_) | NeowsLament
         | ApplyPower{..} | ReducePower{..} | RemovePower(_) | ApplyFullPower{..} | ReduceFullPower{..} | RemoveFullPower(_)
         | FinishCard | Decision | JuggernautRandomDamage(_) | Draw(_) | Recycle | DiscardHand | DrawOne
         | AfterCardDrawn{..} | GainEnergy(_) | LoseEnergy(_) | ManualDiscardCallback{..} | CreateCard{..} | CopyCard{..}

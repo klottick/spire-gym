@@ -87,7 +87,7 @@ fn m19_defect_interactions_dark_dead_capture_does_not_retarget_partner(){
 
 #[test]
 fn sjh_slow_wide_defect_continuations() {
-    for id in [CardId::Melter, CardId::Sunder, CardId::Barrage] {
+    for id in [CardId::Melter, CardId::Sunder, CardId::Barrage, CardId::FTL] {
         let mut combat = enter(EncounterId::GiantHead, &[id]);
         combat.state.enemies[0].full_powers.iter_mut()
             .find(|power| power.id.0 == "slow").unwrap().state.amount = 100_000;

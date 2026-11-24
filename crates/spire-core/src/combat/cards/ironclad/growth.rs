@@ -6,7 +6,7 @@ use super::state::IroncladEffect;
 fn grow(owned:&mut OwnedCard,family:u64,amount:i32)->Result<(),EffectError>{
     if let Some(card)=owned.full_mut().filter(|card|card.copy_family==family){
         let base=card.local.base_damage.unwrap_or(8);
-        card.local.base_damage=Some(base.checked_add(amount).ok_or_else(||InputError::Unsupported("Rampage damage growth overflow".into()))?.max(0));
+        card.local.base_damage=Some(base.checked_add(amount).ok_or_else(||InputError::bound("rampage_damage", i128::from(i32::MAX), i128::from(base) + i128::from(amount)))?.max(0));
     }
     Ok(())
 }
@@ -19,8 +19,9 @@ fn grow_family(state:&mut State,family:u64,amount:i32)->Result<(),EffectError>{
         .chain(state.in_play.iter())
         .chain(state.queued_autoplay.values()) {
         if let Some(card)=owned.full().filter(|card|card.copy_family==family){
-            card.local.base_damage.unwrap_or(8).checked_add(amount).map(|value|value.max(0))
-                .ok_or_else(||InputError::Unsupported("Rampage damage growth overflow".into()))?;
+            let base = card.local.base_damage.unwrap_or(8);
+            base.checked_add(amount)
+                .ok_or_else(||InputError::bound("rampage_damage", i128::from(i32::MAX), i128::from(base) + i128::from(amount)))?;
         }
     }
     for card in state.piles.hand.iter_mut().chain(&mut state.piles.draw).chain(&mut state.piles.discard).chain(&mut state.piles.exhaust){grow(card,family,amount)?;}

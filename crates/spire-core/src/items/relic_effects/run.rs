@@ -225,8 +225,7 @@ pub(crate) fn equip(id: RelicId, state: &mut RunState, _work: &mut EquipWork) ->
         // Source increaseMaxHp(7, false), then heal(maxHealth) through the one heal law (design §9.1):
         // Mark of the Bloom keeps the maximum-HP gain but prevents the heal.
         RelicId::LeesWaffle => {
-            state.max_hp = state.max_hp.checked_add(7).filter(|max_hp| *max_hp <= 999)
-                .ok_or(RunError::Unsupported("maximum HP overflow"))?;
+            state.max_hp = crate::run::mutations::max_hp_after_gain(state.max_hp, 7)?;
             crate::run::mutations::heal(state, state.max_hp)?;
         }
         // Source FrozenEgg2/MoltenEgg2/ToxicEgg2.onEquip apply the obtain rule to every card of every

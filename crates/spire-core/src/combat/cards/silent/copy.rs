@@ -16,7 +16,7 @@ pub(super) fn payload(card: &LiveCard, target: Option<u64>)
 
 fn installation_cursor(state:&State)->Result<(u32,u64,u64),InputError>{
     let delivery_turn = state.turn.checked_add(1).filter(|turn| *turn <= i32::MAX as u32)
-        .ok_or_else(|| InputError::Unsupported("Nightmare next turn outside supported numeric surface".into()))?;
+        .ok_or_else(|| InputError::bound("combat_turn", i128::from(i32::MAX), i128::from(state.turn) + 1))?;
     if !state.full_runtime || state.next_nightmare_installation_id == 0 {
         return Err(InputError::Invariant("Nightmare installation identity is unavailable in this combat".into()));
     }

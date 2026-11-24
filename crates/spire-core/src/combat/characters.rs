@@ -120,8 +120,16 @@ pub(super) fn channel(state:&mut super::model::State,source:&Source,orb:OrbState
     }
     if state.character.orb_slots.len()>10 {return Err(super::InputError::Invariant("orb capacity exceeds ten".into()).into())}
     if let Some(slot)=state.character.orb_slots.iter_mut().find(|slot|slot.is_none()) {
-        let history=match orb.kind {OrbKind::Frost=>Some(&mut state.defect.frost_channeled),OrbKind::Lightning=>Some(&mut state.defect.lightning_channeled),_=>None};
-        if let Some(history)=history{*history=history.checked_add(1).ok_or_else(||super::InputError::Unsupported("native successful channel history exhausted".into()))?;}
+        let history = match orb.kind {
+            OrbKind::Frost => Some(("frost_channeled", &mut state.defect.frost_channeled)),
+            OrbKind::Lightning => Some(("lightning_channeled", &mut state.defect.lightning_channeled)),
+            _ => None,
+        };
+        if let Some((counter, history)) = history {
+            *history = history.checked_add(1).ok_or_else(|| super::InputError::bound(
+                counter, i128::from(u32::MAX), i128::from(*history) + 1,
+            ))?;
+        }
         *slot=Some(orb);
         super::piles::refresh_hand_values(state);
     }

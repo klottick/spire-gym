@@ -20,7 +20,9 @@ pub(crate) fn searing_damage(card:&LiveCard)->i32 {
 
 pub(crate) fn upgrade(card:&mut LiveCard)->Result<(),RunError> {
     if !can_upgrade(card.id,card.upgrades){return Err(RunError::InvalidAction)}
-    let next=card.upgrades.checked_add(1).ok_or(RunError::Unsupported("native upgrade count exhausted"))?;
+    let next=card.upgrades.checked_add(1).ok_or_else(|| RunError::Bound(crate::combat::EngineBound::new(
+        "card_upgrades", i128::from(u32::MAX), i128::from(card.upgrades) + 1,
+    )))?;
     let temporary=card.local.temporary_upgrades.checked_add(1).ok_or(RunError::Unsupported("native combat upgrade count exhausted"))?;
     super::super::defect::upgrade_local(card)?;
     super::super::watcher::upgrade_local(card)?;

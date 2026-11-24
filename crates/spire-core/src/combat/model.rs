@@ -266,6 +266,18 @@ pub enum InputError { Invariant(String), Unsupported(String), Bound(EngineBound)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectError { Invalid(InputError), Random(RngError) }
 
+impl InputError {
+    pub(super) fn retain_bound(error: crate::run::RunError, fallback: impl FnOnce(crate::run::RunError) -> Self) -> Self {
+        match error {
+            crate::run::RunError::Bound(bound) => Self::Bound(bound),
+            other => fallback(other),
+        }
+    }
+
+    pub(crate) fn bound(counter: &'static str, limit: i128, attempted: i128) -> Self {
+        Self::Bound(EngineBound::new(counter, limit, attempted))
+    }
+}
 impl From<InputError> for EffectError {
     fn from(error: InputError) -> Self { Self::Invalid(error) }
 }
@@ -340,6 +352,7 @@ impl DamageResult {pub(in crate::combat) fn last_damage_taken(&self)->i32{self.h
 pub struct Effect { pub source: Source, pub target: Option<Actor>, pub kind: EffectKind }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EffectKind {
+    DeferredBound(EngineBound),
     OpeningHand {count:usize},
     Watcher(super::cards::watcher::WatcherEffect),
     Defect(super::cards::DefectEffect),

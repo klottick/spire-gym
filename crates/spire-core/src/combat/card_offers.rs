@@ -118,7 +118,7 @@ pub(super) fn apply(state:&mut State,effect:&Effect)->Result<(),EffectError>{
                 // offers are ordinary creations upgraded by the shared creation owner.
                 if foreign&&state.piles.hand.len()<10&&state.player_full_powers.iter().any(|power|power.id.0=="master_reality")&&card.upgrades==0{
                     card=super::card_state::upgrade_live_card(state,&card)
-                        .map_err(|error|InputError::Unsupported(format!("Foreign Influence Master Reality upgrade failed: {error:?}")))?;
+                        .map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("Foreign Influence Master Reality upgrade failed: {other:?}"))))?;
                 }
                 // These offers contain ordinary Attack/Skill/Power templates.
                 // Reflex/Tactician and X retain their source negative costs.

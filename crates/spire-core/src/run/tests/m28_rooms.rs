@@ -472,3 +472,64 @@ fn m28_shop_card_rows_preview_eggs() {
         assert!(attacks > 0 && skills > 0, "{character:?}: shop includes both typed card rows");
     }
 }
+
+#[test]
+fn sjh_permanent_shop_bound_keeps_the_purchase_transaction_unchanged() {
+    use crate::{combat::EngineBound, content::CardId};
+    let mut run = on_map(Character::Ironclad, 7);
+    run.state.gold = 999;
+    enter_as(&mut run, MapNodeKind::Shop);
+    run.state.deck = (1..=999).map(|instance| CardInstance {
+        id: CardId::Strike, instance, upgrades: 0, misc: 0,
+    }).collect();
+    run.state.next_instance = 1000;
+    let choice = view(&run).choices.into_iter().find(|row|
+        row.status == RoomChoiceStatus::Offered && matches!(row.kind, RoomChoiceKind::Card { .. })
+    ).unwrap().id;
+    let before = run.clone();
+    assert_eq!(run.step(&GameAction::Choose(choice)),
+        Err(RunError::Bound(EngineBound::new("permanent_cards", 999, 1000))));
+    assert_eq!(run, before);
+
+    run.state.deck.pop();
+    run.state.next_instance = u64::MAX;
+    let before = run.clone();
+    assert_eq!(run.step(&GameAction::Choose(choice)),
+        Err(RunError::Bound(EngineBound::new("permanent_card_identity", i128::from(u64::MAX), i128::from(u64::MAX) + 1))));
+    assert_eq!(run, before);
+}
+
+#[test]
+fn sjh_reward_keeps_the_card_when_its_gold_callback_hits_the_limit() {
+    use crate::combat::EngineBound;
+    let mut run = on_map(Character::Ironclad, 7);
+    enter_as(&mut run, MapNodeKind::Monster);
+    win(&mut run);
+    reward_cards(&mut run);
+    run.state.relics.push(RelicId::CeramicFish);
+    run.state.gold = u32::MAX - 2;
+    let deck_len = run.state.deck.len();
+    let choice = view(&run).choices.into_iter().find(|row|
+        row.status == RoomChoiceStatus::Offered && matches!(row.kind, RoomChoiceKind::Card { .. })
+    ).unwrap().id;
+    let action = GameAction::Choose(choice);
+    let error = run.step(&action).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(EngineBound::new("gold", i128::from(u32::MAX), i128::from(u32::MAX) + 7)));
+    assert!(matches!(&error, RunError::Faulted(fault) if fault.checkpoint == "run.reward.card"));
+    assert_eq!(run.state.deck.len(), deck_len + 1);
+    assert_eq!(run.state.gold, u32::MAX - 2);
+    assert_eq!(run.step(&action), Err(error));
+}
+
+#[test]
+fn sjh_fruit_juice_remains_selectable_in_a_noncombat_room() {
+    use crate::combat::EngineBound;
+    let mut run = on_map(Character::Ironclad, 7);
+    set_survivable(&mut run);
+    run.state.potions[0] = Some(PotionId::FruitJuice);
+    let action = GameAction::UsePotion { slot: 0, target: None };
+    assert!(run.decision().unwrap().candidates.iter().any(|candidate| candidate.action == action));
+    let before = run.clone();
+    assert_eq!(run.step(&action), Err(RunError::Bound(EngineBound::new("maximum_hp", 999, 1004))));
+    assert_eq!(run, before);
+}

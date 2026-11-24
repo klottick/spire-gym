@@ -350,3 +350,8 @@ includes `bound` and successful peers are delivered normally. The same
 bound appears in `fault_cause(slot)` and the retained cause if an explicit
 isolate reset retires the slot. Autoreset does not treat a bound as an
 episode ending.
+
+A limit in a staged Run operation can report `committed=False`. For
+example, a shop acquisition at the permanent-deck limit leaves the
+purchase and its gold payment unapplied. The batch still follows its
+configured fault policy.

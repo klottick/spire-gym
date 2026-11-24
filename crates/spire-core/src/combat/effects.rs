@@ -296,6 +296,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         return super::powers::apply_effect(state, effect).map_err(Into::into);
     }
     match &effect.kind {
+        EffectKind::DeferredBound(bound) => return Err(InputError::Bound(*bound).into()),
         EffectKind::Damage(payload) => {
             let poison_tick=is_enemy_poison_tick(state,effect);
             let already_half_dead=match &effect.target{Some(Actor::Enemy(owner))=>state.enemies.iter().any(|e|&e.instance_id==owner&&e.life==ActorLife::HalfDead),_=>false};
@@ -395,7 +396,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
                 }else if full_runtime{rules::full_hp_and_block_after_damage(hp_before,*block,damage)?}
                 else{rules::hp_and_block_after_damage(hp_before,*block,damage)?};
                 if full_runtime&&*target==Actor::Player&&hp_before>next_hp{
-                    damage_event_count.checked_add(1).ok_or_else(||InputError::Unsupported("player damage event history exhausted".into()))?;
+                    damage_event_count.checked_add(1).ok_or_else(||InputError::bound("damage_events", i128::from(u32::MAX), i128::from(damage_event_count) + 1))?;
                 }
                 *hp=next_hp;*block=next_block;(hp_before,block_before,next_hp,next_block)
             };
@@ -581,7 +582,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             let card=state.piles.hand.iter().filter_map(OwnedCard::full).find(|card|card.instance==instance)
                 .ok_or_else(||InputError::Invariant("random upgrade hand owner absent".into()))?.clone();
             let upgraded=super::card_state::upgrade_live_card(state,&card)
-                .map_err(|error|InputError::Unsupported(format!("relic hand upgrade failed: {error:?}")))?;
+                .map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("relic hand upgrade failed: {other:?}"))))?;
             *state.piles.hand.iter_mut().filter_map(OwnedCard::full_mut).find(|card|card.instance==instance)
                 .ok_or_else(||InputError::Invariant("random upgrade hand slot absent".into()))?=upgraded;
             super::piles::refresh_hand_values(state);
@@ -660,7 +661,7 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             for index in 0..state.piles.hand.len() {
                 if let Some(card)=state.piles.hand[index].full().filter(|card|super::cards::ironclad::rules::can_upgrade(card.id,card.upgrades)).cloned() {
                     let upgraded=super::card_state::upgrade_live_card(state,&card)
-                        .map_err(|error|InputError::Unsupported(format!("accepted hand upgrade failed: {error:?}")))?;
+                        .map_err(|error| InputError::retain_bound(error, |other| InputError::Unsupported(format!("accepted hand upgrade failed: {other:?}"))))?;
                     if let Some(slot)=state.piles.hand[index].full_mut(){*slot=upgraded;}
                 }
             }
@@ -744,6 +745,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
             }
         }
         EffectKind::SilentItem(super::SilentItemEffect::SpecimenPoisonTransfer { amount, .. }) => {
+            if *amount > 9_999 {
+                return Err(InputError::bound("specimen_poison_transfer", 9_999, i128::from(*amount)).into());
+            }
             // The Death callback only captures Poison and the fact that a live
             // recipient existed. Like the source random action, this chooses
             // from the then-current living set when its queued action executes.
@@ -802,8 +806,9 @@ fn apply_effect_inner(state: &mut State, effect: &Effect, damage_result_out:&mut
         EffectKind::IncreaseMaxHpThenHeal(n) => {
             // Commit the max-HP child first, then schedule the ordinary Heal
             // as the next queue item with the same effect owner.
-            let max_hp = state.player.max_hp.checked_add(*n)
-                .ok_or_else(|| InputError::Unsupported("player maximum HP overflow".into()))?;
+            let attempted = i128::from(state.player.max_hp) + i128::from(*n);
+            if attempted > 999 { return Err(InputError::bound("maximum_hp", 999, attempted).into()); }
+            let max_hp = attempted as i32;
             state.player.max_hp = max_hp;
             if let Some(context)=state.item_context.as_mut(){
                 let work=crate::items::laws::hp_changed(context,0,state.player.hp,state.player.max_hp)?;

@@ -549,6 +549,17 @@ pub(super) fn payload_with_wrist_blade(state:&State,card:&LiveCard,target:Option
 
 pub(super) fn projected_payload(projection:&mut Projection<'_>,card:&LiveCard,target:Option<u64>)
     ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
+    match project_payload_work(projection, card, target) {
+        Err(crate::run::RunError::Bound(bound)) => {
+            let cost = base_cost(projection.state, card).ok_or(crate::run::RunError::InvalidAction)?;
+            Ok((cost.max(0), vec![(None, EffectKind::DeferredBound(bound))]))
+        }
+        result => result,
+    }
+}
+
+fn project_payload_work(projection:&mut Projection<'_>,card:&LiveCard,target:Option<u64>)
+    ->Result<(i32,Vec<(Option<PayloadTarget>,EffectKind)>),crate::run::RunError>{
     let state=projection.state;
     #[cfg(test)] if reference_payloads(){return reference_payload_with_wrist_blade(state,card,target)}
     let attack=crate::content::Catalog::standard().card(card.id)
@@ -694,6 +705,13 @@ pub(super) fn prepare_autoplay(state:&State,card:&LiveCard,target:Option<&Actor>
     Ok(Some(effects))
 }
 
+fn projected_calculation_error(error: InputError, fallback: &'static str) -> crate::run::RunError {
+    match error {
+        InputError::Bound(bound) => crate::run::RunError::Bound(bound),
+        _ => crate::run::RunError::Unsupported(fallback),
+    }
+}
+
 pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool, enemy:&super::model::EnemyState)
     -> Result<i32, crate::run::RunError>
 {
@@ -702,20 +720,27 @@ pub(super) fn normal_damage(state: &State, base: i32, strength: i32, weak: bool,
 fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&super::model::EnemyState,signed:bool)->Result<i32,crate::run::RunError>{
     let item_bonus=state.item_context.as_ref().map_or(0,crate::items::CombatItemContext::wrist_blade_bonus);
     let base=base.checked_add(item_bonus)
-        .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?;
+        .ok_or_else(|| crate::run::RunError::Bound(super::EngineBound::new(
+            "card_damage_base", i128::from(i32::MAX), i128::from(base) + i128::from(item_bonus),
+        )))?;
     let base=state.item_context.as_ref().filter(|context|context.complete_items())
         .and_then(crate::items::CombatItemContext::damage_card).map_or(base,|card|{
             // M27 seam: outgoing-damage, after Wrist Blade and before Strength.
             crate::items::laws::outgoing_damage(state.item_context.as_ref().expect("item context present"),Some(card),
                 &Actor::Enemy(enemy.instance_id.clone()),base)
         });
-    if !signed&&(!(0..=3003).contains(&base) || !(-9990..=9990).contains(&strength)) {
+    if !signed && !(0..=3_003).contains(&base) {
+        return Err(crate::run::RunError::Bound(super::EngineBound::new(
+            "card_damage_base", if base < 0 { 0 } else { 3_003 }, i128::from(base),
+        )));
+    }
+    if !signed && !(-9990..=9990).contains(&strength) {
         return Err(crate::run::RunError::Unsupported("normal damage outside supported numeric surface"));
     }
     let combined_base = if signed{0}else{base.checked_add(strength)
         .ok_or(crate::run::RunError::Unsupported("full card damage arithmetic overflow"))?};
     if !signed&&combined_base > 10004 {
-        return Err(crate::run::RunError::Unsupported("full card damage exceeds supported numeric surface"));
+        return Err(crate::run::RunError::Bound(super::EngineBound::new("card_combined_damage", 10_004, i128::from(combined_base))));
     }
     let mut receive=Vec::new();
     let phrog=state.item_context.as_ref().is_some_and(|items|items.owns_relic(crate::content::RelicId::PaperPhrog));
@@ -735,17 +760,17 @@ fn normal_damage_pipeline(state:&State,base:i32,strength:i32,weak:bool,enemy:&su
             weak, state.character.stance,
             state.player_full_powers.iter().any(|p| p.id.0 == "double_damage" && p.state.amount > 0),
             receive, signed,
-        ).map_err(|_| crate::run::RunError::Unsupported("invalid Slow-scaled card damage"));
+        ).map_err(|error| projected_calculation_error(error, "invalid Slow-scaled card damage"));
     }
     // M26 §6.3 S: the stance pipeline runs once a stance or Vigor exists for any character.
     if watcher::active(state)||state.character.stance!=super::characters::Stance::Neutral
         ||state.player_full_powers.iter().any(|p|p.id.0=="vigor"){return rules::full_card_damage_for_stance(if signed{base}else{combined_base.max(0)},if signed{strength}else{0},weak,state.character.stance,
-        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive,signed).map_err(|_|crate::run::RunError::Unsupported("invalid Watcher card damage"))}
+        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive,signed).map_err(|error| projected_calculation_error(error, "invalid Watcher card damage"))}
     if signed{return rules::full_signed_card_damage(base,strength,weak,state.character.stance==super::characters::Stance::Wrath,
-        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive).map_err(|_|crate::run::RunError::Unsupported("invalid signed card damage"))}
+        state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0),receive).map_err(|error| projected_calculation_error(error, "invalid signed card damage"))}
     rules::full_normal_damage_given_received(combined_base.max(0), 0, weak,
         state.character.stance == super::characters::Stance::Wrath, state.player_full_powers.iter().any(|p|p.id.0=="double_damage"&&p.state.amount>0), receive)
-        .map_err(|_| crate::run::RunError::Unsupported("invalid card damage"))
+        .map_err(|error| projected_calculation_error(error, "invalid card damage"))
 }
 
 pub(super) fn normal_potion_damage(state:&State,base:i32,enemy:&super::model::EnemyState)
@@ -785,7 +810,7 @@ fn modified_block_pipeline(state:&State,base:i32,signed:bool)->Result<i32,crate:
     let dexterity = state.player_full_powers.iter().find(|p| p.id.0 == "dexterity").map_or(0, |p| p.state.amount);
     let frail = state.player_full_powers.iter().any(|p| p.id.0 == "frail" && p.state.amount > 0);
     (if watcher::active(state){rules::full_watcher_card_block(base,dexterity,frail)}else if signed{rules::full_signed_card_block(base,dexterity,frail)}else{rules::full_card_block(base, dexterity, frail)})
-        .map_err(|_| crate::run::RunError::Unsupported("invalid calculated card Block"))
+        .map_err(|error| projected_calculation_error(error, "invalid calculated card Block"))
 }
 
 fn card_handle(card: &LiveCard) -> CardHandle {

@@ -585,3 +585,15 @@ fn m15_regeneration_heals_before_end_turn_burn_damage() {
     assert_eq!(c.state.player.hp,6);
     assert_eq!(c.state.outcome,None);
 }
+
+#[test]
+fn sjh_specimen_reports_the_captured_transfer_amount() {
+    let mut combat = enter(entry(&[CardId::StrikeGreen; 5], 1, 3, EnemyId::Cultist,
+        FullIntentId::Incantation, &[], &[]), vec![RelicId::TheSpecimen], vec![]);
+    let owner = EnemyHandle::parse("enemy-1").unwrap();
+    let work = silent_death_work(combat.item_context().unwrap(), owner, Some(10_000), 2);
+    let error = combat.enqueue_native_effects(work, None).unwrap_err();
+    assert_eq!(error.engine_bound(), Some(crate::combat::EngineBound::new(
+        "specimen_poison_transfer", 9_999, 10_000,
+    )));
+}

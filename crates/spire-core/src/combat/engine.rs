@@ -1160,7 +1160,7 @@ impl Combat {
                 ||self.state.next_nightmare_installation_id.checked_add(1).is_none()
                 ||selection.source_zone!=SelectionSourceZone::Hand
                 ||selection.disposition!=SelectionDisposition::Hand||selection.minimum!=1||selection.maximum!=1
-                ||selection.selected.len()!=1||self.state.turn.checked_add(1).filter(|turn|*turn<=i32::MAX as u32).is_none() {
+                ||selection.selected.len()!=1 {
                 return Err(crate::run::RunError::InvalidAction)
             }
         }
@@ -1255,7 +1255,10 @@ impl Combat {
                     };
                     self.state.inactive_cards.push(card);
                     if let Err(error)=super::piles::stat_copy_to_hand_from_owner(&mut self.state,selected,copies){
-                        super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("Dual Wield copy insertion failed: {error:?}"));
+                        match error {
+                            EffectError::Invalid(InputError::Bound(bound)) => retain_error(&mut self.state, InputError::Bound(bound).into()),
+                            _ => super::model::mark_fault(&mut self.state, FaultKind::Invariant, format!("Dual Wield copy insertion failed: {error:?}")),
+                        }
                         return Err(retained_fault(&self.state))
                     }
                 },
@@ -1267,7 +1270,10 @@ impl Combat {
                     let SelectionParent::Card(owner)=&selection.parent else{unreachable!("Nightmare preflight requires a card owner")};
                     self.state.piles.hand.push(card);
                     if let Err(error)=super::cards::capture_silent_nightmare_template_from_owner(&mut self.state,owner.clone(),selected){
-                        super::model::mark_fault(&mut self.state,FaultKind::Invariant,format!("accepted Nightmare capture failed: {error:?}"));
+                        match error {
+                            InputError::Bound(bound) => retain_error(&mut self.state, InputError::Bound(bound).into()),
+                            _ => super::model::mark_fault(&mut self.state, FaultKind::Invariant, format!("accepted Nightmare capture failed: {error:?}")),
+                        }
                         return Err(retained_fault(&self.state))
                     }
                 },
@@ -1675,7 +1681,9 @@ pub(super) fn captured_normal_damage_valid(state: &State, target: &Actor, damage
 pub(super) fn wide_slow_damage_valid(state: &State, effect: &Effect, damage: i32) -> bool {
     damage > 30_012 && effect.target.as_ref().is_some_and(|target| captured_normal_damage_valid(state, target, damage))
         && match &effect.source {
-            Source::Card(owner) => state.in_play.as_ref().is_some_and(|card| owner == &card.handle()),
+            Source::Card(owner) => state.in_play.as_ref().is_some_and(|card| owner == &card.handle())
+                || super::piles::owned_full_cards(state).any(|card|
+                    card.id == crate::content::CardId::FTL && super::card_state::handle(card.instance) == *owner),
             // Explosive Potion uses a source-less DamageAllEnemiesAction.
             Source::None => true,
             _ => false,
@@ -1717,6 +1725,9 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
         require(cultist_target, "Ritual payload owner")?;
     }
     match &effect.kind {
+        EffectKind::DeferredBound(_) => require(state.full_runtime && effect.target.is_none()
+            && matches!((&effect.source, &state.in_play), (Source::Card(owner), Some(card))
+                if *owner == card.handle()), "deferred numeric bound requires the accepted card owner")?,
         EffectKind::OpeningHand{count}=>require(state.full_runtime&&*count<=10
             &&(state.phase==Phase::PlayerStart||state.phase==Phase::Selection&&state.silent.card_offer.is_some())
             &&state.item_context.as_ref().is_some_and(|i|i.m21_profile()||i.complete_items()),"M21/M27 owned opening continuation")?,
@@ -1880,7 +1891,7 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
                 }),
             "generated potion obtain retains its accepted Brew source")?,
         EffectKind::SilentItem(super::SilentItemEffect::SpecimenPoisonTransfer { callback_owner, amount }) => {
-            require(state.full_runtime && *amount > 0 && *amount <= 9_999
+            require(state.full_runtime && *amount > 0
                 && effect.source == Source::Actor(Actor::Player) && effect.target.is_none()
                 && state.item_context.as_ref().is_some_and(|items|
                     (items.m15_profile()||items.complete_items()) && items.owns_relic(crate::content::RelicId::TheSpecimen))
@@ -2098,13 +2109,18 @@ pub(super) fn validate_effect(effect: &Effect, state: &State) -> Result<(), Inpu
             require(effect.target == Some(Actor::Player), "full enemy damage source/target")?;
         }
         EffectKind::GainBlock(n) => require(*n >= 0 && (state.full_runtime || *n <= 1007), "block payload bounds")?,
-        EffectKind::Heal(n) => require((0..=999).contains(n)
-            && (effect.target == Some(Actor::Player) || (state.full_runtime&&matches!(effect.target,Some(Actor::Enemy(_))))), "healing bounds/target")?,
+        EffectKind::Heal(n) => {
+            require(*n >= 0 && (effect.target == Some(Actor::Player)
+                || (state.full_runtime && matches!(effect.target, Some(Actor::Enemy(_))))), "healing bounds/target")?;
+            if state.full_runtime && *n > 999 {
+                return Err(InputError::bound("heal_amount", 999, i128::from(*n)));
+            }
+            require(*n <= 999, "healing bounds/target")?;
+        }
         EffectKind::NeowsLament=>require(state.full_runtime&&effect.source==Source::None&&effect.target==Some(Actor::Player),"Lament mode/source/target")?,
         EffectKind::IncreaseMaxHpThenHeal(n) => require(state.full_runtime && (1..=10).contains(n)
             && effect.source == Source::Actor(Actor::Player)
-            && effect.target == Some(Actor::Player)
-            && state.player.max_hp.checked_add(*n).is_some_and(|max| max <= 999),
+            && effect.target == Some(Actor::Player),
             "native max-HP increase/queued heal mode/source/target/bounds")?,
         EffectKind::Silent(work)=>super::cards::validate_silent_work(state,effect,work)?,
         EffectKind::Defect(work)=>super::cards::defect::validate_work(state,effect,work)?,
