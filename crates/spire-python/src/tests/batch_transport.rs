@@ -195,6 +195,9 @@ fn gil_is_detached_for_native_batch_work() {
     let run_env = include_str!("../run_env.rs");
     let step_many = run_env.lines().find(|l| l.contains("search.step_many(")).expect("step_many binding");
     assert!(step_many.contains("py.detach("), "step_many runs with the GIL held");
+    // M41: every native playout runs with the GIL released.
+    let playout_many = run_env.lines().find(|l| l.contains("search.playout_many(")).expect("playout_many binding");
+    assert!(playout_many.contains("py.detach("), "playout_many runs with the GIL held");
 }
 
 /// M38b fixes 1 and 3(a): a step encoded straight into pooled stacked columns (`SessionBatch::step_into` + `Slab`)

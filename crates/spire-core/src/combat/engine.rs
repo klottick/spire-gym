@@ -1493,6 +1493,8 @@ impl Combat {
     pub fn current_combat_gold(&self)->Option<u32>{super::enemies::act1::thieves::current_gold(&self.state)}
     pub fn stolen_gold_rewards(&self)->Vec<u32>{super::enemies::act1::thieves::stolen_gold_rewards(&self.state).iter().map(|receipt|receipt.amount).collect()}
     pub fn combat_mugged(&self)->bool{super::enemies::act1::thieves::mugged(&self.state)}
+    /// M41: the combat's outcome once it has one (equal to `public_full().outcome` whenever that view builds).
+    pub(crate) fn outcome(&self)->Option<Outcome>{self.state.outcome}
     pub fn all_enemies_escaped(&self)->bool{super::enemies::act1::thieves::all_escaped(&self.state)}
     pub fn exit(&self) -> Result<CombatExit, crate::run::RunError> {
         if self.state.fault.is_some() { return Err(retained_fault(&self.state)); }

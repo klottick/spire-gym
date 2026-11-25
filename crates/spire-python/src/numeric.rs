@@ -58,6 +58,10 @@ fn input_values<T: Element + Copy>(value: &Bound<'_, PyAny>, shape: &[usize]) ->
 }
 
 /// Guards and ndarray views die here, before the caller detaches.
+/// M41: one `(N, 2)` uint64 token row per branch (`playout_many`).
+pub(crate) fn token_inputs(tokens: &Bound<'_, PyAny>, batch: usize) -> PyResult<Vec<[u64;2]>> {
+    Ok(input_values::<u64>(tokens, &[batch,2])?.chunks_exact(2).map(|t|[t[0],t[1]]).collect())
+}
 pub(crate) fn step_inputs(actions: &Bound<'_, PyAny>, tokens: &Bound<'_, PyAny>, batch: usize)
     -> PyResult<(Vec<i64>, Vec<[u64;2]>)> {
     let actions = input_values::<i64>(actions, &[batch])?;

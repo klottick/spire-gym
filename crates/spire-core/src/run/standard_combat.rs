@@ -229,10 +229,34 @@ impl Run {
     /// The combat scope's terminal, once the combat has an outcome; `None` before, and outside a combat scope.
     pub fn combat_scope_terminal(&self)->Option<CombatScopeTerminal>{
         self.state.combat_scope?;
-        let combat=self.state.combat.as_ref()?;let view=combat.public_full().ok()?;
+        let combat=self.state.combat.as_ref()?;
+        // M41 (perf only): `public_full().outcome` is the combat's own outcome, so without one the result is `None`
+        // whether or not the public view builds; skip building it.
+        combat.outcome()?;
+        let view=combat.public_full().ok()?;
         Some(CombatScopeTerminal{outcome:view.outcome?,hp_before_healing:u32::try_from(view.hp_before_healing?).ok()?,
             hp_after_cleanup:u32::try_from(view.hp_after_cleanup?).ok()?,all_enemies_escaped:combat.all_enemies_escaped()})
     }
+}
+
+/// M41: the label of the `PublicSearch` playout research stream (keyed by a branch's sample key; see
+/// [`research_playout_pick`]).
+pub const PUBLIC_PLAYOUT_LABEL:&[u8]=b"spire-gym-public-search-v1/playout\0";
+/// M41: the fixed-length message of one playout pick key.
+fn playout_message(playout_seed:u64,ordinal:u64)->Vec<u8>{
+    let mut message=PUBLIC_PLAYOUT_LABEL.to_vec();message.extend_from_slice(&playout_seed.to_be_bytes());message.extend_from_slice(&ordinal.to_be_bytes());message
+}
+/// M41: the `PublicSearch` playout rule's uniform pick in `0..bound` (`bound >= 1`) for the branch whose sample key is
+/// `origin`, at its `ordinal`-th accepted action, under `playout_seed`. The key is
+/// `HMAC(origin, PUBLIC_PLAYOUT_LABEL || playout_seed_be || ordinal_be)` and the draw is the research stream's unbiased
+/// sampler (as R1, R3 and the M40a identical pick), so the pick is deterministic, separate from every game stream and
+/// from the other `origin`-keyed streams. Research only: the game never reads it.
+pub fn research_playout_pick(origin:&[u8;32],playout_seed:u64,ordinal:u64,bound:usize)->usize{
+    use crate::combat::belief::Uniform;
+    debug_assert!(bound>0,"a playout pick needs a candidate");
+    if bound<=1{return 0}
+    let key=crate::combat::rng::hmac_sha256(origin,&playout_message(playout_seed,ordinal));
+    crate::combat::belief::ResearchStream::new(key).below(bound as u128) as usize
 }
 
 #[cfg(test)]
@@ -338,5 +362,60 @@ mod tests {
         let mut ordinary=Run::new(RunConfig{character:Character::Ironclad,ascension:0},CreationProfile::experienced(),rng()).unwrap();
         assert_eq!(ordinary.enter_standard_combat().err(),Some(RunError::InvalidAction));
         assert!(ordinary.combat_scope_terminal().is_none());
+    }
+
+    /// M41 T1: the playout pick is a function of (origin, playout seed, ordinal, bound) only, in range, and spread.
+    #[test]
+    fn research_playout_pick_is_deterministic_and_keyed(){
+        let (o,p)=([1;32],[2;32]);
+        for bound in [1usize,2,3,7,40]{for ordinal in 0..20{
+            let x=research_playout_pick(&o,0,ordinal,bound);
+            assert!(x<bound);assert_eq!(x,research_playout_pick(&o,0,ordinal,bound));
+        }}
+        assert_eq!(research_playout_pick(&o,9,3,1),0,"a single candidate needs no draw");
+        let trace=|origin:&[u8;32],seed:u64|(0..64).map(|ordinal|research_playout_pick(origin,seed,ordinal,1_000_003)).collect::<Vec<_>>();
+        assert_ne!(trace(&o,0),trace(&p,0),"the sample key matters");
+        assert_ne!(trace(&o,0),trace(&o,1),"the playout seed matters");
+        let t=trace(&o,0);assert!(t.windows(2).any(|w|w[0]!=w[1]),"the ordinal matters");
+        let mut counts=[0usize;4];for ordinal in 0..4_000{counts[research_playout_pick(&o,5,ordinal,4)]+=1;}
+        assert!(counts.iter().all(|c|(850..1150).contains(c)),"uniform over the pool: {counts:?}");
+    }
+    /// M41 T1: every label keyed by a branch's sample key (`origin`) is pairwise prefix-free, so the playout stream is
+    /// disjoint from R1–R3 (M40c hidden-move rolls run on the R2 restream) and the M40a identical pick; and the playout
+    /// label is also disjoint from the gameplay and research-root labels.
+    #[test]
+    fn origin_keyed_labels_are_prefix_free(){
+        let labels:[&[u8];6]=[b"r1-draw-order",b"r2-run-root",b"r2-run-rng",b"r3-preroll\0",b"spire-gym-public-search-v1/identical-pick\0",PUBLIC_PLAYOUT_LABEL];
+        for (i,a) in labels.iter().enumerate(){for (j,b) in labels.iter().enumerate(){if i!=j{assert!(!b.starts_with(a),"{:?} prefixes {:?}",String::from_utf8_lossy(a),String::from_utf8_lossy(b));}}}
+        for other in [b"spire-lab-run-rng-v1\0".as_slice(),b"spire-lab/run-combat-stream/v1/",b"spire-lab/rng/v1/stream\0",RESEARCH_SAMPLE_LABEL,RESEARCH_START_LABEL]{
+            assert!(!other.starts_with(PUBLIC_PLAYOUT_LABEL)&&!PUBLIC_PLAYOUT_LABEL.starts_with(other));
+        }
+        assert_eq!(playout_message(7,9).len(),PUBLIC_PLAYOUT_LABEL.len()+16,"fixed-length playout messages");
+    }
+    /// M41 (design-v2 §5.3): the early `None` for a combat without an outcome equals the full form at live, terminal
+    /// and faulted combats.
+    #[test]
+    fn combat_scope_terminal_fast_path_equals_the_full_form(){
+        fn full(run:&Run)->Option<CombatScopeTerminal>{
+            run.state.combat_scope?;
+            let combat=run.state.combat.as_ref()?;let view=combat.public_full().ok()?;
+            Some(CombatScopeTerminal{outcome:view.outcome?,hp_before_healing:u32::try_from(view.hp_before_healing?).ok()?,
+                hp_after_cleanup:u32::try_from(view.hp_after_cleanup?).ok()?,all_enemies_escaped:combat.all_enemies_escaped()})
+        }
+        for (hp,seed) in [(30u32,3u8),(80,4),(2,5)]{
+            let mut run=Run::prepare_standard_combat(start(hp,vec![RelicId::BurningBlood]),RunRng::new([seed;32],Partition::Test,0)).unwrap();
+            assert_eq!(run.combat_scope_terminal(),full(&run));
+            run.enter_standard_combat().unwrap();
+            let mut faulted=run.clone();faulted.state.fault=Some(RunFault{kind:RunFaultKind::Invariant("m41 test fault"),checkpoint:"m41.fault",committed_events:vec![]});
+            assert_eq!(faulted.combat_scope_terminal(),full(&faulted));
+            for _ in 0..400{
+                assert_eq!(run.combat_scope_terminal(),full(&run));
+                if run.combat_scope_terminal().is_some(){break}
+                let d=run.decision().unwrap();
+                let a=d.candidates.iter().find(|c|matches!(c.action,GameAction::Combat(crate::combat::CombatAction::PlayCard{..}))).unwrap_or(&d.candidates[0]).action.clone();
+                run.step(&a).unwrap();
+            }
+            assert!(run.combat_scope_terminal().is_some(),"reached the terminal");
+        }
     }
 }

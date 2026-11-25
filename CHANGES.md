@@ -5,7 +5,20 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- Additive: native public-search playouts (M41, spire-n6b). `PublicSearch::playout_many` and
+  `PublicSearch::playout_action` play branches under the declared public rule `spire-gym-public-playout-v1`: uniform
+  over legal actions whose Standard verb is not excluded, default `end_turn` and `discard_potion`. Draws come from a new
+  research stream keyed by the branch's sample, the playout seed and its step. The new Rust names are `PlayoutRule`,
+  `PlayoutConfig`, `BranchPlayoutRequest`, `BranchPlayout`, `BranchPlayoutOutcome`, `PlayoutSummary`, `EnemyHp`,
+  `PUBLIC_PLAYOUT_RULE_ID`, `DEFAULT_PLAYOUT_EXCLUDED_VERBS`, `REFUSAL_HIDDEN_ORDER_PICK`, `REFUSAL_NO_LEGAL_ACTION`,
+  `STANDARD_PLAYOUT_VERBS` and `PublicSearch::enemy_capacity`, plus
+  `spire_core::run::{research_playout_pick, PUBLIC_PLAYOUT_LABEL}`. The new Python names are
+  `NativePublicSearch.playout_many`/`playout_action`, `PublicSearch.playout_many`, `PublicBranch.playout_action` and the
+  `PlayoutResult` stub type. There is a new example, `examples/public_playout.py`. Existing names, defaults, rules ids,
+  layouts, fingerprints, replay digests, Heart pins and root digests are unchanged, so no version bump is needed.
+- Internal, no output change: `step` and `step_many` with the Mask view now share one transition function with
+  playouts. `Run::combat_scope_terminal` skips building the public combat view while the combat has no outcome; the
+  result is equal because that view's outcome is the combat's own outcome.
 
 ## 1.2.3 — effective at the commit tagged v1.2.3
 

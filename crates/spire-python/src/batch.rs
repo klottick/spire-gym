@@ -850,24 +850,72 @@ pub(crate) fn branch_outcomes<'py>(
             BranchStepOutcome::Stepped(s) => { infos.append(numeric::descriptor(py, s.info.to_string())?)?; faults.append(py.None())?; }
             BranchStepOutcome::Fault { error, stage, committed } => {
                 infos.append(py.None())?;
-                let fault = fault_dict(py, stage, &stacking::error_message(error, false), *committed)?;
-                if let Some(bound) = error.engine_bound() {
-                    fault.set_item("bound", run_env::bound_value(py, bound)?)?;
-                }
-                if compact.is_some() {
-                    if let RunSessionError::Capacity { group, required, capacity } = error {
-                        let detail = PyDict::new(py);
-                        detail.set_item("group", group)?;
-                        detail.set_item("required", required)?;
-                        detail.set_item("capacity", capacity)?;
-                        fault.set_item("capacity", detail)?;
-                    }
-                }
-                faults.append(fault)?;
+                faults.append(branch_fault(py, error, stage, *committed, compact.is_some())?)?;
             }
         }
     }
     out.set_item("info", infos)?;
+    out.set_item("fault", faults)?;
+    Ok(out)
+}
+/// One faulted branch entry's fault dict (`step_many` and `playout_many`): stage, class-only message, committed, the engine
+/// bound when there is one, and on a compact search the capacity detail.
+fn branch_fault<'py>(py: Python<'py>, error: &RunSessionError, stage: &str, committed: bool, compact: bool) -> PyResult<Bound<'py, PyAny>> {
+    let fault = fault_dict(py, stage, &stacking::error_message(error, false), committed)?;
+    if let Some(bound) = error.engine_bound() {
+        fault.set_item("bound", run_env::bound_value(py, bound)?)?;
+    }
+    if compact {
+        if let RunSessionError::Capacity { group, required, capacity } = error {
+            let detail = PyDict::new(py);
+            detail.set_item("group", group)?;
+            detail.set_item("required", required)?;
+            detail.set_item("capacity", capacity)?;
+            fault.set_item("capacity", detail)?;
+        }
+    }
+    Ok(fault)
+}
+
+/// M41: `playout_many` outcomes as owned arrays and lists in input order (design-v2 §4.3). Enemy columns are
+/// `max(enemy_capacity, the largest summary in the call)` wide; fault rows are zero apart from their step counts.
+pub(crate) fn branch_playout_outcomes<'py>(
+    py: Python<'py>, outcomes: Vec<spire_env::BranchPlayoutOutcome>, enemy_capacity: usize, compact: bool,
+) -> PyResult<Bound<'py, PyDict>> {
+    use spire_env::BranchPlayoutOutcome as O;
+    let count = outcomes.len();
+    fn finished(o: &spire_env::BranchPlayoutOutcome) -> Option<&spire_env::BranchPlayout> { match o { spire_env::BranchPlayoutOutcome::Finished(p) => Some(p), spire_env::BranchPlayoutOutcome::Fault { .. } => None } }
+    let width = outcomes.iter().filter_map(finished).map(|p| p.summary.enemies.len()).max().unwrap_or(0).max(enemy_capacity);
+    let out = PyDict::new(py);
+    out.set_item("rule_id", spire_env::PUBLIC_PLAYOUT_RULE_ID)?;
+    out.set_item("tokens", tokens(py, outcomes.iter().map(|o| finished(o).map_or(RunDecisionToken::from([0_u64, 0]), |p| p.token)), count)?)?;
+    out.set_item("rewards", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.reward)).collect::<Vec<i32>>(), &[count])?)?;
+    out.set_item("terminated", numeric::array(py, outcomes.iter().map(|o| finished(o).is_some_and(|p| p.terminated)).collect::<Vec<bool>>(), &[count])?)?;
+    out.set_item("truncated", numeric::array(py, outcomes.iter().map(|o| finished(o).is_some_and(|p| p.truncated)).collect::<Vec<bool>>(), &[count])?)?;
+    let steps = |o: &O| match o { O::Finished(p) => (p.steps, p.branch_steps), O::Fault { steps, branch_steps, .. } => (*steps, *branch_steps) };
+    out.set_item("steps", numeric::array(py, outcomes.iter().map(|o| steps(o).0).collect::<Vec<u64>>(), &[count])?)?;
+    out.set_item("branch_steps", numeric::array(py, outcomes.iter().map(|o| steps(o).1).collect::<Vec<u64>>(), &[count])?)?;
+    out.set_item("player_hp", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.summary.player_hp)).collect::<Vec<i32>>(), &[count])?)?;
+    out.set_item("player_max_hp", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.summary.player_max_hp)).collect::<Vec<i32>>(), &[count])?)?;
+    let (mut hp, mut max_hp, mut present) = (vec![0_i32; count * width], vec![0_i32; count * width], vec![0_i8; count * width]);
+    for (row, o) in outcomes.iter().enumerate() {
+        for (col, e) in finished(o).map_or(&[][..], |p| &p.summary.enemies[..]).iter().enumerate() {
+            let at = row * width + col;
+            (hp[at], max_hp[at], present[at]) = (e.hp, e.max_hp, 1);
+        }
+    }
+    out.set_item("enemy_hp", numeric::array(py, hp, &[count, width])?)?;
+    out.set_item("enemy_max_hp", numeric::array(py, max_hp, &[count, width])?)?;
+    out.set_item("enemy_present", numeric::array(py, present, &[count, width])?)?;
+    let (reasons, refusals, faults) = (PyList::empty(py), PyList::empty(py), PyList::empty(py));
+    for o in &outcomes {
+        match o {
+            O::Finished(p) => { reasons.append(p.end_reason)?; refusals.append(p.refusal)?; faults.append(py.None())?; }
+            O::Fault { error, stage, committed, .. } => { reasons.append("fault")?; refusals.append(py.None())?; faults.append(branch_fault(py, error, stage, *committed, compact)?)?; }
+        }
+    }
+    out.set_item("end_reason", reasons)?;
+    out.set_item("refusal", refusals)?;
     out.set_item("fault", faults)?;
     Ok(out)
 }

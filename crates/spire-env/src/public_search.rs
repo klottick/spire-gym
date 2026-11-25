@@ -155,32 +155,227 @@ pub struct BranchStepRequest { pub branch: BranchId, pub token: RunDecisionToken
 /// error is the class-only redacted one `step` returns). A faulted branch is frozen; its prefix stays readable.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BranchStepOutcome { Stepped(BranchStep), Fault { error: Error, stage: &'static str, committed: bool } }
+/// M41 (spire-n6b): the declared public playout rule, RNG domain and stop semantics of [`PublicSearch::playout_many`].
+pub const PUBLIC_PLAYOUT_RULE_ID: &str = "spire-gym-public-playout-v1";
+/// The verbs Learn's rule excludes by default (`View.heuristic_choice`).
+pub const DEFAULT_PLAYOUT_EXCLUDED_VERBS: [&str; 2] = ["end_turn", "discard_potion"];
+/// The `refusal` code of a playout stopped at a pick among identical draw-pile copies that depends on hidden order.
+pub const REFUSAL_HIDDEN_ORDER_PICK: &str = "HIDDEN_ORDER_PICK";
+/// The `refusal` code of a playout stopped at a live boundary with no legal action (defensive; no known path).
+pub const REFUSAL_NO_LEGAL_ACTION: &str = "NO_LEGAL_ACTION";
+/// The Standard `verb` family after `padding`, in vocab order (pinned by test against the vocab manifest).
+pub const STANDARD_PLAYOUT_VERBS: [&str; 15] = ["move", "choose", "select", "confirm", "cancel", "use_potion", "discard_potion", "play_card",
+    "combat_select_card", "end_turn", "confirm_selection", "choose_stance", "combat_deselect_card", "choose_card_offer", "skip_card_offer"];
+/// The Standard verb name of an action (exhaustive, no wildcard: a new action variant must be mapped here). Equals the
+/// encoder's `actions[:, verb]` vocab entry (M41 T2 parity test).
+fn standard_verb_name(action: &GameAction) -> &'static str {
+    use spire_core::combat::CombatAction as C;
+    match action {
+        GameAction::Move(_) => "move", GameAction::Choose(_) => "choose", GameAction::Select(_) => "select",
+        GameAction::Confirm => "confirm", GameAction::Cancel => "cancel",
+        GameAction::UsePotion { .. } => "use_potion", GameAction::DiscardPotion { .. } => "discard_potion",
+        GameAction::Combat(c) => match c {
+            C::ChooseStance { .. } => "choose_stance", C::DeselectCard { .. } => "combat_deselect_card", C::PlayCard { .. } => "play_card",
+            C::SelectCard { .. } => "combat_select_card", C::ConfirmSelection => "confirm_selection", C::UsePotion { .. } => "use_potion",
+            C::DiscardPotion { .. } => "discard_potion", C::EndTurn => "end_turn", C::ChooseCardOffer { .. } => "choose_card_offer",
+            C::SkipCardOffer => "skip_card_offer",
+        },
+    }
+}
+/// The Standard vocab id of an action's verb.
+pub(crate) fn standard_verb_id(action: &GameAction) -> i64 {
+    static IDS: std::sync::OnceLock<std::collections::BTreeMap<&'static str, i64>> = std::sync::OnceLock::new();
+    IDS.get_or_init(|| STANDARD_PLAYOUT_VERBS.iter().map(|v| (*v, crate::run_schema_standard::verb(v).expect("a Standard verb"))).collect())[standard_verb_name(action)]
+}
+/// M41: uniform over the legal actions whose Standard verb is not excluded; over all legal actions when none remain.
+/// Valid by construction (the excluded verbs are resolved to Standard vocab ids when it is built).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlayoutRule { excluded: u64 }
+impl PlayoutRule {
+    /// Unknown names and `padding` are `Input("unknown playout verb")`; repeats are ignored; no names means all legal actions.
+    pub fn uniform_exclude_verbs<I: IntoIterator<Item = S>, S: AsRef<str>>(verbs: I) -> Result<Self, Error> {
+        let mut excluded = 0u64;
+        for verb in verbs {
+            let id = crate::run_schema_standard::verb(verb.as_ref()).ok().filter(|id| (1..64).contains(id)).ok_or(Error::Input("unknown playout verb"))?;
+            excluded |= 1 << id;
+        }
+        Ok(Self { excluded })
+    }
+    /// The excluded verb names, in vocab order.
+    pub fn excluded_verbs(&self) -> Vec<&'static str> {
+        let mut v = STANDARD_PLAYOUT_VERBS.iter().copied().filter(|n| self.excluded & (1 << crate::run_schema_standard::verb(n).expect("a Standard verb")) != 0).collect::<Vec<_>>();
+        v.sort_by_key(|n| crate::run_schema_standard::verb(n).expect("a Standard verb"));
+        v
+    }
+    fn allows(&self, action: &GameAction) -> bool { self.excluded & (1 << standard_verb_id(action)) == 0 }
+}
+impl Default for PlayoutRule {
+    fn default() -> Self { Self::uniform_exclude_verbs(DEFAULT_PLAYOUT_EXCLUDED_VERBS).expect("default playout verbs are Standard verbs") }
+}
+/// M41: one `playout_many` call's rule, optional per-call step cap (`Some(0)` is rejected) and playout seed (mixed into
+/// the research pick; 0 keeps common random numbers across branches of one sample).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct PlayoutConfig { pub rule: PlayoutRule, pub max_steps: Option<u64>, pub playout_seed: u64 }
+/// One `playout_many` entry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BranchPlayoutRequest { pub branch: BranchId, pub token: RunDecisionToken }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EnemyHp { pub hp: i32, pub max_hp: i32 }
+/// The final public HP state of a playout: the published player row and enemy rows (the enemies the Standard view
+/// shows, in row order).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct PlayoutSummary { pub player_hp: i32, pub player_max_hp: i32, pub enemies: Vec<EnemyHp> }
+/// A finished playout. `terminated`/`truncated` are exactly the flags of its last step taken one action at a time (both
+/// false with no step). `end_reason`: `victory`, `death`, `escaped`, `step_limit` (truncated at `max_steps_per_branch`),
+/// `max_steps` (the call cap; the branch is live) or `refused` (`refusal` names the stop; no effect).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BranchPlayout {
+    pub token: RunDecisionToken, pub reward: i32, pub terminated: bool, pub truncated: bool,
+    pub end_reason: &'static str, pub refusal: Option<&'static str>,
+    /// Steps attempted in this call (charged to the total budget) and the branch's steps since its root after the call.
+    pub steps: u64, pub branch_steps: u64,
+    pub summary: PlayoutSummary,
+}
+/// One `playout_many` outcome, in input order: the finished playout, or its branch's fault (as `BranchStepOutcome::Fault`,
+/// plus the step counts). A faulted branch is frozen; its accepted prefix stays readable.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BranchPlayoutOutcome {
+    Finished(BranchPlayout),
+    Fault { error: Error, stage: &'static str, committed: bool, steps: u64, branch_steps: u64 },
+}
+/// A playout's result inside its worker job (the arena adds the token after the join).
+enum PlayoutJob {
+    Finished { reward: i32, terminated: bool, truncated: bool, end_reason: &'static str, refusal: Option<&'static str>, steps: u64, summary: PlayoutSummary },
+    Fault { error: Error, stage: &'static str, committed: bool, steps: u64 },
+}
+fn playout_summary(combat: Option<&spire_core::combat::CombatPublic>) -> PlayoutSummary {
+    combat.map_or_else(PlayoutSummary::default, |c| PlayoutSummary {
+        player_hp: c.player.hp, player_max_hp: c.player.max_hp,
+        enemies: c.enemies.iter().filter(|e| crate::run_observation::standard_enemy_present(e)).map(|e| EnemyHp { hp: e.hp, max_hp: e.max_hp }).collect(),
+    })
+}
+/// The rule's candidate index at a boundary (design-v2 §2.4); `None` for an empty legal table.
+fn playout_pick(legal: &[GameAction], rule: &PlayoutRule, origin: &[u8; 32], seed: u64, ordinal: u64) -> Option<usize> {
+    let preferred = legal.iter().filter(|a| rule.allows(a)).count();
+    if preferred > 0 {
+        let n = spire_core::run::research_playout_pick(origin, seed, ordinal, preferred);
+        return legal.iter().enumerate().filter(|(_, a)| rule.allows(a)).nth(n).map(|(i, _)| i)
+    }
+    (!legal.is_empty()).then(|| spire_core::run::research_playout_pick(origin, seed, ordinal, legal.len()))
+}
+/// One step of a playout, inside the per-step unwind guard.
+enum PlayoutStep { Stop(&'static str), Advanced(usize, Result<PublicStep, StepFault>) }
+/// One branch's playout on its own world (design-v2 §5.2): each step picks, resolves or refuses a hidden-order pick, runs
+/// the shared Mask step under an unwind guard and settles the branch record before the next step.
+fn play_branch(id: u64, branch: &mut Branch, cap: u64, max_steps: u64, caps: &RunCapacities, rule: &PlayoutRule, seed: u64) -> PlayoutJob {
+    let mut steps = 0u64;
+    let mut last: Option<PublicStep> = None;
+    let (end_reason, refusal) = loop {
+        if steps == cap { break ("max_steps", None) }
+        let attempt = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let ordinal = branch.actions.len() as u64;
+            #[cfg(test)]
+            if PANIC_PLAYOUT_AT.with(std::cell::Cell::get) == Some((id, ordinal)) { panic!("M41 test panic") }
+            let Some(i) = playout_pick(&branch.legal, rule, &branch.origin, seed, ordinal) else { return PlayoutStep::Stop(REFUSAL_NO_LEGAL_ACTION) };
+            let mut action = branch.legal[i].clone();
+            if branch.run.pick_depends_on_hidden_order(&action) {
+                match branch.run.resolve_identical_pick(&action, &branch.origin, ordinal) { Some(resolved) => action = resolved, None => return PlayoutStep::Stop(REFUSAL_HIDDEN_ORDER_PICK) }
+            }
+            PlayoutStep::Advanced(i, advance_public(&mut branch.run, &action, caps))
+        }));
+        let (index, result) = match attempt {
+            Ok(PlayoutStep::Stop(code)) => break ("refused", Some(code)),
+            Ok(PlayoutStep::Advanced(i, r)) => (i as i64, r),
+            Err(_) => (0, Err((Error::DeliveryFault(BRANCH_CORE_FAULT), "panic", true))),
+        };
+        steps += 1;
+        match result {
+            Ok(step) => {
+                let terminated = step.terminal.is_some();
+                let legal = std::mem::take(&mut last.insert(step).legal);
+                let truncated = PublicSearch::settle_record(branch, index, Ok((legal, terminated)), max_steps);
+                if terminated || truncated { break ("", None) }
+            }
+            Err((error, stage, committed)) => {
+                PublicSearch::settle_record(branch, index, Err(stage), max_steps);
+                return PlayoutJob::Fault { error, stage, committed, steps }
+            }
+        }
+    };
+    let _ = id;
+    let (summary, reward, terminated, truncated, end_reason) = match &last {
+        Some(step) => {
+            let terminal = step.terminal;
+            let truncated = branch.status == Status::Truncated;
+            let reason = if end_reason.is_empty() { terminal.map_or("step_limit", |t| crate::combat_training::outcome_label(t.outcome)) } else { end_reason };
+            (playout_summary(step.combat.as_ref()), terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome)), terminal.is_some(), truncated, reason)
+        }
+        None => {
+            // No step in this call (an immediate refusal): read the branch's current published boundary.
+            #[cfg(test)]
+            let failed = FAIL_PLAYOUT_SUMMARY.with(std::cell::Cell::get);
+            #[cfg(not(test))]
+            let failed = false;
+            match branch.run.decision() {
+                Ok(d) if !failed => (playout_summary(d.combat.as_ref()), 0, false, false, end_reason),
+                result => {
+                    branch.status = Status::Faulted;
+                    branch.legal.clear();
+                    let error = result.err().map_or(Error::DeliveryFault(BRANCH_CORE_FAULT), redacted);
+                    return PlayoutJob::Fault { error, stage: "encode", committed: false, steps: 0 }
+                }
+            }
+        }
+    };
+    PlayoutJob::Finished { reward, terminated, truncated, end_reason, refusal, steps, summary }
+}
 /// A world after one action: its publication, or its fault.
 enum Advanced {
     Done { observation: Option<RunObservation>, action_mask: Vec<i8>, info: Value, legal: Vec<GameAction>, reward: i32, terminated: bool },
     Fault { error: Error, stage: &'static str, committed: bool },
 }
+/// M41 (design-v2 §5.1): the Mask step on a world, shared by `step`/`step_many` with `BranchView::Mask` and by
+/// `playout_many`: the shared resolver, the combat-scope terminal, the published decision and the action capacity, with
+/// no view encoding. An error carries its fault stage and whether the engine committed.
+struct PublicStep { legal: Vec<GameAction>, terminal: Option<spire_core::run::CombatScopeTerminal>, combat: Option<spire_core::combat::CombatPublic> }
+type StepFault = (Error, &'static str, bool);
+fn advance_public(run: &mut Run, action: &GameAction, caps: &RunCapacities) -> Result<PublicStep, StepFault> {
+    if let Err(e) = run.step(action) {
+        let committed = matches!(e, spire_core::run::RunError::Faulted(_));
+        return Err((redacted(e), "step", committed))
+    }
+    let terminal = run.combat_scope_terminal();
+    // Final review M3: the engine has committed, so a publication error faults the branch.
+    let d = run.decision().map_err(|e| (redacted(e), "encode", true))?;
+    let combat = d.combat;
+    let legal: Vec<GameAction> = if terminal.is_some() { vec![] } else { d.candidates.into_iter().map(|c| c.action).collect() };
+    if legal.len() > caps.actions { return Err((Error::Capacity { group: "actions", required: legal.len(), capacity: caps.actions }, "encode", true)) }
+    Ok(PublicStep { legal, terminal, combat })
+}
 /// The single-branch step on a world: the shared resolver, then the requested view (`step` and `step_many` both use it).
 fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapacities, layout: RunObservationLayout) -> Advanced {
+    if view == BranchView::Mask {
+        return match advance_public(run, action, caps) {
+            Ok(PublicStep { legal, terminal, .. }) => {
+                let mut mask = vec![0; caps.actions];
+                mask[..legal.len()].iter_mut().for_each(|m| *m = 1);
+                let info = json!({"terminal_reason": terminal.map(|t| crate::combat_training::outcome_label(t.outcome))});
+                let reward = terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome));
+                Advanced::Done { observation: None, action_mask: mask, info, legal, reward, terminated: terminal.is_some() }
+            }
+            Err((error, stage, committed)) => Advanced::Fault { error, stage, committed },
+        }
+    }
     if let Err(e) = run.step(action) {
         let committed = matches!(e, spire_core::run::RunError::Faulted(_));
         return Advanced::Fault { error: redacted(e), stage: "step", committed }
     }
     let terminal = run.combat_scope_terminal();
     let reward = terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome));
-    let published = match view {
-        BranchView::Full => crate::combat_training::standard_combat_publication_into(run, caps, layout, None).map(|(o, info, legal)| {
-            let mask = o.action_mask.clone();
-            (Some(o), mask, info, legal)
-        }),
-        BranchView::Mask => run.decision().map_err(redacted).and_then(|d| {
-            let legal: Vec<GameAction> = if terminal.is_some() { vec![] } else { d.candidates.into_iter().map(|c| c.action).collect() };
-            if legal.len() > caps.actions { return Err(Error::Capacity { group: "actions", required: legal.len(), capacity: caps.actions }) }
-            let mut mask = vec![0; caps.actions];
-            mask[..legal.len()].iter_mut().for_each(|m| *m = 1);
-            Ok((None, mask, json!({"terminal_reason": terminal.map(|t| crate::combat_training::outcome_label(t.outcome))}), legal))
-        }),
-    };
+    let published = crate::combat_training::standard_combat_publication_into(run, caps, layout, None).map(|(o, info, legal)| {
+        let mask = o.action_mask.clone();
+        (Some(o), mask, info, legal)
+    });
     // Final review M3: the engine has committed, so a publication error faults the branch (never a Live branch with the
     // previous boundary's action table).
     match published {
@@ -342,12 +537,7 @@ impl PublicSearch {
     }
     /// The no-effect checks of `step` for one entry; returns the action.
     fn preflight(&self, b: BranchId, token: RunDecisionToken, index: RunActionIndex) -> Result<GameAction, Error> {
-        let branch = self.get(b)?;
-        match branch.status { Status::Faulted => return Err(Error::BranchFaulted), Status::Terminal | Status::Truncated => return Err(Error::Terminal), Status::Live => {} }
-        if token != RunDecisionToken([b.0, branch.serial]) { return Err(Error::StaleToken) }
-        if let Some(config) = &self.compact && branch.legal.len() > config.capacities.actions {
-            return Err(Error::Capacity { group: "actions", required: branch.legal.len(), capacity: config.capacities.actions })
-        }
+        let branch = self.check_branch(b, Some(token))?;
         let action = usize::try_from(index.0).ok().and_then(|i| branch.legal.get(i)).cloned().ok_or(Error::Input("branch action index is not legal"))?;
         // Final review I1: a sampled world keeps the true labels of identical copies, so a pick that removes a copy chosen
         // by hidden instance order would make the branch depend on hidden state; refused with no effect (fail closed).
@@ -358,28 +548,54 @@ impl PublicSearch {
         }
         Ok(action)
     }
+    /// M41: the branch checks shared by `step`'s preflight, `playout_many` and `playout_action`, in `step`'s order: known
+    /// and open, live, the token (when one is given), the compact action capacity.
+    fn check_branch(&self, b: BranchId, token: Option<RunDecisionToken>) -> Result<&Branch, Error> {
+        let branch = self.get(b)?;
+        match branch.status { Status::Faulted => return Err(Error::BranchFaulted), Status::Terminal | Status::Truncated => return Err(Error::Terminal), Status::Live => {} }
+        if token.is_some_and(|t| t != RunDecisionToken([b.0, branch.serial])) { return Err(Error::StaleToken) }
+        if let Some(config) = &self.compact && branch.legal.len() > config.capacities.actions {
+            return Err(Error::Capacity { group: "actions", required: branch.legal.len(), capacity: config.capacities.actions })
+        }
+        Ok(branch)
+    }
     /// Apply one advanced world to its branch record: serial and step count always advance (the step was attempted); a
     /// fault freezes the branch (never retried or revived; `actions` keeps the accepted prefix).
     fn settle(b: BranchId, branch: &mut Branch, index: RunActionIndex, advanced: Advanced, max_steps: u64) -> BranchStepOutcome {
+        match advanced {
+            Advanced::Done { observation, action_mask, info, legal, reward, terminated } => {
+                let truncated = Self::settle_record(branch, index.0, Ok((legal, terminated)), max_steps);
+                let token = RunDecisionToken([b.0, branch.serial]);
+                BranchStepOutcome::Stepped(BranchStep { observation, action_mask, token, reward, terminated, truncated, info: Self::info(branch.steps, branch.status, info) })
+            }
+            Advanced::Fault { error, stage, committed } => {
+                Self::settle_record(branch, index.0, Err(stage), max_steps);
+                BranchStepOutcome::Fault { error, stage, committed }
+            }
+        }
+    }
+    /// M41: the branch-record part of `settle` (shared with `playout_many`): serial and step count advance; on success the
+    /// index is accepted and the legal table and status follow the step (returns whether it truncated); a fault at
+    /// `stage` freezes the branch, and the accepted prefix includes the index only when the engine step committed and
+    /// its publication failed (`encode`); an engine fault or a panic leaves the prefix at the last published boundary.
+    fn settle_record(branch: &mut Branch, index: i64, done: Result<(Vec<GameAction>, bool), &'static str>, max_steps: u64) -> bool {
         branch.serial += 1;
         branch.steps += 1;
-        let (observation, action_mask, info, legal, reward, terminated) = match advanced {
-            Advanced::Done { observation, action_mask, info, legal, reward, terminated } => (observation, action_mask, info, legal, reward, terminated),
-            Advanced::Fault { error, stage, committed } => {
+        match done {
+            Ok((legal, terminated)) => {
+                branch.actions.push(index);
+                branch.legal = legal;
+                let truncated = !terminated && branch.steps >= max_steps;
+                branch.status = if terminated { Status::Terminal } else if truncated { Status::Truncated } else { Status::Live };
+                truncated
+            }
+            Err(stage) => {
                 branch.status = Status::Faulted;
                 branch.legal.clear();
-                // As `step`: the accepted prefix includes an action whose engine step committed only when its publication
-                // failed (`encode`); an engine fault or a panic leaves the prefix at the last published boundary.
-                if stage == "encode" { branch.actions.push(index.0); }
-                return BranchStepOutcome::Fault { error, stage, committed }
+                if stage == "encode" { branch.actions.push(index); }
+                false
             }
-        };
-        branch.actions.push(index.0);
-        branch.legal = legal;
-        let truncated = !terminated && branch.steps >= max_steps;
-        branch.status = if terminated { Status::Terminal } else if truncated { Status::Truncated } else { Status::Live };
-        let token = RunDecisionToken([b.0, branch.serial]);
-        BranchStepOutcome::Stepped(BranchStep { observation, action_mask, token, reward, terminated, truncated, info: Self::info(branch.steps, branch.status, info) })
+        }
     }
     /// M35 batched branch stepping (design §3.6, G8): every entry is checked first (a repeated branch, a branch that is
     /// not live, closed, foreign, faulted, terminal or truncated, a stale token, an illegal index, a hidden-order pick, or a
@@ -419,6 +635,64 @@ impl PublicSearch {
             Self::settle(s.branch, branch, s.index, a.expect("every entry was stepped"), max_steps)
         }).collect())
     }
+    /// M41 (spire-n6b, design-v2 §5.2): advance distinct live branches until their combat ends, they reach
+    /// `max_steps_per_branch`, the call cap `config.max_steps`, or a declared stop, choosing every move by `config.rule`
+    /// over public information (the legal table's Standard verbs) and the playout research stream. Every entry is checked
+    /// first, and the worst-case step count must fit the remaining total budget; any failure rejects the whole call naming
+    /// the first offending entry, with no effect. Each branch then plays on its own world in parallel through the Mask step
+    /// that `step` uses, settled step by step; only attempted steps are charged. A refusal stops its branch with no effect;
+    /// a fault freezes only its branch. Results are in input order and depend on no other entry, grouping or worker count,
+    /// and equal stepping the same branches one action at a time (`playout_action`, then `step` with `BranchView::Mask`).
+    pub fn playout_many(&mut self, requests: &[BranchPlayoutRequest], config: &PlayoutConfig) -> Result<Vec<BranchPlayoutOutcome>, Error> {
+        if config.max_steps == Some(0) { return Err(Error::Input("playout max_steps must be positive")) }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut caps_by_input = Vec::new();
+        caps_by_input.try_reserve_exact(requests.len()).map_err(|_| Error::DeliveryFault("playout_many allocation failed"))?;
+        let mut worst = 0u128;
+        for r in requests {
+            if !seen.insert(r.branch.0) { return Err(Error::Input("a branch appears twice in one playout_many call")) }
+            let branch = self.check_branch(r.branch, Some(r.token))?;
+            let cap = (self.limits.max_steps_per_branch - branch.steps).min(config.max_steps.unwrap_or(u64::MAX));
+            worst += u128::from(cap);
+            caps_by_input.push(cap);
+        }
+        if worst > u128::from(self.limits.max_total_steps.saturating_sub(self.total_steps)) { return Err(Error::Budget("total step limit reached")) }
+        if self.pool.is_none() { self.pool = Some(crate::workers::Scheduler::shared(self.workers).map_err(|_| Error::DeliveryFault("search worker pool unavailable"))?); }
+        let (caps, max_steps) = (self.view_capacities().clone(), self.limits.max_steps_per_branch);
+        let scheduler = self.pool.as_ref().expect("the search pool was just taken");
+        let position: std::collections::BTreeMap<u64, usize> = requests.iter().enumerate().map(|(i, r)| (r.branch.0, i)).collect();
+        let mut worlds: Vec<(u64, &mut Branch)> = self.branches.iter_mut().filter_map(|(id, b)| position.contains_key(id).then_some((*id, &mut **b))).collect();
+        let jobs: Vec<u64> = worlds.iter().map(|(id, _)| caps_by_input[position[id]]).collect();
+        let played = scheduler.map_mut(&mut worlds, jobs, |_, (id, branch), cap| play_branch(*id, branch, cap, max_steps, &caps, &config.rule, config.playout_seed))
+            .map_err(|_| Error::DeliveryFault("playout_many allocation failed"))?;
+        let mut by_input: Vec<Option<PlayoutJob>> = (0..requests.len()).map(|_| None).collect();
+        for ((id, _), job) in worlds.iter().zip(played) { by_input[position[id]] = Some(job); }
+        drop(worlds);
+        Ok(requests.iter().zip(by_input).map(|(r, job)| {
+            let branch = &self.branches[&r.branch.0];
+            match job.expect("every entry was played") {
+                PlayoutJob::Finished { reward, terminated, truncated, end_reason, refusal, steps, summary } => {
+                    self.total_steps += steps;
+                    BranchPlayoutOutcome::Finished(BranchPlayout { token: RunDecisionToken([r.branch.0, branch.serial]), reward, terminated, truncated, end_reason, refusal, steps, branch_steps: branch.steps, summary })
+                }
+                PlayoutJob::Fault { error, stage, committed, steps } => {
+                    self.total_steps += steps;
+                    BranchPlayoutOutcome::Fault { error, stage, committed, steps, branch_steps: branch.steps }
+                }
+            }
+        }).collect())
+    }
+    /// M41: the action index `rule` picks at the branch's current boundary under `playout_seed` (no effect): the move
+    /// `playout_many` would take next. Same branch checks as `step` without the token. The raw candidate is returned; a
+    /// hidden-order pick is resolved or refused by the following `step`, as in a playout. An empty legal table is
+    /// `Input("branch has no legal action")`.
+    pub fn playout_action(&self, b: BranchId, rule: &PlayoutRule, playout_seed: u64) -> Result<RunActionIndex, Error> {
+        let branch = self.check_branch(b, None)?;
+        playout_pick(&branch.legal, rule, &branch.origin, playout_seed, branch.actions.len() as u64)
+            .map(|i| RunActionIndex(i as i64)).ok_or(Error::Input("branch has no legal action"))
+    }
+    /// M41: the enemy rows of this search's view capacities (compact or dense), as [`Self::action_capacity`].
+    pub fn enemy_capacity(&self) -> usize { self.view_capacities().enemies }
     /// An exact copy of a live branch inside its sampled world (new id and tokens); inherits its step count.
     pub fn fork(&mut self, b: BranchId) -> Result<BranchId, Error> {
         let branch = self.get(b)?;
@@ -498,6 +772,12 @@ impl PublicSearch {
         let legal = &mut self.branches.get_mut(&branch.0).unwrap().legal;
         legal.resize(len, legal[0].clone());
     }
+    /// TEST-ONLY (M41): a branch's legal table (verb parity).
+    #[cfg(test)]
+    pub(crate) fn legal_for_test(&self, branch: BranchId) -> Vec<GameAction> { self.branches[&branch.0].legal.clone() }
+    /// TEST-ONLY (M41): an empty legal table at a live boundary (`NO_LEGAL_ACTION`).
+    #[cfg(test)]
+    pub(crate) fn clear_legal_table_for_test(&mut self, branch: BranchId) { self.branches.get_mut(&branch.0).unwrap().legal.clear(); }
     #[cfg(test)]
     pub(crate) fn take_run_for_test(&mut self, branch: BranchId) -> Run {
         self.branches.remove(&branch.0).unwrap().run
@@ -514,4 +794,8 @@ impl PublicSearch {
 thread_local! {
     /// TEST-ONLY: simulate an exhausted shared session-id allocator (final review v3).
     pub(crate) static FAIL_ID_ALLOCATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// TEST-ONLY (M41): panic inside the playout step of branch `.0` at accepted-action ordinal `.1` (workers = 1).
+    pub(crate) static PANIC_PLAYOUT_AT: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
+    /// TEST-ONLY (M41): fail the 0-step summary read of a playout (workers = 1).
+    pub(crate) static FAIL_PLAYOUT_SUMMARY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
