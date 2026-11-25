@@ -1,6 +1,14 @@
 # Work status
 
-## Current snapshot — 2026-11-24, release 1.2.2
+## Current snapshot — 2026-11-25, release 1.2.3
+
+- Version 1.2.3 packages wider Standard public-search coverage (spire-61l stages 2 and 3). PR #126
+  extends exact draw knowledge and PR #127 adds roots under Runic Dome. Rules IDs remain Standard v9,
+  M10 (and Gym66) v6 and M9 v7. Frozen fingerprints, replay digests and Heart pins are unchanged.
+  See the [1.2.3 release notes](releases/v1.2.3.md) and [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge.
+
+## Snapshot — 2026-11-24, release 1.2.2
 
 - Version 1.2.2 packages the remaining spire-sjh changes (PR #124). Reachable engine limits report
   typed bounds, FTL applies large Slow-scaled hits, and Self-Forming Clay accrues pending Block beyond
