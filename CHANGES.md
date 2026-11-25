@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.4 — effective at the commit tagged v1.2.4
+
+See the [1.2.4 release notes](docs/releases/v1.2.4.md).
+
+- Set the project and Python package version to `1.2.4`. The version bump
+  changes the build digests because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs. The `build_info()` keys, fingerprints
+  and replay digests remain unchanged.
 - Additive: native public-search playouts (M41, spire-n6b). `PublicSearch::playout_many` and
   `PublicSearch::playout_action` play branches under the declared public rule `spire-gym-public-playout-v1`: uniform
   over legal actions whose Standard verb is not excluded, default `end_turn` and `discard_potion`. Draws come from a new
@@ -15,10 +25,12 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
   `spire_core::run::{research_playout_pick, PUBLIC_PLAYOUT_LABEL}`. The new Python names are
   `NativePublicSearch.playout_many`/`playout_action`, `PublicSearch.playout_many`, `PublicBranch.playout_action` and the
   `PlayoutResult` stub type. There is a new example, `examples/public_playout.py`. Existing names, defaults, rules ids,
-  layouts, fingerprints, replay digests, Heart pins and root digests are unchanged, so no version bump is needed.
+  layouts, fingerprints, replay digests, Heart pins and root digests are unchanged, so no contract version bump is needed.
 - Internal, no output change: `step` and `step_many` with the Mask view now share one transition function with
   playouts. `Run::combat_scope_terminal` skips building the public combat view while the combat has no outcome; the
   result is equal because that view's outcome is the combat's own outcome.
+- Added a regression test for Fear No Evil (spire-in0). The card reads the target's intent before its hit resolves,
+  and the hit resolves before entering Calm, matching the original game's order. Gameplay is unchanged.
 
 ## 1.2.3 — effective at the commit tagged v1.2.3
 
