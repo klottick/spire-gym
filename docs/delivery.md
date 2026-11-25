@@ -275,10 +275,11 @@ attached `DELIVERY.md` publish the built wheel and `.so` SHA-256 values and the
 final `source_digest`. These artifact values are not asserted in this handoff.
 Later releases follow the same steps: version `1.1.0` is tagged `v1.1.0` and
 version `1.1.1` is tagged `v1.1.1`, version `1.2.0` is tagged `v1.2.0`, and
-versions `1.2.1` and `1.2.2` are tagged `v1.2.1` and `v1.2.2`. See the release notes for
+versions `1.2.1`, `1.2.2` and `1.2.3` are tagged `v1.2.1`, `v1.2.2` and `v1.2.3`, respectively.
+See the release notes for
 [1.1.0](releases/v1.1.0.md), [1.1.1](releases/v1.1.1.md),
-[1.2.0](releases/v1.2.0.md), [1.2.1](releases/v1.2.1.md) and
-[1.2.2](releases/v1.2.2.md).
+[1.2.0](releases/v1.2.0.md), [1.2.1](releases/v1.2.1.md),
+[1.2.2](releases/v1.2.2.md) and [1.2.3](releases/v1.2.3.md).
 
 ## 9. Open work and Beads dispositions
 
@@ -303,5 +304,6 @@ Run API. Removed names include `NativeIroncladCombatBatch` (no alias) and Rust e
 M9/M10, Gym66 and combat surfaces remain available under the protocol. See
 release notes for [v1.0.0](releases/v1.0.0.md), [v1.1.0](releases/v1.1.0.md),
 [v1.1.1](releases/v1.1.1.md), [v1.2.0](releases/v1.2.0.md),
-[v1.2.1](releases/v1.2.1.md) and [v1.2.2](releases/v1.2.2.md), along with [CHANGES](../CHANGES.md) and the
+[v1.2.1](releases/v1.2.1.md), [v1.2.2](releases/v1.2.2.md) and
+[v1.2.3](releases/v1.2.3.md), along with [CHANGES](../CHANGES.md) and the
 [milestone index](milestones/README.md).

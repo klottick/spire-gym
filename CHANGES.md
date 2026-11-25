@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.3 — effective at the commit tagged v1.2.3
+
+See the [1.2.3 release notes](docs/releases/v1.2.3.md).
+
+- Set the project and Python package version to `1.2.3`. The version bump
+  changes the build digests because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs. The `build_info()` keys, fingerprints
+  and replay digests remain unchanged.
 - Standard public search admits more exact draw states after retired repeat copies,
   public card-class changes and agreeing draw-pile positions. The existing
   search and replay contracts stay at their current versions.
