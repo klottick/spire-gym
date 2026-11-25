@@ -596,6 +596,117 @@ foreign/closed/faulted/terminal/truncated branches, stale tokens and insufficien
 represents an exhausted budget in Python. The M34s public-knowledge, privacy and search contract is unchanged; see the
 [M35 batching contract](batching.md#batched-public-search-m35) and the [M35 profile](milestones/m35-batching.md).
 
+## Native playouts (M41)
+
+`PublicSearch::playout_many(requests, config)` advances distinct live branches in one native call, on the search's worker
+pool, until each combat ends, reaches `max_steps_per_branch`, reaches the call cap `config.max_steps`, or meets a declared
+stop. Every move follows the declared public rule `spire-gym-public-playout-v1` (`PUBLIC_PLAYOUT_RULE_ID`). No
+observation is encoded per step.
+
+**Rule.** The rule picks uniformly among the legal actions whose Standard verb is not excluded. When none remain, it picks
+uniformly among all legal actions. `PlayoutRule::uniform_exclude_verbs(names)` resolves names from the Standard `verb`
+vocabulary when the rule is built. Unknown names and `padding` are rejected. `PlayoutRule::default()` excludes `end_turn`
+and `discard_potion`, which is the verb-filtered heuristic search callers use. An empty list means every legal action.
+The rule reads only the branch's legal table, through each action's Standard verb, and the playout research stream. It
+reads no card identity, draw order, intent, gameplay RNG or other hidden state.
+
+**Research stream.** The pick at a branch's `n`-th accepted action draws from
+`HMAC(sample key, "spire-gym-public-search-v1/playout\0" || playout_seed || n)` with the research sampler that the belief
+sample and the identical-copy pick use (`spire_core::run::research_playout_pick`). The sample key derives from the
+research seed, the root digest and the sample index `k`. The stream is therefore disjoint from gameplay RNG and from the
+belief, identical-pick and hidden-move streams. It is reproducible, and it does not depend on branch ids, worker count,
+input order, grouping or call splitting. Branches of one sample `k` draw common random numbers at equal step counts. A
+nonzero `playout_seed` gives independent playouts from equal positions. A fork replays its parent's choices under seed 0.
+
+**Semantics.**
+
+- *Preflight.* The call fails as a whole, with no effect, on any of the following:
+  - a duplicate entry, or the same branch, status, stale-token or compact action-capacity errors as `step`;
+  - `max_steps == Some(0)`;
+  - a worst-case step count (each branch's remaining `max_steps_per_branch`, capped by `max_steps`) that exceeds the
+    remaining `max_total_steps`.
+
+  Only attempted steps are charged.
+- *Mask stepping.* Each step runs the same Mask transition as `step(.., BranchView::Mask)`: the shared resolver, the
+  combat-scope terminal, the published decision and the action-capacity check. The branch record is settled before the
+  next step.
+- *Equivalence.* A playout equals stepping the same branch one action at a time with
+  `playout_action(branch, rule, seed)` followed by `step(.., Mask)`. That covers trajectories, accepted actions, tokens,
+  counters, rewards, flags and faults. Full-view stepping matches too, except where only Full publication would fault,
+  for example a value outside a compact dtype range: Full stepping faults with `encode` there, while a playout continues
+  as Mask stepping does.
+- *Stops.* `HIDDEN_ORDER_PICK` covers a pick among identical draw-pile copies that the M40a rule cannot make label-free.
+  `NO_LEGAL_ACTION` is a defensive case for a live boundary without a legal action. Either stop ends that branch's
+  playout with `end_reason = "refused"` and the code in `refusal`. Nothing is applied or retried, and the branch stays
+  live with its token unchanged. A repeat call refuses again. A resolvable identical-copy pick is applied as `step`
+  applies it.
+- *Faults.* A fault freezes only its branch. Engine, `encode` and caught-panic faults are settled as in `step_many`,
+  with the same stages and the same accepted-prefix rule. Siblings are unaffected.
+
+**Results.** Each `BranchPlayoutOutcome::Finished(BranchPlayout)` has:
+
+- `token`;
+- `reward` (terminal reward, else 0);
+- `terminated` and `truncated`, exactly as the last step would report them;
+- `end_reason`: `victory`, `death` or `escaped`; `step_limit` (`truncated`); `max_steps` (call cap, branch live,
+  `truncated` false); or `refused`;
+- `refusal`;
+- `steps` (in this call) and `branch_steps`;
+- `summary`: player HP and max HP, plus each enemy row's HP and max HP, for the enemies the Standard view publishes, in
+  row order.
+
+`PublicSearch::enemy_capacity()` gives the enemy row width of the search's view.
+
+**Python.** The native methods are:
+
+- `NativePublicSearch.playout_many(branches, tokens, *, rule="uniform_exclude_verbs", exclude_verbs=None,
+  max_steps=None, playout_seed=0)`. It releases the GIL for the native call.
+- `NativePublicSearch.playout_action(branch, *, rule=..., exclude_verbs=None, playout_seed=0)`.
+
+The facade methods are `PublicSearch.playout_many(branches, *, ...)` and `PublicBranch.playout_action(*, ...)`.
+`exclude_verbs` is a list or tuple of verb names. `None` selects the default, and a bare string is rejected.
+
+The result dict contains:
+
+- `rule_id`;
+- `tokens` `(N, 2)` uint64;
+- `rewards` int32;
+- `terminated` and `truncated` bool;
+- `steps` and `branch_steps` uint64;
+- `end_reason`, which adds `fault`;
+- `refusal`;
+- `player_hp` and `player_max_hp` int32;
+- `enemy_hp` and `enemy_max_hp` `(N, E)` int32, with `enemy_present` int8 marking summary rows;
+- `fault`, which uses `step_many`'s dict shape.
+
+The facade also returns object arrays with `_refusal` and `_fault` masks, and updates each non-faulted branch's token.
+Fault rows are zero apart from their step counts.
+
+A caller scoring one-move search as "terminal reward, else half the HP balance" takes the root action with `step_many`,
+then calls `playout_many(live, max_steps=playout_steps)`. The balance reads the summary columns, which equal the published
+`player` and `enemies` rows. [`examples/public_playout.py`](../examples/public_playout.py) shows this pattern, and its
+`--benchmark` option compares it with the lock-step `step_many` loop that evaluates the same rule in Python.
+
+Measured with that example's `--benchmark` (2026-11-25), 32 samples per legal root action and up to 80 playout steps,
+Ironclad A20 standalone starts and a Standard Run's first combat (normal creation, A20); release extension; one
+16-core host; not gated:
+
+| Workload | Workers | `step_many` dense | `step_many` compact | `playout_many` | Ratio to compact |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Jaw Worm | 1 | 303 | 403 | 1924 | 4.8× |
+| Jaw Worm | 4 | 441 | 512 | 6201 | 12.1× |
+| Cultist | 1 | 376 | 485 | 2259 | 4.7× |
+| Cultist | 4 | 438 | 624 | 7169 | 11.5× |
+| Gremlin Nob | 1 | 402 | 524 | 2504 | 4.8× |
+| Gremlin Nob | 4 | 568 | 668 | 7703 | 11.5× |
+| Run, first combat | 1 | 309 | 391 | 1717 | 4.4× |
+| Run, first combat | 4 | 440 | 513 | 5651 | 11.0× |
+
+Values are playouts per second (3 decisions per cell). The lock-step baseline evaluates the same rule in Python
+with its own RNG, so trajectories and step counts differ slightly between methods. With 4 workers, CPU time per
+decision was 0.08–0.12 s for `playout_many` and 0.46–0.76 s for the baseline. Raw rows have the schema
+`spire-gym-m41-playout-benchmark-v1`.
+
 ## Tactical starts (M34s-c)
 
 A `standard-combat-v1` entry starts one of three ways, labelled `start_kind` in its catalog descriptor entry and in every

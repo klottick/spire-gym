@@ -2,7 +2,7 @@
 use std::{collections::HashMap,sync::{Mutex,atomic::{AtomicBool,AtomicI64,Ordering}}};
 use pyo3::{prelude::*,create_exception,exceptions::{PyValueError,PyRuntimeError,PyNotImplementedError,PyTypeError},types::{PyAny,PyDict,PyInt,PyBool,PyString,PyTuple,PyBytes,PyList}};
 use spire_core::{content::Character,combat::rng::Partition,run::{map::PublicMap,PublicDecision,RunTerminal}};
-use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RunObservationLayout,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest,StandardCombatCapacityPreset,StandardCombatSessionConfig};
+use spire_env::{RunSession,RunSessionConfig,RunSessionError,RunCapacities,RunBoundary,RunObservation,RunActionIndex,RunDecisionToken,M9BossHistory,RunEpisodeRecord,StandardCreation,StandardRunConfig,RunObservationLayout,RUN_OBSERVATION_SCHEMA_ID,RUN_OBSERVATION_M10_SCHEMA_ID,RUN_RECORD_SCHEMA_ID,RUN_RECORD_SCHEMA_ID_M10,PublicRoot,PublicSearch,SearchConfig,SearchLimits,BranchId,BranchView,BranchStepRequest,BranchPlayoutRequest,PlayoutConfig,PlayoutRule,StandardCombatCapacityPreset,StandardCombatSessionConfig};
 use crate::{numeric,stacking};
 
 create_exception!(_native,RunInputError,PyValueError);
@@ -245,6 +245,26 @@ pub(crate) fn search_limits(live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_
     Ok(SearchLimits{max_live_branches:integer(live)?,max_branches:integer(branches)?,max_steps_per_branch:integer(per_branch)?,max_total_steps:integer(total)?})
 }
 fn search_error()->PyErr{RunStateError::new_err("public search is closed")}
+/// M41: a playout config from the Python arguments: the one declared rule, `exclude_verbs` a list or tuple of verb names
+/// (`None`: the default; a bare string or bytes is rejected), `max_steps` a positive integer or `None`, `playout_seed` a
+/// u64 (`None`: 0).
+fn playout_config(rule:&str,exclude_verbs:Option<&Bound<'_,PyAny>>,max_steps:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<PlayoutConfig>{
+    if rule!="uniform_exclude_verbs"{return Err(RunInputError::new_err("unknown playout rule"))}
+    let rule=match exclude_verbs.filter(|v|!v.is_none()){
+        None=>PlayoutRule::default(),
+        Some(verbs)=>{
+            if !(verbs.is_exact_instance_of::<PyList>()||verbs.is_exact_instance_of::<PyTuple>()){return Err(RunInputError::new_err("exclude_verbs must be a list or tuple of verb names"))}
+            let names=verbs.try_iter()?.map(|v|v.and_then(|v|label(&v))).collect::<PyResult<Vec<_>>>()?;
+            PlayoutRule::uniform_exclude_verbs(names).map_err(error)?
+        }
+    };
+    let max_steps=match max_steps.filter(|v|!v.is_none()){
+        None=>None,
+        Some(v)=>{let n:u64=integer(v).map_err(|_|RunInputError::new_err("max_steps must be a positive integer"))?;if n==0{return Err(RunInputError::new_err("max_steps must be a positive integer"))}Some(n)}
+    };
+    let playout_seed=match playout_seed.filter(|v|!v.is_none()){None=>0,Some(v)=>integer::<u64>(v).map_err(|_|RunInputError::new_err("playout_seed must be an integer in 0..2**64"))?};
+    Ok(PlayoutConfig{rule,max_steps,playout_seed})
+}
 /// `workers=None` is one worker (the M34s default).
 pub(crate) fn one_worker<'py>(py:Python<'py>,workers:Option<&Bound<'py,PyAny>>)->Bound<'py,PyAny>{workers.filter(|w|!w.is_none()).cloned().unwrap_or_else(||1_i64.into_pyobject(py).unwrap().into_any())}
 pub(crate) fn public_search(root:PublicRoot,research_seed:u64,limits:SearchLimits,workers:&Bound<'_,PyAny>,observation:Option<StandardCombatSessionConfig>)->PyResult<NativePublicSearch>{
@@ -295,6 +315,29 @@ impl NativePublicSearch{
         let outcomes=py.detach(||search.step_many(&requests,view)).map_err(error)?;
         let compact = (!self.dtypes.is_empty()).then_some(&*search);
         crate::batch::branch_outcomes(py,outcomes,view,compact,&self.dtypes)
+    }
+    /// M41 native playouts (design-v2 §4.3): each listed live branch plays under the declared public rule until its
+    /// combat ends, a step limit or a declared stop; outcomes in input order; the GIL is released for the native part.
+    /// Preflight errors change nothing.
+    #[pyo3(signature=(branches,tokens,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,max_steps=None,playout_seed=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn playout_many<'py>(&mut self,py:Python<'py>,branches:&Bound<'py,PyAny>,tokens:&Bound<'py,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'py,PyAny>>,max_steps:Option<&Bound<'py,PyAny>>,playout_seed:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{
+        let ids=branches.cast::<PyList>().map_err(|_|RunInputError::new_err("branches must be a list of branch ids"))?.iter().map(|b|integer::<u64>(&b).map(BranchId)).collect::<PyResult<Vec<_>>>()?;
+        if ids.is_empty(){return Err(RunInputError::new_err("playout_many needs at least one branch"))}
+        let config=playout_config(&rule,exclude_verbs,max_steps,playout_seed)?;
+        let tokens=numeric::token_inputs(tokens,ids.len()).map_err(|e|RunInputError::new_err(e.value(py).to_string()))?;
+        let requests=ids.iter().zip(tokens).map(|(b,t)|BranchPlayoutRequest{branch:*b,token:t.into()}).collect::<Vec<_>>();
+        let compact=!self.dtypes.is_empty();
+        let search=self.inner.as_mut().ok_or_else(search_error)?;
+        let outcomes=py.detach(||search.playout_many(&requests,&config)).map_err(error)?;
+        crate::batch::branch_playout_outcomes(py,outcomes,search.enemy_capacity(),compact)
+    }
+    /// M41: the action index the declared rule picks at a live branch's boundary (no effect).
+    #[pyo3(signature=(branch,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,playout_seed=None))]
+    fn playout_action(&self,branch:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<i64>{
+        let config=playout_config(&rule,exclude_verbs,None,playout_seed)?;
+        let search=self.inner.as_ref().ok_or_else(search_error)?;
+        search.playout_action(BranchId(integer(branch)?),&config.rule,config.playout_seed).map(|i|i.0).map_err(error)
     }
     fn observation_spec<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         specification(py, self.inner.as_ref().ok_or_else(search_error)?.observation_spec().map_err(error)?)

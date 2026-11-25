@@ -906,6 +906,8 @@ pub(crate) fn encode_run_standard_layout_into(d:&PublicDecision,map:Option<&Publ
     encode_standard_projection(d,map,caps,context,layout,target,None)
 }
 
+/// The enemies the Standard projection publishes as enemy rows (M41: shared with the `PublicSearch` playout summary).
+pub(crate) fn standard_enemy_present(e:&spire_core::combat::FullEnemyView)->bool{e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0)}
 pub(crate) fn encode_standard_projection(d:&PublicDecision,map:Option<&PublicMap>,caps:&RunCapacities,context:StandardContext,layout:RunObservationLayout,target:Option<&mut ObservationTarget<'_>>,combat_context:Option<&[Option<i64>;6]>)->Result<RunObservation,RunSessionError>{
     if d.content_profile!=Some(RoomScenario::Standard){return Err(RunSessionError::Input("Standard encoder requires the Standard profile"))}
     // Final review N2: Standard draw rows need a combat that maintains public knowledge; a combat entered without it has an
@@ -914,7 +916,7 @@ pub(crate) fn encode_standard_projection(d:&PublicDecision,map:Option<&PublicMap
         let known=c.known_draw.iter().map(|k|k.card.instance).collect::<std::collections::BTreeSet<_>>().len();
         if c.draw_unknown.len()+known!=c.draw_count{return Err(RunSessionError::Input("Standard combat draw multiset missing (combat entered without public knowledge)"))}
     }
-    let present=|e:&spire_core::combat::FullEnemyView|e.half_dead||(!e.replaced&&!e.escaped&&e.hp>0);
+    let present=standard_enemy_present;
     if d.combat.as_ref().is_some_and(|c|c.enemies.iter().all(present)){
         return encode_run_into(d,map,caps,RunEncodingProfile::Standard,card_id,Some(context),target,layout,combat_context);
     }

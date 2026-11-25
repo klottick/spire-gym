@@ -119,6 +119,42 @@ class PublicSearch:
         info["_fault"] = np.asarray([item is not None for item in raw["fault"]], dtype=np.bool_)
         return observations, raw["rewards"], raw["terminated"], raw["truncated"], info
 
+    def playout_many(self, branches, *, rule="uniform_exclude_verbs", exclude_verbs=None,
+                     max_steps=None, playout_seed=0) -> dict[str, Any]:
+        """Play distinct live branches to combat end or a step limit in one native call (M41).
+
+        Every move is chosen by the declared public rule ``spire-gym-public-playout-v1``: uniform over the legal actions
+        whose Standard verb is not in ``exclude_verbs`` (default ``("end_turn", "discard_potion")``; ``()`` means every
+        legal action), over all legal actions when none remain, drawn from a research stream keyed by the branch's
+        sample, ``playout_seed`` and its step. Returns owned arrays in input order (see ``docs/standard-run-api.md``).
+        """
+        if not isinstance(branches, (list, tuple)) or not branches:
+            raise _native.RunInputError("branches must be a nonempty sequence")
+        ids, token_rows = [], []
+        for branch in branches:
+            if not isinstance(branch, PublicBranch) or branch._search is not self:
+                raise _native.RunInputError("every branch must belong to this search")
+            if branch._token is None:
+                branch.decision()
+            ids.append(branch._branch_id)
+            token_rows.append(branch._token)
+        raw = self._native.playout_many(
+            ids, np.asarray(token_rows, dtype=np.uint64), rule=rule, exclude_verbs=exclude_verbs,
+            max_steps=max_steps, playout_seed=playout_seed,
+        )
+        returned_tokens = raw["tokens"]
+        for i, branch in enumerate(branches):
+            if raw["fault"][i] is None:
+                branch._token = (int(returned_tokens[i, 0]), int(returned_tokens[i, 1]))
+        result = dict(raw)
+        for key in ("end_reason", "refusal", "fault"):
+            column = np.empty(len(branches), dtype=object)
+            column[:] = raw[key]
+            result[key] = column
+        result["_refusal"] = np.asarray([item is not None for item in raw["refusal"]], dtype=np.bool_)
+        result["_fault"] = np.asarray([item is not None for item in raw["fault"]], dtype=np.bool_)
+        return result
+
 
 class PublicBranch:
     """A sampled combat trajectory with a private, branch-specific decision token."""
@@ -161,6 +197,12 @@ class PublicBranch:
             raw["terminated"],
             raw["truncated"],
             dict(raw["info"]),
+        )
+
+    def playout_action(self, *, rule="uniform_exclude_verbs", exclude_verbs=None, playout_seed=0) -> int:
+        """The action index the declared playout rule picks at this branch's boundary (no effect; M41)."""
+        return self._search._native.playout_action(
+            self._branch_id, rule=rule, exclude_verbs=exclude_verbs, playout_seed=playout_seed
         )
 
     def fork(self) -> PublicBranch:

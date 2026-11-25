@@ -286,6 +286,25 @@ class NativeStandardCombatSession:
     def diagnostic(self) -> dict[str, Any]: ...
     def close(self) -> None: ...
 
+class PlayoutResult(TypedDict):
+    """M41 `NativePublicSearch.playout_many` result: owned arrays and lists in input order (N branches, E enemy columns)."""
+
+    rule_id: str
+    tokens: NDArray[np.uint64]
+    rewards: NDArray[np.int32]
+    terminated: NDArray[np.bool_]
+    truncated: NDArray[np.bool_]
+    steps: NDArray[np.uint64]
+    branch_steps: NDArray[np.uint64]
+    end_reason: list[str]
+    refusal: list[str | None]
+    player_hp: NDArray[np.int32]
+    player_max_hp: NDArray[np.int32]
+    enemy_hp: NDArray[np.int32]
+    enemy_max_hp: NDArray[np.int32]
+    enemy_present: NDArray[np.int8]
+    fault: list[dict[str, Any] | None]
+
 class NativePublicSearch:
     def branch(self, sample: int | None = ...) -> int: ...
     def decision(self, branch: int) -> dict[str, Any]: ...
@@ -298,6 +317,12 @@ class NativePublicSearch:
     ) -> dict[str, Any]: ...
     def step_many(self, branches: list[int], tokens: NDArray[np.uint64], actions: NDArray[np.int64], *,
                   view: Literal["full", "mask"] = ...) -> dict[str, Any]: ...
+    def playout_many(self, branches: list[int], tokens: NDArray[np.uint64], *,
+                     rule: Literal["uniform_exclude_verbs"] = ...,
+                     exclude_verbs: list[str] | tuple[str, ...] | None = ...,
+                     max_steps: int | None = ..., playout_seed: int = ...) -> PlayoutResult: ...
+    def playout_action(self, branch: int, *, rule: Literal["uniform_exclude_verbs"] = ...,
+                       exclude_verbs: list[str] | tuple[str, ...] | None = ..., playout_seed: int = ...) -> int: ...
     def fork(self, branch: int) -> int: ...
     def actions(self, branch: int) -> list[int]: ...
     def public_search(

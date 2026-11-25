@@ -22,6 +22,7 @@ CASES = [
     ("speed_check.py", ["--steps", "2"], ("spire-gym-speed-check-python-v1", '"workers_16"')),
     ("speed_check.py", ["--steps", "1", "--observation", "compact"], ("spire-gym-speed-check-python-v1", '"observation": "compact"')),
     ("public_lookahead.py", ["--samples", "1"], ("legal root actions", "counters=")),
+    ("public_playout.py", ["--samples", "2", "--playout-steps", "8"], ("legal root actions", "playouts=")),
     ("tactical_lessons.py", [], ("first_legal:", "seeded_random:")),
     ("combat_gymnasium.py", [], ("Collected 64 batches", "natural endings")),
     ("ironclad_combat_training.py", [], ("common-view", "normal Run")),
