@@ -284,11 +284,13 @@ pub(in crate::combat) struct KnowledgeTracker {
     pub draw: Result<DrawKnowledge, Unrepresentable>,
     tracked: Option<Vec<(u64, CardClass)>>,
     pub prerolls: Prerolls,
+    /// M40c: hidden-move records under Runic Dome (`hidden_moves`); empty without hidden intents.
+    pub(in crate::combat) moves: super::hidden_moves::HiddenMoves,
 }
 impl Default for KnowledgeTracker {
-    fn default() -> Self { Self { maintained: false, draw: Ok(DrawKnowledge::empty()), tracked: Some(vec![]), prerolls: Prerolls::default() } }
+    fn default() -> Self { Self { maintained: false, draw: Ok(DrawKnowledge::empty()), tracked: Some(vec![]), prerolls: Prerolls::default(), moves: Default::default() } }
 }
-impl PartialEq for KnowledgeTracker { fn eq(&self, other: &Self) -> bool { self.maintained == other.maintained && self.draw == other.draw && self.prerolls == other.prerolls } }
+impl PartialEq for KnowledgeTracker { fn eq(&self, other: &Self) -> bool { self.maintained == other.maintained && self.draw == other.draw && self.prerolls == other.prerolls && self.moves == other.moves } }
 impl Eq for KnowledgeTracker {}
 
 pub(in crate::combat) fn class_of(state: &State, card: &OwnedCard) -> Option<CardClass> {
@@ -910,7 +912,7 @@ pub(in crate::combat) fn rebind_draw(state: &mut State, posterior: Option<Result
 #[cfg(test)]
 #[test]
 fn tracker_census_classifies_every_field() {
-    let KnowledgeTracker { maintained: _, draw: _, tracked: _, prerolls: _ } = KnowledgeTracker::default();
+    let KnowledgeTracker { maintained: _, draw: _, tracked: _, prerolls: _, moves: _ } = KnowledgeTracker::default();
 }
 
 /// M34s-b final review I1 diagnostics (env P1 duplicate-copy families; never a gameplay path).

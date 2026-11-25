@@ -102,13 +102,16 @@ pub(in crate::combat) fn complete(state:&mut State)->Result<(),super::super::sup
 fn commit_prepared(state:&mut State)->Result<(),super::super::super::EffectError>{
     let progress=state.spawn_progress.as_ref().ok_or_else(||InputError::Invariant("prepared summon custody absent".into()))?;
     let child=progress.prepared_child.clone().ok_or_else(||InputError::Invariant("prepared summon child absent".into()))?;
+    let (child_handle,progress_species)=(child.instance_id.clone(),progress.request.species);
     let slot=progress.request.slot;
     let summoner=progress.request.summoner.clone();
     if state.enemies.len().checked_add(1).and_then(|n|u64::try_from(n).ok()).is_none()||ordered_actors(state).len()>=9{return Err(InputError::Unsupported("summon actor storage exhausted".into()).into())}
     let mut candidate=state.clone();candidate.actor_slots.insert(child.instance_id.clone(),slot);
     if let Some(EnemyMemory::Collector{slots,..})=candidate.enemies.iter_mut().find(|e|e.instance_id==summoner).and_then(|e|e.full_memory.as_mut()){slots.insert(slot,child.instance_id.clone());}
     candidate.enemies.push(child);super::super::super::effects::refresh_enemy_values(&mut candidate)?;
-    state.enemies=candidate.enemies;state.actor_slots=candidate.actor_slots;state.spawn_progress=None;Ok(())
+    state.enemies=candidate.enemies;state.actor_slots=candidate.actor_slots;state.spawn_progress=None;
+    // M40c: the child's first roll used empty history and fresh memory (`complete` above); record it at commit.
+    let species=progress_species;super::super::super::hidden_moves::record_child(state,&child_handle,species,super::RollSite::Summon);Ok(())
 }
 
 fn power(id:&'static str,amount:i32)->super::super::super::FullPowerEntry{super::super::super::FullPowerEntry{id:FullPowerId(id),state:super::super::super::PowerState{amount,skip_first:false,monster_source_grace:false}}}

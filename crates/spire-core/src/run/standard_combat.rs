@@ -187,8 +187,14 @@ impl Run {
     /// The public knowledge of the live combat in normal form, as digest input bytes (design §4.6.3): the draw
     /// knowledge and every actor's pre-roll candidates. `None` without supported knowledge.
     pub fn public_knowledge_bytes(&self)->Option<Vec<u8>>{
-        let (draw,prerolls)=self.state.combat.as_ref()?.belief_support().ok()?;
-        Some(format!("{draw:?}\0{prerolls:?}").into_bytes())
+        let combat=self.state.combat.as_ref()?;
+        let (draw,prerolls)=combat.belief_support().ok()?;
+        // M40c: under hidden intents the public hidden-move records join the knowledge (absent otherwise, so every
+        // existing root keeps its bytes).
+        match combat.hidden_move_knowledge(){
+            Some(moves)=>Some(format!("{draw:?}\0{prerolls:?}\0{moves}").into_bytes()),
+            None=>Some(format!("{draw:?}\0{prerolls:?}").into_bytes()),
+        }
     }
     /// Final review I1: whether `action` picks a draw-pile copy chosen by hidden instance order
     /// (`Combat::pick_depends_on_hidden_order`); public.

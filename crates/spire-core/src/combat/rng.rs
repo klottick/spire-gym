@@ -196,6 +196,8 @@ pub fn uniform_below(
     state: &StreamState,
     bound: u128,
 ) -> Result<(u64, StreamState), RngError> {
+    #[cfg(test)]
+    if let Some(value) = script::next(bound) { return Ok((value as u64, state.clone())) }
     let mut cursor = state.clone();
     let value = uniform_from_words(bound, &mut || {
         let (word, next) = draw_u64(&cursor)?;
@@ -287,4 +289,42 @@ pub fn shuffle<T: Clone>(
         Ok(word)
     })?;
     Ok((result, cursor))
+}
+
+/// M40c T3 (test only): a scripted `uniform_below` (and so `bernoulli`) that replays a fixed choice path, so a roll law
+/// can be enumerated exactly over the gameplay path.
+#[cfg(test)]
+pub(crate) mod script {
+    use std::cell::RefCell;
+    thread_local! { static PATH: RefCell<Option<(Vec<u128>, Vec<u128>)>> = const { RefCell::new(None) }; }
+    pub(super) fn next(bound: u128) -> Option<u128> {
+        PATH.with(|p| p.borrow_mut().as_mut().map(|(path, bounds)| {
+            let i = bounds.len();
+            bounds.push(bound);
+            if i >= path.len() { path.push(0) }
+            path[i].min(bound.saturating_sub(1))
+        }))
+    }
+    /// Every outcome of `f` with its exact probability (1 / product of the bounds on its path); `None` when the paths
+    /// exceed `max_paths` (a selector with a rejection loop or 2^24 draws).
+    pub(crate) fn enumerate<T>(mut f: impl FnMut() -> T, max_paths: usize) -> Option<Vec<(T, f64)>> {
+        let mut out = vec![];
+        let mut path: Vec<u128> = vec![];
+        loop {
+            PATH.with(|p| *p.borrow_mut() = Some((path.clone(), vec![])));
+            let value = f();
+            let (taken, bounds) = PATH.with(|p| p.borrow_mut().take()).unwrap();
+            let probability = bounds.iter().fold(1f64, |a, b| a / *b as f64);
+            out.push((value, probability));
+            if out.len() > max_paths { return None }
+            path = taken;
+            path.truncate(bounds.len());
+            loop {
+                let Some(last) = path.len().checked_sub(1) else { return Some(out) };
+                path[last] += 1;
+                if path[last] < bounds[last] { break }
+                path.pop();
+            }
+        }
+    }
 }

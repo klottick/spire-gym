@@ -67,7 +67,8 @@ fn public_root_requires_a_supported_combat_decision() {
     dome["relics"] = json!(["burning_blood", "runic_dome"]);
     let mut s = standard_combat_session(vec![dome]);
     s.reset(Some(1), None).unwrap();
-    assert_eq!(s.public_root().err(), Some(RunSessionError::UnsupportedBoundary("hidden intents are not modelled")));
+    // M40c: a Runic Dome opening is a public root (hidden moves are re-sampled from public records).
+    assert!(s.public_root().is_ok(), "Runic Dome opening: {:?}", s.public_root().err());
     // Not reset; terminal; faulted (frozen); closed.
     let fresh = standard_combat_session(vec![standard_entry("e", Character::Ironclad, 0, "jaw_worm", None)]);
     assert_eq!(fresh.public_root().err(), Some(RunSessionError::NotReset));

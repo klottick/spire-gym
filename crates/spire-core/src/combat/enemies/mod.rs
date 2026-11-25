@@ -349,6 +349,9 @@ pub(super) fn apply_replacement(state: &mut State, parent_handle: &EnemyHandle,
     state.replacement_progress = None;
     // The live queue, not the detached candidate: hits already queued at the retired parent do nothing.
     super::effects::cancel_queued_hits_at(state, &Actor::Enemy(parent_handle.clone()));
+    for child in &spawned{
+        if let Some(ActorEnemyId::Full(id))=state.enemies.iter().find(|e|&e.instance_id==child).map(|e|e.enemy_id.clone()){super::hidden_moves::record_child(state,child,id,act2::RollSite::Split);}
+    }
     for child in spawned{dispatch_spawned(state,&child)?;}
     Ok(())
 }
@@ -1220,7 +1223,7 @@ pub fn setup_with_overrides(encounter: crate::content::EncounterId, act: u8, asc
         let mut memory = EnemyMemory::for_profile(id, ascension, profile)
             .map_err(|_| crate::run::RunError::Unsupported("enemy memory unavailable"))?;
         if id==EnemyId::Darkling{let (lo,hi)=ascension::darkling_nip_range(ascension);let nip=lo+rng.bounded_scoped(crate::run::RunRngScope::CombatEnemySetup,&[act as u64,encounter_key,visit,slot as u64,3],(hi-lo+1) as u64) as i32;damage_bases.insert((slot as u32,FullIntentId::from_name("darkling_nip")),nip);memory=EnemyMemory::Darkling{center:slot==1,nip,first:true};powers.push(super::FullPowerEntry{id:FullPowerId("life_link"),state:super::PowerState{amount:1,skip_first:false,monster_source_grace:false}});}
-        enemies.push(FullEnemySetup { initial_memory:Some(memory),instance_id: EnemyHandle::parse(&actor)
+        enemies.push(FullEnemySetup { opening:None,initial_memory:Some(memory),instance_id: EnemyHandle::parse(&actor)
             .map_err(|_| crate::run::RunError::Unsupported("invalid generated enemy identity"))?,
             enemy_id: id, hp, max_hp: hp, block: 0, intent: FullIntentId::from_name("unselected_native_entry"), ascension, profile,
             powers, ai_rng });
@@ -1238,6 +1241,9 @@ pub fn setup_with_overrides(encounter: crate::content::EncounterId, act: u8, asc
     let summaries=enemies.iter().enumerate().map(|(slot,a)|act2::ActorSummary{owner:a.instance_id.clone(),species:a.enemy_id,hp:a.hp,max_hp:a.max_hp,slot:slot as u8}).collect::<Vec<_>>();
     for actor in &mut enemies {
         let context=act2::EnemyRollContext{owner:actor.instance_id.clone(),turn:1,actors:summaries.clone(),ascension};
+        // M40c: the opening roll's public inputs (pre-roll memory, context), recorded under hidden intents at entry.
+        actor.opening=Some(super::model::OpeningRoll{memory:actor.initial_memory.clone().unwrap(),context:context.clone(),
+            constricted:(actor.enemy_id==EnemyId::SpireGrowth).then_some(player_constricted),rolled:actor.enemy_id!=EnemyId::CorruptHeart});
         if actor.enemy_id==EnemyId::CorruptHeart {
             actor.intent=FullIntentId::HeartDebilitate;
         }else{

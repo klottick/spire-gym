@@ -223,10 +223,16 @@ fn sample_keys_follow_the_research_derivation_and_differ_from_truth() {
     assert_ne!(s.state().rng.root_for_test(), run.state().rng.root_for_test());
 }
 
+/// M40c: a Runic Dome opening is a public root; after a card reads the hidden intent of a random species the root is
+/// refused until that move executes (`HiddenIntentRead`).
 #[test]
-fn hidden_intent_root_is_unsupported() {
-    let run = standalone(Character::Ironclad, 0, EncounterId::JawWorm, MIXED, vec![RelicId::RunicDome], 1);
-    assert_eq!(run.public_root_run().err(), Some(Unsupported::HiddenIntents));
+fn hidden_intent_root_after_a_card_read_is_unsupported() {
+    let mut run = standalone(Character::Ironclad, 0, EncounterId::JawWorm, &[CardId::SpotWeakness, CardId::Strike, CardId::Defend], vec![RelicId::RunicDome], 1);
+    assert!(run.public_root_run().is_ok());
+    let spot = combat(&run).state.piles.hand.iter().find_map(|c| c.full().filter(|f| f.id == CardId::SpotWeakness).map(|f| f.instance.0));
+    let Some(spot) = spot else { return };
+    act(&mut run, "spot weakness", |a| matches!(a, crate::run::GameAction::Combat(CombatAction::PlayCard { instance, .. }) if *instance == spot));
+    assert_eq!(run.public_root_run().err(), Some(Unsupported::HiddenIntentRead));
 }
 
 #[test]

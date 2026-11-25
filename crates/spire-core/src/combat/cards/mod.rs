@@ -119,6 +119,8 @@ pub(super) fn apply_defect_continuation(state: &mut State, effect: &Effect,
         DefectContinuation::GoForTheEyesWeak { amount } => {
             let Some(Actor::Enemy(id)) = target else { return Err(crate::combat::InputError::Invariant(
                 "Go for the Eyes continuation target missing".into()).into()) };
+            // M40c: the attack-bit read of a hidden intent (C-ATK) is public history; mark it before reading.
+            if !crate::combat::belief::leak(crate::combat::belief::Leak::SkipMarkEyes) { crate::combat::hidden_moves::mark_intent_read(state, &id.clone()); }
             let enemy = state.enemies.iter().find(|enemy| &enemy.instance_id == id)
                 .ok_or_else(|| crate::combat::InputError::Invariant("Go for the Eyes target disappeared".into()))?;
             let intent_base = match &enemy.intent_id {

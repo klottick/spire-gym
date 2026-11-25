@@ -78,7 +78,7 @@ fn is_thief_id(id: EnemyId) -> bool {
     matches!(id, EnemyId::Looter | EnemyId::Mugger)
 }
 
-fn intent_name(id: EnemyId, suffix: &'static str) -> &'static str {
+pub(in crate::combat) fn intent_name(id: EnemyId, suffix: &'static str) -> &'static str {
     match (id, suffix) {
         (EnemyId::Looter, "mug") => LOOTER_MUG,
         (EnemyId::Looter, "lunge") => LOOTER_LUNGE,

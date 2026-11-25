@@ -561,6 +561,8 @@ impl Combat {
         let rng = super::model::CombatRng { contract_id: RNG_CONTRACT_ID.into(),
             shuffle: setup.shuffle_rng.clone(), enemy_ai: first.ai_rng.clone(), enemy_instance_id: first.instance_id.clone() };
         let source_character=setup.character;
+        // M40c: the opening rolls' public inputs, recorded once the item context (Runic Dome) is installed below.
+        let openings=setup.enemies.iter().map(|e|(e.instance_id.clone(),e.enemy_id,e.opening.clone())).collect::<Vec<_>>();
         let mut combat = Self::build_full(setup, rng);
         combat.state.knowledge.maintained = public_knowledge;
         if source_character!=crate::content::Character::Defect&&combat.state.character.orb_slots.is_empty()&&item_context.as_ref().is_some_and(|items|items.complete_items()&&items.owns_relic(crate::content::RelicId::PrismaticShard)){combat.state.character.orb_slots.resize(1,None);}
@@ -628,6 +630,7 @@ impl Combat {
         let master=combat.state.player.max_energy.checked_add(energy_bonus).filter(|n|*n<=999)
             .ok_or(CombatEntryFailure::Rejected(crate::run::RunError::Unsupported("combat relic master energy overflow")))?;
         combat.state.item_context=item_context.take();
+        super::hidden_moves::record_openings(&mut combat.state,openings);
         // The entry-only G4 flag never survives into combat state.
         if let Some(items)=combat.state.item_context.as_mut(){items.clear_master_order();}
         let _observation=super::observe::bind_entry(&combat);
@@ -867,6 +870,9 @@ impl Combat {
         if matches!(action, CombatAction::PlayCard { .. }) {
             match super::cards::prepare(self, action) {
                 Ok(prepared) => {
+                    // M40c: the payload just prepared may have read the target's hidden intent (Fear No Evil).
+                    let read=self.state.piles.hand.get(prepared.hand_index).and_then(super::model::OwnedCard::full).map(|card|card.id);
+                    if let (Some(id),Some(Actor::Enemy(target)))=(read,prepared.target.clone()){super::hidden_moves::mark_card_read(&mut self.state,id,&target);}
                     if let Some(Actor::Enemy(target))=prepared.target.as_ref(){self.face_toward_full_target(target)?;}
                     let observed_before=super::observe::mark(&self.state);
                     let instance = prepared.instance;
@@ -2951,10 +2957,13 @@ pub(super) fn dispatch_one(state: &mut State) {
     // Clone only the selected data-only work, never the combat. Keeping the owner
     // in current protects it from front insertion and preserves failures verbatim.
     let effect = state.current.as_ref().unwrap().clone();
+    // M40c: the fail-closed hidden-move monitor (only under hidden intents with public knowledge; never read by rules).
+    let before=super::hidden_moves::snapshot(state);
     match super::effects::apply_effect(state, &effect) {
         Ok(()) => state.current = None,
         Err(error) => retain_error(state, error),
     }
+    if let Some(before)=before { super::hidden_moves::observe(state, &effect, before); }
 }
 
 /// The open pending selection is owned by its parent and still suspends the

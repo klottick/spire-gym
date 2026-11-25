@@ -57,6 +57,8 @@ pub(super) fn apply(state:&mut State,effect:&Effect,work:&IroncladEffect)->Resul
         },
         IroncladEffect::SpotWeakness{amount}=>{
             let Some(Actor::Enemy(target))=effect.target.as_ref() else{return Err(InputError::Invariant("Spot Weakness target is not an enemy".into()).into())};
+            // M40c: the attack-bit read of a hidden intent (C-ATK) is public history; mark it before reading.
+            if !super::super::super::belief::leak(super::super::super::belief::Leak::SkipMarkSpot){super::super::super::hidden_moves::mark_intent_read(state,&target.clone());}
             let enemy=state.enemies.iter().find(|enemy|&enemy.instance_id==target)
                 .ok_or_else(||InputError::Invariant("Spot Weakness target disappeared".into()))?;
             let intent_base=match &enemy.intent_id{

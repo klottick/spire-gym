@@ -8,6 +8,14 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 - Standard public search admits more exact draw states after retired repeat copies,
   public card-class changes and agreeing draw-pile positions. The existing
   search and replay contracts stay at their current versions.
+- Standard public search supports Runic Dome roots (spire-61l stage 3). Each enemy's
+  hidden move is redrawn from a public record of its roll inputs, so roots no longer
+  refuse every hidden-intent decision. Card reads of a hidden intent, unidentifiable
+  executed moves, shown pre-rolls and unclassified changes still refuse, with three
+  new additive refusal reasons. Gameplay, observation, action, descriptor and root
+  layouts, fingerprints and replay digests are unchanged, and roots without Runic
+  Dome keep their digests. The search and belief contracts stay at their current
+  versions.
 
 ## 1.2.2 — effective at the commit tagged v1.2.2
 

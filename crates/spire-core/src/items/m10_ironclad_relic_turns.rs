@@ -22,7 +22,7 @@ fn entry(cards:usize,opening_draw:usize,enemies:usize,hp:i32)->CombatEntry {
         let owner=EnemyHandle::parse(&format!("enemy-{}",i+1)).unwrap();
         let ai=crate::combat::rng::StreamId::new(crate::combat::rng::Domain::RunCombatEnemyAi,
             vec![suffix.clone(),owner.as_str().to_owned()]).unwrap();
-        FullEnemySetup{initial_memory:None,instance_id:owner,ascension:0,
+        FullEnemySetup { opening: None,initial_memory:None,instance_id:owner,ascension:0,
             profile:crate::combat::enemies::EnemyProfile::Standard,enemy_id:EnemyId::Cultist,
             hp:40,max_hp:40,block:0,intent:FullIntentId::Incantation,powers:vec![],
             ai_rng:crate::combat::rng::StreamState::new(ai,[153;32],0).unwrap()}

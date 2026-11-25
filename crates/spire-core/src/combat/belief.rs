@@ -17,13 +17,19 @@ pub const PUBLIC_BELIEF_ID: &str = "spire-gym-public-belief-v1";
 /// Test-only leaky canonicalisers (design §4.10 negative control (b)): each must make a privacy test fail. Outside
 /// tests no leak is ever active.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Leak { KeepStreams, KeepDrawOrder, KeepPreroll, AllowAll }
+pub(crate) enum Leak {
+    KeepStreams, KeepDrawOrder, KeepPreroll, AllowAll,
+    // M40c negative controls (design-v4 §8): each must turn a named hidden-intent test red.
+    KeepHiddenMove, RecordPostRollMemory, ReplayLiveStream, DigestWithoutMoves, NoMonitor, RawChainHistory,
+    KeepRetiredResidue, SkipMarkSpot, SkipMarkEyes, SkipMarkFne, LiveMemoryKeepsNip, ClearReadOnReroll, SkipPrerollShown,
+    AcceptAmbiguous, EarlyAmbiguityClear, AmbiguityStandInFromLater, StickyRetire, IgnoreTruncation, DeadMoveExecutes,
+}
 #[cfg(test)]
 thread_local! { pub(crate) static LEAK: std::cell::Cell<Option<Leak>> = const { std::cell::Cell::new(None) }; }
 #[cfg(test)]
-fn leak(l: Leak) -> bool { LEAK.with(|v| v.get()) == Some(l) }
+pub(crate) fn leak(l: Leak) -> bool { LEAK.with(|v| v.get()) == Some(l) }
 #[cfg(not(test))]
-fn leak(_: Leak) -> bool { false }
+pub(crate) fn leak(_: Leak) -> bool { false }
 
 /// Why a combat is not a supported public root (design §4.6.1). Each names a class of reason, never a value (P7).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,8 +42,14 @@ pub enum Unsupported {
     Faulted,
     /// The combat is not at a published decision or selection boundary.
     NotAtDecision,
-    /// Hidden intents (Runic Dome, L2).
+    /// Hidden intents (Runic Dome) outside the M40c model: an enemy without a record, an unclassified change.
     HiddenIntents,
+    /// M40c: a card read whether a hidden intent is an attack (Spot Weakness, Go for the Eyes, Fear No Evil).
+    HiddenIntentRead,
+    /// M40c: an executed enemy move could not be identified and a pending roll still reads it.
+    HiddenMoveAmbiguous,
+    /// M40c: a hidden pre-rolled value (Louse Bite, Darkling Nip) was shown by damage.
+    HiddenPrerollShown,
     /// A queued or held continuation outside the allow-list; the static label names its kind.
     DisallowedContinuation(&'static str),
     /// The draw knowledge exceeds the exact model (L1).
@@ -53,6 +65,9 @@ impl Unsupported {
             Self::Faulted => "the combat is faulted",
             Self::NotAtDecision => "the combat is not at a published decision",
             Self::HiddenIntents => "hidden intents are not modelled",
+            Self::HiddenIntentRead => "a card read a hidden intent",
+            Self::HiddenMoveAmbiguous => "an executed enemy move was not identifiable",
+            Self::HiddenPrerollShown => "a hidden pre-rolled value was shown by damage",
             Self::DisallowedContinuation(kind) => kind,
             Self::UnrepresentableKnowledge => "draw knowledge exceeds the exact model",
             Self::UnrepresentablePreroll => "a pre-rolled value has no consistent set",
@@ -387,7 +402,10 @@ impl Combat {
         if state.fault.is_some() { return Err(Unsupported::Faulted) }
         if state.outcome.is_some() { return Err(Unsupported::Terminal) }
         if !matches!(state.phase, Phase::Decision | Phase::Selection) { return Err(Unsupported::NotAtDecision) }
-        if super::view::public_rules(state).hide_intents { return Err(Unsupported::HiddenIntents) }
+        if super::view::public_rules(state).hide_intents {
+            if !(state.knowledge.maintained && state.full_runtime) { return Err(Unsupported::HiddenIntents) }
+            super::hidden_moves::support(state)?;
+        }
         if !leak(Leak::AllowAll) { allow_list(state)?; }
         let draw = self.draw_knowledge().map_err(|Unrepresentable| Unsupported::UnrepresentableKnowledge)?;
         let prerolls = knowledge::preroll_candidates(state).map_err(|Unrepresentable| Unsupported::UnrepresentablePreroll)?;
@@ -404,8 +422,11 @@ impl Combat {
             let canonical = canonical_draw_classes(state).ok_or(Unsupported::UnrepresentableKnowledge)?;
             arrange_draw(state, &canonical).ok_or(Unsupported::UnrepresentableKnowledge)?;
         }
+        let live_streams = state.enemies.iter().map(|e| e.full_ai_rng.clone()).collect::<Vec<_>>();
         if !leak(Leak::KeepStreams) { restream(state, &crate::run::RunRng::new([0; 32], super::rng::Partition::Test, 0), id)?; }
+        if leak(Leak::ReplayLiveStream) { for (e, s) in state.enemies.iter_mut().zip(live_streams) { e.full_ai_rng = s; } }
         for p in &prerolls { if p.values.len() > 1 && !leak(Leak::KeepPreroll) { knowledge::set_preroll(state, p, p.values[0]); } }
+        super::hidden_moves::replay(state)?;
         finish(state, draw)?;
         Ok(root)
     }
@@ -424,9 +445,14 @@ impl Combat {
             let pick = ResearchStream::new(hmac_sha256(key, &label)).below(p.values.len() as u128) as usize;
             knowledge::set_preroll(state, p, p.values[pick]);
         }
+        super::hidden_moves::replay(state)?;
         finish(state, draw)?;
         Ok(world)
     }
+}
+impl Combat {
+    /// M40c: the hidden-move records in normal form (root digest input under hidden intents; `None` otherwise).
+    pub(crate) fn hidden_move_knowledge(&self) -> Option<String> { super::hidden_moves::knowledge_bytes(&self.state) }
 }
 /// Refresh the intent outputs from the (re)set bases (the engine's own refresh law) and resynchronise the knowledge's
 /// physical bookkeeping with the new arrangement and the posterior accepted before it.
@@ -474,6 +500,20 @@ impl Combat {
             if let Some(other) = p.values.iter().copied().find(|v| Some(*v) != base) {
                 knowledge::set_preroll(state, &p, other);
                 if super::effects::refresh_enemy_values(state).is_ok() { applied |= 4; }
+            }
+        }
+        // 8: M40c hidden moves: redraw every pending chain from its public record with a salted stream, and move every
+        // inert entry to another move of the species (a public-equivalent world; the records are unchanged).
+        if super::hidden_moves::active(&self.state) {
+            let before = self.state.enemies.iter().map(|e| (e.intent_id.clone(), e.move_history.clone(), e.full_memory.clone())).collect::<Vec<_>>();
+            for salt2 in 1..=8u8 {
+                let mut trial = self.state.clone();
+                for e in &mut trial.enemies { e.full_ai_rng = e.full_ai_rng.as_ref().and_then(|s| super::rng::StreamState::new(s.id().clone(), [salt ^ salt2.wrapping_mul(37) | 1; 32], s.word_index() + u128::from(salt2)).ok()).or(e.full_ai_rng.take()); }
+                if super::hidden_moves::replay(&mut trial).is_err() { break }
+                super::hidden_moves::fuzz_shift_inert(&mut trial, salt2);
+                if super::effects::refresh_enemy_values(&mut trial).is_err() { break }
+                let after = trial.enemies.iter().map(|e| (e.intent_id.clone(), e.move_history.clone(), e.full_memory.clone())).collect::<Vec<_>>();
+                if after != before { self.state = trial; applied |= 8; break }
             }
         }
         applied
@@ -545,3 +585,7 @@ mod tests {
         assert_ne!(xs, (0..64).map(|_| c.below(6)).collect::<Vec<_>>());
     }
 }
+
+/// M40c diagnostic (never public API): rule-2d truncation marks on this thread by species, for the coverage report.
+#[cfg(any(test, feature = "m34-diagnostics"))]
+pub fn m40c_truncation_counts() -> std::collections::BTreeMap<&'static str, u64> { super::hidden_moves::TRUNCATIONS.with(|t| t.borrow().clone()) }

@@ -367,8 +367,10 @@ pools, events, bosses, the Run RNG) is absent by construction. Public-equivalent
 SHA-256 over the root's encoded Standard combat view and its public knowledge in normal form.
 
 A root fails closed with `UnsupportedBoundary` naming a class of reason, never a value: not in combat, terminal, faulted,
-closed or not reset; a captured, policy-v3 or Gym66 surface; hidden intents (Runic Dome, L2); draw knowledge beyond the exact
-model (L1); a pre-roll without a consistent set; or a continuation outside the allow-list. The allow-list is one exhaustive
+closed or not reset; a captured, policy-v3 or Gym66 surface; draw knowledge beyond the exact model (L1); a pre-roll without a
+consistent set; a Runic Dome state outside the hidden-move model (L2, below: "hidden intents are not modelled", "a card read a
+hidden intent", "an executed enemy move was not identifiable", "a hidden pre-rolled value was shown by damage"); or a
+continuation outside the allow-list. The allow-list is one exhaustive
 match, nested kinds included, with no wildcard arm. It denies a randomly chosen autoplay target held across a suspended child
 play (Havoc, Mayhem, Distilled Chaos playing Secret Technique or Secret Weapon), a Flask of Poison bounce's chosen target, a
 Defect Chaos holding sampled orb rolls, every nested child play or queued repeat that holds an enemy target not recorded as
@@ -384,7 +386,9 @@ card uniformly over its copies that are not top-excluded and the rest in uniform
 positions; for each class, that class's remaining handles in canonical order fill its sampled positions top to bottom (the
 labels of identical copies are not resampled; see "Identical copies" below). R2: the
 branch's Run root and every combat stream are derived from the key through the gameplay derivation. R3: each ambiguous
-pre-roll is drawn uniformly from its consistent set. Everything else is kept. `(root, research_seed, k)` fixes the world: equal
+pre-roll is drawn uniformly from its consistent set. R4 (Runic Dome only, M40c): each enemy's hidden move is redrawn by
+replaying its public roll record (L2) through the gameplay move selection with the branch's own stream; for Writhing Mass the
+whole chain of Reactive re-rolls is replayed. Everything else is kept. `(root, research_seed, k)` fixes the world: equal
 roots with equal `(research_seed, k)` give equal worlds (common random numbers). Different roots, including a root taken
 again from a branch, have different digests and so independent streams. The research label lies inside the reserved domain,
 so a research seed equal to a gameplay seed still draws independently.
@@ -535,7 +539,32 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
   no continuation or card rule uses that linkage. Search removes those retired links
   from the sampled world. Active family dependencies and drawable cards with unpublished
   purge disposition, such as an Anger copy produced by a purged repeat, still fail closed.
-- **L2** Hidden intents (Runic Dome) are not modelled; such roots are Unsupported.
+- **L2** Hidden intents (Runic Dome, M40c). The view hides intents, intent damage, hits and category. Under the
+  convention below, the belief conditions on each executed move's identity. For each enemy the combat records the public
+  inputs of the roll that made its current hidden move: the history of executed moves and public overrides, the memory
+  before the roll, and the living actors' HP and slots, the turn and the player's Constricted flag. It never records a
+  roll's output. The root replays those rolls through the gameplay move selection with the zero stream, and each
+  sample replays them with its research stream (R4). Each hidden move is therefore drawn from its roll law given public
+  history. Moves overwritten before they execute (a Byrd grounded, a Shelled Parasite's armor broken, a Darkling or the
+  Awakened One downed, a large slime split) and earlier Writhing Mass re-rolls are never read again; the root keeps a
+  fixed public stand-in in their place. A Looter or Mugger branch drawn at its second Mug is redrawn at 1/2. An enemy
+  that dies before its queued move comes up (for example to Poison at the start of the enemy turn) never executes it,
+  so that move stays hidden and is replayed like any other. Memory a roll writes that depends on the move (Book of
+  Stabbing, Champ, Bronze Orb, Nemesis, Time Eater, Corrupt Heart) comes from the replay.
+
+  Under Runic Dome a root is refused:
+  - while a card read a hidden intent (Spot Weakness, Go for the Eyes or Fear No Evil on an enemy whose moves are random),
+    until that move executes: "a card read a hidden intent";
+  - after an executed move that a watching player cannot identify, while a pending roll still reads it: "an executed
+    enemy move was not identifiable". These are Spire Growth quick or smash and Maw nom or slam under Intangible,
+    Buffer, Torii, Tungsten Rod or damage of at most 5, and any move an enemy is still executing when it drops to 0 HP,
+    since that cuts its remaining hits;
+  - for the rest of an enemy's life once its Louse Bite or Darkling Nip has been shown by damage, or once a Darkling's
+    own attack was cut short: "a hidden pre-rolled value was shown by damage";
+  - for any change the record cannot classify, and for an enemy without a record: "hidden intents are not modelled".
+
+  Every refusal and every record entry is a function of public history. Exact conditioning on card reads, and narrowing
+  a pre-roll on executed damage, are not modelled.
 - **L3** Sampling only: there is no chance-node enumeration or probability API.
 - **L4** The horizon is the combat: a branch ends at the combat's own terminal (final HP `hp_after_cleanup`, no settlement
   effects, no reward sampled).
@@ -544,7 +573,9 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
   change during the enemy turn can make that value differ from the last published intent (M34s-b ruling D2).
 - **L6** The belief knows more than the view shows. The exact draw knowledge is finer than `known_draw`/`known_draw_bottom`,
   and the consistent sets are not published. Everything the belief uses is public history the player has seen, but a policy
-  that reads only the view sees less.
+  that reads only the view sees less. Under Runic Dome (L2) the belief also conditions on each executed move's identity,
+  which a player watching the game sees from the move-name banner and the move's visible effects. The Standard observation
+  does not encode it.
 - The allow-list still denies randomly targeted autoplay frames and their repeats (Havoc, Mayhem, Distilled Chaos,
   Omniscience; above). Branches refuse picks among identical draw-pile copies that the label-free rule does not cover
   (two-pick Seek+, Frozen Eye, copies in separate public segments or with partial top-exclusion, mixed published copies; above). M34s itself does not batch branch steps; M35 adds the extension documented below.

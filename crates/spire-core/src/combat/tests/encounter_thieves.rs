@@ -32,7 +32,7 @@ fn encounter(species: &[EnemyId], gold: u32) -> Combat {
     let enemies = species.iter().enumerate().map(|(slot, id)| {
         let owner = match id { EnemyId::Looter => "looter-1", EnemyId::Mugger => "mugger-1", _ => unreachable!() };
         let hp = if *id == EnemyId::Looter { 44 } else { 48 };
-        FullEnemySetup {
+        FullEnemySetup { opening: None,
             initial_memory: Some(EnemyMemory::Thief(ThiefMemory::default())),
             instance_id: EnemyHandle::parse(owner).unwrap(),
             enemy_id: *id,
