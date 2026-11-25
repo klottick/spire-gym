@@ -29,6 +29,7 @@ mod selection;
 mod hooks;
 mod view;
 pub mod knowledge;
+pub(crate) mod hidden_moves;
 pub mod belief;
 pub mod position;
 pub mod public_ids;

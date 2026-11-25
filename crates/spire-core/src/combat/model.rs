@@ -165,9 +165,15 @@ pub struct Scenario {
     pub piles: Piles, pub rng: CombatRng,
 }
 
+/// M40c: the public inputs of an actor's opening roll (pre-roll memory and context), recorded at entry under hidden
+/// intents; `rolled` is false for a fixed opening (the Heart). Never read by rules.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpeningRoll { pub(crate) memory: super::enemies::EnemyMemory, pub(crate) context: super::enemies::act2::EnemyRollContext, pub(crate) constricted: Option<bool>, pub(crate) rolled: bool }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FullEnemySetup {
     pub initial_memory:Option<super::enemies::EnemyMemory>,
+    /// M40c: the opening roll's public inputs (setup only; `None` in hand-built entries, which then have no record).
+    pub opening:Option<OpeningRoll>,
     pub instance_id: EnemyHandle, pub enemy_id: EnemyId, pub ascension: u8,
     pub profile: super::enemies::EnemyProfile, pub hp: i32, pub max_hp: i32,
     pub block: i32, pub intent: FullIntentId, pub powers: Vec<FullPowerEntry>, pub ai_rng: StreamState,

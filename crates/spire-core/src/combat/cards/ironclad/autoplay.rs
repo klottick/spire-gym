@@ -78,6 +78,9 @@ pub(in crate::combat) fn start_queued_child(state:&mut State,child_handle:&crate
         state.pending.push_front(Effect{source,target:None,kind:EffectKind::Ironclad(IroncladEffect::FinishSuppressed)});
         return Ok(())
     };
+    // M40c: the child's prepared payload may have read the target's hidden intent (Fear No Evil).
+    let read=state.in_play.as_ref().and_then(|c|c.full()).map(|c|c.id);
+    if let (Some(id),Some(Actor::Enemy(t)))=(read,target.clone()){crate::combat::hidden_moves::mark_card_read(state,id,&t);}
     let mut work=Vec::with_capacity(effects.len()+2);
     work.push(Effect{source:source.clone(),target:target.clone(),kind:EffectKind::Hook(Hook::CardPlayed)});
     work.extend(effects);work.push(Effect{source:source.clone(),target:None,kind:EffectKind::Hook(Hook::CardAfterUse)});work.push(Effect{source,target:None,kind:EffectKind::FinishCard});

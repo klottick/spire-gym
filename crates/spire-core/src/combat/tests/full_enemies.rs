@@ -54,7 +54,7 @@ fn jaw_combat() -> Combat {
         shuffle_rng: stream(Domain::RunCombatShuffle, vec!["encounter-1".into()]),
         character: crate::content::Character::Ironclad,
         card_rng: stream(Domain::RunCombatCardRandom, vec!["encounter-1".into()]),
-        enemies: vec![FullEnemySetup { initial_memory:None,
+        enemies: vec![FullEnemySetup { opening: None, initial_memory:None,
             instance_id: EnemyHandle::parse("jaw-1").unwrap(), enemy_id: EnemyId::JawWorm,
             profile: enemies::EnemyProfile::Standard,
             hp: 42, max_hp: 42, block: 0, intent: FullIntentId::Chomp, powers: vec![],
@@ -962,7 +962,7 @@ fn acid_spit_inserts_a_fresh_slimed_instance_into_discard_after_its_hit() {
         "small_slimes", 3, None, "card").unwrap();
     let setup = FullCombatSetup { player: super::support::base_scenario().player,
         player_powers: vec![], character: crate::content::Character::Silent, card_rng,
-        shuffle_rng, enemies: vec![FullEnemySetup { initial_memory:None, instance_id: EnemyHandle::parse("acid-slime-m-3-0").unwrap(), ascension: 0,
+        shuffle_rng, enemies: vec![FullEnemySetup { opening: None, initial_memory:None, instance_id: EnemyHandle::parse("acid-slime-m-3-0").unwrap(), ascension: 0,
             profile: enemies::EnemyProfile::Standard,
             enemy_id: EnemyId::AcidSlimeM, hp: 30, max_hp: 30, block: 0,
             intent: FullIntentId::AcidSpit, powers: vec![], ai_rng }], enemy_damage_bases: Default::default() };
@@ -1018,7 +1018,7 @@ fn large_slime_split_retires_parent_and_appends_children_with_late_hp() {
             opening_draw: 1, encounter_visit: 4 }).unwrap();
     let survivor_rng = run_rng.derive_combat_stream(rng::Domain::RunCombatEnemyAi, 1,
         "large_slime", 4, Some(1), "stable-survivor").unwrap();
-    entry.setup.enemies.push(FullEnemySetup { initial_memory:None, instance_id: EnemyHandle::parse("stable-survivor").unwrap(), ascension: 0,
+    entry.setup.enemies.push(FullEnemySetup { opening: None, initial_memory:None, instance_id: EnemyHandle::parse("stable-survivor").unwrap(), ascension: 0,
         profile: enemies::EnemyProfile::Standard,
         enemy_id: EnemyId::Cultist, hp: 50, max_hp: 50, block: 0, intent: FullIntentId::Incantation,
         powers: vec![], ai_rng: survivor_rng });
@@ -1117,7 +1117,7 @@ fn split_child_initialization_fault_retains_staged_child_and_does_not_retry() {
     let colliding_child = EnemyHandle::parse(&format!("{}/split/1", parent.as_str())).unwrap();
     let survivor_rng = run_rng.derive_combat_stream(rng::Domain::RunCombatEnemyAi, 1,
         "large_slime", 6, Some(1), "collision-survivor").unwrap();
-    entry.setup.enemies.push(FullEnemySetup { initial_memory:None, instance_id: colliding_child, ascension: 0,
+    entry.setup.enemies.push(FullEnemySetup { opening: None, initial_memory:None, instance_id: colliding_child, ascension: 0,
         profile: enemies::EnemyProfile::Standard,
         enemy_id: EnemyId::Cultist, hp: 50, max_hp: 50, block: 0,
         intent: FullIntentId::Incantation, powers: vec![], ai_rng: survivor_rng });
@@ -1339,7 +1339,7 @@ fn slime_boss_split_initialization_fault_keeps_first_ordered_child_staged() {
     let collision = EnemyHandle::parse(&format!("{}/split/1", parent.as_str())).unwrap();
     let ai_rng = run_rng.derive_combat_stream(rng::Domain::RunCombatEnemyAi, 1,
         "slime_boss", 11, Some(1), "collision").unwrap();
-    entry.setup.enemies.push(FullEnemySetup { initial_memory:None, instance_id: collision, ascension: 0,
+    entry.setup.enemies.push(FullEnemySetup { opening: None, initial_memory:None, instance_id: collision, ascension: 0,
         profile: enemies::EnemyProfile::Standard,
         enemy_id: EnemyId::Cultist, hp: 50, max_hp: 50, block: 0,
         intent: FullIntentId::Incantation, powers: vec![], ai_rng });

@@ -164,7 +164,7 @@ def test_first_branch_view_matches_standalone_and_run_decisions():
         run.close()
 
 
-def test_budgets_stale_tokens_closed_branches_and_dome_errors():
+def test_budgets_stale_tokens_closed_branches_and_dome_roots():
     env = StandardCombatEnv(entry(), partition="test")
     try:
         env.reset(seed=LIVE_SEED)
@@ -197,11 +197,20 @@ def test_budgets_stale_tokens_closed_branches_and_dome_errors():
     finally:
         env.close()
 
+    # M40c: a Runic Dome root is supported; its branches keep intents hidden exactly as the live view does.
     dome = StandardCombatEnv(entry(dome=True), partition="test")
     try:
-        dome.reset(seed=4)
-        with pytest.raises(_native.RunUnsupportedBoundaryError):
-            root_search(dome)
+        live, _ = dome.reset(seed=4)
+        search = root_search(dome)
+        branch = search.branch()
+        first, _ = branch.decision()
+        rows = live["enemies_occupied"].reshape(-1).astype(bool)
+        assert rows.any()
+        for column in (5, 11, 12):  # intent_damage, intent_hits, intent_category
+            assert not live["enemies_known"][rows, column].any()
+            assert not first["enemies_known"][rows, column].any()
+        np.testing.assert_array_equal(first["enemies_known"], live["enemies_known"])
+        search.close()
     finally:
         dome.close()
 

@@ -198,7 +198,7 @@ Omniscience: target drawn from the card stream) is never recorded, so those fram
 refusal, as does anything not recorded (fail closed). The set is bookkeeping derived from public history; it is omitted from
 `Debug` and `snapshot::compare`. In-branch picks among identical copies: see the I1-d row above (the rule applies where the
 draw knowledge is exact; the refusal remains for two-pick grids, Frozen Eye, non-exchangeable copies and mixed published
-copies). Remaining roots refused: hidden intents (Runic Dome, stage 3), draw knowledge beyond the exact model (stage 2).
+copies). Stage 3 (M40c) supports Runic Dome roots; see the stage 3 paragraph below and the API doc.
 Stage 2 extends exact support to agreeing published top and bottom anchors,
 including unique-class grid removals, and carries synchronized card classes
 into canonical roots and research samples. Draw knowledge can ignore the
@@ -206,6 +206,16 @@ family link to a purged repeat in inactive custody when its only ordinary
 relative is independent of the retired link. The root and sampler detach the
 retired link in their copies. Operative family links, family-dependent card
 kinds and drawable cards with unpublished purge disposition remain guarded.
+
+Stage 3 (M40c, spire-61l) supports Runic Dome roots. Under hidden intents the
+combat keeps a public record for each enemy: the inputs of the rolls that
+produced its current hidden move, which are the executed move history, the
+memory before the roll and a public context. Canonical roots and research
+samples replay those rolls through the same move selection with their own
+streams (belief R4). Roots stay refused after a card reads a hidden intent
+(Spot Weakness, Go for the Eyes, Fear No Evil), while an unidentifiable
+executed move is still read by a pending roll, after a Bite or Nip is shown by
+damage, and for any change the record cannot classify.
 
 ## Coverage across M34s (design goals; M34s-c closes the milestone)
 
@@ -310,9 +320,9 @@ R2 in the arena), so every gate was rerun on c5.
   - v4 PASS, after the fixes listed under "Global fixes (M34s-b)" and in the API doc.
   - v5 PASS: an independent R1 census agrees that Stasis and Violence are the only hidden draw-pile copy picks.
 
-- M34s-b's belief is combat-scope only (L4) and sampling only (L3); Runic Dome roots are Unsupported (L2); the belief
-  conditions on more than the view shows (L6) and not on dealt damage (L5). Run-level belief, Runic Dome belief, chance
-  enumeration and branch serialisation are out of M34s.
+- M34s-b's belief is combat-scope only (L4) and sampling only (L3); Runic Dome roots were Unsupported (L2) until M40c
+  added the hidden-move model; the belief conditions on more than the view shows (L6) and not on dealt damage (L5).
+  Run-level belief, chance enumeration and branch serialisation are out of M34s.
 - `standard-combat-v1` ends at the engine's combat terminal: settlement effects (Meat on the Bone, Face of Cleric) and
   rewards never apply, although the original applies some of them at victory.
 - The original randomises the Seek and Secret Technique/Secret Weapon grid order and sorts Omniscience's grid (by name,

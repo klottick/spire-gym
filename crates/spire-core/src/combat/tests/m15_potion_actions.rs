@@ -20,7 +20,7 @@ fn fight(cards: &[CardId], opening_draw: usize, potion: PotionId, relics: Vec<Re
         let owner = EnemyHandle::parse(&format!("enemy-{}", index + 1)).unwrap();
         let ai_id = StreamId::new(Domain::RunCombatEnemyAi,
             vec![scope.clone(), owner.as_str().to_owned()]).unwrap();
-        FullEnemySetup { initial_memory: None, instance_id: owner, ascension: 0,
+        FullEnemySetup { opening: None, initial_memory: None, instance_id: owner, ascension: 0,
             profile: crate::combat::enemies::EnemyProfile::Standard, enemy_id: EnemyId::Cultist,
             hp: 48, max_hp: 48, block: 0, intent: FullIntentId::Incantation,
             powers: enemy_powers.to_vec(), ai_rng: StreamState::new(ai_id, [0x53; 32], 0).unwrap() }

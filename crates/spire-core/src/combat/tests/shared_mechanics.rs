@@ -10,7 +10,7 @@ pub(super) fn entry() -> CombatEntry {
             player_powers: vec![], character: Character::Ironclad,
             shuffle_rng: full_stream(rng::Domain::RunCombatShuffle, vec!["m2-rules"]),
             card_rng: full_stream(rng::Domain::RunCombatCardRandom, vec!["m2-rules"]),
-            enemies: vec![FullEnemySetup { initial_memory:None,
+            enemies: vec![FullEnemySetup { opening: None, initial_memory:None,
                 instance_id: EnemyHandle::parse("enemy-1").unwrap(), enemy_id: EnemyId::JawWorm,
                 ascension: 0, profile: enemies::EnemyProfile::Standard, hp: 42, max_hp: 42,
                 block: 0, powers: vec![], intent: FullIntentId::Chomp,
