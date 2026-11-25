@@ -300,3 +300,58 @@ fn m25_direct_ragnarok_random_targets(){
         assert_eq!(c.state.card_rng.as_ref(),Some(&stream),"exactly two requests before Victory");
     }
 }
+
+/// Regression (spire-in0): Fear No Evil checks the target's attack intent before its hit
+/// resolves, and executes the hit ahead of the Calm stance change.
+#[test]
+fn in0_fear_no_evil_pre_hit_intent_and_hit_before_calm(){
+    // 1. Slime Boss intending Slam just above 50% HP: Fear No Evil's hit triggers Split
+    // (changing intent to non-attacking Split), yet Watcher still enters Calm because the
+    // intent check precedes the hit; a follow-up Fear No Evil sees Split and stays Neutral.
+    let mut c=watcher(super::m5_elites::entry(EncounterId::SlimeBoss),&[(FearNoEvil,0),(EmptyBody,0),(FearNoEvil,0)]);
+    set_intent(&mut c,0,"slam");
+    let target_hp=c.state.enemies[0].max_hp/2+4;
+    c.state.enemies[0].hp=target_hp;
+    play(&mut c,1,Some(1));
+    assert_eq!(c.state.enemies[0].hp,target_hp-8);
+    assert_eq!(c.state.enemies[0].intent_id,ActorIntentId::Full(FullIntentId::SlimeBossSplit));
+    assert_eq!(c.state.character.stance,Stance::Calm,"pre-hit attack intent enters Calm even when the hit triggers Split");
+    play(&mut c,2,None);
+    assert_eq!(c.state.character.stance,Stance::Neutral);
+    play(&mut c,3,Some(1));
+    assert_eq!(c.state.character.stance,Stance::Neutral,"post-split Fear No Evil sees non-attacking Split intent");
+
+    // 2. Sleeping Lagavulin woken by Fear No Evil: pre-hit Sleep is non-attacking, so
+    // waking it to Stun does not enter Calm.
+    let mut c=watcher(super::m5_elites::entry(EncounterId::Lagavulin),&[(FearNoEvil,0)]);
+    c.state.enemies[0].block=0;
+    let before=c.state.enemies[0].hp;
+    play(&mut c,1,Some(1));
+    assert_eq!(before-c.state.enemies[0].hp,8);
+    assert_eq!(c.state.enemies[0].intent_id.as_str(),"stunned");
+    assert_eq!(c.state.character.stance,Stance::Neutral,"sleeping Lagavulin is not attacking pre-hit");
+
+    // 3. Flying Byrd with 1 Flight intending Peck: hit grounds Byrd (intent becomes
+    // byrd_stunned), yet pre-hit attack intent still enters Calm.
+    let mut c=watcher(act2_entry(EncounterId::ThreeByrds),&[(FearNoEvil,0)]);
+    set_intent(&mut c,0,"byrd_peck");
+    if let Some(f)=c.state.enemies[0].full_powers.iter_mut().find(|p|p.id.0=="flight"){f.state.amount=1;}
+    play(&mut c,1,Some(1));
+    assert_eq!(c.state.enemies[0].intent_id.as_str(),"byrd_stunned");
+    assert_eq!(c.state.character.stance,Stance::Calm,"pre-hit attack intent enters Calm even when the hit grounds Byrd");
+
+    // 4. Spiker (Thorns) + Mental Fortress + Wrath: Damage resolves before the Calm stance
+    // change, so Watcher deals 2x Wrath damage (16) and takes Spiker's Thorns (3) at 0 Block
+    // before Calm's Mental Fortress grants 4 Block.
+    let mut c=watcher(entry(EncounterId::ThreeShapes),&[(FearNoEvil,0)]);
+    let spiker=c.state.enemies.iter().position(|e|e.enemy_id==ActorEnemyId::Full(crate::content::EnemyId::Spiker)).expect("ThreeShapes contains Spiker");
+    stance(&mut c,Stance::Wrath);
+    c.state.player_full_powers.push(power("mental_fortress",4));
+    set_intent(&mut c,spiker,"spiker_attack");
+    let (player_before,enemy_before)=(c.state.player.hp,c.state.enemies[spiker].hp);
+    play(&mut c,1,Some((spiker+1) as u64));
+    assert_eq!(enemy_before-c.state.enemies[spiker].hp,16,"Fear No Evil deals 2x Wrath damage");
+    assert_eq!(player_before-c.state.player.hp,3,"Spiker Thorns resolves before Calm's Mental Fortress grants Block");
+    assert_eq!(c.state.player.block,4,"Mental Fortress grants 4 Block on entering Calm after Thorns");
+    assert_eq!(c.state.character.stance,Stance::Calm,"Watcher enters Calm after the hit and Thorns resolve");
+}
