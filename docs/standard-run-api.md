@@ -600,15 +600,26 @@ represents an exhausted budget in Python. The M34s public-knowledge, privacy and
 
 `PublicSearch::playout_many(requests, config)` advances distinct live branches in one native call, on the search's worker
 pool, until each combat ends, reaches `max_steps_per_branch`, reaches the call cap `config.max_steps`, or meets a declared
-stop. Every move follows the declared public rule `spire-gym-public-playout-v1` (`PUBLIC_PLAYOUT_RULE_ID`). No
-observation is encoded per step.
+stop. Every move follows a declared public rule (`spire-gym-public-playout-v1` by default, or
+`spire-gym-public-playout-tiered-v1`). No observation is encoded per step.
 
-**Rule.** The rule picks uniformly among the legal actions whose Standard verb is not excluded. When none remain, it picks
-uniformly among all legal actions. `PlayoutRule::uniform_exclude_verbs(names)` resolves names from the Standard `verb`
-vocabulary when the rule is built. Unknown names and `padding` are rejected. `PlayoutRule::default()` excludes `end_turn`
-and `discard_potion`, which is the verb-filtered heuristic search callers use. An empty list means every legal action.
-The rule reads only the branch's legal table, through each action's Standard verb, and the playout research stream. It
-reads no card identity, draw order, intent, gameplay RNG or other hidden state.
+**Rules (M41, M42).** Two declared public rules are available:
+
+- `uniform_exclude_verbs` (`PUBLIC_PLAYOUT_RULE_ID = "spire-gym-public-playout-v1"`, default): picks uniformly among the
+  legal actions whose Standard verb is not excluded; when none remain, picks uniformly among all legal actions.
+  `PlayoutRule::uniform_exclude_verbs(names)` resolves names from the Standard `verb` vocabulary when the rule is built.
+  Unknown names and `padding` are rejected. `PlayoutRule::default()` excludes `end_turn` and `discard_potion`. An empty
+  list means every legal action.
+- `tiered_verbs` (`PUBLIC_PLAYOUT_TIERED_RULE_ID = "spire-gym-public-playout-tiered-v1"`, M42): takes two disjoint
+  caller-supplied Standard verb sets, `never_verbs` and `last_resort_verbs`. It picks uniformly among legal actions
+  outside both sets; if none remain, uniformly among `last_resort_verbs`; if none remain, uniformly among all legal
+  actions. `PlayoutRule::tiered_verbs(never_verbs, last_resort_verbs)` rejects unknown names, `padding`, and any verb
+  present in both sets. `PlayoutRule::default_tiered()` sets `never_verbs` to `DEFAULT_PLAYOUT_NEVER_VERBS`
+  (`use_potion`, `discard_potion`) and `last_resort_verbs` to `DEFAULT_PLAYOUT_LAST_RESORT_VERBS` (`end_turn`), keeping
+  potions out of playouts while ending the turn whenever no card or selection is legal.
+
+Both rules read only the branch's legal table, through each action's Standard verb, and the playout research stream.
+They read no card identity, draw order, intent, gameplay RNG or other hidden state.
 
 **Research stream.** The pick at a branch's `n`-th accepted action draws from
 `HMAC(sample key, "spire-gym-public-search-v1/playout\0" || playout_seed || n)` with the research sampler that the belief
@@ -617,6 +628,9 @@ research seed, the root digest and the sample index `k`. The stream is therefore
 belief, identical-pick and hidden-move streams. It is reproducible, and it does not depend on branch ids, worker count,
 input order, grouping or call splitting. Branches of one sample `k` draw common random numbers at equal step counts. A
 nonzero `playout_seed` gives independent playouts from equal positions. A fork replays its parent's choices under seed 0.
+Because each step `n` derives an independent key from `(sample key, playout_seed, n)`, when only one action is eligible
+in the chosen pool (`bound == 1`), `research_playout_pick` returns `0` without computing an HMAC or drawing from the
+stream; this has no effect on later steps `n + 1` and is identical for both `uniform_exclude_verbs` and `tiered_verbs`.
 
 **Semantics.**
 
@@ -652,31 +666,57 @@ nonzero `playout_seed` gives independent playouts from equal positions. A fork r
   `truncated` false); or `refused`;
 - `refusal`;
 - `steps` (in this call) and `branch_steps`;
-- `summary`: player HP and max HP, plus each enemy row's HP and max HP, for the enemies the Standard view publishes, in
-  row order.
+- `summary`: player HP, max HP and gold (`player_gold`), each enemy row's HP and max HP for the enemies the Standard
+  view publishes (in row order), and slot-indexed Standard `potion` vocabulary ids (`potions`: `0` for an empty slot,
+  `> 0` for a held potion, matching `observation["potions"][:, 0]`).
+  **Terminal cleanup HP guarantee:** for every terminal branch (`terminated == true`), `player_hp` equals the combat's
+  `hp_after_cleanup` (matching `observation["player"][11]` and `info["hp_after_cleanup"]`). Combat-end hooks (Burning
+  Blood, Black Blood, Self Repair, including on Smoke Bomb escape) have already applied; Run-settlement-only hooks (such
+  as Meat on the Bone) do not run in combat scope.
 
-`PublicSearch::enemy_capacity()` gives the enemy row width of the search's view.
+`PublicSearch::enemy_capacity()` and `PublicSearch::potion_capacity()` give the enemy and potion row widths of the
+search's view.
 
 **Python.** The native methods are:
 
 - `NativePublicSearch.playout_many(branches, tokens, *, rule="uniform_exclude_verbs", exclude_verbs=None,
-  max_steps=None, playout_seed=0)`. It releases the GIL for the native call.
-- `NativePublicSearch.playout_action(branch, *, rule=..., exclude_verbs=None, playout_seed=0)`.
+  never_verbs=None, last_resort_verbs=None, max_steps=None, playout_seed=0)`. It releases the GIL for the native call.
+- `NativePublicSearch.playout_action(branch, *, rule="uniform_exclude_verbs", exclude_verbs=None, never_verbs=None,
+  last_resort_verbs=None, playout_seed=0)`.
 
 The facade methods are `PublicSearch.playout_many(branches, *, ...)` and `PublicBranch.playout_action(*, ...)`.
-`exclude_verbs` is a list or tuple of verb names. `None` selects the default, and a bare string is rejected.
+Verb lists must be a `list` or `tuple` of Standard verb names (bare `str`, `bytes` or `set` are rejected).
+`exclude_verbs` is accepted only with `rule="uniform_exclude_verbs"`; `never_verbs` and `last_resort_verbs` are accepted
+only with `rule="tiered_verbs"`. For `tiered_verbs`, `never_verbs=None` and `last_resort_verbs=None` each independently
+select their own default (`("use_potion", "discard_potion")` and `("end_turn",)`), while `()` or `[]` selects an empty
+set; any overlap (including between one supplied set and the other's default) raises `RunInputError`.
+
+```python
+result = search.playout_many(
+    live_branches,
+    rule="tiered_verbs",
+    never_verbs=("use_potion", "discard_potion"),
+    last_resort_verbs=("end_turn",),
+    max_steps=80,
+)
+# Held potion vocab ids for branch i (matching observation["potions"][obs["potions_occupied"] == 1, 0]):
+held_potions = result["potion_kind"][i][result["potion_present"][i].astype(bool)]
+```
 
 The result dict contains:
 
-- `rule_id`;
+- `rule_id` (`"spire-gym-public-playout-v1"` or `"spire-gym-public-playout-tiered-v1"`);
 - `tokens` `(N, 2)` uint64;
 - `rewards` int32;
 - `terminated` and `truncated` bool;
 - `steps` and `branch_steps` uint64;
 - `end_reason`, which adds `fault`;
 - `refusal`;
-- `player_hp` and `player_max_hp` int32;
+- `player_hp` and `player_max_hp` int32 (`player_hp` equals `hp_after_cleanup` when `terminated` is true);
+- `player_gold` uint32;
 - `enemy_hp` and `enemy_max_hp` `(N, E)` int32, with `enemy_present` int8 marking summary rows;
+- `potion_kind` `(N, P)` int32 and `potion_present` `(N, P)` int8 (`1` where a slot holds a potion, `0` for empty slots,
+  padding or fault rows);
 - `fault`, which uses `step_many`'s dict shape.
 
 The facade also returns object arrays with `_refusal` and `_fault` masks, and updates each non-faulted branch's token.
@@ -706,6 +746,27 @@ Values are playouts per second (3 decisions per cell). The lock-step baseline ev
 with its own RNG, so trajectories and step counts differ slightly between methods. With 4 workers, CPU time per
 decision was 0.08–0.12 s for `playout_many` and 0.46–0.76 s for the baseline. Raw rows have the schema
 `spire-gym-m41-playout-benchmark-v1`.
+
+Measured with `examples/public_playout.py --benchmark-tiered --samples 32 --playout-steps 80 --workers 1 4 --repeats 3`
+(2026-11-26), comparing `tiered_verbs` against `uniform_exclude_verbs` on identical roots (release extension, one
+16-core host; not gated; schema `spire-gym-m42-playout-benchmark-v1`):
+
+| Workload | Workers | `uniform` playouts/s | `tiered` playouts/s | `uniform` steps/s | `tiered` steps/s | Playouts ratio | Steps ratio |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Jaw Worm | 1 | 1909 | 1911 | 39680 | 39703 | 1.00× | 1.00× |
+| Jaw Worm | 4 | 5985 | 6132 | 124373 | 127437 | 1.02× | 1.02× |
+| Cultist | 1 | 2254 | 2259 | 41406 | 41492 | 1.00× | 1.00× |
+| Cultist | 4 | 7044 | 7114 | 129405 | 130685 | 1.01× | 1.01× |
+| Gremlin Nob | 1 | 2481 | 2487 | 42563 | 42671 | 1.00× | 1.00× |
+| Gremlin Nob | 4 | 7646 | 7617 | 131178 | 130684 | 1.00× | 1.00× |
+| Run, first combat | 1 | 1714 | 1721 | 37919 | 38069 | 1.00× | 1.00× |
+| Run, first combat | 4 | 5685 | 5474 | 125777 | 121102 | 0.96× | 0.96× |
+| Jaw Worm (2 potions) | 1 | 3626 | 1954 | 46632 | 39932 | 0.54× | 0.86× |
+| Jaw Worm (2 potions) | 4 | 10593 | 6389 | 136222 | 130570 | 0.60× | 0.96× |
+
+On potion-free workloads both rules execute identical trajectories at ~1.00× speed (zero measurable rule overhead). On
+`Jaw Worm (2 potions)` (Fire Potion and Block Potion), `tiered_verbs` preserves both potions, producing longer fights
+(19,620 vs 12,345 steps across 960 playouts) rather than rule overhead.
 
 ## Tactical starts (M34s-c)
 

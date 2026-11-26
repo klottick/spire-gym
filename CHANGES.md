@@ -5,7 +5,24 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- Additive: tiered-verb native playout rule and resource summary fields (M42, spire-9wa).
+  - Adds rule `tiered_verbs` (`PUBLIC_PLAYOUT_TIERED_RULE_ID = "spire-gym-public-playout-tiered-v1"`) next to
+    `uniform_exclude_verbs` (`spire-gym-public-playout-v1`, unchanged and byte-identical). `PlayoutRule::tiered_verbs`
+    picks uniformly among legal actions outside `never_verbs` and `last_resort_verbs`, else among `last_resort_verbs`,
+    else among all legal actions; defaults are `DEFAULT_PLAYOUT_NEVER_VERBS` (`use_potion`, `discard_potion`) and
+    `DEFAULT_PLAYOUT_LAST_RESORT_VERBS` (`end_turn`). Overlap between the two sets is rejected. Uses the same
+    counter-keyed `research_playout_pick` stream as `uniform_exclude_verbs` (returning 0 without hashing when only one
+    candidate is eligible, with no effect on later steps).
+  - Extends `PlayoutSummary` with `player_gold: u32` and slot-indexed `potions: Vec<i32>` (Standard `potion` vocab ids,
+    `0` for empty slots), and adds `PublicSearch::potion_capacity`, `PlayoutRule::{tiered_verbs, default_tiered, rule_id,
+    never_verbs, last_resort_verbs}`. Documents and pins the engine invariant that for any terminal branch
+    (`terminated == true`), `player_hp` equals `hp_after_cleanup`.
+  - Python `NativePublicSearch` and `PublicSearch`/`PublicBranch` `playout_many`/`playout_action` accept additive
+    optional keywords `never_verbs=None` and `last_resort_verbs=None` (mutually exclusive with `exclude_verbs`), and
+    `PlayoutResult` adds `player_gold` (`uint32`), `potion_kind` (`int32`) and `potion_present` (`int8`).
+  - Per-branch `permanent_cards` `misc`/upgrade deltas are deferred for a future additive extension once a consumer
+    schema is specified. Existing names, defaults, rules ids, layouts, fingerprints, replay digests, Heart pins and root
+    digests are unchanged, so no contract version bump is needed.
 
 ## 1.2.4 — effective at the commit tagged v1.2.4
 

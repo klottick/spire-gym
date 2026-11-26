@@ -97,7 +97,9 @@ fn observed_summary(o: &RunObservation) -> PlayoutSummary {
     let e = o.group("enemies").unwrap();
     let cols = *e.shape.last().unwrap();
     let enemies = e.values.chunks_exact(cols).filter(|row| row[2] > 0).map(|row| EnemyHp { hp: row[1] as i32, max_hp: row[2] as i32 }).collect();
-    PlayoutSummary { player_hp: p.values[0] as i32, player_max_hp: p.values[1] as i32, enemies }
+    let pot = o.group("potions").unwrap();
+    let potions = pot.values.iter().zip(&pot.known).filter(|(_, k)| **k == 1).map(|(v, _)| *v as i32).collect();
+    PlayoutSummary { player_hp: p.values[0] as i32, player_max_hp: p.values[1] as i32, player_gold: p.values[2] as u32, enemies, potions }
 }
 
 /// T4 reference: the same rule one action at a time — `playout_action`, then `step(.., Mask)` — until terminal,

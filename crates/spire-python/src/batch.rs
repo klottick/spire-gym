@@ -877,17 +877,19 @@ fn branch_fault<'py>(py: Python<'py>, error: &RunSessionError, stage: &str, comm
     Ok(fault)
 }
 
-/// M41: `playout_many` outcomes as owned arrays and lists in input order (design-v2 §4.3). Enemy columns are
-/// `max(enemy_capacity, the largest summary in the call)` wide; fault rows are zero apart from their step counts.
+/// M41/M42: `playout_many` outcomes as owned arrays and lists in input order. Enemy columns are
+/// `max(enemy_capacity, the largest summary in the call)` wide; potion columns are
+/// `max(potion_capacity, the largest summary in the call)` wide; fault rows are zero apart from their step counts.
 pub(crate) fn branch_playout_outcomes<'py>(
-    py: Python<'py>, outcomes: Vec<spire_env::BranchPlayoutOutcome>, enemy_capacity: usize, compact: bool,
+    py: Python<'py>, outcomes: Vec<spire_env::BranchPlayoutOutcome>, rule_id: &'static str, enemy_capacity: usize, potion_capacity: usize, compact: bool,
 ) -> PyResult<Bound<'py, PyDict>> {
     use spire_env::BranchPlayoutOutcome as O;
     let count = outcomes.len();
     fn finished(o: &spire_env::BranchPlayoutOutcome) -> Option<&spire_env::BranchPlayout> { match o { spire_env::BranchPlayoutOutcome::Finished(p) => Some(p), spire_env::BranchPlayoutOutcome::Fault { .. } => None } }
     let width = outcomes.iter().filter_map(finished).map(|p| p.summary.enemies.len()).max().unwrap_or(0).max(enemy_capacity);
+    let potion_width = outcomes.iter().filter_map(finished).map(|p| p.summary.potions.len()).max().unwrap_or(0).max(potion_capacity);
     let out = PyDict::new(py);
-    out.set_item("rule_id", spire_env::PUBLIC_PLAYOUT_RULE_ID)?;
+    out.set_item("rule_id", rule_id)?;
     out.set_item("tokens", tokens(py, outcomes.iter().map(|o| finished(o).map_or(RunDecisionToken::from([0_u64, 0]), |p| p.token)), count)?)?;
     out.set_item("rewards", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.reward)).collect::<Vec<i32>>(), &[count])?)?;
     out.set_item("terminated", numeric::array(py, outcomes.iter().map(|o| finished(o).is_some_and(|p| p.terminated)).collect::<Vec<bool>>(), &[count])?)?;
@@ -897,6 +899,7 @@ pub(crate) fn branch_playout_outcomes<'py>(
     out.set_item("branch_steps", numeric::array(py, outcomes.iter().map(|o| steps(o).1).collect::<Vec<u64>>(), &[count])?)?;
     out.set_item("player_hp", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.summary.player_hp)).collect::<Vec<i32>>(), &[count])?)?;
     out.set_item("player_max_hp", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.summary.player_max_hp)).collect::<Vec<i32>>(), &[count])?)?;
+    out.set_item("player_gold", numeric::array(py, outcomes.iter().map(|o| finished(o).map_or(0, |p| p.summary.player_gold)).collect::<Vec<u32>>(), &[count])?)?;
     let (mut hp, mut max_hp, mut present) = (vec![0_i32; count * width], vec![0_i32; count * width], vec![0_i8; count * width]);
     for (row, o) in outcomes.iter().enumerate() {
         for (col, e) in finished(o).map_or(&[][..], |p| &p.summary.enemies[..]).iter().enumerate() {
@@ -907,6 +910,16 @@ pub(crate) fn branch_playout_outcomes<'py>(
     out.set_item("enemy_hp", numeric::array(py, hp, &[count, width])?)?;
     out.set_item("enemy_max_hp", numeric::array(py, max_hp, &[count, width])?)?;
     out.set_item("enemy_present", numeric::array(py, present, &[count, width])?)?;
+    let (mut potion_kind, mut potion_present) = (vec![0_i32; count * potion_width], vec![0_i8; count * potion_width]);
+    for (row, o) in outcomes.iter().enumerate() {
+        for (col, &kind) in finished(o).map_or(&[][..], |p| &p.summary.potions[..]).iter().enumerate() {
+            let at = row * potion_width + col;
+            potion_kind[at] = kind;
+            if kind > 0 { potion_present[at] = 1; }
+        }
+    }
+    out.set_item("potion_kind", numeric::array(py, potion_kind, &[count, potion_width])?)?;
+    out.set_item("potion_present", numeric::array(py, potion_present, &[count, potion_width])?)?;
     let (reasons, refusals, faults) = (PyList::empty(py), PyList::empty(py), PyList::empty(py));
     for o in &outcomes {
         match o {

@@ -157,8 +157,14 @@ pub struct BranchStepRequest { pub branch: BranchId, pub token: RunDecisionToken
 pub enum BranchStepOutcome { Stepped(BranchStep), Fault { error: Error, stage: &'static str, committed: bool } }
 /// M41 (spire-n6b): the declared public playout rule, RNG domain and stop semantics of [`PublicSearch::playout_many`].
 pub const PUBLIC_PLAYOUT_RULE_ID: &str = "spire-gym-public-playout-v1";
+/// M42 (spire-9wa): the declared tiered-verb public playout rule (never-pick and last-resort verb tiers).
+pub const PUBLIC_PLAYOUT_TIERED_RULE_ID: &str = "spire-gym-public-playout-tiered-v1";
 /// The verbs Learn's rule excludes by default (`View.heuristic_choice`).
 pub const DEFAULT_PLAYOUT_EXCLUDED_VERBS: [&str; 2] = ["end_turn", "discard_potion"];
+/// M42: the default never-pick verbs for [`PlayoutRule::tiered_verbs`] (chosen only when no other legal action exists).
+pub const DEFAULT_PLAYOUT_NEVER_VERBS: [&str; 2] = ["use_potion", "discard_potion"];
+/// M42: the default last-resort verbs for [`PlayoutRule::tiered_verbs`] (chosen only when nothing outside both sets is legal).
+pub const DEFAULT_PLAYOUT_LAST_RESORT_VERBS: [&str; 1] = ["end_turn"];
 /// The `refusal` code of a playout stopped at a pick among identical draw-pile copies that depends on hidden order.
 pub const REFUSAL_HIDDEN_ORDER_PICK: &str = "HIDDEN_ORDER_PICK";
 /// The `refusal` code of a playout stopped at a live boundary with no legal action (defensive; no known path).
@@ -187,27 +193,71 @@ pub(crate) fn standard_verb_id(action: &GameAction) -> i64 {
     static IDS: std::sync::OnceLock<std::collections::BTreeMap<&'static str, i64>> = std::sync::OnceLock::new();
     IDS.get_or_init(|| STANDARD_PLAYOUT_VERBS.iter().map(|v| (*v, crate::run_schema_standard::verb(v).expect("a Standard verb"))).collect())[standard_verb_name(action)]
 }
-/// M41: uniform over the legal actions whose Standard verb is not excluded; over all legal actions when none remain.
-/// Valid by construction (the excluded verbs are resolved to Standard vocab ids when it is built).
+/// M41/M42: declared public playout rule over legal-action Standard verbs.
+/// Valid by construction (verb names are resolved to Standard vocab ids when the rule is built).
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PlayoutRule { excluded: u64 }
+pub struct PlayoutRule { kind: PlayoutRuleKind }
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum PlayoutRuleKind {
+    UniformExclude { excluded: u64 },
+    Tiered { never: u64, last_resort: u64 },
+}
+fn parse_verb_mask<I: IntoIterator<Item = S>, S: AsRef<str>>(verbs: I) -> Result<u64, Error> {
+    let mut mask = 0u64;
+    for verb in verbs {
+        let id = crate::run_schema_standard::verb(verb.as_ref()).ok().filter(|id| (1..64).contains(id)).ok_or(Error::Input("unknown playout verb"))?;
+        mask |= 1 << id;
+    }
+    Ok(mask)
+}
+fn verbs_from_mask(mask: u64) -> Vec<&'static str> {
+    let mut v = STANDARD_PLAYOUT_VERBS.iter().copied().filter(|n| mask & (1 << crate::run_schema_standard::verb(n).expect("a Standard verb")) != 0).collect::<Vec<_>>();
+    v.sort_by_key(|n| crate::run_schema_standard::verb(n).expect("a Standard verb"));
+    v
+}
 impl PlayoutRule {
+    /// M41: uniform over the legal actions whose Standard verb is not excluded; over all legal actions when none remain.
     /// Unknown names and `padding` are `Input("unknown playout verb")`; repeats are ignored; no names means all legal actions.
     pub fn uniform_exclude_verbs<I: IntoIterator<Item = S>, S: AsRef<str>>(verbs: I) -> Result<Self, Error> {
-        let mut excluded = 0u64;
-        for verb in verbs {
-            let id = crate::run_schema_standard::verb(verb.as_ref()).ok().filter(|id| (1..64).contains(id)).ok_or(Error::Input("unknown playout verb"))?;
-            excluded |= 1 << id;
+        Ok(Self { kind: PlayoutRuleKind::UniformExclude { excluded: parse_verb_mask(verbs)? } })
+    }
+    /// M42: tiered-verb rule: uniform among legal actions outside `never_verbs` and `last_resort_verbs`, else uniform
+    /// among `last_resort_verbs`, else uniform among all legal actions. Rejects unknown/`padding` names and overlap
+    /// between `never_verbs` and `last_resort_verbs`.
+    pub fn tiered_verbs<I1: IntoIterator<Item = S1>, S1: AsRef<str>, I2: IntoIterator<Item = S2>, S2: AsRef<str>>(
+        never_verbs: I1, last_resort_verbs: I2,
+    ) -> Result<Self, Error> {
+        let never = parse_verb_mask(never_verbs)?;
+        let last_resort = parse_verb_mask(last_resort_verbs)?;
+        if never & last_resort != 0 {
+            return Err(Error::Input("playout verb cannot be both never-pick and last-resort"));
         }
-        Ok(Self { excluded })
+        Ok(Self { kind: PlayoutRuleKind::Tiered { never, last_resort } })
     }
-    /// The excluded verb names, in vocab order.
+    /// M42: the default tiered-verb rule (`never_verbs`: `use_potion`, `discard_potion`; `last_resort_verbs`: `end_turn`).
+    pub fn default_tiered() -> Self {
+        Self::tiered_verbs(DEFAULT_PLAYOUT_NEVER_VERBS, DEFAULT_PLAYOUT_LAST_RESORT_VERBS)
+            .expect("default tiered playout verbs are disjoint Standard verbs")
+    }
+    /// The declared rule identifier for this rule variant.
+    pub fn rule_id(&self) -> &'static str {
+        match self.kind {
+            PlayoutRuleKind::UniformExclude { .. } => PUBLIC_PLAYOUT_RULE_ID,
+            PlayoutRuleKind::Tiered { .. } => PUBLIC_PLAYOUT_TIERED_RULE_ID,
+        }
+    }
+    /// The excluded verb names for `uniform_exclude_verbs`, in vocab order (empty for `tiered_verbs`).
     pub fn excluded_verbs(&self) -> Vec<&'static str> {
-        let mut v = STANDARD_PLAYOUT_VERBS.iter().copied().filter(|n| self.excluded & (1 << crate::run_schema_standard::verb(n).expect("a Standard verb")) != 0).collect::<Vec<_>>();
-        v.sort_by_key(|n| crate::run_schema_standard::verb(n).expect("a Standard verb"));
-        v
+        match self.kind { PlayoutRuleKind::UniformExclude { excluded } => verbs_from_mask(excluded), PlayoutRuleKind::Tiered { .. } => vec![] }
     }
-    fn allows(&self, action: &GameAction) -> bool { self.excluded & (1 << standard_verb_id(action)) == 0 }
+    /// The never-pick verb names for `tiered_verbs`, in vocab order (empty for `uniform_exclude_verbs`).
+    pub fn never_verbs(&self) -> Vec<&'static str> {
+        match self.kind { PlayoutRuleKind::Tiered { never, .. } => verbs_from_mask(never), PlayoutRuleKind::UniformExclude { .. } => vec![] }
+    }
+    /// The last-resort verb names for `tiered_verbs`, in vocab order (empty for `uniform_exclude_verbs`).
+    pub fn last_resort_verbs(&self) -> Vec<&'static str> {
+        match self.kind { PlayoutRuleKind::Tiered { last_resort, .. } => verbs_from_mask(last_resort), PlayoutRuleKind::UniformExclude { .. } => vec![] }
+    }
 }
 impl Default for PlayoutRule {
     fn default() -> Self { Self::uniform_exclude_verbs(DEFAULT_PLAYOUT_EXCLUDED_VERBS).expect("default playout verbs are Standard verbs") }
@@ -221,10 +271,12 @@ pub struct PlayoutConfig { pub rule: PlayoutRule, pub max_steps: Option<u64>, pu
 pub struct BranchPlayoutRequest { pub branch: BranchId, pub token: RunDecisionToken }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EnemyHp { pub hp: i32, pub max_hp: i32 }
-/// The final public HP state of a playout: the published player row and enemy rows (the enemies the Standard view
-/// shows, in row order).
+/// The final public HP and resource state of a playout: the published player row (`player_hp`, `player_max_hp`,
+/// `player_gold`), enemy rows (the enemies the Standard view shows, in row order), and slot-indexed Standard `potion`
+/// vocab ids (`0` for an empty slot, `> 0` for a held potion, matching `observation["potions"][:, 0]`).
+/// For any terminal branch (`terminated == true`), `player_hp` equals the combat's `hp_after_cleanup`.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct PlayoutSummary { pub player_hp: i32, pub player_max_hp: i32, pub enemies: Vec<EnemyHp> }
+pub struct PlayoutSummary { pub player_hp: i32, pub player_max_hp: i32, pub player_gold: u32, pub enemies: Vec<EnemyHp>, pub potions: Vec<i32> }
 /// A finished playout. `terminated`/`truncated` are exactly the flags of its last step taken one action at a time (both
 /// false with no step). `end_reason`: `victory`, `death`, `escaped`, `step_limit` (truncated at `max_steps_per_branch`),
 /// `max_steps` (the call cap; the branch is live) or `refused` (`refusal` names the stop; no effect).
@@ -248,20 +300,52 @@ enum PlayoutJob {
     Finished { reward: i32, terminated: bool, truncated: bool, end_reason: &'static str, refusal: Option<&'static str>, steps: u64, summary: PlayoutSummary },
     Fault { error: Error, stage: &'static str, committed: bool, steps: u64 },
 }
-fn playout_summary(combat: Option<&spire_core::combat::CombatPublic>) -> PlayoutSummary {
-    combat.map_or_else(PlayoutSummary::default, |c| PlayoutSummary {
-        player_hp: c.player.hp, player_max_hp: c.player.max_hp,
+fn playout_summary(combat: Option<&spire_core::combat::CombatPublic>, gold: u32) -> Result<PlayoutSummary, Error> {
+    let Some(c) = combat else { return Ok(PlayoutSummary { player_gold: gold, ..PlayoutSummary::default() }) };
+    let inventory = c.inventory.as_ref().ok_or(Error::Input("combat inventory missing"))?;
+    let mut potions = Vec::with_capacity(inventory.potions.len());
+    for slot in &inventory.potions {
+        let kind = match slot {
+            None => 0,
+            Some(id) => crate::run_schema_standard::potion(*id)? as i32,
+        };
+        potions.push(kind);
+    }
+    Ok(PlayoutSummary {
+        player_hp: c.player.hp, player_max_hp: c.player.max_hp, player_gold: gold,
         enemies: c.enemies.iter().filter(|e| crate::run_observation::standard_enemy_present(e)).map(|e| EnemyHp { hp: e.hp, max_hp: e.max_hp }).collect(),
+        potions,
     })
 }
-/// The rule's candidate index at a boundary (design-v2 §2.4); `None` for an empty legal table.
+/// The rule's candidate index at a boundary (M41 design-v2 §2.4, M42 design-v1 §2.2); `None` for an empty legal table.
 fn playout_pick(legal: &[GameAction], rule: &PlayoutRule, origin: &[u8; 32], seed: u64, ordinal: u64) -> Option<usize> {
-    let preferred = legal.iter().filter(|a| rule.allows(a)).count();
-    if preferred > 0 {
-        let n = spire_core::run::research_playout_pick(origin, seed, ordinal, preferred);
-        return legal.iter().enumerate().filter(|(_, a)| rule.allows(a)).nth(n).map(|(i, _)| i)
+    match rule.kind {
+        PlayoutRuleKind::UniformExclude { excluded } => {
+            let preferred = legal.iter().filter(|a| excluded & (1 << standard_verb_id(a)) == 0).count();
+            if preferred > 0 {
+                let n = spire_core::run::research_playout_pick(origin, seed, ordinal, preferred);
+                return legal.iter().enumerate().filter(|(_, a)| excluded & (1 << standard_verb_id(a)) == 0).nth(n).map(|(i, _)| i)
+            }
+            (!legal.is_empty()).then(|| spire_core::run::research_playout_pick(origin, seed, ordinal, legal.len()))
+        }
+        PlayoutRuleKind::Tiered { never, last_resort } => {
+            let avoid = never | last_resort;
+            let (mut primary, mut resort) = (0usize, 0usize);
+            for a in legal {
+                let bit = 1u64 << standard_verb_id(a);
+                if bit & avoid == 0 { primary += 1; } else if bit & last_resort != 0 { resort += 1; }
+            }
+            if primary > 0 {
+                let n = spire_core::run::research_playout_pick(origin, seed, ordinal, primary);
+                return legal.iter().enumerate().filter(|(_, a)| (1u64 << standard_verb_id(a)) & avoid == 0).nth(n).map(|(i, _)| i)
+            }
+            if resort > 0 {
+                let n = spire_core::run::research_playout_pick(origin, seed, ordinal, resort);
+                return legal.iter().enumerate().filter(|(_, a)| (1u64 << standard_verb_id(a)) & last_resort != 0).nth(n).map(|(i, _)| i)
+            }
+            (!legal.is_empty()).then(|| spire_core::run::research_playout_pick(origin, seed, ordinal, legal.len()))
+        }
     }
-    (!legal.is_empty()).then(|| spire_core::run::research_playout_pick(origin, seed, ordinal, legal.len()))
 }
 /// One step of a playout, inside the per-step unwind guard.
 enum PlayoutStep { Stop(&'static str), Advanced(usize, Result<PublicStep, StepFault>) }
@@ -302,13 +386,28 @@ fn play_branch(id: u64, branch: &mut Branch, cap: u64, max_steps: u64, caps: &Ru
             }
         }
     };
-    let _ = id;
     let (summary, reward, terminated, truncated, end_reason) = match &last {
         Some(step) => {
             let terminal = step.terminal;
             let truncated = branch.status == Status::Truncated;
             let reason = if end_reason.is_empty() { terminal.map_or("step_limit", |t| crate::combat_training::outcome_label(t.outcome)) } else { end_reason };
-            (playout_summary(step.combat.as_ref()), terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome)), terminal.is_some(), truncated, reason)
+            #[cfg(test)]
+            let failed = FAIL_PLAYOUT_SUMMARY_BRANCH.with(std::cell::Cell::get) == Some(id);
+            #[cfg(not(test))]
+            let (failed, _) = (false, id);
+            let summary = if failed {
+                Err(Error::DeliveryFault(BRANCH_CORE_FAULT))
+            } else {
+                playout_summary(step.combat.as_ref(), step.gold)
+            };
+            match summary {
+                Ok(summary) => (summary, terminal.map_or(0, |t| crate::combat_training::outcome_reward(t.outcome)), terminal.is_some(), truncated, reason),
+                Err(e) => {
+                    branch.status = Status::Faulted;
+                    branch.legal.clear();
+                    return PlayoutJob::Fault { error: redact(e), stage: "encode", committed: true, steps }
+                }
+            }
         }
         None => {
             // No step in this call (an immediate refusal): read the branch's current published boundary.
@@ -316,12 +415,16 @@ fn play_branch(id: u64, branch: &mut Branch, cap: u64, max_steps: u64, caps: &Ru
             let failed = FAIL_PLAYOUT_SUMMARY.with(std::cell::Cell::get);
             #[cfg(not(test))]
             let failed = false;
-            match branch.run.decision() {
-                Ok(d) if !failed => (playout_summary(d.combat.as_ref()), 0, false, false, end_reason),
-                result => {
+            let summary = if failed {
+                Err(Error::DeliveryFault(BRANCH_CORE_FAULT))
+            } else {
+                branch.run.decision().map_err(redacted).and_then(|d| playout_summary(d.combat.as_ref(), d.player.gold).map_err(redact))
+            };
+            match summary {
+                Ok(summary) => (summary, 0, false, false, end_reason),
+                Err(error) => {
                     branch.status = Status::Faulted;
                     branch.legal.clear();
-                    let error = result.err().map_or(Error::DeliveryFault(BRANCH_CORE_FAULT), redacted);
                     return PlayoutJob::Fault { error, stage: "encode", committed: false, steps: 0 }
                 }
             }
@@ -337,7 +440,7 @@ enum Advanced {
 /// M41 (design-v2 §5.1): the Mask step on a world, shared by `step`/`step_many` with `BranchView::Mask` and by
 /// `playout_many`: the shared resolver, the combat-scope terminal, the published decision and the action capacity, with
 /// no view encoding. An error carries its fault stage and whether the engine committed.
-struct PublicStep { legal: Vec<GameAction>, terminal: Option<spire_core::run::CombatScopeTerminal>, combat: Option<spire_core::combat::CombatPublic> }
+struct PublicStep { legal: Vec<GameAction>, terminal: Option<spire_core::run::CombatScopeTerminal>, combat: Option<spire_core::combat::CombatPublic>, gold: u32 }
 type StepFault = (Error, &'static str, bool);
 fn advance_public(run: &mut Run, action: &GameAction, caps: &RunCapacities) -> Result<PublicStep, StepFault> {
     if let Err(e) = run.step(action) {
@@ -347,10 +450,11 @@ fn advance_public(run: &mut Run, action: &GameAction, caps: &RunCapacities) -> R
     let terminal = run.combat_scope_terminal();
     // Final review M3: the engine has committed, so a publication error faults the branch.
     let d = run.decision().map_err(|e| (redacted(e), "encode", true))?;
+    let gold = d.player.gold;
     let combat = d.combat;
     let legal: Vec<GameAction> = if terminal.is_some() { vec![] } else { d.candidates.into_iter().map(|c| c.action).collect() };
     if legal.len() > caps.actions { return Err((Error::Capacity { group: "actions", required: legal.len(), capacity: caps.actions }, "encode", true)) }
-    Ok(PublicStep { legal, terminal, combat })
+    Ok(PublicStep { legal, terminal, combat, gold })
 }
 /// The single-branch step on a world: the shared resolver, then the requested view (`step` and `step_many` both use it).
 fn advance(run: &mut Run, action: &GameAction, view: BranchView, caps: &RunCapacities, layout: RunObservationLayout) -> Advanced {
@@ -693,6 +797,8 @@ impl PublicSearch {
     }
     /// M41: the enemy rows of this search's view capacities (compact or dense), as [`Self::action_capacity`].
     pub fn enemy_capacity(&self) -> usize { self.view_capacities().enemies }
+    /// M42: the potion rows of this search's view capacities (compact or dense), as [`Self::enemy_capacity`].
+    pub fn potion_capacity(&self) -> usize { self.view_capacities().potions }
     /// An exact copy of a live branch inside its sampled world (new id and tokens); inherits its step count.
     pub fn fork(&mut self, b: BranchId) -> Result<BranchId, Error> {
         let branch = self.get(b)?;
@@ -798,4 +904,6 @@ thread_local! {
     pub(crate) static PANIC_PLAYOUT_AT: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
     /// TEST-ONLY (M41): fail the 0-step summary read of a playout (workers = 1).
     pub(crate) static FAIL_PLAYOUT_SUMMARY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// TEST-ONLY (M42): fail the post-step summary build for branch `.0` (workers = 1).
+    pub(crate) static FAIL_PLAYOUT_SUMMARY_BRANCH: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
 }
