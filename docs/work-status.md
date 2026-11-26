@@ -1,6 +1,14 @@
 # Work status
 
-## Current snapshot — 2026-11-25, release 1.2.4
+## Current snapshot — 2026-11-26, release 1.2.5
+
+- Version 1.2.5 adds the `tiered_verbs` native playout rule, which keeps potions out of sampled
+  playouts, plus gold and held potions in playout summaries (PR #132). Rules IDs remain Standard v9,
+  M10 (and Gym66) v6 and M9 v7. Frozen fingerprints, replay digests, Heart pins and existing root
+  digests are unchanged. See the [1.2.5 release notes](releases/v1.2.5.md) and [CHANGES](../CHANGES.md).
+- The tag, the post-merge build packet and the published artifact identities follow the release merge.
+
+## Snapshot — 2026-11-25, release 1.2.4
 
 - Version 1.2.4 adds native batched playouts for Standard public search (PR #129) and a regression
   test for Fear No Evil's intent and hit order (PR #130). Rules IDs remain Standard v9, M10 (and

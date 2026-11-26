@@ -5,6 +5,16 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
+No changes yet.
+
+## 1.2.5 — effective at the commit tagged v1.2.5
+
+See the [1.2.5 release notes](docs/releases/v1.2.5.md).
+
+- Set the project and Python package version to `1.2.5`. The version bump
+  changes the build digests because `Cargo.toml`, `Cargo.lock` and
+  `pyproject.toml` are digest inputs. The `build_info()` keys, fingerprints
+  and replay digests remain unchanged.
 - Additive: tiered-verb native playout rule and resource summary fields (M42, spire-9wa).
   - Adds rule `tiered_verbs` (`PUBLIC_PLAYOUT_TIERED_RULE_ID = "spire-gym-public-playout-tiered-v1"`) next to
     `uniform_exclude_verbs` (`spire-gym-public-playout-v1`, unchanged and byte-identical). `PlayoutRule::tiered_verbs`
