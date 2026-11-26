@@ -245,18 +245,42 @@ pub(crate) fn search_limits(live:&Bound<'_,PyAny>,branches:&Bound<'_,PyAny>,per_
     Ok(SearchLimits{max_live_branches:integer(live)?,max_branches:integer(branches)?,max_steps_per_branch:integer(per_branch)?,max_total_steps:integer(total)?})
 }
 fn search_error()->PyErr{RunStateError::new_err("public search is closed")}
-/// M41: a playout config from the Python arguments: the one declared rule, `exclude_verbs` a list or tuple of verb names
-/// (`None`: the default; a bare string or bytes is rejected), `max_steps` a positive integer or `None`, `playout_seed` a
-/// u64 (`None`: 0).
-fn playout_config(rule:&str,exclude_verbs:Option<&Bound<'_,PyAny>>,max_steps:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<PlayoutConfig>{
-    if rule!="uniform_exclude_verbs"{return Err(RunInputError::new_err("unknown playout rule"))}
-    let rule=match exclude_verbs.filter(|v|!v.is_none()){
-        None=>PlayoutRule::default(),
-        Some(verbs)=>{
-            if !(verbs.is_exact_instance_of::<PyList>()||verbs.is_exact_instance_of::<PyTuple>()){return Err(RunInputError::new_err("exclude_verbs must be a list or tuple of verb names"))}
-            let names=verbs.try_iter()?.map(|v|v.and_then(|v|label(&v))).collect::<PyResult<Vec<_>>>()?;
-            PlayoutRule::uniform_exclude_verbs(names).map_err(error)?
+/// M41/M42: a playout config from the Python arguments: `uniform_exclude_verbs` or `tiered_verbs`, verb lists as
+/// exact `list` or `tuple` of verb names (`None`: each parameter's independent default; bare `str`/`bytes` rejected),
+/// `max_steps` a positive integer or `None`, `playout_seed` a u64 (`None`: 0).
+fn verb_list(verbs:&Bound<'_,PyAny>,name:&str)->PyResult<Vec<String>>{
+    if !(verbs.is_exact_instance_of::<PyList>()||verbs.is_exact_instance_of::<PyTuple>()){return Err(RunInputError::new_err(format!("{name} must be a list or tuple of verb names")))}
+    verbs.try_iter()?.map(|v|v.and_then(|v|label(&v))).collect()
+}
+fn playout_config(rule:&str,exclude_verbs:Option<&Bound<'_,PyAny>>,never_verbs:Option<&Bound<'_,PyAny>>,last_resort_verbs:Option<&Bound<'_,PyAny>>,max_steps:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<PlayoutConfig>{
+    let exclude_verbs=exclude_verbs.filter(|v|!v.is_none());
+    let never_verbs=never_verbs.filter(|v|!v.is_none());
+    let last_resort_verbs=last_resort_verbs.filter(|v|!v.is_none());
+    let rule=match rule{
+        "uniform_exclude_verbs"=>{
+            if never_verbs.is_some()||last_resort_verbs.is_some(){
+                return Err(RunInputError::new_err("never_verbs and last_resort_verbs require rule='tiered_verbs'"));
+            }
+            match exclude_verbs{
+                None=>PlayoutRule::default(),
+                Some(verbs)=>PlayoutRule::uniform_exclude_verbs(verb_list(verbs,"exclude_verbs")?).map_err(error)?,
+            }
         }
+        "tiered_verbs"=>{
+            if exclude_verbs.is_some(){
+                return Err(RunInputError::new_err("exclude_verbs requires rule='uniform_exclude_verbs'"));
+            }
+            let never=match never_verbs{
+                None=>spire_env::DEFAULT_PLAYOUT_NEVER_VERBS.iter().map(|s|(*s).to_owned()).collect(),
+                Some(verbs)=>verb_list(verbs,"never_verbs")?,
+            };
+            let last_resort=match last_resort_verbs{
+                None=>spire_env::DEFAULT_PLAYOUT_LAST_RESORT_VERBS.iter().map(|s|(*s).to_owned()).collect(),
+                Some(verbs)=>verb_list(verbs,"last_resort_verbs")?,
+            };
+            PlayoutRule::tiered_verbs(never,last_resort).map_err(error)?
+        }
+        _=>return Err(RunInputError::new_err("unknown playout rule")),
     };
     let max_steps=match max_steps.filter(|v|!v.is_none()){
         None=>None,
@@ -316,26 +340,27 @@ impl NativePublicSearch{
         let compact = (!self.dtypes.is_empty()).then_some(&*search);
         crate::batch::branch_outcomes(py,outcomes,view,compact,&self.dtypes)
     }
-    /// M41 native playouts (design-v2 §4.3): each listed live branch plays under the declared public rule until its
+    /// M41/M42 native playouts: each listed live branch plays under the declared public rule until its
     /// combat ends, a step limit or a declared stop; outcomes in input order; the GIL is released for the native part.
     /// Preflight errors change nothing.
-    #[pyo3(signature=(branches,tokens,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,max_steps=None,playout_seed=None))]
+    #[pyo3(signature=(branches,tokens,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,never_verbs=None,last_resort_verbs=None,max_steps=None,playout_seed=None))]
     #[allow(clippy::too_many_arguments)]
-    fn playout_many<'py>(&mut self,py:Python<'py>,branches:&Bound<'py,PyAny>,tokens:&Bound<'py,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'py,PyAny>>,max_steps:Option<&Bound<'py,PyAny>>,playout_seed:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{
+    fn playout_many<'py>(&mut self,py:Python<'py>,branches:&Bound<'py,PyAny>,tokens:&Bound<'py,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'py,PyAny>>,never_verbs:Option<&Bound<'py,PyAny>>,last_resort_verbs:Option<&Bound<'py,PyAny>>,max_steps:Option<&Bound<'py,PyAny>>,playout_seed:Option<&Bound<'py,PyAny>>)->PyResult<Bound<'py,PyDict>>{
         let ids=branches.cast::<PyList>().map_err(|_|RunInputError::new_err("branches must be a list of branch ids"))?.iter().map(|b|integer::<u64>(&b).map(BranchId)).collect::<PyResult<Vec<_>>>()?;
         if ids.is_empty(){return Err(RunInputError::new_err("playout_many needs at least one branch"))}
-        let config=playout_config(&rule,exclude_verbs,max_steps,playout_seed)?;
+        let config=playout_config(&rule,exclude_verbs,never_verbs,last_resort_verbs,max_steps,playout_seed)?;
         let tokens=numeric::token_inputs(tokens,ids.len()).map_err(|e|RunInputError::new_err(e.value(py).to_string()))?;
         let requests=ids.iter().zip(tokens).map(|(b,t)|BranchPlayoutRequest{branch:*b,token:t.into()}).collect::<Vec<_>>();
         let compact=!self.dtypes.is_empty();
         let search=self.inner.as_mut().ok_or_else(search_error)?;
         let outcomes=py.detach(||search.playout_many(&requests,&config)).map_err(error)?;
-        crate::batch::branch_playout_outcomes(py,outcomes,search.enemy_capacity(),compact)
+        crate::batch::branch_playout_outcomes(py,outcomes,config.rule.rule_id(),search.enemy_capacity(),search.potion_capacity(),compact)
     }
-    /// M41: the action index the declared rule picks at a live branch's boundary (no effect).
-    #[pyo3(signature=(branch,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,playout_seed=None))]
-    fn playout_action(&self,branch:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<i64>{
-        let config=playout_config(&rule,exclude_verbs,None,playout_seed)?;
+    /// M41/M42: the action index the declared rule picks at a live branch's boundary (no effect).
+    #[pyo3(signature=(branch,*,rule="uniform_exclude_verbs".to_owned(),exclude_verbs=None,never_verbs=None,last_resort_verbs=None,playout_seed=None))]
+    #[allow(clippy::too_many_arguments)]
+    fn playout_action(&self,branch:&Bound<'_,PyAny>,#[pyo3(from_py_with=label)]rule:String,exclude_verbs:Option<&Bound<'_,PyAny>>,never_verbs:Option<&Bound<'_,PyAny>>,last_resort_verbs:Option<&Bound<'_,PyAny>>,playout_seed:Option<&Bound<'_,PyAny>>)->PyResult<i64>{
+        let config=playout_config(&rule,exclude_verbs,never_verbs,last_resort_verbs,None,playout_seed)?;
         let search=self.inner.as_ref().ok_or_else(search_error)?;
         search.playout_action(BranchId(integer(branch)?),&config.rule,config.playout_seed).map(|i|i.0).map_err(error)
     }

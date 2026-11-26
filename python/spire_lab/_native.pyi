@@ -287,7 +287,7 @@ class NativeStandardCombatSession:
     def close(self) -> None: ...
 
 class PlayoutResult(TypedDict):
-    """M41 `NativePublicSearch.playout_many` result: owned arrays and lists in input order (N branches, E enemy columns)."""
+    """M41/M42 `NativePublicSearch.playout_many` result: owned arrays and lists in input order (N branches, E enemy, P potion columns)."""
 
     rule_id: str
     tokens: NDArray[np.uint64]
@@ -300,9 +300,12 @@ class PlayoutResult(TypedDict):
     refusal: list[str | None]
     player_hp: NDArray[np.int32]
     player_max_hp: NDArray[np.int32]
+    player_gold: NDArray[np.uint32]
     enemy_hp: NDArray[np.int32]
     enemy_max_hp: NDArray[np.int32]
     enemy_present: NDArray[np.int8]
+    potion_kind: NDArray[np.int32]
+    potion_present: NDArray[np.int8]
     fault: list[dict[str, Any] | None]
 
 class NativePublicSearch:
@@ -318,11 +321,16 @@ class NativePublicSearch:
     def step_many(self, branches: list[int], tokens: NDArray[np.uint64], actions: NDArray[np.int64], *,
                   view: Literal["full", "mask"] = ...) -> dict[str, Any]: ...
     def playout_many(self, branches: list[int], tokens: NDArray[np.uint64], *,
-                     rule: Literal["uniform_exclude_verbs"] = ...,
+                     rule: Literal["uniform_exclude_verbs", "tiered_verbs"] = ...,
                      exclude_verbs: list[str] | tuple[str, ...] | None = ...,
+                     never_verbs: list[str] | tuple[str, ...] | None = ...,
+                     last_resort_verbs: list[str] | tuple[str, ...] | None = ...,
                      max_steps: int | None = ..., playout_seed: int = ...) -> PlayoutResult: ...
-    def playout_action(self, branch: int, *, rule: Literal["uniform_exclude_verbs"] = ...,
-                       exclude_verbs: list[str] | tuple[str, ...] | None = ..., playout_seed: int = ...) -> int: ...
+    def playout_action(self, branch: int, *, rule: Literal["uniform_exclude_verbs", "tiered_verbs"] = ...,
+                       exclude_verbs: list[str] | tuple[str, ...] | None = ...,
+                       never_verbs: list[str] | tuple[str, ...] | None = ...,
+                       last_resort_verbs: list[str] | tuple[str, ...] | None = ...,
+                       playout_seed: int = ...) -> int: ...
     def fork(self, branch: int) -> int: ...
     def actions(self, branch: int) -> list[int]: ...
     def public_search(

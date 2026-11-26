@@ -29,7 +29,7 @@ SEED = 4_100_041
 EXCLUDED = ("end_turn", "discard_potion")
 
 
-def catalog(character, encounter, ascension=20):
+def catalog(character, encounter, ascension=20, potions=None):
     starter = {
         "ironclad": ([("strike", 5), ("defend", 4), ("bash", 1)], "burning_blood"),
         "silent": ([("strike_g", 5), ("defend_g", 5), ("neutralize", 1), ("survivor", 1)], "ring_of_the_snake"),
@@ -41,13 +41,13 @@ def catalog(character, encounter, ascension=20):
             "id": f"{character}-{encounter}", "character": character, "ascension": ascension, "encounter": encounter,
             "hp": 70, "max_hp": 80, "gold": 99,
             "deck": [{"card": card, "upgrades": 0} for card, count in starter[0] for _ in range(count)],
-            "relics": [starter[1]], "potions": [None, None],
+            "relics": [starter[1]], "potions": [None, None] if potions is None else list(potions),
         }],
     }
 
 
-def standalone(encounter, seed):
-    env = StandardCombatEnv(catalog("ironclad", encounter), partition="test")
+def standalone(encounter, seed, potions=None):
+    env = StandardCombatEnv(catalog("ironclad", encounter, potions=potions), partition="test")
     observation, _ = env.reset(seed=seed)
     return env, observation
 
@@ -128,15 +128,15 @@ def root_step(search, legal, samples):
     return pairs, branches, rewards, terminated, refused
 
 
-def native_values(env, legal, samples, playout_steps, workers):
-    """M41: root step, then one ``playout_many`` call for every live branch."""
+def native_values(env, legal, samples, playout_steps, workers, rule="uniform_exclude_verbs"):
+    """M41/M42: root step, then one ``playout_many`` call for every live branch under ``rule``."""
     search = open_search(env, legal, samples, playout_steps, workers)
     try:
         pairs, branches, rewards, terminated, refused = root_step(search, legal, samples)
         values = [float(r) if (t or f) else None for r, t, f in zip(rewards, terminated, refused, strict=True)]
         live = [i for i, v in enumerate(values) if v is None]
         if live:
-            result = search.playout_many([branches[i] for i in live], max_steps=playout_steps)
+            result = search.playout_many([branches[i] for i in live], rule=rule, max_steps=playout_steps)
             for j, i in enumerate(live):
                 if result["terminated"][j]:
                     values[i] = float(result["rewards"][j])
@@ -201,13 +201,13 @@ def report(label, legal, pairs, values, samples):
           f"mean {sum(means[best]) / samples:+.3f}")
 
 
-def demonstrate(samples, playout_steps, workers):
+def demonstrate(samples, playout_steps, workers, rule="uniform_exclude_verbs"):
     for label, (env, observation) in (("standalone ironclad A20 jaw_worm", standalone("jaw_worm", SEED)),
                                       ("Standard Run first combat A20", run_combat(11))):
         try:
             legal = [int(i) for i in np.flatnonzero(observation["action_mask"].reshape(-1))]
-            pairs, values, steps = native_values(env, legal, samples, playout_steps, workers)
-            report(label, legal, pairs, values, samples)
+            pairs, values, steps = native_values(env, legal, samples, playout_steps, workers, rule=rule)
+            report(f"{label} ({rule})", legal, pairs, values, samples)
             print(f"  playouts={len(pairs)} native_steps={steps}")
         finally:
             env.close()
@@ -219,7 +219,9 @@ def measure(method, env, observation, samples, playout_steps, workers, repeats):
     for _ in range(repeats):
         w, c = time.perf_counter(), time.process_time()
         if method == "playout_many":
-            pairs, _, n = native_values(env, legal, samples, playout_steps, workers)
+            pairs, _, n = native_values(env, legal, samples, playout_steps, workers, rule="uniform_exclude_verbs")
+        elif method == "playout_many:tiered_verbs":
+            pairs, _, n = native_values(env, legal, samples, playout_steps, workers, rule="tiered_verbs")
         else:
             pairs, _, n = lockstep_values(env, legal, samples, playout_steps, workers, method.split(":")[1])
         wall += time.perf_counter() - w
@@ -231,15 +233,20 @@ def measure(method, env, observation, samples, playout_steps, workers, repeats):
             "playouts_per_s": playouts / wall, "steps_per_s": steps / wall}
 
 
-def benchmark(samples, playout_steps, workers_list, repeats, encounters):
+def benchmark(samples, playout_steps, workers_list, repeats, encounters, tiered_only=False):
     rows = []
-    workloads = [(f"standalone:{e}", lambda e=e: standalone(e, SEED)) for e in encounters] + [("run:first_combat", lambda: run_combat(11))]
+    workloads = [(f"standalone:{e}", lambda e=e: standalone(e, SEED)) for e in encounters]
+    workloads.append(("standalone:jaw_worm_potions", lambda: standalone("jaw_worm", SEED, potions=["fire_potion", "block_potion"])))
+    workloads.append(("run:first_combat", lambda: run_combat(11)))
+    methods = ("playout_many", "playout_many:tiered_verbs") if tiered_only else (
+        "step_many:dense", "step_many:compact", "playout_many", "playout_many:tiered_verbs"
+    )
     for name, make in workloads:
         env, observation = make()
         try:
             for workers in workers_list:
-                for method in ("step_many:dense", "step_many:compact", "playout_many"):
-                    row = {"schema": "spire-gym-m41-playout-benchmark-v1", "workload": name, "samples": samples,
+                for method in methods:
+                    row = {"schema": "spire-gym-m42-playout-benchmark-v1", "workload": name, "samples": samples,
                            "playout_steps": playout_steps, **measure(method, env, observation, samples, playout_steps, workers, repeats)}
                     rows.append(row)
                     print(json.dumps(row, sort_keys=True), flush=True)
@@ -247,7 +254,12 @@ def benchmark(samples, playout_steps, workers_list, repeats, encounters):
             env.close()
     by = {(r["workload"], r["workers"], r["method"]): r for r in rows}
     for (workload, workers, method), r in by.items():
-        if method == "playout_many":
+        if method == "playout_many:tiered_verbs":
+            base = by[(workload, workers, "playout_many")]
+            ratio = r["playouts_per_s"] / base["playouts_per_s"]
+            step_ratio = r["steps_per_s"] / base["steps_per_s"]
+            print(f"{workload} workers={workers}: tiered_verbs / uniform = {ratio:.2f}x playouts/s ({step_ratio:.2f}x steps/s)")
+        elif method == "playout_many" and not tiered_only:
             for base in ("step_many:dense", "step_many:compact"):
                 ratio = r["playouts_per_s"] / by[(workload, workers, base)]["playouts_per_s"]
                 print(f"{workload} workers={workers}: playout_many / {base} = {ratio:.1f}x playouts per second")
@@ -258,14 +270,16 @@ def main():
     parser.add_argument("--samples", type=int, default=8)
     parser.add_argument("--playout-steps", type=int, default=80)
     parser.add_argument("--workers", type=int, nargs="+", default=[1])
+    parser.add_argument("--rule", choices=("uniform_exclude_verbs", "tiered_verbs"), default="uniform_exclude_verbs")
     parser.add_argument("--benchmark", action="store_true")
+    parser.add_argument("--benchmark-tiered", action="store_true", help="compare tiered_verbs vs uniform_exclude_verbs only")
     parser.add_argument("--repeats", type=int, default=1, help="benchmark decisions per workload")
     parser.add_argument("--encounters", nargs="+", default=["jaw_worm", "cultist", "gremlin_nob"])
     args = parser.parse_args()
-    if args.benchmark:
-        benchmark(args.samples, args.playout_steps, args.workers, args.repeats, args.encounters)
+    if args.benchmark or args.benchmark_tiered:
+        benchmark(args.samples, args.playout_steps, args.workers, args.repeats, args.encounters, tiered_only=args.benchmark_tiered)
     else:
-        demonstrate(args.samples, args.playout_steps, args.workers[0])
+        demonstrate(args.samples, args.playout_steps, args.workers[0], rule=args.rule)
 
 
 if __name__ == "__main__":

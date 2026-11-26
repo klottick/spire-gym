@@ -120,13 +120,14 @@ class PublicSearch:
         return observations, raw["rewards"], raw["terminated"], raw["truncated"], info
 
     def playout_many(self, branches, *, rule="uniform_exclude_verbs", exclude_verbs=None,
-                     max_steps=None, playout_seed=0) -> dict[str, Any]:
-        """Play distinct live branches to combat end or a step limit in one native call (M41).
+                     never_verbs=None, last_resort_verbs=None, max_steps=None, playout_seed=0) -> dict[str, Any]:
+        """Play distinct live branches to combat end or a step limit in one native call (M41/M42).
 
-        Every move is chosen by the declared public rule ``spire-gym-public-playout-v1``: uniform over the legal actions
-        whose Standard verb is not in ``exclude_verbs`` (default ``("end_turn", "discard_potion")``; ``()`` means every
-        legal action), over all legal actions when none remain, drawn from a research stream keyed by the branch's
-        sample, ``playout_seed`` and its step. Returns owned arrays in input order (see ``docs/standard-run-api.md``).
+        Supports ``rule="uniform_exclude_verbs"`` (``spire-gym-public-playout-v1``, default ``exclude_verbs=("end_turn",
+        "discard_potion")``) and ``rule="tiered_verbs"`` (``spire-gym-public-playout-tiered-v1``, default
+        ``never_verbs=("use_potion", "discard_potion")`` and ``last_resort_verbs=("end_turn",)``). Drawn from a research
+        stream keyed by the branch's sample, ``playout_seed`` and its step. Returns owned arrays in input order (see
+        ``docs/standard-run-api.md``).
         """
         if not isinstance(branches, (list, tuple)) or not branches:
             raise _native.RunInputError("branches must be a nonempty sequence")
@@ -140,6 +141,7 @@ class PublicSearch:
             token_rows.append(branch._token)
         raw = self._native.playout_many(
             ids, np.asarray(token_rows, dtype=np.uint64), rule=rule, exclude_verbs=exclude_verbs,
+            never_verbs=never_verbs, last_resort_verbs=last_resort_verbs,
             max_steps=max_steps, playout_seed=playout_seed,
         )
         returned_tokens = raw["tokens"]
@@ -199,10 +201,12 @@ class PublicBranch:
             dict(raw["info"]),
         )
 
-    def playout_action(self, *, rule="uniform_exclude_verbs", exclude_verbs=None, playout_seed=0) -> int:
-        """The action index the declared playout rule picks at this branch's boundary (no effect; M41)."""
+    def playout_action(self, *, rule="uniform_exclude_verbs", exclude_verbs=None,
+                       never_verbs=None, last_resort_verbs=None, playout_seed=0) -> int:
+        """The action index the declared playout rule picks at this branch's boundary (no effect; M41/M42)."""
         return self._search._native.playout_action(
-            self._branch_id, rule=rule, exclude_verbs=exclude_verbs, playout_seed=playout_seed
+            self._branch_id, rule=rule, exclude_verbs=exclude_verbs,
+            never_verbs=never_verbs, last_resort_verbs=last_resort_verbs, playout_seed=playout_seed
         )
 
     def fork(self) -> PublicBranch:

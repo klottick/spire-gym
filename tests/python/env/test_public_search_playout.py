@@ -37,8 +37,9 @@ def searches(env, workers=1, **layout):
     return env.public_search(RESEARCH_SEED, limits=LIMITS, workers=workers, **layout)
 
 
-def step_reference(search, samples, *, view="mask", exclude_verbs=None, max_steps=None, playout_seed=0):
-    """T14: the declared rule one action at a time — ``playout_action`` then ``branch.step``."""
+def step_reference(search, samples, *, view="mask", rule="uniform_exclude_verbs", exclude_verbs=None,
+                   never_verbs=None, last_resort_verbs=None, max_steps=None, playout_seed=0):
+    """T14/M42: the declared rule one action at a time — ``playout_action`` then ``branch.step``."""
     rows = []
     for sample in samples:
         branch = search.branch(sample)
@@ -47,7 +48,10 @@ def step_reference(search, samples, *, view="mask", exclude_verbs=None, max_step
             if max_steps is not None and steps == max_steps:
                 reason = "max_steps"
                 break
-            action = branch.playout_action(exclude_verbs=exclude_verbs, playout_seed=playout_seed)
+            action = branch.playout_action(
+                rule=rule, exclude_verbs=exclude_verbs, never_verbs=never_verbs,
+                last_resort_verbs=last_resort_verbs, playout_seed=playout_seed,
+            )
             try:
                 _, reward, terminated, truncated, info = branch.step(action, view=view)
             except _native.RunUnsupportedBoundaryError:
@@ -253,8 +257,117 @@ def test_fault_isolation_on_a_compact_capacity_overflow():
             fault = result["fault"][i]
             assert fault["stage"] == "encode" and fault["committed"] and fault["capacity"]["group"] == "actions"
             assert result["end_reason"][i] == "fault" and int(result["tokens"][i, 0]) == 0
+            assert int(result["player_gold"][i]) == 0
+            assert not result["potion_kind"][i].any() and not result["potion_present"][i].any()
             with pytest.raises(_native.RunStateError):
                 tiny.playout_many([branches[i]])
         assert tiny.counters()["total_steps"] == int(result["steps"].sum())
+    finally:
+        env.close()
+
+
+@pytest.mark.parametrize("workers", [1, 4])
+@pytest.mark.parametrize("layout", [{}, {"observation": "compact"}])
+def test_tiered_playout_many_equals_one_action_at_a_time(workers, layout):
+    env = standard_env(potions=["fire_potion", "block_potion", None])
+    try:
+        playout, mask_ref, full_ref = searches(env, workers, **layout), searches(env, 1, **layout), searches(env, 1, **layout)
+        branches = [playout.branch(k) for k in SAMPLES]
+        result = playout.playout_many(branches, rule="tiered_verbs")
+        assert result["rule_id"] == "spire-gym-public-playout-tiered-v1"
+        assert_matches(result, branches, step_reference(mask_ref, SAMPLES, view="mask", rule="tiered_verbs"))
+        assert_matches(result, branches, step_reference(full_ref, SAMPLES, view="full", rule="tiered_verbs"))
+        assert playout.counters() == mask_ref.counters()
+    finally:
+        env.close()
+
+
+def test_tiered_rule_keeps_potions_out_and_falls_back():
+    env = standard_env(potions=["fire_potion", "block_potion", None], gold=145)
+    try:
+        s_tiered = searches(env, 2)
+        b_tiered = [s_tiered.branch(k) for k in SAMPLES]
+        res_t = s_tiered.playout_many(b_tiered, rule="tiered_verbs")
+        assert res_t["rule_id"] == "spire-gym-public-playout-tiered-v1"
+        for i in range(len(b_tiered)):
+            present = res_t["potion_present"][i].astype(bool)
+            assert int(present.sum()) == 2, "tiered default keeps both potions untouched"
+            assert int(res_t["player_gold"][i]) == 145
+        # Fallback when only never_verbs are legal (put end_turn in never_verbs too, empty last_resort).
+        s_fall = searches(env, 1)
+        b_fall = s_fall.branch(0)
+        res_f = s_fall.playout_many([b_fall], rule="tiered_verbs",
+                                    never_verbs=("use_potion", "discard_potion", "end_turn"),
+                                    last_resort_verbs=(), max_steps=1)
+        assert int(res_f["steps"][0]) == 1
+    finally:
+        env.close()
+
+
+def test_summary_potions_gold_and_terminal_cleanup_hp():
+    env = standard_env(hp=50, max_hp=80, gold=123, encounter="cultist", potions=["smoke_bomb", "fairy_potion", None])
+    try:
+        search = searches(env, 2)
+        branches = [search.branch(k) for k in SAMPLES]
+        result = search.playout_many(branches, rule="tiered_verbs", max_steps=60)
+        n = len(branches)
+        assert result["player_gold"].dtype == np.dtype(np.uint32) and result["player_gold"].shape == (n,)
+        p_width = result["potion_kind"].shape[1]
+        assert p_width >= 3 and result["potion_kind"].dtype == np.dtype(np.int32)
+        assert result["potion_present"].dtype == np.dtype(np.int8) and result["potion_present"].shape == (n, p_width)
+        for i, branch in enumerate(branches):
+            obs, info = branch.decision()
+            assert int(result["player_gold"][i]) == int(obs["player"][2])
+            occ = obs["potions_occupied"].astype(bool)
+            present = result["potion_present"][i].astype(bool)
+            np.testing.assert_array_equal(result["potion_kind"][i][present], obs["potions"][occ, 0])
+            if result["terminated"][i]:
+                assert int(obs["player_known"][11]) == 1
+                assert int(result["player_hp"][i]) == int(obs["player"][11])
+                assert int(result["player_hp"][i]) == int(info["hp_after_cleanup"])
+        # Smoke Bomb escape: terminal cleanup HP includes Burning Blood (+6) and removes Smoke Bomb from potions.
+        sb = search.branch(99)
+        res_smoke = search.playout_many(
+            [sb], rule="tiered_verbs",
+            never_verbs=("play_card", "discard_potion", "end_turn"), last_resort_verbs=(), max_steps=5,
+        )
+        assert bool(res_smoke["terminated"][0]) and res_smoke["end_reason"][0] == "escaped"
+        obs, info = sb.decision()
+        assert int(res_smoke["player_hp"][0]) == 56 == int(obs["player"][11]) == int(info["hp_after_cleanup"])
+        assert int(res_smoke["potion_present"][0].sum()) == 1
+    finally:
+        env.close()
+
+
+def test_tiered_validation_and_mutual_exclusion():
+    env = standard_env()
+    try:
+        search = searches(env)
+        branch = search.branch(0)
+        before = search.counters()
+        bad_cases = (
+            {"rule": "uniform_exclude_verbs", "never_verbs": ("use_potion",)},
+            {"rule": "uniform_exclude_verbs", "last_resort_verbs": ("end_turn",)},
+            {"rule": "tiered_verbs", "exclude_verbs": ("end_turn",)},
+            {"rule": "tiered_verbs", "never_verbs": "use_potion"},
+            {"rule": "tiered_verbs", "last_resort_verbs": b"end_turn"},
+            {"rule": "tiered_verbs", "never_verbs": {"use_potion"}},
+            {"rule": "tiered_verbs", "never_verbs": ("nope",)},
+            {"rule": "tiered_verbs", "last_resort_verbs": ("padding",)},
+            {"rule": "tiered_verbs", "never_verbs": ("use_potion", "end_turn"), "last_resort_verbs": ("end_turn",)},
+            # Partial-default overlap: default last_resort_verbs is ("end_turn",).
+            {"rule": "tiered_verbs", "never_verbs": ("end_turn",)},
+            # Partial-default overlap: default never_verbs is ("use_potion", "discard_potion").
+            {"rule": "tiered_verbs", "last_resort_verbs": ("use_potion",)},
+        )
+        for kwargs in bad_cases:
+            with pytest.raises(_native.RunInputError):
+                search.playout_many([branch], **kwargs)
+            with pytest.raises(_native.RunInputError):
+                branch.playout_action(**kwargs)
+        assert search.counters() == before and branch.actions() == []
+        # Independent None -> default with empty partner is valid.
+        res = search.playout_many([branch], rule="tiered_verbs", never_verbs=(), max_steps=1)
+        assert int(res["steps"][0]) == 1
     finally:
         env.close()
