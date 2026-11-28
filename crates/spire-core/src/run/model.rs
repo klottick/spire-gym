@@ -78,6 +78,49 @@ impl RunError {
         }
     }
 }
+/// spire-3zm: the closed, value-free class of a core error, safe to publish from a redacted search fault: `kind` is the
+/// error's variant (never its payload text, message, attempted action or handles) and `checkpoint` the static code-site
+/// name a retained fault records (`None` unless `Faulted`). See [`CORE_FAULT_KINDS`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct CoreFaultClass { pub kind: &'static str, pub checkpoint: Option<&'static str> }
+impl CoreFaultClass {
+    /// A panic contained by the search arena's unwind guard (no core error exists).
+    pub const PANIC: Self = Self { kind: "panic", checkpoint: None };
+}
+/// Every `CoreFaultClass::kind`, one per `RunError` / `RunFaultKind` / combat `FaultKind` variant plus the arena's
+/// `panic`.
+pub const CORE_FAULT_KINDS: &[&str] = &["invalid_ascension", "invalid_action", "unsupported", "registry", "terminal", "bound",
+    "run_unsupported_boundary", "run_invariant", "combat_unsupported", "combat_invariant", "combat_effect_guard", "combat_rng_exhausted", "panic"];
+impl RunError {
+    /// The closed class of this error (exhaustive over the variants; no payload is read except the static checkpoint).
+    pub fn fault_class(&self) -> CoreFaultClass {
+        use crate::combat::FaultKind;
+        let kind = match self {
+            Self::InvalidAscension(_) => "invalid_ascension",
+            Self::InvalidAction => "invalid_action",
+            Self::Unsupported(_) => "unsupported",
+            Self::Registry(_) => "registry",
+            Self::Terminal => "terminal",
+            Self::Bound(_) => "bound",
+            Self::Faulted(fault) => {
+                let kind = match &fault.kind {
+                    RunFaultKind::UnsupportedBoundary(_) => "run_unsupported_boundary",
+                    RunFaultKind::Invariant(_) => "run_invariant",
+                    RunFaultKind::Bound(_) => "bound",
+                    RunFaultKind::Combat(combat) => match combat.record.kind {
+                        FaultKind::Unsupported => "combat_unsupported",
+                        FaultKind::Invariant => "combat_invariant",
+                        FaultKind::EffectGuard => "combat_effect_guard",
+                        FaultKind::RngExhausted => "combat_rng_exhausted",
+                        FaultKind::Bound(_) => "bound",
+                    },
+                };
+                return CoreFaultClass { kind, checkpoint: Some(fault.checkpoint) }
+            }
+        };
+        CoreFaultClass { kind, checkpoint: None }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommittedEvent { FloorEntered { act:u8, floor:u32 }, KeyAcquired(Key), Ended(RunTerminal),
     ActAdvanced{from:u8,to:u8},

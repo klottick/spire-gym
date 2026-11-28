@@ -234,8 +234,16 @@ fn ambiguous_execution(state: &State, e: &model::EnemyState, members: &[&'static
     let low = members.iter().any(|m| e.full_damage_entries.get(&FullIntentId::from_name(m)).is_none_or(|d| d.output <= 5));
     power("intangible_player") || power("intangible") || power("buffer") || relic(RelicId::Torii) || relic(RelicId::TungstenRod) || low || state.player.hp <= 0
 }
-fn stand_in(id: EnemyId, ascension: u8) -> Option<FullIntentId> {
-    super::enemies::damage_bases_at_ascension(id, ascension).ok().and_then(|b| b.keys().next().copied())
+/// The fixed public stand-in of a truncated execution (rule 2d) after the normal-form public `prior` history: the first
+/// damage move (damage-base key order) the species' history grammar admits there, so every search world stays a valid
+/// engine state (spire-3zm). `None` when no move is admitted (the record goes opaque). Species without a grammar keep the
+/// first key.
+pub(in crate::combat) fn stand_in(id: EnemyId, ascension: u8, prior: &[FullIntentId]) -> Option<FullIntentId> {
+    let bases = super::enemies::damage_bases_at_ascension(id, ascension).ok()?;
+    // Test-only negative control (the v1 defect): the first key whatever the grammar says.
+    if super::belief::leak(super::belief::Leak::GrammarBlindStandIn) { return bases.keys().next().copied() }
+    let mut history = prior.to_vec();
+    bases.keys().copied().find(|m| { history.push(*m); let admitted = super::enemies::history_admits(id, &history); history.pop(); admitted })
 }
 /// After a dispatch: classify every enemy's change (design-v4 §3.3; branches tried in order, exactly one applies).
 pub(in crate::combat) fn observe(state: &mut State, effect: &Effect, before: Snapshot) {
@@ -259,7 +267,9 @@ pub(in crate::combat) fn observe(state: &mut State, effect: &Effect, before: Sna
         if truncated && random_law(id) && !super::belief::leak(super::belief::Leak::IgnoreTruncation) {
             let p = state.knowledge.moves.executing.as_ref().map(|(_, p)| *p).unwrap();
             let record = state.knowledge.moves.enemies.get_mut(&handle).unwrap();
-            match stand_in(id, ascension) { Some(s) => { record.inert.insert(p, s); record.ambiguous.insert(p); } None => record.opaque = true }
+            // The public prior history in normal form (earlier stand-ins applied), identical in every world.
+            let prior = old.history.get(..p).and_then(|h| h.iter().map(full).collect::<Option<Vec<_>>>()).map(|h| normal_history(&h, &record.inert));
+            match prior.and_then(|prior| stand_in(id, ascension, &prior)) { Some(s) => { record.inert.insert(p, s); record.ambiguous.insert(p); } None => record.opaque = true }
             if preroll_move(id).is_some() { record.shown = true; }
             #[cfg(any(test, feature = "m34-diagnostics"))]
             TRUNCATIONS.with(|t| *t.borrow_mut().entry(id.as_str()).or_default() += 1);
@@ -384,6 +394,10 @@ pub(in crate::combat) fn replay(state: &mut State) -> Result<(), super::belief::
             if let Some(x) = e.move_history.get_mut(*p) { *x = ActorIntentId::Full(*s) }
             if Some(*p) == last { e.intent_id = ActorIntentId::Full(*s); e.selected_move = ActorIntentId::Full(*s); }
         }
+        // spire-3zm backstop: the redrawn world must be one the species' selection can produce; otherwise refuse the
+        // root (its own class) instead of handing out a world that faults at its next validated boundary.
+        let history = e.move_history.iter().map(full).collect::<Option<Vec<_>>>();
+        if !history.is_some_and(|h| super::enemies::history_admits(id, &h)) { return Err(Unsupported::HiddenWorldInvalid) }
     }
     Ok(())
 }

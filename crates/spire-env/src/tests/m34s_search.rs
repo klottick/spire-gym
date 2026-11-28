@@ -267,7 +267,10 @@ fn check_faulted_branch_prefix(config: StandardCombatSessionConfig) {
     spire_core::run::diagnostics::supplied_fault(search.branch_run_for_test(a));
     // Final review v3: the core fault (which carries the attempted action and its card instance) is redacted to a class.
     let fault = search.step(a, r.token, RunActionIndex(0), BranchView::Full).unwrap_err();
-    assert_eq!(fault, RunSessionError::DeliveryFault(BRANCH_CORE_FAULT));
+    // spire-3zm: only the closed class and the static checkpoint survive (the message stays BRANCH_CORE_FAULT).
+    assert_eq!(fault, RunSessionError::SearchCoreFault(spire_core::run::CoreFaultClass { kind: "run_invariant", checkpoint: Some("m34s.supplied-fault") }));
+    assert_eq!(RunRecordError::from_error(&fault).message, BRANCH_CORE_FAULT);
+    assert!(!format!("{fault:?}").contains("supplied diagnostic fault"), "no core payload text");
     assert!(!format!("{fault:?}").contains("instance"), "no attempted action in the error");
     // fork_of_faulted_branch_is_rejected, public_root_of_faulted_branch_is_rejected, no retry.
     assert_eq!(search.fork(a).err(), Some(RunSessionError::BranchFaulted));

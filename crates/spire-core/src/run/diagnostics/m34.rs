@@ -60,6 +60,15 @@ pub fn supplied_fault(run: &mut Run) {
     run.state.fault = Some(RunFault { kind: RunFaultKind::Invariant("supplied diagnostic fault"), checkpoint: "m34s.supplied-fault", committed_events: vec![] });
 }
 
+/// spire-3zm diagnostics (search tests only): give the live combat's player a full power at `amount` (replacing it).
+pub fn supply_player_power(run: &mut Run, id: &'static str, amount: i32) {
+    if let Some(combat) = run.state.combat.as_mut() { combat.diagnostic_set_player_power(id, amount) }
+}
+/// spire-3zm diagnostics: set enemy `index`'s HP (capped at its maximum) and Block in the live combat.
+pub fn supply_enemy_hp_and_block(run: &mut Run, index: usize, hp: i32, block: i32) {
+    if let Some(combat) = run.state.combat.as_mut() { combat.diagnostic_set_enemy_hp_and_block(index, hp, block) }
+}
+
 /// M34s-b final review I1 diagnostics (env P1 duplicate-copy families): the live combat, to create supplied copies
 /// (`Combat::diagnostic_create_card`) and build public-equivalent worlds (`Combat::diagnostic_swap_identical_copies`).
 pub fn supplied_combat(run: &mut Run) -> Option<&mut crate::combat::Combat> { run.state.combat.as_mut() }

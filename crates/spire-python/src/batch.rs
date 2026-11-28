@@ -859,11 +859,15 @@ pub(crate) fn branch_outcomes<'py>(
     Ok(out)
 }
 /// One faulted branch entry's fault dict (`step_many` and `playout_many`): stage, class-only message, committed, the engine
-/// bound when there is one, and on a compact search the capacity detail.
+/// bound when there is one, a redacted core fault's closed `fault_class` (spire-3zm), and on a compact search the
+/// capacity detail.
 fn branch_fault<'py>(py: Python<'py>, error: &RunSessionError, stage: &str, committed: bool, compact: bool) -> PyResult<Bound<'py, PyAny>> {
     let fault = fault_dict(py, stage, &stacking::error_message(error, false), committed)?;
     if let Some(bound) = error.engine_bound() {
         fault.set_item("bound", run_env::bound_value(py, bound)?)?;
+    }
+    if let RunSessionError::SearchCoreFault(class) = error {
+        fault.set_item("fault_class", run_env::fault_class_value(py, *class)?)?;
     }
     if compact {
         if let RunSessionError::Capacity { group, required, capacity } = error {

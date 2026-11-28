@@ -749,6 +749,17 @@ pub fn damage_bases(id: EnemyId) -> Result<std::collections::BTreeMap<FullIntent
     damage_bases_at_ascension(id, 0)
 }
 
+/// spire-3zm: whether `history` is a move history the species' selection can produce. The one owner of the Full history
+/// grammars (Spire Shield, Spire Spear, Corrupt Heart shape), shared by `validate_runtime` and the hidden-move stand-ins;
+/// every other species has no history grammar (always admitted).
+pub(in crate::combat) fn history_admits(id: EnemyId, history: &[FullIntentId]) -> bool {
+    match id {
+        EnemyId::SpireShield | EnemyId::SpireSpear => act4::shield_spear::valid_history(id, history),
+        EnemyId::CorruptHeart => act4::heart::valid_history(history),
+        _ => true,
+    }
+}
+
 pub fn damage_bases_at_ascension(id: EnemyId, ascension: u8)
     -> Result<std::collections::BTreeMap<FullIntentId, i32>, InputError> {
     if ascension > 20 {

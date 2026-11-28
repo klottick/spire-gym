@@ -322,7 +322,7 @@ fn step_many_fault_isolated_to_entry() {
     let a = crate::tests::m35_r2::r1(0, 1, &bad.observation.action_mask) as i64; let b = crate::tests::m35_r2::r1(1, 0, &sib.observation.action_mask) as i64;
     let clean_out = clean.step_many(&[req(&clean,ca[1],b as usize)],BranchView::Mask).unwrap();
     let fault_out = faulted.step_many(&[BranchStepRequest{branch:cb[0],token:bad.token,index:RunActionIndex(a)},BranchStepRequest{branch:cb[1],token:sib.token,index:RunActionIndex(b)}],BranchView::Mask).unwrap();
-    assert!(matches!(&fault_out[0],BranchStepOutcome::Fault{error:RunSessionError::DeliveryFault(crate::BRANCH_CORE_FAULT),stage:"step",..}));
+    assert!(matches!(&fault_out[0],BranchStepOutcome::Fault{error:RunSessionError::SearchCoreFault(spire_core::run::CoreFaultClass{kind:"run_invariant",checkpoint:Some("m34s.supplied-fault")}),stage:"step",..}));
     assert_eq!(normalize(fault_out[1].clone()),normalize(clean_out[0].clone())); assert_eq!(faulted.actions(cb[0]).unwrap(),clean.actions(ca[0]).unwrap());
     assert_eq!(faulted.step(cb[0],bad.token,RunActionIndex(a),BranchView::Mask).err(),Some(RunSessionError::BranchFaulted));
     assert_eq!(faulted.step_many(&[BranchStepRequest{branch:cb[0],token:bad.token,index:RunActionIndex(a)}],BranchView::Mask).err(),Some(RunSessionError::BranchFaulted));

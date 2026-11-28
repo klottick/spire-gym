@@ -55,6 +55,8 @@ class RunBudgetError(RunStateError): ...
 class RunFaultError(RuntimeError):
     # Present when the fault carries a typed engine limit.
     bound: dict[str, str | int]
+    # Present on a redacted public-search core fault: {"kind": <closed class>, "checkpoint": <static name> | None}.
+    fault_class: dict[str, str | None]
 class BatchFaultError(RunFaultError):
     operation: Literal["reset", "step", "export"]
     policy: Literal["freeze", "isolate"]
