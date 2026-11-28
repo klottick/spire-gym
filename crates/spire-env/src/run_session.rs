@@ -11,6 +11,9 @@ pub enum RunSessionError {
     BranchFaulted,
     /// A redacted search fault. Contains no native owner or sampled identities.
     EngineBound(spire_core::combat::EngineBound),
+    /// spire-3zm: a redacted search core fault (message `BRANCH_CORE_FAULT`) with only its closed class and static
+    /// checkpoint; never the core error, its message, attempted action or card handles.
+    SearchCoreFault(spire_core::run::CoreFaultClass),
 }
 impl RunSessionError {
     pub fn engine_bound(&self) -> Option<spire_core::combat::EngineBound> {
@@ -469,6 +472,8 @@ impl RunRecordError{
             RunSessionError::Capacity{group,required,capacity}=>(K::Capacity,"Run capacity exceeded".into(),Some(RunCapacityFailure{group:(*group).into(),required:*required,capacity:*capacity})),
             RunSessionError::UnsupportedBoundary(s)=>(K::UnsupportedBoundary,(*s).into(),None),RunSessionError::DeliveryFault(s)=>(K::DeliveryFault,(*s).into(),None),RunSessionError::IncompatibleReplay(s)=>(K::IncompatibleReplay,(*s).into(),None),
             RunSessionError::Budget(s)=>(K::Budget,(*s).into(),None),RunSessionError::BranchFaulted=>(K::BranchFaulted,"branch faulted".into(),None),
+            // The record form of a redacted search core fault is unchanged (its class is a transport-only addition).
+            RunSessionError::SearchCoreFault(_)=>(K::DeliveryFault,crate::public_search::BRANCH_CORE_FAULT.into(),None),
         };Self{kind,message,capacity}
     }
 }

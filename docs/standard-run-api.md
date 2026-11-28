@@ -369,7 +369,8 @@ SHA-256 over the root's encoded Standard combat view and its public knowledge in
 A root fails closed with `UnsupportedBoundary` naming a class of reason, never a value: not in combat, terminal, faulted,
 closed or not reset; a captured, policy-v3 or Gym66 surface; draw knowledge beyond the exact model (L1); a pre-roll without a
 consistent set; a Runic Dome state outside the hidden-move model (L2, below: "hidden intents are not modelled", "a card read a
-hidden intent", "an executed enemy move was not identifiable", "a hidden pre-rolled value was shown by damage"); or a
+hidden intent", "an executed enemy move was not identifiable", "a hidden pre-rolled value was shown by damage", "a redrawn
+hidden-move world is not a valid combat state"); or a
 continuation outside the allow-list. The allow-list is one exhaustive
 match, nested kinds included, with no wildcard arm. It denies a randomly chosen autoplay target held across a suspended child
 play (Havoc, Mayhem, Distilled Chaos playing Secret Technique or Secret Weapon), a Flask of Poison bounce's chosen target, a
@@ -433,9 +434,17 @@ rejected with no effect. Limits are `max_live_branches`, `max_branches`, `max_st
 fork inherits its parent's count) and `max_total_steps`, each validated against the hard caps 4,096 / 1,048,576 / 100,000 /
 100,000,000. Creating past a branch limit, or stepping past the total, is a typed `Budget` error (Python `RunBudgetError`)
 with no effect. Reaching `max_steps_per_branch` ends the branch with `truncated=true` and end reason `step_limit`. A step
-fault freezes only its branch. The faulting step returns the class-only `DeliveryFault(BRANCH_CORE_FAULT)` (Python
-`RunFaultError`): the arena redacts every core error from a root or a branch, because a core fault carries the attempted
-action and its card instance. Later `step`, `fork` and `public_root` return `BranchFaulted` (Python `RunStateError`), the
+fault freezes only its branch. The faulting step returns the class-only `SearchCoreFault(class)` with the message
+`BRANCH_CORE_FAULT` (Python `RunFaultError`): the arena redacts every core error from a root or a branch, because a core
+fault carries the attempted action and its card instance. Only the error's closed class survives (spire-3zm, additive):
+`kind`, one of `CORE_FAULT_KINDS` (`invalid_ascension`, `invalid_action`, `unsupported`, `registry`, `terminal`,
+`bound`, `run_unsupported_boundary`, `run_invariant`, `combat_unsupported`, `combat_invariant`, `combat_effect_guard`,
+`combat_rng_exhausted`, or `panic` for a contained panic), one kind per `RunError`, `RunFaultKind` and combat
+`FaultKind` variant (the three engine-bound variants share `bound`, which search reports as `EngineBound` instead),
+and `checkpoint`, the static code-site name a retained fault records (for example `combat.runtime`; `None` otherwise). Neither carries a payload, message, action or handle. Python reports it as the
+`fault_class` dictionary (`{"kind": ..., "checkpoint": ...}`) on the scalar `RunFaultError` and on the per-entry fault
+dicts of `step_many` and `playout_many`, next to `bound` for engine bounds; the message and the existing keys are
+unchanged. Later `step`, `fork` and `public_root` return `BranchFaulted` (Python `RunStateError`), the
 accepted prefix (`actions`) and the last boundary stay readable, and nothing is retried or revived. A terminal or truncated
 branch cannot be forked. A step error after the engine committed (a publication or capacity error) faults the branch the
 same way. There is no native wall-clock limit; every call is bounded and consumers enforce deadlines between
@@ -561,7 +570,16 @@ core step on Gym66 v2 was 13.6 µs (base 14.6 µs) and on the M10 Run 11.5 and 1
     since that cuts its remaining hits;
   - for the rest of an enemy's life once its Louse Bite or Darkling Nip has been shown by damage, or once a Darkling's
     own attack was cut short: "a hidden pre-rolled value was shown by damage";
-  - for any change the record cannot classify, and for an enemy without a record: "hidden intents are not modelled".
+  - for any change the record cannot classify, and for an enemy without a record: "hidden intents are not modelled";
+  - if a redrawn world holds an enemy move history that the species' own move selection cannot produce: "a redrawn
+    hidden-move world is not a valid combat state". This is a backstop (spire-3zm) and no supported content is known to
+    reach it.
+
+  The fixed stand-in for a move an enemy was executing when it dropped to 0 HP is the first of the species' attacks that
+  its move cycle allows after the public history so far. For Spire Shield and Spire Spear that is the move the cycle
+  forces at that position, so every redrawn world stays a history the game can reach. Species without a fixed cycle keep
+  their first attack. When no attack fits, the record cannot classify the change, and the root is refused as "hidden
+  intents are not modelled".
 
   Every refusal and every record entry is a function of public history. Exact conditioning on card reads, and narrowing
   a pre-roll on executed damage, are not modelled.

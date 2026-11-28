@@ -2,6 +2,20 @@
 use super::super::*;
 use super::super::super::{ActorLife, CardDestination};
 
+/// The Corrupt Heart's move-history shape (spire-3zm, factored out of `validate_runtime`): Debilitate, then cycles of two
+/// different attacks (Blood Shots, Echo) and a Buff, the last cycle possibly partial. Memory correspondence stays in the
+/// validator.
+pub(in crate::combat) fn valid_history(history:&[FullIntentId])->bool{
+    if history.first().is_none_or(|id|id.as_str()!="heart_debilitate") {return false}
+    let attack=|id:&FullIntentId|matches!(id.as_str(),"heart_blood_shots"|"heart_echo");
+    history[1..].chunks(3).all(|cycle|match cycle{
+        [first]=>attack(first),
+        [first,second]=>attack(first)&&attack(second)&&first!=second,
+        [first,second,buff]=>attack(first)&&attack(second)&&first!=second&&buff.as_str()=="heart_buff",
+        _=>false,
+    })
+}
+
 pub(in crate::combat::enemies) fn select_move(history:&[FullIntentId],memory:&EnemyMemory,stream:&StreamState)->Result<MoveSelection,SelectError>{
     let EnemyMemory::CorruptHeart{selection_count,first_attack,..}=memory else {
         return Err(InputError::Invariant("Corrupt Heart memory absent".into()).into());

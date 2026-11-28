@@ -38,4 +38,5 @@ mod m38e_compact;
 mod d8g_runs;
 mod m39b_compact_combat;
 mod m41_playout;
+mod s3zm_search;
 mod m42_tiered_playout;

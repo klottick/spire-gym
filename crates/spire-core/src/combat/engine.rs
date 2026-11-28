@@ -1375,6 +1375,17 @@ impl Combat {
 
     #[cfg(test)]
     pub(crate) fn state_mut_for_test(&mut self)->&mut State{&mut self.state}
+    /// spire-3zm diagnostics (search tests only): give the player a full power at `amount` (replacing it).
+    #[cfg(feature = "m34-diagnostics")]
+    pub(crate) fn diagnostic_set_player_power(&mut self, id: &'static str, amount: i32) {
+        self.state.player_full_powers.retain(|p| p.id.0 != id);
+        self.state.player_full_powers.push(FullPowerEntry { id: FullPowerId(id), state: PowerState { amount, skip_first: false, monster_source_grace: false } });
+    }
+    /// spire-3zm diagnostics: set enemy `index`'s HP (capped at its maximum) and Block.
+    #[cfg(feature = "m34-diagnostics")]
+    pub(crate) fn diagnostic_set_enemy_hp_and_block(&mut self, index: usize, hp: i32, block: i32) {
+        if let Some(e) = self.state.enemies.get_mut(index) { (e.hp, e.block) = (hp.min(e.max_hp), block); }
+    }
     /// The one combat-level ascension (M29a2 owner).
     pub(crate) fn ascension(&self)->u8{self.state.ascension}
     /// Each enemy's species and damage bases (tests: Run-level routing checks).
@@ -2588,7 +2599,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                            ActorIntentId::Full(id)=>Some(*id),_=>None,
                        }).collect::<Option<Vec<_>>>();
                        require(usize::try_from(selections).ok()==Some(e.move_history.len())
-                           &&history.as_deref().is_some_and(|history|super::enemies::act4::shield_spear::valid_history(*enemy_id,history)),
+                           &&history.as_deref().is_some_and(|history|super::enemies::history_admits(*enemy_id,history)),
                            "Shield/Spear selection memory/history correspondence")?;
                    }
                 let heart=*enemy_id==crate::content::EnemyId::CorruptHeart;
@@ -2608,24 +2619,7 @@ pub(super) fn validate_runtime(state: &State) -> Result<(), InputError> {
                         _=>None,
                     };
                     let shape=memory.is_some_and(|(count,first_attack,buffs,last_buff)|{
-                        if history.len()!=count as usize+1||history.first().is_none_or(|id|id.as_str()!="heart_debilitate") {return false}
-                        let mut offset=1usize;
-                        while offset<history.len(){
-                            if offset+2<history.len(){
-                                let (first,second,buff)=(&history[offset],&history[offset+1],&history[offset+2]);
-                                if !matches!(first.as_str(),"heart_blood_shots"|"heart_echo")||first==second
-                                    ||!matches!(second.as_str(),"heart_blood_shots"|"heart_echo")||buff.as_str()!="heart_buff" {return false}
-                                offset+=3;
-                            }else if offset+1<history.len(){
-                                let (first,second)=(&history[offset],&history[offset+1]);
-                                if !matches!(first.as_str(),"heart_blood_shots"|"heart_echo")||first==second
-                                    ||!matches!(second.as_str(),"heart_blood_shots"|"heart_echo") {return false}
-                                offset+=2;
-                            }else{
-                                if !matches!(history[offset].as_str(),"heart_blood_shots"|"heart_echo") {return false}
-                                offset+=1;
-                            }
-                        }
+                        if history.len()!=count as usize+1||!super::enemies::history_admits(*enemy_id,&history) {return false}
                         if count==0 {return intent.as_str()=="heart_debilitate"&&first_attack.is_none()&&buffs==0&&last_buff.is_none()}
                         let latest_first=history.get(1+((count as usize-1)/3)*3).map(|id|id.as_str());
                         let first_matches=match (latest_first,first_attack){(Some("heart_blood_shots"),Some(true))|(Some("heart_echo"),Some(false))=>true,_=>false};

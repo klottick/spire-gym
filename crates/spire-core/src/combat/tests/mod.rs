@@ -243,6 +243,7 @@ mod m34s_draw_rows;
 mod m34s_knowledge;
 mod m34s_belief;
 mod m40c_hidden_intents;
+mod s3zm_truncation_grammar;
 mod m34s_card_ties;
 mod m34s_positions;
 mod x3q_findings;

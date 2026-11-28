@@ -23,6 +23,8 @@ pub(crate) enum Leak {
     KeepHiddenMove, RecordPostRollMemory, ReplayLiveStream, DigestWithoutMoves, NoMonitor, RawChainHistory,
     KeepRetiredResidue, SkipMarkSpot, SkipMarkEyes, SkipMarkFne, LiveMemoryKeepsNip, ClearReadOnReroll, SkipPrerollShown,
     AcceptAmbiguous, EarlyAmbiguityClear, AmbiguityStandInFromLater, StickyRetire, IgnoreTruncation, DeadMoveExecutes,
+    // spire-3zm negative control: the v1 grammar-blind truncation stand-in (the species' first damage key).
+    GrammarBlindStandIn,
 }
 #[cfg(test)]
 thread_local! { pub(crate) static LEAK: std::cell::Cell<Option<Leak>> = const { std::cell::Cell::new(None) }; }
@@ -50,6 +52,9 @@ pub enum Unsupported {
     HiddenMoveAmbiguous,
     /// M40c: a hidden pre-rolled value (Louse Bite, Darkling Nip) was shown by damage.
     HiddenPrerollShown,
+    /// spire-3zm: a redrawn hidden-move world is not a history the enemies' move selection can produce (a stand-in
+    /// defect backstop; never expected).
+    HiddenWorldInvalid,
     /// A queued or held continuation outside the allow-list; the static label names its kind.
     DisallowedContinuation(&'static str),
     /// The draw knowledge exceeds the exact model (L1).
@@ -68,6 +73,7 @@ impl Unsupported {
             Self::HiddenIntentRead => "a card read a hidden intent",
             Self::HiddenMoveAmbiguous => "an executed enemy move was not identifiable",
             Self::HiddenPrerollShown => "a hidden pre-rolled value was shown by damage",
+            Self::HiddenWorldInvalid => "a redrawn hidden-move world is not a valid combat state",
             Self::DisallowedContinuation(kind) => kind,
             Self::UnrepresentableKnowledge => "draw knowledge exceeds the exact model",
             Self::UnrepresentablePreroll => "a pre-rolled value has no consistent set",

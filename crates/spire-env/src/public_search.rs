@@ -73,9 +73,12 @@ pub const HIDDEN_ORDER_PICK: &str = "a pick among identical draw-pile copies dep
 /// The class-only error for a core fault or core error inside a root or a branch (final review v3): a core error can carry
 /// the attempted action, whose card instance handle is outside the public information set, so the arena never returns it.
 pub const BRANCH_CORE_FAULT: &str = "search core fault (redacted)";
+/// spire-3zm: a non-bound core error keeps only its closed class and static checkpoint (`RunError::fault_class`).
 fn redacted(core: spire_core::run::RunError) -> Error {
-    core.engine_bound().map_or(Error::DeliveryFault(BRANCH_CORE_FAULT), Error::EngineBound)
+    core.engine_bound().map_or_else(|| Error::SearchCoreFault(core.fault_class()), Error::EngineBound)
 }
+/// The redacted fault of a panic contained by the arena's unwind guard.
+const PANIC_FAULT: Error = Error::SearchCoreFault(spire_core::run::CoreFaultClass::PANIC);
 /// Redact a core error coming out of a shared publication or session helper.
 fn redact(e: Error) -> Error { match e { Error::Core(core) => redacted(core), e => e } }
 /// Declared search limits (design §4.7), validated against [`SEARCH_HARD_CAPS`].
@@ -370,7 +373,7 @@ fn play_branch(id: u64, branch: &mut Branch, cap: u64, max_steps: u64, caps: &Ru
         let (index, result) = match attempt {
             Ok(PlayoutStep::Stop(code)) => break ("refused", Some(code)),
             Ok(PlayoutStep::Advanced(i, r)) => (i as i64, r),
-            Err(_) => (0, Err((Error::DeliveryFault(BRANCH_CORE_FAULT), "panic", true))),
+            Err(_) => (0, Err((PANIC_FAULT, "panic", true))),
         };
         steps += 1;
         match result {
@@ -727,7 +730,7 @@ impl PublicSearch {
         let advanced = scheduler.map_mut(&mut worlds, jobs, |_, (_, branch), action| {
             match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| advance(&mut branch.run, &action, view, &caps, layout))) {
                 Ok(advanced) => advanced,
-                Err(_) => Advanced::Fault { error: Error::DeliveryFault(BRANCH_CORE_FAULT), stage: "panic", committed: true },
+                Err(_) => Advanced::Fault { error: PANIC_FAULT, stage: "panic", committed: true },
             }
         }).map_err(|_| Error::DeliveryFault("step_many allocation failed"))?;
         let mut by_input: Vec<Option<Advanced>> = (0..steps.len()).map(|_| None).collect();

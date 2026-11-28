@@ -26,7 +26,22 @@ pub(crate) fn bound_value(py: Python<'_>, bound: spire_core::combat::EngineBound
     }
     Ok(value)
 }
+/// spire-3zm: the closed class of a redacted search core fault (`kind` from `spire_core::run::CORE_FAULT_KINDS`, the static
+/// `checkpoint` or `None`).
+pub(crate) fn fault_class_value(py: Python<'_>, class: spire_core::run::CoreFaultClass) -> PyResult<Bound<'_, PyDict>> {
+    let value = PyDict::new(py);
+    value.set_item("kind", class.kind)?;
+    value.set_item("checkpoint", class.checkpoint)?;
+    Ok(value)
+}
 pub(crate) fn error(e:RunSessionError)->PyErr{
+    if let RunSessionError::SearchCoreFault(class) = e {
+        return Python::attach(|py| {
+            let error = RunFaultError::new_err(spire_env::BRANCH_CORE_FAULT);
+            let attach = || error.value(py).setattr("fault_class", fault_class_value(py, class)?);
+            attach().err().unwrap_or(error)
+        });
+    }
     if let Some(bound) = e.engine_bound() {
         return Python::attach(|py| {
             let error = RunFaultError::new_err(bound.to_string());
@@ -39,6 +54,7 @@ pub(crate) fn error(e:RunSessionError)->PyErr{
     RunSessionError::UnsupportedBoundary(s)=>RunUnsupportedBoundaryError::new_err(s),RunSessionError::DeliveryFault(s)=>RunFaultError::new_err(s),RunSessionError::Capacity{group,required,capacity}=>RunFaultError::new_err(format!("Run capacity {group}: {required} > {capacity}")),RunSessionError::IncompatibleReplay(s)=>RunInputError::new_err(s),RunSessionError::Core(_)=>RunFaultError::new_err("native Run fault; inspect privileged reproduction"),
     RunSessionError::EngineBound(bound) => RunFaultError::new_err(bound.to_string()),
     RunSessionError::Budget(s)=>RunBudgetError::new_err(s),RunSessionError::BranchFaulted=>RunStateError::new_err("search branch is faulted"),
+    RunSessionError::SearchCoreFault(_)=>RunFaultError::new_err(spire_env::BRANCH_CORE_FAULT),
 }}
 #[derive(Clone,Copy,Debug,PartialEq,Eq)]
 pub(crate) enum RunProfile{M9IroncladAct3,M10IroncladHeart,M10IroncladPolicy,Standard}

@@ -380,6 +380,7 @@ pub(crate) fn error_message(error: &RunSessionError, combat: bool) -> String {
         RunSessionError::Core(_) => "native Run fault; inspect privileged reproduction".to_owned(),
         RunSessionError::EngineBound(bound) => bound.to_string(),
         RunSessionError::BranchFaulted => "search branch is faulted".to_owned(),
+        RunSessionError::SearchCoreFault(_) => spire_env::BRANCH_CORE_FAULT.to_owned(),
     }
 }
 
@@ -530,5 +531,18 @@ mod m38e_tests {
         let full = fault_cause_record(&capacity);
         assert_eq!(full.kind, spire_env::RunRecordErrorKind::Capacity);
         assert_eq!(full.capacity.unwrap().group, "player");
+    }
+
+    /// spire-3zm: a redacted search core fault keeps the class-only message on every Python text surface and the old
+    /// record form (`DeliveryFault`, `BRANCH_CORE_FAULT`); its class is never part of the message.
+    #[test]
+    fn search_core_fault_keeps_the_redacted_message_and_record_form() {
+        let class = spire_core::run::CoreFaultClass { kind: "combat_invariant", checkpoint: Some("combat.runtime") };
+        for error in [RunSessionError::SearchCoreFault(class), RunSessionError::SearchCoreFault(spire_core::run::CoreFaultClass::PANIC)] {
+            assert_eq!(error_message(&error, false), spire_env::BRANCH_CORE_FAULT);
+            assert_eq!(error_message(&error, true), spire_env::BRANCH_CORE_FAULT);
+            let record = fault_cause_record(&error);
+            assert_eq!((record.kind, record.message.as_str(), record.capacity), (spire_env::RunRecordErrorKind::DeliveryFault, spire_env::BRANCH_CORE_FAULT, None));
+        }
     }
 }

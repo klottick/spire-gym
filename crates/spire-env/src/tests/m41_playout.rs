@@ -597,7 +597,7 @@ fn t11_faults_are_isolated_and_exact() {
     diagnostics::supplied_fault(s.branch_run_for_test(ids[0]));
     let out = s.playout_many(&r, &config).unwrap();
     let sib = clean.playout_many(&reqs(&clean, &cids[1..]), &config).unwrap();
-    assert!(matches!(&out[0], BranchPlayoutOutcome::Fault { error: RunSessionError::DeliveryFault(BRANCH_CORE_FAULT), stage: "step", committed: true, steps: 1, branch_steps: 3 }), "{:?}", out[0]);
+    assert!(matches!(&out[0], BranchPlayoutOutcome::Fault { error: RunSessionError::SearchCoreFault(spire_core::run::CoreFaultClass { kind: "run_invariant", checkpoint: Some("m34s.supplied-fault") }), stage: "step", committed: true, steps: 1, branch_steps: 3 }), "{:?}", out[0]);
     assert_eq!(s.actions(ids[0]).unwrap(), clean.actions(cids[0]).unwrap(), "prefix at the last published boundary");
     for (g, w) in out[1..].iter().zip(&sib) { assert_eq!(normalized(g), normalized(w), "siblings unaffected"); }
     assert_eq!(s.playout_many(&reqs(&s, &ids[..1]).iter().map(|r| BranchPlayoutRequest { token: RunDecisionToken([ids[0].0, 3]), ..*r }).collect::<Vec<_>>(), &config).err(), Some(RunSessionError::BranchFaulted), "never revived");
@@ -621,7 +621,7 @@ fn t11_faults_are_isolated_and_exact() {
     let out = p.playout_many(&reqs(&p, &pids), &config);
     crate::public_search::PANIC_PLAYOUT_AT.with(|c| c.set(None));
     let out = out.unwrap();
-    assert_eq!(out[1], BranchPlayoutOutcome::Fault { error: RunSessionError::DeliveryFault(BRANCH_CORE_FAULT), stage: "panic", committed: true, steps: 3, branch_steps: 3 });
+    assert_eq!(out[1], BranchPlayoutOutcome::Fault { error: RunSessionError::SearchCoreFault(spire_core::run::CoreFaultClass::PANIC), stage: "panic", committed: true, steps: 3, branch_steps: 3 });
     assert_eq!(p.actions(pids[1]).unwrap().len(), 2);
     assert!(out.iter().enumerate().all(|(i, o)| i == 1 || matches!(o, BranchPlayoutOutcome::Finished(_))));
     let charged: u64 = out.iter().map(|o| match o { BranchPlayoutOutcome::Finished(x) => x.steps, BranchPlayoutOutcome::Fault { steps, .. } => *steps }).sum();

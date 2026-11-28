@@ -5,7 +5,34 @@ entries are retained in [observation vocabulary history](docs/observation-vocabu
 
 ## Unreleased
 
-No changes yet.
+- Fixed (spire-3zm): Standard public search on a Runic Dome root could hand out redrawn worlds that the engine rejects.
+  When an enemy drops to 0 HP during its own move under hidden intents, the search records a fixed public stand-in for
+  that move. The stand-in was the species' first attack, whatever its position in the move cycle. For Spire Spear (killed
+  during Skewer) and Spire Shield (killed during Smash), this produced a move history the game cannot reach. Any later
+  branch step that stopped at a selection (an exhaust, discard or other hand choice), including inside `playout_many`,
+  then faulted with the redacted core fault.
+  - The stand-in is now the first attack that the species' move cycle allows after the public history. The cycles of
+    Spire Shield, Spire Spear and Corrupt Heart now have one owner, shared with the engine's state validation.
+  - Gameplay is unchanged: the records are never read by a rule. Rules IDs, replay digests, Heart pins, fingerprints
+    and layouts are unchanged, and the search and belief contracts stay at `spire-gym-public-search-v1` and
+    `spire-gym-public-belief-v1`.
+  - The only roots whose digest or worlds change are Runic Dome roots after a Shield or Spear death at such a slot. Those
+    roots previously faulted at their next selection.
+- Additive (spire-3zm): the public root refusal reason "a redrawn hidden-move world is not a valid combat state"
+  (`Unsupported::HiddenWorldInvalid`). It is a backstop that refuses a root whose redrawn enemy history the species'
+  move selection could not produce, instead of faulting later; no supported content is known to reach it.
+- Additive (spire-3zm): a redacted public-search core fault now carries its closed class.
+  - The Rust error is `RunSessionError::SearchCoreFault(CoreFaultClass)`, replacing
+    `DeliveryFault(BRANCH_CORE_FAULT)` for core faults and contained panics. `CoreFaultClass` has `kind` (one of
+    `spire_core::run::CORE_FAULT_KINDS`) and the static `checkpoint`.
+  - Python exposes it as `fault_class` on the scalar `RunFaultError` and on the `step_many` and `playout_many` fault
+    dicts.
+  - The message stays `search core fault (redacted)`, and the existing keys and the record form are unchanged.
+  - Rust callers that matched `DeliveryFault(BRANCH_CORE_FAULT)` on these search results should match
+    `SearchCoreFault(_)` instead, or use `RunRecordError::from_error`, which still returns the old record form. The
+    Python surface is unchanged apart from the added `fault_class`.
+  - Two test-only diagnostics hooks (`supply_player_power`, `supply_enemy_hp_and_block`) are added behind
+    `m34-diagnostics`.
 
 ## 1.2.5 — effective at the commit tagged v1.2.5
 

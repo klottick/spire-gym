@@ -341,7 +341,9 @@ fn fault_or_terminal_root_is_unsupported() {
 #[test]
 fn unsupported_reasons_name_no_values() {
     let all = [Unsupported::NoPublicKnowledge, Unsupported::Terminal, Unsupported::Faulted, Unsupported::NotAtDecision, Unsupported::HiddenIntents,
+        Unsupported::HiddenIntentRead, Unsupported::HiddenMoveAmbiguous, Unsupported::HiddenPrerollShown, Unsupported::HiddenWorldInvalid,
         Unsupported::DisallowedContinuation("x"), Unsupported::UnrepresentableKnowledge, Unsupported::UnrepresentablePreroll];
+    assert_eq!(all.iter().map(|u| u.reason()).collect::<std::collections::BTreeSet<_>>().len(), all.len(), "every class has its own reason");
     for u in all { assert!(!u.reason().chars().any(|c| c.is_ascii_digit()), "{u:?}"); assert!(!format!("{u:?}").chars().any(|c| c.is_ascii_digit())); }
 }
 
